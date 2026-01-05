@@ -1,0 +1,64 @@
+package com.bugbounty.jakartamigration.coderefactoring.service;
+
+import com.bugbounty.jakartamigration.coderefactoring.domain.Recipe;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Library of refactoring recipes.
+ */
+public class RecipeLibrary {
+    
+    private final Map<String, Recipe> recipes = new ConcurrentHashMap<>();
+    
+    public RecipeLibrary() {
+        // Register default Jakarta migration recipes
+        registerRecipe(Recipe.jakartaNamespaceRecipe());
+        registerRecipe(Recipe.persistenceXmlRecipe());
+        registerRecipe(Recipe.webXmlRecipe());
+    }
+    
+    /**
+     * Gets a recipe by name.
+     */
+    public Optional<Recipe> getRecipe(String name) {
+        return Optional.ofNullable(recipes.get(name));
+    }
+    
+    /**
+     * Gets all Jakarta migration recipes.
+     */
+    public List<Recipe> getJakartaRecipes() {
+        return recipes.values().stream()
+            .filter(recipe -> recipe.name().contains("Jakarta") || 
+                             recipe.name().contains("Persistence") ||
+                             recipe.name().contains("Web"))
+            .toList();
+    }
+    
+    /**
+     * Registers a new recipe.
+     */
+    public void registerRecipe(Recipe recipe) {
+        if (recipe == null) {
+            throw new IllegalArgumentException("Recipe cannot be null");
+        }
+        recipes.put(recipe.name(), recipe);
+    }
+    
+    /**
+     * Returns all registered recipes.
+     */
+    public List<Recipe> getAllRecipes() {
+        return new ArrayList<>(recipes.values());
+    }
+    
+    /**
+     * Checks if a recipe exists.
+     */
+    public boolean hasRecipe(String name) {
+        return recipes.containsKey(name);
+    }
+}
+
