@@ -1,0 +1,42 @@
+{
+  "name": "@jakarta-migration/mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Jakarta EE migration analysis and automation",
+  "main": "index.js",
+  "bin": {
+    "jakarta-migration-mcp": "./index.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "jakarta",
+    "java",
+    "migration",
+    "spring-boot",
+    "mcp-server"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/JakartaMigrationMCP.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "os": [
+    "win32",
+    "linux",
+    "darwin"
+  ],
+  "files": [
+    "index.js",
+    "scripts/",
+    "README.md",
+    "LICENSE"
+  ]
+}
+

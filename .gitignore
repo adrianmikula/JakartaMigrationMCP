@@ -45,3 +45,12 @@ pom.xml
 .memory-bank/
 .cursor/mcp-config.json
 
+# npm
+node_modules/
+package-lock.json
+npm-debug.log*
+
+# Release artifacts
+release/
+*.tgz
+
