@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("RecipeLibrary Tests")
 class RecipeLibraryTest {
@@ -70,6 +71,41 @@ class RecipeLibraryTest {
         // Then
         assertThat(retrieved).isPresent();
         assertThat(retrieved.get()).isEqualTo(customRecipe);
+    }
+
+    @Test
+    @DisplayName("Should throw exception when registering null recipe")
+    void shouldThrowExceptionWhenRegisteringNullRecipe() {
+        // Given & When & Then
+        assertThatThrownBy(() -> recipeLibrary.registerRecipe(null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("cannot be null");
+    }
+
+    @Test
+    @DisplayName("Should return all registered recipes")
+    void shouldGetAllRecipes() {
+        // When
+        List<Recipe> allRecipes = recipeLibrary.getAllRecipes();
+        
+        // Then
+        assertThat(allRecipes).isNotEmpty();
+        assertThat(allRecipes.size()).isGreaterThanOrEqualTo(3); // Default recipes
+        assertThat(allRecipes).anyMatch(r -> r.name().equals("AddJakartaNamespace"));
+        assertThat(allRecipes).anyMatch(r -> r.name().equals("UpdatePersistenceXml"));
+        assertThat(allRecipes).anyMatch(r -> r.name().equals("UpdateWebXml"));
+    }
+
+    @Test
+    @DisplayName("Should check if recipe exists")
+    void shouldCheckIfRecipeExists() {
+        // Given
+        String existingRecipe = "AddJakartaNamespace";
+        String nonExistentRecipe = "NonExistentRecipe";
+        
+        // When & Then
+        assertThat(recipeLibrary.hasRecipe(existingRecipe)).isTrue();
+        assertThat(recipeLibrary.hasRecipe(nonExistentRecipe)).isFalse();
     }
 }
 
