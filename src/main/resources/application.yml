@@ -42,6 +42,31 @@ app:
     task:
       interval-ms: 300000  # 5 minutes
 
+# Jakarta Migration Feature Flags Configuration
+jakarta:
+  migration:
+    feature-flags:
+      # Enable/disable feature flags (set to false for development/testing)
+      enabled: true
+      
+      # Default license tier when no license key is provided
+      # Options: COMMUNITY, PREMIUM, ENTERPRISE
+      default-tier: COMMUNITY
+      
+      # License key for premium features
+      # Can be set via environment variable: JAKARTA_MCP_LICENSE_KEY
+      license-key: ${JAKARTA_MCP_LICENSE_KEY:}
+      
+      # Per-feature overrides (optional)
+      # Allows enabling/disabling specific features regardless of tier
+      # Useful for testing or gradual rollouts
+      features:
+        # Example: Enable auto-fixes for testing
+        # auto-fixes: true
+        
+        # Example: Disable cloud hosting even for premium users
+        # cloud-hosting: false
+
 # Logging Configuration
 logging:
   level:

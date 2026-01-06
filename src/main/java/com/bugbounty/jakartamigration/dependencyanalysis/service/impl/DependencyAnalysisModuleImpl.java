@@ -142,11 +142,11 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
         NamespaceCompatibilityMap namespaceMap = identifyNamespaces(graph);
         
         // Check for mixed namespaces in transitive dependencies
-        for (Artifact artifact : graph.nodes()) {
+        for (Artifact artifact : graph.getNodes()) {
             Namespace artifactNamespace = namespaceMap.get(artifact);
             
             // Find dependencies of this artifact
-            List<Artifact> dependencies = graph.edges().stream()
+            List<Artifact> dependencies = graph.getEdges().stream()
                 .filter(e -> e.from().equals(artifact))
                 .map(e -> e.to())
                 .collect(Collectors.toList());
@@ -158,20 +158,29 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
                 .anyMatch(dep -> namespaceMap.get(dep) == Namespace.JAKARTA);
             
             if (hasJavax && hasJakarta) {
-                conflicts.add(new TransitiveConflict(
-                    artifact,
-                    "Mixed javax and jakarta namespaces in transitive dependencies",
-                    dependencies.stream()
-                        .filter(dep -> namespaceMap.get(dep) == Namespace.JAVAX)
-                        .collect(Collectors.toList()),
-                    dependencies.stream()
-                        .filter(dep -> namespaceMap.get(dep) == Namespace.JAKARTA)
-                        .collect(Collectors.toList())
-                ));
+                // Find a conflicting artifact (first javax dependency)
+                Artifact conflictingArtifact = dependencies.stream()
+                    .filter(dep -> namespaceMap.get(dep) == Namespace.JAVAX)
+                    .findFirst()
+                    .orElse(null);
+                
+                if (conflictingArtifact != null) {
+                    conflicts.add(new TransitiveConflict(
+                        artifact,
+                        conflictingArtifact,
+                        "MIXED_NAMESPACES",
+                        "Mixed javax and jakarta namespaces in transitive dependencies"
+                    ));
+                }
             }
         }
         
-        return new TransitiveConflictReport(conflicts);
+        int totalConflicts = conflicts.size();
+        String summary = totalConflicts == 0 
+            ? "No transitive conflicts found"
+            : String.format("Found %d transitive dependency conflict(s)", totalConflicts);
+        
+        return new TransitiveConflictReport(conflicts, totalConflicts, summary);
     }
     
     private RiskAssessment calculateRiskAssessment(
@@ -216,7 +225,7 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
         }
         
         // Count Jakarta-compatible dependencies
-        long jakartaCount = namespaceMap.getMap().values().stream()
+        long jakartaCount = namespaceMap.getAll().values().stream()
             .filter(ns -> ns == Namespace.JAKARTA)
             .count();
         
@@ -277,7 +286,7 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
             jakartaArtifactId,
             version,
             javaxArtifact.scope(),
-            javaxArtifact.optional()
+            javaxArtifact.transitive()
         );
     }
     

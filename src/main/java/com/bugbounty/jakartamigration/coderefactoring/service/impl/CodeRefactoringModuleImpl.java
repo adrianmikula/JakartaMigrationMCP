@@ -157,9 +157,8 @@ public class CodeRefactoringModuleImpl implements CodeRefactoringModule {
         // Calculate statistics
         RefactoringStatistics statistics = new RefactoringStatistics(
             filesToProcess.size(),
-            refactoredFiles.size(),
             failures.size(),
-            (double) refactoredFiles.size() / filesToProcess.size() * 100
+            refactoredFiles.size()
         );
         
         return new RefactoringResult(

@@ -7,6 +7,8 @@ import com.bugbounty.jakartamigration.dependencyanalysis.domain.*;
 import com.bugbounty.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import com.bugbounty.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
 import com.bugbounty.jakartamigration.dependencyanalysis.service.DependencyGraphException;
+import com.bugbounty.jakartamigration.config.FeatureFlag;
+import com.bugbounty.jakartamigration.config.FeatureFlagsService;
 import com.bugbounty.jakartamigration.runtimeverification.domain.VerificationOptions;
 import com.bugbounty.jakartamigration.runtimeverification.domain.VerificationResult;
 import com.bugbounty.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
@@ -37,6 +39,7 @@ public class JakartaMigrationTools {
     private final MigrationPlanner migrationPlanner;
     private final RecipeLibrary recipeLibrary;
     private final RuntimeVerificationModule runtimeVerificationModule;
+    private final FeatureFlagsService featureFlags;
     
     /**
      * Analyzes a Java project for Jakarta migration readiness.
@@ -120,7 +123,7 @@ public class JakartaMigrationTools {
             DependencyGraph graph = dependencyGraphBuilder.buildFromProject(project);
             
             // Get all artifacts
-            List<Artifact> artifacts = graph.nodes().stream().collect(Collectors.toList());
+            List<Artifact> artifacts = graph.getNodes().stream().collect(Collectors.toList());
             
             // Get recommendations
             List<VersionRecommendation> recommendations = dependencyAnalysisModule.recommendVersions(artifacts);
@@ -216,7 +219,7 @@ public class JakartaMigrationTools {
         json.append("{\n");
         json.append("  \"status\": \"success\",\n");
         json.append("  \"readinessScore\": ").append(report.readinessScore().score()).append(",\n");
-        json.append("  \"readinessMessage\": \"").append(escapeJson(report.readinessScore().message())).append("\",\n");
+        json.append("  \"readinessMessage\": \"").append(escapeJson(report.readinessScore().explanation())).append("\",\n");
         json.append("  \"totalDependencies\": ").append(report.dependencyGraph().nodeCount()).append(",\n");
         json.append("  \"blockers\": ").append(report.blockers().size()).append(",\n");
         json.append("  \"recommendations\": ").append(report.recommendations().size()).append(",\n");
@@ -289,7 +292,7 @@ public class JakartaMigrationTools {
         for (int i = 0; i < plan.phases().size(); i++) {
             var phase = plan.phases().get(i);
             json.append("    {\n");
-            json.append("      \"number\": ").append(phase.number()).append(",\n");
+            json.append("      \"number\": ").append(phase.phaseNumber()).append(",\n");
             json.append("      \"description\": \"").append(escapeJson(phase.description())).append("\",\n");
             json.append("      \"fileCount\": ").append(phase.files().size()).append(",\n");
             json.append("      \"estimatedDuration\": \"").append(phase.estimatedDuration().toMinutes()).append(" minutes\"\n");
@@ -338,6 +341,17 @@ public class JakartaMigrationTools {
                "}";
     }
     
+    private String createUpgradeRequiredResponse(FeatureFlag flag, String message) {
+        String upgradeMessage = featureFlags.getUpgradeMessage(flag);
+        return "{\n" +
+               "  \"status\": \"upgrade_required\",\n" +
+               "  \"message\": \"" + escapeJson(message) + "\",\n" +
+               "  \"upgradeMessage\": \"" + escapeJson(upgradeMessage) + "\",\n" +
+               "  \"requiredTier\": \"" + flag.getRequiredTier() + "\",\n" +
+               "  \"currentTier\": \"" + featureFlags.getCurrentTier() + "\"\n" +
+               "}";
+    }
+    
     private String buildStringArray(List<String> list) {
         if (list.isEmpty()) {
             return "[]";
@@ -356,6 +370,17 @@ public class JakartaMigrationTools {
                   .replace("\n", "\\n")
                   .replace("\r", "\\r")
                   .replace("\t", "\\t");
+    }
+    
+    private String createUpgradeRequiredResponse(FeatureFlag flag, String message) {
+        String upgradeMessage = featureFlags.getUpgradeMessage(flag);
+        return "{\n" +
+               "  \"status\": \"upgrade_required\",\n" +
+               "  \"message\": \"" + escapeJson(message) + "\",\n" +
+               "  \"upgradeMessage\": \"" + escapeJson(upgradeMessage) + "\",\n" +
+               "  \"requiredTier\": \"" + flag.getRequiredTier() + "\",\n" +
+               "  \"currentTier\": \"" + featureFlags.getCurrentTier() + "\"\n" +
+               "}";
     }
 }
 

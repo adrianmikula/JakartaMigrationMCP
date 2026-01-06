@@ -10,6 +10,7 @@ import com.bugbounty.jakartamigration.dependencyanalysis.service.impl.MavenDepen
 import com.bugbounty.jakartamigration.dependencyanalysis.service.impl.SimpleNamespaceClassifier;
 import com.bugbounty.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
 import com.bugbounty.jakartamigration.runtimeverification.service.impl.RuntimeVerificationModuleImpl;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -18,6 +19,7 @@ import org.springframework.context.annotation.Configuration;
  * Wires up all the service implementations.
  */
 @Configuration
+@EnableConfigurationProperties(FeatureFlagsProperties.class)
 public class JakartaMigrationConfig {
     
     @Bean
