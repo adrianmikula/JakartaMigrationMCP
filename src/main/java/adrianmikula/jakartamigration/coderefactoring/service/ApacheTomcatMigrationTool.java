@@ -56,19 +56,18 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class ApacheTomcatMigrationTool {
     
-    private static final String DEFAULT_TOOL_JAR = "jakartaee-migration-*-shaded.jar";
     private static final long DEFAULT_TIMEOUT_SECONDS = 300; // 5 minutes
     
-    private final Path toolJarPath;
+    private Path toolJarPath;  // Lazy initialization - only resolved when needed
     private final long timeoutSeconds;
     
     /**
      * Creates a new instance with default tool location.
-     * The tool JAR should be available in the system PATH or specified via
-     * environment variable JAKARTA_MIGRATION_TOOL_PATH.
+     * The tool JAR will be found/downloaded lazily on first use, not at construction time.
+     * This prevents startup delays and failures if the tool is not available.
      */
     public ApacheTomcatMigrationTool() {
-        this.toolJarPath = findToolJar();
+        this.toolJarPath = null;  // Will be resolved lazily when migrate() is called
         this.timeoutSeconds = DEFAULT_TIMEOUT_SECONDS;
     }
     
@@ -81,7 +80,7 @@ public class ApacheTomcatMigrationTool {
         if (toolJarPath == null || !Files.exists(toolJarPath)) {
             throw new IllegalArgumentException("Tool JAR path must exist: " + toolJarPath);
         }
-        this.toolJarPath = toolJarPath;
+        this.toolJarPath = toolJarPath;  // Explicitly provided, use immediately
         this.timeoutSeconds = DEFAULT_TIMEOUT_SECONDS;
     }
     
@@ -95,7 +94,7 @@ public class ApacheTomcatMigrationTool {
         if (toolJarPath == null || !Files.exists(toolJarPath)) {
             throw new IllegalArgumentException("Tool JAR path must exist: " + toolJarPath);
         }
-        this.toolJarPath = toolJarPath;
+        this.toolJarPath = toolJarPath;  // Explicitly provided, use immediately
         this.timeoutSeconds = timeoutSeconds;
     }
     
@@ -113,6 +112,11 @@ public class ApacheTomcatMigrationTool {
         }
         if (destinationPath == null) {
             throw new IllegalArgumentException("Destination path cannot be null");
+        }
+        
+        // Lazy initialization: find/download tool only when actually needed
+        if (toolJarPath == null) {
+            toolJarPath = findToolJar();
         }
         
         if (toolJarPath == null) {
@@ -213,27 +217,37 @@ public class ApacheTomcatMigrationTool {
     
     /**
      * Checks if the migration tool is available.
+     * This will trigger lazy initialization if the tool hasn't been found yet.
      *
      * @return true if the tool JAR is found and accessible
      */
     public boolean isAvailable() {
+        if (toolJarPath == null) {
+            toolJarPath = findToolJar();
+        }
         return toolJarPath != null && Files.exists(toolJarPath);
     }
     
     /**
      * Gets the path to the migration tool JAR.
+     * This will trigger lazy initialization if the tool hasn't been found yet.
      *
      * @return Path to the tool JAR, or null if not found
      */
     public Path getToolJarPath() {
+        if (toolJarPath == null) {
+            toolJarPath = findToolJar();
+        }
         return toolJarPath;
     }
     
     /**
      * Finds the migration tool JAR in the system, or downloads it if not found.
+     * This is called lazily on first use, not at construction time, to prevent startup delays.
+     * 
      * Checks:
      * 1. JAKARTA_MIGRATION_TOOL_PATH environment variable (optional override)
-     * 2. Cache directory (auto-downloaded tool)
+     * 2. Cache directory (checks for existing cached tool, downloads only if missing)
      * 3. Common installation locations
      *
      * @return Path to the tool JAR, or null if not found and download fails
@@ -249,13 +263,24 @@ public class ApacheTomcatMigrationTool {
             }
         }
         
-        // Check cache directory (auto-downloaded tool)
-        try {
-            ToolDownloader downloader = new ToolDownloader();
-            Path cachedJar = downloader.downloadApacheTomcatMigrationTool();
+        // Check cache directory first (without downloading)
+        Path cacheDir = getCacheDirectory();
+        if (cacheDir != null) {
+            Path cachedJar = findCachedJar(cacheDir);
             if (cachedJar != null && Files.exists(cachedJar)) {
-                log.info("Using auto-downloaded migration tool from cache: {}", cachedJar);
+                log.info("Using cached Apache Tomcat migration tool: {}", cachedJar);
                 return cachedJar;
+            }
+        }
+        
+        // Only download if not found in cache (lazy download on demand)
+        try {
+            log.info("Apache Tomcat migration tool not found in cache, downloading on demand...");
+            ToolDownloader downloader = new ToolDownloader();
+            Path downloadedJar = downloader.downloadApacheTomcatMigrationTool();
+            if (downloadedJar != null && Files.exists(downloadedJar)) {
+                log.info("Apache Tomcat migration tool downloaded successfully: {}", downloadedJar);
+                return downloadedJar;
             }
         } catch (IOException e) {
             log.warn("Failed to download migration tool: {}", e.getMessage());
@@ -295,6 +320,53 @@ public class ApacheTomcatMigrationTool {
                  "download from https://tomcat.apache.org/download-migration.cgi");
         
         return null;
+    }
+    
+    /**
+     * Gets the cache directory for tools (without creating it).
+     * Returns null if the directory doesn't exist.
+     */
+    private Path getCacheDirectory() {
+        try {
+            String osName = System.getProperty("os.name", "").toLowerCase();
+            Path cacheDir;
+            
+            if (osName.contains("win")) {
+                // Windows: %USERPROFILE%\AppData\Local\jakarta-migration-tools
+                String userHome = System.getProperty("user.home");
+                cacheDir = Paths.get(userHome, "AppData", "Local", "jakarta-migration-tools");
+            } else {
+                // Linux/macOS: ~/.cache/jakarta-migration-tools
+                String userHome = System.getProperty("user.home");
+                cacheDir = Paths.get(userHome, ".cache", "jakarta-migration-tools");
+            }
+            
+            // Only return if directory exists (don't create it here)
+            return Files.exists(cacheDir) ? cacheDir : null;
+        } catch (Exception e) {
+            log.debug("Could not determine cache directory: {}", e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Finds an existing cached JAR file in the cache directory.
+     */
+    private Path findCachedJar(Path cacheDir) {
+        if (cacheDir == null || !Files.exists(cacheDir)) {
+            return null;
+        }
+        
+        try {
+            return Files.list(cacheDir)
+                .filter(path -> path.getFileName().toString().matches("jakartaee-migration-.*-shaded\\.jar"))
+                .filter(Files::isRegularFile)
+                .findFirst()
+                .orElse(null);
+        } catch (IOException e) {
+            log.debug("Failed to search cache directory: {}", e.getMessage());
+            return null;
+        }
     }
     
     /**

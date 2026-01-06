@@ -53,12 +53,10 @@ jakarta:
       # Per-feature overrides (optional)
       # Allows enabling/disabling specific features regardless of tier
       # Useful for testing or gradual rollouts
-      features:
-        # Example: Enable auto-fixes for testing
-        # auto-fixes: true
-        
-        # Example: Disable cloud hosting even for premium users
-        # cloud-hosting: false
+      # Set to empty map {} if no overrides needed, or uncomment examples below
+      # features:
+      #   auto-fixes: true
+      #   cloud-hosting: false
     
     # Apify License Validation Configuration
     apify:
@@ -90,7 +88,8 @@ jakarta:
     # Stripe License Validation Configuration
     stripe:
       # Enable/disable Stripe license validation
-      enabled: ${STRIPE_VALIDATION_ENABLED:true}
+      # DISABLED for now to get MCP server working quickly
+      enabled: ${STRIPE_VALIDATION_ENABLED:false}
       
       # Stripe API base URL (usually doesn't need to change)
       api-url: ${STRIPE_API_URL:https://api.stripe.com/v1}
@@ -114,7 +113,8 @@ jakarta:
       # Price ID to tier mapping (optional)
       # Maps Stripe Price IDs directly to license tiers
       # Format: price_id -> tier (PREMIUM or ENTERPRISE)
-      price-id-to-tier:
+      # Set to empty map {} if no mappings needed
+      price-id-to-tier: {}
         # Example:
         # price_1234567890: PREMIUM
         # price_0987654321: ENTERPRISE

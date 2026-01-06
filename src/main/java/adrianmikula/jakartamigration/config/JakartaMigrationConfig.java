@@ -15,6 +15,7 @@ import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerifica
 import adrianmikula.jakartamigration.runtimeverification.service.impl.RuntimeVerificationModuleImpl;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -22,10 +23,10 @@ import org.springframework.web.reactive.function.client.WebClient;
  * Configuration for Jakarta Migration modules.
  * Wires up all the service implementations.
  * 
- * NOTE: Component scanning is handled by @SpringBootApplication(scanBasePackages = {...})
- * in ProjectNameApplication. This @ComponentScan was redundant and could cause conflicts.
+ * Component scanning is needed for test contexts that don't use the full Spring Boot application.
  */
 @Configuration
+@ComponentScan(basePackages = "adrianmikula.jakartamigration")
 @EnableConfigurationProperties({
     FeatureFlagsProperties.class, 
     ApifyLicenseProperties.class,
