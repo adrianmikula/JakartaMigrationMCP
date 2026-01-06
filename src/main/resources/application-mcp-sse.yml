@@ -1,0 +1,27 @@
+# Profile for SSE transport (Apify/HTTP)
+# This profile is used when deploying to Apify or running as HTTP server
+spring:
+  main:
+    web-application-type: servlet  # Enable web server for SSE transport
+  
+  server:
+    port: ${MCP_SSE_PORT:8080}
+  
+  ai:
+    mcp:
+      server:
+        transport: sse
+        sse:
+          port: ${MCP_SSE_PORT:8080}
+          path: ${MCP_SSE_PATH:/mcp/sse}
+
+# Actuator endpoints for SSE mode
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,mcp
+  endpoint:
+    health:
+      show-details: always
+

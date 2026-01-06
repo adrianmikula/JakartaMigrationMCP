@@ -1,0 +1,11 @@
+# Profile for stdio transport (local use)
+# This profile is used when running locally via npm/npx wrapper
+spring:
+  main:
+    web-application-type: none  # Disable web server for stdio transport
+  
+  ai:
+    mcp:
+      server:
+        transport: stdio
+

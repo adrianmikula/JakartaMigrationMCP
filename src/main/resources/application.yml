@@ -138,14 +138,24 @@ jakarta:
       webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
 
 # Spring AI MCP Server Configuration
+# Supports both stdio (local) and SSE (Apify) transports
+# Transport mode is determined by:
+#   - Environment variable: MCP_TRANSPORT (stdio|sse)
+#   - Spring profile: mcp-stdio or mcp-sse
+#   - Default: stdio (for local use)
 spring:
   ai:
     mcp:
       server:
         name: jakarta-migration-mcp
         version: 1.0.0-SNAPSHOT
-        protocol: STREAMABLE  # STREAMABLE for stdio, SSE for HTTP
+        # Transport mode: stdio (default, for local) or sse (for Apify/HTTP)
+        transport: ${MCP_TRANSPORT:stdio}
         enabled: true
+        # SSE configuration (only used when transport=sse)
+        sse:
+          port: ${MCP_SSE_PORT:8080}
+          path: ${MCP_SSE_PATH:/mcp/sse}
 
 # Logging Configuration
 logging:

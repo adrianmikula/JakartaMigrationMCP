@@ -140,13 +140,21 @@ async function main() {
     }
 
     // Run the JAR with MCP-specific arguments
-    // MCP servers communicate via stdio, so we don't need web server mode
+    // Determine transport mode: stdio (default, local) or sse (Apify/HTTP)
+    const transport = process.env.MCP_TRANSPORT || 'stdio';
+    const profile = transport === 'sse' ? 'mcp-sse' : 'mcp-stdio';
+    
     const args = [
       '-jar',
       jar,
-      '--spring.main.web-application-type=none', // Disable web server for MCP
-      '--spring.profiles.active=mcp'
+      `--spring.profiles.active=${profile}`,
+      `--spring.ai.mcp.server.transport=${transport}`
     ];
+    
+    // For stdio mode, disable web server
+    if (transport === 'stdio') {
+      args.push('--spring.main.web-application-type=none');
+    }
 
     // Pass through any additional arguments
     const mcpArgs = process.argv.slice(2);
