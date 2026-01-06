@@ -2,18 +2,28 @@
   "actorSpecification": 1,
   "fields": {
     "type": "object",
-    "properties": {}
+    "properties": {
+      "message": {
+        "type": "string",
+        "description": "Placeholder field - this MCP server does not currently store data in Apify datasets"
+      }
+    }
   },
   "views": {
     "overview": {
       "title": "No Dataset Output",
-      "description": "This MCP server does not store data in Apify datasets. Results are returned directly via the MCP protocol.",
+      "description": "This MCP server does not store data in Apify datasets. Results are returned directly via the MCP protocol. See dataset_schema.json.example for a schema when dataset storage is implemented.",
       "transformation": {
-        "fields": []
+        "fields": ["message"]
       },
       "display": {
         "component": "table",
-        "properties": {}
+        "properties": {
+          "message": {
+            "label": "Message",
+            "format": "text"
+          }
+        }
       }
     }
   }
