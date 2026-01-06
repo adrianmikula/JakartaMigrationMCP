@@ -100,7 +100,7 @@ public class AsmBytecodeAnalyzer implements BytecodeAnalyzer {
         
         List<RuntimeError> potentialErrors = new ArrayList<>();
         List<Warning> warnings = new ArrayList<>();
-        int classesAnalyzed = 0;
+        java.util.concurrent.atomic.AtomicInteger classesAnalyzed = new java.util.concurrent.atomic.AtomicInteger(0);
         
         try (Stream<Path> paths = Files.walk(classesDirectory)) {
             paths.filter(Files::isRegularFile)
@@ -109,7 +109,7 @@ public class AsmBytecodeAnalyzer implements BytecodeAnalyzer {
                  .forEach(classFile -> {
                      try (InputStream is = Files.newInputStream(classFile)) {
                          analyzeClass(is, potentialErrors, warnings);
-                         classesAnalyzed++;
+                         classesAnalyzed.incrementAndGet();
                      } catch (Exception e) {
                          warnings.add(new Warning(
                              "Failed to analyze class " + classFile + ": " + e.getMessage(),
@@ -135,7 +135,7 @@ public class AsmBytecodeAnalyzer implements BytecodeAnalyzer {
             potentialErrors,
             warnings,
             analysisTime,
-            classesAnalyzed
+            classesAnalyzed.get()
         );
     }
     

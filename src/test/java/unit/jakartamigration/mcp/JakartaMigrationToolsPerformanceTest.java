@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 /**
@@ -73,7 +73,7 @@ class JakartaMigrationToolsPerformanceTest {
             ))
             .toList();
 
-        DependencyGraph largeGraph = new DependencyGraph(largeArtifactList, List.of());
+        DependencyGraph largeGraph = new DependencyGraph(new java.util.HashSet<>(largeArtifactList), new java.util.HashSet<>());
         
         DependencyAnalysisReport largeReport = new DependencyAnalysisReport(
             largeGraph,
@@ -102,10 +102,10 @@ class JakartaMigrationToolsPerformanceTest {
     void shouldDetectBlockersInLargeProjectWithinTimeLimit() {
         // Given
         DependencyGraph largeGraph = new DependencyGraph(
-            IntStream.range(0, 1000)
+            new java.util.HashSet<>(IntStream.range(0, 1000)
                 .mapToObj(i -> new Artifact("com.example", "dep-" + i, "1.0.0", "compile", false))
-                .toList(),
-            List.of()
+                .toList()),
+            new java.util.HashSet<>()
         );
 
         List<Blocker> largeBlockersList = createLargeBlockersList(500);
@@ -129,16 +129,16 @@ class JakartaMigrationToolsPerformanceTest {
     void shouldRecommendVersionsForLargeProjectWithinTimeLimit() {
         // Given
         DependencyGraph largeGraph = new DependencyGraph(
-            IntStream.range(0, 1000)
+            new java.util.HashSet<>(IntStream.range(0, 1000)
                 .mapToObj(i -> new Artifact("javax.example", "dep-" + i, "1.0.0", "compile", false))
-                .toList(),
-            List.of()
+                .toList()),
+            new java.util.HashSet<>()
         );
 
         List<VersionRecommendation> largeRecommendations = createLargeRecommendationsList(1000);
         
         when(dependencyGraphBuilder.buildFromProject(any(Path.class))).thenReturn(largeGraph);
-        when(dependencyAnalysisModule.recommendVersions(anyList())).thenReturn(largeRecommendations);
+        when(dependencyAnalysisModule.recommendVersions(any())).thenReturn(largeRecommendations);
 
         // When
         long startTime = System.currentTimeMillis();
@@ -156,7 +156,7 @@ class JakartaMigrationToolsPerformanceTest {
     void shouldCreateMigrationPlanForLargeProjectWithinTimeLimit() {
         // Given
         DependencyAnalysisReport report = new DependencyAnalysisReport(
-            new DependencyGraph(List.of(), List.of()),
+            new DependencyGraph(new java.util.HashSet<>(), new java.util.HashSet<>()),
             new NamespaceCompatibilityMap(java.util.Map.of()),
             List.of(),
             List.of(),
@@ -190,7 +190,7 @@ class JakartaMigrationToolsPerformanceTest {
             );
 
         when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(report);
-        when(migrationPlanner.createPlan(anyString(), any(DependencyAnalysisReport.class))).thenReturn(largePlan);
+        when(migrationPlanner.createPlan(any(), any(DependencyAnalysisReport.class))).thenReturn(largePlan);
 
         // When
         long startTime = System.currentTimeMillis();
@@ -209,10 +209,10 @@ class JakartaMigrationToolsPerformanceTest {
         List<Blocker> manyBlockers = createLargeBlockersList(1000);
         
         DependencyGraph graph = new DependencyGraph(
-            IntStream.range(0, 1000)
+            new java.util.HashSet<>(IntStream.range(0, 1000)
                 .mapToObj(i -> new Artifact("com.example", "dep-" + i, "1.0.0", "compile", false))
-                .toList(),
-            List.of()
+                .toList()),
+            new java.util.HashSet<>()
         );
 
         when(dependencyGraphBuilder.buildFromProject(any(Path.class))).thenReturn(graph);
@@ -234,7 +234,7 @@ class JakartaMigrationToolsPerformanceTest {
     void shouldProcessMultipleConcurrentRequestsEfficiently() throws InterruptedException {
         // Given
         DependencyAnalysisReport report = new DependencyAnalysisReport(
-            new DependencyGraph(List.of(), List.of()),
+            new DependencyGraph(new java.util.HashSet<>(), new java.util.HashSet<>()),
             new NamespaceCompatibilityMap(java.util.Map.of()),
             List.of(),
             List.of(),

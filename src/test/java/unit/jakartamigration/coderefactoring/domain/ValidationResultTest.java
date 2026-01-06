@@ -1,5 +1,9 @@
 package unit.jakartamigration.coderefactoring.domain;
 
+import com.bugbounty.jakartamigration.coderefactoring.domain.ValidationResult;
+import com.bugbounty.jakartamigration.coderefactoring.domain.ValidationIssue;
+import com.bugbounty.jakartamigration.coderefactoring.domain.ValidationStatus;
+import com.bugbounty.jakartamigration.coderefactoring.domain.ValidationSeverity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

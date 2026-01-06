@@ -178,8 +178,8 @@ class CodeRefactoringModuleTest {
     
     private DependencyAnalysisReport createTestReport() {
         return new DependencyAnalysisReport(
-            new DependencyGraph(List.of(), List.of()),
-            new NamespaceCompatibilityMap(Map.of()),
+            new DependencyGraph(new java.util.HashSet<>(), new java.util.HashSet<>()),
+            new NamespaceCompatibilityMap(java.util.Map.of()),
             List.of(),
             List.of(),
             new RiskAssessment(0.5, List.of("Low risk"), List.of()),

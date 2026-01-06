@@ -66,11 +66,11 @@ class JakartaMigrationToolsTest {
         
         // Create mock dependency graph
         mockGraph = new DependencyGraph(
-            List.of(
+            new java.util.HashSet<>(List.of(
                 new Artifact("com.example", "test-app", "1.0.0", "compile", false),
                 new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", true)
-            ),
-            List.of()
+            )),
+            new java.util.HashSet<>()
         );
         
         // Create mock analysis report

@@ -1,5 +1,6 @@
 package unit.jakartamigration.coderefactoring.domain;
 
+import com.bugbounty.jakartamigration.coderefactoring.domain.RefactoringOptions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
