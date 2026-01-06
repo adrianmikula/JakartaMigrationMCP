@@ -3,24 +3,47 @@
   "fields": {
     "type": "object",
     "properties": {
-      "message": {
+      "timestamp": {
         "type": "string",
-        "description": "Placeholder field - this MCP server does not currently store data in Apify datasets"
+        "format": "date-time",
+        "description": "Timestamp when the analysis was performed"
+      },
+      "tool": {
+        "type": "string",
+        "description": "Name of the MCP tool that was executed"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["success", "error"],
+        "description": "Status of the tool execution"
       }
     }
   },
   "views": {
     "overview": {
-      "title": "No Dataset Output",
-      "description": "This MCP server does not store data in Apify datasets. Results are returned directly via the MCP protocol. See dataset_schema.json.example for a schema when dataset storage is implemented.",
+      "title": "Migration Analysis Results",
+      "description": "Results from Jakarta migration analysis tools. This schema is defined but not currently used - results are returned directly via MCP protocol.",
       "transformation": {
-        "fields": ["message"]
+        "fields": [
+          "timestamp",
+          "tool",
+          "status"
+        ],
+        "desc": true
       },
       "display": {
         "component": "table",
         "properties": {
-          "message": {
-            "label": "Message",
+          "timestamp": {
+            "label": "Date & Time",
+            "format": "date"
+          },
+          "tool": {
+            "label": "Tool",
+            "format": "text"
+          },
+          "status": {
+            "label": "Status",
             "format": "text"
           }
         }
