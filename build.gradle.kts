@@ -61,9 +61,16 @@ dependencies {
     implementation("org.springframework.ai:spring-ai-starter-mcp-server:${property("springAiVersion")}")
     
     // MCP Annotations module for @McpTool annotation support
-    // Note: According to Spring AI docs, annotations should be included in the starter
-    // If not available, may need to check if module exists or use manual registration
-    // implementation("org.springframework.ai:spring-ai-mcp-annotations:${property("springAiVersion")}")
+    // Explicitly added to ensure annotations are available at compile time
+    // According to docs: https://docs.spring.io/spring-ai/reference/api/mcp/mcp-annotations-overview.html
+    // The starter should include this transitively, but we add it explicitly for compilation
+    implementation("org.springframework.ai:spring-ai-mcp-annotations:${property("springAiVersion")}")
+    
+    // ISSUE: Spring AI 1.1.2's spring-ai-mcp-annotations wraps org.springaicommunity:mcp-annotations
+    // but doesn't re-export the annotation classes in org.springframework.ai.mcp.annotation package.
+    // We need to add the community package directly to access the annotations.
+    // The actual annotations are in org.springaicommunity.mcp.annotations package.
+    implementation("org.springaicommunity:mcp-annotations:0.8.0")
     
     // Note: We don't need spring-ai-core or ollama starter for MCP server functionality
     // The MCP server starter includes all necessary dependencies

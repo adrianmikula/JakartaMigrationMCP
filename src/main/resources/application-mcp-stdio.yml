@@ -12,6 +12,10 @@ spring:
     mcp:
       server:
         transport: stdio
+        # CRITICAL: Use SYNC type for synchronous methods
+        type: SYNC
+        annotation-scanner:
+          enabled: true
 
 # Logging Configuration for stdio mode
 # All logs must go to stderr, not stdout, to avoid breaking JSON-RPC protocol

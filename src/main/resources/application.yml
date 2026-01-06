@@ -136,6 +136,10 @@ jakarta:
         # Transport mode: stdio (default, for local) or sse (for Apify/HTTP)
         transport: ${MCP_TRANSPORT:stdio}
         enabled: true
+        # CRITICAL: Use SYNC type for synchronous methods that return String/POJOs
+        # If you use ASYNC, methods must return Mono/Flux (reactive types)
+        # This is the #1 reason @McpTool annotations fail to register
+        type: SYNC
         # Enable annotation scanner to automatically register @McpTool annotated methods
         annotation-scanner:
           enabled: true
@@ -145,10 +149,13 @@ jakarta:
           path: ${MCP_SSE_PATH:/mcp/sse}
 
 # Logging Configuration
+# CRITICAL: For MCP stdio transport, root logging must be WARN to prevent STDOUT corruption
+# System.out.println or INFO-level logs will corrupt the MCP JSON stream
 logging:
   level:
-    root: INFO
-    adrianmikula.projectname: DEBUG
-    org.springframework.ai.mcp: DEBUG  # Enable MCP debug logging
+    root: WARN  # Only warnings and errors to keep STDOUT clean for JSON-RPC
+    adrianmikula.jakartamigration: INFO  # Application logs at INFO level
+    org.springframework.ai.mcp: INFO  # MCP logs at INFO level (not DEBUG to reduce noise)
+    org.springframework: WARN  # Spring framework logs at WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
