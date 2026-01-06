@@ -30,6 +30,7 @@
       "type": "string",
       "description": "HTTP path for SSE endpoint (only used when mcpTransport is 'sse')",
       "default": "/mcp/sse",
+      "editor": "textfield",
       "sectionCaption": "MCP Configuration"
     },
     "licenseKey": {
