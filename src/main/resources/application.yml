@@ -153,16 +153,9 @@ jakarta:
         # Enable annotation scanner to automatically register @McpTool annotated methods
         annotation-scanner:
           enabled: true
-        # WORKAROUND: Disable problematic capabilities that cause timeouts
-        # Spring AI MCP 1.1.2 has issues with instructions/offerings causing 1-minute timeouts
-        # These are optional MCP capabilities - tools still work without them
-        capabilities:
-          instructions: false
-          offerings: false
-          # Keep tools, resources, and prompts enabled
-          tools: true
-          resources: true
-          prompts: true
+        # NOTE: Capabilities configuration may not be supported in Spring AI MCP 1.1.2
+        # The timeout issue with GetInstructions/ListOfferings persists even with stability fixes
+        # This appears to be an ongoing bug in Spring AI MCP that requires a framework fix
         # SSE configuration (only used when transport=sse)
         sse:
           port: ${MCP_SSE_PORT:8080}

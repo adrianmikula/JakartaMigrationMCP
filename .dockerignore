@@ -1,0 +1,64 @@
+# Gradle
+.gradle/
+build/
+!build/libs/*.jar
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation (not needed in image)
+docs/
+*.md
+!README.md
+
+# Examples (not needed in image)
+examples/
+
+# Test files
+src/test/
+
+# Logs
+*.log
+logs/
+
+# Node.js (if any)
+node_modules/
+package-lock.json
+package.json
+
+# Docker
+Dockerfile*
+docker-compose.yml
+.dockerignore
+
+# Apify
+.actor/
+*.json
+!src/main/resources/**/*.json
+
+# Scripts (not needed in runtime)
+scripts/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Build outputs (except final JAR)
+build-test-output.log
+mcp-server-*.log
+

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "jakarta-migration": {
+      "type": "sse",
+      "url": "http://localhost:8080/mcp/sse"
+    }
+  }
+}
+
