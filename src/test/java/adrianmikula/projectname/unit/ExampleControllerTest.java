@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.BindingResult;
@@ -53,7 +54,9 @@ class ExampleControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setMessageConverters(new MappingJackson2HttpMessageConverter())
+                .build();
         objectMapper = new ObjectMapper();
 
         UUID testId = UUID.randomUUID();
@@ -88,6 +91,7 @@ class ExampleControllerTest {
         // When & Then
         mockMvc.perform(post("/api/examples")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(testRequest)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(testEntity.getId().toString()))
@@ -106,6 +110,7 @@ class ExampleControllerTest {
         // When & Then
         mockMvc.perform(post("/api/examples")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(testRequest)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").exists());
@@ -120,7 +125,8 @@ class ExampleControllerTest {
         when(exampleService.getAll()).thenReturn(List.of(testExample));
 
         // When & Then
-        mockMvc.perform(get("/api/examples"))
+        mockMvc.perform(get("/api/examples")
+                        .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[0].name").value("Test Example"));
@@ -136,7 +142,8 @@ class ExampleControllerTest {
         when(exampleService.getById(testId)).thenReturn(Optional.of(testExample));
 
         // When & Then
-        mockMvc.perform(get("/api/examples/{id}", testId))
+        mockMvc.perform(get("/api/examples/{id}", testId)
+                        .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(testExample.getId().toString()))
                 .andExpect(jsonPath("$.name").value("Test Example"));
@@ -152,7 +159,8 @@ class ExampleControllerTest {
         when(exampleService.getById(testId)).thenReturn(Optional.empty());
 
         // When & Then
-        mockMvc.perform(get("/api/examples/{id}", testId))
+        mockMvc.perform(get("/api/examples/{id}", testId)
+                        .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
 
         verify(exampleService, times(1)).getById(testId);

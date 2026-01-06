@@ -1,12 +1,12 @@
 package unit.jakartamigration.coderefactoring.service;
 
-import com.bugbounty.jakartamigration.coderefactoring.domain.MigrationPlan;
-import com.bugbounty.jakartamigration.coderefactoring.domain.RefactoringPhase;
-import com.bugbounty.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
-import com.bugbounty.jakartamigration.dependencyanalysis.domain.DependencyGraph;
-import com.bugbounty.jakartamigration.dependencyanalysis.domain.MigrationReadinessScore;
-import com.bugbounty.jakartamigration.dependencyanalysis.domain.NamespaceCompatibilityMap;
-import com.bugbounty.jakartamigration.dependencyanalysis.domain.RiskAssessment;
+import adrianmikula.jakartamigration.coderefactoring.domain.MigrationPlan;
+import adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.MigrationReadinessScore;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.NamespaceCompatibilityMap;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.RiskAssessment;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

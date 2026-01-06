@@ -121,7 +121,7 @@ mise run test-component
 
 ```powershell
 # Requires Docker to be running
-.\gradlew.bat test --tests "com.bugbounty.e2e.*"
+.\gradlew.bat test --tests "adrianmikula.jakartamigration.e2e.*"
 
 # Or using mise:
 mise run test-e2e

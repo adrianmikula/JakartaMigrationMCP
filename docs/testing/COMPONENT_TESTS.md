@@ -120,7 +120,7 @@ Tests HTTP client integration:
 ./gradlew test --tests "com.yourproject.component.DataPollingComponentTest"
 
 # Run with verbose output
-./gradlew test --tests "com.bugbounty.component.*" --info
+./gradlew test --tests "adrianmikula.jakartamigration.component.*" --info
 ```
 
 ### Test Execution

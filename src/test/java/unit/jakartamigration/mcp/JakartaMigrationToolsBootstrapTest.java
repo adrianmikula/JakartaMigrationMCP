@@ -1,13 +1,13 @@
 package unit.jakartamigration.mcp;
 
-import com.bugbounty.jakartamigration.coderefactoring.service.MigrationPlanner;
-import com.bugbounty.jakartamigration.coderefactoring.service.RecipeLibrary;
-import com.bugbounty.jakartamigration.config.JakartaMigrationConfig;
-import com.bugbounty.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
-import com.bugbounty.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
-import com.bugbounty.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
-import com.bugbounty.jakartamigration.mcp.JakartaMigrationTools;
-import com.bugbounty.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
+import adrianmikula.jakartamigration.coderefactoring.service.MigrationPlanner;
+import adrianmikula.jakartamigration.coderefactoring.service.RecipeLibrary;
+import adrianmikula.jakartamigration.config.JakartaMigrationConfig;
+import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
+import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
+import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
+import adrianmikula.jakartamigration.mcp.JakartaMigrationTools;
+import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationContext;

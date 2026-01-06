@@ -1,6 +1,6 @@
 package unit.jakartamigration.runtimeverification;
 
-import com.bugbounty.jakartamigration.runtimeverification.domain.*;
+import adrianmikula.jakartamigration.runtimeverification.domain.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

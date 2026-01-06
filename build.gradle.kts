@@ -10,7 +10,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.io.File
 
-group = "com.bugbounty"
+group = "adrianmikula"
 version = "1.0.0-SNAPSHOT"
 
 java {

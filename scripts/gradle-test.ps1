@@ -5,9 +5,9 @@ if (Test-Path gradlew.bat) {
     if ($UnitOnly) {
         .\gradlew.bat test --tests "*Test" --exclude-tests "*ComponentTest" --exclude-tests "*E2ETest" --exclude-tests "*e2e.*"
     } elseif ($ComponentOnly) {
-        .\gradlew.bat test --tests "com.bugbounty.component.*"
+        .\gradlew.bat test --tests "adrianmikula.jakartamigration.component.*"
     } elseif ($E2EOnly) {
-        .\gradlew.bat test --tests "com.bugbounty.e2e.*"
+        .\gradlew.bat test --tests "adrianmikula.jakartamigration.e2e.*"
     } else {
         .\gradlew.bat test
     }
@@ -15,9 +15,9 @@ if (Test-Path gradlew.bat) {
     if ($UnitOnly) {
         gradle test --tests "*Test" --exclude-tests "*ComponentTest" --exclude-tests "*E2ETest" --exclude-tests "*e2e.*"
     } elseif ($ComponentOnly) {
-        gradle test --tests "com.bugbounty.component.*"
+        gradle test --tests "adrianmikula.jakartamigration.component.*"
     } elseif ($E2EOnly) {
-        gradle test --tests "com.bugbounty.e2e.*"
+        gradle test --tests "adrianmikula.jakartamigration.e2e.*"
     } else {
         gradle test
     }

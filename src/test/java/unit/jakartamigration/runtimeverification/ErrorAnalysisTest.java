@@ -1,9 +1,9 @@
 package unit.jakartamigration.runtimeverification;
 
-import com.bugbounty.jakartamigration.runtimeverification.domain.ErrorAnalysis;
-import com.bugbounty.jakartamigration.runtimeverification.domain.ErrorCategory;
-import com.bugbounty.jakartamigration.runtimeverification.domain.RemediationStep;
-import com.bugbounty.jakartamigration.runtimeverification.domain.SimilarPastFailure;
+import adrianmikula.jakartamigration.runtimeverification.domain.ErrorAnalysis;
+import adrianmikula.jakartamigration.runtimeverification.domain.ErrorCategory;
+import adrianmikula.jakartamigration.runtimeverification.domain.RemediationStep;
+import adrianmikula.jakartamigration.runtimeverification.domain.SimilarPastFailure;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

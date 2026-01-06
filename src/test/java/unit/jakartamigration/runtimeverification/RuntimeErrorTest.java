@@ -1,8 +1,8 @@
 package unit.jakartamigration.runtimeverification;
 
-import com.bugbounty.jakartamigration.runtimeverification.domain.ErrorType;
-import com.bugbounty.jakartamigration.runtimeverification.domain.RuntimeError;
-import com.bugbounty.jakartamigration.runtimeverification.domain.StackTrace;
+import adrianmikula.jakartamigration.runtimeverification.domain.ErrorType;
+import adrianmikula.jakartamigration.runtimeverification.domain.RuntimeError;
+import adrianmikula.jakartamigration.runtimeverification.domain.StackTrace;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

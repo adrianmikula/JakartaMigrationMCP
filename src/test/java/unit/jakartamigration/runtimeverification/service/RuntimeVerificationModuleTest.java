@@ -1,20 +1,23 @@
 package unit.jakartamigration.runtimeverification.service;
 
-import com.bugbounty.jakartamigration.dependencyanalysis.domain.DependencyGraph;
-import com.bugbounty.jakartamigration.runtimeverification.domain.*;
-import com.bugbounty.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
-import com.bugbounty.jakartamigration.runtimeverification.service.impl.RuntimeVerificationModuleImpl;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import adrianmikula.jakartamigration.runtimeverification.domain.*;
+import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
+import adrianmikula.jakartamigration.runtimeverification.service.impl.RuntimeVerificationModuleImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -36,7 +39,7 @@ class RuntimeVerificationModuleTest {
     void shouldVerifyRuntimeExecution() throws Exception {
         // Given
         Path jarPath = tempDir.resolve("test.jar");
-        Files.createFile(jarPath);
+        createValidJarFile(jarPath);
         
         VerificationOptions options = VerificationOptions.defaults();
         
@@ -56,7 +59,7 @@ class RuntimeVerificationModuleTest {
     void shouldVerifyWithBytecodeStrategy() throws Exception {
         // Given
         Path jarPath = tempDir.resolve("test.jar");
-        Files.createFile(jarPath);
+        createValidJarFile(jarPath);
         
         VerificationOptions options = VerificationOptions.defaults();
         
@@ -79,7 +82,7 @@ class RuntimeVerificationModuleTest {
     void shouldVerifyWithProcessStrategy() throws Exception {
         // Given
         Path jarPath = tempDir.resolve("test.jar");
-        Files.createFile(jarPath);
+        createValidJarFile(jarPath);
         
         VerificationOptions options = VerificationOptions.defaults();
         
@@ -100,7 +103,7 @@ class RuntimeVerificationModuleTest {
     void shouldAnalyzeBytecode() throws Exception {
         // Given
         Path jarPath = tempDir.resolve("test.jar");
-        Files.createFile(jarPath);
+        createValidJarFile(jarPath);
         
         // When
         BytecodeAnalysisResult result = module.analyzeBytecode(jarPath);
@@ -181,7 +184,7 @@ class RuntimeVerificationModuleTest {
     void shouldInstrumentClassLoading() throws Exception {
         // Given
         Path jarPath = tempDir.resolve("test.jar");
-        Files.createFile(jarPath);
+        createValidJarFile(jarPath);
         
         InstrumentationOptions options = InstrumentationOptions.defaults();
         
@@ -279,6 +282,25 @@ class RuntimeVerificationModuleTest {
         
         // Then
         assertEquals(ErrorCategory.CLASSPATH_ISSUE, analysis.category());
+    }
+    
+    /**
+     * Creates a valid (non-empty) JAR file for testing.
+     */
+    private void createValidJarFile(Path jarPath) throws Exception {
+        try (JarOutputStream jos = new JarOutputStream(new FileOutputStream(jarPath.toFile()))) {
+            // Add a manifest entry
+            JarEntry manifestEntry = new JarEntry("META-INF/MANIFEST.MF");
+            jos.putNextEntry(manifestEntry);
+            jos.write("Manifest-Version: 1.0\n".getBytes());
+            jos.closeEntry();
+            
+            // Add a dummy class entry
+            JarEntry classEntry = new JarEntry("Test.class");
+            jos.putNextEntry(classEntry);
+            jos.write(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE}); // Java class file magic number
+            jos.closeEntry();
+        }
     }
 }
 

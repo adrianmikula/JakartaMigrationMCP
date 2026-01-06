@@ -62,7 +62,7 @@
 mise run test-component
 
 # Run specific component test
-./gradlew test --tests "com.bugbounty.component.BountyFilteringComponentTest"
+./gradlew test --tests "adrianmikula.jakartamigration.component.BountyFilteringComponentTest"
 ```
 
 ## Troubleshooting

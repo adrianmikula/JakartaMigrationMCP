@@ -1,6 +1,6 @@
 package unit.jakartamigration.dependencyanalysis.service;
 
-import com.bugbounty.jakartamigration.dependencyanalysis.domain.*;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Disabled;

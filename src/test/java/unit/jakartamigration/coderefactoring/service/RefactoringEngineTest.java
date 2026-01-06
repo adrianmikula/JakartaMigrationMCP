@@ -1,7 +1,7 @@
 package unit.jakartamigration.coderefactoring.service;
 
-import com.bugbounty.jakartamigration.coderefactoring.domain.*;
-import com.bugbounty.jakartamigration.coderefactoring.service.RefactoringEngine;
+import adrianmikula.jakartamigration.coderefactoring.domain.*;
+import adrianmikula.jakartamigration.coderefactoring.service.RefactoringEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

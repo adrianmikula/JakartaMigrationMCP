@@ -1,7 +1,7 @@
 package unit.jakartamigration.coderefactoring.domain;
 
-import com.bugbounty.jakartamigration.coderefactoring.domain.RollbackResult;
-import com.bugbounty.jakartamigration.coderefactoring.domain.RollbackStatus;
+import adrianmikula.jakartamigration.coderefactoring.domain.RollbackResult;
+import adrianmikula.jakartamigration.coderefactoring.domain.RollbackStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

@@ -1,19 +1,19 @@
 package unit.jakartamigration.mcp;
 
-import com.bugbounty.jakartamigration.coderefactoring.domain.MigrationPlan;
-import com.bugbounty.jakartamigration.coderefactoring.service.MigrationPlanner;
-import com.bugbounty.jakartamigration.coderefactoring.service.RecipeLibrary;
-import com.bugbounty.jakartamigration.dependencyanalysis.domain.*;
-import com.bugbounty.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
-import com.bugbounty.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
-import com.bugbounty.jakartamigration.dependencyanalysis.service.DependencyGraphException;
-import com.bugbounty.jakartamigration.mcp.JakartaMigrationTools;
-import com.bugbounty.jakartamigration.runtimeverification.domain.VerificationOptions;
-import com.bugbounty.jakartamigration.runtimeverification.domain.VerificationResult;
-import com.bugbounty.jakartamigration.runtimeverification.domain.VerificationStatus;
-import com.bugbounty.jakartamigration.runtimeverification.domain.ExecutionMetrics;
-import com.bugbounty.jakartamigration.runtimeverification.domain.ErrorAnalysis;
-import com.bugbounty.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
+import adrianmikula.jakartamigration.coderefactoring.domain.MigrationPlan;
+import adrianmikula.jakartamigration.coderefactoring.service.MigrationPlanner;
+import adrianmikula.jakartamigration.coderefactoring.service.RecipeLibrary;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
+import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
+import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
+import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphException;
+import adrianmikula.jakartamigration.mcp.JakartaMigrationTools;
+import adrianmikula.jakartamigration.runtimeverification.domain.VerificationOptions;
+import adrianmikula.jakartamigration.runtimeverification.domain.VerificationResult;
+import adrianmikula.jakartamigration.runtimeverification.domain.VerificationStatus;
+import adrianmikula.jakartamigration.runtimeverification.domain.ExecutionMetrics;
+import adrianmikula.jakartamigration.runtimeverification.domain.ErrorAnalysis;
+import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -215,8 +215,8 @@ class JakartaMigrationToolsTest {
     @DisplayName("Should create migration plan successfully")
     void shouldCreateMigrationPlanSuccessfully() throws Exception {
         // Given
-        com.bugbounty.jakartamigration.coderefactoring.domain.RefactoringPhase phase = 
-            new com.bugbounty.jakartamigration.coderefactoring.domain.RefactoringPhase(
+        adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase phase = 
+            new adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase(
                 1,
                 "Update build files",
                 List.of("pom.xml"),
@@ -255,7 +255,7 @@ class JakartaMigrationToolsTest {
             List.of(),
             new ExecutionMetrics(Duration.ofSeconds(15), 0, 0, false),
             new ErrorAnalysis(
-                com.bugbounty.jakartamigration.runtimeverification.domain.ErrorCategory.UNKNOWN,
+                adrianmikula.jakartamigration.runtimeverification.domain.ErrorCategory.UNKNOWN,
                 "No errors",
                 List.of(),
                 List.of(),
@@ -288,7 +288,7 @@ class JakartaMigrationToolsTest {
             List.of(),
             new ExecutionMetrics(Duration.ofSeconds(10), 0, 0, false),
             new ErrorAnalysis(
-                com.bugbounty.jakartamigration.runtimeverification.domain.ErrorCategory.UNKNOWN,
+                adrianmikula.jakartamigration.runtimeverification.domain.ErrorCategory.UNKNOWN,
                 "No errors",
                 List.of(),
                 List.of(),

@@ -1,6 +1,6 @@
 package unit.jakartamigration.coderefactoring.service;
 
-import com.bugbounty.jakartamigration.coderefactoring.domain.Checkpoint;
+import adrianmikula.jakartamigration.coderefactoring.domain.Checkpoint;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

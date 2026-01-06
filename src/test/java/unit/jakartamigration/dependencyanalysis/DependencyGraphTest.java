@@ -1,8 +1,8 @@
 package unit.jakartamigration.dependencyanalysis;
 
-import com.bugbounty.jakartamigration.dependencyanalysis.domain.Artifact;
-import com.bugbounty.jakartamigration.dependencyanalysis.domain.Dependency;
-import com.bugbounty.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -1,7 +1,7 @@
 package component.jakartamigration.mcp;
 
-import com.bugbounty.jakartamigration.config.JakartaMigrationConfig;
-import com.bugbounty.jakartamigration.mcp.JakartaMigrationTools;
+import adrianmikula.jakartamigration.config.JakartaMigrationConfig;
+import adrianmikula.jakartamigration.mcp.JakartaMigrationTools;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

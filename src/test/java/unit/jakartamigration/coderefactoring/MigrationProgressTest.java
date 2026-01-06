@@ -1,9 +1,9 @@
 package unit.jakartamigration.coderefactoring;
 
-import com.bugbounty.jakartamigration.coderefactoring.domain.Checkpoint;
-import com.bugbounty.jakartamigration.coderefactoring.domain.MigrationProgress;
-import com.bugbounty.jakartamigration.coderefactoring.domain.MigrationState;
-import com.bugbounty.jakartamigration.coderefactoring.domain.ProgressStatistics;
+import adrianmikula.jakartamigration.coderefactoring.domain.Checkpoint;
+import adrianmikula.jakartamigration.coderefactoring.domain.MigrationProgress;
+import adrianmikula.jakartamigration.coderefactoring.domain.MigrationState;
+import adrianmikula.jakartamigration.coderefactoring.domain.ProgressStatistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

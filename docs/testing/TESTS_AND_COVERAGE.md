@@ -91,10 +91,10 @@ mise run test-e2e
 .\gradlew.bat test --tests "*Test" --exclude-tests "*ComponentTest" --exclude-tests "*E2ETest"
 
 # Run only component tests
-.\gradlew.bat test --tests "com.bugbounty.component.*"
+.\gradlew.bat test --tests "adrianmikula.jakartamigration.component.*"
 
 # Run only E2E tests
-.\gradlew.bat test --tests "com.bugbounty.e2e.*"
+.\gradlew.bat test --tests "adrianmikula.jakartamigration.e2e.*"
 
 # Run specific test class
 .\gradlew.bat test --tests "unit.jakartamigration.dependencyanalysis.ArtifactTest"

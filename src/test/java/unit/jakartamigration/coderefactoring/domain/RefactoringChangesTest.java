@@ -1,9 +1,9 @@
 package unit.jakartamigration.coderefactoring.domain;
 
-import com.bugbounty.jakartamigration.coderefactoring.domain.RefactoringChanges;
-import com.bugbounty.jakartamigration.coderefactoring.domain.ChangeDetail;
-import com.bugbounty.jakartamigration.coderefactoring.domain.ChangeType;
-import com.bugbounty.jakartamigration.coderefactoring.domain.Recipe;
+import adrianmikula.jakartamigration.coderefactoring.domain.RefactoringChanges;
+import adrianmikula.jakartamigration.coderefactoring.domain.ChangeDetail;
+import adrianmikula.jakartamigration.coderefactoring.domain.ChangeType;
+import adrianmikula.jakartamigration.coderefactoring.domain.Recipe;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

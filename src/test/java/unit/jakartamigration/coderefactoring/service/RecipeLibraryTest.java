@@ -1,8 +1,8 @@
 package unit.jakartamigration.coderefactoring.service;
 
-import com.bugbounty.jakartamigration.coderefactoring.domain.Recipe;
-import com.bugbounty.jakartamigration.coderefactoring.domain.SafetyLevel;
-import com.bugbounty.jakartamigration.coderefactoring.service.RecipeLibrary;
+import adrianmikula.jakartamigration.coderefactoring.domain.Recipe;
+import adrianmikula.jakartamigration.coderefactoring.domain.SafetyLevel;
+import adrianmikula.jakartamigration.coderefactoring.service.RecipeLibrary;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

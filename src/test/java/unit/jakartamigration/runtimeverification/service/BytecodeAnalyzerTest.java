@@ -1,14 +1,18 @@
 package unit.jakartamigration.runtimeverification.service;
 
-import com.bugbounty.jakartamigration.runtimeverification.domain.BytecodeAnalysisResult;
-import com.bugbounty.jakartamigration.runtimeverification.service.BytecodeAnalyzer;
+import adrianmikula.jakartamigration.runtimeverification.domain.BytecodeAnalysisResult;
+import adrianmikula.jakartamigration.runtimeverification.service.BytecodeAnalyzer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
+import java.util.zip.ZipEntry;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -22,7 +26,7 @@ class BytecodeAnalyzerTest {
     
     @BeforeEach
     void setUp() {
-        analyzer = new com.bugbounty.jakartamigration.runtimeverification.service.impl.AsmBytecodeAnalyzer();
+        analyzer = new adrianmikula.jakartamigration.runtimeverification.service.impl.AsmBytecodeAnalyzer();
     }
     
     @Test
@@ -30,7 +34,7 @@ class BytecodeAnalyzerTest {
     void shouldAnalyzeJarFile() throws Exception {
         // Given
         Path jarPath = tempDir.resolve("test.jar");
-        Files.createFile(jarPath);
+        createValidJarFile(jarPath);
         
         // When
         BytecodeAnalysisResult result = analyzer.analyzeJar(jarPath);
@@ -77,7 +81,7 @@ class BytecodeAnalyzerTest {
     void shouldIdentifyMixedNamespaceIssues() throws Exception {
         // Given
         Path jarPath = tempDir.resolve("mixed.jar");
-        Files.createFile(jarPath);
+        createValidJarFile(jarPath);
         
         // When
         BytecodeAnalysisResult result = analyzer.analyzeJar(jarPath);
@@ -113,6 +117,25 @@ class BytecodeAnalyzerTest {
         
         // Then
         assertNotNull(result);
+    }
+    
+    /**
+     * Creates a valid (non-empty) JAR file for testing.
+     */
+    private void createValidJarFile(Path jarPath) throws Exception {
+        try (JarOutputStream jos = new JarOutputStream(new FileOutputStream(jarPath.toFile()))) {
+            // Add a manifest entry
+            JarEntry manifestEntry = new JarEntry("META-INF/MANIFEST.MF");
+            jos.putNextEntry(manifestEntry);
+            jos.write("Manifest-Version: 1.0\n".getBytes());
+            jos.closeEntry();
+            
+            // Add a dummy class entry
+            JarEntry classEntry = new JarEntry("Test.class");
+            jos.putNextEntry(classEntry);
+            jos.write(new byte[]{(byte)0xCA, (byte)0xFE, (byte)0xBA, (byte)0xBE}); // Java class file magic number
+            jos.closeEntry();
+        }
     }
 }
 

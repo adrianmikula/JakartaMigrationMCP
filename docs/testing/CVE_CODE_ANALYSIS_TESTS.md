@@ -146,8 +146,8 @@ void shouldDoSomething() {
 
 ### Individual Test Classes
 ```bash
-./gradlew test --tests "com.bugbounty.cve.mapper.CVECatalogMapperTest"
-./gradlew test --tests "com.bugbounty.cve.service.CVECatalogServiceTest"
+./gradlew test --tests "adrianmikula.jakartamigration.cve.mapper.CVECatalogMapperTest"
+./gradlew test --tests "adrianmikula.jakartamigration.cve.service.CVECatalogServiceTest"
 ```
 
 ### Using Mise

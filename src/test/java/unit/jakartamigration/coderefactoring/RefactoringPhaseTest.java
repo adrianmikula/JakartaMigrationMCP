@@ -1,6 +1,6 @@
 package unit.jakartamigration.coderefactoring;
 
-import com.bugbounty.jakartamigration.coderefactoring.domain.RefactoringPhase;
+import adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

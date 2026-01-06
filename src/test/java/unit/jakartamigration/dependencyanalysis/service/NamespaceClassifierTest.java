@@ -1,7 +1,7 @@
 package unit.jakartamigration.dependencyanalysis.service;
 
-import com.bugbounty.jakartamigration.dependencyanalysis.domain.Artifact;
-import com.bugbounty.jakartamigration.dependencyanalysis.domain.Namespace;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Namespace;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,7 +18,7 @@ class NamespaceClassifierTest {
     
     @BeforeEach
     void setUp() {
-        classifier = new com.bugbounty.jakartamigration.dependencyanalysis.service.impl.SimpleNamespaceClassifier();
+        classifier = new adrianmikula.jakartamigration.dependencyanalysis.service.impl.SimpleNamespaceClassifier();
     }
     
     @Test

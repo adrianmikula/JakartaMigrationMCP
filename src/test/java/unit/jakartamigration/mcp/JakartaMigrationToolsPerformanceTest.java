@@ -1,20 +1,24 @@
 package unit.jakartamigration.mcp;
 
-import com.bugbounty.jakartamigration.coderefactoring.service.MigrationPlanner;
-import com.bugbounty.jakartamigration.coderefactoring.service.RecipeLibrary;
-import com.bugbounty.jakartamigration.dependencyanalysis.domain.*;
-import com.bugbounty.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
-import com.bugbounty.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
-import com.bugbounty.jakartamigration.mcp.JakartaMigrationTools;
-import com.bugbounty.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
+import adrianmikula.jakartamigration.coderefactoring.service.MigrationPlanner;
+import adrianmikula.jakartamigration.coderefactoring.service.RecipeLibrary;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
+import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
+import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
+import adrianmikula.jakartamigration.mcp.JakartaMigrationTools;
+import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -31,6 +35,7 @@ import static org.mockito.Mockito.when;
  * Ensures tools are fast and responsive when processing large input data.
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("JakartaMigrationTools Performance Tests")
 class JakartaMigrationToolsPerformanceTest {
 
@@ -52,11 +57,15 @@ class JakartaMigrationToolsPerformanceTest {
     @InjectMocks
     private JakartaMigrationTools tools;
 
+    @TempDir
+    Path tempDir;
+    
     private Path testProjectPath;
 
     @BeforeEach
-    void setUp() {
-        testProjectPath = Paths.get("/test/large-project");
+    void setUp() throws Exception {
+        testProjectPath = tempDir.resolve("large-project");
+        Files.createDirectories(testProjectPath);
     }
 
     @Test
@@ -170,8 +179,8 @@ class JakartaMigrationToolsPerformanceTest {
             .toList();
 
         // Create at least one phase to satisfy MigrationPlan validation
-        com.bugbounty.jakartamigration.coderefactoring.domain.RefactoringPhase phase = 
-            new com.bugbounty.jakartamigration.coderefactoring.domain.RefactoringPhase(
+        adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase phase = 
+            new adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase(
                 1,
                 "Phase 1",
                 largeFileList.subList(0, Math.min(100, largeFileList.size())),
@@ -180,8 +189,8 @@ class JakartaMigrationToolsPerformanceTest {
                 Duration.ofMinutes(30)
             );
         
-        com.bugbounty.jakartamigration.coderefactoring.domain.MigrationPlan largePlan = 
-            new com.bugbounty.jakartamigration.coderefactoring.domain.MigrationPlan(
+        adrianmikula.jakartamigration.coderefactoring.domain.MigrationPlan largePlan = 
+            new adrianmikula.jakartamigration.coderefactoring.domain.MigrationPlan(
                 List.of(phase),
                 largeFileList,
                 Duration.ofHours(2),

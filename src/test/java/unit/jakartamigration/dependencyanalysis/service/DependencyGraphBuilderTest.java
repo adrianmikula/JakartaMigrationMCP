@@ -1,8 +1,8 @@
 package unit.jakartamigration.dependencyanalysis.service;
 
-import com.bugbounty.jakartamigration.dependencyanalysis.domain.DependencyGraph;
-import com.bugbounty.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
-import com.bugbounty.jakartamigration.dependencyanalysis.service.DependencyGraphException;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
+import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +18,7 @@ class DependencyGraphBuilderTest {
     
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        builder = new com.bugbounty.jakartamigration.dependencyanalysis.service.impl.MavenDependencyGraphBuilder();
+        builder = new adrianmikula.jakartamigration.dependencyanalysis.service.impl.MavenDependencyGraphBuilder();
     }
     
     @Test

@@ -62,7 +62,7 @@ E2E tests extend `AbstractComponentTest`, which provides:
 
 ```powershell
 # Using Gradle wrapper:
-.\gradlew.bat test --tests "com.bugbounty.e2e.*"
+.\gradlew.bat test --tests "adrianmikula.jakartamigration.e2e.*"
 
 # Or using mise (if installed):
 mise run test-e2e
@@ -71,7 +71,7 @@ mise run test-e2e
 ### Run Specific E2E Test
 
 ```powershell
-.\gradlew.bat test --tests "com.bugbounty.e2e.WebhookCommitAnalysisE2ETest"
+.\gradlew.bat test --tests "adrianmikula.jakartamigration.e2e.WebhookCommitAnalysisE2ETest"
 ```
 
 ## Test Isolation
