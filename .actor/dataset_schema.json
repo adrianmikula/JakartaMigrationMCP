@@ -1,0 +1,21 @@
+{
+  "actorSpecification": 1,
+  "fields": {
+    "type": "object",
+    "properties": {}
+  },
+  "views": {
+    "overview": {
+      "title": "No Dataset Output",
+      "description": "This MCP server does not store data in Apify datasets. Results are returned directly via the MCP protocol.",
+      "transformation": {
+        "fields": []
+      },
+      "display": {
+        "component": "table",
+        "properties": {}
+      }
+    }
+  }
+}
+

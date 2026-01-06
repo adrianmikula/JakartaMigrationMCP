@@ -6,6 +6,28 @@
   "description": "Model Context Protocol (MCP) server for Jakarta EE migration analysis and automation. Provides AI assistants with specialized tools for analyzing and migrating Java applications from Java EE 8 (javax.*) to Jakarta EE 9+ (jakarta.*).",
   "readme": "README.md",
   "input": "./input_schema.json",
-  "output": "./output_schema.json"
+  "output": "./output_schema.json",
+  "storages": {
+    "dataset": {
+      "actorSpecification": 1,
+      "fields": {
+        "type": "object",
+        "properties": {}
+      },
+      "views": {
+        "overview": {
+          "title": "No Dataset Output",
+          "description": "This MCP server does not store data in Apify datasets. Results are returned directly via the MCP protocol.",
+          "transformation": {
+            "fields": []
+          },
+          "display": {
+            "component": "table",
+            "properties": {}
+          }
+        }
+      }
+    }
+  }
 }
 
