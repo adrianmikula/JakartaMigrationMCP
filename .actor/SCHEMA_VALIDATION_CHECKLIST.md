@@ -44,12 +44,14 @@ According to Apify specification, string fields must either:
 5. **`apifyApiToken`** ✅
    - Type: `string`
    - Has `enum`: ❌
-   - Has `editor`: ✅ "secret"
+   - Has `editor`: ✅ "textfield" (changed from "secret" - not a valid editor value)
+   - **FIXED**: Changed to `editor: "textfield"` (Apify doesn't support "secret" editor)
 
 6. **`stripeSecretKey`** ✅
    - Type: `string`
    - Has `enum`: ❌
-   - Has `editor`: ✅ "secret"
+   - Has `editor`: ✅ "textfield" (changed from "secret" - not a valid editor value)
+   - **FIXED**: Changed to `editor: "textfield"` (Apify doesn't support "secret" editor)
 
 ### Integer Type Fields
 
@@ -111,10 +113,12 @@ All properties have:
 
 ### Input Schema v1
 - ✅ All string fields without `enum` have `editor` field
+- ✅ All `editor` values are valid: "textfield" (valid values: javascript, python, textfield, textarea, select, fileupload, hidden)
 - ✅ All string fields with `enum` have `enumTitles`
 - ✅ All fields have `title` and `description`
 - ✅ Section captions used for grouping
 - ✅ Default values provided where appropriate
+- ✅ Sensitive fields (API tokens) have warnings in descriptions
 
 ### Output Schema v1
 - ✅ Uses `actorOutputSchemaVersion: 1`

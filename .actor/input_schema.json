@@ -70,15 +70,15 @@
     "apifyApiToken": {
       "title": "Apify API Token (Server)",
       "type": "string",
-      "description": "Your Apify API token for making license validation requests. This is YOUR account token, not the user's license key. Required if Apify validation is enabled.",
-      "editor": "secret",
+      "description": "Your Apify API token for making license validation requests. This is YOUR account token, not the user's license key. Required if Apify validation is enabled. WARNING: This is a sensitive credential - keep it secure.",
+      "editor": "textfield",
       "sectionCaption": "Server Configuration"
     },
     "stripeSecretKey": {
       "title": "Stripe Secret Key (Server)",
       "type": "string",
-      "description": "Your Stripe secret key for making license validation requests. Required if Stripe validation is enabled.",
-      "editor": "secret",
+      "description": "Your Stripe secret key for making license validation requests. Required if Stripe validation is enabled. WARNING: This is a sensitive credential - keep it secure.",
+      "editor": "textfield",
       "sectionCaption": "Server Configuration"
     },
     "maxTotalChargeUsd": {

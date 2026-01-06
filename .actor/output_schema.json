@@ -2,31 +2,30 @@
   "actorOutputSchemaVersion": 1,
   "title": "Jakarta Migration MCP Server Output",
   "description": "Output schema for Jakarta Migration MCP Server. This Actor provides MCP tools that return JSON responses directly via the MCP protocol. Results are accessible through the MCP client interface.",
-  "type": "object",
   "properties": {
     "mcpEndpoint": {
       "type": "string",
       "title": "MCP Server Endpoint",
-      "description": "Server-Sent Events endpoint for MCP protocol communication",
-      "template": "{{run.containerUrl}}mcp/sse"
+      "description": "Server-Sent Events endpoint for MCP protocol communication. Connect MCP clients to this endpoint.",
+      "template": "{{run.containerUrl}}/mcp/sse"
     },
     "healthCheck": {
       "type": "string",
       "title": "Health Check",
-      "description": "Application health check endpoint",
-      "template": "{{run.containerUrl}}actuator/health"
+      "description": "Application health check endpoint. Returns application health status.",
+      "template": "{{run.containerUrl}}/actuator/health"
     },
     "metrics": {
       "type": "string",
       "title": "Metrics",
-      "description": "Application metrics endpoint",
-      "template": "{{run.containerUrl}}actuator/metrics"
+      "description": "Application metrics endpoint. Returns application performance metrics.",
+      "template": "{{run.containerUrl}}/actuator/metrics"
     },
     "info": {
       "type": "string",
       "title": "Application Info",
-      "description": "Application information endpoint",
-      "template": "{{run.containerUrl}}actuator/info"
+      "description": "Application information endpoint. Returns application metadata and version information.",
+      "template": "{{run.containerUrl}}/actuator/info"
     }
   }
 }
