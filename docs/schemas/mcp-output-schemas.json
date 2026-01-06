@@ -1,0 +1,433 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jakarta-migration-mcp.com/schemas/output-schemas.json",
+  "title": "Jakarta Migration MCP Server - Output Schemas",
+  "description": "JSON Schema definitions for MCP tool output responses",
+  "definitions": {
+    "baseResponse": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["success", "error", "upgrade_required"],
+          "description": "Response status"
+        }
+      }
+    },
+    "errorResponse": {
+      "allOf": [
+        { "$ref": "#/definitions/baseResponse" },
+        {
+          "type": "object",
+          "required": ["status", "message"],
+          "properties": {
+            "status": {
+              "const": "error"
+            },
+            "message": {
+              "type": "string",
+              "description": "Error message describing what went wrong"
+            }
+          }
+        }
+      ]
+    },
+    "upgradeRequiredResponse": {
+      "allOf": [
+        { "$ref": "#/definitions/baseResponse" },
+        {
+          "type": "object",
+          "required": ["status", "message", "upgradeMessage", "requiredTier", "currentTier"],
+          "properties": {
+            "status": {
+              "const": "upgrade_required"
+            },
+            "message": {
+              "type": "string",
+              "description": "Message explaining why upgrade is required"
+            },
+            "upgradeMessage": {
+              "type": "string",
+              "description": "Instructions for upgrading"
+            },
+            "requiredTier": {
+              "type": "string",
+              "enum": ["PREMIUM", "ENTERPRISE"],
+              "description": "Minimum license tier required"
+            },
+            "currentTier": {
+              "type": "string",
+              "enum": ["COMMUNITY", "PREMIUM", "ENTERPRISE"],
+              "description": "Current license tier"
+            }
+          }
+        }
+      ]
+    },
+    "readinessResponse": {
+      "allOf": [
+        { "$ref": "#/definitions/baseResponse" },
+        {
+          "type": "object",
+          "required": [
+            "status",
+            "readinessScore",
+            "readinessMessage",
+            "totalDependencies",
+            "blockers",
+            "recommendations",
+            "riskScore",
+            "riskFactors"
+          ],
+          "properties": {
+            "status": {
+              "const": "success"
+            },
+            "readinessScore": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0,
+              "description": "Migration readiness score (0.0 = not ready, 1.0 = fully ready)"
+            },
+            "readinessMessage": {
+              "type": "string",
+              "description": "Human-readable message describing readiness status"
+            },
+            "totalDependencies": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total number of dependencies found in the project"
+            },
+            "blockers": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of blockers preventing migration"
+            },
+            "recommendations": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of version recommendations provided"
+            },
+            "riskScore": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0,
+              "description": "Risk assessment score (0.0 = low risk, 1.0 = high risk)"
+            },
+            "riskFactors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of identified risk factors"
+            }
+          }
+        }
+      ]
+    },
+    "blocker": {
+      "type": "object",
+      "required": ["artifact", "type", "reason", "confidence", "mitigationStrategies"],
+      "properties": {
+        "artifact": {
+          "type": "string",
+          "description": "Artifact identifier (groupId:artifactId:version)",
+          "pattern": "^[^:]+:[^:]+:[^:]+$"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "NO_JAKARTA_EQUIVALENT",
+            "INCOMPATIBLE_VERSION",
+            "BINARY_INCOMPATIBILITY",
+            "NAMESPACE_CONFLICT",
+            "RUNTIME_DEPENDENCY",
+            "UNKNOWN"
+          ],
+          "description": "Type of blocker"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Explanation of why this is a blocker"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Confidence score for this blocker (0.0 = uncertain, 1.0 = certain)"
+        },
+        "mitigationStrategies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Suggested strategies to mitigate this blocker"
+        }
+      }
+    },
+    "blockersResponse": {
+      "allOf": [
+        { "$ref": "#/definitions/baseResponse" },
+        {
+          "type": "object",
+          "required": ["status", "blockerCount", "blockers"],
+          "properties": {
+            "status": {
+              "const": "success"
+            },
+            "blockerCount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total number of blockers found"
+            },
+            "blockers": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/blocker"
+              },
+              "description": "List of detected blockers"
+            }
+          }
+        }
+      ]
+    },
+    "versionRecommendation": {
+      "type": "object",
+      "required": [
+        "current",
+        "recommended",
+        "migrationPath",
+        "compatibilityScore",
+        "breakingChanges"
+      ],
+      "properties": {
+        "current": {
+          "type": "string",
+          "description": "Current artifact identifier (groupId:artifactId:version)",
+          "pattern": "^[^:]+:[^:]+:[^:]+$"
+        },
+        "recommended": {
+          "type": "string",
+          "description": "Recommended Jakarta-compatible artifact identifier",
+          "pattern": "^[^:]+:[^:]+:[^:]+$"
+        },
+        "migrationPath": {
+          "type": "string",
+          "description": "Description of the migration path from current to recommended version"
+        },
+        "compatibilityScore": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Compatibility score (0.0 = incompatible, 1.0 = fully compatible)"
+        },
+        "breakingChanges": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of breaking changes to be aware of"
+        }
+      }
+    },
+    "recommendationsResponse": {
+      "allOf": [
+        { "$ref": "#/definitions/baseResponse" },
+        {
+          "type": "object",
+          "required": ["status", "recommendationCount", "recommendations"],
+          "properties": {
+            "status": {
+              "const": "success"
+            },
+            "recommendationCount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total number of recommendations provided"
+            },
+            "recommendations": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/versionRecommendation"
+              },
+              "description": "List of version recommendations"
+            }
+          }
+        }
+      ]
+    },
+    "migrationPhase": {
+      "type": "object",
+      "required": ["number", "description", "fileCount", "estimatedDuration"],
+      "properties": {
+        "number": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Phase number (sequential)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of what this phase accomplishes"
+        },
+        "fileCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of files to be processed in this phase"
+        },
+        "estimatedDuration": {
+          "type": "string",
+          "pattern": "^\\d+ minutes$",
+          "description": "Estimated duration for this phase (e.g., '30 minutes')"
+        }
+      }
+    },
+    "migrationPlanResponse": {
+      "allOf": [
+        { "$ref": "#/definitions/baseResponse" },
+        {
+          "type": "object",
+          "required": [
+            "status",
+            "phaseCount",
+            "estimatedDuration",
+            "riskScore",
+            "riskFactors",
+            "prerequisites",
+            "phases"
+          ],
+          "properties": {
+            "status": {
+              "const": "success"
+            },
+            "phaseCount": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Total number of phases in the migration plan"
+            },
+            "estimatedDuration": {
+              "type": "string",
+              "pattern": "^\\d+ minutes$",
+              "description": "Total estimated duration for the entire migration"
+            },
+            "riskScore": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0,
+              "description": "Overall risk score for the migration (0.0 = low risk, 1.0 = high risk)"
+            },
+            "riskFactors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of identified risk factors"
+            },
+            "prerequisites": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of prerequisites that must be met before starting migration"
+            },
+            "phases": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/migrationPhase"
+              },
+              "description": "List of migration phases in execution order"
+            }
+          }
+        }
+      ]
+    },
+    "verificationResponse": {
+      "allOf": [
+        { "$ref": "#/definitions/baseResponse" },
+        {
+          "type": "object",
+          "required": [
+            "status",
+            "errorCount",
+            "warningCount",
+            "executionTime",
+            "exitCode",
+            "message"
+          ],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["PASSED", "FAILED", "TIMEOUT", "ERROR"],
+              "description": "Verification status"
+            },
+            "errorCount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of errors found during verification"
+            },
+            "warningCount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of warnings found during verification"
+            },
+            "executionTime": {
+              "type": "string",
+              "pattern": "^\\d+ seconds$",
+              "description": "Total execution time (e.g., '5 seconds')"
+            },
+            "exitCode": {
+              "type": "integer",
+              "description": "Process exit code (0 = success, non-zero = failure)"
+            },
+            "message": {
+              "type": "string",
+              "description": "Human-readable message describing verification result"
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of error messages (only present if errors found, max 5 shown)"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "toolOutputs": {
+    "analyzeJakartaReadiness": {
+      "oneOf": [
+        { "$ref": "#/definitions/readinessResponse" },
+        { "$ref": "#/definitions/errorResponse" }
+      ]
+    },
+    "detectBlockers": {
+      "oneOf": [
+        { "$ref": "#/definitions/blockersResponse" },
+        { "$ref": "#/definitions/errorResponse" }
+      ]
+    },
+    "recommendVersions": {
+      "oneOf": [
+        { "$ref": "#/definitions/recommendationsResponse" },
+        { "$ref": "#/definitions/errorResponse" }
+      ]
+    },
+    "createMigrationPlan": {
+      "oneOf": [
+        { "$ref": "#/definitions/migrationPlanResponse" },
+        { "$ref": "#/definitions/errorResponse" },
+        { "$ref": "#/definitions/upgradeRequiredResponse" }
+      ]
+    },
+    "verifyRuntime": {
+      "oneOf": [
+        { "$ref": "#/definitions/verificationResponse" },
+        { "$ref": "#/definitions/errorResponse" },
+        { "$ref": "#/definitions/upgradeRequiredResponse" }
+      ]
+    }
+  }
+}
+

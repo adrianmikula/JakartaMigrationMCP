@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jakarta-migration-mcp.com/schemas/input-schemas.json",
+  "title": "Jakarta Migration MCP Server - Input Schemas",
+  "description": "JSON Schema definitions for MCP tool input parameters",
+  "definitions": {
+    "analyzeJakartaReadinessInput": {
+      "type": "object",
+      "title": "Analyze Jakarta Readiness Input",
+      "description": "Input parameters for analyzing Jakarta migration readiness",
+      "required": ["projectPath"],
+      "properties": {
+        "projectPath": {
+          "type": "string",
+          "description": "Path to the project root directory (absolute or relative)",
+          "examples": [
+            "/path/to/project",
+            "./my-project",
+            "C:\\Users\\project\\src"
+          ],
+          "pattern": "^.+$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "detectBlockersInput": {
+      "type": "object",
+      "title": "Detect Blockers Input",
+      "description": "Input parameters for detecting Jakarta migration blockers",
+      "required": ["projectPath"],
+      "properties": {
+        "projectPath": {
+          "type": "string",
+          "description": "Path to the project root directory (absolute or relative)",
+          "examples": [
+            "/path/to/project",
+            "./my-project",
+            "C:\\Users\\project\\src"
+          ],
+          "pattern": "^.+$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "recommendVersionsInput": {
+      "type": "object",
+      "title": "Recommend Versions Input",
+      "description": "Input parameters for recommending Jakarta-compatible dependency versions",
+      "required": ["projectPath"],
+      "properties": {
+        "projectPath": {
+          "type": "string",
+          "description": "Path to the project root directory (absolute or relative)",
+          "examples": [
+            "/path/to/project",
+            "./my-project",
+            "C:\\Users\\project\\src"
+          ],
+          "pattern": "^.+$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "createMigrationPlanInput": {
+      "type": "object",
+      "title": "Create Migration Plan Input",
+      "description": "Input parameters for creating a Jakarta migration plan (Premium feature)",
+      "required": ["projectPath"],
+      "properties": {
+        "projectPath": {
+          "type": "string",
+          "description": "Path to the project root directory (absolute or relative)",
+          "examples": [
+            "/path/to/project",
+            "./my-project",
+            "C:\\Users\\project\\src"
+          ],
+          "pattern": "^.+$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "verifyRuntimeInput": {
+      "type": "object",
+      "title": "Verify Runtime Input",
+      "description": "Input parameters for verifying runtime execution of migrated application (Premium feature)",
+      "required": ["jarPath"],
+      "properties": {
+        "jarPath": {
+          "type": "string",
+          "description": "Path to the JAR file to execute and verify",
+          "examples": [
+            "/path/to/app.jar",
+            "./target/app.jar",
+            "C:\\Users\\project\\target\\app.jar"
+          ],
+          "pattern": ".*\\.jar$"
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "description": "Optional timeout in seconds for JAR execution (default: 30)",
+          "minimum": 1,
+          "maximum": 3600,
+          "default": 30,
+          "examples": [30, 60, 120]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "toolInputs": {
+    "analyzeJakartaReadiness": {
+      "$ref": "#/definitions/analyzeJakartaReadinessInput"
+    },
+    "detectBlockers": {
+      "$ref": "#/definitions/detectBlockersInput"
+    },
+    "recommendVersions": {
+      "$ref": "#/definitions/recommendVersionsInput"
+    },
+    "createMigrationPlan": {
+      "$ref": "#/definitions/createMigrationPlanInput"
+    },
+    "verifyRuntime": {
+      "$ref": "#/definitions/verifyRuntimeInput"
+    }
+  }
+}
+

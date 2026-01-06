@@ -1,0 +1,188 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Jakarta Migration MCP Server - Example Requests and Responses",
+  "description": "Example request/response pairs for all MCP tools",
+  "examples": {
+    "analyzeJakartaReadiness": {
+      "request": {
+        "projectPath": "/path/to/my-java-project"
+      },
+      "response": {
+        "status": "success",
+        "readinessScore": 0.75,
+        "readinessMessage": "Mostly ready for Jakarta migration, but 2 blockers need to be resolved",
+        "totalDependencies": 45,
+        "blockers": 2,
+        "recommendations": 8,
+        "riskScore": 0.3,
+        "riskFactors": [
+          "2 dependency blockers found",
+          "Some dependencies may require manual updates"
+        ]
+      }
+    },
+    "detectBlockers": {
+      "request": {
+        "projectPath": "/path/to/my-java-project"
+      },
+      "response": {
+        "status": "success",
+        "blockerCount": 2,
+        "blockers": [
+          {
+            "artifact": "com.legacy:legacy-lib:1.0.0",
+            "type": "NO_JAKARTA_EQUIVALENT",
+            "reason": "No Jakarta equivalent found for this dependency",
+            "confidence": 0.9,
+            "mitigationStrategies": [
+              "Search for Jakarta-compatible alternative",
+              "Consider removing dependency if not critical",
+              "Contact library maintainer about Jakarta migration plans"
+            ]
+          },
+          {
+            "artifact": "javax.servlet:javax.servlet-api:3.1.0",
+            "type": "INCOMPATIBLE_VERSION",
+            "reason": "Version 3.1.0 is not Jakarta-compatible",
+            "confidence": 1.0,
+            "mitigationStrategies": [
+              "Upgrade to jakarta.servlet:jakarta.servlet-api:5.0.0 or later"
+            ]
+          }
+        ]
+      }
+    },
+    "recommendVersions": {
+      "request": {
+        "projectPath": "/path/to/my-java-project"
+      },
+      "response": {
+        "status": "success",
+        "recommendationCount": 8,
+        "recommendations": [
+          {
+            "current": "javax.servlet:javax.servlet-api:3.1.0",
+            "recommended": "jakarta.servlet:jakarta.servlet-api:5.0.0",
+            "migrationPath": "Direct replacement: Update groupId from javax.servlet to jakarta.servlet and version to 5.0.0",
+            "compatibilityScore": 0.95,
+            "breakingChanges": [
+              "Package namespace changed from javax.servlet.* to jakarta.servlet.*",
+              "Some deprecated methods removed in 5.0.0"
+            ]
+          },
+          {
+            "current": "javax.persistence:javax.persistence-api:2.2",
+            "recommended": "jakarta.persistence:jakarta.persistence-api:3.0.0",
+            "migrationPath": "Direct replacement: Update groupId and version",
+            "compatibilityScore": 0.90,
+            "breakingChanges": [
+              "Package namespace changed from javax.persistence.* to jakarta.persistence.*",
+              "Some annotations have different behavior"
+            ]
+          }
+        ]
+      }
+    },
+    "createMigrationPlan": {
+      "request": {
+        "projectPath": "/path/to/my-java-project"
+      },
+      "response": {
+        "status": "success",
+        "phaseCount": 4,
+        "estimatedDuration": "120 minutes",
+        "riskScore": 0.3,
+        "riskFactors": [
+          "2 dependency blockers found",
+          "Large codebase with 500+ files"
+        ],
+        "prerequisites": [
+          "Backup current codebase",
+          "Ensure all tests pass before migration",
+          "Review dependency blockers"
+        ],
+        "phases": [
+          {
+            "number": 1,
+            "description": "Update dependency declarations in pom.xml/build.gradle",
+            "fileCount": 2,
+            "estimatedDuration": "15 minutes"
+          },
+          {
+            "number": 2,
+            "description": "Refactor Java source files: javax.* to jakarta.* imports",
+            "fileCount": 150,
+            "estimatedDuration": "60 minutes"
+          },
+          {
+            "number": 3,
+            "description": "Update XML configuration files (web.xml, persistence.xml)",
+            "fileCount": 5,
+            "estimatedDuration": "20 minutes"
+          },
+          {
+            "number": 4,
+            "description": "Verify and test migrated application",
+            "fileCount": 0,
+            "estimatedDuration": "25 minutes"
+          }
+        ]
+      }
+    },
+    "verifyRuntime": {
+      "request": {
+        "jarPath": "/path/to/migrated-app.jar",
+        "timeoutSeconds": 60
+      },
+      "response": {
+        "status": "PASSED",
+        "errorCount": 0,
+        "warningCount": 2,
+        "executionTime": "5 seconds",
+        "exitCode": 0,
+        "message": "Runtime verification passed"
+      }
+    },
+    "verifyRuntimeWithErrors": {
+      "request": {
+        "jarPath": "/path/to/migrated-app.jar",
+        "timeoutSeconds": 30
+      },
+      "response": {
+        "status": "FAILED",
+        "errorCount": 3,
+        "warningCount": 1,
+        "executionTime": "2 seconds",
+        "exitCode": 1,
+        "message": "Runtime verification found issues",
+        "errors": [
+          "ClassNotFoundException: javax.servlet.http.HttpServlet",
+          "NoClassDefFoundError: javax/persistence/Entity",
+          "IllegalAccessError: javax.servlet.ServletException"
+        ]
+      }
+    },
+    "errorResponse": {
+      "request": {
+        "projectPath": "/nonexistent/path"
+      },
+      "response": {
+        "status": "error",
+        "message": "Project path does not exist or is not a directory: /nonexistent/path"
+      }
+    },
+    "upgradeRequiredResponse": {
+      "request": {
+        "projectPath": "/path/to/project"
+      },
+      "response": {
+        "status": "upgrade_required",
+        "message": "This feature requires a PREMIUM license",
+        "upgradeMessage": "To use createMigrationPlan, please upgrade to PREMIUM tier. Visit https://example.com/upgrade",
+        "requiredTier": "PREMIUM",
+        "currentTier": "COMMUNITY"
+      }
+    }
+  }
+}
+
