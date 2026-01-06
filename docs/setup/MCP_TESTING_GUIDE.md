@@ -34,7 +34,7 @@ gradle build
 
 ```bash
 # Run as Spring Boot application
-java -jar build/libs/bug-bounty-finder-1.0.0-SNAPSHOT.jar --spring.main.web-application-type=none
+java -jar build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar --spring.main.web-application-type=none
 
 # Or run directly
 gradle bootRun --args="--spring.main.web-application-type=none"
@@ -64,7 +64,7 @@ Check the logs for:
       "command": "java",
       "args": [
         "-jar",
-        "E:/Source/JakartaMigrationMCP/build/libs/bug-bounty-finder-1.0.0-SNAPSHOT.jar",
+        "E:/Source/JakartaMigrationMCP/build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar",
         "--spring.main.web-application-type=none",
         "--spring.profiles.active=mcp"
       ]

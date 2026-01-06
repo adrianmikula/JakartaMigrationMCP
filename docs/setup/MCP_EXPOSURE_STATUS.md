@@ -111,7 +111,7 @@ spring:
 Once configured, verify MCP tools are exposed:
 
 1. **Build the project**: `./gradlew bootJar`
-2. **Run the JAR**: `java -jar build/libs/bug-bounty-finder-1.0.0-SNAPSHOT.jar`
+2. **Run the JAR**: `java -jar build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar`
 3. **Check logs** for MCP server startup messages
 4. **Test with MCP client** or Cursor to see if tools are available
 

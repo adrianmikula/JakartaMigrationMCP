@@ -98,7 +98,7 @@ If you have a local JAR file, you can configure the MCP client to use it directl
       "command": "java",
       "args": [
         "-jar",
-        "/path/to/bug-bounty-finder-1.0.0.jar",
+        "/path/to/jakarta-migration-mcp-1.0.0.jar",
         "--spring.main.web-application-type=none",
         "--spring.profiles.active=mcp"
       ]
@@ -147,7 +147,7 @@ cd JakartaMigrationMCP
 ./gradlew bootJar
 
 # Run locally
-java -jar build/libs/bug-bounty-finder-1.0.0-SNAPSHOT.jar \
+java -jar build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar \
   --spring.main.web-application-type=none \
   --spring.profiles.active=mcp
 ```

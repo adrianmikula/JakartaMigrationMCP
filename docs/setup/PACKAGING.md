@@ -24,7 +24,7 @@ The Jakarta Migration MCP Server is distributed as:
 ./gradlew clean bootJar
 
 # The JAR will be in build/libs/
-# Look for: bug-bounty-finder-1.0.0-SNAPSHOT.jar
+# Look for: jakarta-migration-mcp-1.0.0-SNAPSHOT.jar
 ```
 
 ### Building for Release
@@ -72,7 +72,7 @@ Update the version in:
 
 ```bash
 # Test the JAR
-java -jar release/bug-bounty-finder-1.0.0.jar \
+java -jar release/jakarta-migration-mcp-1.0.0.jar \
   --spring.main.web-application-type=none \
   --spring.profiles.active=mcp
 
@@ -91,8 +91,8 @@ git push origin v1.0.0
 
 # Or use GitHub CLI
 gh release create v1.0.0 \
-  release/bug-bounty-finder-1.0.0.jar \
-  release/bug-bounty-finder-1.0.0.jar.sha256 \
+  release/jakarta-migration-mcp-1.0.0.jar \
+  release/jakarta-migration-mcp-1.0.0.jar.sha256 \
   --title "Release v1.0.0" \
   --notes "Release notes here"
 ```
@@ -190,7 +190,7 @@ Keep versions synchronized across:
 ./gradlew bootJar
 
 # Test JAR directly
-java -jar build/libs/bug-bounty-finder-1.0.0-SNAPSHOT.jar \
+java -jar build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar \
   --spring.main.web-application-type=none \
   --spring.profiles.active=mcp
 

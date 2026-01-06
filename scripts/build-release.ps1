@@ -55,7 +55,7 @@ if (-not (Test-Path $ReleaseDir)) {
 }
 
 # Copy JAR to release directory with standardized name
-$ReleaseJar = Join-Path $ReleaseDir "bug-bounty-finder-${VersionClean}.jar"
+$ReleaseJar = Join-Path $ReleaseDir "jakarta-migration-mcp-${VersionClean}.jar"
 Copy-Item $JarFile.FullName $ReleaseJar
 
 Write-Host "📦 Release JAR: $ReleaseJar" -ForegroundColor Cyan
@@ -64,7 +64,7 @@ Write-Host ""
 # Create checksums
 Write-Host "🔐 Creating checksums..." -ForegroundColor Yellow
 Set-Location $ReleaseDir
-$JarName = "bug-bounty-finder-${VersionClean}.jar"
+$JarName = "jakarta-migration-mcp-${VersionClean}.jar"
 
 # SHA256
 $Sha256 = (Get-FileHash -Path $JarName -Algorithm SHA256).Hash
@@ -92,7 +92,7 @@ Write-Host "✅ Build complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "📋 Release artifacts:" -ForegroundColor Cyan
 Write-Host "   - JAR: $ReleaseJar"
-Write-Host "   - SHA256: $ReleaseDir\bug-bounty-finder-${VersionClean}.jar.sha256"
+Write-Host "   - SHA256: $ReleaseDir\jakarta-migration-mcp-${VersionClean}.jar.sha256"
 Write-Host ""
 Write-Host "🚀 Next steps:" -ForegroundColor Yellow
 Write-Host "   1. Test the JAR: java -jar $ReleaseJar"

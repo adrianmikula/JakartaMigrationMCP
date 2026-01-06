@@ -136,14 +136,13 @@ jakarta:
       
       # Webhook secret for validating Stripe webhooks (future use)
       webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
-
-# Spring AI MCP Server Configuration
-# Supports both stdio (local) and SSE (Apify) transports
-# Transport mode is determined by:
-#   - Environment variable: MCP_TRANSPORT (stdio|sse)
-#   - Spring profile: mcp-stdio or mcp-sse
-#   - Default: stdio (for local use)
-spring:
+  
+  # Spring AI MCP Server Configuration
+  # Supports both stdio (local) and SSE (Apify) transports
+  # Transport mode is determined by:
+  #   - Environment variable: MCP_TRANSPORT (stdio|sse)
+  #   - Spring profile: mcp-stdio or mcp-sse
+  #   - Default: stdio (for local use)
   ai:
     mcp:
       server:

@@ -1,7 +1,7 @@
 # PowerShell setup script for Windows
 # Simple setup: installs mise, then uses mise for everything
 
-Write-Host "Setting up Bug Bounty Finder..." -ForegroundColor Blue
+Write-Host "Setting up Jakarta Migration MCP..." -ForegroundColor Blue
 Write-Host ""
 
 # Install mise if not present

@@ -5,7 +5,7 @@
 
 set -e
 
-echo "🚀 Setting up Bug Bounty Finder..."
+echo "🚀 Setting up Jakarta Migration MCP..."
 echo ""
 
 # Install mise if not present

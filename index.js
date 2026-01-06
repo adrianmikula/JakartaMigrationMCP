@@ -27,7 +27,7 @@ if (!VERSION) {
 }
 
 const GITHUB_REPO = process.env.GITHUB_REPO || 'your-org/JakartaMigrationMCP';
-const JAR_NAME = `bug-bounty-finder-${VERSION}.jar`;
+const JAR_NAME = `jakarta-migration-mcp-${VERSION}.jar`;
 const GITHUB_RELEASES_URL = `https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}`;
 
 // Determine OS-specific paths

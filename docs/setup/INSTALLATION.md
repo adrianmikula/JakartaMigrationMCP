@@ -48,7 +48,7 @@ If you're building from source:
 ./gradlew bootJar
 
 # Run directly
-java -jar build/libs/bug-bounty-finder-1.0.0-SNAPSHOT.jar --spring.main.web-application-type=none
+java -jar build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar --spring.main.web-application-type=none
 ```
 
 ## Configuration for MCP Clients
@@ -182,14 +182,14 @@ If you prefer to download and run the JAR manually:
 
 2. Run the JAR:
    ```bash
-   java -jar bug-bounty-finder-1.0.0.jar --spring.main.web-application-type=none --spring.profiles.active=mcp
+   java -jar jakarta-migration-mcp-1.0.0.jar --spring.main.web-application-type=none --spring.profiles.active=mcp
    ```
 
 3. Configure MCP client to use:
    ```json
    {
      "command": "java",
-     "args": ["-jar", "/path/to/bug-bounty-finder-1.0.0.jar", "--spring.main.web-application-type=none", "--spring.profiles.active=mcp"]
+     "args": ["-jar", "/path/to/jakarta-migration-mcp-1.0.0.jar", "--spring.main.web-application-type=none", "--spring.profiles.active=mcp"]
    }
    ```
 

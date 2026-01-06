@@ -12,7 +12,7 @@ This guide shows how to configure the Jakarta Migration MCP server in Cursor for
    - Verify: `node --version`
 3. **Project built** (JAR file available)
    - Build: `./gradlew bootJar` or `gradle bootJar`
-   - JAR location: `build/libs/bug-bounty-finder-1.0.0-SNAPSHOT.jar`
+   - JAR location: `build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar`
 
 ## Step 1: Build the Project
 
@@ -24,7 +24,7 @@ This guide shows how to configure the Jakarta Migration MCP server in Cursor for
 gradlew.bat bootJar
 ```
 
-The JAR will be created at: `build/libs/bug-bounty-finder-1.0.0-SNAPSHOT.jar`
+The JAR will be created at: `build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar`
 
 ## Step 2: Configure Cursor MCP Settings
 
@@ -47,7 +47,7 @@ The JAR will be created at: `build/libs/bug-bounty-finder-1.0.0-SNAPSHOT.jar`
          "command": "java",
          "args": [
            "-jar",
-           "E:/Source/JakartaMigrationMCP/build/libs/bug-bounty-finder-1.0.0-SNAPSHOT.jar",
+           "E:/Source/JakartaMigrationMCP/build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar",
            "--spring.main.web-application-type=none"
          ],
          "env": {
@@ -69,7 +69,7 @@ The JAR will be created at: `build/libs/bug-bounty-finder-1.0.0-SNAPSHOT.jar`
          "command": "java",
          "args": [
            "-jar",
-           "${workspaceFolder}/build/libs/bug-bounty-finder-1.0.0-SNAPSHOT.jar",
+           "${workspaceFolder}/build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar",
            "--spring.main.web-application-type=none"
          ]
        }

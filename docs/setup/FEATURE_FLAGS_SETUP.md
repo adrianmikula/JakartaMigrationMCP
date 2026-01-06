@@ -53,7 +53,7 @@ export JAKARTA_MCP_PURCHASE_URL="https://buy.stripe.com/your-link"
 
 ```bash
 # No license key = Community tier
-java -jar bug-bounty-finder.jar \
+java -jar jakarta-migration-mcp.jar \
   --spring.main.web-application-type=none \
   --spring.profiles.active=mcp
 ```
@@ -63,7 +63,7 @@ java -jar bug-bounty-finder.jar \
 ```bash
 # Set license key via environment variable
 export JAKARTA_MCP_LICENSE_KEY="PREMIUM-test-key"
-java -jar bug-bounty-finder.jar \
+java -jar jakarta-migration-mcp.jar \
   --spring.main.web-application-type=none \
   --spring.profiles.active=mcp
 ```
