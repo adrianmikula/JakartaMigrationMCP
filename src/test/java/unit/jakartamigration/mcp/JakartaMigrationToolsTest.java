@@ -18,10 +18,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -56,13 +59,21 @@ class JakartaMigrationToolsTest {
     @InjectMocks
     private JakartaMigrationTools tools;
 
+    @TempDir
+    Path tempDir;
+    
     private Path testProjectPath;
+    private Path testJarPath;
     private DependencyAnalysisReport mockReport;
     private DependencyGraph mockGraph;
 
     @BeforeEach
-    void setUp() {
-        testProjectPath = Paths.get("/test/project");
+    void setUp() throws IOException {
+        testProjectPath = tempDir.resolve("project");
+        Files.createDirectories(testProjectPath);
+        
+        testJarPath = tempDir.resolve("app.jar");
+        Files.createFile(testJarPath);
         
         // Create mock dependency graph
         mockGraph = new DependencyGraph(
@@ -118,7 +129,7 @@ class JakartaMigrationToolsTest {
     @Test
     @DisplayName("Should handle DependencyGraphException gracefully")
     void shouldHandleDependencyGraphExceptionGracefully() {
-        // Given
+        // Given - path exists, but analysis throws exception
         when(dependencyAnalysisModule.analyzeProject(any(Path.class)))
             .thenThrow(new DependencyGraphException("Failed to parse pom.xml"));
 
@@ -188,7 +199,7 @@ class JakartaMigrationToolsTest {
         );
         
         when(dependencyGraphBuilder.buildFromProject(any(Path.class))).thenReturn(mockGraph);
-        when(dependencyAnalysisModule.recommendVersions(anyList())).thenReturn(recommendations);
+        when(dependencyAnalysisModule.recommendVersions(any())).thenReturn(recommendations);
 
         // When
         String result = tools.recommendVersions(testProjectPath.toString());
@@ -197,7 +208,7 @@ class JakartaMigrationToolsTest {
         assertThat(result).contains("\"status\": \"success\"");
         assertThat(result).contains("\"recommendationCount\": 1");
         assertThat(result).contains("jakarta.servlet");
-        verify(dependencyAnalysisModule, times(1)).recommendVersions(anyList());
+        verify(dependencyAnalysisModule, times(1)).recommendVersions(any());
     }
 
     @Test
@@ -258,7 +269,7 @@ class JakartaMigrationToolsTest {
             .thenReturn(mockResult);
 
         // When
-        String result = tools.verifyRuntime("/test/app.jar", 30);
+        String result = tools.verifyRuntime(testJarPath.toString(), 30);
 
         // Then
         assertThat(result).contains("\"status\": \"SUCCESS\"");
@@ -291,7 +302,7 @@ class JakartaMigrationToolsTest {
             .thenReturn(mockResult);
 
         // When
-        String result = tools.verifyRuntime("/test/app.jar", null);
+        String result = tools.verifyRuntime(testJarPath.toString(), null);
 
         // Then
         assertThat(result).contains("\"status\": \"SUCCESS\"");
@@ -318,7 +329,7 @@ class JakartaMigrationToolsTest {
             .thenThrow(new RuntimeException("JAR execution failed"));
 
         // When
-        String result = tools.verifyRuntime("/test/app.jar", 30);
+        String result = tools.verifyRuntime(testJarPath.toString(), 30);
 
         // Then
         assertThat(result).contains("\"status\": \"error\"");
@@ -345,8 +356,10 @@ class JakartaMigrationToolsTest {
 
         // Then
         assertThat(result).contains("\"status\": \"success\"");
-        assertThat(result).doesNotContain("\n"); // Newlines should be escaped
-        assertThat(result).contains("\\\""); // Quotes should be escaped
+        // Check that quotes in content are escaped (not the JSON structure quotes)
+        assertThat(result).contains("\\\"quotes\\\""); // Quotes should be escaped in content
+        // Check that newlines in content are escaped (the JSON structure can have newlines for formatting)
+        assertThat(result).contains("\\n"); // Newlines in content should be escaped
     }
 }
 

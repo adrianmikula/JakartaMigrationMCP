@@ -19,11 +19,14 @@ class LicenseServiceTest {
     @Mock
     private ApifyLicenseService apifyLicenseService;
 
+    @Mock
+    private StripeLicenseService stripeLicenseService;
+
     private LicenseService licenseService;
 
     @BeforeEach
     void setUp() {
-        licenseService = new LicenseService(apifyLicenseService);
+        licenseService = new LicenseService(apifyLicenseService, stripeLicenseService);
     }
 
     @Test
@@ -47,12 +50,32 @@ class LicenseServiceTest {
     }
 
     @Test
+    void shouldUseStripeValidationForStripeKeys() {
+        when(stripeLicenseService.validateLicense(anyString())).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
+        
+        FeatureFlagsProperties.LicenseTier tier = licenseService.validateLicense("sub_1234567890");
+        
+        assertThat(tier).isEqualTo(FeatureFlagsProperties.LicenseTier.PREMIUM);
+    }
+
+    @Test
     void shouldUseApifyValidationWhenAvailable() {
+        when(stripeLicenseService.validateLicense(anyString())).thenReturn(null);
         when(apifyLicenseService.validateLicense(anyString())).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
         
         FeatureFlagsProperties.LicenseTier tier = licenseService.validateLicense("apify_api_token_123");
         
         assertThat(tier).isEqualTo(FeatureFlagsProperties.LicenseTier.PREMIUM);
+    }
+
+    @Test
+    void shouldTryStripeFirstForStripeKeys() {
+        when(stripeLicenseService.validateLicense(anyString())).thenReturn(FeatureFlagsProperties.LicenseTier.ENTERPRISE);
+        
+        FeatureFlagsProperties.LicenseTier tier = licenseService.validateLicense("stripe_sub_1234567890");
+        
+        assertThat(tier).isEqualTo(FeatureFlagsProperties.LicenseTier.ENTERPRISE);
+        // Apify should not be called for Stripe keys
     }
 
     @Test

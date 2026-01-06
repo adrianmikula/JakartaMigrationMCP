@@ -7,12 +7,12 @@ import org.springframework.stereotype.Service;
 /**
  * Service for license key validation and tier determination.
  * 
- * This service delegates to ApifyLicenseService for Apify-based validation,
- * with fallback to simple local validation.
+ * This service delegates to multiple validation providers:
+ * 1. StripeLicenseService for Stripe subscription validation
+ * 2. ApifyLicenseService for Apify-based validation
+ * 3. Simple pattern matching for test keys
  * 
- * Future implementations could integrate with:
- * - Stripe for subscription validation (planned)
- * - Custom license server
+ * The service tries each provider in order until one returns a valid tier.
  */
 @Slf4j
 @Service
@@ -20,13 +20,15 @@ import org.springframework.stereotype.Service;
 public class LicenseService {
 
     private final ApifyLicenseService apifyLicenseService;
+    private final StripeLicenseService stripeLicenseService;
 
     /**
      * Validate a license key and return the associated tier.
      * 
-     * This method:
-     * 1. First tries Apify validation (if enabled)
-     * 2. Falls back to simple pattern matching
+     * This method tries validation providers in order:
+     * 1. Stripe validation (if license key looks like Stripe key)
+     * 2. Apify validation (if license key looks like Apify key)
+     * 3. Simple pattern matching for test keys
      * 
      * @param licenseKey The license key to validate
      * @return The license tier if valid, null if invalid
@@ -36,9 +38,19 @@ public class LicenseService {
             return null;
         }
 
-        // Try Apify validation first
+        // Try Stripe validation first (if it looks like a Stripe key)
+        if (isStripeKey(licenseKey)) {
+            FeatureFlagsProperties.LicenseTier tier = stripeLicenseService.validateLicense(licenseKey);
+            if (tier != null) {
+                log.debug("License validated via Stripe: {}", maskKey(licenseKey));
+                return tier;
+            }
+        }
+
+        // Try Apify validation (if it looks like an Apify key or not a known format)
         FeatureFlagsProperties.LicenseTier tier = apifyLicenseService.validateLicense(licenseKey);
         if (tier != null) {
+            log.debug("License validated via Apify: {}", maskKey(licenseKey));
             return tier;
         }
 
@@ -57,6 +69,16 @@ public class LicenseService {
 
         log.debug("Invalid license key format: {}", maskKey(licenseKey));
         return null;
+    }
+
+    /**
+     * Check if a license key looks like a Stripe key.
+     */
+    private boolean isStripeKey(String licenseKey) {
+        return licenseKey.startsWith("stripe_") ||
+               licenseKey.startsWith("cus_") ||
+               licenseKey.startsWith("sub_") ||
+               licenseKey.startsWith("price_");
     }
 
     /**

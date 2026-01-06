@@ -94,6 +94,48 @@ jakarta:
       
       # Allow offline validation when API is unavailable
       allow-offline-validation: ${APIFY_ALLOW_OFFLINE:true}
+    
+    # Stripe License Validation Configuration
+    stripe:
+      # Enable/disable Stripe license validation
+      enabled: ${STRIPE_VALIDATION_ENABLED:true}
+      
+      # Stripe API base URL (usually doesn't need to change)
+      api-url: ${STRIPE_API_URL:https://api.stripe.com/v1}
+      
+      # Stripe secret key for API authentication
+      # Use your Stripe secret key (starts with sk_live_ or sk_test_)
+      # Can be set via environment variable: STRIPE_SECRET_KEY
+      secret-key: ${STRIPE_SECRET_KEY:}
+      
+      # Cache TTL for license validation results (seconds)
+      cache-ttl-seconds: ${STRIPE_CACHE_TTL:3600}
+      
+      # Request timeout (seconds)
+      timeout-seconds: ${STRIPE_TIMEOUT:5}
+      
+      # Stripe Product IDs for tier identification
+      # Set these to your Stripe product IDs
+      product-id-premium: ${STRIPE_PRODUCT_ID_PREMIUM:}
+      product-id-enterprise: ${STRIPE_PRODUCT_ID_ENTERPRISE:}
+      
+      # Price ID to tier mapping (optional)
+      # Maps Stripe Price IDs directly to license tiers
+      # Format: price_id -> tier (PREMIUM or ENTERPRISE)
+      price-id-to-tier:
+        # Example:
+        # price_1234567890: PREMIUM
+        # price_0987654321: ENTERPRISE
+      
+      # License key prefix for Stripe-based keys
+      # Keys starting with this prefix are treated as Stripe license keys
+      license-key-prefix: ${STRIPE_LICENSE_PREFIX:stripe_}
+      
+      # Allow offline validation when API is unavailable
+      allow-offline-validation: ${STRIPE_ALLOW_OFFLINE:true}
+      
+      # Webhook secret for validating Stripe webhooks (future use)
+      webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
 
 # Logging Configuration
 logging:

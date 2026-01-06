@@ -187,30 +187,40 @@ jakarta:
 
 ## License Validation
 
-The `LicenseService` currently implements placeholder validation:
+The `LicenseService` supports multiple validation providers:
 
-- Keys starting with `PREMIUM-` → PREMIUM tier
-- Keys starting with `ENTERPRISE-` → ENTERPRISE tier
-- Everything else → Invalid
+1. **Stripe Validation** (Primary for subscriptions)
+   - Validates Stripe subscription IDs (`sub_...`)
+   - Validates Stripe customer IDs (`cus_...`)
+   - Determines tier based on subscription product/price
+   - See [Stripe License Setup](../setup/STRIPE_LICENSE_SETUP.md)
+
+2. **Apify Validation** (For Apify-hosted MCPs)
+   - Validates Apify API tokens
+   - Determines tier based on Apify user plan
+   - See [Apify License Setup](../setup/APIFY_LICENSE_SETUP.md)
+
+3. **Simple Validation** (Fallback/Testing)
+   - Keys starting with `PREMIUM-` → PREMIUM tier
+   - Keys starting with `ENTERPRISE-` → ENTERPRISE tier
+   - Test keys for development
+
+### Validation Order
+
+The service tries validation providers in order:
+1. Stripe (if key looks like Stripe key)
+2. Apify (if key looks like Apify key or unknown format)
+3. Simple pattern matching (for test keys)
 
 ### Future Implementation
 
-The license service should be extended to:
+Additional features to add:
 
-1. **Validate against license server** - Online validation for subscription licenses
-2. **Check expiration dates** - Support time-limited licenses
-3. **Verify signatures** - Cryptographic validation of license keys
-4. **Support different license types**:
-   - Trial licenses (time-limited)
-   - Subscription licenses (recurring)
-   - Perpetual licenses (one-time purchase)
-   - Enterprise licenses (custom terms)
-
-### Integration Points
-
-- **Stripe** - For subscription validation
-- **Apify** - For usage-based billing
-- **Custom license server** - For enterprise customers
+1. **Expiration date checking** - Support time-limited licenses
+2. **Signature verification** - Cryptographic validation of license keys
+3. **Webhook support** - Real-time license status updates
+4. **Usage tracking** - Track feature usage per subscription
+5. **Multiple providers** - Support additional providers (custom license server, etc.)
 
 ## Testing
 

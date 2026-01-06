@@ -22,7 +22,11 @@ import java.time.Duration;
  * Wires up all the service implementations.
  */
 @Configuration
-@EnableConfigurationProperties({FeatureFlagsProperties.class, ApifyLicenseProperties.class})
+@EnableConfigurationProperties({
+    FeatureFlagsProperties.class, 
+    ApifyLicenseProperties.class,
+    StripeLicenseProperties.class
+})
 public class JakartaMigrationConfig {
     
     /**
@@ -34,6 +38,21 @@ public class JakartaMigrationConfig {
         return WebClient.builder()
             .baseUrl(apifyProperties.getApiUrl())
             .defaultHeader("Content-Type", "application/json")
+            .codecs(configurer -> configurer
+                .defaultCodecs()
+                .maxInMemorySize(1024 * 1024)) // 1MB
+            .build();
+    }
+    
+    /**
+     * WebClient for Stripe API calls.
+     * Configured with Stripe API base URL and authentication.
+     */
+    @Bean
+    public WebClient stripeWebClient(StripeLicenseProperties stripeProperties) {
+        return WebClient.builder()
+            .baseUrl(stripeProperties.getApiUrl())
+            .defaultHeader("Content-Type", "application/x-www-form-urlencoded")
             .codecs(configurer -> configurer
                 .defaultCodecs()
                 .maxInMemorySize(1024 * 1024)) // 1MB
