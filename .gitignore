@@ -29,6 +29,7 @@ repos/
 
 # Test
 .h2/
+examples/
 
 # JaCoCo Code Coverage
 build/jacoco/

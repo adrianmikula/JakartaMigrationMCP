@@ -5,14 +5,64 @@ import com.bugbounty.jakartamigration.coderefactoring.domain.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Core refactoring engine that applies recipes to files.
- * TODO: Integrate with OpenRewrite when Jakarta migration dependency is added.
+ * 
+ * IMPORTANT DISTINCTION FOR AI AGENTS:
+ * 
+ * - SIMPLE_STRING_REPLACEMENT & OPENREWRITE: Work on Java SOURCE CODE files (.java)
+ *   → Modify source code directly
+ *   → Use for: Refactoring source code from javax.* to jakarta.*
+ * 
+ * - APACHE_TOMCAT_MIGRATION: Works on COMPILED JAR/WAR files (bytecode), NOT source code
+ *   → Creates new migrated JAR file (doesn't modify source)
+ *   → Use for: Compatibility testing, bytecode validation, library assessment
+ *   → Primary use cases:
+ *     1. Test if compiled app works after Jakarta migration
+ *     2. Cross-validate source migration completeness via bytecode diff
+ *     3. Assess third-party library Jakarta compatibility
+ * 
+ * Supports multiple migration tools:
+ * - Simple string replacement (default, fallback) - Source code
+ * - Apache Tomcat Jakarta EE Migration Tool - Compiled JAR/WAR files (bytecode)
+ * - OpenRewrite (when dependency is added) - Source code
  */
 public class RefactoringEngine {
+    
+    private final MigrationTool preferredTool;
+    private final ApacheTomcatMigrationTool apacheTool;
+    
+    /**
+     * Creates a refactoring engine with the default tool (simple string replacement).
+     */
+    public RefactoringEngine() {
+        this(MigrationTool.SIMPLE_STRING_REPLACEMENT);
+    }
+    
+    /**
+     * Creates a refactoring engine with a preferred migration tool.
+     *
+     * @param preferredTool The preferred migration tool to use
+     */
+    public RefactoringEngine(MigrationTool preferredTool) {
+        this.preferredTool = preferredTool;
+        this.apacheTool = new ApacheTomcatMigrationTool();
+    }
+    
+    /**
+     * Creates a refactoring engine with a specific Apache Tomcat tool path.
+     *
+     * @param preferredTool The preferred migration tool to use
+     * @param apacheToolJarPath Path to the Apache Tomcat migration tool JAR
+     */
+    public RefactoringEngine(MigrationTool preferredTool, Path apacheToolJarPath) {
+        this.preferredTool = preferredTool;
+        this.apacheTool = new ApacheTomcatMigrationTool(apacheToolJarPath);
+    }
     
     /**
      * Refactors a single file by applying the given recipes.
@@ -32,10 +82,100 @@ public class RefactoringEngine {
             throw new IOException("File does not exist: " + filePath);
         }
         
+        // Determine which tool to use
+        MigrationTool toolToUse = determineToolToUse();
+        
+        return switch (toolToUse) {
+            case APACHE_TOMCAT_MIGRATION -> refactorWithApacheTool(filePath, recipes);
+            case OPENREWRITE -> refactorWithOpenRewrite(filePath, recipes);
+            case SIMPLE_STRING_REPLACEMENT -> refactorWithSimpleReplacement(filePath, recipes);
+        };
+    }
+    
+    /**
+     * Determines which migration tool to use based on availability and preference.
+     */
+    private MigrationTool determineToolToUse() {
+        // If Apache tool is preferred and available, use it
+        if (preferredTool == MigrationTool.APACHE_TOMCAT_MIGRATION && apacheTool.isAvailable()) {
+            return MigrationTool.APACHE_TOMCAT_MIGRATION;
+        }
+        
+        // If OpenRewrite is preferred (and available in future), use it
+        if (preferredTool == MigrationTool.OPENREWRITE) {
+            // TODO: Check if OpenRewrite is available
+            // For now, fall back to simple replacement
+            return MigrationTool.SIMPLE_STRING_REPLACEMENT;
+        }
+        
+        // Default to simple string replacement
+        return MigrationTool.SIMPLE_STRING_REPLACEMENT;
+    }
+    
+    /**
+     * Refactors using the Apache Tomcat migration tool.
+     */
+    private RefactoringChanges refactorWithApacheTool(Path filePath, List<Recipe> recipes) throws IOException {
+        // The Apache tool works on entire files/directories, not individual recipes
+        // We'll create a temporary destination and then read the result
+        
+        Path tempDir = Files.createTempDirectory("jakarta-migration-");
+        Path destinationPath = tempDir.resolve(filePath.getFileName());
+        
+        try {
+            // Run the Apache migration tool
+            ApacheTomcatMigrationTool.MigrationResult result = apacheTool.migrate(filePath, destinationPath);
+            
+            if (!result.success()) {
+                throw new IOException("Apache migration tool failed: " + result.getSummary());
+            }
+            
+            // Read the migrated content
+            String originalContent = Files.readString(filePath);
+            String refactoredContent = Files.readString(destinationPath);
+            
+            // Generate change details
+            List<ChangeDetail> changes = generateChangeDetails(originalContent, refactoredContent);
+            
+            return new RefactoringChanges(
+                filePath.toString(),
+                originalContent,
+                refactoredContent,
+                changes,
+                recipes
+            );
+            
+        } finally {
+            // Clean up temporary directory
+            try {
+                if (Files.exists(destinationPath)) {
+                    Files.delete(destinationPath);
+                }
+                Files.delete(tempDir);
+            } catch (IOException e) {
+                // Log but don't fail
+                System.err.println("Failed to clean up temp directory: " + e.getMessage());
+            }
+        }
+    }
+    
+    /**
+     * Refactors using OpenRewrite (placeholder for future implementation).
+     */
+    private RefactoringChanges refactorWithOpenRewrite(Path filePath, List<Recipe> recipes) throws IOException {
+        // TODO: Implement OpenRewrite integration when dependency is added
+        // For now, fall back to simple replacement
+        return refactorWithSimpleReplacement(filePath, recipes);
+    }
+    
+    /**
+     * Refactors using simple string replacement (fallback implementation).
+     */
+    private RefactoringChanges refactorWithSimpleReplacement(Path filePath, List<Recipe> recipes) throws IOException {
         String originalContent = Files.readString(filePath);
         String fileName = filePath.getFileName().toString();
         
-        // Apply simple string-based refactoring (stub implementation)
+        // Apply simple string-based refactoring
         String refactoredContent = applyRecipes(originalContent, fileName, recipes);
         
         // Generate change details from the diff
