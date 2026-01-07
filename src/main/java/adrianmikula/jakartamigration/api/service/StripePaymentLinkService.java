@@ -22,6 +22,11 @@ import java.util.Map;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+    name = "jakarta.migration.stripe.enabled",
+    havingValue = "true",
+    matchIfMissing = false
+)
 public class StripePaymentLinkService {
 
     private final StripeLicenseProperties stripeProperties;

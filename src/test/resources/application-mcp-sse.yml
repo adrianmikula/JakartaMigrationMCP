@@ -1,0 +1,28 @@
+# Test configuration for mcp-sse profile
+# Disables optional services that might cause context loading issues
+
+jakarta:
+  migration:
+    # Disable Stripe validation in tests (unless explicitly needed)
+    stripe:
+      enabled: false
+    
+    # Disable Apify validation in tests
+    apify:
+      enabled: false
+    
+    # Disable file storage in tests (use in-memory)
+    storage:
+      file:
+        enabled: false
+
+# Spring AI MCP Configuration
+spring:
+  ai:
+    mcp:
+      server:
+        transport: sse
+        sse:
+          port: 8080
+          path: /mcp/sse
+

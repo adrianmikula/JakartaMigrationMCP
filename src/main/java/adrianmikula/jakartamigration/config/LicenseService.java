@@ -21,7 +21,8 @@ import adrianmikula.jakartamigration.storage.service.LocalLicenseStorageService;
 @Service
 public class LicenseService {
 
-    private final StripeLicenseService stripeLicenseService;
+    @Nullable
+    private final StripeLicenseService stripeLicenseService; // Optional, may be null if disabled
     @Nullable
     private final ApifyLicenseService apifyLicenseService; // Optional, may be null if disabled
     @Nullable
@@ -29,7 +30,7 @@ public class LicenseService {
 
     @Autowired
     public LicenseService(
-            StripeLicenseService stripeLicenseService,
+            @Autowired(required = false) @Nullable StripeLicenseService stripeLicenseService,
             @Autowired(required = false) @Nullable ApifyLicenseService apifyLicenseService,
             @Autowired(required = false) @Nullable LocalLicenseStorageService localStorageService) {
         this.stripeLicenseService = stripeLicenseService;
@@ -55,10 +56,13 @@ public class LicenseService {
 
         // Try Stripe validation first (primary payment processor)
         // Stripe can handle various key formats, so we try it for all keys
-        FeatureFlagsProperties.LicenseTier tier = stripeLicenseService.validateLicense(licenseKey);
-        if (tier != null) {
-            log.debug("License validated via Stripe: {}", maskKey(licenseKey));
-            return tier;
+        FeatureFlagsProperties.LicenseTier tier = null;
+        if (stripeLicenseService != null) {
+            tier = stripeLicenseService.validateLicense(licenseKey);
+            if (tier != null) {
+                log.debug("License validated via Stripe: {}", maskKey(licenseKey));
+                return tier;
+            }
         }
 
         // Try Apify validation only if service is available and enabled
@@ -113,21 +117,23 @@ public class LicenseService {
         }
 
         // Validate via Stripe API
-        try {
-            FeatureFlagsProperties.LicenseTier tier = stripeLicenseService.validateLicenseByEmail(email)
-                .block(java.time.Duration.ofSeconds(5));
-            if (tier != null) {
-                log.debug("License validated via Stripe email: {}", maskEmail(email));
-                
-                // Store in local storage (if enabled)
-                if (localStorageService != null) {
-                    localStorageService.storeSession(email, null, tier, 24L);
+        if (stripeLicenseService != null) {
+            try {
+                FeatureFlagsProperties.LicenseTier tier = stripeLicenseService.validateLicenseByEmail(email)
+                    .block(java.time.Duration.ofSeconds(5));
+                if (tier != null) {
+                    log.debug("License validated via Stripe email: {}", maskEmail(email));
+                    
+                    // Store in local storage (if enabled)
+                    if (localStorageService != null) {
+                        localStorageService.storeSession(email, null, tier, 24L);
+                    }
+                    
+                    return tier;
                 }
-                
-                return tier;
+            } catch (Exception e) {
+                log.warn("Error validating license by email: {}", e.getMessage());
             }
-        } catch (Exception e) {
-            log.warn("Error validating license by email: {}", e.getMessage());
         }
 
         log.debug("No valid license found for email: {}", maskEmail(email));

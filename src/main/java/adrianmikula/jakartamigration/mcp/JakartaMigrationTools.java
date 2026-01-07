@@ -36,7 +36,6 @@ import java.util.stream.Collectors;
  * Uses Spring AI 1.0.0 MCP Server annotations to expose tools via the MCP protocol.
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class JakartaMigrationTools {
     
@@ -46,9 +45,34 @@ public class JakartaMigrationTools {
     private final RecipeLibrary recipeLibrary;
     private final RuntimeVerificationModule runtimeVerificationModule;
     private final FeatureFlagsService featureFlags;
+    @org.springframework.lang.Nullable
     private final ApifyBillingService apifyBillingService;
+    @org.springframework.lang.Nullable
     private final StripePaymentLinkService paymentLinkService;
     private final adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner sourceCodeScanner;
+    
+    public JakartaMigrationTools(
+            DependencyAnalysisModule dependencyAnalysisModule,
+            DependencyGraphBuilder dependencyGraphBuilder,
+            MigrationPlanner migrationPlanner,
+            RecipeLibrary recipeLibrary,
+            RuntimeVerificationModule runtimeVerificationModule,
+            FeatureFlagsService featureFlags,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) 
+            @org.springframework.lang.Nullable ApifyBillingService apifyBillingService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) 
+            @org.springframework.lang.Nullable StripePaymentLinkService paymentLinkService,
+            adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner sourceCodeScanner) {
+        this.dependencyAnalysisModule = dependencyAnalysisModule;
+        this.dependencyGraphBuilder = dependencyGraphBuilder;
+        this.migrationPlanner = migrationPlanner;
+        this.recipeLibrary = recipeLibrary;
+        this.runtimeVerificationModule = runtimeVerificationModule;
+        this.featureFlags = featureFlags;
+        this.apifyBillingService = apifyBillingService;
+        this.paymentLinkService = paymentLinkService;
+        this.sourceCodeScanner = sourceCodeScanner;
+    }
     
     /**
      * Analyzes a Java project for Jakarta migration readiness.
@@ -199,7 +223,9 @@ public class JakartaMigrationTools {
             MigrationPlan plan = migrationPlanner.createPlan(projectPath, report);
             
             // Charge for billable event (premium feature)
-            apifyBillingService.chargeEvent("migration-plan-created");
+            if (apifyBillingService != null) {
+                apifyBillingService.chargeEvent("migration-plan-created");
+            }
             
             // Build response
             return buildMigrationPlanResponse(plan);
@@ -306,7 +332,9 @@ public class JakartaMigrationTools {
             VerificationResult result = runtimeVerificationModule.verifyRuntime(jar, options);
             
             // Charge for billable event (premium feature)
-            apifyBillingService.chargeEvent("runtime-verification-executed");
+            if (apifyBillingService != null) {
+                apifyBillingService.chargeEvent("runtime-verification-executed");
+            }
             
             // Build response
             return buildVerificationResponse(result);

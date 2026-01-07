@@ -18,7 +18,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  * - Profile-specific configurations work
  * - Environment variable substitution works
  */
-@SpringBootTest(classes = adrianmikula.projectname.ProjectNameApplication.class)
+@SpringBootTest(
+    classes = adrianmikula.projectname.ProjectNameApplication.class,
+    properties = {
+        "jakarta.migration.stripe.enabled=false",
+        "jakarta.migration.apify.enabled=false",
+        "jakarta.migration.storage.file.enabled=false"
+    }
+)
 class YamlConfigurationTest {
 
     @Autowired(required = false)
@@ -72,7 +79,14 @@ class YamlConfigurationTest {
      * Test that mcp-stdio profile loads correctly.
      */
     @Nested
-    @SpringBootTest(classes = adrianmikula.projectname.ProjectNameApplication.class)
+    @SpringBootTest(
+        classes = adrianmikula.projectname.ProjectNameApplication.class,
+        properties = {
+            "jakarta.migration.stripe.enabled=false",
+            "jakarta.migration.apify.enabled=false",
+            "jakarta.migration.storage.file.enabled=false"
+        }
+    )
     @ActiveProfiles("mcp-stdio")
     class StdioProfileTest {
         @Autowired(required = false)
@@ -103,7 +117,14 @@ class YamlConfigurationTest {
      * Test that mcp-sse profile loads correctly.
      */
     @Nested
-    @SpringBootTest(classes = adrianmikula.projectname.ProjectNameApplication.class)
+    @SpringBootTest(
+        classes = adrianmikula.projectname.ProjectNameApplication.class,
+        properties = {
+            "jakarta.migration.stripe.enabled=false",
+            "jakarta.migration.apify.enabled=false",
+            "jakarta.migration.storage.file.enabled=false"
+        }
+    )
     @ActiveProfiles("mcp-sse")
     class SseProfileTest {
         @Autowired(required = false)
@@ -135,7 +156,12 @@ class YamlConfigurationTest {
      * Using @SpringBootTest properties parameter for higher precedence over YAML.
      */
     @Nested
-    @SpringBootTest(classes = adrianmikula.projectname.ProjectNameApplication.class)
+    @SpringBootTest(
+        classes = adrianmikula.projectname.ProjectNameApplication.class,
+        properties = {
+            "jakarta.migration.storage.file.enabled=false"
+        }
+    )
     @TestPropertySource(properties = {
         "jakarta.migration.feature-flags.enabled=false",
         "jakarta.migration.feature-flags.default-tier=PREMIUM",
@@ -198,7 +224,14 @@ class YamlConfigurationTest {
      * Using @SpringBootTest properties parameter for higher precedence over YAML.
      */
     @Nested
-    @SpringBootTest(classes = adrianmikula.projectname.ProjectNameApplication.class)
+    @SpringBootTest(
+        classes = adrianmikula.projectname.ProjectNameApplication.class,
+        properties = {
+            "jakarta.migration.stripe.enabled=false",
+            "jakarta.migration.apify.enabled=false",
+            "jakarta.migration.storage.file.enabled=false"
+        }
+    )
     @TestPropertySource(properties = {
         "jakarta.migration.feature-flags.features.auto-fixes=true",
         "jakarta.migration.feature-flags.features.one-click-refactor=false"
@@ -222,7 +255,14 @@ class YamlConfigurationTest {
      * Using @SpringBootTest properties parameter for higher precedence over YAML.
      */
     @Nested
-    @SpringBootTest(classes = adrianmikula.projectname.ProjectNameApplication.class)
+    @SpringBootTest(
+        classes = adrianmikula.projectname.ProjectNameApplication.class,
+        properties = {
+            "jakarta.migration.stripe.enabled=false",
+            "jakarta.migration.apify.enabled=false",
+            "jakarta.migration.storage.file.enabled=false"
+        }
+    )
     @TestPropertySource(properties = {
         "jakarta.migration.stripe.product-id-premium=prod_premium",
         "jakarta.migration.stripe.product-id-enterprise=prod_enterprise",
@@ -250,7 +290,14 @@ class YamlConfigurationTest {
      * Using @SpringBootTest properties parameter for higher precedence over YAML.
      */
     @Nested
-    @SpringBootTest(classes = adrianmikula.projectname.ProjectNameApplication.class)
+    @SpringBootTest(
+        classes = adrianmikula.projectname.ProjectNameApplication.class,
+        properties = {
+            "jakarta.migration.stripe.enabled=false",
+            "jakarta.migration.apify.enabled=false",
+            "jakarta.migration.storage.file.enabled=false"
+        }
+    )
     @TestPropertySource(properties = {
         "jakarta.migration.apify.actor-id=test-actor-id"
     })
@@ -271,7 +318,14 @@ class YamlConfigurationTest {
      * Using @SpringBootTest properties parameter for higher precedence over YAML.
      */
     @Nested
-    @SpringBootTest(classes = adrianmikula.projectname.ProjectNameApplication.class)
+    @SpringBootTest(
+        classes = adrianmikula.projectname.ProjectNameApplication.class,
+        properties = {
+            "jakarta.migration.stripe.enabled=false",
+            "jakarta.migration.apify.enabled=false",
+            "jakarta.migration.storage.file.enabled=false"
+        }
+    )
     @TestPropertySource(properties = {
         "jakarta.migration.stripe.webhook-secret=test-webhook-secret"
     })

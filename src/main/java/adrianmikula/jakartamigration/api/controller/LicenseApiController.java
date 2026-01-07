@@ -6,7 +6,6 @@ import adrianmikula.jakartamigration.api.service.StripePaymentLinkService;
 import adrianmikula.jakartamigration.config.FeatureFlagsProperties;
 import adrianmikula.jakartamigration.config.LicenseService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -34,13 +33,23 @@ import java.time.Instant;
  */
 @RestController
 @RequestMapping("/api/v1")
-@RequiredArgsConstructor
 @Slf4j
 public class LicenseApiController {
-
+    
     private final LicenseService licenseService;
     private final CreditService creditService;
+    @org.springframework.lang.Nullable
     private final StripePaymentLinkService paymentLinkService;
+    
+    public LicenseApiController(
+            LicenseService licenseService,
+            CreditService creditService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) 
+            @org.springframework.lang.Nullable StripePaymentLinkService paymentLinkService) {
+        this.licenseService = licenseService;
+        this.creditService = creditService;
+        this.paymentLinkService = paymentLinkService;
+    }
     
     @Value("${jakarta.migration.license-api.server-api-key:}")
     private String serverApiKey;
@@ -352,6 +361,14 @@ public class LicenseApiController {
                     .build());
         }
         
+        if (paymentLinkService == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(PaymentLinkResponse.builder()
+                    .success(false)
+                    .message("Stripe payment links are not enabled")
+                    .build());
+        }
+        
         try {
             String paymentLink = paymentLinkService.getPaymentLink(productName);
             
@@ -392,6 +409,10 @@ public class LicenseApiController {
         
         if (!isValidApiKey(authHeader)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        
+        if (paymentLinkService == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
         }
         
         try {

@@ -289,22 +289,109 @@ GitHub Copilot supports MCP through the Copilot Chat interface:
 
 ### Local Setup (STDIO)
 
-For local development, use STDIO transport which works with **Cursor, Claude Code, and Antigravity**.
+For local development, use STDIO transport which works with **Cursor, Claude Code, and Antigravity**. This is the recommended approach for maximum privacy and performance.
 
 #### Prerequisites
 
 - **Java 21+** - [Download from Adoptium](https://adoptium.net/)
+  - Verify installation: `java -version`
+  - Should show Java 21 or higher
 - **Node.js 18+** - [Download from nodejs.org](https://nodejs.org/)
+  - Verify installation: `node --version`
+  - Should show v18.0.0 or higher
 
-#### Installation
+#### Installation Methods
+
+**Option 1: Global Install (Recommended)**
+
+Install the package globally for system-wide access:
 
 ```bash
-# Install globally (recommended)
 npm install -g @jakarta-migration/mcp-server
+```
 
-# Or use with npx (no installation needed)
+After installation:
+- The JAR file will be automatically downloaded from GitHub releases on first use
+- JAR is cached in your home directory for faster subsequent runs
+- You can use the command directly: `jakarta-migration-mcp`
+
+**Option 2: npx (No Installation)**
+
+Use `npx` to run without installing:
+
+```bash
 npx -y @jakarta-migration/mcp-server
 ```
+
+The `-y` flag automatically accepts the package download. The JAR will be downloaded and cached on first use.
+
+**Option 3: Local Development Build**
+
+If you're building from source or want to use a local JAR:
+
+```bash
+# Build the JAR
+./gradlew bootJar
+
+# Set environment variable to use local JAR
+export JAKARTA_MCP_JAR_PATH=/path/to/build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar
+
+# Run via npm wrapper
+npx -y @jakarta-migration/mcp-server
+```
+
+**Windows (PowerShell):**
+```powershell
+# Build the JAR
+.\gradlew.bat bootJar
+
+# Set environment variable
+$env:JAKARTA_MCP_JAR_PATH = "E:\Source\JakartaMigrationMCP\build\libs\jakarta-migration-mcp-1.0.0-SNAPSHOT.jar"
+
+# Run via npm wrapper
+npx -y @jakarta-migration/mcp-server
+```
+
+#### How the npm Package Works
+
+The npm package is a lightweight Node.js wrapper that:
+
+1. **Downloads the JAR** from GitHub releases (if not already cached)
+2. **Caches the JAR** in your home directory:
+   - **Windows**: `%USERPROFILE%\AppData\.cache\jakarta-migration-mcp\`
+   - **Linux/macOS**: `~/.cache/jakarta-migration-mcp/`
+3. **Starts the Java process** with correct MCP arguments
+4. **Handles stdio communication** for MCP protocol
+
+**Pre-download the JAR:**
+
+You can pre-download the JAR without starting the server:
+
+```bash
+npx -y @jakarta-migration/mcp-server --download-only
+```
+
+This is useful for:
+- Testing the download process
+- Pre-caching the JAR before first use
+- Verifying network connectivity
+
+**Verify Installation:**
+
+After installing, verify everything works:
+
+```bash
+# Test the wrapper can find Java and download JAR
+npx -y @jakarta-migration/mcp-server --download-only
+
+# Check if command is available (if installed globally)
+jakarta-migration-mcp --download-only
+```
+
+You should see:
+- Java version detection
+- JAR download or cache confirmation
+- No errors
 
 #### Configuration
 
@@ -361,9 +448,9 @@ npx -y @jakarta-migration/mcp-server
 }
 ```
 
-#### Alternative: Run from JAR
+#### Alternative: Run from JAR Directly
 
-If you've built the project locally:
+If you've built the project locally and want to bypass the npm wrapper:
 
 **Windows:**
 ```json
@@ -373,7 +460,10 @@ If you've built the project locally:
       "command": "java",
       "args": [
         "-jar",
-        "C:\\path\\to\\jakarta-migration-mcp-1.0.0-SNAPSHOT.jar"
+        "C:\\path\\to\\jakarta-migration-mcp-1.0.0-SNAPSHOT.jar",
+        "--spring.profiles.active=mcp-stdio",
+        "--spring.ai.mcp.server.transport=stdio",
+        "--spring.main.web-application-type=none"
       ]
     }
   }
@@ -388,12 +478,17 @@ If you've built the project locally:
       "command": "java",
       "args": [
         "-jar",
-        "/path/to/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar"
+        "/path/to/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar",
+        "--spring.profiles.active=mcp-stdio",
+        "--spring.ai.mcp.server.transport=stdio",
+        "--spring.main.web-application-type=none"
       ]
     }
   }
 }
 ```
+
+> **Note**: Using the npm wrapper is recommended as it handles JAR downloads, caching, and argument configuration automatically.
 
 ### Local HTTP Setup (Streamable HTTP or SSE)
 
@@ -524,9 +619,18 @@ See [MCP Tools Documentation](docs/mcp/MCP_TOOLS_IMPLEMENTATION.md) for detailed
 - Ensure you're using the correct URL
 
 **For Local (STDIO):**
-- Verify Java is installed: `java -version`
-- Verify Node.js is installed: `node --version`
+- Verify Java is installed: `java -version` (should show Java 21+)
+- Verify Node.js is installed: `node --version` (should show v18+)
 - Try running manually: `npx -y @jakarta-migration/mcp-server`
+- Check JAR download: `npx -y @jakarta-migration/mcp-server --download-only`
+- Verify JAR cache location:
+  - **Windows**: `%USERPROFILE%\AppData\.cache\jakarta-migration-mcp\`
+  - **Linux/macOS**: `~/.cache/jakarta-migration-mcp/`
+- If JAR download fails, check:
+  - Internet connectivity
+  - GitHub releases are accessible
+  - Version matches package.json version
+- For local development, set `JAKARTA_MCP_JAR_PATH` environment variable to point to your local JAR file
 
 ### Platform-Specific Issues
 

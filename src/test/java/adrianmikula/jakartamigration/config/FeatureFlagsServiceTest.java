@@ -1,6 +1,8 @@
 package adrianmikula.jakartamigration.config;
 
+import adrianmikula.jakartamigration.api.service.StripePaymentLinkService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -24,6 +26,9 @@ class FeatureFlagsServiceTest {
     @Mock
     private LicenseService licenseService;
 
+    @Mock
+    private StripePaymentLinkService paymentLinkService;
+
     private FeatureFlagsProperties properties;
     private FeatureFlagsService service;
 
@@ -35,7 +40,7 @@ class FeatureFlagsServiceTest {
         properties.setLicenseKey("");
         properties.setFeatures(new HashMap<>());
         
-        service = new FeatureFlagsService(properties, licenseService);
+        service = new FeatureFlagsService(properties, licenseService, paymentLinkService);
     }
 
     @Test
@@ -123,6 +128,7 @@ class FeatureFlagsServiceTest {
     }
 
     @Test
+    @DisplayName("Should return upgrade message")
     void shouldReturnUpgradeMessage() {
         String message = service.getUpgradeMessage(FeatureFlag.AUTO_FIXES);
         
@@ -130,6 +136,86 @@ class FeatureFlagsServiceTest {
             .contains("Automatic issue remediation")
             .contains("PREMIUM")
             .contains("upgrade");
+    }
+
+    @Test
+    @DisplayName("Should return upgrade message with payment link when configured")
+    void shouldReturnUpgradeMessageWithPaymentLink() {
+        // Given
+        when(paymentLinkService.getPaymentLink("premium")).thenReturn("https://buy.stripe.com/premium-link");
+
+        // When
+        String message = service.getUpgradeMessage(FeatureFlag.AUTO_FIXES);
+
+        // Then
+        assertThat(message)
+            .contains("Automatic issue remediation")
+            .contains("PREMIUM")
+            .contains("https://buy.stripe.com/premium-link");
+    }
+
+    @Test
+    @DisplayName("Should return upgrade message without payment link when not configured")
+    void shouldReturnUpgradeMessageWithoutPaymentLink() {
+        // Given
+        when(paymentLinkService.getPaymentLink("premium")).thenReturn(null);
+
+        // When
+        String message = service.getUpgradeMessage(FeatureFlag.AUTO_FIXES);
+
+        // Then
+        assertThat(message)
+            .contains("Automatic issue remediation")
+            .contains("PREMIUM")
+            .contains("contact support");
+    }
+
+    @Test
+    @DisplayName("Should return upgrade info with all fields")
+    void shouldReturnUpgradeInfo() {
+        // Given
+        when(paymentLinkService.getPaymentLink("premium")).thenReturn("https://buy.stripe.com/premium-link");
+
+        // When
+        FeatureFlagsService.UpgradeInfo info = service.getUpgradeInfo(FeatureFlag.AUTO_FIXES);
+
+        // Then
+        assertThat(info.getFeatureName()).isEqualTo("Automatic issue remediation");
+        assertThat(info.getFeatureDescription()).isEqualTo("Automatically fix detected Jakarta migration issues");
+        assertThat(info.getCurrentTier()).isEqualTo(FeatureFlagsProperties.LicenseTier.COMMUNITY);
+        assertThat(info.getRequiredTier()).isEqualTo(FeatureFlagsProperties.LicenseTier.PREMIUM);
+        assertThat(info.getPaymentLink()).isEqualTo("https://buy.stripe.com/premium-link");
+        assertThat(info.getMessage()).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("Should return upgrade info with null payment link when service is null")
+    void shouldReturnUpgradeInfoWithNullPaymentLinkWhenServiceIsNull() {
+        // Given - service without payment link service
+        FeatureFlagsService serviceWithoutPayment = new FeatureFlagsService(properties, licenseService, null);
+
+        // When
+        FeatureFlagsService.UpgradeInfo info = serviceWithoutPayment.getUpgradeInfo(FeatureFlag.AUTO_FIXES);
+
+        // Then
+        assertThat(info.getPaymentLink()).isNull();
+        assertThat(info.getMessage()).contains("contact support");
+    }
+
+    @Test
+    @DisplayName("Should handle enterprise tier payment link")
+    void shouldHandleEnterpriseTierPaymentLink() {
+        // Given
+        when(paymentLinkService.getPaymentLink("enterprise")).thenReturn("https://buy.stripe.com/enterprise-link");
+        when(licenseService.validateLicense(anyString())).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
+        properties.setLicenseKey("PREMIUM-test-key");
+
+        // When - requesting enterprise tier feature
+        FeatureFlagsService.UpgradeInfo info = service.getUpgradeInfo(FeatureFlag.PRIORITY_SUPPORT);
+
+        // Then
+        assertThat(info.getRequiredTier()).isEqualTo(FeatureFlagsProperties.LicenseTier.PREMIUM);
+        // Note: PRIORITY_SUPPORT requires PREMIUM, not ENTERPRISE, so it should use premium link
     }
 }
 

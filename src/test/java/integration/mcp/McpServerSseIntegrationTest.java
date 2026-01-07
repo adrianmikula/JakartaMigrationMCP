@@ -35,7 +35,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.MOCK,
-    classes = adrianmikula.projectname.ProjectNameApplication.class
+    classes = adrianmikula.projectname.ProjectNameApplication.class,
+    properties = {
+        "jakarta.migration.stripe.enabled=false",
+        "jakarta.migration.apify.enabled=false",
+        "jakarta.migration.storage.file.enabled=false",
+        "spring.ai.mcp.server.transport=sse"
+    }
 )
 @ActiveProfiles("mcp-sse")
 @AutoConfigureMockMvc

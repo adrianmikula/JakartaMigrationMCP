@@ -79,8 +79,14 @@ public class JakartaMigrationConfig {
     /**
      * WebClient for Stripe API calls.
      * Configured with Stripe API base URL and authentication.
+     * Only created if Stripe validation is enabled.
      */
     @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+        name = "jakarta.migration.stripe.enabled",
+        havingValue = "true",
+        matchIfMissing = false
+    )
     public WebClient stripeWebClient(StripeLicenseProperties stripeProperties) {
         return WebClient.builder()
             .baseUrl(stripeProperties.getApiUrl())

@@ -33,6 +33,11 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Service
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+    name = "jakarta.migration.stripe.enabled",
+    havingValue = "true",
+    matchIfMissing = false
+)
 public class StripeLicenseService {
 
     private final StripeLicenseProperties properties;
