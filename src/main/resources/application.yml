@@ -143,7 +143,8 @@ jakarta:
         # Server description for GetInstructions/ListOfferings actions
         # This helps Cursor understand what the server does
         description: "Jakarta Migration MCP Server - Tools for analyzing and migrating Java applications from Java EE 8 (javax.*) to Jakarta EE 9+ (jakarta.*). Provides dependency analysis, blocker detection, version recommendations, migration planning, and runtime verification."
-        # Transport mode: stdio (default, for local) or sse (for Apify/HTTP)
+        # Transport mode: stdio (default, for local), sse (deprecated), or streamable-http (recommended for HTTP)
+        # Note: SSE is deprecated in MCP spec 2025-03-26 in favor of Streamable HTTP
         transport: ${MCP_TRANSPORT:stdio}
         enabled: true
         # CRITICAL: Use SYNC type for synchronous methods that return String/POJOs

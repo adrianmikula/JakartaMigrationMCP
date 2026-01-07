@@ -15,8 +15,21 @@ The easiest way to get started is using our **hosted MCP server on Apify** - no 
 
 **MCP Server URL**: `https://mcp.apify.com/?tools=actors,docs,adrian_m/JakartaMigrationMCP`
 
-**Configuration** (works with all MCP clients that support SSE):
+**Configuration Options**:
 
+**Option A: Streamable HTTP (Recommended)** - Simpler, more reliable:
+```json
+{
+  "mcpServers": {
+    "jakarta-migration": {
+      "type": "streamable-http",
+      "url": "https://mcp.apify.com/?tools=actors,docs,adrian_m/JakartaMigrationMCP"
+    }
+  }
+}
+```
+
+**Option B: SSE (Legacy)** - For clients that don't support Streamable HTTP yet:
 ```json
 {
   "mcpServers": {
@@ -27,6 +40,8 @@ The easiest way to get started is using our **hosted MCP server on Apify** - no 
   }
 }
 ```
+
+> **💡 Why Streamable HTTP?** Streamable HTTP is simpler, more reliable, and recommended by the MCP spec. SSE is deprecated but still supported for backward compatibility.
 
 > **🔑 Authentication**: You'll need an Apify API token. Get it from [Apify Console → Integrations](https://console.apify.com/account#/integrations). Some MCP clients may prompt you to authenticate via OAuth.
 
@@ -134,23 +149,41 @@ When running locally via STDIO:
 
 ### Apify Hosted Server Setup
 
-The Apify-hosted server works with **all MCP clients** that support SSE transport.
+The Apify-hosted server supports **both Streamable HTTP and SSE transports**.
 
 **MCP Server URL**: `https://mcp.apify.com/?tools=actors,docs,adrian_m/JakartaMigrationMCP`  
 **Actor Page**: [apify.com/adrian_m/jakartamigrationmcp](https://apify.com/adrian_m/jakartamigrationmcp)
 
 > **🔑 Authentication Required**: You'll need an Apify API token. Get it from [Apify Console → Integrations](https://console.apify.com/account#/integrations). Some MCP clients support OAuth authentication which will prompt you to sign in.
 
+> **💡 Transport Recommendation**: Use **Streamable HTTP** (recommended) for better reliability and simplicity. SSE is available for backward compatibility but is deprecated in the MCP spec.
+
 #### For Cursor IDE
 
 > **⚠️ Important**: Cursor primarily supports **stdio transport**, not SSE. For Cursor, use the [Local Setup (STDIO)](#local-setup-stdio) instructions below instead.
 
-If your Cursor version supports SSE:
+If your Cursor version supports HTTP transports:
 1. Open Cursor Settings (`Ctrl+,` on Windows/Linux or `Cmd+,` on Mac)
 2. Navigate to **Features** → **MCP**
 3. Click **"+ Add New MCP Server"**
-4. Add configuration:
+4. Add configuration (prefer Streamable HTTP):
 
+**Streamable HTTP (Recommended):**
+```json
+{
+  "mcpServers": {
+    "jakarta-migration": {
+      "type": "streamable-http",
+      "url": "https://mcp.apify.com/?tools=actors,docs,adrian_m/JakartaMigrationMCP",
+      "headers": {
+        "Authorization": "Bearer YOUR_APIFY_API_TOKEN"
+      }
+    }
+  }
+}
+```
+
+**Or SSE (Legacy):**
 ```json
 {
   "mcpServers": {
@@ -173,8 +206,24 @@ If your Cursor version supports SSE:
 
 1. Open VS Code Settings (`Ctrl+,` or `Cmd+,`)
 2. Search for "MCP" or navigate to **Extensions** → **Claude Code** → **Settings**
-3. Add configuration:
+3. Add configuration (prefer Streamable HTTP):
 
+**Streamable HTTP (Recommended):**
+```json
+{
+  "mcpServers": {
+    "jakarta-migration": {
+      "type": "streamable-http",
+      "url": "https://mcp.apify.com/?tools=actors,docs,adrian_m/JakartaMigrationMCP",
+      "headers": {
+        "Authorization": "Bearer YOUR_APIFY_API_TOKEN"
+      }
+    }
+  }
+}
+```
+
+**Or SSE (Legacy):**
 ```json
 {
   "mcpServers": {
@@ -201,7 +250,7 @@ GitHub Copilot supports MCP through the Copilot Chat interface:
 2. Navigate to **Settings** → **MCP Servers**
 3. Add server:
    - **URL**: `https://mcp.apify.com/?tools=actors,docs,adrian_m/JakartaMigrationMCP`
-   - **Transport Type**: **SSE**
+   - **Transport Type**: **Streamable HTTP** (recommended) or **SSE** (legacy)
    - **Authorization**: Add your Apify API token in the headers section
 
 > **🔑 Get API Token**: Get your token from [Apify Console → Integrations](https://console.apify.com/account#/integrations)
@@ -210,8 +259,21 @@ GitHub Copilot supports MCP through the Copilot Chat interface:
 
 1. Open Antigravity Settings
 2. Navigate to **MCP Configuration**
-3. Add server:
+3. Add server (prefer Streamable HTTP):
 
+**Streamable HTTP (Recommended):**
+```json
+{
+  "name": "jakarta-migration",
+  "type": "streamable-http",
+  "url": "https://mcp.apify.com/?tools=actors,docs,adrian_m/JakartaMigrationMCP",
+  "headers": {
+    "Authorization": "Bearer YOUR_APIFY_API_TOKEN"
+  }
+}
+```
+
+**Or SSE (Legacy):**
 ```json
 {
   "name": "jakarta-migration",
@@ -332,6 +394,42 @@ If you've built the project locally:
   }
 }
 ```
+
+### Local HTTP Setup (Streamable HTTP or SSE)
+
+For local HTTP-based testing or development:
+
+1. **Build the project:**
+   ```bash
+   ./gradlew bootJar
+   ```
+
+2. **Start server with Streamable HTTP:**
+   ```bash
+   java -jar build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar \
+     --spring.profiles.active=mcp-streamable-http
+   ```
+
+   **Or with SSE (legacy):**
+   ```bash
+   java -jar build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar \
+     --spring.profiles.active=mcp-sse
+   ```
+
+3. **Test the endpoint:**
+   ```bash
+   # Streamable HTTP (recommended)
+   curl -X POST http://localhost:8080/mcp/streamable-http \
+     -H "Content-Type: application/json" \
+     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+   
+   # Or SSE (legacy)
+   curl -X POST http://localhost:8080/mcp/sse \
+     -H "Content-Type: application/json" \
+     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+   ```
+
+4. **Configure MCP client** to use `http://localhost:8080/mcp/streamable-http` (or `/mcp/sse` for SSE)
 
 ## 💬 Usage Examples
 
