@@ -28,11 +28,18 @@ import java.util.stream.Stream;
 @Slf4j
 public class SourceCodeScannerImpl implements SourceCodeScanner {
     
-    private final JavaParser javaParser;
+    // Use ThreadLocal to avoid JavaParser reset() issues when parsing files
+    // with the same fully qualified names in parallel
+    private final ThreadLocal<JavaParser> javaParserThreadLocal = ThreadLocal.withInitial(() ->
+        JavaParser.fromJavaVersion().build()
+    );
+    
+    @Deprecated
+    private final JavaParser javaParser; // Kept for backward compatibility, not used
     
     public SourceCodeScannerImpl() {
-        this.javaParser = JavaParser.fromJavaVersion()
-            .build();
+        // Initialize the deprecated field (not actually used)
+        this.javaParser = JavaParser.fromJavaVersion().build();
     }
     
     @Override
@@ -99,8 +106,17 @@ public class SourceCodeScannerImpl implements SourceCodeScanner {
             String content = Files.readString(filePath);
             int lineCount = countLines(content);
             
+            // Use ThreadLocal parser to avoid reset() issues when parsing files
+            // with the same fully qualified names in parallel
+            // Each thread gets its own parser instance, avoiding conflicts
+            JavaParser parser = javaParserThreadLocal.get();
+            
+            // Reset parser before parsing to avoid IllegalStateException when
+            // parsing files with duplicate fully qualified names
+            parser.reset();
+            
             // Parse with OpenRewrite
-            List<SourceFile> sourceFiles = javaParser.parse(content).collect(java.util.stream.Collectors.toList());
+            List<SourceFile> sourceFiles = parser.parse(content).collect(java.util.stream.Collectors.toList());
             
             if (sourceFiles.isEmpty()) {
                 log.debug("No source files found in file: {}", filePath);
@@ -144,7 +160,8 @@ public class SourceCodeScannerImpl implements SourceCodeScanner {
     }
     
     /**
-     * Determines if a file should be scanned (excludes build directories).
+     * Determines if a file should be scanned (excludes build directories only).
+     * Note: Test files are included in scanning.
      */
     private boolean shouldScanFile(Path file) {
         String path = file.toString().replace('\\', '/');

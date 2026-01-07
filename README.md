@@ -405,18 +405,47 @@ For local HTTP-based testing or development:
    ```
 
 2. **Start server with Streamable HTTP:**
+
+   **Windows (PowerShell):**
+   ```powershell
+   java -jar build\libs\jakarta-migration-mcp-1.0.0-SNAPSHOT.jar --spring.profiles.active=mcp-streamable-http
+   ```
+
+   **Mac/Linux:**
    ```bash
    java -jar build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar \
      --spring.profiles.active=mcp-streamable-http
    ```
 
    **Or with SSE (legacy):**
+
+   **Windows (PowerShell):**
+   ```powershell
+   java -jar build\libs\jakarta-migration-mcp-1.0.0-SNAPSHOT.jar --spring.profiles.active=mcp-sse
+   ```
+
+   **Mac/Linux:**
    ```bash
    java -jar build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar \
      --spring.profiles.active=mcp-sse
    ```
 
 3. **Test the endpoint:**
+
+   **Windows (PowerShell):**
+   ```powershell
+   # Streamable HTTP (recommended)
+   curl.exe -X POST http://localhost:8080/mcp/streamable-http `
+     -H "Content-Type: application/json" `
+     -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}'
+   
+   # Or SSE (legacy)
+   curl.exe -X POST http://localhost:8080/mcp/sse `
+     -H "Content-Type: application/json" `
+     -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}'
+   ```
+
+   **Mac/Linux:**
    ```bash
    # Streamable HTTP (recommended)
    curl -X POST http://localhost:8080/mcp/streamable-http \

@@ -166,6 +166,39 @@
         }
       }
     },
+    "premiumFeatures": {
+      "type": "object",
+      "description": "Premium feature recommendations (optional, appears when premium features would be beneficial)",
+      "properties": {
+        "recommended": {
+          "type": "boolean",
+          "description": "Whether premium features are recommended for this migration"
+        },
+        "message": {
+          "type": "string",
+          "description": "Contextual message explaining why premium features are recommended"
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of premium features that would help with this migration"
+        },
+        "pricingUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to pricing information",
+          "default": "https://apify.com/adrian_m/jakartamigrationmcp#pricing"
+        },
+        "estimatedSavings": {
+          "type": "string",
+          "description": "Estimated time or effort savings (e.g., '60 minutes of manual work')",
+          "pattern": "^.+$"
+        }
+      },
+      "required": ["recommended", "message", "features", "pricingUrl"]
+    },
     "blockersResponse": {
       "allOf": [
         { "$ref": "#/definitions/baseResponse" },
@@ -187,6 +220,9 @@
                 "$ref": "#/definitions/blocker"
               },
               "description": "List of detected blockers"
+            },
+            "premiumFeatures": {
+              "$ref": "#/definitions/premiumFeatures"
             }
           }
         }
@@ -252,6 +288,9 @@
                 "$ref": "#/definitions/versionRecommendation"
               },
               "description": "List of version recommendations"
+            },
+            "premiumFeatures": {
+              "$ref": "#/definitions/premiumFeatures"
             }
           }
         }
@@ -336,6 +375,9 @@
                 "$ref": "#/definitions/migrationPhase"
               },
               "description": "List of migration phases in execution order"
+            },
+            "premiumFeatures": {
+              "$ref": "#/definitions/premiumFeatures"
             }
           }
         }
@@ -393,6 +435,119 @@
           }
         }
       ]
+    },
+    "migrationImpactResponse": {
+      "allOf": [
+        { "$ref": "#/definitions/baseResponse" },
+        {
+          "type": "object",
+          "required": [
+            "status",
+            "totalFilesToMigrate",
+            "totalJavaxImports",
+            "totalBlockers",
+            "totalRecommendations",
+            "estimatedEffortMinutes",
+            "complexity",
+            "riskScore",
+            "riskFactors",
+            "readinessScore",
+            "readinessMessage",
+            "totalFilesScanned",
+            "totalDependencies"
+          ],
+          "properties": {
+            "status": {
+              "const": "success"
+            },
+            "totalFilesToMigrate": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total number of files that need migration"
+            },
+            "totalJavaxImports": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total number of javax.* imports found"
+            },
+            "totalBlockers": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total number of blockers preventing migration"
+            },
+            "totalRecommendations": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total number of version recommendations"
+            },
+            "estimatedEffortMinutes": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Estimated effort in minutes for complete migration"
+            },
+            "complexity": {
+              "type": "string",
+              "enum": ["LOW", "MEDIUM", "HIGH"],
+              "description": "Migration complexity level"
+            },
+            "riskScore": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0,
+              "description": "Overall risk score (0.0 = low risk, 1.0 = high risk)"
+            },
+            "riskFactors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of identified risk factors"
+            },
+            "readinessScore": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0,
+              "description": "Migration readiness score (0.0 = not ready, 1.0 = fully ready)"
+            },
+            "readinessMessage": {
+              "type": "string",
+              "description": "Human-readable message describing readiness status"
+            },
+            "totalFilesScanned": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total number of files scanned during analysis"
+            },
+            "totalDependencies": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total number of dependencies found in the project"
+            },
+            "premiumFeatures": {
+              "$ref": "#/definitions/premiumFeatures"
+            }
+          }
+        }
+      ]
+    },
+    "checkEnvResponse": {
+      "allOf": [
+        { "$ref": "#/definitions/baseResponse" },
+        {
+          "type": "object",
+          "required": ["status"],
+          "properties": {
+            "status": {
+              "const": "success"
+            },
+            "result": {
+              "type": "string",
+              "description": "Status message indicating if the environment variable is defined or missing",
+              "pattern": "^(Defined|Missing):.*"
+            }
+          }
+        }
+      ]
     }
   },
   "toolOutputs": {
@@ -426,6 +581,18 @@
         { "$ref": "#/definitions/verificationResponse" },
         { "$ref": "#/definitions/errorResponse" },
         { "$ref": "#/definitions/upgradeRequiredResponse" }
+      ]
+    },
+    "analyzeMigrationImpact": {
+      "oneOf": [
+        { "$ref": "#/definitions/migrationImpactResponse" },
+        { "$ref": "#/definitions/errorResponse" }
+      ]
+    },
+    "check_env": {
+      "oneOf": [
+        { "$ref": "#/definitions/checkEnvResponse" },
+        { "$ref": "#/definitions/errorResponse" }
       ]
     }
   }

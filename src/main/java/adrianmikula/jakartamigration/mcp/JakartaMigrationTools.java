@@ -327,8 +327,24 @@ public class JakartaMigrationTools {
             }
             json.append("\n");
         }
-        json.append("  ]\n");
-        json.append("}");
+        json.append("  ]");
+        
+        // Add premium feature recommendation if blockers found
+        if (blockers.size() > 0) {
+            json.append(",\n");
+            json.append("  \"premiumFeatures\": {\n");
+            json.append("    \"recommended\": true,\n");
+            json.append("    \"message\": \"Premium Auto-Fixes can automatically resolve many blockers without manual intervention.\",\n");
+            json.append("    \"features\": [\n");
+            json.append("      \"Auto-Fixes - Automatically fix detected blockers\",\n");
+            json.append("      \"Advanced Analysis - Deep transitive conflict detection and resolution\",\n");
+            json.append("      \"Binary Fixes - Fix issues in compiled binaries and JAR files\"\n");
+            json.append("    ],\n");
+            json.append("    \"pricingUrl\": \"https://apify.com/adrian_m/jakartamigrationmcp#pricing\"\n");
+            json.append("  }");
+        }
+        
+        json.append("\n}");
         return json.toString();
     }
     
@@ -352,8 +368,28 @@ public class JakartaMigrationTools {
             }
             json.append("\n");
         }
-        json.append("  ]\n");
-        json.append("}");
+        json.append("  ]");
+        
+        // Add premium feature recommendation if many recommendations or complex migrations
+        boolean hasBreakingChanges = recommendations.stream()
+            .anyMatch(rec -> !rec.breakingChanges().isEmpty());
+        boolean shouldRecommend = recommendations.size() > 5 || hasBreakingChanges;
+        
+        if (shouldRecommend) {
+            json.append(",\n");
+            json.append("  \"premiumFeatures\": {\n");
+            json.append("    \"recommended\": true,\n");
+            json.append("    \"message\": \"Premium Auto-Fixes can automatically apply these ").append(recommendations.size()).append(" version recommendations and handle breaking changes.\",\n");
+            json.append("    \"features\": [\n");
+            json.append("      \"Auto-Fixes - Automatically apply version recommendations\",\n");
+            json.append("      \"Advanced Analysis - Handle breaking changes automatically\",\n");
+            json.append("      \"Custom Recipes - Create and use custom migration recipes\"\n");
+            json.append("    ],\n");
+            json.append("    \"pricingUrl\": \"https://apify.com/adrian_m/jakartamigrationmcp#pricing\"\n");
+            json.append("  }");
+        }
+        
+        json.append("\n}");
         return json.toString();
     }
     
@@ -380,8 +416,28 @@ public class JakartaMigrationTools {
             }
             json.append("\n");
         }
-        json.append("  ]\n");
-        json.append("}");
+        json.append("  ]");
+        
+        // Add premium feature recommendation for migration plans
+        long totalMinutes = plan.estimatedDuration().toMinutes();
+        boolean shouldRecommend = totalMinutes > 30 || plan.phases().size() > 5 || plan.overallRisk().riskScore() > 0.3;
+        
+        if (shouldRecommend) {
+            json.append(",\n");
+            json.append("  \"premiumFeatures\": {\n");
+            json.append("    \"recommended\": true,\n");
+            json.append("    \"message\": \"Premium One-Click Refactor can execute this entire migration plan automatically, saving you ").append(totalMinutes).append(" minutes of manual work.\",\n");
+            json.append("    \"features\": [\n");
+            json.append("      \"One-Click Refactor - Execute complete migration automatically\",\n");
+            json.append("      \"Auto-Fixes - Automatically resolve blockers and issues\",\n");
+            json.append("      \"Batch Operations - Process multiple projects simultaneously\"\n");
+            json.append("    ],\n");
+            json.append("    \"pricingUrl\": \"https://apify.com/adrian_m/jakartamigrationmcp#pricing\",\n");
+            json.append("    \"estimatedSavings\": \"").append(totalMinutes).append(" minutes of manual work\"\n");
+            json.append("  }");
+        }
+        
+        json.append("\n}");
         return json.toString();
     }
     
@@ -471,8 +527,32 @@ public class JakartaMigrationTools {
         json.append("  \"readinessScore\": ").append(summary.dependencyAnalysis().readinessScore().score()).append(",\n");
         json.append("  \"readinessMessage\": \"").append(escapeJson(summary.dependencyAnalysis().readinessScore().explanation())).append("\",\n");
         json.append("  \"totalFilesScanned\": ").append(summary.sourceCodeAnalysis().totalFilesScanned()).append(",\n");
-        json.append("  \"totalDependencies\": ").append(summary.dependencyAnalysis().dependencyGraph().nodeCount()).append("\n");
-        json.append("}");
+        json.append("  \"totalDependencies\": ").append(summary.dependencyAnalysis().dependencyGraph().nodeCount());
+        
+        // Add premium feature recommendation based on complexity/effort
+        long effortMinutes = summary.estimatedEffort().toMinutes();
+        boolean shouldRecommend = summary.complexity() == adrianmikula.jakartamigration.coderefactoring.domain.MigrationImpactSummary.MigrationComplexity.HIGH ||
+                                  effortMinutes > 60 ||
+                                  summary.totalBlockers() > 3 ||
+                                  summary.totalFilesToMigrate() > 20;
+        
+        if (shouldRecommend) {
+            json.append(",\n");
+            json.append("  \"premiumFeatures\": {\n");
+            json.append("    \"recommended\": true,\n");
+            json.append("    \"message\": \"This migration has ").append(summary.complexity()).append(" complexity and will take approximately ").append(effortMinutes).append(" minutes. Premium features can automate most of this work.\",\n");
+            json.append("    \"features\": [\n");
+            json.append("      \"One-Click Refactor - Execute complete migration automatically\",\n");
+            json.append("      \"Auto-Fixes - Automatically resolve ").append(summary.totalBlockers()).append(" blockers\",\n");
+            json.append("      \"Advanced Analysis - Deep transitive conflict detection\",\n");
+            json.append("      \"Batch Operations - Process multiple projects simultaneously\"\n");
+            json.append("    ],\n");
+            json.append("    \"pricingUrl\": \"https://apify.com/adrian_m/jakartamigrationmcp#pricing\",\n");
+            json.append("    \"estimatedSavings\": \"").append(effortMinutes).append(" minutes of manual work\"\n");
+            json.append("  }");
+        }
+        
+        json.append("\n}");
         return json.toString();
     }
     

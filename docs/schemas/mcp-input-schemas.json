@@ -106,6 +106,40 @@
         }
       },
       "additionalProperties": false
+    },
+    "analyzeMigrationImpactInput": {
+      "type": "object",
+      "title": "Analyze Migration Impact Input",
+      "description": "Input parameters for analyzing full migration impact combining dependency analysis and source code scanning",
+      "required": ["projectPath"],
+      "properties": {
+        "projectPath": {
+          "type": "string",
+          "description": "Path to the project root directory (absolute or relative)",
+          "examples": [
+            "/path/to/project",
+            "./my-project",
+            "C:\\Users\\project\\src"
+          ],
+          "pattern": "^.+$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "checkEnvInput": {
+      "type": "object",
+      "title": "Check Environment Variable Input",
+      "description": "Input parameters for checking if an environment variable is defined",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the environment variable to check",
+          "examples": ["PATH", "JAVA_HOME", "MCP_TRANSPORT"],
+          "pattern": "^[A-Z_][A-Z0-9_]*$"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "toolInputs": {
@@ -123,6 +157,12 @@
     },
     "verifyRuntime": {
       "$ref": "#/definitions/verifyRuntimeInput"
+    },
+    "analyzeMigrationImpact": {
+      "$ref": "#/definitions/analyzeMigrationImpactInput"
+    },
+    "check_env": {
+      "$ref": "#/definitions/checkEnvInput"
     }
   }
 }
