@@ -88,21 +88,53 @@ if (Test-Path $PackageJsonPath) {
     $OldVersion = $PackageJson.version
     $PackageJson.version = $VersionClean
     $PackageJson | ConvertTo-Json -Depth 10 | Set-Content $PackageJsonPath -Encoding UTF8
-        Write-Host "[OK] Updated package.json version from $OldVersion to $VersionClean" -ForegroundColor Green
+    Write-Host "[OK] Updated package.json version from $OldVersion to $VersionClean" -ForegroundColor Green
+    
+    # Validate package.json files exist
+    if ($PackageJson.files) {
+        $MissingFiles = @()
+        foreach ($file in $PackageJson.files) {
+            $FilePath = Join-Path $ProjectRoot $file
+            if (-not (Test-Path $FilePath)) {
+                $MissingFiles += $file
+            }
+        }
+        if ($MissingFiles.Count -gt 0) {
+            Write-Host "[WARN] Some files in package.json 'files' array are missing:" -ForegroundColor Yellow
+            foreach ($file in $MissingFiles) {
+                Write-Host "   - $file" -ForegroundColor Yellow
+            }
+        }
+    }
     
     # Check if repository URL is still placeholder
     if ($PackageJson.repository.url -like "*your-org*" -or $PackageJson.repository.url -like "*your-repo*") {
         Write-Host "[WARN] package.json repository URL is still a placeholder" -ForegroundColor Yellow
         Write-Host "   Update it with your actual GitHub repository URL before publishing" -ForegroundColor Yellow
     }
+    
+    # Check if main/bin files exist
+    if ($PackageJson.main -and -not (Test-Path (Join-Path $ProjectRoot $PackageJson.main))) {
+        Write-Host "[WARN] package.json 'main' file not found: $($PackageJson.main)" -ForegroundColor Yellow
+    }
+    if ($PackageJson.bin) {
+        foreach ($binName in $PackageJson.bin.PSObject.Properties.Name) {
+            $binPath = Join-Path $ProjectRoot $PackageJson.bin.$binName
+            if (-not (Test-Path $binPath)) {
+                Write-Host "[WARN] package.json 'bin' file not found: $($PackageJson.bin.$binName)" -ForegroundColor Yellow
+            }
+        }
+    }
 } else {
-    Write-Host "[WARN] package.json not found" -ForegroundColor Yellow
+    Write-Host "[ERROR] package.json not found" -ForegroundColor Red
+    exit 1
 }
 
 # Prepare npm package
 Write-Host "[NPM] Preparing npm package..." -ForegroundColor Yellow
-$NpmPackOutput = npm pack --dry-run 2>&1
-if ($LASTEXITCODE -eq 0) {
+$NpmPackOutput = npm pack --dry-run 2>&1 | Out-String
+$NpmPackExitCode = $LASTEXITCODE
+if ($NpmPackExitCode -eq 0) {
     Write-Host "[OK] npm package ready" -ForegroundColor Green
 } else {
     Write-Host "[WARN] npm pack check failed" -ForegroundColor Yellow
@@ -131,12 +163,31 @@ if ($PublishNpm -eq "y" -or $PublishNpm -eq "Y") {
     Write-Host "[PUBLISH] Publishing to npm..." -ForegroundColor Yellow
     
     # Check if logged in
-    $NpmWhoami = npm whoami 2>&1
-    if ($LASTEXITCODE -ne 0) {
+    $NpmWhoamiOutput = npm whoami 2>&1 | Out-String
+    $NpmWhoamiExitCode = $LASTEXITCODE
+    if ($NpmWhoamiExitCode -ne 0) {
         Write-Host "[ERROR] Not logged in to npm. Run: npm login" -ForegroundColor Red
         Write-Host "   Then run: npm publish" -ForegroundColor Yellow
+        exit 1
     } else {
-        Write-Host "[OK] Logged in as: $NpmWhoami" -ForegroundColor Green
+        $NpmUser = ($NpmWhoamiOutput -split "`n" | Where-Object { $_.Trim() -ne "" } | Select-Object -First 1).Trim()
+        Write-Host "[OK] Logged in as: $NpmUser" -ForegroundColor Green
+        
+        # Check if version already exists
+        Write-Host ""
+        Write-Host "[NPM] Checking if version $VersionClean already exists..." -ForegroundColor Yellow
+        $NpmViewOutput = npm view "@jakarta-migration/mcp-server@$VersionClean" version 2>&1 | Out-String
+        $NpmViewExitCode = $LASTEXITCODE
+        if ($NpmViewExitCode -eq 0 -and $NpmViewOutput.Trim() -eq $VersionClean) {
+            Write-Host "[WARN] Version $VersionClean already exists on npm" -ForegroundColor Yellow
+            $Overwrite = Read-Host "Publish anyway? (y/N)"
+            if ($Overwrite -ne "y" -and $Overwrite -ne "Y") {
+                Write-Host "[INFO] Skipping npm publish" -ForegroundColor Gray
+                exit 0
+            }
+        } else {
+            Write-Host "[OK] Version $VersionClean is new" -ForegroundColor Green
+        }
         
         # Check if GitHub release exists (npm package downloads JAR from releases)
         Write-Host ""
@@ -149,7 +200,8 @@ if ($PublishNpm -eq "y" -or $PublishNpm -eq "Y") {
             Write-Host ""
             Write-Host "[RELEASE] Creating GitHub release..." -ForegroundColor Yellow
             gh release create "v${VersionClean}" $ReleaseJar --title "v${VersionClean}" --notes "Jakarta Migration MCP Server v${VersionClean}"
-            if ($LASTEXITCODE -eq 0) {
+            $GhReleaseExitCode = $LASTEXITCODE
+            if ($GhReleaseExitCode -eq 0) {
                 Write-Host "[OK] GitHub release created" -ForegroundColor Green
             } else {
                 Write-Host "[WARN] GitHub release creation failed. Continue anyway? (y/N)" -ForegroundColor Yellow
@@ -163,8 +215,20 @@ if ($PublishNpm -eq "y" -or $PublishNpm -eq "Y") {
         
         Write-Host ""
         Write-Host "[PUBLISH] Publishing to npm..." -ForegroundColor Yellow
-        npm publish
-        if ($LASTEXITCODE -eq 0) {
+        
+        # Check if this is the first publish (scoped packages need --access public)
+        $null = npm view "@jakarta-migration/mcp-server" 2>&1 | Out-String
+        $IsFirstPublish = $LASTEXITCODE -ne 0
+        
+        if ($IsFirstPublish) {
+            Write-Host "[INFO] First publish detected, using --access public" -ForegroundColor Yellow
+            npm publish --access public
+        } else {
+            npm publish
+        }
+        
+        $PublishExitCode = $LASTEXITCODE
+        if ($PublishExitCode -eq 0) {
             Write-Host ""
             Write-Host "[OK] Published to npm successfully!" -ForegroundColor Green
             Write-Host "   Package: @jakarta-migration/mcp-server@$VersionClean" -ForegroundColor Cyan
@@ -176,8 +240,13 @@ if ($PublishNpm -eq "y" -or $PublishNpm -eq "Y") {
             Write-Host "   3. List on Glama.ai with npm package info" -ForegroundColor Cyan
         } else {
             Write-Host ""
-            Write-Host "[ERROR] npm publish failed" -ForegroundColor Red
+            Write-Host "[ERROR] npm publish failed (exit code: $PublishExitCode)" -ForegroundColor Red
             Write-Host "   Check npm logs and try again" -ForegroundColor Yellow
+            Write-Host "   Common issues:" -ForegroundColor Yellow
+            Write-Host "     - Version already exists (use --force to overwrite)" -ForegroundColor Yellow
+            Write-Host "     - Not logged in (run: npm login)" -ForegroundColor Yellow
+            Write-Host "     - Missing permissions (check npm organization access)" -ForegroundColor Yellow
+            exit 1
         }
     }
 } else {

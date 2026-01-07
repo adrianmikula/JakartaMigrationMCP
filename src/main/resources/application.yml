@@ -128,6 +128,19 @@ jakarta:
       
       # Webhook secret for validating Stripe webhooks (future use)
       webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+    
+    # License API Configuration
+    # REST API endpoints for license validation and credit management
+    license-api:
+      # Server API key for authenticating requests to license endpoints
+      # This should be a strong, randomly generated key
+      # Can be set via environment variable: LICENSE_API_SERVER_API_KEY
+      # Example: Generate with: openssl rand -hex 32
+      server-api-key: ${LICENSE_API_SERVER_API_KEY:}
+      
+      # Enable/disable license API endpoints
+      # When disabled, endpoints return 404
+      enabled: ${LICENSE_API_ENABLED:true}
   
   # Spring AI MCP Server Configuration
   # Supports both stdio (local) and SSE (Apify) transports

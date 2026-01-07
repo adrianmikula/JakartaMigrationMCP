@@ -18,15 +18,32 @@ const PACKAGE_NAME = '@jakarta-migration/mcp-server';
 
 // Get version from environment or package.json
 let VERSION = process.env.JAKARTA_MCP_VERSION;
+let PACKAGE_JSON = null;
 if (!VERSION) {
   try {
-    VERSION = require('./package.json').version || '1.0.0';
+    PACKAGE_JSON = require('./package.json');
+    VERSION = PACKAGE_JSON.version || '1.0.0';
   } catch (e) {
     VERSION = '1.0.0';
   }
 }
 
-const GITHUB_REPO = process.env.GITHUB_REPO || 'your-org/JakartaMigrationMCP';
+// Get GitHub repo from environment, package.json, or default
+let GITHUB_REPO = process.env.GITHUB_REPO;
+if (!GITHUB_REPO && PACKAGE_JSON && PACKAGE_JSON.repository && PACKAGE_JSON.repository.url) {
+  // Extract repo from URL like "https://github.com/user/repo.git" or "git@github.com:user/repo.git"
+  const repoMatch = PACKAGE_JSON.repository.url.match(/github\.com[/:]([^/]+\/[^/]+?)(?:\.git)?$/);
+  if (repoMatch) {
+    GITHUB_REPO = repoMatch[1];
+  }
+}
+GITHUB_REPO = GITHUB_REPO || 'your-org/JakartaMigrationMCP';
+
+// Warn if using placeholder repository
+if (GITHUB_REPO.includes('your-org') || GITHUB_REPO.includes('your-repo')) {
+  console.error('WARNING: GitHub repository is still a placeholder. Set GITHUB_REPO environment variable or update package.json repository.url');
+}
+
 const JAR_NAME = `jakarta-migration-mcp-${VERSION}.jar`;
 const GITHUB_RELEASES_URL = `https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}`;
 
@@ -56,7 +73,7 @@ function findJavaExecutable() {
 }
 
 // Download JAR file from GitHub releases
-function downloadJar() {
+function downloadJar(urlOverride = null) {
   return new Promise((resolve, reject) => {
     // Ensure cache directory exists
     if (!fs.existsSync(cacheDir)) {
@@ -70,38 +87,117 @@ function downloadJar() {
       return;
     }
 
-    const url = `${GITHUB_RELEASES_URL}/${JAR_NAME}`;
+    const url = urlOverride || `${GITHUB_RELEASES_URL}/${JAR_NAME}`;
     console.error(`Downloading JAR from ${url}...`);
 
     const protocol = url.startsWith('https:') ? https : http;
     const file = fs.createWriteStream(jarPath);
+    let hasError = false;
 
-    protocol.get(url, (response) => {
-      if (response.statusCode === 302 || response.statusCode === 301) {
-        // Handle redirect
-        return downloadJar().then(resolve).catch(reject);
+    const cleanup = () => {
+      if (!hasError) {
+        hasError = true;
+        file.close();
+        if (fs.existsSync(jarPath)) {
+          try {
+            fs.unlinkSync(jarPath);
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }
+      }
+    };
+
+    const request = protocol.get(url, (response) => {
+      // Handle redirects (GitHub releases often redirect)
+      if (response.statusCode === 301 || response.statusCode === 302 || response.statusCode === 307 || response.statusCode === 308) {
+        const location = response.headers.location;
+        if (location) {
+          file.close();
+          cleanup();
+          console.error(`Following redirect to: ${location}`);
+          // Recursively follow redirect
+          return downloadJar(location).then(resolve).catch(reject);
+        } else {
+          cleanup();
+          reject(new Error(`Redirect received but no Location header: HTTP ${response.statusCode}`));
+          return;
+        }
       }
 
       if (response.statusCode !== 200) {
-        file.close();
-        fs.unlinkSync(jarPath);
-        reject(new Error(`Failed to download JAR: HTTP ${response.statusCode}`));
+        cleanup();
+        reject(new Error(`Failed to download JAR: HTTP ${response.statusCode} ${response.statusMessage || ''}`));
         return;
       }
 
+      // Track download progress
+      const totalSize = parseInt(response.headers['content-length'] || '0', 10);
+      let downloadedSize = 0;
+
+      response.on('data', (chunk) => {
+        downloadedSize += chunk.length;
+        if (totalSize > 0) {
+          const percent = ((downloadedSize / totalSize) * 100).toFixed(1);
+          process.stderr.write(`\rDownloading: ${percent}% (${(downloadedSize / 1024 / 1024).toFixed(2)} MB / ${(totalSize / 1024 / 1024).toFixed(2)} MB)`);
+        }
+      });
+
       response.pipe(file);
+
+      file.on('error', (err) => {
+        cleanup();
+        reject(new Error(`File write error: ${err.message}`));
+      });
 
       file.on('finish', () => {
         file.close();
+        if (totalSize > 0) {
+          process.stderr.write('\n');
+        }
+        
+        // Verify the downloaded file is valid
+        try {
+          const stats = fs.statSync(jarPath);
+          if (stats.size === 0) {
+            cleanup();
+            reject(new Error('Downloaded JAR file is empty'));
+            return;
+          }
+          
+          // Check if it's a valid JAR file (starts with ZIP magic bytes)
+          const buffer = Buffer.alloc(4);
+          const fd = fs.openSync(jarPath, 'r');
+          fs.readSync(fd, buffer, 0, 4, 0);
+          fs.closeSync(fd);
+          
+          // JAR files are ZIP files, which start with PK (0x50 0x4B)
+          if (buffer[0] !== 0x50 || buffer[1] !== 0x4B) {
+            cleanup();
+            reject(new Error('Downloaded file does not appear to be a valid JAR file (missing ZIP signature)'));
+            return;
+          }
+        } catch (err) {
+          cleanup();
+          reject(new Error(`Failed to verify downloaded JAR: ${err.message}`));
+          return;
+        }
+        
         console.error(`JAR downloaded successfully to ${jarPath}`);
         resolve(jarPath);
       });
-    }).on('error', (err) => {
-      file.close();
-      if (fs.existsSync(jarPath)) {
-        fs.unlinkSync(jarPath);
-      }
-      reject(err);
+    });
+
+    request.on('error', (err) => {
+      cleanup();
+      reject(new Error(`Request error: ${err.message}`));
+    });
+
+    // Set a timeout (30 seconds)
+    request.setTimeout(30000, () => {
+      request.destroy();
+      cleanup();
+      reject(new Error('Download timeout after 30 seconds'));
     });
   });
 }
