@@ -44,9 +44,11 @@ docker-compose.yml
 .dockerignore
 
 # Apify
-.actor/
+# Allow .actor directory (needed for Apify Actor configuration)
+!.actor/
 *.json
 !src/main/resources/**/*.json
+!.actor/**/*.json
 
 # Scripts (not needed in runtime)
 scripts/

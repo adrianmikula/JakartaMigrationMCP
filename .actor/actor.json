@@ -9,6 +9,11 @@
   "output": "./output_schema.json",
   "storages": {
     "dataset": "./dataset_schema.json"
+  },
+  "usesStandbyMode": true,
+  "webServerMcpPath": "/mcp/sse",
+  "defaultRunOptions": {
+    "memory": 2048
   }
 }
 
