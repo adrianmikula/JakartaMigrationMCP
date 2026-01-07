@@ -11,6 +11,25 @@ Set-Location $ProjectRoot
 Write-Host "[BUILD] Building Jakarta Migration MCP Server..." -ForegroundColor Green
 Write-Host ""
 
+# Check for Gradle wrapper, generate if missing
+if (-not (Test-Path "gradlew.bat") -and -not (Test-Path "gradlew")) {
+    Write-Host "[GRADLE] Gradle wrapper not found, checking for Gradle..." -ForegroundColor Yellow
+    $gradleCmd = Get-Command gradle -ErrorAction SilentlyContinue
+    $miseCmd = Get-Command mise -ErrorAction SilentlyContinue
+    
+    if ($gradleCmd) {
+        Write-Host "[GRADLE] Generating Gradle wrapper..." -ForegroundColor Yellow
+        & gradle wrapper
+    } elseif ($miseCmd) {
+        Write-Host "[GRADLE] Generating Gradle wrapper via mise..." -ForegroundColor Yellow
+        mise exec -- gradle wrapper
+    } else {
+        Write-Host "[WARN] Gradle wrapper not found and cannot generate it" -ForegroundColor Yellow
+        Write-Host "   The script will try to use 'gradle' or 'mise exec -- gradle' directly" -ForegroundColor Yellow
+    }
+}
+Write-Host ""
+
 # Get version from build.gradle.kts
 $VersionLine = Select-String -Path "build.gradle.kts" -Pattern 'version\s*=\s*"' | Select-Object -First 1
 $Version = if ($VersionLine) {
@@ -30,11 +49,51 @@ Write-Host ""
 
 # Clean previous builds
 Write-Host "[CLEAN] Cleaning previous builds..." -ForegroundColor Yellow
-& .\gradlew.bat clean
+if (Test-Path "gradlew.bat") {
+    & .\gradlew.bat clean
+} elseif (Test-Path "gradlew") {
+    & .\gradlew clean
+} else {
+    # Use mise exec or direct gradle command
+    $gradleCmd = Get-Command gradle -ErrorAction SilentlyContinue
+    if ($gradleCmd) {
+        & gradle clean
+    } else {
+        # Try mise exec
+        $miseCmd = Get-Command mise -ErrorAction SilentlyContinue
+        if ($miseCmd) {
+            mise exec -- gradle clean
+        } else {
+            Write-Host "[ERROR] Gradle wrapper not found and 'gradle' command not available" -ForegroundColor Red
+            Write-Host "   Please install Gradle or run: gradle wrapper" -ForegroundColor Yellow
+            exit 1
+        }
+    }
+}
 
 # Build JAR
 Write-Host "[BUILD] Building JAR..." -ForegroundColor Yellow
-& .\gradlew.bat bootJar --no-daemon
+if (Test-Path "gradlew.bat") {
+    & .\gradlew.bat bootJar --no-daemon
+} elseif (Test-Path "gradlew") {
+    & .\gradlew bootJar --no-daemon
+} else {
+    # Use mise exec or direct gradle command
+    $gradleCmd = Get-Command gradle -ErrorAction SilentlyContinue
+    if ($gradleCmd) {
+        & gradle bootJar --no-daemon
+    } else {
+        # Try mise exec
+        $miseCmd = Get-Command mise -ErrorAction SilentlyContinue
+        if ($miseCmd) {
+            mise exec -- gradle bootJar --no-daemon
+        } else {
+            Write-Host "[ERROR] Gradle wrapper not found and 'gradle' command not available" -ForegroundColor Red
+            Write-Host "   Please install Gradle or run: gradle wrapper" -ForegroundColor Yellow
+            exit 1
+        }
+    }
+}
 
 # Find the built JAR
 $JarFiles = Get-ChildItem -Path "build\libs" -Filter "*.jar" | Where-Object { $_.Name -notlike "*-plain.jar" }
@@ -132,12 +191,22 @@ if (Test-Path $PackageJsonPath) {
 
 # Prepare npm package
 Write-Host "[NPM] Preparing npm package..." -ForegroundColor Yellow
+$ErrorActionPreference = "Continue"
 $NpmPackOutput = npm pack --dry-run 2>&1 | Out-String
 $NpmPackExitCode = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
+
 if ($NpmPackExitCode -eq 0) {
     Write-Host "[OK] npm package ready" -ForegroundColor Green
+    # Show package info if verbose
+    if ($NpmPackOutput -match "package size") {
+        $packageInfo = $NpmPackOutput -split "`n" | Where-Object { $_ -match "package size|total files" } | Select-Object -First 2
+        foreach ($line in $packageInfo) {
+            Write-Host "   $line" -ForegroundColor Gray
+        }
+    }
 } else {
-    Write-Host "[WARN] npm pack check failed" -ForegroundColor Yellow
+    Write-Host "[WARN] npm pack check failed (exit code: $NpmPackExitCode)" -ForegroundColor Yellow
     Write-Host $NpmPackOutput
 }
 
@@ -163,8 +232,10 @@ if ($PublishNpm -eq "y" -or $PublishNpm -eq "Y") {
     Write-Host "[PUBLISH] Publishing to npm..." -ForegroundColor Yellow
     
     # Check if logged in
+    $ErrorActionPreference = "Continue"
     $NpmWhoamiOutput = npm whoami 2>&1 | Out-String
     $NpmWhoamiExitCode = $LASTEXITCODE
+    $ErrorActionPreference = "Stop"
     if ($NpmWhoamiExitCode -ne 0) {
         Write-Host "[ERROR] Not logged in to npm. Run: npm login" -ForegroundColor Red
         Write-Host "   Then run: npm publish" -ForegroundColor Yellow
@@ -176,8 +247,10 @@ if ($PublishNpm -eq "y" -or $PublishNpm -eq "Y") {
         # Check if version already exists
         Write-Host ""
         Write-Host "[NPM] Checking if version $VersionClean already exists..." -ForegroundColor Yellow
+        $ErrorActionPreference = "Continue"
         $NpmViewOutput = npm view "@jakarta-migration/mcp-server@$VersionClean" version 2>&1 | Out-String
         $NpmViewExitCode = $LASTEXITCODE
+        $ErrorActionPreference = "Stop"
         if ($NpmViewExitCode -eq 0 -and $NpmViewOutput.Trim() -eq $VersionClean) {
             Write-Host "[WARN] Version $VersionClean already exists on npm" -ForegroundColor Yellow
             $Overwrite = Read-Host "Publish anyway? (y/N)"
@@ -217,17 +290,23 @@ if ($PublishNpm -eq "y" -or $PublishNpm -eq "Y") {
         Write-Host "[PUBLISH] Publishing to npm..." -ForegroundColor Yellow
         
         # Check if this is the first publish (scoped packages need --access public)
+        $ErrorActionPreference = "Continue"
         $null = npm view "@jakarta-migration/mcp-server" 2>&1 | Out-String
         $IsFirstPublish = $LASTEXITCODE -ne 0
+        $ErrorActionPreference = "Stop"
         
         if ($IsFirstPublish) {
             Write-Host "[INFO] First publish detected, using --access public" -ForegroundColor Yellow
-            npm publish --access public
+            $ErrorActionPreference = "Continue"
+            $PublishOutput = npm publish --access public 2>&1 | Out-String
+            $PublishExitCode = $LASTEXITCODE
+            $ErrorActionPreference = "Stop"
         } else {
-            npm publish
+            $ErrorActionPreference = "Continue"
+            $PublishOutput = npm publish 2>&1 | Out-String
+            $PublishExitCode = $LASTEXITCODE
+            $ErrorActionPreference = "Stop"
         }
-        
-        $PublishExitCode = $LASTEXITCODE
         if ($PublishExitCode -eq 0) {
             Write-Host ""
             Write-Host "[OK] Published to npm successfully!" -ForegroundColor Green
@@ -241,7 +320,12 @@ if ($PublishNpm -eq "y" -or $PublishNpm -eq "Y") {
         } else {
             Write-Host ""
             Write-Host "[ERROR] npm publish failed (exit code: $PublishExitCode)" -ForegroundColor Red
-            Write-Host "   Check npm logs and try again" -ForegroundColor Yellow
+            if ($PublishOutput) {
+                Write-Host "   npm output:" -ForegroundColor Yellow
+                $PublishOutput -split "`n" | Where-Object { $_.Trim() -ne "" } | ForEach-Object {
+                    Write-Host "   $_" -ForegroundColor Gray
+                }
+            }
             Write-Host "   Common issues:" -ForegroundColor Yellow
             Write-Host "     - Version already exists (use --force to overwrite)" -ForegroundColor Yellow
             Write-Host "     - Not logged in (run: npm login)" -ForegroundColor Yellow
