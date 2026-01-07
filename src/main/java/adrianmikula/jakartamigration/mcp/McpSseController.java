@@ -13,6 +13,9 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Custom SSE endpoint controller for MCP protocol.
@@ -41,6 +44,9 @@ public class McpSseController {
     // Store active SSE connections by session ID (simple implementation using thread ID for now)
     // In production, use proper session management with unique IDs
     private final Map<String, SseEmitter> activeConnections = new ConcurrentHashMap<>();
+    
+    // Scheduled executor for keepalive messages
+    private final ScheduledExecutorService keepaliveExecutor = Executors.newScheduledThreadPool(1);
 
     /**
      * SSE endpoint for MCP protocol.
@@ -77,25 +83,27 @@ public class McpSseController {
         // Parse tool filter if provided (Apify supports ?tools=tool1,tool2)
         Set<String> enabledTools = parseToolsParameter(tools);
         
-        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
+        // Set a reasonable timeout (30 seconds) - clients should send requests quickly
+        // Long.MAX_VALUE can cause issues with some proxies/servers
+        SseEmitter emitter = new SseEmitter(30000L);
         
-        // Send initial connection message to let client know connection is ready
-        // Some MCP clients expect an initial message to confirm the connection
-        // We send a simple JSON-RPC notification (no id) to indicate server is ready
+        // Generate session ID before setting up connection
+        String sessionId = UUID.randomUUID().toString();
+        activeConnections.put(sessionId, emitter);
+        log.info("Registered SSE connection with session ID: {}", sessionId);
+        
+        // Send initial connection message with session ID
+        // This helps clients know which session to use for subsequent POST requests
         try {
-            Map<String, Object> readyNotification = new HashMap<>();
-            readyNotification.put("jsonrpc", "2.0");
-            readyNotification.put("method", "notifications/initialized");
-            readyNotification.put("params", Map.of(
-                "server", Map.of(
-                    "name", serverName,
-                    "version", serverVersion
-                )
-            ));
-            sendSseMessage(emitter, "message", readyNotification);
-            log.info("Sent initial connection confirmation to client");
+            // Send session info as initial event
+            Map<String, Object> sessionInfo = new HashMap<>();
+            sessionInfo.put("sessionId", sessionId);
+            sessionInfo.put("status", "connected");
+            sendSseMessage(emitter, "session", sessionInfo);
+            log.info("Sent session info to client: sessionId={}", sessionId);
         } catch (IOException e) {
-            log.error("Failed to send initial connection message", e);
+            log.error("Failed to send initial SSE message", e);
+            activeConnections.remove(sessionId);
             emitter.completeWithError(e);
             return emitter;
         }
@@ -111,10 +119,19 @@ public class McpSseController {
             }
         }
         
-        // Generate a simple session ID (in production, use proper session management)
-        String sessionId = UUID.randomUUID().toString();
-        activeConnections.put(sessionId, emitter);
-        log.debug("Registered SSE connection with session ID: {}", sessionId);
+        // Start keepalive scheduler to prevent connection timeout
+        // Send keepalive every 15 seconds (SSE connections can timeout without activity)
+        keepaliveExecutor.scheduleAtFixedRate(() -> {
+            try {
+                if (activeConnections.containsKey(sessionId)) {
+                    emitter.send(SseEmitter.event().comment("keepalive"));
+                    log.trace("Sent SSE keepalive for session: {}", sessionId);
+                }
+            } catch (IOException e) {
+                log.debug("Failed to send keepalive for session: {} - connection may be closed", sessionId);
+                activeConnections.remove(sessionId);
+            }
+        }, 15, 15, TimeUnit.SECONDS);
         
         // Handle connection lifecycle
         emitter.onCompletion(() -> {
@@ -182,31 +199,52 @@ public class McpSseController {
         
         Map<String, Object> response = processMcpRequest(request);
         
-        // If we have an active SSE connection, send the response via SSE as well
-        // Try to find the connection (if sessionId provided, use it; otherwise use first available)
+        // For SSE transport, always try to send response via SSE if connection exists
+        // This is the primary way MCP clients receive responses over SSE
         SseEmitter emitter = null;
         if (sessionId != null) {
             emitter = activeConnections.get(sessionId);
             if (emitter == null) {
-                log.warn("Session ID {} not found in active connections", sessionId);
+                log.warn("Session ID {} not found in active connections (available: {})", 
+                    sessionId, activeConnections.keySet());
             }
         } else if (!activeConnections.isEmpty()) {
             // Use first available connection if no session ID provided
+            // This works for single-client scenarios (most common)
             emitter = activeConnections.values().iterator().next();
-            log.debug("Using first available SSE connection (no session ID provided)");
+            log.debug("Using first available SSE connection (no session ID provided, total connections: {})", 
+                activeConnections.size());
         }
         
         if (emitter != null) {
+            final SseEmitter finalEmitter = emitter; // Make effectively final for lambda
             try {
                 sendSseMessage(emitter, "message", response);
                 log.info("Sent response via SSE for request: {} (id: {})", method, request.get("id"));
             } catch (IOException e) {
-                log.warn("Failed to send response via SSE for request: {}, returning POST response only", method, e);
+                log.warn("Failed to send response via SSE for request: {} (id: {}), connection may be closed. " +
+                    "Returning POST response only.", method, request.get("id"), e);
+                // Remove dead connection - find session ID and remove it
+                String deadSessionId = null;
+                for (Map.Entry<String, SseEmitter> entry : activeConnections.entrySet()) {
+                    if (entry.getValue() == finalEmitter) {
+                        deadSessionId = entry.getKey();
+                        break;
+                    }
+                }
+                if (deadSessionId != null) {
+                    activeConnections.remove(deadSessionId);
+                    log.debug("Removed dead SSE connection: {}", deadSessionId);
+                }
             }
         } else {
-            log.warn("No active SSE connection found for request: {}, returning POST response only", method);
+            log.warn("No active SSE connection found for request: {} (id: {}). " +
+                "Active connections: {}. Returning POST response only.", 
+                method, request.get("id"), activeConnections.size());
         }
         
+        // Always return response in POST body as well for compatibility
+        // Some clients may read from POST response if SSE fails
         return ResponseEntity.ok(response);
     }
 

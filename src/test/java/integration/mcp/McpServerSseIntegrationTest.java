@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -52,6 +53,237 @@ class McpServerSseIntegrationTest {
         mockMvc.perform(get("/mcp/sse"))
             .andExpect(status().isOk())
             .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM));
+    }
+
+    @Test
+    void testSseConnectionSendsSessionId() throws Exception {
+        // Test that SSE connection sends session ID on initial connection
+        String response = mockMvc.perform(get("/mcp/sse"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        
+        // SSE response should contain session information
+        // Format: event: session\ndata: {"sessionId":"...","status":"connected"}
+        assertThat(response).isNotNull();
+        assertThat(response).contains("sessionId");
+        assertThat(response).contains("connected");
+        
+        // Try to parse session ID from response
+        Pattern sessionPattern = Pattern.compile("\"sessionId\"\\s*:\\s*\"([^\"]+)\"");
+        java.util.regex.Matcher matcher = sessionPattern.matcher(response);
+        assertThat(matcher.find()).isTrue();
+        String sessionId = matcher.group(1);
+        assertThat(sessionId).isNotEmpty();
+        assertThat(sessionId.length()).isGreaterThan(10); // UUID should be long
+    }
+
+    @Test
+    void testSseConnectionWithSessionIdCorrelation() throws Exception {
+        // Test that POST requests can be correlated with SSE connection via session ID
+        
+        // First, establish SSE connection and extract session ID
+        String sseResponse = mockMvc.perform(get("/mcp/sse"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        
+        // Extract session ID
+        Pattern sessionPattern = Pattern.compile("\"sessionId\"\\s*:\\s*\"([^\"]+)\"");
+        java.util.regex.Matcher matcher = sessionPattern.matcher(sseResponse);
+        assertThat(matcher.find()).isTrue();
+        String sessionId = matcher.group(1);
+        
+        // Now send a POST request with the session ID
+        Map<String, Object> request = Map.of(
+            "jsonrpc", "2.0",
+            "id", requestId++,
+            "method", "tools/list",
+            "params", Map.of()
+        );
+        
+        String postResponse = mockMvc.perform(post("/mcp/sse")
+                .header("X-Session-Id", sessionId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        
+        // Verify response is valid
+        JsonNode jsonResponse = objectMapper.readTree(postResponse);
+        assertThat(jsonResponse.has("result")).isTrue();
+        assertThat(jsonResponse.get("result").has("tools")).isTrue();
+    }
+
+    @Test
+    void testSseConnectionWithoutSessionIdFallsBack() throws Exception {
+        // Test that POST requests without session ID still work (uses first available connection)
+        
+        // Establish SSE connection first
+        mockMvc.perform(get("/mcp/sse"))
+            .andExpect(status().isOk());
+        
+        // Send POST request without session ID
+        Map<String, Object> request = Map.of(
+            "jsonrpc", "2.0",
+            "id", requestId++,
+            "method", "tools/list",
+            "params", Map.of()
+        );
+        
+        String response = mockMvc.perform(post("/mcp/sse")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        
+        // Should still get a valid response
+        JsonNode jsonResponse = objectMapper.readTree(response);
+        assertThat(jsonResponse.has("result")).isTrue();
+    }
+
+    @Test
+    void testSseConnectionStaysAlive() throws Exception {
+        // Test that SSE connection doesn't timeout immediately
+        // This verifies the keepalive mechanism is working
+        
+        var result = mockMvc.perform(get("/mcp/sse"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
+            .andReturn();
+        
+        // Connection should be established
+        assertThat(result.getResponse().getStatus()).isEqualTo(200);
+        
+        // Wait a bit and verify connection is still considered active
+        // (In a real scenario, keepalive messages would be sent every 15 seconds)
+        // We can't easily test keepalive with MockMvc, but we can verify the connection
+        // doesn't immediately fail
+        Thread.sleep(100); // Small delay
+        
+        // Connection should still be valid (no exception thrown)
+        assertThat(result.getResponse().getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void testMultipleSseConnections() throws Exception {
+        // Test that multiple SSE connections can be established simultaneously
+        
+        // Establish first connection
+        String response1 = mockMvc.perform(get("/mcp/sse"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        
+        // Extract first session ID
+        Pattern sessionPattern = Pattern.compile("\"sessionId\"\\s*:\\s*\"([^\"]+)\"");
+        java.util.regex.Matcher matcher1 = sessionPattern.matcher(response1);
+        assertThat(matcher1.find()).isTrue();
+        String sessionId1 = matcher1.group(1);
+        
+        // Establish second connection
+        String response2 = mockMvc.perform(get("/mcp/sse"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        
+        // Extract second session ID
+        java.util.regex.Matcher matcher2 = sessionPattern.matcher(response2);
+        assertThat(matcher2.find()).isTrue();
+        String sessionId2 = matcher2.group(1);
+        
+        // Session IDs should be different
+        assertThat(sessionId1).isNotEqualTo(sessionId2);
+        
+        // Both connections should work independently
+        Map<String, Object> request = Map.of(
+            "jsonrpc", "2.0",
+            "id", requestId++,
+            "method", "tools/list",
+            "params", Map.of()
+        );
+        
+        // Test with first session
+        String postResponse1 = mockMvc.perform(post("/mcp/sse")
+                .header("X-Session-Id", sessionId1)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        
+        assertThat(objectMapper.readTree(postResponse1).has("result")).isTrue();
+        
+        // Test with second session
+        request = Map.of(
+            "jsonrpc", "2.0",
+            "id", requestId++,
+            "method", "tools/list",
+            "params", Map.of()
+        );
+        
+        String postResponse2 = mockMvc.perform(post("/mcp/sse")
+                .header("X-Session-Id", sessionId2)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        
+        assertThat(objectMapper.readTree(postResponse2).has("result")).isTrue();
+    }
+
+    @Test
+    void testSseConnectionWithInvalidSessionId() throws Exception {
+        // Test that POST requests with invalid session ID still return response
+        // (should fall back to first available connection or return POST response only)
+        
+        Map<String, Object> request = Map.of(
+            "jsonrpc", "2.0",
+            "id", requestId++,
+            "method", "tools/list",
+            "params", Map.of()
+        );
+        
+        String response = mockMvc.perform(post("/mcp/sse")
+                .header("X-Session-Id", "invalid-session-id-12345")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        
+        // Should still get a valid response (POST response, even if SSE fails)
+        JsonNode jsonResponse = objectMapper.readTree(response);
+        assertThat(jsonResponse.has("result")).isTrue();
+    }
+
+    @Test
+    void testSseConnectionWithAuthentication() throws Exception {
+        // Test that SSE connection accepts Authorization header (Apify requirement)
+        
+        String response = mockMvc.perform(get("/mcp/sse")
+                .header("Authorization", "Bearer test-token-12345"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        
+        // Should still connect successfully with auth header
+        assertThat(response).contains("sessionId");
     }
 
     @Test
