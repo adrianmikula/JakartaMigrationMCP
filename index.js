@@ -205,14 +205,10 @@ function downloadJar(urlOverride = null) {
 // Main execution function
 async function main() {
   try {
-    // Check for Java
-    const javaCmd = findJavaExecutable();
-    if (!javaCmd) {
-      console.error('ERROR: Java is not installed or not in PATH.');
-      console.error('Please install Java 21+ from https://adoptium.net/');
-      process.exit(1);
-    }
-
+    // Check for --download-only flag
+    const args = process.argv.slice(2);
+    const downloadOnly = args.includes('--download-only') || args.includes('--download');
+    
     // Download JAR if needed
     let jar = jarPath;
     if (!fs.existsSync(jar)) {
@@ -234,34 +230,57 @@ async function main() {
         }
       }
     }
+    
+    // If --download-only flag is set, exit after downloading
+    if (downloadOnly) {
+      console.error(`JAR ready at: ${jar}`);
+      process.exit(0);
+    }
+
+    // Check for Java (only needed if we're actually running)
+    const javaCmd = findJavaExecutable();
+    if (!javaCmd) {
+      console.error('ERROR: Java is not installed or not in PATH.');
+      console.error('Please install Java 21+ from https://adoptium.net/');
+      process.exit(1);
+    }
 
     // Run the JAR with MCP-specific arguments
     // Determine transport mode: stdio (default, local) or sse (Apify/HTTP)
     const transport = process.env.MCP_TRANSPORT || 'stdio';
     const profile = transport === 'sse' ? 'mcp-sse' : 'mcp-stdio';
     
-    const args = [
+    // Build Java arguments
+    // CRITICAL: For MCP stdio, we must use 'inherit' for stdio to pass through JSON-RPC messages
+    const javaArgs = [
       '-jar',
       jar,
       `--spring.profiles.active=${profile}`,
       `--spring.ai.mcp.server.transport=${transport}`
     ];
     
-    // For stdio mode, disable web server
+    // For stdio mode, disable web server and ensure banner is off
     if (transport === 'stdio') {
-      args.push('--spring.main.web-application-type=none');
+      javaArgs.push('--spring.main.web-application-type=none');
+      javaArgs.push('--spring.main.banner-mode=off');
     }
 
-    // Pass through any additional arguments
-    const mcpArgs = process.argv.slice(2);
-    args.push(...mcpArgs);
+    // Pass through any additional arguments (excluding our flags)
+    const userArgs = process.argv.slice(2).filter(arg => 
+      !arg.startsWith('--download-only') && !arg.startsWith('--download')
+    );
+    javaArgs.push(...userArgs);
 
     console.error(`Starting Jakarta Migration MCP Server...`);
     console.error(`Java: ${javaCmd}`);
     console.error(`JAR: ${jar}`);
+    console.error(`Transport: ${transport}`);
 
-    const javaProcess = spawn(javaCmd, args, {
-      stdio: 'inherit',
+    // CRITICAL: Use 'inherit' for stdio to ensure MCP JSON-RPC messages pass through correctly
+    // stdin/stdout are used for MCP protocol communication
+    // stderr is used for logging (configured in Spring Boot)
+    const javaProcess = spawn(javaCmd, javaArgs, {
+      stdio: ['inherit', 'inherit', 'inherit'],  // Explicit stdio passthrough for MCP
       env: process.env
     });
 

@@ -26,24 +26,28 @@ class LicenseServiceTest {
 
     @BeforeEach
     void setUp() {
-        licenseService = new LicenseService(apifyLicenseService, stripeLicenseService);
+        // ApifyLicenseService is optional (nullable) - pass null to simulate disabled state by default
+        // Some tests will override this to test Apify behavior
+        licenseService = new LicenseService(stripeLicenseService, null);
     }
 
     @Test
-    void shouldValidatePremiumLicenseKeyViaApify() {
-        when(apifyLicenseService.validateLicense(anyString())).thenReturn(null);
+    void shouldValidatePremiumLicenseKeyViaStripe() {
+        // Stripe is tried first for all keys (returns null for non-Stripe keys)
+        when(stripeLicenseService.validateLicense(anyString())).thenReturn(null);
         
-        // Falls back to simple validation for test keys
+        // Falls back to simple validation for test keys (PREMIUM- prefix)
         FeatureFlagsProperties.LicenseTier tier = licenseService.validateLicense("PREMIUM-test-key-123");
         
         assertThat(tier).isEqualTo(FeatureFlagsProperties.LicenseTier.PREMIUM);
     }
 
     @Test
-    void shouldValidateEnterpriseLicenseKeyViaApify() {
-        when(apifyLicenseService.validateLicense(anyString())).thenReturn(null);
+    void shouldValidateEnterpriseLicenseKeyViaStripe() {
+        // Stripe is tried first for all keys (returns null for non-Stripe keys)
+        when(stripeLicenseService.validateLicense(anyString())).thenReturn(null);
         
-        // Falls back to simple validation for test keys
+        // Falls back to simple validation for test keys (ENTERPRISE- prefix)
         FeatureFlagsProperties.LicenseTier tier = licenseService.validateLicense("ENTERPRISE-test-key-456");
         
         assertThat(tier).isEqualTo(FeatureFlagsProperties.LicenseTier.ENTERPRISE);
@@ -60,7 +64,12 @@ class LicenseServiceTest {
 
     @Test
     void shouldUseApifyValidationWhenAvailable() {
-        // Note: stripeLicenseService is not called for non-Stripe keys, so we don't stub it
+        // Create service with Apify enabled for this test
+        licenseService = new LicenseService(stripeLicenseService, apifyLicenseService);
+        
+        // Stripe is tried first (returns null for non-Stripe keys)
+        when(stripeLicenseService.validateLicense(anyString())).thenReturn(null);
+        // Then Apify is tried
         when(apifyLicenseService.validateLicense(anyString())).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
         
         FeatureFlagsProperties.LicenseTier tier = licenseService.validateLicense("apify_api_token_123");
@@ -80,7 +89,8 @@ class LicenseServiceTest {
 
     @Test
     void shouldRejectInvalidLicenseKey() {
-        when(apifyLicenseService.validateLicense(anyString())).thenReturn(null);
+        // Stripe is tried first (returns null for invalid keys)
+        when(stripeLicenseService.validateLicense(anyString())).thenReturn(null);
         
         FeatureFlagsProperties.LicenseTier tier = licenseService.validateLicense("INVALID-key");
         

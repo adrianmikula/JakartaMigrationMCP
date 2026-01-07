@@ -22,26 +22,14 @@ This document lists all environment variables that need to be configured in the 
 | `LICENSE_API_SERVER_API_KEY` | `your-secret-api-key-here` | ✅ **Required** | API key for authenticating requests to license endpoints. Generate with: `openssl rand -hex 32` |
 | `LICENSE_API_ENABLED` | `true` | ❌ Optional | Enable/disable license API endpoints (default: `true`) |
 
-### License Validation (Optional)
+### License Validation
 
-#### Apify License Validation
-
-| Variable | Value | Required | Description |
-|----------|-------|----------|-------------|
-| `APIFY_VALIDATION_ENABLED` | `true` | ❌ Optional | Enable/disable Apify license validation (default: `true`) |
-| `APIFY_API_TOKEN` | `your-apify-token` | ❌ Optional | Your Apify API token for making validation requests |
-| `APIFY_API_URL` | `https://api.apify.com/v2` | ❌ Optional | Apify API base URL (default: `https://api.apify.com/v2`) |
-| `APIFY_CACHE_TTL` | `3600` | ❌ Optional | Cache TTL for license validation in seconds (default: `3600`) |
-| `APIFY_TIMEOUT` | `5` | ❌ Optional | Request timeout in seconds (default: `5`) |
-| `APIFY_ACTOR_ID` | `your-actor-id` | ❌ Optional | Apify Actor ID/name for license validation |
-| `APIFY_ALLOW_OFFLINE` | `true` | ❌ Optional | Allow offline validation when API is unavailable (default: `true`) |
-
-#### Stripe License Validation
+#### Stripe License Validation (Primary Payment Processor)
 
 | Variable | Value | Required | Description |
 |----------|-------|----------|-------------|
-| `STRIPE_VALIDATION_ENABLED` | `false` | ❌ Optional | Enable/disable Stripe license validation (default: `false`) |
-| `STRIPE_SECRET_KEY` | `sk_live_...` or `sk_test_...` | ❌ Optional | Stripe secret key for API authentication |
+| `STRIPE_VALIDATION_ENABLED` | `true` | ❌ Optional | Enable/disable Stripe license validation (default: `true`) |
+| `STRIPE_SECRET_KEY` | `sk_live_...` or `sk_test_...` | ✅ **Required** | Stripe secret key for API authentication (get from Stripe Dashboard) |
 | `STRIPE_API_URL` | `https://api.stripe.com/v1` | ❌ Optional | Stripe API base URL (default: `https://api.stripe.com/v1`) |
 | `STRIPE_CACHE_TTL` | `3600` | ❌ Optional | Cache TTL for license validation in seconds (default: `3600`) |
 | `STRIPE_TIMEOUT` | `5` | ❌ Optional | Request timeout in seconds (default: `5`) |
@@ -50,6 +38,20 @@ This document lists all environment variables that need to be configured in the 
 | `STRIPE_LICENSE_PREFIX` | `stripe_` | ❌ Optional | License key prefix for Stripe-based keys (default: `stripe_`) |
 | `STRIPE_ALLOW_OFFLINE` | `true` | ❌ Optional | Allow offline validation when API is unavailable (default: `true`) |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_...` | ❌ Optional | Stripe webhook secret for validating webhooks |
+
+#### Apify License Validation (Deprecated)
+
+**Note**: Apify support is deprecated in favor of Stripe. Apify services are disabled by default and will not be loaded unless explicitly enabled.
+
+| Variable | Value | Required | Description |
+|----------|-------|----------|-------------|
+| `APIFY_VALIDATION_ENABLED` | `false` | ❌ Optional | Enable/disable Apify license validation (default: `false`) |
+| `APIFY_API_TOKEN` | `your-apify-token` | ❌ Optional | Your Apify API token for making validation requests (only if enabled) |
+| `APIFY_API_URL` | `https://api.apify.com/v2` | ❌ Optional | Apify API base URL (default: `https://api.apify.com/v2`) |
+| `APIFY_CACHE_TTL` | `3600` | ❌ Optional | Cache TTL for license validation in seconds (default: `3600`) |
+| `APIFY_TIMEOUT` | `5` | ❌ Optional | Request timeout in seconds (default: `5`) |
+| `APIFY_ACTOR_ID` | `your-actor-id` | ❌ Optional | Apify Actor ID/name for license validation |
+| `APIFY_ALLOW_OFFLINE` | `true` | ❌ Optional | Allow offline validation when API is unavailable (default: `true`) |
 
 ### Feature Flags
 
@@ -104,7 +106,10 @@ For basic deployment with license API enabled, you need at minimum:
 ```bash
 SPRING_PROFILES_ACTIVE=mcp-streamable-http
 LICENSE_API_SERVER_API_KEY=<generated-key>
+STRIPE_SECRET_KEY=<your-stripe-secret-key>
 ```
+
+**Note**: Stripe is the primary payment processor. You must configure Stripe to enable license validation.
 
 ## Security Best Practices
 

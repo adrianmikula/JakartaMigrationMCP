@@ -58,38 +58,11 @@ jakarta:
       #   auto-fixes: true
       #   cloud-hosting: false
     
-    # Apify License Validation Configuration
-    apify:
-      # Enable/disable Apify license validation
-      enabled: ${APIFY_VALIDATION_ENABLED:true}
-      
-      # Apify API base URL (usually doesn't need to change)
-      api-url: ${APIFY_API_URL:https://api.apify.com/v2}
-      
-      # Your Apify API token (for making validation requests)
-      # This is YOUR account token, not the user's license key
-      # Can be set via environment variable: APIFY_API_TOKEN
-      api-token: ${APIFY_API_TOKEN:}
-      
-      # Cache TTL for license validation results (seconds)
-      # Prevents excessive API calls
-      cache-ttl-seconds: ${APIFY_CACHE_TTL:3600}
-      
-      # Request timeout (seconds)
-      timeout-seconds: ${APIFY_TIMEOUT:5}
-      
-      # Actor ID/name for license validation (optional)
-      # If your MCP server is deployed as an Apify Actor, specify it here
-      actor-id: ${APIFY_ACTOR_ID:}
-      
-      # Allow offline validation when API is unavailable
-      allow-offline-validation: ${APIFY_ALLOW_OFFLINE:true}
-    
     # Stripe License Validation Configuration
+    # Stripe is the primary payment processor for license validation
     stripe:
       # Enable/disable Stripe license validation
-      # DISABLED for now to get MCP server working quickly
-      enabled: ${STRIPE_VALIDATION_ENABLED:false}
+      enabled: ${STRIPE_VALIDATION_ENABLED:true}
       
       # Stripe API base URL (usually doesn't need to change)
       api-url: ${STRIPE_API_URL:https://api.stripe.com/v1}
@@ -128,6 +101,49 @@ jakarta:
       
       # Webhook secret for validating Stripe webhooks (future use)
       webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+      
+      # Payment Links for one-time purchases (Stripe Payment Links)
+      # Format: product_name -> payment_link_url
+      # Example:
+      #   starter: https://buy.stripe.com/starter-link
+      #   professional: https://buy.stripe.com/professional-link
+      #   enterprise: https://buy.stripe.com/enterprise-link
+      #   premium: https://buy.stripe.com/premium-link
+      payment-links: {}
+      
+      # Enable email-based license validation
+      # When enabled, users can validate licenses using their email address
+      # The system checks if the email exists in Stripe customers
+      enable-email-validation: ${STRIPE_ENABLE_EMAIL_VALIDATION:true}
+    
+    # Apify License Validation Configuration (DISABLED - Stripe is primary)
+    # Apify support is deprecated in favor of Stripe payment processing
+    # To enable Apify, set APIFY_VALIDATION_ENABLED=true
+    apify:
+      # Enable/disable Apify license validation (default: false)
+      enabled: ${APIFY_VALIDATION_ENABLED:false}
+      
+      # Apify API base URL (usually doesn't need to change)
+      api-url: ${APIFY_API_URL:https://api.apify.com/v2}
+      
+      # Your Apify API token (for making validation requests)
+      # This is YOUR account token, not the user's license key
+      # Can be set via environment variable: APIFY_API_TOKEN
+      api-token: ${APIFY_API_TOKEN:}
+      
+      # Cache TTL for license validation results (seconds)
+      # Prevents excessive API calls
+      cache-ttl-seconds: ${APIFY_CACHE_TTL:3600}
+      
+      # Request timeout (seconds)
+      timeout-seconds: ${APIFY_TIMEOUT:5}
+      
+      # Actor ID/name for license validation (optional)
+      # If your MCP server is deployed as an Apify Actor, specify it here
+      actor-id: ${APIFY_ACTOR_ID:}
+      
+      # Allow offline validation when API is unavailable
+      allow-offline-validation: ${APIFY_ALLOW_OFFLINE:true}
     
     # License API Configuration
     # REST API endpoints for license validation and credit management

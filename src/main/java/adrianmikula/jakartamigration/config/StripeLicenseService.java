@@ -13,7 +13,6 @@ import reactor.util.retry.Retry;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -151,6 +150,98 @@ public class StripeLicenseService {
         }
         
         return false;
+    }
+
+    /**
+     * Validate license by email address.
+     * Checks if the email exists in Stripe customers and has active subscriptions.
+     * 
+     * @param email The customer email address
+     * @return Mono with license tier, or empty if invalid
+     */
+    public Mono<FeatureFlagsProperties.LicenseTier> validateLicenseByEmail(String email) {
+        if (email == null || email.isBlank() || !email.contains("@")) {
+            log.debug("Invalid email format: {}", email);
+            return Mono.empty();
+        }
+
+        // Check cache first
+        String cacheKey = "email:" + email.toLowerCase();
+        CacheEntry cached = cache.get(cacheKey);
+        if (cached != null && !cached.isExpired()) {
+            log.debug("Stripe email validation cache hit for: {}", maskEmail(email));
+            return Mono.just(cached.tier);
+        }
+
+        if (!properties.getEnabled()) {
+            return Mono.empty();
+        }
+
+        return validateEmailViaStripe(email)
+            .doOnNext(tier -> {
+                if (tier != null) {
+                    LocalDateTime expiresAt = LocalDateTime.now()
+                        .plusSeconds(properties.getCacheTtlSeconds());
+                    cache.put(cacheKey, new CacheEntry(tier, expiresAt));
+                    log.debug("Stripe email validated and cached: {} -> {}", maskEmail(email), tier);
+                }
+            })
+            .onErrorResume(Exception.class, ex -> {
+                log.warn("Stripe email validation failed: {}", ex.getMessage());
+                return Mono.empty();
+            });
+    }
+
+    /**
+     * Validate email via Stripe API by checking if customer exists.
+     */
+    private Mono<FeatureFlagsProperties.LicenseTier> validateEmailViaStripe(String email) {
+        return stripeWebClient
+            .get()
+            .uri(uriBuilder -> uriBuilder
+                .path("/customers")
+                .queryParam("email", email)
+                .queryParam("limit", "1")
+                .build())
+            .header("Authorization", "Bearer " + properties.getSecretKey())
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .retrieve()
+            .bodyToMono(StripeCustomersListResponse.class)
+            .flatMap(customers -> {
+                if (customers.getData() == null || customers.getData().isEmpty()) {
+                    log.debug("No Stripe customer found for email: {}", maskEmail(email));
+                    return Mono.empty();
+                }
+                
+                // Found customer, check for active subscriptions
+                String customerId = customers.getData().get(0).getId();
+                return validateCustomer(customerId);
+            })
+            .retryWhen(Retry.backoff(2, Duration.ofMillis(500))
+                .filter(throwable -> {
+                    if (throwable instanceof WebClientResponseException ex) {
+                        return ex.getStatusCode().value() >= 500;
+                    }
+                    return true;
+                })
+            )
+            .onErrorResume(WebClientResponseException.class, ex -> {
+                if (ex.getStatusCode().value() == 404) {
+                    log.debug("Stripe customer not found for email: {}", maskEmail(email));
+                    return Mono.empty();
+                }
+                if (ex.getStatusCode().value() == 401 || ex.getStatusCode().value() == 403) {
+                    log.debug("Invalid Stripe API key");
+                    return Mono.empty();
+                }
+                log.warn("Stripe API error: {} {}", ex.getStatusCode(), ex.getMessage());
+                return Mono.empty();
+            })
+            .onErrorResume(Exception.class, ex -> {
+                log.warn("Unexpected error validating Stripe email: {}", ex.getMessage());
+                return Mono.empty();
+            })
+            .switchIfEmpty(Mono.empty());
     }
 
     /**
@@ -355,6 +446,20 @@ public class StripeLicenseService {
     }
 
     /**
+     * Mask email for logging (shows only first part and domain).
+     */
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) {
+            return "***";
+        }
+        int atIndex = email.indexOf("@");
+        if (atIndex <= 2) {
+            return "***@" + email.substring(atIndex + 1);
+        }
+        return email.substring(0, 2) + "***@" + email.substring(atIndex + 1);
+    }
+
+    /**
      * Stripe API subscription response DTO.
      */
     @Data
@@ -397,6 +502,26 @@ public class StripeLicenseService {
     static class StripeSubscriptionsListResponse {
         @JsonProperty("data")
         private java.util.List<StripeSubscriptionResponse> data;
+    }
+
+    /**
+     * Stripe API customers list response DTO.
+     */
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    static class StripeCustomersListResponse {
+        @JsonProperty("data")
+        private java.util.List<StripeCustomerResponse> data;
+    }
+
+    /**
+     * Stripe API customer response DTO.
+     */
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    static class StripeCustomerResponse {
+        private String id;
+        private String email;
     }
 }
 

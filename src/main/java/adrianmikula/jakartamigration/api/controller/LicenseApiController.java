@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.api.controller;
 
 import adrianmikula.jakartamigration.api.dto.*;
 import adrianmikula.jakartamigration.api.service.CreditService;
+import adrianmikula.jakartamigration.api.service.StripePaymentLinkService;
 import adrianmikula.jakartamigration.config.FeatureFlagsProperties;
 import adrianmikula.jakartamigration.config.LicenseService;
 import jakarta.validation.Valid;
@@ -39,6 +40,7 @@ public class LicenseApiController {
 
     private final LicenseService licenseService;
     private final CreditService creditService;
+    private final StripePaymentLinkService paymentLinkService;
     
     @Value("${jakarta.migration.license-api.server-api-key:}")
     private String serverApiKey;
@@ -289,6 +291,116 @@ public class LicenseApiController {
         
         String token = authHeader.substring(7);
         return serverApiKey.equals(token);
+    }
+
+    /**
+     * Validate a license by email address.
+     * 
+     * @param email The customer email address
+     * @param authHeader Authorization header (Bearer token)
+     * @return License validation response
+     */
+    @GetMapping("/licenses/email/{email}/validate")
+    public ResponseEntity<LicenseValidationResponse> validateLicenseByEmail(
+            @PathVariable String email,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        
+        if (!isValidApiKey(authHeader)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(LicenseValidationResponse.builder()
+                    .valid(false)
+                    .message("Invalid or missing API key")
+                    .build());
+        }
+        
+        try {
+            FeatureFlagsProperties.LicenseTier tier = licenseService.validateLicenseByEmail(email);
+            
+            return ResponseEntity.ok(LicenseValidationResponse.builder()
+                .valid(tier != null)
+                .tier(tier != null ? tier.name() : null)
+                .message(tier != null ? "License validated successfully" : "No valid license found for email")
+                .build());
+                
+        } catch (Exception e) {
+            log.error("Error validating license by email: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(LicenseValidationResponse.builder()
+                    .valid(false)
+                    .message("Error validating license: " + e.getMessage())
+                    .build());
+        }
+    }
+
+    /**
+     * Get payment link for a product/tier.
+     * 
+     * @param productName Product name (e.g., "starter", "professional", "enterprise")
+     * @param authHeader Authorization header (Bearer token)
+     * @return Payment link response
+     */
+    @GetMapping("/payment-links/{productName}")
+    public ResponseEntity<PaymentLinkResponse> getPaymentLink(
+            @PathVariable String productName,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        
+        if (!isValidApiKey(authHeader)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(PaymentLinkResponse.builder()
+                    .success(false)
+                    .message("Invalid or missing API key")
+                    .build());
+        }
+        
+        try {
+            String paymentLink = paymentLinkService.getPaymentLink(productName);
+            
+            if (paymentLink == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(PaymentLinkResponse.builder()
+                        .success(false)
+                        .message("Payment link not found for product: " + productName)
+                        .build());
+            }
+            
+            return ResponseEntity.ok(PaymentLinkResponse.builder()
+                .success(true)
+                .productName(productName)
+                .paymentLink(paymentLink)
+                .message("Payment link retrieved successfully")
+                .build());
+                
+        } catch (Exception e) {
+            log.error("Error retrieving payment link: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(PaymentLinkResponse.builder()
+                    .success(false)
+                    .message("Error retrieving payment link: " + e.getMessage())
+                    .build());
+        }
+    }
+
+    /**
+     * Get all available payment links.
+     * 
+     * @param authHeader Authorization header (Bearer token)
+     * @return Map of product names to payment links
+     */
+    @GetMapping("/payment-links")
+    public ResponseEntity<java.util.Map<String, String>> getAllPaymentLinks(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        
+        if (!isValidApiKey(authHeader)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        
+        try {
+            java.util.Map<String, String> paymentLinks = paymentLinkService.getAllPaymentLinks();
+            return ResponseEntity.ok(paymentLinks);
+        } catch (Exception e) {
+            log.error("Error retrieving payment links: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     /**

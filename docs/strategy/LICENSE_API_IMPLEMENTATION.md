@@ -4,6 +4,8 @@
 
 License API endpoints have been successfully implemented in the existing MCP server, following **Option 1** from the Railway License Server guide. This provides a simple, integrated solution that can be easily split into a separate service later if needed.
 
+**Payment Processor**: Stripe is the primary payment processor for license validation. Apify support is deprecated and disabled by default.
+
 ## Implementation Status
 
 ✅ **All components implemented and ready for use**

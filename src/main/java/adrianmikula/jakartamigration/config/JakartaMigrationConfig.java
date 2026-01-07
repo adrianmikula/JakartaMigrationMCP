@@ -37,19 +37,35 @@ import org.springframework.web.reactive.function.client.WebClient;
 public class JakartaMigrationConfig {
     
     /**
-     * WebClient for Apify API calls.
-     * Configured with Apify API base URL and appropriate timeouts.
-     */
-    /**
      * ApifyBillingService bean.
      * Handles billing events for premium features when deployed on Apify.
+     * Only created if Apify validation is enabled.
+     * 
+     * NOTE: Apify support is deprecated in favor of Stripe.
      */
     @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+        name = "jakarta.migration.apify.enabled",
+        havingValue = "true",
+        matchIfMissing = false
+    )
     public ApifyBillingService apifyBillingService(ApifyLicenseProperties apifyProperties) {
         return new ApifyBillingService(apifyProperties);
     }
 
+    /**
+     * WebClient for Apify API calls.
+     * Configured with Apify API base URL and appropriate timeouts.
+     * Only created if Apify validation is enabled.
+     * 
+     * NOTE: Apify support is deprecated in favor of Stripe.
+     */
     @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+        name = "jakarta.migration.apify.enabled",
+        havingValue = "true",
+        matchIfMissing = false
+    )
     public WebClient apifyWebClient(ApifyLicenseProperties apifyProperties) {
         return WebClient.builder()
             .baseUrl(apifyProperties.getApiUrl())

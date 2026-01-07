@@ -4,7 +4,7 @@
   "description": "MCP server for Jakarta EE migration analysis and automation",
   "main": "index.js",
   "bin": {
-    "jakarta-migration-mcp": "./index.js"
+    "jakarta-migration-mcp": "index.js"
   },
   "scripts": {
     "postinstall": "node scripts/postinstall.js"
@@ -22,7 +22,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/JakartaMigrationMCP.git"
+    "url": "git+https://github.com/adrianmikula/JakartaMigrationMCP"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -39,4 +39,3 @@
     "LICENSE"
   ]
 }
-

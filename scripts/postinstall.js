@@ -2,7 +2,7 @@
 
 /**
  * Post-install script for npm package
- * This script verifies the installation and provides helpful information
+ * This script verifies the installation, optionally downloads the JAR, and provides helpful information
  */
 
 const fs = require('fs');
@@ -12,6 +12,9 @@ const os = require('os');
 const isWindows = process.platform === 'win32';
 
 console.log('\n✅ Jakarta Migration MCP Server installed successfully!\n');
+
+// Note: JAR will be downloaded automatically on first use
+// To pre-download the JAR, run: npx @jakarta-migration/mcp-server --download-only
 
 // Check for Java
 const { execSync } = require('child_process');

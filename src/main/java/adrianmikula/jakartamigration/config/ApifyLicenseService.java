@@ -23,6 +23,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * This service validates license keys (Apify API tokens) to determine
  * the user's license tier (COMMUNITY, PREMIUM, ENTERPRISE).
  * 
+ * NOTE: Apify support is deprecated in favor of Stripe payment processing.
+ * This service is only loaded if APIFY_VALIDATION_ENABLED=true.
+ * 
  * The validation works by:
  * 1. Checking if the license key is a valid Apify API token
  * 2. Verifying the token has access to the premium actor
@@ -32,6 +35,11 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Service
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+    name = "jakarta.migration.apify.enabled",
+    havingValue = "true",
+    matchIfMissing = false
+)
 public class ApifyLicenseService {
 
     private final ApifyLicenseProperties properties;

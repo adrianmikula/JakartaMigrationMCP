@@ -104,5 +104,23 @@ public class StripeLicenseProperties {
      * Used to verify webhook signatures.
      */
     private String webhookSecret = "";
+
+    /**
+     * Payment Link URLs for one-time purchases.
+     * Maps product/tier names to Stripe Payment Link URLs.
+     * Format: product_name -> payment_link_url
+     * Example:
+     *   premium: https://buy.stripe.com/premium-link
+     *   enterprise: https://buy.stripe.com/enterprise-link
+     */
+    private Map<String, String> paymentLinks = new HashMap<>();
+
+    /**
+     * Whether to enable email-based license validation.
+     * When enabled, users can validate licenses using their email address
+     * instead of license keys. The system checks if the email exists in Stripe customers.
+     * Default: true
+     */
+    private Boolean enableEmailValidation = true;
 }
 
