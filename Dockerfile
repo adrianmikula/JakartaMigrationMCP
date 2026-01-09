@@ -51,9 +51,9 @@ USER myuser
 EXPOSE 8080
 
 # Set environment variables for Apify/Streamable HTTP mode
-# APIFY_CONTAINER_PORT will be set by Apify platform
+# APIFY_CONTAINER_PORT will be set by Apify platform at runtime
 ENV MCP_TRANSPORT=streamable-http
-ENV MCP_STREAMABLE_HTTP_PORT=${APIFY_CONTAINER_PORT:-8080}
+ENV MCP_STREAMABLE_HTTP_PORT=8080
 ENV SPRING_PROFILES_ACTIVE=mcp-streamable-http
 
 # Health check endpoint (Apify can use this)
@@ -63,8 +63,9 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 
 # Run the Spring Boot application
 # Using shell form to support environment variable substitution
+# APIFY_CONTAINER_PORT is set by Apify platform at runtime
 # Pass APIFY_CONTAINER_PORT to Spring Boot via system property and server.port
 # Set memory limits explicitly (Java 21+ is container-aware, but explicit limits are safer)
 # Use -Xmx to set max heap size (adjust based on Actor memory allocation)
-CMD sh -c "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xmx1g -Djava.security.egd=file:/dev/./urandom -DMCP_STREAMABLE_HTTP_PORT=${APIFY_CONTAINER_PORT:-8080} -jar app.jar --spring.profiles.active=mcp-streamable-http --spring.ai.mcp.server.transport=streamable-http --server.port=${APIFY_CONTAINER_PORT:-8080}"
+CMD ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xmx1g -Djava.security.egd=file:/dev/./urandom -DMCP_STREAMABLE_HTTP_PORT=${APIFY_CONTAINER_PORT:-8080} -jar app.jar --spring.profiles.active=mcp-streamable-http --spring.ai.mcp.server.transport=streamable-http --server.port=${APIFY_CONTAINER_PORT:-8080}"]
 

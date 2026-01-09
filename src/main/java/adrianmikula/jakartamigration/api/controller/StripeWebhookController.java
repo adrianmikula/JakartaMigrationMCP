@@ -5,8 +5,8 @@ import adrianmikula.jakartamigration.config.StripeLicenseProperties;
 import adrianmikula.jakartamigration.storage.service.LocalLicenseStorageService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,14 +32,23 @@ import java.util.Base64;
  */
 @RestController
 @RequestMapping("/api/v1/stripe/webhook")
-@RequiredArgsConstructor
 @Slf4j
 @ConditionalOnProperty(name = "jakarta.migration.stripe.webhook-secret")
 public class StripeWebhookController {
 
     private final StripeLicenseProperties stripeProperties;
-    private final LocalLicenseStorageService localStorageService;
     private final ObjectMapper objectMapper;
+    
+    @Autowired(required = false)
+    private LocalLicenseStorageService localStorageService;
+    
+    @Autowired
+    public StripeWebhookController(
+            StripeLicenseProperties stripeProperties,
+            ObjectMapper objectMapper) {
+        this.stripeProperties = stripeProperties;
+        this.objectMapper = objectMapper;
+    }
 
     /**
      * Handle Stripe webhook events.
