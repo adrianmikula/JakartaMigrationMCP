@@ -85,6 +85,57 @@ Migrating from Java EE 8 (`javax.*`) to Jakarta EE 9+ (`jakarta.*`) is complex b
 
 This MCP server provides AI assistants with the specialized knowledge and tools to navigate these challenges effectively.
 
+## ⚠️ Important Limitations & Best Practices
+
+> **Production Readiness Rating: 6/10**  
+> This tool is **production-ready for consultants and senior architects**, but **dangerous for junior developers** looking for a "one-click" fix.
+
+### Critical Limitations
+
+#### 1. The "Ghost in the Machine" Problem
+
+While the MCP can find and replace `javax` with `jakarta`, it **cannot easily detect binary incompatibility** in closed-source third-party JARs. If your project relies on a legacy library that hasn't migrated, the MCP might "fix" your code, but the application will still crash at runtime with a `ClassNotFoundException`.
+
+**What this means**: The tool can update your source code, but it cannot fix compiled dependencies that internally reference `javax.*` classes.
+
+#### 2. Context Window Limitations
+
+For massive enterprise monoliths (1M+ lines of code), the MCP often hits context limits. It can analyze the dependency tree perfectly, but when it starts the "Auto-Fix" phase, the AI often loses track of the global state, leading to "hallucinated" import paths or partial migrations that leave the project in an unbuildable state.
+
+**What this means**: Very large codebases may require manual intervention or module-by-module migration.
+
+#### 3. Verification Gaps
+
+The "Runtime Verification" tool is currently the weakest link. It often just checks if the app *starts*, but it doesn't have the deep semantic understanding to know if your complex JTA transactions or JPA entity mappings are actually behaving as they did before the namespace shift.
+
+**What this means**: Runtime verification confirms the app starts, but doesn't validate complex business logic correctness.
+
+### What It's Excellent At
+
+Despite these limitations, this is arguably the **most useful MCP for Java developers** right now:
+
+- **Saves Weeks of Manual Audit**: Manually checking 200+ transitive dependencies for Jakarta compatibility is soul-crushing. The `analyzeJakartaReadiness` tool does this in seconds.
+- **Bridge for "AI Laziness"**: Standard LLMs often struggle with the subtle differences between Jakarta EE 9, 10, and 11. This MCP forces the AI to use specific, tested versions rather than "guessing" what might work.
+- **OpenRewrite Integration**: By leveraging OpenRewrite, it uses industry-standard migration logic instead of relying on the LLM's unpredictable regex-based find-and-replace.
+
+### Best Practices
+
+> **⚠️ Do not let this MCP run `Auto-Fix` on your main branch unattended.**  
+> It is currently a **world-class diagnostic assistant** but a **mediocre autonomous engineer**.
+
+**Recommended Workflow:**
+
+1. ✅ **Use for Analysis**: Generate migration plans and detect blockers
+2. ✅ **Use for Planning**: Let the tool create comprehensive migration roadmaps
+3. ✅ **Manual Application**: Apply changes module-by-module with human oversight
+4. ✅ **Verify Incrementally**: Test each module after migration before proceeding
+
+**Expected Savings**: The tool will save you 60-70% of manual labor, but that final 30% of human oversight is what prevents a production outage.
+
+For detailed analysis and comprehensive limitations documentation, see:
+- [Limitations & Known Issues](docs/LIMITATIONS.md) - Complete guide to limitations and best practices
+- [Production Readiness Evaluation](docs/improvements/gemini%20evaluation%20of%20production%20readiness.md) - Detailed assessment
+
 ## 🔒 Security & Privacy
 
 Your code and project data are handled with the utmost care. We understand that Java developers working with enterprise codebases need complete confidence in the security and privacy of their intellectual property.
@@ -646,6 +697,7 @@ See [MCP Tools Documentation](docs/mcp/MCP_TOOLS_IMPLEMENTATION.md) for detailed
 
 ### For Users
 
+- **[Limitations & Best Practices](docs/LIMITATIONS.md)** - ⚠️ **Important**: Read before using in production
 - **[MCP Setup Guide](docs/setup/MCP_SETUP.md)** - Detailed MCP configuration instructions
 - **[MCP Tools Reference](docs/mcp/MCP_TOOLS_IMPLEMENTATION.md)** - Complete tool documentation
 - **[Transport Configuration](docs/setup/MCP_TRANSPORT_CONFIGURATION.md)** - STDIO vs SSE explained
