@@ -246,13 +246,9 @@ async function main() {
     // This allows corporate users to store license keys and API tokens securely
     loadConfiguration();
     
-    // Check for Java
-    const javaCmd = findJavaExecutable();
-    if (!javaCmd) {
-      console.error('ERROR: Java is not installed or not in PATH.');
-      console.error('Please install Java 21+ from https://adoptium.net/');
-      process.exit(1);
-    }
+    // Check for --download-only flag
+    const args = process.argv.slice(2);
+    const downloadOnly = args.includes('--download-only') || args.includes('--download');
 
     // Download JAR if needed
     let jar = jarPath;
