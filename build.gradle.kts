@@ -112,6 +112,9 @@ dependencies {
     implementation("org.ow2.asm:asm:9.6")
     implementation("org.ow2.asm:asm-commons:9.6")
     
+    // japicmp for binary compatibility checking (Gemini recommendation)
+    implementation("com.github.siom79.japicmp:japicmp:0.25.1")
+    
     // SnakeYAML for parsing Jakarta mappings YAML file
     implementation("org.yaml:snakeyaml:2.2")
 }

@@ -116,9 +116,17 @@ public class JakartaMigrationConfig {
     public DependencyAnalysisModule dependencyAnalysisModule(
         DependencyGraphBuilder dependencyGraphBuilder,
         NamespaceClassifier namespaceClassifier,
-        JakartaMappingService jakartaMappingService
+        JakartaMappingService jakartaMappingService,
+        adrianmikula.jakartamigration.dependencyanalysis.service.JapicmpCompatibilityChecker japicmpChecker,
+        adrianmikula.jakartamigration.dependencyanalysis.service.JarResolver jarResolver
     ) {
-        return new DependencyAnalysisModuleImpl(dependencyGraphBuilder, namespaceClassifier, jakartaMappingService);
+        return new DependencyAnalysisModuleImpl(
+            dependencyGraphBuilder, 
+            namespaceClassifier, 
+            jakartaMappingService,
+            japicmpChecker,
+            jarResolver
+        );
     }
     
     @Bean

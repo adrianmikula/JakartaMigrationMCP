@@ -30,6 +30,8 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
     private final DependencyGraphBuilder dependencyGraphBuilder;
     private final NamespaceClassifier namespaceClassifier;
     private final JakartaMappingService jakartaMappingService;
+    private final adrianmikula.jakartamigration.dependencyanalysis.service.JapicmpCompatibilityChecker japicmpChecker;
+    private final adrianmikula.jakartamigration.dependencyanalysis.service.JarResolver jarResolver;
     
     @Override
     public DependencyAnalysisReport analyzeProject(Path projectPath) {
@@ -104,6 +106,9 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
                         List.of("Consider finding alternative library", "Check if library has Jakarta version"),
                         0.9
                     ));
+                } else {
+                    // Check binary compatibility if Jakarta version exists
+                    checkBinaryCompatibility(artifact, blockers);
                 }
             } else if (namespace == Namespace.UNKNOWN) {
                 // Check if it's a Jakarta-compatible framework (e.g., Spring Boot 3.x)
@@ -121,6 +126,91 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
         }
         
         return blockers;
+    }
+    
+    /**
+     * Checks binary compatibility between javax version and jakarta version using japicmp.
+     * Adds a blocker if breaking changes are detected.
+     */
+    private void checkBinaryCompatibility(Artifact javaxArtifact, List<Blocker> blockers) {
+        try {
+            // Find Jakarta equivalent
+            Optional<JakartaMappingService.JakartaEquivalent> mapping = 
+                jakartaMappingService.findMapping(javaxArtifact);
+            
+            if (mapping.isEmpty()) {
+                return; // No mapping found, skip binary compatibility check
+            }
+            
+            JakartaMappingService.JakartaEquivalent equivalent = mapping.get();
+            Artifact jakartaArtifact = new Artifact(
+                equivalent.jakartaGroupId(),
+                equivalent.jakartaArtifactId(),
+                equivalent.jakartaVersion(),
+                javaxArtifact.scope(),
+                javaxArtifact.transitive()
+            );
+            
+            // Check if both JARs are available
+            if (!jarResolver.jarExists(javaxArtifact) || !jarResolver.jarExists(jakartaArtifact)) {
+                log.debug("JARs not available for binary compatibility check: {} vs {}", 
+                    javaxArtifact.toCoordinate(), jakartaArtifact.toCoordinate());
+                return; // Can't check if JARs aren't available
+            }
+            
+            // Compare versions using japicmp
+            adrianmikula.jakartamigration.dependencyanalysis.domain.BinaryCompatibilityReport report = 
+                japicmpChecker.compareVersions(javaxArtifact, jakartaArtifact);
+            
+            if (!report.isCompatible() && !report.breakingChanges().isEmpty()) {
+                // Create detailed description of breaking changes
+                StringBuilder reason = new StringBuilder(
+                    "Binary incompatibility detected between " + javaxArtifact.version() + 
+                    " and Jakarta version " + jakartaArtifact.version() + ". ");
+                
+                reason.append("Found ").append(report.breakingChanges().size()).append(" breaking change(s): ");
+                
+                // List first few breaking changes
+                int maxChanges = Math.min(3, report.breakingChanges().size());
+                for (int i = 0; i < maxChanges; i++) {
+                    adrianmikula.jakartamigration.dependencyanalysis.domain.BreakingChange change = 
+                        report.breakingChanges().get(i);
+                    reason.append(change.description());
+                    if (i < maxChanges - 1) {
+                        reason.append("; ");
+                    }
+                }
+                if (report.breakingChanges().size() > maxChanges) {
+                    reason.append(" and ").append(report.breakingChanges().size() - maxChanges).append(" more");
+                }
+                
+                List<String> mitigationStrategies = List.of(
+                    "Review breaking changes in Jakarta version",
+                    "Update code to use new API if available",
+                    "Consider using Eclipse Transformer if no code changes are possible",
+                    "Check Jakarta version release notes for migration guide"
+                );
+                
+                blockers.add(new Blocker(
+                    javaxArtifact,
+                    BlockerType.BINARY_INCOMPATIBLE,
+                    reason.toString(),
+                    mitigationStrategies,
+                    0.85 // High confidence if japicmp detected issues
+                ));
+                
+                log.info("Binary incompatibility detected for {}: {} breaking changes", 
+                    javaxArtifact.toCoordinate(), report.breakingChanges().size());
+            } else {
+                log.debug("Binary compatibility confirmed for {} -> {}", 
+                    javaxArtifact.toCoordinate(), jakartaArtifact.toCoordinate());
+            }
+            
+        } catch (Exception e) {
+            log.warn("Error checking binary compatibility for {}: {}", 
+                javaxArtifact.toCoordinate(), e.getMessage());
+            // Don't add blocker on error - we don't want false positives
+        }
     }
     
     @Override
