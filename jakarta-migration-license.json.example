@@ -1,0 +1,34 @@
+{
+  "description": "Jakarta Migration MCP Server - License and Configuration",
+  "version": "1.0.0",
+  "instructions": "Copy this file to %USERPROFILE%/.mcp-settings/jakarta-migration-license.json (Windows) or ~/.mcp-settings/jakarta-migration-license.json (Linux/Mac) and fill in your values",
+  
+  "license": {
+    "key": "YOUR_LICENSE_KEY_HERE",
+    "comment": "Set to your Stripe subscription ID (sub_...), Apify API token, or custom license key"
+  },
+  
+  "stripe": {
+    "secretKey": "YOUR_STRIPE_SECRET_KEY_HERE",
+    "comment": "Your Stripe secret key (starts with sk_test_ or sk_live_). Only needed if using Stripe license validation.",
+    "validationEnabled": false,
+    "productIdPremium": "",
+    "productIdEnterprise": ""
+  },
+  
+  "apify": {
+    "apiToken": "YOUR_APIFY_API_TOKEN_HERE",
+    "comment": "Your Apify API token. Only needed for Apify-hosted deployment or testing Apify license validation.",
+    "validationEnabled": true
+  },
+  
+  "environment": {
+    "comment": "These environment variables will be set when the MCP server runs",
+    "JAKARTA_MCP_LICENSE_KEY": "YOUR_LICENSE_KEY_HERE",
+    "STRIPE_SECRET_KEY": "YOUR_STRIPE_SECRET_KEY_HERE",
+    "STRIPE_VALIDATION_ENABLED": "false",
+    "APIFY_API_TOKEN": "YOUR_APIFY_API_TOKEN_HERE",
+    "APIFY_VALIDATION_ENABLED": "true"
+  }
+}
+

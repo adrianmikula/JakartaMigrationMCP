@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "jakarta-migration-apify": {
+      "type": "streamable-http",
+      "url": "https://YOUR_USERNAME--YOUR_ACTOR_NAME.apify.actor/mcp/streamable-http",
+      "headers": {
+        "Authorization": "Bearer YOUR_APIFY_API_TOKEN"
+      }
+    }
+  }
+}
+

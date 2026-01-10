@@ -393,7 +393,21 @@ You should see:
 - JAR download or cache confirmation
 - No errors
 
-#### Configuration
+#### Configuration (Optional)
+
+For premium features, create a configuration file:
+
+**Windows:**
+```
+%USERPROFILE%\.mcp-settings\jakarta-migration-license.json
+```
+
+**Linux/Mac:**
+```
+~/.mcp-settings/jakarta-migration-license.json
+```
+
+See [NPM Installation Configuration](docs/setup/NPM_INSTALLATION_CONFIG.md) for details.
 
 ##### Cursor IDE
 

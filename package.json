@@ -7,7 +7,8 @@
                 "jakarta-migration-mcp":  "index.js"
             },
     "scripts":  {
-                    "postinstall":  "node scripts/postinstall.js"
+                    "postinstall":  "node scripts/postinstall.js",
+                    "test":  "node test-config-loading.js"
                 },
     "keywords":  [
                      "mcp",

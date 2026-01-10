@@ -52,8 +52,46 @@ const isWindows = process.platform === 'win32';
 const homeDir = os.homedir();
 const cacheDir = path.join(homeDir, isWindows ? 'AppData' : '.cache', 'jakarta-migration-mcp');
 
+// Configuration file path for license and settings
+const settingsDir = path.join(homeDir, '.mcp-settings');
+const configFile = path.join(settingsDir, 'jakarta-migration-license.json');
+
 // Allow override of JAR path via environment variable
 const jarPath = process.env.JAKARTA_MCP_JAR_PATH || path.join(cacheDir, JAR_NAME);
+
+// Load configuration from JSON file
+// Exported for testing purposes
+function loadConfiguration(configFilePath = configFile) {
+  // Check if config file exists
+  if (fs.existsSync(configFilePath)) {
+    try {
+      const configContent = fs.readFileSync(configFilePath, 'utf8');
+      const parsed = JSON.parse(configContent);
+      
+      // Load environment variables from the "environment" section
+      if (parsed.environment && typeof parsed.environment === 'object') {
+        Object.keys(parsed.environment).forEach(key => {
+          // System environment variables take precedence
+          // Skip null/undefined values
+          if (!process.env[key] && parsed.environment[key] != null) {
+            process.env[key] = String(parsed.environment[key]);
+          }
+        });
+        
+        console.error(`Loaded configuration from: ${configFilePath}`);
+        return true;
+      } else {
+        console.error(`Warning: Configuration file exists but missing "environment" section: ${configFilePath}`);
+        return false;
+      }
+    } catch (error) {
+      console.error(`Warning: Failed to load configuration from ${configFilePath}: ${error.message}`);
+      console.error(`Please ensure the file is valid JSON. See jakarta-migration-license.json.example for format.`);
+      return false;
+    }
+  }
+  return false;
+}
 
 // Java executable detection
 function findJavaExecutable() {
@@ -204,10 +242,18 @@ function downloadJar(urlOverride = null) {
 // Main execution function
 async function main() {
   try {
-    // Check for --download-only flag
-    const args = process.argv.slice(2);
-    const downloadOnly = args.includes('--download-only') || args.includes('--download');
+    // Load configuration from JSON file (if exists)
+    // This allows corporate users to store license keys and API tokens securely
+    loadConfiguration();
     
+    // Check for Java
+    const javaCmd = findJavaExecutable();
+    if (!javaCmd) {
+      console.error('ERROR: Java is not installed or not in PATH.');
+      console.error('Please install Java 21+ from https://adoptium.net/');
+      process.exit(1);
+    }
+
     // Download JAR if needed
     let jar = jarPath;
     if (!fs.existsSync(jar)) {
@@ -312,5 +358,5 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { main };
+module.exports = { main, loadConfiguration };
 

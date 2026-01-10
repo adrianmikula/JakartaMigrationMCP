@@ -47,6 +47,11 @@ pom.xml
 .memory-bank/
 .cursor/mcp-config.json
 
+# Cursor MCP Configuration Files (may contain secrets)
+CURSOR_MCP_CONFIG_APIFY.json
+CURSOR_MCP_CONFIG_SSE.json
+CURSOR_MCP_CONFIG.json
+
 # npm
 node_modules/
 package-lock.json
