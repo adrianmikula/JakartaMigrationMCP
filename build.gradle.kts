@@ -4,6 +4,11 @@ plugins {
     id("io.spring.dependency-management") version "1.1.4"
     id("org.openrewrite.rewrite") version "6.8.0"
     jacoco
+    // Code Quality Tools
+    id("com.github.spotbugs") version "5.0.14"
+    id("pmd")
+    id("checkstyle")
+    id("org.owasp.dependencycheck") version "9.0.9"
 }
 
 import java.time.LocalDateTime
@@ -114,6 +119,9 @@ dependencies {
     
     // SnakeYAML for parsing Jakarta mappings YAML file
     implementation("org.yaml:snakeyaml:2.2")
+    
+    // japicmp for binary compatibility checking
+    implementation("com.github.siom79.japicmp:japicmp:0.18.0")
 }
 
 dependencyManagement {
@@ -387,6 +395,292 @@ tasks.register("jacocoPerClassCoverageCheck") {
 // Make test task verify coverage after generating report
 tasks.jacocoTestReport {
     finalizedBy(tasks.jacocoPerClassCoverageCheck)
+}
+
+// ============================================================================
+// Code Quality Tools Configuration
+// ============================================================================
+
+// SpotBugs Configuration
+spotbugs {
+    toolVersion.set("4.8.2")
+    effort.set(com.github.spotbugs.snom.Effort.MAX)
+    reportLevel.set(com.github.spotbugs.snom.Confidence.MEDIUM)
+    excludeFilter.set(file("config/spotbugs/exclude.xml"))
+}
+
+tasks.named<com.github.spotbugs.snom.SpotBugsTask>("spotbugsMain") {
+    reports {
+        create("html") {
+            required.set(true)
+        }
+        create("xml") {
+            required.set(true)
+        }
+    }
+}
+
+tasks.named<com.github.spotbugs.snom.SpotBugsTask>("spotbugsTest") {
+    enabled = false // Skip test code analysis for now
+}
+
+// Custom task to verify SpotBugs results - fail only on high-priority bugs
+tasks.register("spotbugsVerify") {
+    description = "Verify SpotBugs results - fail on high-priority bugs only"
+    group = "verification"
+    dependsOn(tasks.spotbugsMain)
+    
+    doLast {
+        val xmlReport = tasks.spotbugsMain.get().reports.getByName("xml").outputLocation.get().asFile
+        
+        if (!xmlReport.exists()) {
+            println("⚠️ SpotBugs XML report not found - skipping verification")
+            return@doLast
+        }
+        
+        val xml = javax.xml.parsers.DocumentBuilderFactory.newInstance().apply {
+            isNamespaceAware = false
+        }.newDocumentBuilder().parse(xmlReport)
+        
+        val bugInstances = xml.getElementsByTagName("BugInstance")
+        val highPriorityBugs = mutableListOf<String>()
+        val mediumLowBugs = mutableListOf<String>()
+        
+        for (i in 0 until bugInstances.length) {
+            val bug = bugInstances.item(i) as org.w3c.dom.Element
+            val rank = bug.getAttribute("rank").toIntOrNull() ?: 20
+            val type = bug.getAttribute("type")
+            val priority = bug.getAttribute("priority")
+            
+            val sourceLine = bug.getElementsByTagName("SourceLine").item(0) as? org.w3c.dom.Element
+            val className = sourceLine?.getAttribute("classname") ?: "unknown"
+            val lineNumber = sourceLine?.getAttribute("start") ?: "?"
+            
+            val bugInfo = "$type in $className:$lineNumber (rank=$rank, priority=$priority)"
+            
+            // Rank 1-9 = High priority (fail build)
+            // Rank 10-20 = Medium/Low priority (warn only)
+            if (rank <= 9) {
+                highPriorityBugs.add(bugInfo)
+            } else {
+                mediumLowBugs.add(bugInfo)
+            }
+        }
+        
+        // Report medium/low priority bugs as warnings
+        if (mediumLowBugs.isNotEmpty()) {
+            println("\n⚠️ SpotBugs found ${mediumLowBugs.size} medium/low priority issues (warnings only):")
+            mediumLowBugs.take(10).forEach { println("  - $it") }
+            if (mediumLowBugs.size > 10) {
+                println("  ... and ${mediumLowBugs.size - 10} more (see report for details)")
+            }
+        }
+        
+        // Fail on high-priority bugs
+        if (highPriorityBugs.isNotEmpty()) {
+            println("\n❌ SpotBugs found ${highPriorityBugs.size} HIGH PRIORITY bugs (build will fail):")
+            highPriorityBugs.forEach { println("  - $it") }
+            throw GradleException(
+                "SpotBugs found ${highPriorityBugs.size} high-priority bugs. " +
+                "Please fix these issues before proceeding. See report: ${xmlReport.absolutePath}"
+            )
+        } else {
+            println("\n✅ SpotBugs: No high-priority bugs found")
+            if (mediumLowBugs.isNotEmpty()) {
+                println("   (${mediumLowBugs.size} medium/low priority issues - see report for details)")
+            }
+        }
+    }
+}
+
+// PMD Configuration
+pmd {
+    toolVersion = "7.0.0"
+    isConsoleOutput = true
+    ruleSetFiles = files("config/pmd/ruleset.xml")
+    ruleSets = emptyList() // Use custom ruleset only
+    isIgnoreFailures = true // Don't fail on PMD issues - we'll verify manually
+}
+
+tasks.pmdMain {
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+tasks.pmdTest {
+    enabled = false // Skip test code analysis for now
+}
+
+// Custom task to verify PMD results - fail only on high-priority issues
+tasks.register("pmdVerify") {
+    description = "Verify PMD results - fail on high-priority issues only"
+    group = "verification"
+    dependsOn(tasks.pmdMain)
+    
+    doLast {
+        val xmlReport = tasks.pmdMain.get().reports.xml.outputLocation.get().asFile
+        
+        if (!xmlReport.exists()) {
+            println("⚠️ PMD XML report not found - skipping verification")
+            return@doLast
+        }
+        
+        val xml = javax.xml.parsers.DocumentBuilderFactory.newInstance().apply {
+            isNamespaceAware = false
+        }.newDocumentBuilder().parse(xmlReport)
+        
+        val violations = xml.getElementsByTagName("violation")
+        val highPriorityIssues = mutableListOf<String>()
+        val mediumLowIssues = mutableListOf<String>()
+        
+        for (i in 0 until violations.length) {
+            val violation = violations.item(i) as org.w3c.dom.Element
+            val priority = violation.getAttribute("priority").toIntOrNull() ?: 5
+            val rule = violation.getAttribute("rule")
+            val file = violation.getAttribute("file")
+            val line = violation.getAttribute("beginline")
+            val message = violation.textContent.trim()
+            
+            val issueInfo = "$rule in $file:$line - $message"
+            
+            // Priority 1 = High (fail build)
+            // Priority 2-5 = Medium/Low (warn only)
+            if (priority == 1) {
+                highPriorityIssues.add(issueInfo)
+            } else {
+                mediumLowIssues.add(issueInfo)
+            }
+        }
+        
+        // Report medium/low priority issues as warnings
+        if (mediumLowIssues.isNotEmpty()) {
+            println("\n⚠️ PMD found ${mediumLowIssues.size} medium/low priority issues (warnings only):")
+            mediumLowIssues.take(10).forEach { println("  - $it") }
+            if (mediumLowIssues.size > 10) {
+                println("  ... and ${mediumLowIssues.size - 10} more (see report for details)")
+            }
+        }
+        
+        // Fail on high-priority issues
+        if (highPriorityIssues.isNotEmpty()) {
+            println("\n❌ PMD found ${highPriorityIssues.size} HIGH PRIORITY issues (build will fail):")
+            highPriorityIssues.forEach { println("  - $it") }
+            throw GradleException(
+                "PMD found ${highPriorityIssues.size} high-priority issues. " +
+                "Please fix these issues before proceeding. See report: ${xmlReport.absolutePath}"
+            )
+        } else {
+            println("\n✅ PMD: No high-priority issues found")
+            if (mediumLowIssues.isNotEmpty()) {
+                println("   (${mediumLowIssues.size} medium/low priority issues - see report for details)")
+            }
+        }
+    }
+}
+
+// Checkstyle Configuration
+checkstyle {
+    toolVersion = "10.12.5"
+    configFile = file("config/checkstyle/checkstyle.xml")
+    isIgnoreFailures = true // Don't fail on style issues - warnings only
+    maxWarnings = 0
+}
+
+tasks.checkstyleMain {
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+tasks.checkstyleTest {
+    enabled = false // Skip test code analysis for now
+}
+
+// Custom task to report Checkstyle issues as warnings
+tasks.register("checkstyleReport") {
+    description = "Report Checkstyle issues as warnings"
+    group = "verification"
+    dependsOn(tasks.checkstyleMain)
+    
+    doLast {
+        val xmlReport = tasks.checkstyleMain.get().reports.xml.outputLocation.get().asFile
+        
+        if (!xmlReport.exists()) {
+            return@doLast
+        }
+        
+        val xml = javax.xml.parsers.DocumentBuilderFactory.newInstance().apply {
+            isNamespaceAware = false
+        }.newDocumentBuilder().parse(xmlReport)
+        
+        val files = xml.getElementsByTagName("file")
+        var totalIssues = 0
+        
+        for (i in 0 until files.length) {
+            val file = files.item(i) as org.w3c.dom.Element
+            val errors = file.getElementsByTagName("error")
+            totalIssues += errors.length
+        }
+        
+        if (totalIssues > 0) {
+            println("\n⚠️ Checkstyle found $totalIssues style issues (warnings only)")
+            println("   See report for details: ${xmlReport.absolutePath}")
+        } else {
+            println("\n✅ Checkstyle: No style issues found")
+        }
+    }
+}
+
+// OWASP Dependency Check Configuration
+dependencyCheck {
+    formats = listOf("HTML", "JSON", "XML")
+    failBuildOnCVSS = 7.0f // Fail on high/critical vulnerabilities
+    suppressionFile = file("config/owasp/suppressions.xml")
+    skipProjects = listOf(":test") // Skip test dependencies
+    analyzers {
+        assemblyEnabled = false
+        msbuildEnabled = false
+        nuspecEnabled = false
+        nodeEnabled = false
+        nodeAuditEnabled = false
+        retirejsEnabled = false
+        rubygemsEnabled = false
+        cocoapodsEnabled = false
+        swiftEnabled = false
+        archiveEnabled = true
+    }
+}
+
+// Create a task to run all code quality checks (analysis only)
+tasks.register("codeQualityCheck") {
+    description = "Run all code quality checks (analysis only)"
+    group = "verification"
+    dependsOn(
+        tasks.spotbugsMain,
+        tasks.pmdMain,
+        tasks.checkstyleMain,
+        tasks.dependencyCheckAnalyze
+    )
+}
+
+// Create a task to verify code quality - fails on high-priority issues
+tasks.register("codeQualityVerify") {
+    description = "Verify code quality - fail on high-priority bugs only"
+    group = "verification"
+    dependsOn(
+        tasks.codeQualityCheck,
+        tasks.spotbugsVerify,
+        tasks.pmdVerify,
+        tasks.checkstyleReport
+    )
+}
+
+// Make code quality verification run after tests
+tasks.named("check") {
+    dependsOn(tasks.codeQualityVerify)
 }
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {

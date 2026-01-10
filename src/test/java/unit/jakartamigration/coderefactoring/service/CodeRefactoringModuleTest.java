@@ -7,15 +7,11 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
@@ -147,7 +143,13 @@ class CodeRefactoringModuleTest {
         
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.hasCriticalIssues() || !result.issues().isEmpty()).isTrue();
+        // Should detect that refactored content still has javax.servlet
+        assertThat(result.issues()).isNotEmpty();
+        assertThat(result.issues().stream()
+            .anyMatch(issue -> issue.message().contains("javax.servlet")))
+            .isTrue();
+        // Should have failed status or warnings
+        assertThat(result.isValid()).isFalse();
     }
     
     @Test

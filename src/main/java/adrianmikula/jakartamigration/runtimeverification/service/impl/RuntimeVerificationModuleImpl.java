@@ -280,8 +280,8 @@ public class RuntimeVerificationModuleImpl implements RuntimeVerificationModule 
         List<Warning> warnings = new ArrayList<>();
         
         // Check for common Jakarta migration issues in source files
-        try {
-            Files.walk(projectPath)
+        try (java.util.stream.Stream<Path> paths = Files.walk(projectPath)) {
+            paths
                 .filter(Files::isRegularFile)
                 .filter(p -> p.toString().endsWith(".java"))
                 .forEach(javaFile -> {
