@@ -52,8 +52,52 @@ const isWindows = process.platform === 'win32';
 const homeDir = os.homedir();
 const cacheDir = path.join(homeDir, isWindows ? 'AppData' : '.cache', 'jakarta-migration-mcp');
 
+// Configuration file path for license and settings
+const settingsDir = path.join(homeDir, '.mcp-settings');
+const configFile = path.join(settingsDir, 'jakarta-migration-license.json');
+
 // Allow override of JAR path via environment variable
 const jarPath = process.env.JAKARTA_MCP_JAR_PATH || path.join(cacheDir, JAR_NAME);
+
+// Load configuration from JSON file
+// Exported for testing purposes
+function loadConfiguration(configFilePath = configFile) {
+  // Check if config file exists
+  if (fs.existsSync(configFilePath)) {
+    try {
+      const configContent = fs.readFileSync(configFilePath, 'utf8');
+      const parsed = JSON.parse(configContent);
+      
+      // Load environment variables from the "environment" section
+      if (parsed.environment && typeof parsed.environment === 'object') {
+        Object.keys(parsed.environment).forEach(key => {
+          // Skip 'comment' keys - they are for documentation only
+          if (key === 'comment' || key.startsWith('_comment_')) {
+            return;
+          }
+          // System environment variables take precedence
+          // Only set if the key doesn't exist in process.env (not just falsy)
+          // This respects explicitly-set empty strings (e.g., STRIPE_SECRET_KEY="" to disable)
+          // Skip null/undefined values from config file
+          if (!(key in process.env) && parsed.environment[key] != null) {
+            process.env[key] = String(parsed.environment[key]);
+          }
+        });
+        
+        console.error(`Loaded configuration from: ${configFilePath}`);
+        return true;
+      } else {
+        console.error(`Warning: Configuration file exists but missing "environment" section: ${configFilePath}`);
+        return false;
+      }
+    } catch (error) {
+      console.error(`Warning: Failed to load configuration from ${configFilePath}: ${error.message}`);
+      console.error(`Please ensure the file is valid JSON. See jakarta-migration-license.json.example for format.`);
+      return false;
+    }
+  }
+  return false;
+}
 
 // Java executable detection
 function findJavaExecutable() {
@@ -204,10 +248,14 @@ function downloadJar(urlOverride = null) {
 // Main execution function
 async function main() {
   try {
+    // Load configuration from JSON file (if exists)
+    // This allows corporate users to store license keys and API tokens securely
+    loadConfiguration();
+    
     // Check for --download-only flag
     const args = process.argv.slice(2);
     const downloadOnly = args.includes('--download-only') || args.includes('--download');
-    
+
     // Download JAR if needed
     let jar = jarPath;
     if (!fs.existsSync(jar)) {
@@ -312,5 +360,5 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { main };
+module.exports = { main, loadConfiguration };
 

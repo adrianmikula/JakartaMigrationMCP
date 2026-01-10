@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "jakarta-migration": {
+      "command": "java",
+      "args": [
+        "-jar",
+        "/path/to/jakarta-migration-mcp-1.0.0.jar",
+        "--spring.main.web-application-type=none",
+        "--spring.profiles.active=mcp-stdio",
+        "--spring.ai.mcp.server.transport=stdio"
+      ],
+      "env": {
+        "JAKARTA_MCP_LICENSE_KEY": "YOUR_LICENSE_KEY_HERE",
+        "STRIPE_SECRET_KEY": "YOUR_STRIPE_SECRET_KEY_HERE"
+      }
+    }
+  }
+}
+
