@@ -60,6 +60,7 @@ function cleanupTestEnvironment() {
   delete process.env.TEST_LICENSE_KEY;
   delete process.env.TEST_STRIPE_KEY;
   delete process.env.TEST_APIFY_TOKEN;
+  delete process.env.comment;
 }
 
 // Test 1: Load valid configuration file
@@ -178,6 +179,57 @@ function testConvertValuesToStrings() {
   cleanupTestEnvironment();
 }
 
+// Test 7: Ignore comment keys in environment section
+function testIgnoreCommentKeys() {
+  setupTestEnvironment();
+  
+  const config = {
+    environment: {
+      comment: "This should not be set as an environment variable",
+      TEST_LICENSE_KEY: "sub_test_1234567890",
+      _comment_test: "This should also be ignored"
+    }
+  };
+  
+  fs.writeFileSync(testConfigFile, JSON.stringify(config, null, 2));
+  
+  loadConfiguration(testConfigFile);
+  
+  // Comment keys should not be set as environment variables
+  assert.strictEqual(process.env.comment, undefined, "Comment key should not be set as environment variable");
+  assert.strictEqual(process.env._comment_test, undefined, "Keys starting with _comment_ should not be set");
+  // Regular keys should still be set
+  assert.strictEqual(process.env.TEST_LICENSE_KEY, "sub_test_1234567890", "Regular keys should still be set");
+  
+  cleanupTestEnvironment();
+}
+
+// Test 8: Empty string environment variables take precedence
+function testEmptyStringEnvVarsTakePrecedence() {
+  setupTestEnvironment();
+  
+  // Set system environment variable to empty string (explicitly disable)
+  process.env.TEST_STRIPE_KEY = "";
+  
+  const config = {
+    environment: {
+      TEST_STRIPE_KEY: "sk_test_from_config_should_not_override",
+      TEST_APIFY_TOKEN: "apify_token_from_config"
+    }
+  };
+  
+  fs.writeFileSync(testConfigFile, JSON.stringify(config, null, 2));
+  
+  loadConfiguration(testConfigFile);
+  
+  // Empty string should be preserved (not overridden by config file)
+  assert.strictEqual(process.env.TEST_STRIPE_KEY, "", "Empty string env var should take precedence and not be overridden");
+  // Config file value should be set for other vars
+  assert.strictEqual(process.env.TEST_APIFY_TOKEN, "apify_token_from_config", "Config file value should be used when system var doesn't exist");
+  
+  cleanupTestEnvironment();
+}
+
 // Run all tests
 console.log("Running configuration loading tests...\n");
 
@@ -187,6 +239,8 @@ runTest("Handle invalid JSON gracefully", testHandleInvalidJSON);
 runTest("Handle missing environment section", testHandleMissingEnvironmentSection);
 runTest("System environment variables take precedence", testSystemEnvVarsTakePrecedence);
 runTest("Convert values to strings", testConvertValuesToStrings);
+runTest("Ignore comment keys in environment section", testIgnoreCommentKeys);
+runTest("Empty string environment variables take precedence", testEmptyStringEnvVarsTakePrecedence);
 
 // Summary
 console.log("\n" + "=".repeat(50));

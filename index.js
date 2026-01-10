@@ -71,9 +71,15 @@ function loadConfiguration(configFilePath = configFile) {
       // Load environment variables from the "environment" section
       if (parsed.environment && typeof parsed.environment === 'object') {
         Object.keys(parsed.environment).forEach(key => {
+          // Skip 'comment' keys - they are for documentation only
+          if (key === 'comment' || key.startsWith('_comment_')) {
+            return;
+          }
           // System environment variables take precedence
-          // Skip null/undefined values
-          if (!process.env[key] && parsed.environment[key] != null) {
+          // Only set if the key doesn't exist in process.env (not just falsy)
+          // This respects explicitly-set empty strings (e.g., STRIPE_SECRET_KEY="" to disable)
+          // Skip null/undefined values from config file
+          if (!(key in process.env) && parsed.environment[key] != null) {
             process.env[key] = String(parsed.environment[key]);
           }
         });

@@ -23,12 +23,13 @@
   },
   
   "environment": {
-    "comment": "These environment variables will be set when the MCP server runs",
     "JAKARTA_MCP_LICENSE_KEY": "YOUR_LICENSE_KEY_HERE",
     "STRIPE_SECRET_KEY": "YOUR_STRIPE_SECRET_KEY_HERE",
     "STRIPE_VALIDATION_ENABLED": "false",
     "APIFY_API_TOKEN": "YOUR_APIFY_API_TOKEN_HERE",
     "APIFY_VALIDATION_ENABLED": "true"
-  }
+  },
+  
+  "_comment_environment": "The 'environment' section above contains environment variables that will be set when the MCP server runs. All keys in this section (except 'comment') are treated as environment variable names."
 }
 
