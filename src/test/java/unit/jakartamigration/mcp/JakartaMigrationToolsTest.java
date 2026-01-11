@@ -15,6 +15,8 @@ import adrianmikula.jakartamigration.runtimeverification.domain.ExecutionMetrics
 import adrianmikula.jakartamigration.runtimeverification.domain.ErrorAnalysis;
 import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
 import adrianmikula.jakartamigration.config.FeatureFlagsService;
+import adrianmikula.jakartamigration.config.FeatureFlagsProperties;
+import adrianmikula.jakartamigration.config.FeatureFlag;
 import adrianmikula.jakartamigration.config.ApifyBillingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,7 +30,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
 
@@ -63,6 +64,15 @@ class JakartaMigrationToolsTest {
 
     @Mock
     private ApifyBillingService apifyBillingService;
+
+    @Mock
+    private adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner sourceCodeScanner;
+
+    @Mock
+    private adrianmikula.jakartamigration.coderefactoring.service.RefactoringEngine refactoringEngine;
+
+    @Mock
+    private adrianmikula.jakartamigration.api.service.StripePaymentLinkService paymentLinkService;
 
     @InjectMocks
     private JakartaMigrationTools tools;
@@ -369,6 +379,263 @@ class JakartaMigrationToolsTest {
         assertThat(result).contains("\\\"quotes\\\""); // Quotes should be escaped in content
         // Check that newlines in content are escaped (the JSON structure can have newlines for formatting)
         assertThat(result).contains("\\n"); // Newlines in content should be escaped
+    }
+
+    // ============================================================================
+    // Licensing Tests - Verify Free vs Premium Tools
+    // ============================================================================
+
+    @Test
+    @DisplayName("Free tools should work without PREMIUM license - analyzeJakartaReadiness")
+    void freeToolsShouldWorkWithoutPremiumLicense_analyzeJakartaReadiness() throws Exception {
+        // Given - COMMUNITY tier (no premium license)
+        when(featureFlagsService.hasTier(any())).thenReturn(false);
+        when(featureFlagsService.getCurrentTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
+        when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);
+
+        // When
+        String result = tools.analyzeJakartaReadiness(testProjectPath.toString());
+
+        // Then - Should work (no license check for free tools)
+        assertThat(result).contains("\"status\": \"success\"");
+        verify(dependencyAnalysisModule, times(1)).analyzeProject(any(Path.class));
+    }
+
+    @Test
+    @DisplayName("Free tools should work without PREMIUM license - detectBlockers")
+    void freeToolsShouldWorkWithoutPremiumLicense_detectBlockers() throws Exception {
+        // Given - COMMUNITY tier
+        when(featureFlagsService.hasTier(any())).thenReturn(false);
+        when(featureFlagsService.getCurrentTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
+        when(dependencyGraphBuilder.buildFromProject(any(Path.class))).thenReturn(mockGraph);
+        when(dependencyAnalysisModule.detectBlockers(any(DependencyGraph.class))).thenReturn(List.of());
+
+        // When
+        String result = tools.detectBlockers(testProjectPath.toString());
+
+        // Then - Should work
+        assertThat(result).contains("\"status\": \"success\"");
+    }
+
+    @Test
+    @DisplayName("Free tools should work without PREMIUM license - recommendVersions")
+    void freeToolsShouldWorkWithoutPremiumLicense_recommendVersions() throws Exception {
+        // Given - COMMUNITY tier
+        when(featureFlagsService.hasTier(any())).thenReturn(false);
+        when(featureFlagsService.getCurrentTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
+        when(dependencyGraphBuilder.buildFromProject(any(Path.class))).thenReturn(mockGraph);
+        when(dependencyAnalysisModule.recommendVersions(any())).thenReturn(List.of());
+
+        // When
+        String result = tools.recommendVersions(testProjectPath.toString());
+
+        // Then - Should work
+        assertThat(result).contains("\"status\": \"success\"");
+    }
+
+    @Test
+    @DisplayName("Premium tools should require PREMIUM license - createMigrationPlan without license")
+    void premiumToolsShouldRequirePremiumLicense_createMigrationPlanWithoutLicense() {
+        // Given - COMMUNITY tier (no premium license)
+        when(featureFlagsService.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)).thenReturn(false);
+        when(featureFlagsService.getCurrentTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
+        
+        FeatureFlagsService.UpgradeInfo mockUpgradeInfo = new FeatureFlagsService.UpgradeInfo(
+            "One-click refactoring",
+            "Execute complete Jakarta migration refactoring",
+            FeatureFlagsProperties.LicenseTier.COMMUNITY,
+            FeatureFlagsProperties.LicenseTier.PREMIUM,
+            "https://buy.stripe.com/test",
+            "Upgrade message"
+        );
+        when(featureFlagsService.getUpgradeInfo(any())).thenReturn(mockUpgradeInfo);
+
+        // When
+        String result = tools.createMigrationPlan(testProjectPath.toString());
+
+        // Then - Should return upgrade_required
+        assertThat(result).contains("\"status\": \"upgrade_required\"");
+        assertThat(result).contains("\"currentTier\": \"COMMUNITY\"");
+        assertThat(result).contains("\"requiredTier\": \"PREMIUM\"");
+        verify(migrationPlanner, never()).createPlan(anyString(), any(DependencyAnalysisReport.class));
+    }
+
+    @Test
+    @DisplayName("Premium tools should work with PREMIUM license - createMigrationPlan")
+    void premiumToolsShouldWorkWithPremiumLicense_createMigrationPlan() throws Exception {
+        // Given - PREMIUM tier
+        when(featureFlagsService.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)).thenReturn(true);
+        when(featureFlagsService.getCurrentTier()).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
+        when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);
+        
+        MigrationPlan mockPlan = new MigrationPlan(
+            List.of(),
+            List.of(),
+            Duration.ofMinutes(10),
+            new RiskAssessment(0.2, List.of(), List.of()),
+            List.of()
+        );
+        when(migrationPlanner.createPlan(anyString(), any(DependencyAnalysisReport.class))).thenReturn(mockPlan);
+
+        // When
+        String result = tools.createMigrationPlan(testProjectPath.toString());
+
+        // Then - Should work
+        assertThat(result).contains("\"status\": \"success\"");
+        verify(migrationPlanner, times(1)).createPlan(anyString(), any(DependencyAnalysisReport.class));
+    }
+
+    @Test
+    @DisplayName("Free tools should work without PREMIUM license - analyzeMigrationImpact")
+    void freeToolsShouldWorkWithoutPremiumLicense_analyzeMigrationImpact() throws Exception {
+        // Given - COMMUNITY tier
+        when(featureFlagsService.hasTier(any())).thenReturn(false);
+        when(featureFlagsService.getCurrentTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
+        when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);
+        
+        adrianmikula.jakartamigration.sourcecodescanning.domain.SourceCodeAnalysisResult mockScanResult = 
+            adrianmikula.jakartamigration.sourcecodescanning.domain.SourceCodeAnalysisResult.empty();
+        when(sourceCodeScanner.scanProject(any(Path.class))).thenReturn(mockScanResult);
+
+        // When
+        String result = tools.analyzeMigrationImpact(testProjectPath.toString());
+
+        // Then - Should work (no license check)
+        assertThat(result).contains("\"status\": \"success\"");
+    }
+
+    @Test
+    @DisplayName("Premium tools should require PREMIUM license - verifyRuntime without license")
+    void premiumToolsShouldRequirePremiumLicense_verifyRuntimeWithoutLicense() {
+        // Given - COMMUNITY tier (no premium license)
+        when(featureFlagsService.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)).thenReturn(false);
+        when(featureFlagsService.getCurrentTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
+        
+        FeatureFlagsService.UpgradeInfo mockUpgradeInfo = new FeatureFlagsService.UpgradeInfo(
+            "Runtime Verification",
+            "Verify runtime execution of migrated applications",
+            FeatureFlagsProperties.LicenseTier.COMMUNITY,
+            FeatureFlagsProperties.LicenseTier.PREMIUM,
+            "https://buy.stripe.com/test",
+            "Upgrade message"
+        );
+        when(featureFlagsService.getUpgradeInfo(any())).thenReturn(mockUpgradeInfo);
+
+        // When
+        String result = tools.verifyRuntime(testJarPath.toString(), 30);
+
+        // Then - Should return upgrade_required
+        assertThat(result).contains("\"status\": \"upgrade_required\"");
+        assertThat(result).contains("\"currentTier\": \"COMMUNITY\"");
+        assertThat(result).contains("\"requiredTier\": \"PREMIUM\"");
+        verify(runtimeVerificationModule, never()).verifyRuntime(any(), any());
+    }
+
+    @Test
+    @DisplayName("Premium tools should work with PREMIUM license - verifyRuntime")
+    void premiumToolsShouldWorkWithPremiumLicense_verifyRuntime() {
+        // Given - PREMIUM tier
+        when(featureFlagsService.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)).thenReturn(true);
+        when(featureFlagsService.getCurrentTier()).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
+        
+        VerificationResult mockResult = new VerificationResult(
+            VerificationStatus.SUCCESS,
+            List.of(),
+            List.of(),
+            new ExecutionMetrics(Duration.ofSeconds(10), 0, 0, false),
+            new ErrorAnalysis(
+                adrianmikula.jakartamigration.runtimeverification.domain.ErrorCategory.UNKNOWN,
+                "No errors",
+                List.of(),
+                List.of(),
+                List.of(),
+                1.0
+            ),
+            List.of()
+        );
+        when(runtimeVerificationModule.verifyRuntime(any(Path.class), any(VerificationOptions.class)))
+            .thenReturn(mockResult);
+
+        // When
+        String result = tools.verifyRuntime(testJarPath.toString(), 30);
+
+        // Then - Should work
+        assertThat(result).contains("\"status\": \"SUCCESS\"");
+        verify(runtimeVerificationModule, times(1)).verifyRuntime(any(Path.class), any(VerificationOptions.class));
+    }
+
+    @Test
+    @DisplayName("Premium tools should require PREMIUM license - refactorProject without license")
+    void premiumToolsShouldRequirePremiumLicense_refactorProjectWithoutLicense() throws Exception {
+        // Given - COMMUNITY tier (no premium license)
+        when(featureFlagsService.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)).thenReturn(false);
+        when(featureFlagsService.getCurrentTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
+        
+        FeatureFlagsService.UpgradeInfo mockUpgradeInfo = new FeatureFlagsService.UpgradeInfo(
+            "Automated Refactoring",
+            "Automatically refactor source code from javax.* to jakarta.*",
+            FeatureFlagsProperties.LicenseTier.COMMUNITY,
+            FeatureFlagsProperties.LicenseTier.PREMIUM,
+            "https://buy.stripe.com/test",
+            "Upgrade message"
+        );
+        when(featureFlagsService.getUpgradeInfo(any())).thenReturn(mockUpgradeInfo);
+
+        // Create a test Java file
+        Path testJavaFile = testProjectPath.resolve("Test.java");
+        Files.writeString(testJavaFile, "import javax.servlet.http.HttpServlet;");
+
+        // When
+        String result = tools.refactorProject(testProjectPath.toString(), null);
+
+        // Then - Should return upgrade_required
+        assertThat(result).contains("\"status\": \"upgrade_required\"");
+        assertThat(result).contains("\"currentTier\": \"COMMUNITY\"");
+        assertThat(result).contains("\"requiredTier\": \"PREMIUM\"");
+        verify(refactoringEngine, never()).refactorFile(any(), any());
+    }
+
+    @Test
+    @DisplayName("Premium tools should work with PREMIUM license - refactorProject")
+    void premiumToolsShouldWorkWithPremiumLicense_refactorProject() throws Exception {
+        // Given - PREMIUM tier
+        when(featureFlagsService.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)).thenReturn(true);
+        when(featureFlagsService.getCurrentTier()).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
+        
+        // Create a test Java file
+        Path testJavaFile = testProjectPath.resolve("Test.java");
+        String originalContent = "import javax.servlet.http.HttpServlet;";
+        Files.writeString(testJavaFile, originalContent);
+        
+        // Mock refactoring result
+        adrianmikula.jakartamigration.coderefactoring.domain.RefactoringChanges mockChanges = 
+            new adrianmikula.jakartamigration.coderefactoring.domain.RefactoringChanges(
+                testJavaFile.toString(),
+                originalContent,
+                "import jakarta.servlet.http.HttpServlet;",
+                List.of(new adrianmikula.jakartamigration.coderefactoring.domain.ChangeDetail(
+                    1,
+                    originalContent,
+                    "import jakarta.servlet.http.HttpServlet;",
+                    "Updated import from javax to jakarta",
+                    adrianmikula.jakartamigration.coderefactoring.domain.ChangeType.IMPORT_CHANGE
+                )),
+                List.of()
+            );
+        when(refactoringEngine.refactorFile(any(Path.class), any())).thenReturn(mockChanges);
+
+        // When
+        String result = tools.refactorProject(testProjectPath.toString(), null);
+
+        // Then - Should work
+        assertThat(result).contains("\"status\": \"success\"");
+        assertThat(result).contains("\"refactoredFiles\": 1");
+        assertThat(result).contains("\"totalChanges\": 1");
+        verify(refactoringEngine, times(1)).refactorFile(any(Path.class), any());
+        
+        // Verify file was actually modified
+        String refactoredContent = Files.readString(testJavaFile);
+        assertThat(refactoredContent).contains("jakarta.servlet");
     }
 }
 

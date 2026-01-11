@@ -23,9 +23,11 @@ import org.springaicommunity.mcp.annotation.McpTool;
 import org.springaicommunity.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -50,6 +52,7 @@ public class JakartaMigrationTools {
     @org.springframework.lang.Nullable
     private final StripePaymentLinkService paymentLinkService;
     private final adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner sourceCodeScanner;
+    private final adrianmikula.jakartamigration.coderefactoring.service.RefactoringEngine refactoringEngine;
     
     public JakartaMigrationTools(
             DependencyAnalysisModule dependencyAnalysisModule,
@@ -62,7 +65,8 @@ public class JakartaMigrationTools {
             @org.springframework.lang.Nullable ApifyBillingService apifyBillingService,
             @org.springframework.beans.factory.annotation.Autowired(required = false) 
             @org.springframework.lang.Nullable StripePaymentLinkService paymentLinkService,
-            adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner sourceCodeScanner) {
+            adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner sourceCodeScanner,
+            adrianmikula.jakartamigration.coderefactoring.service.RefactoringEngine refactoringEngine) {
         this.dependencyAnalysisModule = dependencyAnalysisModule;
         this.dependencyGraphBuilder = dependencyGraphBuilder;
         this.migrationPlanner = migrationPlanner;
@@ -72,6 +76,7 @@ public class JakartaMigrationTools {
         this.apifyBillingService = apifyBillingService;
         this.paymentLinkService = paymentLinkService;
         this.sourceCodeScanner = sourceCodeScanner;
+        this.refactoringEngine = refactoringEngine;
     }
     
     /**
@@ -196,7 +201,7 @@ public class JakartaMigrationTools {
      */
     @McpTool(
         name = "createMigrationPlan",
-        description = "Creates a comprehensive migration plan for Jakarta migration. Returns a JSON plan with phases, estimated duration, and risk assessment. Requires PREMIUM license."
+        description = "Creates a comprehensive migration plan for Jakarta migration. Returns a JSON plan with phases, estimated duration, and risk assessment. Requires PREMIUM license - automated planning tool."
     )
     public String createMigrationPlan(
             @McpToolParam(description = "Path to the project root directory", required = true) String projectPath) {
@@ -222,11 +227,6 @@ public class JakartaMigrationTools {
             // Create migration plan
             MigrationPlan plan = migrationPlanner.createPlan(projectPath, report);
             
-            // Charge for billable event (premium feature)
-            if (apifyBillingService != null) {
-                apifyBillingService.chargeEvent("migration-plan-created");
-            }
-            
             // Build response
             return buildMigrationPlanResponse(plan);
             
@@ -247,20 +247,14 @@ public class JakartaMigrationTools {
      */
     @McpTool(
         name = "analyzeMigrationImpact",
-        description = "Analyzes full migration impact combining dependency analysis and source code scanning. Returns a comprehensive summary with file counts, import counts, blockers, and estimated effort. Requires PREMIUM license."
+        description = "Analyzes full migration impact combining dependency analysis and source code scanning. Returns a comprehensive summary with file counts, import counts, blockers, and estimated effort. FREE tool - analysis only."
     )
     public String analyzeMigrationImpact(
             @McpToolParam(description = "Path to the project root directory", required = true) String projectPath) {
         try {
             log.info("Analyzing migration impact for project: {}", projectPath);
             
-            // Check if user has required tier (PREMIUM or ENTERPRISE)
-            if (!featureFlags.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)) {
-                return createUpgradeRequiredResponse(
-                    FeatureFlag.ADVANCED_ANALYSIS,
-                    "The 'analyzeMigrationImpact' tool requires a PREMIUM license. This tool provides comprehensive migration impact analysis combining dependency analysis and source code scanning."
-                );
-            }
+            // FREE tool - no license check required (analysis only)
             
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
@@ -288,6 +282,130 @@ public class JakartaMigrationTools {
     }
     
     /**
+     * Refactors Java source files from javax.* to jakarta.* namespace.
+     * This is an automated refactoring tool that modifies source code files.
+     * 
+     * @param projectPath Path to the project root directory
+     * @param filePaths Optional list of specific file paths to refactor (relative to project root). If not provided, all Java and XML files will be refactored.
+     * @return JSON string containing refactoring result
+     */
+    @McpTool(
+        name = "refactorProject",
+        description = "Automatically refactors Java source files from javax.* to jakarta.* namespace. Modifies source code files directly. Requires PREMIUM license - automated refactoring tool."
+    )
+    public String refactorProject(
+            @McpToolParam(description = "Path to the project root directory", required = true) String projectPath,
+            @McpToolParam(description = "Optional list of specific file paths to refactor (relative to project root). If not provided, all Java and XML files will be refactored.", required = false) List<String> filePaths) {
+        try {
+            log.info("Refactoring project: {}", projectPath);
+            
+            // Check if user has required tier (PREMIUM or ENTERPRISE)
+            if (!featureFlags.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)) {
+                return createUpgradeRequiredResponse(
+                    FeatureFlag.ONE_CLICK_REFACTOR,
+                    "The 'refactorProject' tool requires a PREMIUM license. This tool automatically refactors source code files from javax.* to jakarta.* namespace."
+                );
+            }
+            
+            Path project = Paths.get(projectPath);
+            if (!Files.exists(project) || !Files.isDirectory(project)) {
+                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+            }
+            
+            // Get default recipes
+            List<adrianmikula.jakartamigration.coderefactoring.domain.Recipe> recipes = List.of(
+                adrianmikula.jakartamigration.coderefactoring.domain.Recipe.jakartaNamespaceRecipe(),
+                adrianmikula.jakartamigration.coderefactoring.domain.Recipe.persistenceXmlRecipe(),
+                adrianmikula.jakartamigration.coderefactoring.domain.Recipe.webXmlRecipe()
+            );
+            
+            // Discover files if not provided
+            List<Path> filesToRefactor;
+            if (filePaths == null || filePaths.isEmpty()) {
+                filesToRefactor = discoverRefactorableFiles(project);
+            } else {
+                filesToRefactor = filePaths.stream()
+                    .map(project::resolve)
+                    .filter(Files::exists)
+                    .filter(Files::isRegularFile)
+                    .collect(Collectors.toList());
+            }
+            
+            if (filesToRefactor.isEmpty()) {
+                return createErrorResponse("No files found to refactor in project: " + projectPath);
+            }
+            
+            // Refactor files
+            List<String> refactoredFiles = new ArrayList<>();
+            List<String> failedFiles = new ArrayList<>();
+            int totalChanges = 0;
+            
+            for (Path filePath : filesToRefactor) {
+                try {
+                    adrianmikula.jakartamigration.coderefactoring.domain.RefactoringChanges changes = 
+                        refactoringEngine.refactorFile(filePath, recipes);
+                    
+                    if (changes.hasChanges()) {
+                        // Write refactored content back to file
+                        Files.writeString(filePath, changes.refactoredContent());
+                        refactoredFiles.add(project.relativize(filePath).toString());
+                        totalChanges += changes.changeCount();
+                        log.info("Refactored file: {} ({} changes)", filePath, changes.changeCount());
+                    } else {
+                        refactoredFiles.add(project.relativize(filePath).toString());
+                        log.debug("No changes needed for file: {}", filePath);
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to refactor file: {}", filePath, e);
+                    failedFiles.add(project.relativize(filePath).toString());
+                }
+            }
+            
+            // Build response
+            return buildRefactoringResponse(refactoredFiles, failedFiles, totalChanges, filesToRefactor.size());
+            
+        } catch (Exception e) {
+            log.error("Unexpected error during refactoring", e);
+            return createErrorResponse("Unexpected error: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Discovers all refactorable files (Java and XML) in the project.
+     */
+    private List<Path> discoverRefactorableFiles(Path projectPath) {
+        List<Path> files = new ArrayList<>();
+        
+        try (java.util.stream.Stream<Path> paths = Files.walk(projectPath)) {
+            paths
+                .filter(Files::isRegularFile)
+                .filter(p -> {
+                    String path = p.toString().replace('\\', '/');
+                    // Include Java and XML files
+                    boolean isRelevant = p.toString().endsWith(".java") ||
+                                       p.toString().endsWith(".xml");
+                    // Exclude build directories
+                    boolean notExcluded = !path.contains("/target/") &&
+                                         !path.contains("/build/") &&
+                                         !path.contains("/.git/") &&
+                                         !path.contains("/node_modules/") &&
+                                         !path.contains("/.gradle/") &&
+                                         !path.contains("/.mvn/") &&
+                                         !path.contains("/.idea/") &&
+                                         !path.contains("/.vscode/") &&
+                                         !path.contains("/out/") &&
+                                         !path.contains("/bin/");
+                    return isRelevant && notExcluded;
+                })
+                .forEach(files::add);
+        } catch (IOException e) {
+            log.error("Error discovering files in: {}", projectPath, e);
+        }
+        
+        return files;
+    }
+    
+    /**
      * Verifies runtime execution of a migrated application.
      * 
      * @param jarPath Path to the JAR file to execute
@@ -296,7 +414,7 @@ public class JakartaMigrationTools {
      */
     @McpTool(
         name = "verifyRuntime",
-        description = "Verifies runtime execution of a migrated Jakarta application. Returns a JSON result with execution status, errors, and metrics. Requires PREMIUM license."
+        description = "Verifies runtime execution of a migrated Jakarta application. Returns a JSON result with execution status, errors, and metrics. Requires PREMIUM license - automated verification tool."
     )
     public String verifyRuntime(
             @McpToolParam(description = "Path to the JAR file to execute", required = true) String jarPath,
@@ -330,11 +448,6 @@ public class JakartaMigrationTools {
             
             // Verify runtime
             VerificationResult result = runtimeVerificationModule.verifyRuntime(jar, options);
-            
-            // Charge for billable event (premium feature)
-            if (apifyBillingService != null) {
-                apifyBillingService.chargeEvent("runtime-verification-executed");
-            }
             
             // Build response
             return buildVerificationResponse(result);
@@ -389,14 +502,18 @@ public class JakartaMigrationTools {
             json.append(",\n");
             json.append("  \"premiumFeatures\": {\n");
             json.append("    \"recommended\": true,\n");
-            json.append("    \"message\": \"Premium Auto-Fixes can automatically resolve many blockers without manual intervention.\",\n");
+            json.append("    \"message\": \"Premium Automated Refactoring can automatically resolve many blockers without manual intervention.\",\n");
             json.append("    \"features\": [\n");
-            json.append("      \"Auto-Fixes - Automatically fix detected blockers\",\n");
-            json.append("      \"Advanced Analysis - Deep transitive conflict detection and resolution\",\n");
-            json.append("      \"Binary Fixes - Fix issues in compiled binaries and JAR files\"\n");
-            json.append("    ],\n");
-            json.append("    \"pricingUrl\": \"https://apify.com/adrian_m/jakartamigrationmcp#pricing\"\n");
-            json.append("  }");
+            json.append("      \"Automated Refactoring - Automatically fix detected blockers and migrate code\",\n");
+            json.append("      \"Runtime Verification - Verify migrated applications work correctly\",\n");
+            json.append("      \"Batch Operations - Process multiple projects simultaneously\"\n");
+            json.append("    ]");
+            String premiumLink = getPremiumPaymentLink();
+            if (premiumLink != null) {
+                json.append(",\n");
+                json.append("    \"pricingUrl\": \"").append(escapeJson(premiumLink)).append("\"");
+            }
+            json.append("\n  }");
         }
         
         json.append("\n}");
@@ -434,14 +551,18 @@ public class JakartaMigrationTools {
             json.append(",\n");
             json.append("  \"premiumFeatures\": {\n");
             json.append("    \"recommended\": true,\n");
-            json.append("    \"message\": \"Premium Auto-Fixes can automatically apply these ").append(recommendations.size()).append(" version recommendations and handle breaking changes.\",\n");
+            json.append("    \"message\": \"Premium Automated Refactoring can automatically apply these ").append(recommendations.size()).append(" version recommendations and handle breaking changes.\",\n");
             json.append("    \"features\": [\n");
-            json.append("      \"Auto-Fixes - Automatically apply version recommendations\",\n");
-            json.append("      \"Advanced Analysis - Handle breaking changes automatically\",\n");
-            json.append("      \"Custom Recipes - Create and use custom migration recipes\"\n");
-            json.append("    ],\n");
-            json.append("    \"pricingUrl\": \"https://apify.com/adrian_m/jakartamigrationmcp#pricing\"\n");
-            json.append("  }");
+            json.append("      \"Automated Refactoring - Automatically apply version recommendations and migrate code\",\n");
+            json.append("      \"Runtime Verification - Verify migrated applications work correctly\",\n");
+            json.append("      \"Batch Operations - Process multiple projects simultaneously\"\n");
+            json.append("    ]");
+            String premiumLink = getPremiumPaymentLink();
+            if (premiumLink != null) {
+                json.append(",\n");
+                json.append("    \"pricingUrl\": \"").append(escapeJson(premiumLink)).append("\"");
+            }
+            json.append("\n  }");
         }
         
         json.append("\n}");
@@ -481,13 +602,18 @@ public class JakartaMigrationTools {
             json.append(",\n");
             json.append("  \"premiumFeatures\": {\n");
             json.append("    \"recommended\": true,\n");
-            json.append("    \"message\": \"Premium One-Click Refactor can execute this entire migration plan automatically, saving you ").append(totalMinutes).append(" minutes of manual work.\",\n");
+            json.append("    \"message\": \"Premium Automated Refactoring can execute this entire migration plan automatically, saving you ").append(totalMinutes).append(" minutes of manual work.\",\n");
             json.append("    \"features\": [\n");
-            json.append("      \"One-Click Refactor - Execute complete migration automatically\",\n");
-            json.append("      \"Auto-Fixes - Automatically resolve blockers and issues\",\n");
+            json.append("      \"Automated Refactoring - Execute complete migration automatically\",\n");
+            json.append("      \"Runtime Verification - Verify migrated applications work correctly\",\n");
             json.append("      \"Batch Operations - Process multiple projects simultaneously\"\n");
-            json.append("    ],\n");
-            json.append("    \"pricingUrl\": \"https://apify.com/adrian_m/jakartamigrationmcp#pricing\",\n");
+            json.append("    ]");
+            String premiumLink = getPremiumPaymentLink();
+            if (premiumLink != null) {
+                json.append(",\n");
+                json.append("    \"pricingUrl\": \"").append(escapeJson(premiumLink)).append("\"");
+            }
+            json.append(",\n");
             json.append("    \"estimatedSavings\": \"").append(totalMinutes).append(" minutes of manual work\"\n");
             json.append("  }");
         }
@@ -595,16 +721,39 @@ public class JakartaMigrationTools {
             json.append(",\n");
             json.append("  \"premiumFeatures\": {\n");
             json.append("    \"recommended\": true,\n");
-            json.append("    \"message\": \"This migration has ").append(summary.complexity()).append(" complexity and will take approximately ").append(effortMinutes).append(" minutes. Premium features can automate most of this work.\",\n");
+            json.append("    \"message\": \"This migration has ").append(summary.complexity()).append(" complexity and will take approximately ").append(effortMinutes).append(" minutes. Premium Automated Refactoring can automate most of this work.\",\n");
             json.append("    \"features\": [\n");
-            json.append("      \"One-Click Refactor - Execute complete migration automatically\",\n");
-            json.append("      \"Auto-Fixes - Automatically resolve ").append(summary.totalBlockers()).append(" blockers\",\n");
-            json.append("      \"Advanced Analysis - Deep transitive conflict detection\",\n");
+            json.append("      \"Automated Refactoring - Execute complete migration automatically\",\n");
+            json.append("      \"Runtime Verification - Verify migrated applications work correctly\",\n");
             json.append("      \"Batch Operations - Process multiple projects simultaneously\"\n");
-            json.append("    ],\n");
-            json.append("    \"pricingUrl\": \"https://apify.com/adrian_m/jakartamigrationmcp#pricing\",\n");
+            json.append("    ]");
+            String premiumLink = getPremiumPaymentLink();
+            if (premiumLink != null) {
+                json.append(",\n");
+                json.append("    \"pricingUrl\": \"").append(escapeJson(premiumLink)).append("\"");
+            }
+            json.append(",\n");
             json.append("    \"estimatedSavings\": \"").append(effortMinutes).append(" minutes of manual work\"\n");
             json.append("  }");
+        }
+        
+        json.append("\n}");
+        return json.toString();
+    }
+    
+    private String buildRefactoringResponse(List<String> refactoredFiles, List<String> failedFiles, int totalChanges, int totalFiles) {
+        StringBuilder json = new StringBuilder();
+        json.append("{\n");
+        json.append("  \"status\": \"").append(failedFiles.isEmpty() ? "success" : "partial_success").append("\",\n");
+        json.append("  \"totalFiles\": ").append(totalFiles).append(",\n");
+        json.append("  \"refactoredFiles\": ").append(refactoredFiles.size()).append(",\n");
+        json.append("  \"failedFiles\": ").append(failedFiles.size()).append(",\n");
+        json.append("  \"totalChanges\": ").append(totalChanges).append(",\n");
+        json.append("  \"refactoredFileList\": ").append(buildStringArray(refactoredFiles));
+        
+        if (!failedFiles.isEmpty()) {
+            json.append(",\n");
+            json.append("  \"failedFileList\": ").append(buildStringArray(failedFiles));
         }
         
         json.append("\n}");
@@ -677,6 +826,22 @@ public class JakartaMigrationTools {
                   .replace("\n", "\\n")
                   .replace("\r", "\\r")
                   .replace("\t", "\\t");
+    }
+    
+    /**
+     * Gets the premium payment link from Stripe service, if available.
+     * Falls back to null if service is not configured.
+     */
+    private String getPremiumPaymentLink() {
+        if (paymentLinkService != null) {
+            // Try "premium" first, then "professional" as fallback
+            String link = paymentLinkService.getPaymentLink("premium");
+            if (link == null || link.isBlank()) {
+                link = paymentLinkService.getPaymentLink("professional");
+            }
+            return link;
+        }
+        return null;
     }
 }
 
