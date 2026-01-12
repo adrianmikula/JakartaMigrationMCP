@@ -1,0 +1,38 @@
+# Profile for stdio transport (local use)
+# This profile is used when running locally via npm/npx wrapper
+# 
+# IMPORTANT: For MCP stdio protocol, stdout must ONLY contain JSON-RPC messages.
+# All logging and banners must be disabled or redirected to stderr.
+spring:
+  main:
+    web-application-type: none  # Disable web server for stdio transport
+    banner-mode: off  # Disable Spring Boot ASCII banner (must not go to stdout)
+  
+  ai:
+    mcp:
+      server:
+        transport: stdio
+        # CRITICAL: Use SYNC type for synchronous methods
+        type: SYNC
+        annotation-scanner:
+          enabled: true
+
+# Logging Configuration for stdio mode
+# All logs must go to stderr, not stdout, to avoid breaking JSON-RPC protocol
+logging:
+  # Use System.err for console output (stderr) instead of System.out (stdout)
+  # This ensures MCP JSON-RPC messages on stdout are not polluted
+  file:
+    # Optionally log to file for debugging
+    # name: mcp-server.log
+  # Reduce log verbosity for stdio mode to minimize stderr noise
+  level:
+    root: WARN  # Only warnings and errors
+    adrianmikula.jakartamigration: INFO  # Keep our app logs at INFO
+    org.springframework.ai.mcp: INFO  # MCP logs at INFO level
+    org.springframework: WARN  # Spring framework logs at WARN
+  # Log pattern - output to stderr
+  pattern:
+    # Use %logger for shorter names, output to stderr
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+

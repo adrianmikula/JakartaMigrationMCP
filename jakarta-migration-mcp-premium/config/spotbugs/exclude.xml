@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!-- Exclude generated code and configuration classes -->
+    <Match>
+        <Class name="~.*\.config\..*"/>
+    </Match>
+    
+    <!-- Exclude DTOs and entities -->
+    <Match>
+        <Class name="~.*\.dto\..*"/>
+    </Match>
+    <Match>
+        <Class name="~.*\.entity\..*"/>
+    </Match>
+    
+    <!-- Exclude application main classes -->
+    <Match>
+        <Class name="~.*Application"/>
+    </Match>
+    
+    <!-- Exclude Lombok-generated code -->
+    <Match>
+        <Class name="~.*\$.*"/>
+    </Match>
+    
+    <!-- Exclude test code (if we enable test analysis later) -->
+    <Match>
+        <Class name="~.*Test"/>
+    </Match>
+    <Match>
+        <Class name="~.*Tests"/>
+    </Match>
+</FindBugsFilter>
+

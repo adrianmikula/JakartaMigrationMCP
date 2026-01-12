@@ -1,0 +1,216 @@
+spring:
+  application:
+    name: jakarta-migration-mcp
+  
+  # Database and JPA - DISABLED (not needed for MCP server)
+  # The MCP server doesn't require a database
+  # CRITICAL: Excluding all database-related auto-configurations to prevent startup failures
+  # when no database is available. This is essential for MCP server operation.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration
+      - org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Application Configuration
+# This is a template - replace with your own application configuration
+app:
+  example:
+    task:
+      interval-ms: 300000  # 5 minutes
+
+# Jakarta Migration Feature Flags Configuration
+jakarta:
+  migration:
+    feature-flags:
+      # Enable/disable feature flags (set to false for development/testing)
+      enabled: true
+      
+      # Default license tier when no license key is provided
+      # Options: COMMUNITY, PREMIUM, ENTERPRISE
+      default-tier: COMMUNITY
+      
+      # License key for premium features
+      # Can be set via environment variable: JAKARTA_MCP_LICENSE_KEY
+      # For Apify: Use your Apify API token
+      license-key: ${JAKARTA_MCP_LICENSE_KEY:}
+      
+      # Per-feature overrides (optional)
+      # Allows enabling/disabling specific features regardless of tier
+      # Useful for testing or gradual rollouts
+      # Set to empty map {} if no overrides needed, or uncomment examples below
+      # features:
+      #   auto-fixes: true
+      #   cloud-hosting: false
+    
+    # Stripe License Validation Configuration
+    # Stripe is the primary payment processor for license validation
+    stripe:
+      # Enable/disable Stripe license validation
+      enabled: ${STRIPE_VALIDATION_ENABLED:true}
+      
+      # Stripe API base URL (usually doesn't need to change)
+      api-url: ${STRIPE_API_URL:https://api.stripe.com/v1}
+      
+      # Stripe secret key for API authentication
+      # Use your Stripe secret key (starts with sk_live_ or sk_test_)
+      # Can be set via environment variable: STRIPE_SECRET_KEY
+      secret-key: ${STRIPE_SECRET_KEY:}
+      
+      # Cache TTL for license validation results (seconds)
+      cache-ttl-seconds: ${STRIPE_CACHE_TTL:3600}
+      
+      # Request timeout (seconds)
+      timeout-seconds: ${STRIPE_TIMEOUT:5}
+      
+      # Stripe Product IDs for tier identification
+      # Set these to your Stripe product IDs
+      product-id-premium: ${STRIPE_PRODUCT_ID_PREMIUM:}
+      product-id-enterprise: ${STRIPE_PRODUCT_ID_ENTERPRISE:}
+      
+      # Price ID to tier mapping (optional)
+      # Maps Stripe Price IDs directly to license tiers
+      # Format: price_id -> tier (PREMIUM or ENTERPRISE)
+      # Set to empty map {} if no mappings needed
+      price-id-to-tier: {}
+        # Example:
+        # price_1234567890: PREMIUM
+        # price_0987654321: ENTERPRISE
+      
+      # License key prefix for Stripe-based keys
+      # Keys starting with this prefix are treated as Stripe license keys
+      license-key-prefix: ${STRIPE_LICENSE_PREFIX:stripe_}
+      
+      # Allow offline validation when API is unavailable
+      allow-offline-validation: ${STRIPE_ALLOW_OFFLINE:true}
+      
+      # Webhook secret for validating Stripe webhooks (future use)
+      webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+      
+      # Payment Links for one-time purchases (Stripe Payment Links)
+      # Format: product_name -> payment_link_url
+      # Example:
+      #   starter: https://buy.stripe.com/starter-link
+      #   professional: https://buy.stripe.com/professional-link
+      #   enterprise: https://buy.stripe.com/enterprise-link
+      #   premium: https://buy.stripe.com/premium-link
+      payment-links: {}
+      
+      # Enable email-based license validation
+      # When enabled, users can validate licenses using their email address
+      # The system checks if the email exists in Stripe customers
+      enable-email-validation: ${STRIPE_ENABLE_EMAIL_VALIDATION:true}
+    
+    # Local Storage Configuration (File-based)
+    # Optional: Enable file-based local session storage
+    # When enabled, license validation results are cached locally in a JSON file
+    # This allows the MCP server to work offline after initial validation
+    storage:
+      file:
+        # Enable/disable file-based local storage
+        enabled: ${FILE_STORAGE_ENABLED:false}
+        # Path to storage file (relative to working directory)
+        path: ${FILE_STORAGE_PATH:.mcp_license_sessions.json}
+        # TTL for cached sessions (hours)
+        cache-ttl-hours: ${FILE_STORAGE_CACHE_TTL_HOURS:24}
+    
+    # Apify License Validation Configuration (DISABLED - Stripe is primary)
+    # Apify support is deprecated in favor of Stripe payment processing
+    # To enable Apify, set APIFY_VALIDATION_ENABLED=true
+    apify:
+      # Enable/disable Apify license validation (default: false)
+      enabled: ${APIFY_VALIDATION_ENABLED:false}
+      
+      # Apify API base URL (usually doesn't need to change)
+      api-url: ${APIFY_API_URL:https://api.apify.com/v2}
+      
+      # Your Apify API token (for making validation requests)
+      # This is YOUR account token, not the user's license key
+      # Can be set via environment variable: APIFY_API_TOKEN
+      api-token: ${APIFY_API_TOKEN:}
+      
+      # Cache TTL for license validation results (seconds)
+      # Prevents excessive API calls
+      cache-ttl-seconds: ${APIFY_CACHE_TTL:3600}
+      
+      # Request timeout (seconds)
+      timeout-seconds: ${APIFY_TIMEOUT:5}
+      
+      # Actor ID/name for license validation (optional)
+      # If your MCP server is deployed as an Apify Actor, specify it here
+      actor-id: ${APIFY_ACTOR_ID:}
+      
+      # Allow offline validation when API is unavailable
+      allow-offline-validation: ${APIFY_ALLOW_OFFLINE:true}
+    
+    # License API Configuration
+    # REST API endpoints for license validation and credit management
+    license-api:
+      # Server API key for authenticating requests to license endpoints
+      # This should be a strong, randomly generated key
+      # Can be set via environment variable: LICENSE_API_SERVER_API_KEY
+      # Example: Generate with: openssl rand -hex 32
+      server-api-key: ${LICENSE_API_SERVER_API_KEY:}
+      
+      # Enable/disable license API endpoints
+      # When disabled, endpoints return 404
+      enabled: ${LICENSE_API_ENABLED:true}
+  
+  # Spring AI MCP Server Configuration
+  # Supports both stdio (local) and SSE (Apify) transports
+  # Transport mode is determined by:
+  #   - Environment variable: MCP_TRANSPORT (stdio|sse)
+  #   - Spring profile: mcp-stdio or mcp-sse
+  #   - Default: stdio (for local use)
+  ai:
+    mcp:
+      server:
+        name: jakarta-migration-mcp
+        version: 1.0.0-SNAPSHOT
+        # Server description for GetInstructions/ListOfferings actions
+        # This helps Cursor understand what the server does
+        description: "Jakarta Migration MCP Server - Tools for analyzing and migrating Java applications from Java EE 8 (javax.*) to Jakarta EE 9+ (jakarta.*). Provides dependency analysis, blocker detection, version recommendations, migration planning, and runtime verification."
+        # Transport mode: stdio (default, for local), sse (deprecated), or streamable-http (recommended for HTTP)
+        # Note: SSE is deprecated in MCP spec 2025-03-26 in favor of Streamable HTTP
+        transport: ${MCP_TRANSPORT:stdio}
+        enabled: true
+        # CRITICAL: Use SYNC type for synchronous methods that return String/POJOs
+        # If you use ASYNC, methods must return Mono/Flux (reactive types)
+        # This is the #1 reason @McpTool annotations fail to register
+        type: SYNC
+        # Enable annotation scanner to automatically register @McpTool annotated methods
+        annotation-scanner:
+          enabled: true
+        # NOTE: Capabilities configuration may not be supported in Spring AI MCP 1.1.2
+        # The timeout issue with GetInstructions/ListOfferings persists even with stability fixes
+        # This appears to be an ongoing bug in Spring AI MCP that requires a framework fix
+        # SSE configuration (only used when transport=sse)
+        sse:
+          port: ${MCP_SSE_PORT:8080}
+          path: ${MCP_SSE_PATH:/mcp/sse}
+
+# Logging Configuration
+# CRITICAL: root level must be WARN to keep STDOUT clean for MCP JSON stream
+# System.out.println and log messages to STDOUT corrupt the MCP JSON stream
+logging:
+  level:
+    root: WARN  # Keep STDOUT clean for MCP JSON stream
+    adrianmikula.jakartamigration: DEBUG  # Debug logging for our application
+    org.springframework.ai.mcp: DEBUG  # Enable MCP debug logging
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"

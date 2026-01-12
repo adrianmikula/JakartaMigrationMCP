@@ -2,7 +2,7 @@ plugins {
     java
     id("org.springframework.boot") version "3.2.0"
     id("io.spring.dependency-management") version "1.1.4"
-    id("org.openrewrite.rewrite") version "6.8.0"
+    // NOTE: OpenRewrite plugin removed - only needed for premium package
     jacoco
     // Code Quality Tools
     id("com.github.spotbugs") version "5.0.14"
@@ -17,6 +17,19 @@ import java.io.File
 
 group = "adrianmikula"
 version = "1.0.0-SNAPSHOT"
+
+// Configure this as a library project (not just an application)
+// This allows premium package to depend on it
+tasks.jar {
+    enabled = true
+    archiveClassifier.set("")
+}
+
+// Also create a "free" classifier JAR for clarity
+tasks.register<Jar>("freeJar") {
+    archiveClassifier.set("free")
+    from(sourceSets.main.get().output)
+}
 
 java {
     toolchain {
@@ -107,15 +120,8 @@ dependencies {
     testImplementation("org.awaitility:awaitility:${property("awaitilityVersion")}")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     
-    // OpenRewrite for automated refactoring and Jakarta migration
-    implementation("org.openrewrite:rewrite-java:${property("openrewriteVersion")}")
-    implementation("org.openrewrite:rewrite-maven:${property("openrewriteVersion")}")
-    implementation("org.openrewrite.recipe:rewrite-migrate-java:${property("rewriteMigrateJavaVersion")}")
-    implementation("org.openrewrite.recipe:rewrite-spring:${property("rewriteSpringVersion")}")
-    
-    // ASM for bytecode analysis
-    implementation("org.ow2.asm:asm:9.6")
-    implementation("org.ow2.asm:asm-commons:9.6")
+    // NOTE: Premium dependencies (OpenRewrite, ASM) are removed from free package
+    // They are included in jakarta-migration-mcp-premium build
     
     // SnakeYAML for parsing Jakarta mappings YAML file
     implementation("org.yaml:snakeyaml:2.2")
@@ -136,17 +142,28 @@ tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
 }
 
-// Temporarily exclude test files with compilation errors from compilation
+// Exclude premium packages from main source set (free package only)
 sourceSets {
+    main {
+        java {
+            // Exclude premium packages - they are in jakarta-migration-mcp-premium subfolder
+            exclude("**/coderefactoring/**")
+            exclude("**/runtimeverification/**")
+            exclude("**/config/**")
+            exclude("**/api/**")
+            exclude("**/storage/**")
+        }
+    }
     test {
         java {
             exclude("**/dependencyanalysis/service/impl/MavenDependencyGraphBuilderTest.java")
             exclude("**/dependencyanalysis/service/NamespaceClassifierTest.java")
             exclude("**/dependencyanalysis/service/DependencyAnalysisModuleTest.java")
-            exclude("**/coderefactoring/service/MigrationPlannerTest.java")
-            exclude("**/coderefactoring/service/ChangeTrackerTest.java")
-            exclude("**/coderefactoring/service/ProgressTrackerTest.java")
-            exclude("**/coderefactoring/MigrationPlanTest.java")
+            exclude("**/coderefactoring/**")
+            exclude("**/runtimeverification/**")
+            exclude("**/config/**")
+            exclude("**/api/**")
+            exclude("**/storage/**")
             // Exclude all template/example tests in projectname package
             exclude("**/projectname/**")
         }
@@ -683,13 +700,17 @@ tasks.register("codeQualityVerify") {
 // CI pipeline runs codeQualityVerify explicitly
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
-    archiveFileName.set("${project.name}-${project.version}.jar")
+    archiveFileName.set("jakarta-migration-mcp-free-${project.version}.jar")
+    manifest {
+        attributes(
+            "Implementation-Title" to "Jakarta Migration MCP Server (Free)",
+            "Implementation-Version" to project.version,
+            "Built-By" to System.getProperty("user.name"),
+            "Built-Date" to LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+            "Created-By" to "Gradle ${gradle.gradleVersion}"
+        )
+    }
 }
 
-// OpenRewrite Configuration
-rewrite {
-    activeRecipe("org.openrewrite.java.migrate.UpgradeToJava21")
-    activeRecipe("org.openrewrite.java.migrate.javax.AddJakartaNamespace")
-    activeRecipe("org.openrewrite.java.spring.boot3.UpgradeSpringBoot_3_2")
-}
+// NOTE: OpenRewrite configuration removed - only needed for premium package
 

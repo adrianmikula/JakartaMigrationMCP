@@ -1,0 +1,42 @@
+# Profile for Streamable HTTP transport (recommended for HTTP/Apify)
+# 
+# Streamable HTTP is simpler than SSE:
+# - Single POST endpoint (no SSE complexity)
+# - Standard HTTP requests/responses
+# - No keepalive messages needed
+# - Better proxy compatibility
+#
+# Endpoint: POST /mcp/streamable-http
+# 
+# Reference: https://modelcontextprotocol.io/docs/specification/transport
+
+spring:
+  main:
+    web-application-type: servlet  # Enable web server for Streamable HTTP transport
+  server:
+    # Railway provides PORT env var, but we also support MCP_STREAMABLE_HTTP_PORT
+    # Priority: PORT (Railway) > MCP_STREAMABLE_HTTP_PORT > 8080 (default)
+    port: ${PORT:${MCP_STREAMABLE_HTTP_PORT:8080}}
+  ai:
+    mcp:
+      server:
+        transport: streamable-http  # Note: Spring AI may not recognize this, but our custom controller handles it
+        # Streamable HTTP uses standard HTTP POST, so no special configuration needed
+        # The endpoint is handled by McpStreamableHttpController
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,mcp
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    org.springframework.boot.web.embedded.tomcat: INFO
+    org.springframework.ai.mcp: DEBUG
+    adrianmikula.jakartamigration.mcp: DEBUG
+

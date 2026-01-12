@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    
+    <!-- For MCP stdio mode: all logs must go to stderr, not stdout -->
+    <!-- stdout is reserved for JSON-RPC protocol messages -->
+    <springProfile name="mcp-stdio">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <target>System.err</target>
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+        
+        <root level="WARN">
+            <appender-ref ref="CONSOLE" />
+        </root>
+        
+        <!-- Application logs at INFO level -->
+        <logger name="adrianmikula.jakartamigration" level="INFO" />
+        <logger name="org.springframework.ai.mcp" level="INFO" />
+    </springProfile>
+    
+    <!-- Default profile: normal logging to stdout -->
+    <springProfile name="!mcp-stdio">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss} - %msg%n</pattern>
+            </encoder>
+        </appender>
+        
+        <root level="INFO">
+            <appender-ref ref="CONSOLE" />
+        </root>
+        
+        <logger name="adrianmikula.projectname" level="DEBUG" />
+        <logger name="org.springframework.ai.mcp" level="DEBUG" />
+    </springProfile>
+</configuration>
+

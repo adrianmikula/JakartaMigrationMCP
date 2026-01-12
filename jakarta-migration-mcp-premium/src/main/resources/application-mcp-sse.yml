@@ -1,0 +1,37 @@
+# Profile for SSE transport (Apify/HTTP)
+# This profile is used when deploying to Apify or running as HTTP server
+spring:
+  main:
+    web-application-type: servlet  # Enable web server for SSE transport
+  
+  server:
+    # Use APIFY_CONTAINER_PORT if available (Apify requirement), otherwise use MCP_SSE_PORT or default to 8080
+    port: ${APIFY_CONTAINER_PORT:${MCP_SSE_PORT:8080}}
+  
+  ai:
+    mcp:
+      server:
+        transport: sse
+        sse:
+          # Use APIFY_CONTAINER_PORT if available (Apify requirement), otherwise use MCP_SSE_PORT or default to 8080
+          port: ${APIFY_CONTAINER_PORT:${MCP_SSE_PORT:8080}}
+          path: ${MCP_SSE_PATH:/mcp/sse}
+
+# Actuator endpoints for SSE mode
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,mcp
+  endpoint:
+    health:
+      show-details: always
+
+# Logging Configuration for SSE mode
+# Use INFO level to see Tomcat startup messages
+logging:
+  level:
+    root: INFO  # INFO level to see Tomcat startup messages
+    org.springframework.boot.web.embedded.tomcat: INFO  # Tomcat startup messages
+    org.springframework.ai.mcp: DEBUG  # MCP debug logging
+

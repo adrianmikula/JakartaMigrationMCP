@@ -1,20 +1,17 @@
 #!/usr/bin/env node
 
 /**
- * Jakarta Migration MCP Server - FREE VERSION
+ * Jakarta Migration MCP Server - PREMIUM VERSION
  * 
  * This is a lightweight Node.js wrapper that downloads and runs the Java JAR file
- * for the Jakarta Migration MCP server (free version with analysis tools only).
+ * for the Jakarta Migration MCP server (premium version with all features).
  * It works with npx and npm installations.
  * 
- * FREE Tools Available:
- * - analyzeJakartaReadiness - Analyzes project for Jakarta migration readiness
- * - detectBlockers - Detects blockers preventing Jakarta migration
- * - recommendVersions - Recommends Jakarta-compatible dependency versions
- * - analyzeMigrationImpact - Full migration impact analysis
- * 
- * For premium features (automated refactoring, planning, verification), see:
- * @jakarta-migration/mcp-server-premium
+ * PREMIUM Tools Available:
+ * - All free analysis tools
+ * - createMigrationPlan - Creates comprehensive migration plans
+ * - refactorProject - Automatically refactors source code
+ * - verifyRuntime - Verifies runtime execution
  */
 
 const { spawn } = require('child_process');
@@ -24,7 +21,7 @@ const os = require('os');
 const https = require('https');
 const http = require('http');
 
-const PACKAGE_NAME = '@jakarta-migration/mcp-server';
+const PACKAGE_NAME = '@jakarta-migration/mcp-server-premium';
 
 // Get version from environment or package.json
 let VERSION = process.env.JAKARTA_MCP_VERSION;
@@ -47,21 +44,16 @@ if (!GITHUB_REPO && PACKAGE_JSON && PACKAGE_JSON.repository && PACKAGE_JSON.repo
     GITHUB_REPO = repoMatch[1];
   }
 }
-GITHUB_REPO = GITHUB_REPO || 'your-org/JakartaMigrationMCP';
+GITHUB_REPO = GITHUB_REPO || 'adrianmikula/JakartaMigrationMCP-Premium';
 
-// Warn if using placeholder repository
-if (GITHUB_REPO.includes('your-org') || GITHUB_REPO.includes('your-repo')) {
-  console.error('WARNING: GitHub repository is still a placeholder. Set GITHUB_REPO environment variable or update package.json repository.url');
-}
-
-// FREE package downloads free JAR
-const JAR_NAME = `jakarta-migration-mcp-free-${VERSION}.jar`;
+// PREMIUM package downloads premium JAR
+const JAR_NAME = `jakarta-migration-mcp-premium-${VERSION}.jar`;
 const GITHUB_RELEASES_URL = `https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}`;
 
 // Determine OS-specific paths
 const isWindows = process.platform === 'win32';
 const homeDir = os.homedir();
-const cacheDir = path.join(homeDir, isWindows ? 'AppData' : '.cache', 'jakarta-migration-mcp-free');
+const cacheDir = path.join(homeDir, isWindows ? 'AppData' : '.cache', 'jakarta-migration-mcp-premium');
 
 // Configuration file path for license and settings
 const settingsDir = path.join(homeDir, '.mcp-settings');
@@ -143,7 +135,7 @@ function downloadJar(urlOverride = null) {
     }
 
     const url = urlOverride || `${GITHUB_RELEASES_URL}/${JAR_NAME}`;
-    console.error(`Downloading JAR from ${url}...`);
+    console.error(`Downloading PREMIUM JAR from ${url}...`);
 
     const protocol = url.startsWith('https:') ? https : http;
     const file = fs.createWriteStream(jarPath);
@@ -329,11 +321,11 @@ async function main() {
     );
     javaArgs.push(...userArgs);
 
-    console.error(`Starting Jakarta Migration MCP Server (FREE VERSION)...`);
+    console.error(`Starting Jakarta Migration MCP Server (PREMIUM VERSION)...`);
     console.error(`Java: ${javaCmd}`);
     console.error(`JAR: ${jar}`);
     console.error(`Transport: ${transport}`);
-    console.error(`Available tools: analyzeJakartaReadiness, detectBlockers, recommendVersions, analyzeMigrationImpact`);
+    console.error(`Available tools: All free tools + createMigrationPlan, refactorProject, verifyRuntime`);
 
     // CRITICAL: Use 'inherit' for stdio to ensure MCP JSON-RPC messages pass through correctly
     // stdin/stdout are used for MCP protocol communication
