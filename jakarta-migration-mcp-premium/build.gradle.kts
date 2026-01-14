@@ -2,7 +2,7 @@ plugins {
     java
     id("org.springframework.boot") version "3.2.0"
     id("io.spring.dependency-management") version "1.1.4"
-    id("org.openrewrite.rewrite") version "6.8.0"
+    id("org.openrewrite.rewrite") version "7.0.0"
     jacoco
     // Code Quality Tools
     id("com.github.spotbugs") version "5.0.14"

@@ -1,7 +1,7 @@
 ﻿{
     "name":  "@jakarta-migration/mcp-server",
     "version":  "1.0.0",
-    "description":  "Jakarta Migration MCP Server - Free Analysis Tools (Open Source)",
+    "description":  "MCP server for Jakarta EE migration analysis and automation",
     "main":  "index.js",
     "bin":  {
                 "jakarta-migration-mcp":  "index.js"
@@ -17,12 +17,10 @@
                      "java",
                      "migration",
                      "spring-boot",
-                     "mcp-server",
-                     "analysis",
-                     "open-source"
+                     "mcp-server"
                  ],
     "author":  "Adrian Mikula",
-    "license":  "BSD-3-Clause",
+    "license":  "BSD",
     "repository":  {
                        "type":  "git",
                        "url":  "git+https://github.com/adrianmikula/JakartaMigrationMCP"

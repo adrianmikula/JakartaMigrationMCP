@@ -1,0 +1,25 @@
+# Base test configuration for all integration tests
+# Disables optional services that might cause context loading issues
+
+jakarta:
+  migration:
+    # Disable Stripe validation in tests (unless explicitly needed)
+    stripe:
+      enabled: false
+    
+    # Disable Apify validation in tests
+    apify:
+      enabled: false
+    
+    # Disable file storage in tests (use in-memory)
+    storage:
+      file:
+        enabled: false
+
+# Feature flags - keep enabled for testing
+jakarta:
+  migration:
+    feature-flags:
+      enabled: true
+      default-tier: COMMUNITY
+

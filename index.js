@@ -1,20 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * Jakarta Migration MCP Server - FREE VERSION
+ * Jakarta Migration MCP Server
  * 
  * This is a lightweight Node.js wrapper that downloads and runs the Java JAR file
- * for the Jakarta Migration MCP server (free version with analysis tools only).
- * It works with npx and npm installations.
- * 
- * FREE Tools Available:
- * - analyzeJakartaReadiness - Analyzes project for Jakarta migration readiness
- * - detectBlockers - Detects blockers preventing Jakarta migration
- * - recommendVersions - Recommends Jakarta-compatible dependency versions
- * - analyzeMigrationImpact - Full migration impact analysis
- * 
- * For premium features (automated refactoring, planning, verification), see:
- * @jakarta-migration/mcp-server-premium
+ * for the Jakarta Migration MCP server. It works with npx and npm installations.
  */
 
 const { spawn } = require('child_process');
@@ -54,14 +44,13 @@ if (GITHUB_REPO.includes('your-org') || GITHUB_REPO.includes('your-repo')) {
   console.error('WARNING: GitHub repository is still a placeholder. Set GITHUB_REPO environment variable or update package.json repository.url');
 }
 
-// FREE package downloads free JAR
-const JAR_NAME = `jakarta-migration-mcp-free-${VERSION}.jar`;
+const JAR_NAME = `jakarta-migration-mcp-${VERSION}.jar`;
 const GITHUB_RELEASES_URL = `https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}`;
 
 // Determine OS-specific paths
 const isWindows = process.platform === 'win32';
 const homeDir = os.homedir();
-const cacheDir = path.join(homeDir, isWindows ? 'AppData' : '.cache', 'jakarta-migration-mcp-free');
+const cacheDir = path.join(homeDir, isWindows ? 'AppData' : '.cache', 'jakarta-migration-mcp');
 
 // Configuration file path for license and settings
 const settingsDir = path.join(homeDir, '.mcp-settings');
@@ -329,11 +318,10 @@ async function main() {
     );
     javaArgs.push(...userArgs);
 
-    console.error(`Starting Jakarta Migration MCP Server (FREE VERSION)...`);
+    console.error(`Starting Jakarta Migration MCP Server...`);
     console.error(`Java: ${javaCmd}`);
     console.error(`JAR: ${jar}`);
     console.error(`Transport: ${transport}`);
-    console.error(`Available tools: analyzeJakartaReadiness, detectBlockers, recommendVersions, analyzeMigrationImpact`);
 
     // CRITICAL: Use 'inherit' for stdio to ensure MCP JSON-RPC messages pass through correctly
     // stdin/stdout are used for MCP protocol communication

@@ -199,10 +199,10 @@ class JakartaMigrationToolsTest {
     void shouldAnalyzeMigrationImpactSuccessfully() throws Exception {
         // Given
         SourceCodeAnalysisResult mockScanResult = new SourceCodeAnalysisResult(
-            List.of(), // filesWithJavaxUsage
-            10,        // totalFilesScanned
-            5,         // totalFilesWithJavaxUsage
-            15         // totalJavaxImports
+            10,
+            5,
+            15,
+            List.of()
         );
         
         when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);

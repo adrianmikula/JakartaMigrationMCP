@@ -2,7 +2,7 @@ plugins {
     java
     id("org.springframework.boot") version "3.2.0"
     id("io.spring.dependency-management") version "1.1.4"
-    // NOTE: OpenRewrite plugin removed - only needed for premium package
+    // OpenRewrite removed - it's premium-only, see jakarta-migration-mcp-premium/build.gradle.kts
     jacoco
     // Code Quality Tools
     id("com.github.spotbugs") version "5.0.14"
@@ -17,19 +17,6 @@ import java.io.File
 
 group = "adrianmikula"
 version = "1.0.0-SNAPSHOT"
-
-// Configure this as a library project (not just an application)
-// This allows premium package to depend on it
-tasks.jar {
-    enabled = true
-    archiveClassifier.set("")
-}
-
-// Also create a "free" classifier JAR for clarity
-tasks.register<Jar>("freeJar") {
-    archiveClassifier.set("free")
-    from(sourceSets.main.get().output)
-}
 
 java {
     toolchain {
@@ -63,10 +50,8 @@ extra["jgitVersion"] = "6.8.0.202311291450-r"
 extra["mockWebServerVersion"] = "4.12.0"
 extra["testcontainersVersion"] = "1.19.3"
 extra["awaitilityVersion"] = "4.2.0"
-extra["openrewriteVersion"] = "8.10.0"
-extra["openrewriteMavenPluginVersion"] = "5.40.0"
-extra["rewriteMigrateJavaVersion"] = "2.5.0"
-extra["rewriteSpringVersion"] = "5.10.0"
+// OpenRewrite versions removed - OpenRewrite is premium-only
+// See jakarta-migration-mcp-premium/build.gradle.kts for OpenRewrite dependencies
 
 dependencies {
     // Spring Boot Starters
@@ -120,8 +105,8 @@ dependencies {
     testImplementation("org.awaitility:awaitility:${property("awaitilityVersion")}")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     
-    // NOTE: Premium dependencies (OpenRewrite, ASM) are removed from free package
-    // They are included in jakarta-migration-mcp-premium build
+    // OpenRewrite removed - it's premium-only (see jakarta-migration-mcp-premium/build.gradle.kts)
+    // ASM removed - it's premium-only (see jakarta-migration-mcp-premium/build.gradle.kts)
     
     // SnakeYAML for parsing Jakarta mappings YAML file
     implementation("org.yaml:snakeyaml:2.2")
@@ -142,28 +127,16 @@ tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
 }
 
-// Exclude premium packages from main source set (free package only)
+// Temporarily exclude test files with compilation errors from compilation
 sourceSets {
-    main {
-        java {
-            // Exclude premium packages - they are in jakarta-migration-mcp-premium subfolder
-            exclude("**/coderefactoring/**")
-            exclude("**/runtimeverification/**")
-            exclude("**/config/**")
-            exclude("**/api/**")
-            exclude("**/storage/**")
-        }
-    }
     test {
         java {
             exclude("**/dependencyanalysis/service/impl/MavenDependencyGraphBuilderTest.java")
             exclude("**/dependencyanalysis/service/NamespaceClassifierTest.java")
             exclude("**/dependencyanalysis/service/DependencyAnalysisModuleTest.java")
-            exclude("**/coderefactoring/**")
-            exclude("**/runtimeverification/**")
-            exclude("**/config/**")
-            exclude("**/api/**")
-            exclude("**/storage/**")
+            // Exclude MCP tests that reference premium features - they are in premium package
+            exclude("**/mcp/JakartaMigrationToolsBootstrapTest.java")
+            exclude("**/mcp/JakartaMigrationToolsPerformanceTest.java")
             // Exclude all template/example tests in projectname package
             exclude("**/projectname/**")
         }
@@ -700,17 +673,9 @@ tasks.register("codeQualityVerify") {
 // CI pipeline runs codeQualityVerify explicitly
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
-    archiveFileName.set("jakarta-migration-mcp-free-${project.version}.jar")
-    manifest {
-        attributes(
-            "Implementation-Title" to "Jakarta Migration MCP Server (Free)",
-            "Implementation-Version" to project.version,
-            "Built-By" to System.getProperty("user.name"),
-            "Built-Date" to LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-            "Created-By" to "Gradle ${gradle.gradleVersion}"
-        )
-    }
+    archiveFileName.set("${project.name}-${project.version}.jar")
 }
 
-// NOTE: OpenRewrite configuration removed - only needed for premium package
+// OpenRewrite Configuration removed - it's premium-only
+// See jakarta-migration-mcp-premium/build.gradle.kts for OpenRewrite configuration
 

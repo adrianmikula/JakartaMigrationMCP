@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: spring-react-template-test
+  
+  # Database Configuration (will be overridden by TestContainers)
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:template_test}
+    username: ${POSTGRES_USER:test}
+    password: ${POSTGRES_PASSWORD:test}
+    driver-class-name: org.postgresql.Driver
+  
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # Use Hibernate for schema creation in tests
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  
+  # Liquibase Configuration - DISABLED for component tests
+  liquibase:
+    enabled: false
+  
+  # Disable scheduled tasks in tests
+  task:
+    scheduling:
+      enabled: false
+
+# Application Configuration
+app:
+  example:
+    task:
+      interval-ms: 60000
+
+# Logging
+logging:
+  level:
+    root: INFO
+    adrianmikula.projectname: DEBUG
+
