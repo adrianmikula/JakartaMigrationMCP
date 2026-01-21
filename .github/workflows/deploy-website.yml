@@ -31,6 +31,7 @@ jobs:
       
       - name: Verify build output
         working-directory: ./website
+        shell: bash
         run: |
           if [ ! -d "dist" ]; then
             echo "Error: dist directory not found after build"
