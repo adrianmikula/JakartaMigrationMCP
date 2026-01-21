@@ -1,0 +1,161 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout 
+  title="Documentation - Jakarta Migration MCP"
+  description="Documentation and setup instructions for Jakarta Migration MCP Server."
+>
+  <!-- Hero Section -->
+  <section class="bg-gradient-to-br from-primary-50 via-white to-blue-50/30 py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-6 text-center">Documentation</h1>
+      <p class="text-xl text-gray-600 mb-8 text-center max-w-3xl mx-auto">
+        Get started with Jakarta Migration MCP Server. Choose your preferred setup method below.
+      </p>
+    </div>
+  </section>
+
+  <!-- Quick Start Section -->
+  <section class="bg-white py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <h2 class="text-2xl font-bold text-gray-900 mb-6">Quick Start</h2>
+      
+      <div class="bg-white border border-gray-200 rounded-xl p-8 mb-6 shadow-sm hover:shadow-md transition-all">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">Option 1: Apify Hosted Server (Recommended)</h3>
+        <p class="text-gray-700 mb-4">
+          The easiest way to get started is using our hosted MCP server on Apify - no installation required!
+        </p>
+        <div class="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-4">
+          <p class="text-sm text-gray-700 mb-2">
+            <strong class="text-primary-900">Free Tier Available:</strong> Basic features are free.
+          </p>
+          <p class="text-sm text-gray-700">
+            <strong class="text-primary-900">MCP Server URL:</strong> 
+            <code class="bg-white px-2 py-1 rounded text-xs font-mono border border-primary-200">https://mcp.apify.com/?tools=actors,docs,adrian_m/JakartaMigrationMCP</code>
+          </p>
+        </div>
+        <a 
+          href="https://apify.com/adrian_m/jakartamigrationmcp" 
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:ring-4 focus:ring-primary-300 transition-all shadow-md hover:shadow-lg font-semibold"
+        >
+          Get Started on Apify
+          <svg class="w-5 h-5 ml-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+          </svg>
+        </a>
+      </div>
+      
+      <div class="bg-white border border-gray-200 rounded-xl p-8 mb-6 shadow-sm hover:shadow-md transition-all">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">Option 2: Run Locally (STDIO)</h3>
+        <p class="text-gray-700 mb-4">
+          For local development or when you need full control, run the MCP server locally.
+        </p>
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+          <p class="text-sm text-gray-700">
+            <strong>Prerequisites:</strong> Java 21+ and Node.js 18+
+          </p>
+        </div>
+        <div class="bg-gray-900 text-gray-100 p-4 rounded-lg mb-4 border border-gray-700">
+          <pre class="text-sm font-mono"><code># Install via npm (one-time)
+npm install -g @jakarta-migration/mcp-server
+
+# Or use with npx (no installation)
+npx -y @jakarta-migration/mcp-server</code></pre>
+        </div>
+        <a 
+          href="https://github.com/adrianmikula/JakartaMigrationMCP#local-setup-stdio" 
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:ring-4 focus:ring-primary-300 transition-all shadow-md hover:shadow-lg font-semibold"
+        >
+          View Setup Instructions
+          <svg class="w-5 h-5 ml-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Available Tools Section -->
+  <section class="bg-gradient-to-br from-gray-50 to-white py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <h2 class="text-2xl font-bold text-gray-900 mb-6">Available Tools</h2>
+      
+      <div class="space-y-4 mb-8">
+        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all">
+          <h3 class="font-bold text-gray-900 mb-2">analyzeJakartaReadiness</h3>
+          <p class="text-sm text-gray-600">Comprehensive project analysis with readiness score</p>
+        </div>
+        
+        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all">
+          <h3 class="font-bold text-gray-900 mb-2">detectBlockers</h3>
+          <p class="text-sm text-gray-600">Find dependencies and patterns that prevent migration</p>
+        </div>
+        
+        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all">
+          <h3 class="font-bold text-gray-900 mb-2">recommendVersions</h3>
+          <p class="text-sm text-gray-600">Get Jakarta-compatible version recommendations</p>
+        </div>
+        
+        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all">
+          <h3 class="font-bold text-gray-900 mb-2">createMigrationPlan</h3>
+          <p class="text-sm text-gray-600">Generate phased migration plan with risk assessment</p>
+        </div>
+        
+        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all">
+          <h3 class="font-bold text-gray-900 mb-2">analyzeMigrationImpact</h3>
+          <p class="text-sm text-gray-600">Analyze full migration impact combining dependency analysis and source code scanning</p>
+        </div>
+        
+        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all">
+          <h3 class="font-bold text-gray-900 mb-2">verifyRuntime</h3>
+          <p class="text-sm text-gray-600">Test migrated application execution</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Resources Section -->
+  <section class="bg-white py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <h2 class="text-2xl font-bold text-gray-900 mb-6">Resources</h2>
+      
+      <ul class="space-y-2 text-gray-700">
+        <li>
+          <a 
+            href="https://github.com/adrianmikula/JakartaMigrationMCP" 
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-primary-600 hover:text-primary-700 underline"
+          >
+            GitHub Repository
+          </a>
+        </li>
+        <li>
+          <a 
+            href="https://modelcontextprotocol.io" 
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-primary-600 hover:text-primary-700 underline"
+          >
+            MCP Documentation
+          </a>
+        </li>
+        <li>
+          <a 
+            href="https://apify.com/adrian_m/jakartamigrationmcp" 
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-primary-600 hover:text-primary-700 underline"
+          >
+            Apify Store Listing
+          </a>
+        </li>
+      </ul>
+    </div>
+  </section>
+</BaseLayout>
