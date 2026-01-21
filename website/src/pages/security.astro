@@ -1,0 +1,201 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout 
+  title="Security & Privacy - Jakarta Migration MCP"
+  description="Security and privacy guarantees for Jakarta Migration MCP. Learn how we handle your code and data."
+>
+  <!-- Hero Section -->
+  <section class="bg-gradient-to-br from-blue-50 via-white to-primary-50/30 py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-6 text-center">Security & Privacy</h1>
+      <p class="text-xl text-gray-600 mb-8 text-center max-w-3xl mx-auto">
+        Your code and project data are handled with the utmost care. We understand that Java developers 
+        working with enterprise codebases need complete confidence in the security and privacy of their 
+        intellectual property.
+      </p>
+    </div>
+  </section>
+
+  <!-- Q&A Section -->
+  <section class="bg-white py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <h2 class="text-2xl font-bold text-gray-900 mb-8 text-center">Explicit Security & Privacy Posture</h2>
+      
+      <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6 shadow-sm">
+        <div class="flex items-start">
+          <div class="flex-shrink-0 w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+            <svg class="h-6 w-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Does this tool send code off-machine?</h3>
+            <p class="text-gray-700 mb-2 font-semibold">Answer: No (when running locally)</p>
+            <p class="text-gray-600 text-sm">
+              When using the local STDIO setup, your code never leaves your machine. All analysis is performed 
+              locally with zero network calls.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6 shadow-sm">
+        <div class="flex items-start">
+          <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+            <svg class="h-6 w-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Does it require internet access?</h3>
+            <p class="text-gray-700 mb-2 font-semibold">Answer: Only for hosted service</p>
+            <p class="text-gray-600 text-sm">
+              The local STDIO version runs completely offline. The hosted Apify service requires internet 
+              access for the API call, but your code is processed in isolated, ephemeral containers that 
+              are destroyed immediately after processing.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6 shadow-sm">
+        <div class="flex items-start">
+          <div class="flex-shrink-0 w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+            <svg class="h-6 w-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Does it collect telemetry?</h3>
+            <p class="text-gray-700 mb-2 font-semibold">Answer: No telemetry by default</p>
+            <p class="text-gray-600 text-sm">
+              We don't collect, track, or analyze your code. Each request is processed independently with 
+              no memory of previous requests. No usage tracking, analytics, or code scanning for any purpose 
+              other than migration analysis.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6 shadow-sm">
+        <div class="flex items-start">
+          <div class="flex-shrink-0 w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+            <svg class="h-6 w-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Can it run offline?</h3>
+            <p class="text-gray-700 mb-2 font-semibold">Answer: Yes (local setup)</p>
+            <p class="text-gray-600 text-sm">
+              The local STDIO setup runs 100% locally with no network calls. Everything runs on your machine 
+              with complete control and visibility.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6 shadow-sm">
+        <div class="flex items-start">
+          <div class="flex-shrink-0 w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+            <svg class="h-6 w-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">What data touches Stripe?</h3>
+            <p class="text-gray-700 mb-2 font-semibold">Answer: Payment information only</p>
+            <p class="text-gray-600 text-sm">
+              Stripe is only used for payment processing. Your code, project files, or analysis results never 
+              touch Stripe. Only billing information (if you choose to use premium features) is processed 
+              through Stripe.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stateless Architecture Section -->
+  <section class="bg-gradient-to-br from-gray-50 to-white py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <h2 class="text-2xl font-bold text-gray-900 mb-6">Stateless Architecture</h2>
+      
+      <div class="space-y-4 mb-6">
+        <div class="flex items-start">
+          <svg class="h-6 w-6 text-green-600 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+          </svg>
+          <div>
+            <p class="font-semibold text-gray-900">No Data Persistence</p>
+            <p class="text-gray-600 text-sm">The service is completely stateless. Your project files, source code, and analysis results are never stored, logged, or persisted on our servers.</p>
+          </div>
+        </div>
+        
+        <div class="flex items-start">
+          <svg class="h-6 w-6 text-green-600 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+          </svg>
+          <div>
+            <p class="font-semibold text-gray-900">No Data Collection</p>
+            <p class="text-gray-600 text-sm">We don't collect, track, or analyze your code. Each request is processed independently with no memory of previous requests.</p>
+          </div>
+        </div>
+        
+        <div class="flex items-start">
+          <svg class="h-6 w-6 text-green-600 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+          </svg>
+          <div>
+            <p class="font-semibold text-gray-900">Local Execution Option</p>
+            <p class="text-gray-600 text-sm">For maximum privacy, you can run the entire service locally using the local STDIO setup. Your code never leaves your machine.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Hosted Service Section -->
+  <section class="bg-white py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4">Hosted Service (Apify)</h2>
+      <p class="text-gray-700 mb-4">
+        When using the Apify-hosted service:
+      </p>
+      <ul class="list-disc list-inside text-gray-700 mb-6 space-y-2">
+        <li>Analysis is performed in isolated, ephemeral containers</li>
+        <li>All containers are destroyed immediately after processing</li>
+        <li>No persistent storage is used</li>
+        <li>Your API token is only used for authentication and billing</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Local Service Section -->
+  <section class="bg-gradient-to-br from-primary-50/50 to-white py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4">Local Service</h2>
+      <p class="text-gray-700 mb-4">
+        When running locally via STDIO:
+      </p>
+      <ul class="list-disc list-inside text-gray-700 mb-6 space-y-2">
+        <li><strong>100% Local</strong> - Everything runs on your machine</li>
+        <li><strong>No Network Calls</strong> - No external requests are made</li>
+        <li><strong>Complete Control</strong> - You have full visibility and control over the process</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Recommendation Section -->
+  <section class="bg-gradient-to-r from-primary-600 to-primary-700 py-12">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-8 text-center">
+        <p class="text-white font-bold text-lg mb-2">
+          For maximum security and privacy, we recommend using the local STDIO setup for sensitive projects.
+        </p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

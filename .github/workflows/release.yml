@@ -85,7 +85,7 @@ jobs:
         run: |
           cd release
           JAR=$(ls *.jar | grep -v plain | head -1)
-          mv "$JAR" "bug-bounty-finder-${{ steps.version.outputs.version }}.jar"
+          mv "$JAR" "jakarta-migration-mcp-${{ steps.version.outputs.version }}.jar"
           ls -la
 
       - name: Create Release
