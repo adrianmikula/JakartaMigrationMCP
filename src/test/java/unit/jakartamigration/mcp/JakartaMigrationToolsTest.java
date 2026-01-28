@@ -1,5 +1,8 @@
 package unit.jakartamigration.mcp;
 
+import adrianmikula.jakartamigration.config.FeatureFlag;
+import adrianmikula.jakartamigration.config.FeatureFlagsProperties;
+import adrianmikula.jakartamigration.config.FeatureFlagsService;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
@@ -42,6 +45,9 @@ class JakartaMigrationToolsTest {
 
     @Mock
     private adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner sourceCodeScanner;
+
+    @Mock
+    private FeatureFlagsService featureFlags;
 
     @InjectMocks
     private JakartaMigrationTools tools;
@@ -195,28 +201,29 @@ class JakartaMigrationToolsTest {
     }
 
     @Test
-    @DisplayName("Should analyze migration impact successfully")
-    void shouldAnalyzeMigrationImpactSuccessfully() throws Exception {
-        // Given
-        SourceCodeAnalysisResult mockScanResult = new SourceCodeAnalysisResult(
-            List.of(), // filesWithJavaxUsage
-            10,        // totalFilesScanned
-            5,         // totalFilesWithJavaxUsage
-            15         // totalJavaxImports
+    @DisplayName("Should return upgrade_required for analyzeMigrationImpact in free build")
+    void shouldAnalyzeMigrationImpactReturnUpgradeRequired() {
+        // Given: free build always returns upgrade_required for this pro tool
+        FeatureFlagsService.UpgradeInfo upgradeInfo = new FeatureFlagsService.UpgradeInfo(
+            "Advanced Analysis",
+            "Full migration impact analysis",
+            FeatureFlagsProperties.LicenseTier.COMMUNITY,
+            FeatureFlagsProperties.LicenseTier.PREMIUM,
+            null,
+            "The 'analyzeMigrationImpact' tool requires a PREMIUM license."
         );
-        
-        when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);
-        when(sourceCodeScanner.scanProject(any(Path.class))).thenReturn(mockScanResult);
+        when(featureFlags.getUpgradeInfo(any(FeatureFlag.class))).thenReturn(upgradeInfo);
+        when(featureFlags.getCurrentTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
 
         // When
         String result = tools.analyzeMigrationImpact(testProjectPath.toString());
 
-        // Then
-        assertThat(result).contains("\"status\": \"success\"");
-        assertThat(result).contains("\"totalFilesScanned\": 10");
-        assertThat(result).contains("\"totalJavaxImports\": 15");
-        verify(dependencyAnalysisModule, times(1)).analyzeProject(any(Path.class));
-        verify(sourceCodeScanner, times(1)).scanProject(any(Path.class));
+        // Then: free build returns upgrade_required JSON; no analysis is performed
+        assertThat(result).contains("\"status\": \"upgrade_required\"");
+        assertThat(result).contains("PREMIUM");
+        assertThat(result).contains("analyzeMigrationImpact");
+        verify(dependencyAnalysisModule, never()).analyzeProject(any(Path.class));
+        verify(sourceCodeScanner, never()).scanProject(any(Path.class));
     }
 
     @Test

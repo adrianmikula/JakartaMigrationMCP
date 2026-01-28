@@ -555,6 +555,9 @@ class McpServerSseIntegrationTest {
             String text = result.get("content").get(0).get("text").asText();
             assertThat(text).isNotNull();
             assertThat(text).contains("\"status\"");
+            // Free tier: createMigrationPlan is gated and must return upgrade_required
+            assertThat(text).contains("upgrade_required");
+            assertThat(text).contains("PREMIUM");
             
         } finally {
             deleteTestProject(testProject);

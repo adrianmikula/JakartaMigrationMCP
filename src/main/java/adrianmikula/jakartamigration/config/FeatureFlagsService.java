@@ -1,9 +1,7 @@
 package adrianmikula.jakartamigration.config;
 
-import adrianmikula.jakartamigration.api.service.StripePaymentLinkService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 import java.util.EnumSet;
@@ -11,21 +9,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Service for checking feature flag availability.
+ * Service for checking feature flag availability (free build).
  * 
- * This service determines which features are available based on:
- * - License tier (COMMUNITY, PREMIUM, ENTERPRISE)
- * - Feature flag configuration
- * - License key validation (future)
- * 
- * Usage:
- * <pre>
- * if (featureFlagsService.isEnabled(FeatureFlag.AUTO_FIXES)) {
- *     // Execute auto-fix logic
- * } else {
- *     // Return upgrade message
- * }
- * </pre>
+ * In the free build, getCurrentTier() uses the default tier from properties.
+ * Payment links are not available (getPaymentLinkForTier returns null).
+ * The premium build overrides or extends this with LicenseService and StripePaymentLinkService.
  */
 @Slf4j
 @Service
@@ -33,9 +21,6 @@ import java.util.stream.Collectors;
 public class FeatureFlagsService {
 
     private final FeatureFlagsProperties properties;
-    private final LicenseService licenseService;
-    @Nullable
-    private final StripePaymentLinkService paymentLinkService;
 
     /**
      * Check if a feature flag is enabled.
@@ -119,15 +104,7 @@ public class FeatureFlagsService {
      * @return Current license tier
      */
     public FeatureFlagsProperties.LicenseTier getCurrentTier() {
-        // Validate license key if provided
-        if (properties.getLicenseKey() != null && !properties.getLicenseKey().isBlank()) {
-            FeatureFlagsProperties.LicenseTier validatedTier = licenseService.validateLicense(properties.getLicenseKey());
-            if (validatedTier != null) {
-                return validatedTier;
-            }
-            log.warn("Invalid license key provided, falling back to default tier");
-        }
-
+        // Free build: no license validation; use default tier from properties.
         return properties.getDefaultTier();
     }
 
@@ -200,22 +177,8 @@ public class FeatureFlagsService {
      * @return Payment link URL, or null if not configured
      */
     private String getPaymentLinkForTier(FeatureFlagsProperties.LicenseTier tier) {
-        if (paymentLinkService == null) {
-            return null;
-        }
-        
-        // Map tier to product name
-        String productName = switch (tier) {
-            case PREMIUM -> "premium";
-            case ENTERPRISE -> "enterprise";
-            case COMMUNITY -> null; // No payment link for community
-        };
-        
-        if (productName == null) {
-            return null;
-        }
-        
-        return paymentLinkService.getPaymentLink(productName);
+        // Free build: no payment link service; premium build overrides or uses a subclass.
+        return null;
     }
 
     /**
