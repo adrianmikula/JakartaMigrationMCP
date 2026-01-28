@@ -514,6 +514,7 @@ For local HTTP-based testing or development:
    ```bash
    ./gradlew bootJar
    ```
+   This produces the **free** JAR: `build/libs/jakarta-migration-mcp-*.jar`. For the premium build (refactoring, runtime verification, licensing): `./gradlew :jakarta-migration-mcp-premium:bootJar` → `jakarta-migration-mcp-premium/build/libs/jakarta-migration-mcp-premium-*.jar`.
 
 2. **Start server with Streamable HTTP:**
 

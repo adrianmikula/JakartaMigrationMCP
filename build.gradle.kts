@@ -183,13 +183,11 @@ dependencies {
     testImplementation("org.awaitility:awaitility:${property("awaitilityVersion")}")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     
-    // OpenRewrite and ASM required by shared main sources (runtimeverification, sourcecodescanning)
+    // OpenRewrite required by sourcecodescanning (free build). ASM/premium refactoring are in jakarta-migration-mcp-premium only.
     implementation("org.openrewrite:rewrite-java:${property("openrewriteVersion")}")
     implementation("org.openrewrite:rewrite-maven:${property("openrewriteVersion")}")
     implementation("org.openrewrite.recipe:rewrite-migrate-java:${property("rewriteMigrateJavaVersion")}")
     implementation("org.openrewrite.recipe:rewrite-spring:${property("rewriteSpringVersion")}")
-    implementation("org.ow2.asm:asm:9.6")
-    implementation("org.ow2.asm:asm-commons:9.6")
     
     // SnakeYAML for parsing Jakarta mappings YAML file
     implementation("org.yaml:snakeyaml:2.2")
@@ -311,6 +309,8 @@ tasks.register("jacocoCoverageSummary") {
             
             val xml = javax.xml.parsers.DocumentBuilderFactory.newInstance().apply {
                 isNamespaceAware = false
+                setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+                setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false)
             }.newDocumentBuilder().parse(xmlReport)
             
             val counters = xml.getElementsByTagName("counter")
@@ -393,12 +393,13 @@ tasks.jacocoTestCoverageVerification {
 }
 
 // Task to verify per-class coverage (custom check)
+// Note: Uses lazy task resolution for configuration cache compatibility
 tasks.register("jacocoPerClassCoverageCheck") {
     description = "Verify that each class has at least 50% code coverage"
-    dependsOn(tasks.jacocoTestReport)
+    dependsOn(tasks.named("jacocoTestReport"))
     
     doLast {
-        val xmlReport = tasks.jacocoTestReport.get().reports.xml.outputLocation.get().asFile
+        val xmlReport = tasks.named<org.gradle.testing.jacoco.tasks.JacocoReport>("jacocoTestReport").get().reports.xml.outputLocation.get().asFile
         
         if (!xmlReport.exists()) {
             throw GradleException("Coverage XML report not found at: ${xmlReport.absolutePath}")
@@ -406,6 +407,8 @@ tasks.register("jacocoPerClassCoverageCheck") {
         
         val xml = javax.xml.parsers.DocumentBuilderFactory.newInstance().apply {
             isNamespaceAware = false
+            setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+            setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false)
         }.newDocumentBuilder().parse(xmlReport)
         
         val packageNodes = xml.getElementsByTagName("package")
@@ -529,6 +532,8 @@ tasks.register("spotbugsVerify") {
         
         val xml = javax.xml.parsers.DocumentBuilderFactory.newInstance().apply {
             isNamespaceAware = false
+            setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+            setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false)
         }.newDocumentBuilder().parse(xmlReport)
         
         val bugInstances = xml.getElementsByTagName("BugInstance")
@@ -618,6 +623,8 @@ tasks.register("pmdVerify") {
         
         val xml = javax.xml.parsers.DocumentBuilderFactory.newInstance().apply {
             isNamespaceAware = false
+            setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+            setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false)
         }.newDocumentBuilder().parse(xmlReport)
         
         val violations = xml.getElementsByTagName("violation")
@@ -703,6 +710,8 @@ tasks.register("checkstyleReport") {
         
         val xml = javax.xml.parsers.DocumentBuilderFactory.newInstance().apply {
             isNamespaceAware = false
+            setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+            setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false)
         }.newDocumentBuilder().parse(xmlReport)
         
         val files = xml.getElementsByTagName("file")

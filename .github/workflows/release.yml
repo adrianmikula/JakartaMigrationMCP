@@ -27,8 +27,8 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build JAR
-        run: ./gradlew bootJar --no-daemon
+      - name: Build JARs (free + premium)
+        run: ./gradlew bootJar :jakarta-migration-mcp-premium:bootJar --no-daemon
 
       - name: Get version
         id: version
@@ -37,17 +37,23 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
-      - name: Find JAR
-        id: jar
+      - name: Find JARs
+        id: jars
         run: |
-          JAR=$(find build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
-          echo "jar=$JAR" >> $GITHUB_OUTPUT
-          echo "JAR: $JAR"
+          FREE_JAR=$(find build/libs -name "jakarta-migration-mcp-*.jar" ! -name "*-plain.jar" | head -1)
+          PREMIUM_JAR=$(find jakarta-migration-mcp-premium/build/libs -name "jakarta-migration-mcp-premium-*.jar" ! -name "*-plain.jar" | head -1)
+          echo "free_jar=$FREE_JAR" >> $GITHUB_OUTPUT
+          echo "premium_jar=$PREMIUM_JAR" >> $GITHUB_OUTPUT
+          echo "Free JAR: $FREE_JAR"
+          echo "Premium JAR: $PREMIUM_JAR"
 
       - name: Create checksums
         run: |
           cd build/libs
           sha256sum *.jar > checksums.txt
+          cd ../../jakarta-migration-mcp-premium/build/libs
+          sha256sum *.jar >> ../../../build/libs/checksums.txt
+          cd ../../../build/libs
           cat checksums.txt
 
       - name: Upload artifacts
@@ -56,6 +62,7 @@ jobs:
           name: jar-artifacts
           path: |
             build/libs/*.jar
+            jakarta-migration-mcp-premium/build/libs/*.jar
             build/libs/checksums.txt
           retention-days: 30
 
@@ -81,11 +88,17 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
-      - name: Rename JAR
+      - name: Rename JARs
         run: |
           cd release
-          JAR=$(ls *.jar | grep -v plain | head -1)
-          mv "$JAR" "bug-bounty-finder-${{ steps.version.outputs.version }}.jar"
+          FREE_JAR=$(ls jakarta-migration-mcp-*.jar 2>/dev/null | grep -v plain | head -1)
+          PREMIUM_JAR=$(ls jakarta-migration-mcp-premium-*.jar 2>/dev/null | grep -v plain | head -1)
+          if [ -n "$FREE_JAR" ]; then
+            mv "$FREE_JAR" "jakarta-migration-mcp-${{ steps.version.outputs.version }}.jar"
+          fi
+          if [ -n "$PREMIUM_JAR" ]; then
+            mv "$PREMIUM_JAR" "jakarta-migration-mcp-premium-${{ steps.version.outputs.version }}.jar"
+          fi
           ls -la
 
       - name: Create Release

@@ -26,8 +26,8 @@ jobs:
         run: chmod +x gradlew
         shell: bash
         
-      - name: Run tests
-        run: ./gradlew test --no-daemon
+      - name: Run tests (free + premium)
+        run: ./gradlew test :jakarta-migration-mcp-premium:test --no-daemon
         
       - name: Generate coverage report and verify
         run: ./gradlew jacocoTestReport --no-daemon
