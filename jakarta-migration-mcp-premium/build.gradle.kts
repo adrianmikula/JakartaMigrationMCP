@@ -1,6 +1,6 @@
 plugins {
     java
-    id("org.springframework.boot") version "3.2.0"
+    id("org.springframework.boot") version "3.4.3"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.openrewrite.rewrite") version "7.0.0"
     jacoco
@@ -135,7 +135,7 @@ tasks.withType<Test> {
     }
 }
 
-// JaCoCo Configuration
+// JaCoCo Configuration (aligned with root: exclusions + per-class 50% check)
 jacoco {
     toolVersion = "0.8.11"
     reportsDirectory.set(layout.buildDirectory.dir("reports/jacoco"))
@@ -147,6 +147,113 @@ tasks.jacocoTestReport {
         xml.required.set(true)
         html.required.set(true)
     }
+    classDirectories.setFrom(
+        sourceSets.main.get().output.classesDirs.files.map {
+            fileTree(it) {
+                exclude(
+                    "**/config/**",
+                    "**/entity/**",
+                    "**/dto/**",
+                    "**/*Application.class",
+                    "**/*Config.class",
+                    "**/projectname/**"
+                )
+            }
+        }
+    )
+    sourceDirectories.setFrom(sourceSets.main.get().allSource.srcDirs)
+}
+
+// Per-class 50% coverage check (same exclusions as root)
+tasks.register("jacocoPerClassCoverageCheck") {
+    description = "Verify that each class has at least 50% code coverage"
+    dependsOn(tasks.named("jacocoTestReport"))
+
+    doLast {
+        val xmlReport = tasks.named<org.gradle.testing.jacoco.tasks.JacocoReport>("jacocoTestReport").get().reports.xml.outputLocation.get().asFile
+
+        if (!xmlReport.exists()) {
+            throw GradleException("Coverage XML report not found at: ${xmlReport.absolutePath}")
+        }
+
+        val xml = javax.xml.parsers.DocumentBuilderFactory.newInstance().apply {
+            isNamespaceAware = false
+            setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+            setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false)
+        }.newDocumentBuilder().parse(xmlReport)
+
+        val packageNodes = xml.getElementsByTagName("package")
+        val classesBelowThreshold = mutableListOf<Pair<String, Double>>()
+        val excludedPatterns = listOf(
+            "config", "entity", "dto", "Application", "Config", "projectname",
+            "Exception", "Controller", "PatternMatcher", "\$" // exceptions, MCP transport controllers, matchers, inner classes
+        )
+
+        for (i in 0 until packageNodes.length) {
+            val packageNode = packageNodes.item(i) as org.w3c.dom.Element
+            val packageName = packageNode.getAttribute("name")
+
+            if (excludedPatterns.any { packageName.contains(it, ignoreCase = true) }) {
+                continue
+            }
+
+            val classNodes = packageNode.getElementsByTagName("class")
+            for (j in 0 until classNodes.length) {
+                val classNode = classNodes.item(j) as org.w3c.dom.Element
+                val className = classNode.getAttribute("name")
+                val fullClassName = if (packageName.isNotEmpty()) "$packageName.$className" else className
+
+                if (excludedPatterns.any { className.contains(it, ignoreCase = true) }) {
+                    continue
+                }
+
+                val counters = classNode.getElementsByTagName("counter")
+                var instructionCounter: org.w3c.dom.Element? = null
+
+                for (k in 0 until counters.length) {
+                    val counter = counters.item(k) as org.w3c.dom.Element
+                    if (counter.getAttribute("type") == "INSTRUCTION") {
+                        instructionCounter = counter
+                        break
+                    }
+                }
+
+                val counterElement = instructionCounter
+                if (counterElement != null) {
+                    val missed = counterElement.getAttribute("missed").toIntOrNull() ?: 0
+                    val covered = counterElement.getAttribute("covered").toIntOrNull() ?: 0
+                    val total = missed + covered
+
+                    if (total > 0) {
+                        val coverage = (covered.toDouble() / total) * 100
+                        if (coverage < 50.0) {
+                            classesBelowThreshold.add(Pair(fullClassName, coverage))
+                        }
+                    }
+                }
+            }
+        }
+
+        if (classesBelowThreshold.isNotEmpty()) {
+            println("\n❌ Code Coverage Check Failed!")
+            println("The following classes have coverage below 50%:")
+            println("=".repeat(80))
+            classesBelowThreshold.sortedBy { it.second }.forEach { (className, coverage) ->
+                println("  $className: ${String.format("%.2f", coverage)}%")
+            }
+            println("=".repeat(80))
+            throw GradleException(
+                "Code coverage check failed: ${classesBelowThreshold.size} class(es) have coverage below 50%"
+            )
+        } else {
+            println("\n✅ Code Coverage Check Passed!")
+            println("All classes meet the 50% minimum coverage requirement.")
+        }
+    }
+}
+
+tasks.jacocoTestReport {
+    finalizedBy(tasks.named("jacocoPerClassCoverageCheck"))
 }
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {

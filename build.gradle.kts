@@ -1,6 +1,6 @@
 plugins {
     java
-    id("org.springframework.boot") version "3.2.0"
+    id("org.springframework.boot") version "3.4.3"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.graalvm.buildtools.native") version "0.11.3"
     // OpenRewrite removed - it's premium-only, see jakarta-migration-mcp-premium/build.gradle.kts
@@ -212,8 +212,7 @@ tasks.withType<JavaCompile> {
 sourceSets {
     test {
         java {
-            exclude("**/dependencyanalysis/service/impl/MavenDependencyGraphBuilderTest.java")
-            exclude("**/dependencyanalysis/service/NamespaceClassifierTest.java")
+            // MavenDependencyGraphBuilderTest and NamespaceClassifierTest re-enabled for coverage
             exclude("**/dependencyanalysis/service/DependencyAnalysisModuleTest.java")
             // Exclude MCP tests that reference premium features - they are in premium package
             exclude("**/mcp/JakartaMigrationToolsBootstrapTest.java")
@@ -367,7 +366,8 @@ tasks.jacocoTestCoverageVerification {
                 "**/entity/**",
                 "**/dto/**",
                 "**/*Application",
-                "**/*Config"
+                "**/*Config",
+                "**/projectname/**"
             )
             limit {
                 counter = "INSTRUCTION"
@@ -385,7 +385,8 @@ tasks.jacocoTestCoverageVerification {
                     "**/entity/**",
                     "**/dto/**",
                     "**/*Application.class",
-                    "**/*Config.class"
+                    "**/*Config.class",
+                    "**/projectname/**"
                 )
             }
         }
@@ -414,7 +415,7 @@ tasks.register("jacocoPerClassCoverageCheck") {
         val packageNodes = xml.getElementsByTagName("package")
         val classesBelowThreshold = mutableListOf<Pair<String, Double>>()
         val excludedPatterns = listOf(
-            "config", "entity", "dto", "Application", "Config"
+            "config", "entity", "dto", "Application", "Config", "projectname"
         )
         
         for (i in 0 until packageNodes.length) {

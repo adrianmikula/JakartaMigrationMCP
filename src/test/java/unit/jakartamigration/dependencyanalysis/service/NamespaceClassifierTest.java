@@ -2,6 +2,7 @@ package unit.jakartamigration.dependencyanalysis.service;
 
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Namespace;
+import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

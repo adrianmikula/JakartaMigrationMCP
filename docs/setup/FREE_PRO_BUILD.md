@@ -31,3 +31,18 @@ This document summarizes how the free vs premium split affects **compile**, **te
 
 - **Root (free)** keeps only what the free tools need: dependency analysis, source code scanning (OpenRewrite for parsing), feature flags. No ASM, no refactoring/runtime verification implementations (those are in premium).
 - **Premium** adds OpenRewrite recipes, ASM, and all pro packages (coderefactoring, runtimeverification, api, storage, licensing) and depends on root via `implementation(project(":"))`.
+
+## Verifying MCP API behavior
+
+To run the server and hit the MCP Streamable HTTP API with real JSON-RPC calls:
+
+```powershell
+.\scripts\test-mcp-api-calls.ps1 -StartServer
+```
+
+This builds the JAR if needed, starts the server, calls `tools/list` and `tools/call` for each tool, and checks that:
+
+- **Free tools** (`analyzeJakartaReadiness`, `detectBlockers`, `recommendVersions`) return real analysis (JSON with `status`, not `upgrade_required`).
+- **Pro tools** (`createMigrationPlan`, `analyzeMigrationImpact`, `verifyRuntime`) return `upgrade_required` and `PREMIUM`.
+
+Without `-StartServer`, the script assumes the server is already running at `http://localhost:8080` (e.g. after `.\gradlew.bat bootRun`).

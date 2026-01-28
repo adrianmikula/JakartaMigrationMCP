@@ -1,0 +1,148 @@
+---
+description: Always use mise-en-place commands instead of direct CLI/Gradle/Java calls
+alwaysApply: true
+---
+
+# Use Mise-en-Place Commands
+
+This project uses **mise-en-place** (mise) for tool version management and standardized project commands. **ALWAYS** use mise commands instead of calling CLI tools directly.
+
+## Core Principle
+
+**NEVER** call these commands directly:
+- ❌ `gradle`, `./gradlew`, `gradlew.bat`
+- ❌ `java`, `javac`
+- ❌ `node`, `npm` (for project tasks)
+- ❌ Direct tool invocations
+
+**ALWAYS** use mise instead:
+- ✅ `mise run <task>` for predefined tasks
+- ✅ `mise exec -- <command>` for direct tool invocations
+
+## Common Commands
+
+### Building
+
+```bash
+# ❌ BAD - Don't do this
+./gradlew build
+gradle build
+.\gradlew.bat build
+
+# ✅ GOOD - Use mise tasks
+mise run build          # Build without tests
+mise run build-all      # Build with tests
+```
+
+### Testing
+
+```bash
+# ❌ BAD - Don't do this
+./gradlew test
+gradle test --tests "*Test"
+.\gradlew.bat test
+
+# ✅ GOOD - Use mise tasks
+mise run test           # Run all tests
+mise run test-unit      # Run unit tests only
+mise run test-component # Run component tests only
+mise run test-e2e       # Run E2E tests only
+```
+
+### Running Application
+
+```bash
+# ❌ BAD - Don't do this
+./gradlew bootRun
+gradle bootRun
+java -jar build/libs/app.jar
+
+# ✅ GOOD - Use mise task
+mise run run
+```
+
+### Code Quality & Coverage
+
+```bash
+# ❌ BAD - Don't do this
+./gradlew check
+./gradlew jacocoTestReport
+
+# ✅ GOOD - Use mise tasks
+mise run code-quality   # Run all code quality checks
+mise run coverage       # Generate coverage report
+```
+
+### Cleaning
+
+```bash
+# ❌ BAD - Don't do this
+./gradlew clean
+gradle clean
+
+# ✅ GOOD - Use mise task
+mise run clean
+```
+
+### Docker Services
+
+```bash
+# ❌ BAD - Don't do this
+docker compose up
+docker compose ps
+
+# ✅ GOOD - Use mise tasks
+mise run start-services  # Start Docker services
+mise run stop-services   # Stop Docker services
+mise run docker-ps       # Check service status
+mise run docker-logs     # View logs
+```
+
+### Direct Tool Access (When Needed)
+
+If you need to call a tool directly (e.g., checking versions), use `mise exec`:
+
+```bash
+# ❌ BAD - Don't do this
+java -version
+gradle --version
+node --version
+
+# ✅ GOOD - Use mise exec
+mise exec -- java -version
+mise exec -- gradle --version
+mise exec -- node --version
+```
+
+## Viewing Available Tasks
+
+To see all available mise tasks:
+
+```bash
+mise tasks
+```
+
+## Why Use Mise?
+
+1. **Consistent Tool Versions**: Ensures everyone uses Java 21, Gradle 8.5, Node.js 20.11.0
+2. **Environment Setup**: Automatically configures environment variables
+3. **Standardized Commands**: Project tasks are documented and consistent
+4. **No Global Dependencies**: Tools are project-scoped, not system-wide
+
+## Exception: Scripts Directory
+
+The scripts in `scripts/` directory may use gradlew internally, but that's fine - they're designed to work with or without mise. When **you** need to execute commands, always use mise.
+
+## When Mise Isn't Available
+
+If mise is not installed or available, inform the user that mise should be installed first:
+
+```bash
+# Windows
+winget install jdx.mise
+
+# Linux/Mac
+curl https://mise.run | sh
+```
+
+Then run `mise install` in the project directory before proceeding.

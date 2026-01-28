@@ -169,3 +169,39 @@ run = "cd frontend && npm run storybook"
 description = "Build Storybook for static hosting"
 run = "cd frontend && npm run build-storybook"
 
+# Premium (Pro) Module Tasks
+
+[tasks.build-premium-jar]
+description = "Build premium module JAR (:jakarta-migration-mcp-premium:bootJar)"
+run_windows = "powershell -c \"if (Test-Path 'gradlew.bat') { .\\gradlew.bat :jakarta-migration-mcp-premium:bootJar } elseif (Get-Command gradle -ErrorAction SilentlyContinue) { gradle :jakarta-migration-mcp-premium:bootJar } else { Write-Error 'Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.' }\""
+run = "bash -c 'if [ -f gradlew ]; then ./gradlew :jakarta-migration-mcp-premium:bootJar; elif command -v gradle >/dev/null 2>&1; then gradle :jakarta-migration-mcp-premium:bootJar; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
+
+[tasks.test-premium]
+description = "Run tests for premium module only (:jakarta-migration-mcp-premium:test)"
+run_windows = "powershell -c \"if (Test-Path 'gradlew.bat') { .\\gradlew.bat :jakarta-migration-mcp-premium:test } elseif (Get-Command gradle -ErrorAction SilentlyContinue) { gradle :jakarta-migration-mcp-premium:test } else { Write-Error 'Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.' }\""
+run = "bash -c 'if [ -f gradlew ]; then ./gradlew :jakarta-migration-mcp-premium:test; elif command -v gradle >/dev/null 2>&1; then gradle :jakarta-migration-mcp-premium:test; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
+
+[tasks.build-free-and-premium]
+description = "Build both free and premium JARs (bootJar + :jakarta-migration-mcp-premium:bootJar)"
+run_windows = "powershell -c \"if (Test-Path 'gradlew.bat') { .\\gradlew.bat bootJar :jakarta-migration-mcp-premium:bootJar --no-daemon } elseif (Get-Command gradle -ErrorAction SilentlyContinue) { gradle bootJar :jakarta-migration-mcp-premium:bootJar --no-daemon } else { Write-Error 'Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.' }\""
+run = "bash -c 'if [ -f gradlew ]; then ./gradlew bootJar :jakarta-migration-mcp-premium:bootJar --no-daemon; elif command -v gradle >/dev/null 2>&1; then gradle bootJar :jakarta-migration-mcp-premium:bootJar --no-daemon; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
+
+# Native Image / GraalVM Tasks
+
+[tasks.native-build]
+description = "Build GraalVM native image (nativeCompile -x test)"
+run_windows = "powershell -c \"if (Test-Path 'gradlew.bat') { .\\gradlew.bat nativeCompile -x test } elseif (Get-Command gradle -ErrorAction SilentlyContinue) { gradle nativeCompile -x test } else { Write-Error 'Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.' }\""
+run = "bash -c 'if [ -f gradlew ]; then ./gradlew nativeCompile -x test; elif command -v gradle >/dev/null 2>&1; then gradle nativeCompile -x test; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
+
+[tasks.native-dev]
+description = "Build and run native image via Gradle nativeDev task"
+run_windows = "powershell -c \"if (Test-Path 'gradlew.bat') { .\\gradlew.bat nativeDev } elseif (Get-Command gradle -ErrorAction SilentlyContinue) { gradle nativeDev } else { Write-Error 'Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.' }\""
+run = "bash -c 'if [ -f gradlew ]; then ./gradlew nativeDev; elif command -v gradle >/dev/null 2>&1; then gradle nativeDev; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
+
+# Release / Packaging Tasks
+
+[tasks.build-release]
+description = "Build release JAR, checksums, and prepare npm package (dry run)"
+run_windows = "powershell -File scripts/build-release.ps1"
+run = "bash scripts/build-release.sh"
+

@@ -262,6 +262,8 @@ class McpServerStreamableHttpIntegrationTest {
             String text = result.get("content").get(0).get("text").asText();
             assertThat(text).isNotNull();
             assertThat(text).contains("\"status\"");
+            // Free build: analyzeJakartaReadiness returns real analysis (success or error), not upgrade_required
+            assertThat(text).doesNotContain("\"status\": \"upgrade_required\"");
             
         } finally {
             deleteTestProject(testProject);
@@ -299,6 +301,8 @@ class McpServerStreamableHttpIntegrationTest {
             String text = result.get("content").get(0).get("text").asText();
             assertThat(text).isNotNull();
             assertThat(text).contains("\"status\"");
+            // Free build: recommendVersions returns real analysis (success or error), not upgrade_required
+            assertThat(text).doesNotContain("\"status\": \"upgrade_required\"");
             
         } finally {
             deleteTestProject(testProject);
@@ -343,6 +347,65 @@ class McpServerStreamableHttpIntegrationTest {
         } finally {
             deleteTestProject(testProject);
         }
+    }
+
+    @Test
+    void testAnalyzeMigrationImpactTool() throws Exception {
+        Path testProject = createTestProject();
+        try {
+            Map<String, Object> request = Map.of(
+                "jsonrpc", "2.0",
+                "id", requestId++,
+                "method", "tools/call",
+                "params", Map.of(
+                    "name", "analyzeMigrationImpact",
+                    "arguments", Map.of("projectPath", testProject.toString())
+                )
+            );
+            String response = mockMvc.perform(post("/mcp/streamable-http")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+            JsonNode jsonResponse = objectMapper.readTree(response);
+            assertThat(jsonResponse.has("result")).isTrue();
+            String text = jsonResponse.get("result").get("content").get(0).get("text").asText();
+            assertThat(text).contains("\"status\": \"upgrade_required\"");
+            assertThat(text).contains("PREMIUM");
+            assertThat(text).contains("analyzeMigrationImpact");
+        } finally {
+            deleteTestProject(testProject);
+        }
+    }
+
+    @Test
+    void testVerifyRuntimeTool() throws Exception {
+        // Use a dummy JAR path; free build returns upgrade_required without executing
+        String jarPath = System.getProperty("java.io.tmpdir") + "/nonexistent.jar";
+        Map<String, Object> request = Map.of(
+            "jsonrpc", "2.0",
+            "id", requestId++,
+            "method", "tools/call",
+            "params", Map.of(
+                "name", "verifyRuntime",
+                "arguments", Map.of("jarPath", jarPath)
+            )
+        );
+        String response = mockMvc.perform(post("/mcp/streamable-http")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        JsonNode jsonResponse = objectMapper.readTree(response);
+        assertThat(jsonResponse.has("result")).isTrue();
+        String text = jsonResponse.get("result").get("content").get(0).get("text").asText();
+        assertThat(text).contains("\"status\": \"upgrade_required\"");
+        assertThat(text).contains("PREMIUM");
+        assertThat(text).contains("verifyRuntime");
     }
 
     @Test
