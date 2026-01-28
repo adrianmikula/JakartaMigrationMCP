@@ -212,7 +212,7 @@ class StripeWebhookControllerTest {
 
     @Test
     @DisplayName("Should handle invalid JSON payload")
-    void shouldHandleInvalidJsonPayload() {
+    void shouldHandleInvalidJsonPayload() throws Exception {
         // Given
         String payload = "invalid json";
         String signature = createValidSignature(payload);

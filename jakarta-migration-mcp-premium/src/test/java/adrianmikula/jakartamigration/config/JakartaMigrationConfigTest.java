@@ -6,12 +6,15 @@ import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphB
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
 import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.context.annotation.Bean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -19,14 +22,24 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Integration tests for JakartaMigrationConfig.
  * Verifies that all beans are created correctly.
  */
-@SpringBootTest(classes = JakartaMigrationConfig.class)
+@SpringBootTest(classes = {JakartaMigrationConfig.class, JakartaMigrationConfigTest.TestBeans.class})
 @TestPropertySource(properties = {
     "jakarta.migration.apify.enabled=false",
-    "jakarta.migration.stripe.enabled=false",
-    "jakarta.migration.storage.file.enabled=false"
+    "jakarta.migration.stripe.enabled=true",
+    "jakarta.migration.storage.file.enabled=false",
+    // Prevent @ConditionalOnProperty(name="jakarta.migration.stripe.webhook-secret") beans from loading
+    "jakarta.migration.stripe.webhook-secret=false"
 })
 @DisplayName("JakartaMigrationConfig Integration Tests")
 class JakartaMigrationConfigTest {
+
+    @TestConfiguration
+    static class TestBeans {
+        @Bean
+        ObjectMapper objectMapper() {
+            return new ObjectMapper();
+        }
+    }
 
     @Autowired private DependencyGraphBuilder dependencyGraphBuilder;
     @Autowired private NamespaceClassifier namespaceClassifier;

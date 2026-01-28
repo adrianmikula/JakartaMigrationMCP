@@ -621,20 +621,26 @@ public class JakartaMigrationTools {
     private String createUpgradeRequiredResponse(FeatureFlag flag, String message) {
         FeatureFlagsService.UpgradeInfo upgradeInfo = featureFlags.getUpgradeInfo(flag);
         FeatureFlagsProperties.LicenseTier currentTier = featureFlags.getCurrentTier();
-        
+        // Defensive: use flag fields when upgradeInfo is null (e.g. in tests with mocked FeatureFlagsService)
+        String featureName = upgradeInfo != null ? upgradeInfo.getFeatureName() : flag.getName();
+        String featureDescription = upgradeInfo != null ? upgradeInfo.getFeatureDescription() : flag.getDescription();
+        FeatureFlagsProperties.LicenseTier requiredTier = upgradeInfo != null ? upgradeInfo.getRequiredTier() : flag.getRequiredTier();
+        String paymentLink = upgradeInfo != null ? upgradeInfo.getPaymentLink() : null;
+        String upgradeMessage = upgradeInfo != null ? upgradeInfo.getMessage() : message;
+
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         json.append("  \"status\": \"upgrade_required\",\n");
         json.append("  \"message\": \"").append(escapeJson(message)).append("\",\n");
-        json.append("  \"featureName\": \"").append(escapeJson(upgradeInfo.getFeatureName())).append("\",\n");
-        json.append("  \"featureDescription\": \"").append(escapeJson(upgradeInfo.getFeatureDescription())).append("\",\n");
+        json.append("  \"featureName\": \"").append(escapeJson(featureName)).append("\",\n");
+        json.append("  \"featureDescription\": \"").append(escapeJson(featureDescription)).append("\",\n");
         json.append("  \"currentTier\": \"").append(currentTier).append("\",\n");
-        json.append("  \"requiredTier\": \"").append(upgradeInfo.getRequiredTier()).append("\",\n");
-        
-        if (upgradeInfo.getPaymentLink() != null && !upgradeInfo.getPaymentLink().isBlank()) {
-            json.append("  \"paymentLink\": \"").append(escapeJson(upgradeInfo.getPaymentLink())).append("\",\n");
+        json.append("  \"requiredTier\": \"").append(requiredTier).append("\",\n");
+
+        if (paymentLink != null && !paymentLink.isBlank()) {
+            json.append("  \"paymentLink\": \"").append(escapeJson(paymentLink)).append("\",\n");
         }
-        
+
         // Get all available payment links
         if (paymentLinkService != null) {
             java.util.Map<String, String> allPaymentLinks = paymentLinkService.getAllPaymentLinks();
@@ -652,10 +658,10 @@ public class JakartaMigrationTools {
                 json.append("\n  },\n");
             }
         }
-        
-        json.append("  \"upgradeMessage\": \"").append(escapeJson(upgradeInfo.getMessage())).append("\"\n");
+
+        json.append("  \"upgradeMessage\": \"").append(escapeJson(upgradeMessage)).append("\"\n");
         json.append("}");
-        
+
         return json.toString();
     }
     

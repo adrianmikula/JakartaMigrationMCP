@@ -60,10 +60,11 @@ class StripeEmailValidationTest {
         lenient().when(properties.getProductIdEnterprise()).thenReturn("prod_enterprise");
         lenient().when(properties.getPriceIdToTier()).thenReturn(new HashMap<>());
 
-        // Setup WebClient mock chain
+        // Setup WebClient mock chain (code uses .uri(Function<UriBuilder, URI>), not .uri(String))
         lenient().when(stripeWebClient.get()).thenReturn(requestHeadersUriSpec);
         lenient().when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
         lenient().when(requestHeadersUriSpec.uri(any(java.net.URI.class))).thenReturn(requestHeadersSpec);
+        lenient().when(requestHeadersUriSpec.uri(any(java.util.function.Function.class))).thenReturn(requestHeadersSpec);
         lenient().when(requestHeadersSpec.header(anyString(), anyString())).thenReturn(requestHeadersSpec);
         lenient().when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
 
@@ -140,9 +141,9 @@ class StripeEmailValidationTest {
         // When - first call
         FeatureFlagsProperties.LicenseTier firstResult = service.validateLicenseByEmail(TEST_EMAIL).block();
 
-        // Then - should validate via API
+        // Then - should validate via API (code uses .uri(Function), not .uri(String))
         assertThat(firstResult).isNotNull();
-        verify(requestHeadersUriSpec, atLeastOnce()).uri(anyString());
+        verify(requestHeadersUriSpec, atLeastOnce()).uri(any(java.util.function.Function.class));
 
         // When - second call (should use cache)
         reset(requestHeadersUriSpec);

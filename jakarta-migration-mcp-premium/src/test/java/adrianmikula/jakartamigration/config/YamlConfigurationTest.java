@@ -23,7 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
     properties = {
         "jakarta.migration.stripe.enabled=false",
         "jakarta.migration.apify.enabled=false",
-        "jakarta.migration.storage.file.enabled=false"
+        "jakarta.migration.storage.file.enabled=false",
+        "spring.main.allow-bean-definition-overriding=true"
     }
 )
 class YamlConfigurationTest {
@@ -84,7 +85,8 @@ class YamlConfigurationTest {
         properties = {
             "jakarta.migration.stripe.enabled=false",
             "jakarta.migration.apify.enabled=false",
-            "jakarta.migration.storage.file.enabled=false"
+            "jakarta.migration.storage.file.enabled=false",
+            "spring.main.allow-bean-definition-overriding=true"
         }
     )
     @ActiveProfiles("mcp-stdio")
@@ -122,7 +124,8 @@ class YamlConfigurationTest {
         properties = {
             "jakarta.migration.stripe.enabled=false",
             "jakarta.migration.apify.enabled=false",
-            "jakarta.migration.storage.file.enabled=false"
+            "jakarta.migration.storage.file.enabled=false",
+            "spring.main.allow-bean-definition-overriding=true"
         }
     )
     @ActiveProfiles("mcp-sse")
@@ -159,7 +162,8 @@ class YamlConfigurationTest {
     @SpringBootTest(
         classes = adrianmikula.projectname.ProjectNameApplication.class,
         properties = {
-            "jakarta.migration.storage.file.enabled=false"
+            "jakarta.migration.storage.file.enabled=false",
+            "spring.main.allow-bean-definition-overriding=true"
         }
     )
     @TestPropertySource(properties = {
@@ -229,7 +233,8 @@ class YamlConfigurationTest {
         properties = {
             "jakarta.migration.stripe.enabled=false",
             "jakarta.migration.apify.enabled=false",
-            "jakarta.migration.storage.file.enabled=false"
+            "jakarta.migration.storage.file.enabled=false",
+            "spring.main.allow-bean-definition-overriding=true"
         }
     )
     @TestPropertySource(properties = {
@@ -260,7 +265,8 @@ class YamlConfigurationTest {
         properties = {
             "jakarta.migration.stripe.enabled=false",
             "jakarta.migration.apify.enabled=false",
-            "jakarta.migration.storage.file.enabled=false"
+            "jakarta.migration.storage.file.enabled=false",
+            "spring.main.allow-bean-definition-overriding=true"
         }
     )
     @TestPropertySource(properties = {
@@ -295,7 +301,8 @@ class YamlConfigurationTest {
         properties = {
             "jakarta.migration.stripe.enabled=false",
             "jakarta.migration.apify.enabled=false",
-            "jakarta.migration.storage.file.enabled=false"
+            "jakarta.migration.storage.file.enabled=false",
+            "spring.main.allow-bean-definition-overriding=true"
         }
     )
     @TestPropertySource(properties = {
@@ -323,7 +330,8 @@ class YamlConfigurationTest {
         properties = {
             "jakarta.migration.stripe.enabled=false",
             "jakarta.migration.apify.enabled=false",
-            "jakarta.migration.storage.file.enabled=false"
+            "jakarta.migration.storage.file.enabled=false",
+            "spring.main.allow-bean-definition-overriding=true"
         }
     )
     @TestPropertySource(properties = {

@@ -75,43 +75,39 @@ public class PlatformBasedLicensingPostProcessor implements BeanFactoryPostProce
         log.info("Platform-based licensing auto-configuration (running before bean definition phase):");
         log.info("  Detected platform: {}", platformName);
         
-        // Check if properties are explicitly set via environment variables
+        // Check if properties are explicitly set via environment variables (or system properties, e.g. for tests)
         String apifyEnabledEnv = System.getenv("APIFY_VALIDATION_ENABLED");
+        if (apifyEnabledEnv == null || apifyEnabledEnv.isBlank()) {
+            apifyEnabledEnv = System.getProperty("APIFY_VALIDATION_ENABLED");
+        }
         String stripeEnabledEnv = System.getenv("STRIPE_VALIDATION_ENABLED");
+        if (stripeEnabledEnv == null || stripeEnabledEnv.isBlank()) {
+            stripeEnabledEnv = System.getProperty("STRIPE_VALIDATION_ENABLED");
+        }
+        
+        // If user explicitly set either variable, do not add platform overrides (respect explicit config)
+        boolean explicitApify = apifyEnabledEnv != null && !apifyEnabledEnv.isBlank();
+        boolean explicitStripe = stripeEnabledEnv != null && !stripeEnabledEnv.isBlank();
+        if (explicitApify || explicitStripe) {
+            log.info("  Skipping platform overrides (explicit APIFY_VALIDATION_ENABLED or STRIPE_VALIDATION_ENABLED set)");
+            return;
+        }
         
         // Build property overrides
         Map<String, Object> propertyOverrides = new HashMap<>();
         
         if (isApify) {
-            // Apify platform: Enable Apify, disable Stripe (unless explicitly set)
-            if (apifyEnabledEnv == null || apifyEnabledEnv.isBlank()) {
-                propertyOverrides.put("jakarta.migration.apify.enabled", "true");
-                log.info("  Auto-enabled Apify licensing (Apify platform detected)");
-            } else {
-                log.info("  Apify licensing configured via APIFY_VALIDATION_ENABLED={}", apifyEnabledEnv);
-            }
-            
-            if (stripeEnabledEnv == null || stripeEnabledEnv.isBlank()) {
-                propertyOverrides.put("jakarta.migration.stripe.enabled", "false");
-                log.info("  Auto-disabled Stripe licensing (Apify platform detected)");
-            } else {
-                log.info("  Stripe licensing configured via STRIPE_VALIDATION_ENABLED={}", stripeEnabledEnv);
-            }
+            // Apify platform: Enable Apify, disable Stripe
+            propertyOverrides.put("jakarta.migration.apify.enabled", "true");
+            propertyOverrides.put("jakarta.migration.stripe.enabled", "false");
+            log.info("  Auto-enabled Apify licensing (Apify platform detected)");
+            log.info("  Auto-disabled Stripe licensing (Apify platform detected)");
         } else {
-            // Local/npm deployment: Enable Stripe, disable Apify (unless explicitly set)
-            if (stripeEnabledEnv == null || stripeEnabledEnv.isBlank()) {
-                propertyOverrides.put("jakarta.migration.stripe.enabled", "true");
-                log.info("  Auto-enabled Stripe licensing (local/npm deployment detected)");
-            } else {
-                log.info("  Stripe licensing configured via STRIPE_VALIDATION_ENABLED={}", stripeEnabledEnv);
-            }
-            
-            if (apifyEnabledEnv == null || apifyEnabledEnv.isBlank()) {
-                propertyOverrides.put("jakarta.migration.apify.enabled", "false");
-                log.info("  Auto-disabled Apify licensing (local deployment detected)");
-            } else {
-                log.info("  Apify licensing configured via APIFY_VALIDATION_ENABLED={}", apifyEnabledEnv);
-            }
+            // Local/npm deployment: Enable Stripe, disable Apify
+            propertyOverrides.put("jakarta.migration.stripe.enabled", "true");
+            propertyOverrides.put("jakarta.migration.apify.enabled", "false");
+            log.info("  Auto-enabled Stripe licensing (local/npm deployment detected)");
+            log.info("  Auto-disabled Apify licensing (local deployment detected)");
         }
         
         // Apply property overrides to environment
@@ -169,11 +165,15 @@ public class PlatformBasedLicensingPostProcessor implements BeanFactoryPostProce
      * Check if running on Apify platform.
      * 
      * Apify platform sets the ACTOR_ID environment variable.
+     * System property ACTOR_ID is checked as fallback (e.g. for tests).
      * 
      * @return true if ACTOR_ID is set and not blank, false otherwise
      */
     private boolean isApifyPlatform() {
         String actorId = System.getenv("ACTOR_ID");
+        if (actorId == null || actorId.isBlank()) {
+            actorId = System.getProperty("ACTOR_ID");
+        }
         return actorId != null && !actorId.isBlank();
     }
 }

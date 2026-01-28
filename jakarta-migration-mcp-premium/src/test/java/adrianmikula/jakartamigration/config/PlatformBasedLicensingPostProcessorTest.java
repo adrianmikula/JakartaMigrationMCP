@@ -6,7 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -110,9 +110,9 @@ class PlatformBasedLicensingPostProcessorTest {
             mockEnv.setProperty("jakarta.migration.apify.enabled", "false"); // Default
             mockEnv.setProperty("jakarta.migration.stripe.enabled", "true"); // Default
             
-            ConfigurableApplicationContext mockContext = mock(ConfigurableApplicationContext.class);
-            when(mockContext.getEnvironment()).thenReturn(mockEnv);
-            ConfigurableListableBeanFactory beanFactory = (ConfigurableListableBeanFactory) mockContext;
+            ConfigurableListableBeanFactory beanFactory = mock(ConfigurableListableBeanFactory.class);
+            when(beanFactory.containsBean("environment")).thenReturn(true);
+            when(beanFactory.getBean("environment", ConfigurableEnvironment.class)).thenReturn(mockEnv);
             
             // When
             processor.postProcessBeanFactory(beanFactory);
@@ -137,9 +137,9 @@ class PlatformBasedLicensingPostProcessorTest {
             mockEnv.setProperty("jakarta.migration.apify.enabled", "false");
             mockEnv.setProperty("jakarta.migration.stripe.enabled", "false");
             
-            ConfigurableApplicationContext mockContext = mock(ConfigurableApplicationContext.class);
-            when(mockContext.getEnvironment()).thenReturn(mockEnv);
-            ConfigurableListableBeanFactory beanFactory = (ConfigurableListableBeanFactory) mockContext;
+            ConfigurableListableBeanFactory beanFactory = mock(ConfigurableListableBeanFactory.class);
+            when(beanFactory.containsBean("environment")).thenReturn(true);
+            when(beanFactory.getBean("environment", ConfigurableEnvironment.class)).thenReturn(mockEnv);
             
             // When
             processor.postProcessBeanFactory(beanFactory);
@@ -160,9 +160,9 @@ class PlatformBasedLicensingPostProcessorTest {
             System.setProperty("APIFY_VALIDATION_ENABLED", "false"); // Explicitly disabled
             
             MockEnvironment mockEnv = new MockEnvironment();
-            ConfigurableApplicationContext mockContext = mock(ConfigurableApplicationContext.class);
-            when(mockContext.getEnvironment()).thenReturn(mockEnv);
-            ConfigurableListableBeanFactory beanFactory = (ConfigurableListableBeanFactory) mockContext;
+            ConfigurableListableBeanFactory beanFactory = mock(ConfigurableListableBeanFactory.class);
+            when(beanFactory.containsBean("environment")).thenReturn(true);
+            when(beanFactory.getBean("environment", ConfigurableEnvironment.class)).thenReturn(mockEnv);
             
             // When
             processor.postProcessBeanFactory(beanFactory);
@@ -180,9 +180,9 @@ class PlatformBasedLicensingPostProcessorTest {
             System.setProperty("STRIPE_VALIDATION_ENABLED", "false"); // Explicitly disabled
             
             MockEnvironment mockEnv = new MockEnvironment();
-            ConfigurableApplicationContext mockContext = mock(ConfigurableApplicationContext.class);
-            when(mockContext.getEnvironment()).thenReturn(mockEnv);
-            ConfigurableListableBeanFactory beanFactory = (ConfigurableListableBeanFactory) mockContext;
+            ConfigurableListableBeanFactory beanFactory = mock(ConfigurableListableBeanFactory.class);
+            when(beanFactory.containsBean("environment")).thenReturn(true);
+            when(beanFactory.getBean("environment", ConfigurableEnvironment.class)).thenReturn(mockEnv);
             
             // When
             processor.postProcessBeanFactory(beanFactory);

@@ -8,6 +8,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphB
 import adrianmikula.jakartamigration.mcp.JakartaMigrationTools;
 import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
 import adrianmikula.jakartamigration.config.FeatureFlagsService;
+import adrianmikula.jakartamigration.config.FeatureFlagsProperties;
 import adrianmikula.jakartamigration.config.ApifyBillingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -209,6 +210,7 @@ class JakartaMigrationToolsPerformanceTest {
 
         when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(report);
         when(migrationPlanner.createPlan(any(), any(DependencyAnalysisReport.class))).thenReturn(largePlan);
+        when(featureFlagsService.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)).thenReturn(true);
 
         // When
         long startTime = System.currentTimeMillis();
