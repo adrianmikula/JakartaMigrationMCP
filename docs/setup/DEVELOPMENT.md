@@ -258,7 +258,7 @@ src/
 ./gradlew test
 
 # Unit tests only
-./gradlew test --tests "*Test" --exclude-tests "*ComponentTest" --exclude-tests "*E2ETest"
+./gradlew test --tests "unit.*" --tests "integration.*" --tests "adrianmikula.projectname.unit.*"
 
 # Component tests
 ./gradlew test --tests "adrianmikula.jakartamigration.component.*"

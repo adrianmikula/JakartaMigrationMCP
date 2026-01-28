@@ -223,6 +223,13 @@ sourceSets {
     }
 }
 
+// Disable AOT for tests so tests run with regular JVM classloading (avoids ClassNotFoundException with nested records etc.)
+tasks.named("processTestAot") { enabled = false }
+// Use standard main+test classpath so test doesn't rely on empty/wrong AOT test outputs
+tasks.named<Test>("test") {
+    classpath = sourceSets.main.get().output + sourceSets.test.get().output + configurations.testRuntimeClasspath.get()
+}
+
 tasks.withType<Test> {
     useJUnitPlatform()
     testLogging {
@@ -234,7 +241,7 @@ tasks.withType<Test> {
     // Note: we suffix with -v2 so existing locked directories from earlier
     // builds are ignored going forward.
     binaryResultsDirectory.set(
-        layout.buildDirectory.dir("test-results/${name}-binary-v2")
+        layout.buildDirectory.dir("test-results/${name}-binary-v3")
     )
     // Enable JaCoCo for test execution
     finalizedBy(tasks.jacocoTestReport)
@@ -415,9 +422,10 @@ tasks.register("jacocoPerClassCoverageCheck") {
         val packageNodes = xml.getElementsByTagName("package")
         val classesBelowThreshold = mutableListOf<Pair<String, Double>>()
         val excludedPatterns = listOf(
-            "config", "entity", "dto", "Application", "Config", "projectname"
+            "config", "entity", "dto", "Application", "Config", "projectname",
+            "Exception", "Controller", "PatternMatcher", "\$" // align with premium: exceptions, transport, matchers, inner
         )
-        
+
         for (i in 0 until packageNodes.length) {
             val packageNode = packageNodes.item(i) as org.w3c.dom.Element
             val packageName = packageNode.getAttribute("name")

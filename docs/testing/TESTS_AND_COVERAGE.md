@@ -88,7 +88,7 @@ mise run test-e2e
 .\gradlew.bat test
 
 # Run only unit tests
-.\gradlew.bat test --tests "*Test" --exclude-tests "*ComponentTest" --exclude-tests "*E2ETest"
+.\gradlew.bat test --tests "unit.*" --tests "integration.*" --tests "adrianmikula.projectname.unit.*"
 
 # Run only component tests
 .\gradlew.bat test --tests "adrianmikula.jakartamigration.component.*"

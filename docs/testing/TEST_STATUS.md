@@ -101,7 +101,7 @@ mise run test
 ### Run Unit Tests Only
 
 ```powershell
-.\gradlew.bat test --tests "*Test" --exclude-tests "*ComponentTest"
+.\gradlew.bat test --tests "unit.*" --tests "integration.*" --tests "adrianmikula.projectname.unit.*"
 
 # Or using mise:
 mise run test-unit

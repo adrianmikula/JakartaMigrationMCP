@@ -59,32 +59,32 @@ run = "bash scripts/stop-services.sh"
 [tasks.build]
 description = "Build the project (without tests)"
 run_windows = "powershell -File scripts/gradle-build.ps1"
-run = "bash -c 'if [ -f gradlew ]; then ./gradlew build -x test; else gradle build -x test; fi'"
+run = "bash -c 'if [ -f gradlew ]; then ./gradlew build -x test; elif command -v gradle >/dev/null 2>&1; then gradle build -x test; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
 
 [tasks.build-all]
 description = "Build the project with tests"
 run_windows = "powershell -File scripts/gradle-build.ps1 -WithTests"
-run = "bash -c 'if [ -f gradlew ]; then ./gradlew build; else gradle build; fi'"
+run = "bash -c 'if [ -f gradlew ]; then ./gradlew build; elif command -v gradle >/dev/null 2>&1; then gradle build; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
 
 [tasks.test]
 description = "Run all tests (automatically generates code coverage report)"
 run_windows = "powershell -File scripts/gradle-test.ps1"
-run = "bash -c 'if [ -f gradlew ]; then ./gradlew test; else gradle test; fi'"
+run = "bash -c 'if [ -f gradlew ]; then ./gradlew test; elif command -v gradle >/dev/null 2>&1; then gradle test; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
 
 [tasks.test-unit]
 description = "Run only unit tests"
 run_windows = "powershell -File scripts/gradle-test.ps1 -UnitOnly"
-run = "bash -c 'if [ -f gradlew ]; then ./gradlew test --tests \"*Test\" --exclude-tests \"*ComponentTest\"; else gradle test --tests \"*Test\" --exclude-tests \"*ComponentTest\"; fi'"
+run = "bash -c 'if [ -f gradlew ]; then ./gradlew test --tests \"unit.*\" --tests \"integration.*\" --tests \"adrianmikula.projectname.unit.*\"; elif command -v gradle >/dev/null 2>&1; then gradle test --tests \"unit.*\" --tests \"integration.*\" --tests \"adrianmikula.projectname.unit.*\"; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
 
 [tasks.test-component]
 description = "Run only component tests (requires Docker)"
 run_windows = "powershell -File scripts/gradle-test.ps1 -ComponentOnly"
-run = "bash -c 'if [ -f gradlew ]; then ./gradlew test --tests \"adrianmikula.jakartamigration.component.*\"; else gradle test --tests \"adrianmikula.jakartamigration.component.*\"; fi'"
+run = "bash -c 'if [ -f gradlew ]; then ./gradlew test --tests \"component.*\" --tests \"adrianmikula.projectname.component.*\"; elif command -v gradle >/dev/null 2>&1; then gradle test --tests \"component.*\" --tests \"adrianmikula.projectname.component.*\"; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
 
 [tasks.test-e2e]
 description = "Run only end-to-end tests (requires Docker and database)"
 run_windows = "powershell -File scripts/gradle-test.ps1 -E2EOnly"
-run = "bash -c 'if [ -f gradlew ]; then ./gradlew test --tests \"adrianmikula.jakartamigration.e2e.*\"; else gradle test --tests \"adrianmikula.jakartamigration.e2e.*\"; fi'"
+run = "bash -c 'if [ -f gradlew ]; then ./gradlew test --tests \"e2e.*\" --tests \"adrianmikula.projectname.e2e.*\"; elif command -v gradle >/dev/null 2>&1; then gradle test --tests \"e2e.*\" --tests \"adrianmikula.projectname.e2e.*\"; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
 
 [tasks.coverage]
 description = "Generate code coverage report and open in browser (or print summary)"
@@ -104,12 +104,12 @@ run = "bash -c 'rm -rf build/reports/jacoco build/jacoco && echo \"Coverage repo
 [tasks.run]
 description = "Run the application"
 run_windows = "powershell -File scripts/gradle-run.ps1"
-run = "bash -c 'if [ -f gradlew ]; then ./gradlew bootRun; else gradle bootRun; fi'"
+run = "bash -c 'if [ -f gradlew ]; then ./gradlew bootRun; elif command -v gradle >/dev/null 2>&1; then gradle bootRun; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
 
 [tasks.clean]
 description = "Clean build artifacts"
 run_windows = "powershell -File scripts/gradle-clean.ps1"
-run = "bash -c 'if [ -f gradlew ]; then ./gradlew clean; else gradle clean; fi'"
+run = "bash -c 'if [ -f gradlew ]; then ./gradlew clean; elif command -v gradle >/dev/null 2>&1; then gradle clean; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
 
 [tasks.code-quality]
 description = "Run all code quality checks and verify (fails on high-priority bugs)"
@@ -173,29 +173,29 @@ run = "cd frontend && npm run build-storybook"
 
 [tasks.build-premium-jar]
 description = "Build premium module JAR (:jakarta-migration-mcp-premium:bootJar)"
-run_windows = "powershell -c \"if (Test-Path 'gradlew.bat') { .\\gradlew.bat :jakarta-migration-mcp-premium:bootJar } elseif (Get-Command gradle -ErrorAction SilentlyContinue) { gradle :jakarta-migration-mcp-premium:bootJar } else { Write-Error 'Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.' }\""
+run_windows = "powershell -File scripts/gradle-premium-jar.ps1"
 run = "bash -c 'if [ -f gradlew ]; then ./gradlew :jakarta-migration-mcp-premium:bootJar; elif command -v gradle >/dev/null 2>&1; then gradle :jakarta-migration-mcp-premium:bootJar; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
 
 [tasks.test-premium]
 description = "Run tests for premium module only (:jakarta-migration-mcp-premium:test)"
-run_windows = "powershell -c \"if (Test-Path 'gradlew.bat') { .\\gradlew.bat :jakarta-migration-mcp-premium:test } elseif (Get-Command gradle -ErrorAction SilentlyContinue) { gradle :jakarta-migration-mcp-premium:test } else { Write-Error 'Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.' }\""
+run_windows = "powershell -File scripts/gradle-premium-test.ps1"
 run = "bash -c 'if [ -f gradlew ]; then ./gradlew :jakarta-migration-mcp-premium:test; elif command -v gradle >/dev/null 2>&1; then gradle :jakarta-migration-mcp-premium:test; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
 
 [tasks.build-free-and-premium]
 description = "Build both free and premium JARs (bootJar + :jakarta-migration-mcp-premium:bootJar)"
-run_windows = "powershell -c \"if (Test-Path 'gradlew.bat') { .\\gradlew.bat bootJar :jakarta-migration-mcp-premium:bootJar --no-daemon } elseif (Get-Command gradle -ErrorAction SilentlyContinue) { gradle bootJar :jakarta-migration-mcp-premium:bootJar --no-daemon } else { Write-Error 'Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.' }\""
+run_windows = "powershell -File scripts/gradle-build-free-and-premium.ps1"
 run = "bash -c 'if [ -f gradlew ]; then ./gradlew bootJar :jakarta-migration-mcp-premium:bootJar --no-daemon; elif command -v gradle >/dev/null 2>&1; then gradle bootJar :jakarta-migration-mcp-premium:bootJar --no-daemon; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
 
 # Native Image / GraalVM Tasks
 
 [tasks.native-build]
 description = "Build GraalVM native image (nativeCompile -x test)"
-run_windows = "powershell -c \"if (Test-Path 'gradlew.bat') { .\\gradlew.bat nativeCompile -x test } elseif (Get-Command gradle -ErrorAction SilentlyContinue) { gradle nativeCompile -x test } else { Write-Error 'Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.' }\""
+run_windows = "powershell -File scripts/gradle-native-build.ps1"
 run = "bash -c 'if [ -f gradlew ]; then ./gradlew nativeCompile -x test; elif command -v gradle >/dev/null 2>&1; then gradle nativeCompile -x test; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
 
 [tasks.native-dev]
 description = "Build and run native image via Gradle nativeDev task"
-run_windows = "powershell -c \"if (Test-Path 'gradlew.bat') { .\\gradlew.bat nativeDev } elseif (Get-Command gradle -ErrorAction SilentlyContinue) { gradle nativeDev } else { Write-Error 'Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.' }\""
+run_windows = "powershell -File scripts/gradle-native-dev.ps1"
 run = "bash -c 'if [ -f gradlew ]; then ./gradlew nativeDev; elif command -v gradle >/dev/null 2>&1; then gradle nativeDev; else echo \"Gradle wrapper or gradle not found. Run mise install or initialize the wrapper first.\" >&2; exit 1; fi'"
 
 # Release / Packaging Tasks

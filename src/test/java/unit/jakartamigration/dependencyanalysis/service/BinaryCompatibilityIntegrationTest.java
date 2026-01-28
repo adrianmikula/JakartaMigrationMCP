@@ -51,8 +51,8 @@ class BinaryCompatibilityIntegrationTest {
         Artifact javaxArtifact = new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", false);
         graph.addNode(javaxArtifact);
         
-        when(dependencyGraphBuilder.buildFromProject(any())).thenReturn(graph);
-        // FIX: Stub classify() to return Namespace.JAVAX so the binary compatibility check runs
+        // buildFromProject not called when detectBlockers(graph) is used; use lenient to avoid UnnecessaryStubbingException
+        lenient().when(dependencyGraphBuilder.buildFromProject(any())).thenReturn(graph);
         when(namespaceClassifier.classify(any(Artifact.class))).thenReturn(Namespace.JAVAX);
         when(jakartaMappingService.hasMapping(anyString(), anyString())).thenReturn(true);
         when(jakartaMappingService.isJakartaCompatible(anyString(), anyString(), anyString())).thenReturn(false);
@@ -73,10 +73,7 @@ class BinaryCompatibilityIntegrationTest {
         Artifact javaxArtifact = new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", false);
         graph.addNode(javaxArtifact);
         
-        when(dependencyGraphBuilder.buildFromProject(any())).thenReturn(graph);
-        // FIX: Stub classify() to return Namespace.JAVAX so the binary compatibility check runs
-        // Without this stub, Mockito returns null for unstubbed methods, making 
-        // namespace == Namespace.JAVAX always false, so checkBinaryCompatibility() never runs
+        lenient().when(dependencyGraphBuilder.buildFromProject(any())).thenReturn(graph);
         when(namespaceClassifier.classify(any(Artifact.class))).thenReturn(Namespace.JAVAX);
         when(jakartaMappingService.hasMapping(anyString(), anyString())).thenReturn(true);
         when(jakartaMappingService.isJakartaCompatible(anyString(), anyString(), anyString())).thenReturn(false);
