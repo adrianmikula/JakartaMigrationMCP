@@ -299,6 +299,8 @@ For local development, use STDIO transport which works with **Cursor, Claude Cod
 - **Node.js 18+** - [Download from nodejs.org](https://nodejs.org/)
   - Verify installation: `node --version`
   - Should show v18.0.0 or higher
+- **GraalVM (Optional)** - For native image builds and faster startup times
+  - See [Development Setup Guide](docs/setup/DEVELOPMENT.md#graalvm-native-image-setup-optional) for installation and Cursor configuration
 
 #### Installation Methods
 
@@ -568,6 +570,63 @@ For local HTTP-based testing or development:
    ```
 
 4. **Configure MCP client** to use `http://localhost:8080/mcp/streamable-http` (or `/mcp/sse` for SSE)
+
+### Local Native Image (GraalVM)
+
+For the fastest startup and tightest agentic feedback loop, you can build a **GraalVM native image** of the MCP server.
+
+#### Prerequisites
+
+- **GraalVM JDK 21+ with `native-image` installed**
+  - Install a GraalVM distribution (for Java 21 or higher)
+  - Point `JAVA_HOME` (or `GRAALVM_HOME`) to this GraalVM installation
+  - Verify:
+    - `java -version` shows a GraalVM JDK
+    - `native-image --version` runs successfully
+
+#### Build native image
+
+From the project root:
+
+```bash
+./gradlew nativeCompile -x test
+```
+
+This produces a native binary at:
+
+- **Windows**: `build/native/nativeCompile/jakarta-migration-mcp.exe`
+- **macOS/Linux**: `build/native/nativeCompile/jakarta-migration-mcp`
+
+#### Run native image
+
+Example (Streamable HTTP profile):
+
+```bash
+# Windows PowerShell
+build/native/nativeCompile/jakarta-migration-mcp.exe --spring.profiles.active=mcp-streamable-http
+
+# macOS/Linux
+build/native/nativeCompile/jakarta-migration-mcp --spring.profiles.active=mcp-streamable-http
+```
+
+The behavior is equivalent to the JVM `java -jar` commands above, but with **much faster startup time** once the image is built.
+
+#### Dev shortcut task
+
+For convenience, a Gradle task is provided:
+
+```bash
+./gradlew nativeDev
+```
+
+This will:
+
+1. Build the native image (if needed)
+2. Run the generated binary with `--spring.profiles.active=mcp-streamable-http`
+
+Use the JVM (`bootRun` / `java -jar`) during active development, and switch to `nativeDev` when you want to benchmark startup or run tight agentic loops.
+
+> **📖 For detailed GraalVM setup instructions** (including Cursor IDE configuration and JVM/Gradle startup optimizations such as `-PfastStartup` and the `dev-fast` profile), see the [Development Setup Guide](docs/setup/DEVELOPMENT.md#graalvm-native-image-setup-optional).
 
 ## 💬 Usage Examples
 

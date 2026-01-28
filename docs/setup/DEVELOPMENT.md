@@ -73,6 +73,168 @@ npm --version
 ./gradlew bootRun
 ```
 
+### GraalVM Native Image Setup (Optional)
+
+For **faster startup times** and tighter agentic feedback loops, you can build and run the MCP server as a GraalVM native image. This is especially useful when iterating quickly with AI assistants.
+
+#### Prerequisites
+
+- **GraalVM JDK 21+** with `native-image` component
+  - Download from [GraalVM Releases](https://github.com/graalvm/graalvm-ce-builds/releases) or [Oracle GraalVM](https://www.graalvm.org/downloads/)
+  - Ensure the `native-image` component is included (most distributions include it)
+
+#### Installation
+
+**Windows:**
+
+1. Download and extract GraalVM to a location like `C:\Runtimes\graalvm-jdk-25.0.2+10.1`
+2. Set environment variables (User or System):
+   - `JAVA_HOME` = `C:\Runtimes\graalvm-jdk-25.0.2+10.1`
+   - `GRAALVM_HOME` = `C:\Runtimes\graalvm-jdk-25.0.2+10.1`
+   - Add `%JAVA_HOME%\bin` to your `PATH` (before any other Java entries)
+
+3. **Important**: Remove or move to the bottom of PATH:
+   - `C:\Program Files\Common Files\Oracle\Java\javapath` (Oracle JDK shim)
+
+4. Verify installation:
+   ```powershell
+   java -version        # Should show GraalVM
+   native-image --version
+   ```
+
+**macOS/Linux:**
+
+1. Download and extract GraalVM:
+   ```bash
+   # Example: Extract to ~/runtimes/graalvm-jdk-25.0.2+10.1
+   tar -xzf graalvm-jdk-25.0.2+10.1.tar.gz -C ~/runtimes/
+   ```
+
+2. Set environment variables in `~/.bashrc` or `~/.zshrc`:
+   ```bash
+   export JAVA_HOME=~/runtimes/graalvm-jdk-25.0.2+10.1
+   export GRAALVM_HOME=$JAVA_HOME
+   export PATH=$JAVA_HOME/bin:$PATH
+   ```
+
+3. Verify installation:
+   ```bash
+   java -version        # Should show GraalVM
+   native-image --version
+   ```
+
+#### Cursor IDE Configuration
+
+This project is configured to work seamlessly with Cursor's sandbox restrictions:
+
+- **Workspace-local Gradle cache**: The `gradlew` scripts automatically set `GRADLE_USER_HOME` to `.gradle/` in the project root, so Gradle can access its cache within Cursor's sandbox.
+
+**No additional configuration needed** - just ensure GraalVM is installed and `JAVA_HOME` points to it.
+
+#### Building Native Images
+
+**Build the native image:**
+```bash
+# Windows
+.\gradlew.bat nativeCompile -x test
+
+# macOS/Linux
+./gradlew nativeCompile -x test
+```
+
+This produces a native binary at:
+- **Windows**: `build/native/nativeCompile/jakarta-migration-mcp.exe`
+- **macOS/Linux**: `build/native/nativeCompile/jakarta-migration-mcp`
+
+**Note**: First build takes 5-15 minutes. Subsequent builds are faster due to caching.
+
+#### Running Native Images
+
+**Direct execution:**
+```bash
+# Windows PowerShell
+build\native\nativeCompile\jakarta-migration-mcp.exe --spring.profiles.active=mcp-streamable-http
+
+# macOS/Linux
+build/native/nativeCompile/jakarta-migration-mcp --spring.profiles.active=mcp-streamable-http
+```
+
+**Using the convenience task:**
+```bash
+# Windows
+.\gradlew.bat nativeDev
+
+# macOS/Linux
+./gradlew nativeDev
+```
+
+This task automatically builds (if needed) and runs the native image with the `mcp-streamable-http` profile.
+
+#### Development Workflow
+
+- **Use JVM for active development**: `./gradlew bootRun` - faster iteration, easier debugging
+- **Use native image for fast startup loops**: `./gradlew nativeDev` - when you need to quickly test startup time or run tight agentic feedback loops
+
+#### JVM and Gradle startup optimizations
+
+These options reduce **JVM** and **Spring Boot** startup time when using GraalVM (or any JDK) for `bootRun` and Gradle. They are optional and dev-oriented.
+
+**1. Fast startup for `bootRun` (JVM flags)**
+
+Use the `fastStartup` project property to enable JVM options that prioritize startup over peak throughput:
+
+```bash
+./gradlew bootRun -PfastStartup --args='--spring.profiles.active=mcp-streamable-http'
+```
+
+What it does:
+- **`-XX:TieredStopAtLevel=1`** – C1 compiler only (faster startup, slower warmup to peak).
+- **`-XX:+UseSerialGC`** – Serial GC (lower footprint, faster for small heaps).
+- **GraalVM only**: **`-Djdk.graal.CompilerConfiguration=economy`** – Economy JIT (faster compilation, slightly lower peak performance). Ignored on non-GraalVM JDKs.
+
+**2. Lazy initialization (Spring)**
+
+Activate the `dev-fast` profile so beans are created on first use instead of at startup:
+
+```bash
+./gradlew bootRun -PfastStartup --args='--spring.profiles.active=mcp-streamable-http,dev-fast'
+```
+
+Trade-off: first request can be slower; startup is faster. See `src/main/resources/application-dev-fast.yml`.
+
+**3. Gradle daemon (cold start)**
+
+In `gradle.properties`, an optional commented block suggests lower memory and `-XX:TieredStopAtLevel=1` for the **Gradle daemon** to speed up cold starts (e.g. CI or after killing the daemon). Uncomment and adjust if you need faster daemon startup at the cost of slightly slower peak builds.
+
+**4. Class Data Sharing (CDS)**
+
+On JDKs that support it, CDS is often enabled by default and reduces startup. To force use of the default CDS archive (if available): `-Xshare:on`. Omit if the JVM reports CDS errors.
+
+**Summary**
+
+| Goal | Command / config |
+|------|-------------------|
+| Fastest JVM bootRun (GraalVM) | `./gradlew bootRun -PfastStartup --args='--spring.profiles.active=mcp-streamable-http,dev-fast'` |
+| Fastest overall startup | Build and run the **native image**: `./gradlew nativeDev` |
+
+#### Troubleshooting
+
+**Issue**: `java -version` shows Oracle JDK instead of GraalVM
+- **Solution**: Check `PATH` order - GraalVM's `bin` must come before Oracle's `javapath`
+- **Windows**: Remove `C:\Program Files\Common Files\Oracle\Java\javapath` from PATH or move it to the bottom
+
+**Issue**: `native-image --version` not found
+- **Solution**: Most GraalVM distributions include `native-image`. If missing, install it:
+  ```bash
+  gu install native-image  # GraalVM Updater
+  ```
+
+**Issue**: Gradle can't access cache in Cursor
+- **Solution**: Already handled! The project's `gradlew` scripts set `GRADLE_USER_HOME` to `.gradle/` in the workspace, which is accessible to Cursor's sandbox.
+
+**Issue**: Native build fails with reflection errors
+- **Solution**: Add reflection hints to `src/main/java/adrianmikula/jakartamigration/config/NativeHintsConfig.java` as needed. Spring Boot 3's AOT engine handles most cases automatically.
+
 ## Project Structure
 
 ```

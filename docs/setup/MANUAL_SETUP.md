@@ -13,6 +13,7 @@ Ensure you have:
 - ✅ **Docker & Docker Compose** (for PostgreSQL and Redis)
 - ✅ **Gradle 8.5+** (or use Gradle wrapper)
 - ✅ **Ollama** (optional, for LLM features)
+- ✅ **GraalVM** (optional, for native image builds - see [Development Setup](DEVELOPMENT.md#graalvm-native-image-setup-optional))
 
 ## Step 1: Clone and Build
 

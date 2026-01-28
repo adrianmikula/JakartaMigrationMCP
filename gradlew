@@ -86,6 +86,10 @@ APP_BASE_NAME=${0##*/}
 # Discard cd standard output in case $CDPATH is set (https://github.com/gradle/gradle/issues/25036)
 APP_HOME=$( cd "${APP_HOME:-./}" > /dev/null && pwd -P ) || exit
 
+# Set GRADLE_USER_HOME to workspace-local directory if not already set
+# This allows Gradle to work within Cursor's sandbox restrictions
+export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$APP_HOME/.gradle}"
+
 # Use the maximum available, or set MAX_FD != -1 to use that value.
 MAX_FD=maximum
 

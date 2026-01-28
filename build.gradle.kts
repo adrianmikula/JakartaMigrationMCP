@@ -2,6 +2,7 @@ plugins {
     java
     id("org.springframework.boot") version "3.2.0"
     id("io.spring.dependency-management") version "1.1.7"
+    id("org.graalvm.buildtools.native") version "0.11.3"
     // OpenRewrite removed - it's premium-only, see jakarta-migration-mcp-premium/build.gradle.kts
     jacoco
     // Code Quality Tools
@@ -53,6 +54,82 @@ extra["awaitilityVersion"] = "4.2.0"
 extra["openrewriteVersion"] = "8.10.0"
 extra["rewriteMigrateJavaVersion"] = "2.5.0"
 extra["rewriteSpringVersion"] = "5.10.0"
+
+graalvmNative {
+    toolchainDetection.set(true)
+    binaries {
+        named("main") {
+            // Keep image name aligned with Boot jar for easier wiring
+            imageName.set("jakarta-migration-mcp")
+            // Developer-friendly defaults: include debug info and richer stack traces
+            debug.set(true)
+            verbose.set(false)
+            fallback.set(false)
+        }
+    }
+}
+
+tasks.register<Exec>("nativeDev") {
+    group = "application"
+    description = "Build and run the GraalVM native image for fast local feedback."
+    dependsOn(tasks.named("nativeCompile"))
+    doFirst {
+        val isWindows = System.getProperty("os.name").lowercase().contains("win")
+        val binaryPath = if (isWindows) {
+            "build/native/nativeCompile/jakarta-migration-mcp.exe"
+        } else {
+            "build/native/nativeCompile/jakarta-migration-mcp"
+        }
+        commandLine(binaryPath, "--spring.profiles.active=mcp-streamable-http")
+    }
+}
+
+// AppCDS: create shared class archive for faster JVM startup (Windows-friendly; see docs/setup/FAST_STARTUP_JVM_OPTIONS.md).
+val cdsArchivePath = layout.buildDirectory.file("app.jsa").get().asFile
+tasks.register<JavaExec>("createCdsArchive") {
+    group = "application"
+    description = "Create AppCDS archive (run once or after dependency changes) for bootRunWithCds."
+    dependsOn(tasks.bootJar)
+    inputs.files(tasks.bootJar)
+    outputs.file(cdsArchivePath)
+    val jarFile = tasks.bootJar.get().outputs.files.files.single()
+    classpath(jarFile)
+    mainClass.set("org.springframework.boot.loader.launch.JarLauncher")
+    jvmArgs(
+        "-XX:ArchiveClassesAtExit=$cdsArchivePath",
+        "-Dspring.context.exit=onRefresh"
+    )
+    args("--spring.profiles.active=mcp-streamable-http,dev-fast")
+    doFirst {
+        @Suppress("UNCHECKED_CAST")
+        (project.extensions.getByName("java") as org.gradle.api.plugins.JavaPluginExtension).toolchain
+            .let { toolchain ->
+                javaLauncher.set(project.extensions.getByType(org.gradle.jvm.toolchain.JavaToolchainService::class.java).launcherFor(toolchain).get())
+            }
+    }
+}
+tasks.register<JavaExec>("bootRunWithCds") {
+    group = "application"
+    description = "Run the app with AppCDS for faster startup (Windows-friendly)."
+    dependsOn(tasks.named("createCdsArchive"))
+    val jarFile = tasks.bootJar.get().outputs.files.files.single()
+    classpath(jarFile)
+    mainClass.set("org.springframework.boot.loader.launch.JarLauncher")
+    jvmArgs(
+        "-XX:SharedArchiveFile=$cdsArchivePath",
+        "-XX:TieredStopAtLevel=1",
+        "-XX:+UseSerialGC",
+        "-Djdk.graal.CompilerConfiguration=economy"
+    )
+    args("--spring.profiles.active=mcp-streamable-http,dev-fast")
+    doFirst {
+        @Suppress("UNCHECKED_CAST")
+        (project.extensions.getByName("java") as org.gradle.api.plugins.JavaPluginExtension).toolchain
+            .let { toolchain ->
+                javaLauncher.set(project.extensions.getByType(org.gradle.jvm.toolchain.JavaToolchainService::class.java).launcherFor(toolchain).get())
+            }
+    }
+}
 
 dependencies {
     // Spring Boot Starters
@@ -157,13 +234,19 @@ tasks.withType<Test> {
     }
     // Use a dedicated binary results directory per test task to avoid
     // interference from stale OS file locks (e.g. on Windows CI agents).
-    // This works around intermittent "Unable to delete .../build/test-results/test/binary/output.bin"
-    // errors without changing test behavior.
+    // Note: we suffix with -v2 so existing locked directories from earlier
+    // builds are ignored going forward.
     binaryResultsDirectory.set(
-        layout.buildDirectory.dir("test-results/${name}-binary")
+        layout.buildDirectory.dir("test-results/${name}-binary-v2")
     )
     // Enable JaCoCo for test execution
     finalizedBy(tasks.jacocoTestReport)
+    // Faster test JVM startup for agentic feedback loop (lint/compile/test). See docs/setup/FAST_STARTUP_JVM_OPTIONS.md
+    jvmArgs(
+        "-XX:TieredStopAtLevel=1",
+        "-XX:+UseSerialGC",
+        "-Xshare:auto"
+    )
 }
 
 // JaCoCo Configuration
@@ -687,6 +770,16 @@ tasks.register("codeQualityVerify") {
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
     archiveFileName.set("${project.name}-${project.version}.jar")
+}
+
+// Fast startup for bootRun: C1-only, Serial GC; GraalVM economy JIT; dev-fast profile (lazy init).
+tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+    jvmArgs(
+        "-XX:TieredStopAtLevel=1",
+        "-XX:+UseSerialGC",
+        "-Djdk.graal.CompilerConfiguration=economy"
+    )
+    args("--spring.profiles.active=mcp-streamable-http,dev-fast")
 }
 
 // OpenRewrite Configuration removed - it's premium-only

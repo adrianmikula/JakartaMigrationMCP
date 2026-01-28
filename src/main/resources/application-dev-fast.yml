@@ -1,0 +1,12 @@
+# Profile: dev-fast
+# Use for fastest startup during development (e.g. agentic feedback loops).
+# Trade-offs: lazy init delays bean creation until first use; first request may be slower.
+#
+# Activate with: --spring.profiles.active=mcp-streamable-http,dev-fast
+# Or: ./gradlew bootRun --args='--spring.profiles.active=mcp-streamable-http,dev-fast'
+# Faster (AppCDS): ./gradlew bootRunWithCds
+# See docs/setup/FAST_STARTUP_JVM_OPTIONS.md for more fast-startup options (CDS, CRaC, etc.).
+
+spring:
+  main:
+    lazy-initialization: true
