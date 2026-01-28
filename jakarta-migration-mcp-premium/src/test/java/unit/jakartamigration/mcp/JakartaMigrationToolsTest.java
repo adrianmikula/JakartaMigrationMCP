@@ -199,10 +199,10 @@ class JakartaMigrationToolsTest {
     void shouldAnalyzeMigrationImpactSuccessfully() throws Exception {
         // Given
         SourceCodeAnalysisResult mockScanResult = new SourceCodeAnalysisResult(
+            List.of(),
             10,
             5,
-            15,
-            List.of()
+            15
         );
         
         when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);

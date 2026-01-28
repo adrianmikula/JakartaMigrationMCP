@@ -2,6 +2,7 @@ package unit.jakartamigration.coderefactoring.service;
 
 import adrianmikula.jakartamigration.coderefactoring.domain.MigrationPlan;
 import adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase;
+import adrianmikula.jakartamigration.coderefactoring.service.MigrationPlanner;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.MigrationReadinessScore;

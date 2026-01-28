@@ -206,7 +206,7 @@ class FeatureFlagsServiceTest {
     @DisplayName("Should handle enterprise tier payment link")
     void shouldHandleEnterpriseTierPaymentLink() {
         // Given
-        when(paymentLinkService.getPaymentLink("enterprise")).thenReturn("https://buy.stripe.com/enterprise-link");
+        when(paymentLinkService.getPaymentLink("premium")).thenReturn("https://buy.stripe.com/premium-link");
         when(licenseService.validateLicense(anyString())).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
         properties.setLicenseKey("PREMIUM-test-key");
 
@@ -215,7 +215,7 @@ class FeatureFlagsServiceTest {
 
         // Then
         assertThat(info.getRequiredTier()).isEqualTo(FeatureFlagsProperties.LicenseTier.PREMIUM);
-        // Note: PRIORITY_SUPPORT requires PREMIUM, not ENTERPRISE, so it should use premium link
+        assertThat(info.getPaymentLink()).isEqualTo("https://buy.stripe.com/premium-link");
     }
 }
 

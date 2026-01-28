@@ -151,11 +151,6 @@ class StripePaymentLinkServiceTest {
     @Test
     @DisplayName("Should handle null product name")
     void shouldHandleNullProductName() {
-        // Given
-        Map<String, String> paymentLinks = new HashMap<>();
-        paymentLinks.put("starter", "https://buy.stripe.com/starter-link");
-        when(stripeProperties.getPaymentLinks()).thenReturn(paymentLinks);
-
         // When
         String link = service.getPaymentLink(null);
 
@@ -166,11 +161,6 @@ class StripePaymentLinkServiceTest {
     @Test
     @DisplayName("Should handle blank product name")
     void shouldHandleBlankProductName() {
-        // Given
-        Map<String, String> paymentLinks = new HashMap<>();
-        paymentLinks.put("starter", "https://buy.stripe.com/starter-link");
-        when(stripeProperties.getPaymentLinks()).thenReturn(paymentLinks);
-
         // When
         String link = service.getPaymentLink("   ");
 

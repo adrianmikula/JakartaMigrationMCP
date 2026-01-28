@@ -1,7 +1,7 @@
 plugins {
     java
     id("org.springframework.boot") version "3.2.0"
-    id("io.spring.dependency-management") version "1.1.4"
+    id("io.spring.dependency-management") version "1.1.7"
     // OpenRewrite removed - it's premium-only, see jakarta-migration-mcp-premium/build.gradle.kts
     jacoco
     // Code Quality Tools
@@ -50,8 +50,9 @@ extra["jgitVersion"] = "6.8.0.202311291450-r"
 extra["mockWebServerVersion"] = "4.12.0"
 extra["testcontainersVersion"] = "1.19.3"
 extra["awaitilityVersion"] = "4.2.0"
-// OpenRewrite versions removed - OpenRewrite is premium-only
-// See jakarta-migration-mcp-premium/build.gradle.kts for OpenRewrite dependencies
+extra["openrewriteVersion"] = "8.10.0"
+extra["rewriteMigrateJavaVersion"] = "2.5.0"
+extra["rewriteSpringVersion"] = "5.10.0"
 
 dependencies {
     // Spring Boot Starters
@@ -105,8 +106,13 @@ dependencies {
     testImplementation("org.awaitility:awaitility:${property("awaitilityVersion")}")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     
-    // OpenRewrite removed - it's premium-only (see jakarta-migration-mcp-premium/build.gradle.kts)
-    // ASM removed - it's premium-only (see jakarta-migration-mcp-premium/build.gradle.kts)
+    // OpenRewrite and ASM required by shared main sources (runtimeverification, sourcecodescanning)
+    implementation("org.openrewrite:rewrite-java:${property("openrewriteVersion")}")
+    implementation("org.openrewrite:rewrite-maven:${property("openrewriteVersion")}")
+    implementation("org.openrewrite.recipe:rewrite-migrate-java:${property("rewriteMigrateJavaVersion")}")
+    implementation("org.openrewrite.recipe:rewrite-spring:${property("rewriteSpringVersion")}")
+    implementation("org.ow2.asm:asm:9.6")
+    implementation("org.ow2.asm:asm-commons:9.6")
     
     // SnakeYAML for parsing Jakarta mappings YAML file
     implementation("org.yaml:snakeyaml:2.2")

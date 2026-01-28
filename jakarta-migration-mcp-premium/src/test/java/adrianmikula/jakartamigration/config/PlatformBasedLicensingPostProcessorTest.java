@@ -227,9 +227,9 @@ class PlatformBasedLicensingPostProcessorTest {
             System.clearProperty("ACTOR_ID");
             
             StandardEnvironment env = new StandardEnvironment();
-            ConfigurableApplicationContext mockContext = mock(ConfigurableApplicationContext.class);
-            when(mockContext.getEnvironment()).thenReturn(env);
-            ConfigurableListableBeanFactory beanFactory = (ConfigurableListableBeanFactory) mockContext;
+            ConfigurableListableBeanFactory beanFactory = mock(ConfigurableListableBeanFactory.class);
+            when(beanFactory.containsBean("environment")).thenReturn(true);
+            when(beanFactory.getBean("environment", ConfigurableEnvironment.class)).thenReturn(env);
             
             // When
             processor.postProcessBeanFactory(beanFactory);

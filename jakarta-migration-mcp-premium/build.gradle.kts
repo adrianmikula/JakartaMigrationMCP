@@ -1,7 +1,7 @@
 plugins {
     java
     id("org.springframework.boot") version "3.2.0"
-    id("io.spring.dependency-management") version "1.1.4"
+    id("io.spring.dependency-management") version "1.1.7"
     id("org.openrewrite.rewrite") version "7.0.0"
     jacoco
     // Code Quality Tools
@@ -58,7 +58,13 @@ extra["rewriteSpringVersion"] = "5.10.0"
 dependencies {
     // DEPEND ON FREE PACKAGE - No code duplication!
     // This project dependency will be replaced with published JAR when premium moves to separate repo
-    implementation(project(":"))
+    if (rootProject != project) {
+        // Multi-project build (run from repo root)
+        implementation(project(":"))
+    } else {
+        // Standalone build (run from this subdirectory) - resolved via composite build in settings.gradle.kts
+        implementation("adrianmikula:jakarta-migration-mcp")
+    }
 
     // Spring Boot Starters
     implementation("org.springframework.boot:spring-boot-starter-web")

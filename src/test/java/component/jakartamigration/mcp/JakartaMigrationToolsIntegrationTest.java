@@ -101,8 +101,9 @@ class JakartaMigrationToolsIntegrationTest {
         String result = tools.verifyRuntime(nonExistentJar, 30);
 
         // Then
-        assertThat(result).contains("\"status\": \"error\"");
-        assertThat(result).contains("does not exist");
+        // Community tier should be prompted to upgrade (tool is premium-only)
+        assertThat(result).contains("\"status\": \"upgrade_required\"");
+        assertThat(result).contains("requires a PREMIUM license");
     }
 
     @Test
@@ -116,8 +117,9 @@ class JakartaMigrationToolsIntegrationTest {
         String result = tools.verifyRuntime(dir.toString(), 30);
 
         // Then
-        assertThat(result).contains("\"status\": \"error\"");
-        assertThat(result).contains("is not a file");
+        // Community tier should be prompted to upgrade (tool is premium-only)
+        assertThat(result).contains("\"status\": \"upgrade_required\"");
+        assertThat(result).contains("requires a PREMIUM license");
     }
 }
 

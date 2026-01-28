@@ -9,6 +9,7 @@ import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerifica
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -27,123 +28,77 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("JakartaMigrationConfig Integration Tests")
 class JakartaMigrationConfigTest {
 
-    private final JakartaMigrationConfig config;
-    private final StripeLicenseProperties stripeProperties;
-    private final ApifyLicenseProperties apifyProperties;
-
-    JakartaMigrationConfigTest(
-            JakartaMigrationConfig config,
-            StripeLicenseProperties stripeProperties,
-            ApifyLicenseProperties apifyProperties) {
-        this.config = config;
-        this.stripeProperties = stripeProperties;
-        this.apifyProperties = apifyProperties;
-    }
+    @Autowired private DependencyGraphBuilder dependencyGraphBuilder;
+    @Autowired private NamespaceClassifier namespaceClassifier;
+    @Autowired private JakartaMappingService jakartaMappingService;
+    @Autowired private DependencyAnalysisModule dependencyAnalysisModule;
+    @Autowired private RecipeLibrary recipeLibrary;
+    @Autowired private RuntimeVerificationModule runtimeVerificationModule;
+    @Autowired private RefactoringEngine refactoringEngine;
+    @Autowired private ChangeTracker changeTracker;
+    @Autowired private ProgressTracker progressTracker;
+    @Autowired private MigrationPlanner migrationPlanner;
+    @Autowired private WebClient stripeWebClient;
+    @Autowired private ApifyLicenseProperties apifyProperties;
 
     @Test
     @DisplayName("Should create DependencyGraphBuilder bean")
     void shouldCreateDependencyGraphBuilderBean() {
-        // When
-        DependencyGraphBuilder builder = config.dependencyGraphBuilder();
-
-        // Then
-        assertThat(builder).isNotNull();
+        assertThat(dependencyGraphBuilder).isNotNull();
     }
 
     @Test
     @DisplayName("Should create NamespaceClassifier bean")
     void shouldCreateNamespaceClassifierBean() {
-        // When
-        NamespaceClassifier classifier = config.namespaceClassifier();
-
-        // Then
-        assertThat(classifier).isNotNull();
+        assertThat(namespaceClassifier).isNotNull();
     }
 
     @Test
     @DisplayName("Should create JakartaMappingService bean")
     void shouldCreateJakartaMappingServiceBean() {
-        // When
-        JakartaMappingService service = config.jakartaMappingService();
-
-        // Then
-        assertThat(service).isNotNull();
+        assertThat(jakartaMappingService).isNotNull();
     }
 
     @Test
     @DisplayName("Should create DependencyAnalysisModule bean")
     void shouldCreateDependencyAnalysisModuleBean() {
-        // Given
-        DependencyGraphBuilder graphBuilder = config.dependencyGraphBuilder();
-        NamespaceClassifier classifier = config.namespaceClassifier();
-        JakartaMappingService mappingService = config.jakartaMappingService();
-
-        // When
-        DependencyAnalysisModule module = config.dependencyAnalysisModule(
-            graphBuilder, classifier, mappingService);
-
-        // Then
-        assertThat(module).isNotNull();
+        assertThat(dependencyAnalysisModule).isNotNull();
     }
 
     @Test
     @DisplayName("Should create RecipeLibrary bean")
     void shouldCreateRecipeLibraryBean() {
-        // When
-        RecipeLibrary library = config.recipeLibrary();
-
-        // Then
-        assertThat(library).isNotNull();
+        assertThat(recipeLibrary).isNotNull();
     }
 
     @Test
     @DisplayName("Should create RuntimeVerificationModule bean")
     void shouldCreateRuntimeVerificationModuleBean() {
-        // When
-        RuntimeVerificationModule module = config.runtimeVerificationModule();
-
-        // Then
-        assertThat(module).isNotNull();
+        assertThat(runtimeVerificationModule).isNotNull();
     }
 
     @Test
     @DisplayName("Should create RefactoringEngine bean")
     void shouldCreateRefactoringEngineBean() {
-        // When
-        RefactoringEngine engine = config.refactoringEngine();
-
-        // Then
-        assertThat(engine).isNotNull();
+        assertThat(refactoringEngine).isNotNull();
     }
 
     @Test
     @DisplayName("Should create ChangeTracker bean")
     void shouldCreateChangeTrackerBean() {
-        // When
-        ChangeTracker tracker = config.changeTracker();
-
-        // Then
-        assertThat(tracker).isNotNull();
+        assertThat(changeTracker).isNotNull();
     }
 
     @Test
     @DisplayName("Should create ProgressTracker bean")
     void shouldCreateProgressTrackerBean() {
-        // When
-        ProgressTracker tracker = config.progressTracker();
-
-        // Then
-        assertThat(tracker).isNotNull();
+        assertThat(progressTracker).isNotNull();
     }
 
     @Test
     @DisplayName("Should create Stripe WebClient bean")
     void shouldCreateStripeWebClientBean() {
-        // When
-        WebClient webClient = config.stripeWebClient(stripeProperties);
-
-        // Then
-        assertThat(webClient).isNotNull();
+        assertThat(stripeWebClient).isNotNull();
     }
 
     @Test

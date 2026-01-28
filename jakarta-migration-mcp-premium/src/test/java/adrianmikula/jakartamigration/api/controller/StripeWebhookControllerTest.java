@@ -47,10 +47,20 @@ class StripeWebhookControllerTest {
         objectMapper = new ObjectMapper();
         controller = new StripeWebhookController(stripeProperties, objectMapper);
         
-        when(stripeProperties.getWebhookSecret()).thenReturn(webhookSecret);
-        when(stripeProperties.getProductIdPremium()).thenReturn("prod_premium");
-        when(stripeProperties.getProductIdEnterprise()).thenReturn("prod_enterprise");
-        when(stripeProperties.getPriceIdToTier()).thenReturn(new HashMap<>());
+        // Inject optional @Autowired field used by controller
+        try {
+            var field = StripeWebhookController.class.getDeclaredField("localStorageService");
+            field.setAccessible(true);
+            field.set(controller, localStorageService);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        // Some tests never hit subscription parsing, so keep stubs lenient.
+        lenient().when(stripeProperties.getWebhookSecret()).thenReturn(webhookSecret);
+        lenient().when(stripeProperties.getProductIdPremium()).thenReturn("prod_premium");
+        lenient().when(stripeProperties.getProductIdEnterprise()).thenReturn("prod_enterprise");
+        lenient().when(stripeProperties.getPriceIdToTier()).thenReturn(new HashMap<>());
     }
 
     @Test
@@ -205,7 +215,7 @@ class StripeWebhookControllerTest {
     void shouldHandleInvalidJsonPayload() {
         // Given
         String payload = "invalid json";
-        String signature = "t=123,v1=invalid";
+        String signature = createValidSignature(payload);
 
         // When
         ResponseEntity<String> response = controller.handleWebhook(payload, signature);
