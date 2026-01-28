@@ -58,7 +58,10 @@ class YamlConfigurationTest {
         assertThat(featureFlagsProperties.getFeatures()).isEmpty();
 
         // Verify ApifyLicenseProperties defaults
-        assertThat(apifyLicenseProperties.getEnabled()).isTrue();
+        // NOTE: Apify is disabled by default for local deployments –
+        // PlatformBasedLicensingPostProcessor forces it off unless the
+        // APIFY_VALIDATION_ENABLED environment variable is explicitly set.
+        assertThat(apifyLicenseProperties.getEnabled()).isFalse();
         assertThat(apifyLicenseProperties.getApiUrl())
             .isEqualTo("https://api.apify.com/v2");
         assertThat(apifyLicenseProperties.getCacheTtlSeconds()).isEqualTo(3600L);
@@ -66,8 +69,9 @@ class YamlConfigurationTest {
         assertThat(apifyLicenseProperties.getAllowOfflineValidation()).isTrue();
 
         // Verify StripeLicenseProperties defaults
-        // Note: Stripe is disabled by default in application.yml
-        assertThat(stripeLicenseProperties.getEnabled()).isFalse();
+        // Note: For local deployments, PlatformBasedLicensingPostProcessor
+        // auto-enables Stripe even if configuration sets it to false.
+        assertThat(stripeLicenseProperties.getEnabled()).isTrue();
         assertThat(stripeLicenseProperties.getApiUrl())
             .isEqualTo("https://api.stripe.com/v1");
         assertThat(stripeLicenseProperties.getCacheTtlSeconds()).isEqualTo(3600L);
@@ -213,7 +217,10 @@ class YamlConfigurationTest {
             assertThat(apifyLicenseProperties.getTimeoutSeconds()).isEqualTo(10);
 
             // Verify StripeLicenseProperties overrides
-            assertThat(stripeLicenseProperties.getEnabled()).isFalse();
+            // NOTE: Even when the property is set to false in tests,
+            // PlatformBasedLicensingPostProcessor will turn Stripe on for
+            // local deployments (no ACTOR_ID), so we expect true here.
+            assertThat(stripeLicenseProperties.getEnabled()).isTrue();
             assertThat(stripeLicenseProperties.getApiUrl())
                 .isEqualTo("https://test.stripe.com/v1");
             assertThat(stripeLicenseProperties.getSecretKey()).isEqualTo("test-stripe-key");

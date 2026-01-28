@@ -155,6 +155,13 @@ tasks.withType<Test> {
         events("passed", "skipped", "failed")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
+    // Use a dedicated binary results directory per test task to avoid
+    // interference from stale OS file locks (e.g. on Windows CI agents).
+    // This works around intermittent "Unable to delete .../build/test-results/test/binary/output.bin"
+    // errors without changing test behavior.
+    binaryResultsDirectory.set(
+        layout.buildDirectory.dir("test-results/${name}-binary")
+    )
     // Enable JaCoCo for test execution
     finalizedBy(tasks.jacocoTestReport)
 }

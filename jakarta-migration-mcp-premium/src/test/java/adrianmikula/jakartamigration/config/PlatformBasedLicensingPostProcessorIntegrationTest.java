@@ -67,15 +67,20 @@ class PlatformBasedLicensingPostProcessorIntegrationTest {
         classes = {
             PlatformBasedLicensingPostProcessor.class,
             PlatformDetectionService.class,
-            ApifyLicenseProperties.class,
-            StripeLicenseProperties.class,
+            // Use the main JakartaMigrationConfig to provide all configuration
+            // properties beans, avoiding duplicate @ConfigurationProperties
+            // beans that cause NoUniqueBeanDefinitionException.
             JakartaMigrationConfig.class
         },
         properties = {
             // Start with both disabled - processor should enable Stripe for local deployment
             "jakarta.migration.apify.enabled=false",
             "jakarta.migration.stripe.enabled=false",
-            "jakarta.migration.storage.file.enabled=false"
+            "jakarta.migration.storage.file.enabled=false",
+            // Allow bean definition overriding so that any test-specific
+            // @TestConfiguration classes (e.g. from other integration tests)
+            // do not cause IllegalStateException when defining the same beans.
+            "spring.main.allow-bean-definition-overriding=true"
         }
     )
     @TestPropertySource(properties = {

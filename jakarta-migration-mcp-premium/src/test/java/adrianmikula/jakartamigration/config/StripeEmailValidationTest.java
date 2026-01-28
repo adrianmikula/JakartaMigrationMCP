@@ -14,6 +14,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
+import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -133,10 +134,38 @@ class StripeEmailValidationTest {
     @Test
     @DisplayName("Should use cache when available")
     void shouldUseCacheWhenAvailable() {
-        // Given - first call returns a tier
-        when(responseSpec.bodyToMono(any(Class.class)))
-            .thenReturn(createCustomerListResponse("cus_123", TEST_EMAIL))
-            .thenReturn(createSubscriptionsListResponse("sub_123", "active", "prod_premium"));
+        // Given - first call returns a tier using real DTO types so that
+        // StripeLicenseService can deserialize and determine the tier correctly.
+        StripeLicenseService.StripeCustomerResponse customer = new StripeLicenseService.StripeCustomerResponse();
+        customer.setId("cus_123");
+        customer.setEmail(TEST_EMAIL);
+
+        StripeLicenseService.StripeCustomersListResponse customersList =
+            new StripeLicenseService.StripeCustomersListResponse();
+        customersList.setData(Collections.singletonList(customer));
+
+        StripeLicenseService.Price price = new StripeLicenseService.Price();
+        price.setProduct("prod_premium");
+
+        StripeLicenseService.SubscriptionItem item = new StripeLicenseService.SubscriptionItem();
+        item.setPrice(price);
+
+        StripeLicenseService.SubscriptionItems items = new StripeLicenseService.SubscriptionItems();
+        items.setData(Collections.singletonList(item));
+
+        StripeLicenseService.StripeSubscriptionResponse subscription =
+            new StripeLicenseService.StripeSubscriptionResponse();
+        subscription.setStatus("active");
+        subscription.setItems(items);
+
+        StripeLicenseService.StripeSubscriptionsListResponse subscriptionsList =
+            new StripeLicenseService.StripeSubscriptionsListResponse();
+        subscriptionsList.setData(Collections.singletonList(subscription));
+
+        when(responseSpec.bodyToMono(StripeLicenseService.StripeCustomersListResponse.class))
+            .thenReturn(Mono.just(customersList));
+        when(responseSpec.bodyToMono(StripeLicenseService.StripeSubscriptionsListResponse.class))
+            .thenReturn(Mono.just(subscriptionsList));
 
         // When - first call
         FeatureFlagsProperties.LicenseTier firstResult = service.validateLicenseByEmail(TEST_EMAIL).block();
