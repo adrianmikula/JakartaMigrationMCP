@@ -12,7 +12,23 @@ This project uses **Mill** as the build tool (replacing Gradle) for faster start
 | Build fat JAR | `mill jakartaMigrationMcp.assembly` |
 | Clean | `mill clean` |
 
-With **mise**: `mise run test`, `mise run build`, `mise run assembly`, etc.
+With **mise**: `mise run test`, `mise run build`, `mise run assembly`, etc. Mise is configured so that **Linux/macOS use Mill** and **Windows use Gradle** for these tasks (see [Build tool by OS](#build-tool-by-os)).
+
+## Build tool by OS
+
+- **Linux / macOS**: Mill (faster startup). Use `mill jakartaMigrationMcp.<task>` or `mise run build|test|run|assembly|clean`.
+- **Windows**: Gradle (Mill build script has known issues on Windows). Use `.\gradlew.bat <task>` or `mise run build|test|run|assembly|clean` (mise runs Gradle on Windows).
+
+To give Cursor AI the same behavior, copy the rules into `.cursor/rules/`:
+
+```bash
+mkdir -p .cursor/rules
+cp docs/cursor-rule-build-tool-by-os.mdc .cursor/rules/build-tool-by-os.mdc
+cp docs/cursor-rule-prefer-mise.mdc .cursor/rules/prefer-mise.mdc
+```
+
+- **build-tool-by-os**: Use Mill on Linux/macOS and Gradle on Windows.
+- **prefer-mise**: Prefer `mise run build|test|run|assembly|clean` over direct mill/gradle.
 
 ## Install Mill
 

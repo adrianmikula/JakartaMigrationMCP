@@ -1,0 +1,39 @@
+---
+description: Use Mill on Linux/macOS and Gradle on Windows for Java build tasks
+alwaysApply: true
+---
+
+# Build tool by OS
+
+This project uses **two** Java build tools depending on the environment:
+
+- **Linux / macOS**: Use **Mill** (faster startup). CI and release run on Linux with Mill.
+- **Windows**: Use **Gradle** (Mill's build script has known issues on Windows).
+
+When suggesting or running Java build commands, choose by OS:
+
+## Linux / macOS (Mill)
+
+| Task     | Command |
+|----------|--------|
+| Compile  | `mill jakartaMigrationMcp.compile` |
+| Test     | `mill jakartaMigrationMcp.test` |
+| Run      | `mill jakartaMigrationMcp.run` |
+| Fat JAR  | `mill jakartaMigrationMcp.assembly` |
+| Clean    | `mill clean` |
+
+Use `./mill` if the bootstrap script is in the repo; otherwise `mill` when installed (e.g. via mise).
+
+## Windows (Gradle)
+
+| Task     | Command |
+|----------|--------|
+| Compile  | `.\gradlew.bat compileJava` |
+| Test     | `.\gradlew.bat test` |
+| Run      | `.\gradlew.bat bootRun` |
+| Fat JAR  | `.\gradlew.bat bootJar` |
+| Clean    | `.\gradlew.bat clean` |
+
+## Mise tasks (preferred)
+
+Prefer `mise run build`, `mise run test`, `mise run run`, `mise run assembly`, and `mise run clean` over direct mill/gradle; mise picks the right tool from the OS (run_windows = Gradle, run = Mill). See the "Prefer mise commands" rule.

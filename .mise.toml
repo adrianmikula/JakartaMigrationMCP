@@ -6,7 +6,7 @@
 # Java 21 - Required for the project
 java = "21.0.0"
 
-# Mill - Build tool (replaces Gradle for faster startup)
+# Mill - Build tool on Linux/macOS (faster startup); Gradle used on Windows
 mill = "0.12.17"
 
 # Node.js - Required for frontend development
@@ -57,33 +57,33 @@ run_windows = "powershell -File scripts/stop-services.ps1"
 run = "bash scripts/stop-services.sh"
 
 [tasks.build]
-description = "Build the project (without tests)"
-run_windows = "mill jakartaMigrationMcp.compile"
+description = "Build the project (without tests). Linux/macOS: Mill; Windows: Gradle"
+run_windows = "gradlew.bat compileJava"
 run = "mill jakartaMigrationMcp.compile"
 
 [tasks.build-all]
-description = "Build the project with tests"
-run_windows = "mill jakartaMigrationMcp.compile jakartaMigrationMcp.test"
+description = "Build the project with tests. Linux/macOS: Mill; Windows: Gradle"
+run_windows = "gradlew.bat build"
 run = "mill jakartaMigrationMcp.compile jakartaMigrationMcp.test"
 
 [tasks.test]
-description = "Run all tests"
-run_windows = "mill jakartaMigrationMcp.test"
+description = "Run all tests. Linux/macOS: Mill; Windows: Gradle"
+run_windows = "gradlew.bat test"
 run = "mill jakartaMigrationMcp.test"
 
 [tasks.run]
-description = "Run the application"
-run_windows = "mill jakartaMigrationMcp.run"
+description = "Run the application. Linux/macOS: Mill; Windows: Gradle"
+run_windows = "gradlew.bat bootRun"
 run = "mill jakartaMigrationMcp.run"
 
 [tasks.assembly]
-description = "Build fat JAR (for release)"
-run_windows = "mill jakartaMigrationMcp.assembly"
+description = "Build fat JAR (for release). Linux/macOS: Mill; Windows: Gradle"
+run_windows = "gradlew.bat bootJar"
 run = "mill jakartaMigrationMcp.assembly"
 
 [tasks.clean]
-description = "Clean build artifacts"
-run_windows = "mill clean"
+description = "Clean build artifacts. Linux/macOS: Mill; Windows: Gradle"
+run_windows = "gradlew.bat clean"
 run = "mill clean"
 
 [tasks.docker-logs]

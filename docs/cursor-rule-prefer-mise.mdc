@@ -1,0 +1,23 @@
+---
+description: Prefer mise run over direct mill/gradle for Java build tasks
+alwaysApply: true
+---
+
+# Prefer mise commands
+
+When suggesting or running Java build, test, run, assembly, or clean:
+
+- **Prefer** `mise run <task>` over direct `mill` or `gradlew` invocations.
+- Mise picks the right tool (Mill on Linux/macOS, Gradle on Windows) and uses the project’s pinned versions.
+
+**Preferred:**
+
+```bash
+mise run build      # compile
+mise run test       # run tests
+mise run run        # run the app
+mise run assembly   # build fat JAR
+mise run clean      # clean artifacts
+```
+
+**Fallback** (only when mise is unavailable or the user asks for raw commands): use `mill jakartaMigrationMcp.<task>` on Linux/macOS or `.\gradlew.bat <task>` on Windows.
