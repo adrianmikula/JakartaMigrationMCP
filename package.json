@@ -1,4 +1,4 @@
-﻿{
+{
     "name":  "@jakarta-migration/mcp-server",
     "version":  "1.0.0",
     "description":  "MCP server for Jakarta EE migration analysis and automation",
@@ -20,11 +20,15 @@
                      "mcp-server"
                  ],
     "author":  "Adrian Mikula",
-    "license":  "BSD",
+    "license":  "Apache-2.0",
     "repository":  {
-                       "type":  "git",
-                       "url":  "git+https://github.com/adrianmikula/JakartaMigrationMCP"
-                   },
+        "type":  "git",
+        "url":  "git+https://github.com/adrianmikula/JakartaMigrationMCP.git"
+    },
+    "homepage":  "https://github.com/adrianmikula/JakartaMigrationMCP#readme",
+    "bugs":  {
+        "url":  "https://github.com/adrianmikula/JakartaMigrationMCP/issues"
+    },
     "engines":  {
                     "node":  "\u003e=18.0.0"
                 },

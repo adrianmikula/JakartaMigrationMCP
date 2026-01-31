@@ -680,7 +680,7 @@ See [MCP Tools Documentation](docs/mcp/MCP_TOOLS_IMPLEMENTATION.md) for detailed
 
 ## 📄 License
 
-MIT License - See [LICENSE](LICENSE) file for details.
+Apache License 2.0 - See [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
