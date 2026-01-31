@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
     classes = adrianmikula.projectname.ProjectNameApplication.class,
     properties = {
         "jakarta.migration.stripe.enabled=false",
-        "jakarta.migration.apify.enabled=false",
+        "jakarta.migration.apify.enabled=true",
         "jakarta.migration.storage.file.enabled=false"
     }
 )

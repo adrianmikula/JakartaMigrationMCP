@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -49,7 +50,8 @@ class StripeWebhookControllerTest {
     void setUp() {
         objectMapper = new ObjectMapper();
         controller = new StripeWebhookController(stripeProperties, objectMapper);
-        
+        ReflectionTestUtils.setField(controller, "localStorageService", localStorageService);
+
         when(stripeProperties.getWebhookSecret()).thenReturn(webhookSecret);
         when(stripeProperties.getProductIdPremium()).thenReturn("prod_premium");
         when(stripeProperties.getProductIdEnterprise()).thenReturn("prod_enterprise");
@@ -205,10 +207,10 @@ class StripeWebhookControllerTest {
 
     @Test
     @DisplayName("Should handle invalid JSON payload")
-    void shouldHandleInvalidJsonPayload() {
-        // Given
+    void shouldHandleInvalidJsonPayload() throws Exception {
+        // Given - use valid signature so controller parses payload and hits error path
         String payload = "invalid json";
-        String signature = "t=123,v1=invalid";
+        String signature = createValidSignature(payload);
 
         // When
         ResponseEntity<String> response = controller.handleWebhook(payload, signature);
