@@ -3,14 +3,14 @@
 The Jakarta Migration MCP Server supports two transport mechanisms:
 
 1. **stdio** (Standard Input/Output) - For local use with MCP clients like Cursor, Claude Code
-2. **SSE** (Server-Sent Events) - For HTTP-based deployments like Apify
+2. **SSE** (Server-Sent Events) - For HTTP-based or self-hosted deployments
 
 ## ✅ Verification Status
 
 Both transport mechanisms are **fully configured and working**:
 
 - ✅ **stdio support**: Fully configured for local MCP clients
-- ✅ **SSE support**: Fully configured for Apify/HTTP deployments
+- ✅ **SSE support**: Fully configured for HTTP/self-hosted deployments
 - ✅ **Automatic detection**: Transport mode detected from environment
 - ✅ **Spring AI integration**: Tools properly annotated and registered
 
@@ -56,15 +56,14 @@ MCP_TRANSPORT=stdio npx -y @jakarta-migration/mcp-server
 }
 ```
 
-### SSE Transport (HTTP - Apify/Cloud)
+### SSE Transport (HTTP)
 
-**Use Case**: Deploying to Apify, cloud hosting, or HTTP-based MCP clients
+**Use Case**: Self-hosted HTTP server, cloud hosting, or HTTP-based MCP clients
 
 **How it works**:
 - Server runs as HTTP server
 - MCP client connects via HTTP SSE endpoint
-- Supports remote access and cloud deployments
-- Required for Apify Actor deployments
+- Supports remote access and self-hosted deployments
 
 **Configuration**:
 ```yaml
@@ -145,15 +144,15 @@ java -jar app.jar \
   --spring.ai.mcp.server.sse.path=/mcp/sse
 ```
 
-## Apify Deployment
+## HTTP/SSE Deployment (Self-Hosted)
 
-When deploying to Apify as an Actor, use SSE transport:
+When running as an HTTP server with SSE transport:
 
-**Dockerfile** (for Apify):
+**Dockerfile** (example):
 ```dockerfile
-FROM openjdk:21-jre-slim
+FROM eclipse-temurin:21-jre
 
-COPY jakarta-migration-mcp-server.jar /app/app.jar
+COPY build/libs/jakarta-migration-mcp-*.jar /app/app.jar
 
 ENV MCP_TRANSPORT=sse
 ENV MCP_SSE_PORT=8080
@@ -164,10 +163,10 @@ EXPOSE 8080
 CMD ["java", "-jar", "/app/app.jar", "--spring.profiles.active=mcp-sse"]
 ```
 
-**Apify Actor Configuration**:
+**Configuration**:
 - Set environment variable: `MCP_TRANSPORT=sse`
-- Expose port: `8080`
-- Health check endpoint: `http://localhost:8080/actuator/health`
+- Expose port: `8080` (or set `MCP_SSE_PORT`)
+- Health check: `http://localhost:8080/actuator/health`
 - MCP endpoint: `http://localhost:8080/mcp/sse`
 
 ## Verification
@@ -232,7 +231,7 @@ MCP_SSE_PORT=9090 java -jar app.jar
 
 - **npm wrapper (`index.js`)**: Defaults to `stdio` transport
 - **Direct JAR execution**: Defaults to `stdio` transport
-- **Apify deployment**: Should use `sse` transport
+- **HTTP/SSE self-hosted**: Use `sse` transport
 
 The transport mode is automatically detected based on:
 1. `MCP_TRANSPORT` environment variable

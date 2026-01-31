@@ -28,9 +28,6 @@ import java.time.Duration;
         "spring.datasource.hikari.connection-timeout=5000",
         "spring.datasource.hikari.maximum-pool-size=5",
         "spring.jpa.properties.hibernate.connection.provider_disables_autocommit=true",
-        "jakarta.migration.stripe.enabled=false",
-        "jakarta.migration.apify.enabled=false",
-        "jakarta.migration.storage.file.enabled=false"
     }
 )
 @Testcontainers

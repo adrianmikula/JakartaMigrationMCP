@@ -61,23 +61,13 @@ web: java -jar build/libs/jakarta-migration-mcp-*.jar --spring.profiles.active=m
 ### Step 2: Configure Environment Variables
 
 1. In Railway project, go to **Variables** tab
-2. Add required variables:
+2. Add required variable:
    ```
    SPRING_PROFILES_ACTIVE=mcp-streamable-http
-   LICENSE_API_SERVER_API_KEY=your-generated-api-key-here
    ```
 3. Railway automatically provides `PORT` (don't set it manually)
 
-**Generate API Key**:
-```bash
-# Using OpenSSL
-openssl rand -hex 32
-
-# Using PowerShell
-[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 }))
-```
-
-**See [RAILWAY_ENVIRONMENT_VARIABLES.md](RAILWAY_ENVIRONMENT_VARIABLES.md) for complete list of environment variables.**
+**See [RAILWAY_ENVIRONMENT_VARIABLES.md](RAILWAY_ENVIRONMENT_VARIABLES.md) for optional variables.**
 
 ### Step 3: Deploy
 

@@ -7,8 +7,6 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphException;
-import adrianmikula.jakartamigration.api.service.StripePaymentLinkService;
-import adrianmikula.jakartamigration.config.ApifyBillingService;
 import adrianmikula.jakartamigration.config.FeatureFlag;
 import adrianmikula.jakartamigration.config.FeatureFlagsService;
 import adrianmikula.jakartamigration.config.FeatureFlagsProperties;
@@ -45,12 +43,8 @@ public class JakartaMigrationTools {
     private final RecipeLibrary recipeLibrary;
     private final RuntimeVerificationModule runtimeVerificationModule;
     private final FeatureFlagsService featureFlags;
-    @org.springframework.lang.Nullable
-    private final ApifyBillingService apifyBillingService;
-    @org.springframework.lang.Nullable
-    private final StripePaymentLinkService paymentLinkService;
     private final adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner sourceCodeScanner;
-    
+
     public JakartaMigrationTools(
             DependencyAnalysisModule dependencyAnalysisModule,
             DependencyGraphBuilder dependencyGraphBuilder,
@@ -58,10 +52,6 @@ public class JakartaMigrationTools {
             RecipeLibrary recipeLibrary,
             RuntimeVerificationModule runtimeVerificationModule,
             FeatureFlagsService featureFlags,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) 
-            @org.springframework.lang.Nullable ApifyBillingService apifyBillingService,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) 
-            @org.springframework.lang.Nullable StripePaymentLinkService paymentLinkService,
             adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner sourceCodeScanner) {
         this.dependencyAnalysisModule = dependencyAnalysisModule;
         this.dependencyGraphBuilder = dependencyGraphBuilder;
@@ -69,8 +59,6 @@ public class JakartaMigrationTools {
         this.recipeLibrary = recipeLibrary;
         this.runtimeVerificationModule = runtimeVerificationModule;
         this.featureFlags = featureFlags;
-        this.apifyBillingService = apifyBillingService;
-        this.paymentLinkService = paymentLinkService;
         this.sourceCodeScanner = sourceCodeScanner;
     }
     
@@ -221,12 +209,7 @@ public class JakartaMigrationTools {
             
             // Create migration plan
             MigrationPlan plan = migrationPlanner.createPlan(projectPath, report);
-            
-            // Charge for billable event (premium feature)
-            if (apifyBillingService != null) {
-                apifyBillingService.chargeEvent("migration-plan-created");
-            }
-            
+
             // Build response
             return buildMigrationPlanResponse(plan);
             
@@ -330,12 +313,7 @@ public class JakartaMigrationTools {
             
             // Verify runtime
             VerificationResult result = runtimeVerificationModule.verifyRuntime(jar, options);
-            
-            // Charge for billable event (premium feature)
-            if (apifyBillingService != null) {
-                apifyBillingService.chargeEvent("runtime-verification-executed");
-            }
-            
+
             // Build response
             return buildVerificationResponse(result);
             
@@ -630,28 +608,6 @@ public class JakartaMigrationTools {
         json.append("  \"featureDescription\": \"").append(escapeJson(upgradeInfo.getFeatureDescription())).append("\",\n");
         json.append("  \"currentTier\": \"").append(currentTier).append("\",\n");
         json.append("  \"requiredTier\": \"").append(upgradeInfo.getRequiredTier()).append("\",\n");
-        
-        if (upgradeInfo.getPaymentLink() != null && !upgradeInfo.getPaymentLink().isBlank()) {
-            json.append("  \"paymentLink\": \"").append(escapeJson(upgradeInfo.getPaymentLink())).append("\",\n");
-        }
-        
-        // Get all available payment links
-        if (paymentLinkService != null) {
-            java.util.Map<String, String> allPaymentLinks = paymentLinkService.getAllPaymentLinks();
-            if (!allPaymentLinks.isEmpty()) {
-                json.append("  \"availablePlans\": {\n");
-                boolean first = true;
-                for (java.util.Map.Entry<String, String> entry : allPaymentLinks.entrySet()) {
-                    if (!first) {
-                        json.append(",\n");
-                    }
-                    json.append("    \"").append(escapeJson(entry.getKey())).append("\": \"")
-                        .append(escapeJson(entry.getValue())).append("\"");
-                    first = false;
-                }
-                json.append("\n  },\n");
-            }
-        }
         
         json.append("  \"upgradeMessage\": \"").append(escapeJson(upgradeInfo.getMessage())).append("\"\n");
         json.append("}");

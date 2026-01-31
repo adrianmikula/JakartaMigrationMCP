@@ -78,7 +78,7 @@ npm --version
 ```
 src/
 ├── main/java/adrianmikula/jakartamigration/
-│   ├── config/              # Configuration (feature flags, license validation)
+│   ├── config/              # Configuration (feature flags)
 │   ├── mcp/                 # MCP tools implementation
 │   ├── dependencyanalysis/  # Dependency analysis module
 │   ├── coderefactoring/     # Code refactoring module
@@ -179,6 +179,6 @@ Coverage reports are generated automatically after tests:
 
 - **[Installation Guide](INSTALLATION.md)** - Complete installation instructions
 - **[Mise Setup](MISE_SETUP.md)** - Tool version management with mise
-- **[Feature Flags Setup](FEATURE_FLAGS_SETUP.md)** - License and feature configuration
+- **[Feature Flags Setup](FEATURE_FLAGS_SETUP.md)** - Feature flags configuration
 - **[Packaging Guide](PACKAGING.md)** - Build and release process
 

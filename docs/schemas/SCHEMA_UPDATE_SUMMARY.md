@@ -67,9 +67,6 @@ Added optional `premiumFeatures` field to:
 - **New Required Fields**:
   - `featureName` (string) - Name of the feature requiring upgrade
   - `featureDescription` (string) - Description of the feature
-- **New Optional Fields**:
-  - `paymentLink` (string, URI) - Direct payment link for required tier
-  - `availablePlans` (object) - Map of all available payment plans with links
 - **Updated Fields**:
   - `message` - More detailed explanation
   - `upgradeMessage` - Human-readable upgrade instructions

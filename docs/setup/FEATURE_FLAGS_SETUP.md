@@ -1,77 +1,43 @@
 # Feature Flags Setup Guide
 
-This guide explains how to configure and use feature flags for the Jakarta Migration MCP Server.
+This guide explains how to configure feature flags for the Jakarta Migration MCP Server. The server uses a single **default tier**; there is no license key or payment integration.
 
 ## Quick Start
 
-### Enable All Features (Development)
+### Default: All Features Enabled (ENTERPRISE)
+
+The default configuration enables all features:
 
 ```yaml
-# application.yml
+# application.yml (default)
 jakarta:
   migration:
     feature-flags:
-      enabled: false  # Disables feature flag checks
+      enabled: true
+      default-tier: ENTERPRISE
+      features: {}
 ```
 
-### Community Tier (Default)
+No environment variables or license keys are required.
+
+### Restrict to a Lower Tier (Testing)
+
+To test tier-gated behavior, set a lower default tier:
 
 ```yaml
 jakarta:
   migration:
     feature-flags:
       enabled: true
-      default-tier: COMMUNITY
-      license-key: ""
+      default-tier: COMMUNITY  # or PREMIUM
+      features: {}
 ```
 
-### Premium Tier
+### Per-Feature Overrides
+
+You can enable specific features even when the default tier would not allow them:
 
 ```yaml
-jakarta:
-  migration:
-    feature-flags:
-      enabled: true
-      default-tier: PREMIUM
-      # Or use license key:
-      license-key: ${JAKARTA_MCP_LICENSE_KEY:PREMIUM-test-key}
-```
-
-### Environment Variable Configuration
-
-```bash
-# Set license key
-export JAKARTA_MCP_LICENSE_KEY="PREMIUM-your-key-here"
-
-# Set purchase URL (for upgrade messages)
-export JAKARTA_MCP_PURCHASE_URL="https://buy.stripe.com/your-link"
-```
-
-## Testing Feature Flags
-
-### Test with Community Tier
-
-```bash
-# No license key = Community tier
-java -jar jakarta-migration-mcp.jar \
-  --spring.main.web-application-type=none \
-  --spring.profiles.active=mcp
-```
-
-### Test with Premium Tier
-
-```bash
-# Set license key via environment variable
-export JAKARTA_MCP_LICENSE_KEY="PREMIUM-test-key"
-java -jar jakarta-migration-mcp.jar \
-  --spring.main.web-application-type=none \
-  --spring.profiles.active=mcp
-```
-
-### Test with Feature Override
-
-```yaml
-# application.yml
 jakarta:
   migration:
     feature-flags:
@@ -81,19 +47,30 @@ jakarta:
         auto-fixes: true  # Enable even for community tier
 ```
 
+## Testing Feature Flags
+
+### Test with ENTERPRISE (default)
+
+```bash
+java -jar jakarta-migration-mcp.jar \
+  --spring.main.web-application-type=none \
+  --spring.profiles.active=mcp-stdio
+```
+
+### Test with a Lower Tier
+
+```bash
+java -jar jakarta-migration-mcp.jar \
+  --jakarta.migration.feature-flags.default-tier=COMMUNITY \
+  --spring.main.web-application-type=none \
+  --spring.profiles.active=mcp-stdio
+```
+
 ## Available Features
 
-See [Feature Flags Documentation](../architecture/FEATURE_FLAGS.md) for complete list.
-
-## Next Steps
-
-1. **Configure feature flags** in `application.yml`
-2. **Set license key** via environment variable or config
-3. **Test feature availability** using the MCP tools
-4. **Implement premium features** using `FeatureFlagsService`
+See [Feature Flags Documentation](../architecture/FEATURE_FLAGS.md) for the full list of features and tiers.
 
 ## Related Documentation
 
 - [Feature Flags Architecture](../architecture/FEATURE_FLAGS.md)
-- [Monetization Research](../research/monetisation.md)
-
+- [Environment Variables](ENVIRONMENT_VARIABLES.md)

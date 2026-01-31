@@ -10,14 +10,6 @@ This directory contains JSON Schema definitions for the Jakarta Migration MCP Se
 - **`mcp-output-schemas.json`** - Output response schemas for all MCP tools (for MCP client validation)
 - **`example-requests-responses.json`** - Example request/response pairs
 
-### Apify Actor Schemas
-
-- **`.actor/input_schema.json`** - Apify input schema for Actor UI generation
-- **`.actor/output_schema.json`** - Apify output schema for output display
-- **`.actor/actor.json`** - Actor metadata and configuration
-
-See [APIFY_SCHEMAS.md](APIFY_SCHEMAS.md) for details on Apify-specific schemas.
-
 ## Usage
 
 These schemas can be used for:
@@ -57,7 +49,7 @@ Each tool has a corresponding output schema that may include:
 
 - **Success Response** - Normal operation result
 - **Error Response** - Error occurred during execution
-- **Upgrade Required Response** - Premium feature requires license upgrade (with payment links)
+- **Upgrade Required Response** - Feature requires a higher tier (optional; default tier is ENTERPRISE so all features are available)
 
 ## Tools
 
@@ -68,43 +60,29 @@ Each tool has a corresponding output schema that may include:
 3. **`recommendVersions`** - Recommend Jakarta-compatible versions
 4. **`check_env`** - Check environment variable status
 
-### Premium Tools (Require PREMIUM License)
+### All Tools (Default Tier: ENTERPRISE)
+
+All tools are available by default. Tier-based upgrade responses are optional and used only if a lower tier is configured.
 
 1. **`createMigrationPlan`** - Create comprehensive migration plan
 2. **`analyzeMigrationImpact`** - Full migration impact analysis
 3. **`verifyRuntime`** - Verify runtime execution of migrated application
 
-## Upgrade Required Response
+## Upgrade Required Response (Optional)
 
-When a premium tool is called without the required license, it returns an upgrade response with payment links:
+If a tool is gated by tier and the current tier is lower than required, the server may return:
 
 ```json
 {
   "status": "upgrade_required",
-  "message": "The 'createMigrationPlan' tool requires a PREMIUM license...",
+  "message": "The 'createMigrationPlan' tool requires a PREMIUM tier...",
   "featureName": "One-click refactoring",
   "featureDescription": "Execute complete Jakarta migration refactoring...",
   "currentTier": "COMMUNITY",
   "requiredTier": "PREMIUM",
-  "paymentLink": "https://buy.stripe.com/premium-link",
-  "availablePlans": {
-    "premium": "https://buy.stripe.com/premium-link",
-    "enterprise": "https://buy.stripe.com/enterprise-link"
-  },
-  "upgradeMessage": "The 'One-click refactoring' feature requires a PREMIUM license..."
+  "upgradeMessage": "Upgrade to PREMIUM to use this feature."
 }
 ```
-
-## Recent Updates
-
-### 2026-01-XX: Licensing & Payment Links
-
-- ✅ Enhanced `upgradeRequiredResponse` with payment link fields
-- ✅ Added `featureName` and `featureDescription` to upgrade responses
-- ✅ Added `availablePlans` object for all payment options
-- ✅ Updated `analyzeMigrationImpact` to include upgrade response
-
-See [SCHEMA_UPDATE_2026_LICENSING.md](SCHEMA_UPDATE_2026_LICENSING.md) for details.
 
 ## Validation
 
@@ -172,8 +150,6 @@ interface UpgradeRequiredResponse {
   featureDescription: string;
   currentTier: 'COMMUNITY' | 'PREMIUM' | 'ENTERPRISE';
   requiredTier: 'PREMIUM' | 'ENTERPRISE';
-  paymentLink?: string;
-  availablePlans?: Record<string, string>;
   upgradeMessage: string;
 }
 
@@ -181,9 +157,6 @@ function handleResponse(response: any) {
   if (response.status === 'upgrade_required') {
     const upgrade = response as UpgradeRequiredResponse;
     console.log(`Upgrade required: ${upgrade.featureName}`);
-    if (upgrade.paymentLink) {
-      console.log(`Upgrade at: ${upgrade.paymentLink}`);
-    }
   }
 }
 ```
@@ -192,6 +165,4 @@ function handleResponse(response: any) {
 
 - [Schema Overview](SCHEMA_OVERVIEW.md) - Complete schema documentation
 - [Schema Update Summary](SCHEMA_UPDATE_SUMMARY.md) - Historical changes
-- [Schema Update 2026 Licensing](SCHEMA_UPDATE_2026_LICENSING.md) - Latest licensing updates
-- [Schema Comparison](SCHEMA_COMPARISON.md) - MCP vs Apify schemas
-- [Apify Schemas](APIFY_SCHEMAS.md) - Apify-specific schema documentation
+- [Schema Comparison](SCHEMA_COMPARISON.md) - Schema comparison
