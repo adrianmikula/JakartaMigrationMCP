@@ -1,4 +1,7 @@
-# Gradle
+# Mill
+out/
+
+# Gradle (legacy - can remove after full Mill migration)
 .gradle/
 build/
 !gradle/wrapper/gradle-wrapper.jar
