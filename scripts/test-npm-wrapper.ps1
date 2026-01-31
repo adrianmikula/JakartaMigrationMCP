@@ -4,7 +4,7 @@
 
 param(
     [string]$JarPath = "build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar",
-    [int]$TimeoutSeconds = 15
+    [int]$TimeoutSeconds = 45
 )
 
 $ErrorActionPreference = "Stop"
@@ -71,13 +71,19 @@ Write-Host ""
 
 # Test 4: Test wrapper starts Java process correctly
 Write-Host "[TEST 4] Testing wrapper starts Java process..." -ForegroundColor Yellow
-$javaCheck = Get-Command java -ErrorAction SilentlyContinue
-if ($null -eq $javaCheck) {
-    Write-Host "  [FAIL] Java not found in PATH" -ForegroundColor Red
+$javaFound = $false
+if ($null -ne (Get-Command java -ErrorAction SilentlyContinue)) {
+    $javaFound = $true
+} elseif ($env:JAVA_HOME -and (Test-Path "$env:JAVA_HOME\bin\java.exe")) {
+    $javaFound = $true
+}
+
+if ($javaFound) {
+    Write-Host "  [OK] Java found (PATH or JAVA_HOME)" -ForegroundColor Green
+} else {
+    Write-Host "  [FAIL] Java not found in PATH or JAVA_HOME" -ForegroundColor Red
     exit 1
 }
-# Java command exists, that's sufficient for the test
-Write-Host "  [OK] Java found in PATH" -ForegroundColor Green
 Write-Host ""
 
 # Test 5: Test MCP server startup and communication
@@ -92,7 +98,7 @@ const readline = require('readline');
 // Start the npm wrapper
 const wrapper = spawn('node', ['index.js'], {
     stdio: ['pipe', 'pipe', 'pipe'],
-    env: { ...process.env, JAKARTA_MCP_JAR_PATH: '$((Resolve-Path $JarPath).Path)' }
+    env: { ...process.env, JAKARTA_MCP_JAR_PATH: '$((Resolve-Path $JarPath).Path.Replace("\", "/"))' }
 });
 
 let outputBuffer = '';
@@ -147,7 +153,7 @@ rl.on('line', (line) => {
                 wrapper.stdin.flush();
             }, 500);
         } else if (response.id === 2 && response.result && response.result.tools) {
-            console.log(`[OK] Tools list received (${response.result.tools.length} tools)`);
+            console.log('[OK] Tools list received (' + response.result.tools.length + ' tools)');
             testsPassed++;
             
             // Test complete
@@ -168,7 +174,7 @@ rl.on('line', (line) => {
 
 // Handle stderr (logging)
 wrapper.stderr.on('data', (data) => {
-    // Logging goes to stderr, ignore for now
+    process.stderr.write(data);
 });
 
 // Timeout
@@ -188,46 +194,47 @@ $testScriptPath = "test-npm-wrapper-temp.js"
 $testScript | Out-File -FilePath $testScriptPath -Encoding UTF8
 
 try {
-    $testProcess = Start-Process -FilePath "node" `
-        -ArgumentList $testScriptPath `
-        -NoNewWindow `
-        -PassThru `
-        -RedirectStandardOutput "npm-wrapper-test-output.log" `
-        -RedirectStandardError "npm-wrapper-test-error.log"
+    # Run the test script and capture output
+    # Using 2>&1 to merge streams and | Tee-Object to capture to file
+    node $testScriptPath 2>&1 | Tee-Object -FilePath "npm-wrapper-test-all.log"
     
-    $testProcess.WaitForExit($TimeoutSeconds)
+    $exitCode = $LASTEXITCODE
     
-    if (Test-Path "npm-wrapper-test-output.log") {
-        $output = Get-Content "npm-wrapper-test-output.log" -Raw
-        Write-Host $output
+    if (Test-Path "npm-wrapper-test-all.log") {
+        $output = Get-Content "npm-wrapper-test-all.log" -Raw
+        # ... rest of the code ...
         
         if ($output -match "Initialize response received") {
             Write-Host "  [OK] MCP initialize successful" -ForegroundColor Green
+            $mcpInitOk = $true
         } else {
             Write-Host "  [FAIL] MCP initialize failed" -ForegroundColor Red
+            $mcpInitOk = $false
         }
         
         if ($output -match "Tools list received") {
             Write-Host "  [OK] MCP tools/list successful" -ForegroundColor Green
+            $mcpToolsOk = $true
         } else {
             Write-Host "  [FAIL] MCP tools/list failed" -ForegroundColor Red
+            $mcpToolsOk = $false
+        }
+
+        if (-not ($mcpInitOk -and $mcpToolsOk)) {
+            Write-Host "  Full Output Log:" -ForegroundColor Yellow
+            Write-Host $output -ForegroundColor Gray
         }
     }
     
-        if ($testProcess.ExitCode -eq 0) {
+    if ($exitCode -eq 0 -and $mcpInitOk -and $mcpToolsOk) {
         Write-Host "  [OK] All MCP communication tests passed" -ForegroundColor Green
     } else {
-        Write-Host "  [FAIL] Some tests failed (exit code: $($testProcess.ExitCode))" -ForegroundColor Red
-        if (Test-Path "npm-wrapper-test-error.log") {
-            Write-Host "  Error log:" -ForegroundColor Yellow
-            Get-Content "npm-wrapper-test-error.log" | Select-Object -First 10 | Write-Host
-        }
+        Write-Host "  [FAIL] Some tests failed (exit code: $exitCode)" -ForegroundColor Red
     }
 } finally {
     # Cleanup
     Remove-Item $testScriptPath -ErrorAction SilentlyContinue
-    Remove-Item "npm-wrapper-test-output.log" -ErrorAction SilentlyContinue
-    Remove-Item "npm-wrapper-test-error.log" -ErrorAction SilentlyContinue
+    Remove-Item "npm-wrapper-test-all.log" -ErrorAction SilentlyContinue
 }
 
 Write-Host ""
@@ -239,18 +246,39 @@ Write-Host "  [OK] Signal handling configured in wrapper" -ForegroundColor Green
 Write-Host ""
 
 # Summary
+# Summary
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "Test Summary" -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "[OK] JAR file check" -ForegroundColor Green
-Write-Host "[OK] npm wrapper file check" -ForegroundColor Green
-Write-Host "[OK] --download-only flag" -ForegroundColor Green
-Write-Host "[OK] Java detection" -ForegroundColor Green
-Write-Host "[OK] MCP server startup" -ForegroundColor Green
-Write-Host "[OK] JSON-RPC communication" -ForegroundColor Green
+
+$jarStatus = if (Test-Path $JarPath) { "[OK]" } else { "[FAIL]" }
+$jarColor = if (Test-Path $JarPath) { "Green" } else { "Red" }
+$indexStatus = if (Test-Path "index.js") { "[OK]" } else { "[FAIL]" }
+$indexColor = if (Test-Path "index.js") { "Green" } else { "Red" }
+$downloadStatus = if ($exitCode -eq 0) { "[OK]" } else { "[FAIL]" }
+$downloadColor = if ($exitCode -eq 0) { "Green" } else { "Red" }
+$javaStatus = if ($javaFound) { "[OK]" } else { "[FAIL]" }
+$javaColor = if ($javaFound) { "Green" } else { "Red" }
+$mcpInitStatus = if ($mcpInitOk) { "[OK]" } else { "[FAIL]" }
+$mcpInitColor = if ($mcpInitOk) { "Green" } else { "Red" }
+$mcpToolsStatus = if ($mcpToolsOk) { "[OK]" } else { "[FAIL]" }
+$mcpToolsColor = if ($mcpToolsOk) { "Green" } else { "Red" }
+
+Write-Host "$jarStatus JAR file check" -ForegroundColor $jarColor
+Write-Host "$indexStatus npm wrapper file check" -ForegroundColor $indexColor
+Write-Host "$downloadStatus --download-only flag" -ForegroundColor $downloadColor
+Write-Host "$javaStatus Java detection" -ForegroundColor $javaColor
+Write-Host "$mcpInitStatus MCP server start/init" -ForegroundColor $mcpInitColor
+Write-Host "$mcpToolsStatus JSON-RPC communication" -ForegroundColor $mcpToolsColor
 Write-Host ""
-Write-Host "The npm wrapper is working correctly!" -ForegroundColor Green
+
+if ($mcpInitOk -and $mcpToolsOk -and $exitCode -eq 0) {
+    Write-Host "The npm wrapper is working correctly!" -ForegroundColor Green
+} else {
+    Write-Host "The npm wrapper test FAILED!" -ForegroundColor Red
+    exit 1
+}
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host "1. Publish to npm: npm publish" -ForegroundColor White

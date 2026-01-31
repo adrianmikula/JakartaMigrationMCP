@@ -71,6 +71,11 @@ description = "Run all tests. Linux/macOS: Mill; Windows: Gradle"
 run_windows = "gradlew.bat test"
 run = "mill jakartaMigrationMcp.test"
 
+[tasks.clean-test]
+description = "Run tests cleanly without leaving orphaned processes (--no-daemon)"
+run_windows = "gradlew.bat test --no-daemon"
+run = "mill jakartaMigrationMcp.test"
+
 [tasks.run]
 description = "Run the application. Linux/macOS: Mill; Windows: Gradle"
 run_windows = "gradlew.bat bootRun"

@@ -101,6 +101,15 @@ function loadConfiguration(configFilePath = configFile) {
 
 // Java executable detection
 function findJavaExecutable() {
+  // 1. Try JAVA_HOME if set
+  if (process.env.JAVA_HOME) {
+    const javaHomeBin = path.join(process.env.JAVA_HOME, 'bin', isWindows ? 'java.exe' : 'java');
+    if (fs.existsSync(javaHomeBin)) {
+      return javaHomeBin;
+    }
+  }
+
+  // 2. Try default 'java' command
   const javaCommands = isWindows ? ['java.exe', 'java'] : ['java'];
   
   for (const cmd of javaCommands) {

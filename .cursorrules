@@ -1,0 +1,14 @@
+# Jakarta Migration MCP Rules
+
+## Environment Standards
+- Always use **Gradle** on Windows (`gradlew.bat`) and **Mill** on Linux/macOS.
+- **Mise** is the preferred task runner. Use `mise run <task>` (build, test, run, assembly, clean).
+- On Windows, always run `.\scripts\kill-gradle-java.ps1` before rebuilds or if file lock issues occur (use `-Force` for persistent locks).
+
+## Java Standards
+- Use **Java 21**.
+- Java home on Windows: `C:\Program Files\Java\jdk-21.0.10` (or as set in `gradle.properties`).
+
+## Development Workflow
+- For MCP Stdio transport, ensure nothing but JSON-RPC goes to stdout. All logs should go to stderr.
+- When fixing tests, if a hang occurs, check if `java` is in the PATH or use absolute paths from `java.home`.
