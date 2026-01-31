@@ -177,17 +177,12 @@
       },
       "response": {
         "status": "upgrade_required",
-        "message": "The 'createMigrationPlan' tool requires a PREMIUM license. This tool creates comprehensive migration plans with detailed phases and risk assessment.",
+        "message": "The 'createMigrationPlan' tool requires a PREMIUM tier.",
         "featureName": "One-click refactoring",
         "featureDescription": "Execute complete Jakarta migration refactoring with a single command",
         "requiredTier": "PREMIUM",
         "currentTier": "COMMUNITY",
-        "paymentLink": "https://buy.stripe.com/premium-link",
-        "availablePlans": {
-          "premium": "https://buy.stripe.com/premium-link",
-          "enterprise": "https://buy.stripe.com/enterprise-link"
-        },
-        "upgradeMessage": "The 'One-click refactoring' feature requires a PREMIUM license, but your current tier is COMMUNITY. To unlock this feature, please upgrade at: https://buy.stripe.com/premium-link"
+        "upgradeMessage": "Upgrade to PREMIUM to use this feature."
       }
     },
     "analyzeMigrationImpact": {
@@ -220,7 +215,6 @@
             "Advanced Analysis - Deep transitive conflict detection",
             "Batch Operations - Process multiple projects simultaneously"
           ],
-          "pricingUrl": "https://buy.stripe.com/premium-link",
           "estimatedSavings": "120 minutes of manual work"
         }
       }
@@ -231,17 +225,12 @@
       },
       "response": {
         "status": "upgrade_required",
-        "message": "The 'analyzeMigrationImpact' tool requires a PREMIUM license. This tool provides comprehensive migration impact analysis combining dependency analysis and source code scanning.",
+        "message": "The 'analyzeMigrationImpact' tool requires a PREMIUM tier.",
         "featureName": "Advanced dependency analysis",
         "featureDescription": "Deep dependency analysis with transitive conflict detection and resolution",
         "requiredTier": "PREMIUM",
         "currentTier": "COMMUNITY",
-        "paymentLink": "https://buy.stripe.com/premium-link",
-        "availablePlans": {
-          "premium": "https://buy.stripe.com/premium-link",
-          "enterprise": "https://buy.stripe.com/enterprise-link"
-        },
-        "upgradeMessage": "The 'Advanced dependency analysis' feature requires a PREMIUM license, but your current tier is COMMUNITY. To unlock this feature, please upgrade at: https://buy.stripe.com/premium-link"
+        "upgradeMessage": "Upgrade to PREMIUM to use this feature."
       }
     }
   }

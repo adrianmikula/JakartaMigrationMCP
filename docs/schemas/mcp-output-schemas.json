@@ -58,32 +58,12 @@
             "requiredTier": {
               "type": "string",
               "enum": ["PREMIUM", "ENTERPRISE"],
-              "description": "Minimum license tier required"
+              "description": "Minimum tier required for the feature"
             },
             "currentTier": {
               "type": "string",
               "enum": ["COMMUNITY", "PREMIUM", "ENTERPRISE"],
-              "description": "Current license tier"
-            },
-            "paymentLink": {
-              "type": "string",
-              "format": "uri",
-              "description": "Direct payment link for the required tier (optional, only if configured)"
-            },
-            "availablePlans": {
-              "type": "object",
-              "description": "Map of all available payment plans (optional, only if configured)",
-              "additionalProperties": {
-                "type": "string",
-                "format": "uri",
-                "description": "Payment link URL for the plan"
-              },
-              "examples": [
-                {
-                  "premium": "https://buy.stripe.com/premium-link",
-                  "enterprise": "https://buy.stripe.com/enterprise-link"
-                }
-              ]
+              "description": "Current feature tier"
             },
             "upgradeMessage": {
               "type": "string",
@@ -216,8 +196,7 @@
         "pricingUrl": {
           "type": "string",
           "format": "uri",
-          "description": "URL to pricing information",
-          "default": "https://apify.com/adrian_m/jakartamigrationmcp#pricing"
+          "description": "URL to more information (optional)"
         },
         "estimatedSavings": {
           "type": "string",
@@ -225,7 +204,7 @@
           "pattern": "^.+$"
         }
       },
-      "required": ["recommended", "message", "features", "pricingUrl"]
+      "required": ["recommended", "message", "features"]
     },
     "blockersResponse": {
       "allOf": [

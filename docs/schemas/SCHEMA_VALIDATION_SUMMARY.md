@@ -11,12 +11,8 @@ All JSON schemas have been validated and are syntactically correct.
 **Status**: Valid JSON Schema (Draft 7)
 
 **Updates**:
-- ✅ Enhanced `upgradeRequiredResponse` with new fields:
-  - `featureName` (required)
-  - `featureDescription` (required)
-  - `paymentLink` (optional)
-  - `availablePlans` (optional)
-- ✅ Updated `analyzeMigrationImpact` tool output to include `upgradeRequiredResponse`
+- ✅ `upgradeRequiredResponse` includes: `featureName`, `featureDescription`, `requiredTier`, `currentTier`, `upgradeMessage`
+- ✅ `analyzeMigrationImpact` tool output may include `upgradeRequiredResponse`
 
 ### 2. `mcp-input-schemas.json` ✅
 
@@ -40,17 +36,12 @@ All JSON schemas have been validated and are syntactically correct.
 ```json
 {
   "status": "upgrade_required",
-  "message": "The 'createMigrationPlan' tool requires a PREMIUM license...",
+  "message": "The 'createMigrationPlan' tool requires a PREMIUM tier.",
   "featureName": "One-click refactoring",
   "featureDescription": "Execute complete Jakarta migration refactoring...",
   "requiredTier": "PREMIUM",
   "currentTier": "COMMUNITY",
-  "paymentLink": "https://buy.stripe.com/premium-link",
-  "availablePlans": {
-    "premium": "https://buy.stripe.com/premium-link",
-    "enterprise": "https://buy.stripe.com/enterprise-link"
-  },
-  "upgradeMessage": "The 'One-click refactoring' feature requires a PREMIUM license..."
+  "upgradeMessage": "Upgrade to PREMIUM to use this feature."
 }
 ```
 

@@ -13,7 +13,7 @@ This document provides a comprehensive review of all test files in the Jakarta M
 **Strengths:**
 - Good use of JUnit 5 and AssertJ
 - Comprehensive integration tests for MCP server
-- Good coverage of edge cases in some areas (CreditService, LicenseService)
+- Good coverage of edge cases in some areas
 - Proper use of mocking where appropriate
 
 **Areas for Improvement:**
@@ -211,36 +211,17 @@ This document provides a comprehensive review of all test files in the Jakarta M
 ### 6. Configuration and Licensing Tests
 
 #### `LicenseServiceTest.java` ✅ **GOOD**
-**Status**: Well-written with good edge case coverage
+**Status**: Tests default tier behavior
 
 **Strengths:**
-- Tests all license validation paths
+- Tests default tier from configuration
 - Good null/blank handling
-- Tests Stripe and Apify integration
 
 **Issues:**
 - ✅ No major issues
 
 **Recommendations:**
-- Add tests for license expiration
-- Test concurrent license validation
-
----
-
-#### `CreditServiceTest.java` ✅ **EXCELLENT**
-**Status**: Comprehensive test coverage
-
-**Strengths:**
-- Excellent edge case coverage
-- Tests concurrent operations
-- Tests transaction ID uniqueness
-- Good validation of business logic
-
-**Issues:**
-- ✅ No major issues
-
-**Recommendations:**
-- Consider adding performance tests for high-volume operations
+- Add tests for feature-flag tier overrides if added
 
 ---
 
@@ -358,7 +339,7 @@ This document provides a comprehensive review of all test files in the Jakarta M
 |----------|-------|-------|
 | **Coverage** | 7/10 | Good coverage but missing some critical paths |
 | **Realism** | 6/10 | Many tests use mocks, need more real scenarios |
-| **Edge Cases** | 7/10 | Good in some areas (CreditService), weak in others |
+| **Edge Cases** | 7/10 | Good in some areas, weak in others |
 | **Maintainability** | 8/10 | Well-structured, good naming |
 | **Accuracy** | 6/10 | Some tests don't verify actual behavior |
 
