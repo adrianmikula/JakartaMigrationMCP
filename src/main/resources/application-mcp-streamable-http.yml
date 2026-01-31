@@ -1,4 +1,4 @@
-# Profile for Streamable HTTP transport (recommended for HTTP/Apify)
+# Profile for Streamable HTTP transport (HTTP server)
 # 
 # Streamable HTTP is simpler than SSE:
 # - Single POST endpoint (no SSE complexity)

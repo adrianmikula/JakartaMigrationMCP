@@ -19,7 +19,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.reactive.function.client.WebClient;
 
 /**
  * Configuration for Jakarta Migration modules.
@@ -29,74 +28,9 @@ import org.springframework.web.reactive.function.client.WebClient;
  */
 @Configuration
 @ComponentScan(basePackages = "adrianmikula.jakartamigration")
-@EnableConfigurationProperties({
-    FeatureFlagsProperties.class, 
-    ApifyLicenseProperties.class,
-    StripeLicenseProperties.class
-})
+@EnableConfigurationProperties(FeatureFlagsProperties.class)
 public class JakartaMigrationConfig {
-    
-    /**
-     * ApifyBillingService bean.
-     * Handles billing events for premium features when deployed on Apify.
-     * Only created if Apify validation is enabled.
-     * 
-     * NOTE: Apify support is deprecated in favor of Stripe.
-     */
-    @Bean
-    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
-        name = "jakarta.migration.apify.enabled",
-        havingValue = "true",
-        matchIfMissing = false
-    )
-    public ApifyBillingService apifyBillingService(ApifyLicenseProperties apifyProperties) {
-        return new ApifyBillingService(apifyProperties);
-    }
 
-    /**
-     * WebClient for Apify API calls.
-     * Configured with Apify API base URL and appropriate timeouts.
-     * Only created if Apify validation is enabled.
-     * 
-     * NOTE: Apify support is deprecated in favor of Stripe.
-     */
-    @Bean
-    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
-        name = "jakarta.migration.apify.enabled",
-        havingValue = "true",
-        matchIfMissing = false
-    )
-    public WebClient apifyWebClient(ApifyLicenseProperties apifyProperties) {
-        return WebClient.builder()
-            .baseUrl(apifyProperties.getApiUrl())
-            .defaultHeader("Content-Type", "application/json")
-            .codecs(configurer -> configurer
-                .defaultCodecs()
-                .maxInMemorySize(1024 * 1024)) // 1MB
-            .build();
-    }
-    
-    /**
-     * WebClient for Stripe API calls.
-     * Configured with Stripe API base URL and authentication.
-     * Only created if Stripe validation is enabled.
-     */
-    @Bean
-    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
-        name = "jakarta.migration.stripe.enabled",
-        havingValue = "true",
-        matchIfMissing = false
-    )
-    public WebClient stripeWebClient(StripeLicenseProperties stripeProperties) {
-        return WebClient.builder()
-            .baseUrl(stripeProperties.getApiUrl())
-            .defaultHeader("Content-Type", "application/x-www-form-urlencoded")
-            .codecs(configurer -> configurer
-                .defaultCodecs()
-                .maxInMemorySize(1024 * 1024)) // 1MB
-            .build();
-    }
-    
     @Bean
     public DependencyGraphBuilder dependencyGraphBuilder() {
         return new MavenDependencyGraphBuilder();
