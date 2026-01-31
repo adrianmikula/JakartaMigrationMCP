@@ -159,7 +159,9 @@ class YamlConfigurationTest {
     @SpringBootTest(
         classes = adrianmikula.projectname.ProjectNameApplication.class,
         properties = {
-            "jakarta.migration.storage.file.enabled=false"
+            "jakarta.migration.storage.file.enabled=false",
+            "jakarta.migration.stripe.enabled=false",
+            "jakarta.migration.apify.enabled=false"
         }
     )
     @TestPropertySource(properties = {

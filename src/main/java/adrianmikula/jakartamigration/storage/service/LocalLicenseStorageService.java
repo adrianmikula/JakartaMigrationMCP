@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.storage.service;
 import adrianmikula.jakartamigration.config.FeatureFlagsProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,7 +40,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class LocalLicenseStorageService {
 
     private final ObjectMapper objectMapper = new ObjectMapper()
-            .registerModule(new JavaTimeModule());
+            .registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final Path storageFile;
     private static final long DEFAULT_CACHE_TTL_HOURS = 24;
@@ -178,7 +180,10 @@ public class LocalLicenseStorageService {
 
         long ttl = (ttlHours != null && ttlHours > 0) ? ttlHours : DEFAULT_CACHE_TTL_HOURS;
         Instant now = Instant.now();
-        Instant expiresAt = now.plus(ttl, ChronoUnit.HOURS);
+        // Treat 0 as "expire immediately" for testing and edge cases
+        Instant expiresAt = (ttlHours != null && ttlHours == 0)
+                ? now
+                : now.plus(ttl, ChronoUnit.HOURS);
 
         LicenseSession session = new LicenseSession();
         session.setEmail(email.toLowerCase());

@@ -7,9 +7,12 @@
                 "jakarta-migration-mcp":  "index.js"
             },
     "scripts":  {
-                    "postinstall":  "node scripts/postinstall.js",
-                    "test":  "node test-config-loading.js"
-                },
+        "postinstall":  "node scripts/postinstall.js",
+        "test":  "node test-config-loading.js",
+        "test:node":  "node test-config-loading.js",
+        "test:java":  "mise run test",
+        "test:all":  "npm run test:node && npm run test:java"
+    },
     "keywords":  [
                      "mcp",
                      "model-context-protocol",

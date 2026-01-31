@@ -4,10 +4,10 @@ Use this checklist before publishing to the npm registry.
 
 ## Pre-release
 
-- [ ] **Version sync**: Update `version` in both `package.json` and `build.gradle.kts` (remove `-SNAPSHOT` for release). Tag and package version should match (e.g. `1.0.0`).
-- [ ] **Changelog**: Document changes since last release (optional but recommended).
-- [ ] **Tests**: Run `./gradlew test` and `npm test`; fix any failures.
-- [ ] **Lint / quality**: Run `./gradlew check` (or your code-quality script) and fix issues.
+- [x] **Version sync**: Update `version` in both `package.json` and `build.gradle.kts` (remove `-SNAPSHOT` for release). Tag and package version should match (e.g. `1.0.0`).
+- [x] **Changelog**: Document changes since last release (see root `CHANGELOG.md`).
+- [ ] **Tests**: Run `npm test` (passed). Run `./gradlew test` **with JDK 21** (Gradle’s Kotlin DSL can fail on JDK 25+; CI uses JDK 21).
+- [ ] **Lint / quality**: Run `./gradlew check` with JDK 21, or rely on CI (`.github/workflows/ci.yml`).
 
 ## package.json
 
