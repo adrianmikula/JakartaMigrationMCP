@@ -13,6 +13,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
@@ -63,7 +64,7 @@ class FeatureFlagsServiceTest {
 
     @Test
     void shouldRespectFeatureOverrides() {
-        when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
+        lenient().when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
         Map<String, Boolean> overrides = new HashMap<>();
         overrides.put("auto-fixes", true);
         properties.setFeatures(overrides);

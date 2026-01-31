@@ -1,13 +1,11 @@
 package adrianmikula.jakartamigration.config;
 
-import adrianmikula.jakartamigration.coderefactoring.service.*;
-import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
-import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,7 +20,7 @@ class JakartaMigrationConfigTest {
 
     private final JakartaMigrationConfig config;
 
-    JakartaMigrationConfigTest(JakartaMigrationConfig config) {
+    JakartaMigrationConfigTest(@Autowired JakartaMigrationConfig config) {
         this.config = config;
     }
 

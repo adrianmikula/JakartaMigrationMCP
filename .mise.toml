@@ -86,6 +86,16 @@ description = "Clean build artifacts. Linux/macOS: Mill; Windows: Gradle"
 run_windows = "gradlew.bat clean"
 run = "mill clean"
 
+[tasks.kill-gradle-java]
+description = "Stop Gradle daemons to avoid file locks on Windows before rebuild/retest"
+run_windows = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/kill-gradle-java.ps1"
+run = "bash -c 'gradlew --stop 2>/dev/null || true'"
+
+[tasks.kill-gradle-java-force]
+description = "Stop Gradle daemons and kill Gradle/project Java processes (use when file locks persist)"
+run_windows = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/kill-gradle-java.ps1 -Force"
+run = "bash -c 'gradlew --stop 2>/dev/null || true'"
+
 [tasks.docker-logs]
 description = "View Docker service logs (follow mode)"
 run = "docker compose logs -f"

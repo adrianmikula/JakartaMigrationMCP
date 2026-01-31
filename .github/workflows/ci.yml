@@ -24,9 +24,8 @@ jobs:
 
       - name: Install Mill
         run: |
-          curl -L https://repo1.maven.org/maven2/com/lihaoyi/mill-dist/0.12.17/mill-dist-0.12.17-mill.sh -o mill
           chmod +x mill
-          ./mill version
+          ./mill --version
 
       - name: Run tests
         run: ./mill jakartaMigrationMcp.test

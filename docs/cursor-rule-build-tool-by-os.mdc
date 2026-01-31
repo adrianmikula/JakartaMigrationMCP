@@ -26,8 +26,11 @@ Use `./mill` if the bootstrap script is in the repo; otherwise `mill` when insta
 
 ## Windows (Gradle)
 
+Gradle is configured to use **Java 21** at `C:\Program Files\Java\jdk-21.0.10` (see `gradle.properties`). Use that JDK for builds and tests.
+
 | Task     | Command |
 |----------|--------|
+| **Avoid file locks** | `.\scripts\kill-gradle-java.ps1` or `mise run kill-gradle-java` (use `-Force` to also kill Gradle/project Java) |
 | Compile  | `.\gradlew.bat compileJava` |
 | Test     | `.\gradlew.bat test` |
 | Run      | `.\gradlew.bat bootRun` |

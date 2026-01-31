@@ -1,0 +1,20 @@
+---
+description: Stop Gradle/Java processes on Windows before rebuild/retest to avoid file locks
+alwaysApply: false
+---
+
+# Windows: Kill Gradle / Java before rebuild or retest
+
+On Windows, Gradle daemons and leftover Java processes (tests, bootRun) can lock the filesystem and cause "file is in use" or daemon conflicts when rebuilding or re-running tests.
+
+**Before rebuild or retest** (or when the user reports file locks), stop them:
+
+- **Daemons only (safe, try first):**
+  - `.\scripts\kill-gradle-java.ps1`
+  - or: `mise run kill-gradle-java`
+
+- **Daemons + Gradle/project Java (when locks persist):**
+  - `.\scripts\kill-gradle-java.ps1 -Force` or `mise run kill-gradle-java-force`
+  - This kills only Gradle daemons/workers and this project's JAR processes; it does not kill the IDE Java language server.
+
+When suggesting rebuilds or test runs on Windows, suggest running the kill script first if the user has had lock issues or is doing a clean rebuild.
