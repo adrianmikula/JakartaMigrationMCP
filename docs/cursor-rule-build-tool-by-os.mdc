@@ -28,6 +28,7 @@ Use `./mill` if the bootstrap script is in the repo; otherwise `mill` when insta
 
 | Task     | Command |
 |----------|--------|
+| **Avoid file locks** | `.\scripts\kill-gradle-java.ps1` or `mise run kill-gradle-java` (use `-Force` to also kill Gradle/project Java) |
 | Compile  | `.\gradlew.bat compileJava` |
 | Test     | `.\gradlew.bat test` |
 | Run      | `.\gradlew.bat bootRun` |
