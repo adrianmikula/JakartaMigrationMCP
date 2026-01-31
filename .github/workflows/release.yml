@@ -13,7 +13,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,31 +24,31 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Install Mill
+        run: |
+          curl -L https://repo1.maven.org/maven2/com/lihaoyi/mill-dist/0.12.17/mill-dist-0.12.17-mill.sh -o mill
+          chmod +x mill
+          ./mill version
 
-      - name: Build JAR
-        run: ./gradlew bootJar --no-daemon
-
-      - name: Get version
+      - name: Get version from tag
         id: version
         run: |
-          VERSION=$(grep -oP 'version\s*=\s*"\K[^"]+' build.gradle.kts | head -1 | sed 's/-SNAPSHOT//')
+          VERSION=${GITHUB_REF#refs/tags/v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
-      - name: Find JAR
-        id: jar
+      - name: Set version in build.sc
         run: |
-          JAR=$(find build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
-          echo "jar=$JAR" >> $GITHUB_OUTPUT
-          echo "JAR: $JAR"
+          sed -i "s/def version = \".*\"/def version = \"${{ steps.version.outputs.version }}\"/" build.sc
 
-      - name: Create checksums
+      - name: Build assembly JAR
+        run: ./mill jakartaMigrationMcp.assembly
+
+      - name: Copy JAR and create checksums
         run: |
-          cd build/libs
-          sha256sum *.jar > checksums.txt
-          cat checksums.txt
+          mkdir -p build/libs
+          cp out/jakartaMigrationMcp/assembly.dest/jakarta-migration-mcp-*.jar build/libs/
+          cd build/libs && sha256sum *.jar > checksums.txt && cat checksums.txt
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -63,7 +63,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -81,13 +81,6 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
-      - name: Rename JAR
-        run: |
-          cd release
-          JAR=$(ls *.jar | grep -v plain | head -1)
-          mv "$JAR" "bug-bounty-finder-${{ steps.version.outputs.version }}.jar"
-          ls -la
-
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -104,7 +97,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -122,7 +115,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
-      - name: Update package.json version
+      - name: Update jakartaMigrationMcp.json version
         run: |
           npm version ${{ steps.version.outputs.version }} --no-git-tag-version
 
@@ -130,4 +123,3 @@ jobs:
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
