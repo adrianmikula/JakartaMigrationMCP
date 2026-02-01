@@ -14,7 +14,7 @@ dependencies {
 intellij {
     version.set("2023.3.4")
     type.set("IC")
-    plugins.set(listOf("com.intellij.java", "intellij.ml.llm"))
+    plugins.set(listOf("com.intellij.java"))
 }
 
 tasks {
