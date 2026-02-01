@@ -7,9 +7,11 @@ plugins {
 dependencies {
     implementation(project(":migration-core"))
     
-    implementation("org.springframework.boot:spring-boot-starter")
-    // Use official Spring AI coordinates as found in the latest documentation and milestone repos
-    implementation("org.springframework.ai:spring-ai-starter-mcp-server:1.0.0-M5")
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-webflux")
+    // Use working configuration from commit c8972f1
+    implementation("org.springframework.ai:spring-ai-starter-mcp-server-webmvc:1.1.2")
+    implementation("org.springaicommunity:mcp-annotations:0.8.0")
     
     compileOnly("org.projectlombok:lombok:1.18.30")
     annotationProcessor("org.projectlombok:lombok:1.18.30")

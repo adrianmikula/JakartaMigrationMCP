@@ -18,12 +18,11 @@ import adrianmikula.jakartamigration.runtimeverification.domain.VerificationResu
 import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-// CORRECTED: The annotations are in org.springaicommunity.mcp.annotation (SINGULAR, not plural)
-// Verified by inspecting the JAR: org/springaicommunity/mcp/annotation/McpTool.class
 import org.springaicommunity.mcp.annotation.McpTool;
 import org.springaicommunity.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -354,10 +353,11 @@ public class JakartaMigrationTools {
             // Create refactoring options
             adrianmikula.jakartamigration.coderefactoring.domain.RefactoringOptions options = new adrianmikula.jakartamigration.coderefactoring.domain.RefactoringOptions(
                     project,
-                    dryRun != null ? dryRun : false,
                     true, // createCheckpoints
                     true, // validateAfterRefactoring
-                    List.of() // excludedFiles
+                    dryRun != null ? dryRun : false,
+                    List.of(), // excludedFiles
+                    3 // maxRetries
             );
 
             // Run refactoring
@@ -414,10 +414,11 @@ public class JakartaMigrationTools {
 
                 adrianmikula.jakartamigration.coderefactoring.domain.RefactoringOptions options = new adrianmikula.jakartamigration.coderefactoring.domain.RefactoringOptions(
                         project,
-                        false, // dryRun
                         true, // createCheckpoints
                         true, // validateAfterRefactoring
-                        List.of() // excludedFiles
+                        false, // dryRun
+                        List.of(), // excludedFiles
+                        3 // maxRetries
                 );
 
                 adrianmikula.jakartamigration.coderefactoring.domain.RefactoringResult result = codeRefactoringModule
@@ -484,7 +485,7 @@ public class JakartaMigrationTools {
                 json.append("    {\n");
                 json.append("      \"filePath\": \"").append(escapeJson(failure.filePath())).append("\",\n");
                 json.append("      \"errorType\": \"").append(failure.errorType()).append("\",\n");
-                json.append("      \"message\": \"").append(escapeJson(failure.message())).append("\"\n");
+                json.append("      \"message\": \"").append(escapeJson(failure.errorMessage())).append("\"\n");
                 json.append("    }");
                 if (i < result.failures().size() - 1) {
                     json.append(",");
