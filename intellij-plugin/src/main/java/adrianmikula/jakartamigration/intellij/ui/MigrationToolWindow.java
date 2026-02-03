@@ -1,5 +1,7 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+import adrianmikula.jakartamigration.intellij.mcp.AnalyzeMigrationImpactRequest;
+import adrianmikula.jakartamigration.intellij.mcp.AnalyzeMigrationImpactResponse;
 import adrianmikula.jakartamigration.intellij.mcp.DefaultMcpClientService;
 import adrianmikula.jakartamigration.intellij.mcp.McpClientService;
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
@@ -11,12 +13,15 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowFactory;
+import com.intellij.ui.GuiUtils;
+import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,10 +59,13 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         private void initializeContent() {
+            // Toolbar with action buttons
+            JPanel toolbarPanel = createToolbar();
+
             JTabbedPane tabbedPane = new JTabbedPane();
 
             // Dashboard tab
-            dashboardComponent = new DashboardComponent(project);
+            dashboardComponent = new DashboardComponent(project, this::handleAnalyzeProject);
             tabbedPane.addTab("Dashboard", dashboardComponent.getPanel());
 
             // Dependencies tab
@@ -75,7 +83,158 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Load initial data
             loadInitialData();
 
+            contentPanel.add(toolbarPanel, BorderLayout.NORTH);
             contentPanel.add(tabbedPane, BorderLayout.CENTER);
+        }
+
+        private JPanel createToolbar() {
+            JPanel toolbarPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            toolbarPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+
+            // Analyze Project button
+            JButton analyzeButton = new JButton("▶ Analyze Project");
+            analyzeButton.setToolTipText("Run migration analysis on the current project");
+            analyzeButton.addActionListener(this::handleAnalyzeProject);
+            toolbarPanel.add(analyzeButton);
+
+            // Refresh button
+            JButton refreshButton = new JButton("↻ Refresh");
+            refreshButton.setToolTipText("Refresh analysis results");
+            refreshButton.addActionListener(e -> handleAnalyzeProject(null));
+            toolbarPanel.add(refreshButton);
+
+            // Status indicator
+            JLabel statusLabel = new JLabel("Ready");
+            statusLabel.setForeground(Color.GRAY);
+            toolbarPanel.add(statusLabel);
+
+            // Add glue to push content to the left
+            toolbarPanel.add(Box.createHorizontalGlue());
+
+            return toolbarPanel;
+        }
+
+        /**
+         * Handle analyze project action - triggers MCP analysis
+         */
+        private void handleAnalyzeProject(ActionEvent e) {
+            String projectPath = project.getBasePath();
+            if (projectPath == null) {
+                projectPath = project.getProjectFilePath();
+            }
+
+            if (projectPath == null) {
+                Messages.showWarningDialog(project, "Cannot determine project path. Please open a project first.", "Analysis Failed");
+                return;
+            }
+
+            // Show loading state
+            dashboardComponent.setStatus(MigrationStatus.IN_PROGRESS);
+            dashboardComponent.setReadinessScore(-1); // Show loading
+
+            // Call MCP server asynchronously
+            mcpClient.analyzeMigrationImpact(projectPath)
+                .thenAccept(response -> {
+                    SwingUtilities.invokeLater(() -> {
+                        if (response != null && response.getDependencyImpact() != null && 
+                            response.getDependencyImpact().getAffectedDependencies() != null) {
+                            // Update dashboard with real data
+                            updateDashboardFromResponse(response);
+                            int depsCount = response.getDependencyImpact().getAffectedDependencies().size();
+                            Messages.showInfoMessage(project, "Analysis complete! " + 
+                                depsCount + 
+                                " dependencies analyzed.", "Analysis Complete");
+                        } else {
+                            // Fallback to mock data if server returns empty
+                            loadMockDashboardData();
+                            Messages.showInfoMessage(project, 
+                                "Using sample analysis data. Connect to MCP server for real analysis.", 
+                                "Demo Mode");
+                        }
+                    });
+                })
+                .exceptionally(ex -> {
+                    SwingUtilities.invokeLater(() -> {
+                        dashboardComponent.setStatus(MigrationStatus.FAILED);
+                        // Fallback to mock data on error
+                        loadMockDashboardData();
+                        Messages.showWarningDialog(project, 
+                            "Could not connect to MCP server. Using sample data.\n" +
+                            "Error: " + ex.getMessage(), 
+                            "Server Unavailable");
+                    });
+                    return null;
+                });
+        }
+
+        /**
+         * Update dashboard from MCP response
+         */
+        private void updateDashboardFromResponse(AnalyzeMigrationImpactResponse response) {
+            if (response == null || response.getDependencyImpact() == null) {
+                loadMockDashboardData();
+                return;
+            }
+
+            List<DependencyInfo> deps = response.getDependencyImpact().getAffectedDependencies();
+            if (deps == null || deps.isEmpty()) {
+                // No affected dependencies - project is ready
+                MigrationDashboard dashboard = new MigrationDashboard();
+                dashboard.setReadinessScore(100);
+                dashboard.setStatus(MigrationStatus.READY);
+                dashboard.setLastAnalyzed(Instant.now());
+
+                DependencySummary summary = new DependencySummary();
+                summary.setTotalDependencies(0);
+                summary.setAffectedDependencies(0);
+                summary.setBlockerDependencies(0);
+                summary.setMigrableDependencies(0);
+                dashboard.setDependencySummary(summary);
+
+                dashboardComponent.updateDashboard(dashboard);
+                dependenciesComponent.setDependencies(new ArrayList<>());
+                return;
+            }
+
+            // Calculate metrics
+            long blockers = deps.stream().filter(DependencyInfo::isBlocker).count();
+            long migrable = deps.stream().filter(d -> d.getRecommendedVersion() != null).count();
+            long compatible = deps.stream()
+                .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE)
+                .count();
+
+            int score = calculateReadinessScore(deps);
+
+            // Update dashboard
+            MigrationDashboard dashboard = new MigrationDashboard();
+            dashboard.setReadinessScore(score);
+            dashboard.setStatus(blockers > 0 ? MigrationStatus.HAS_BLOCKERS : MigrationStatus.READY);
+            dashboard.setLastAnalyzed(Instant.now());
+
+            DependencySummary summary = new DependencySummary();
+            summary.setTotalDependencies(deps.size());
+            summary.setAffectedDependencies(deps.size());
+            summary.setBlockerDependencies((int) blockers);
+            summary.setMigrableDependencies((int) migrable);
+            dashboard.setDependencySummary(summary);
+
+            dashboardComponent.updateDashboard(dashboard);
+            dependenciesComponent.setDependencies(deps);
+        }
+
+        private int calculateReadinessScore(List<DependencyInfo> deps) {
+            if (deps == null || deps.isEmpty()) {
+                return 100;
+            }
+
+            long compatible = deps.stream()
+                .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE)
+                .count();
+            long hasVersion = deps.stream()
+                .filter(d -> d.getRecommendedVersion() != null)
+                .count();
+
+            return (int) ((compatible + hasVersion * 0.7) * 100 / deps.size());
         }
 
         private void loadInitialData() {
@@ -184,78 +343,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
          * Refresh data from MCP server
          */
         public void refreshFromMcpServer() {
-            String projectPath = project.getBasePath();
-            if (projectPath == null) {
-                projectPath = project.getProjectFilePath();
-            }
-
-            if (projectPath == null) {
-                Messages.showWarningDialog(project, "Cannot determine project path", "Refresh Failed");
-                return;
-            }
-
-            // Show loading state
-            dashboardComponent.setStatus(MigrationStatus.IN_PROGRESS);
-
-            // Call MCP server asynchronously
-            CompletableFuture.supplyAsync(() -> mcpClient.analyzeMigrationImpact(projectPath))
-                .thenAccept(response -> {
-                    SwingUtilities.invokeLater(() -> {
-                        if (response != null && response.getDependencyImpact() != null) {
-                            // Update dashboard
-                            MigrationDashboard dashboard = new MigrationDashboard();
-                            dashboard.setReadinessScore(calculateReadinessScore(response));
-                            dashboard.setStatus(determineStatus(response));
-                            dashboard.setLastAnalyzed(Instant.now());
-
-                            DependencySummary summary = new DependencySummary();
-                            List<DependencyInfo> deps = response.getDependencyImpact().getAffectedDependencies();
-                            summary.setTotalDependencies(deps.size());
-                            summary.setAffectedDependencies(deps.size());
-                            summary.setBlockerDependencies((int) deps.stream().filter(DependencyInfo::isBlocker).count());
-                            summary.setMigrableDependencies((int) deps.stream().filter(d -> d.getRecommendedVersion() != null).count());
-                            dashboard.setDependencySummary(summary);
-
-                            dashboardComponent.updateDashboard(dashboard);
-                            dependenciesComponent.setDependencies(deps);
-                        }
-                    });
-                })
-                .exceptionally(ex -> {
-                    SwingUtilities.invokeLater(() -> {
-                        dashboardComponent.setStatus(MigrationStatus.FAILED);
-                        Messages.showErrorDialog(project, "Failed to connect to MCP server: " + ex.getMessage(), "Connection Failed");
-                    });
-                    return null;
-                });
-        }
-
-        private int calculateReadinessScore(AnalyzeMigrationImpactResponse response) {
-            if (response == null || response.getDependencyImpact() == null) {
-                return 0;
-            }
-            List<DependencyInfo> deps = response.getDependencyImpact().getAffectedDependencies();
-            if (deps == null || deps.isEmpty()) {
-                return 100;
-            }
-
-            long compatible = deps.stream().filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE).count();
-            long hasVersion = deps.stream().filter(d -> d.getRecommendedVersion() != null).count();
-
-            return (int) ((compatible + hasVersion * 0.7) * 100 / deps.size());
-        }
-
-        private MigrationStatus determineStatus(AnalyzeMigrationImpactResponse response) {
-            if (response == null || response.getDependencyImpact() == null) {
-                return MigrationStatus.NOT_ANALYZED;
-            }
-            List<DependencyInfo> deps = response.getDependencyImpact().getAffectedDependencies();
-            if (deps == null || deps.isEmpty()) {
-                return MigrationStatus.READY;
-            }
-
-            boolean hasBlockers = deps.stream().anyMatch(DependencyInfo::isBlocker);
-            return hasBlockers ? MigrationStatus.HAS_BLOCKERS : MigrationStatus.READY;
+            handleAnalyzeProject(null);
         }
 
         public JPanel getContentPanel() {

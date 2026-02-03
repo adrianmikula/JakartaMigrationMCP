@@ -7,11 +7,13 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBPanel;
+import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.time.Instant;
+import java.util.function.Consumer;
 
 /**
  * Dashboard component from TypeSpec: plugin-components.tsp
@@ -20,6 +22,7 @@ public class DashboardComponent {
     private final JPanel panel;
     private final Project project;
     private MigrationDashboard dashboard;
+    private final Consumer<ActionEvent> onAnalyze;
 
     // UI Labels
     private JBLabel readinessLabel;
@@ -29,8 +32,9 @@ public class DashboardComponent {
     private JBLabel blockerDepsLabel;
     private JBLabel lastAnalyzedLabel;
 
-    public DashboardComponent(Project project) {
+    public DashboardComponent(@NotNull Project project, Consumer<ActionEvent> onAnalyze) {
         this.project = project;
+        this.onAnalyze = onAnalyze;
         this.panel = new JBPanel<>(new BorderLayout());
         initializeComponent();
     }
@@ -79,14 +83,18 @@ public class DashboardComponent {
         contentPanel.add(lastAnalyzedCard, gbc);
 
         // Actions
-        JPanel actionsPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT));
-        JButton refreshButton = new JButton("Refresh Analysis");
+        JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        
+        JButton analyzeButton = new JButton("▶ Analyze Project");
+        analyzeButton.setToolTipText("Run migration analysis on this project");
+        analyzeButton.addActionListener(this::handleAnalyze);
+        
+        JButton refreshButton = new JButton("↻ Refresh");
+        refreshButton.setToolTipText("Refresh analysis results");
         refreshButton.addActionListener(this::handleRefresh);
-        JButton startMigrationButton = new JButton("Start Migration");
-        startMigrationButton.addActionListener(this::handleStartMigration);
-
+        
+        actionsPanel.add(analyzeButton);
         actionsPanel.add(refreshButton);
-        actionsPanel.add(startMigrationButton);
 
         panel.add(headerPanel, BorderLayout.NORTH);
         panel.add(contentPanel, BorderLayout.CENTER);
@@ -226,11 +234,19 @@ public class DashboardComponent {
         return timestamp.toString().replace("T", " ").substring(0, 19);
     }
 
+    private void handleAnalyze(ActionEvent e) {
+        if (onAnalyze != null) {
+            onAnalyze.accept(e);
+        }
+    }
+
     private void handleRefresh(ActionEvent e) {
-        Messages.showInfoMessage(project, "Refreshing migration analysis...", "Refresh Analysis");
+        if (onAnalyze != null) {
+            onAnalyze.accept(e);
+        }
     }
 
     private void handleStartMigration(ActionEvent e) {
-        Messages.showInfoMessage(project, "Migration wizard would start here.", "Start Migration");
+        Messages.showInfoMessage(project, "Migration wizard would start here.\n\nThis feature requires a migration plan to be created first.", "Start Migration");
     }
 }

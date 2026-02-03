@@ -22,8 +22,7 @@
         <toolWindow id="JakartaMigrationToolWindow"
                     displayName="Jakarta Migration"
                     anchor="right"
-                    factoryClass="adrianmikula.jakartamigration.intellij.ui.MigrationToolWindow"
-                    icon="/icons/jakarta-migration.png"/>
+                    factoryClass="adrianmikula.jakartamigration.intellij.ui.MigrationToolWindow"/>
     </extensions>
 
     <actions>
@@ -36,9 +35,4 @@
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift J"/>
         </action>
     </actions>
-
-    <applicationListeners>
-        <listener class="adrianmikula.jakartamigration.intellij.JakartaMcpRegistrationActivity"
-                  topic="com.intellij.openapi.application.ApplicationActivationListener"/>
-    </applicationListeners>
 </idea-plugin>

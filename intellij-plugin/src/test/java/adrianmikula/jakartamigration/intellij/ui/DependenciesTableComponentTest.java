@@ -1,11 +1,17 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
+import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
+import adrianmikula.jakartamigration.intellij.model.RiskLevel;
 import com.intellij.testFramework.fixtures.LightJavaCodeInsightFixtureTestCase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 
 import javax.swing.*;
 import javax.swing.table.TableModel;
+
+import java.util.Arrays;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,9 +32,9 @@ public class DependenciesTableComponentTest extends LightJavaCodeInsightFixtureT
     public void testTableHasTypeSpecColumns() {
         JPanel panel = tableComponent.getPanel();
         JTable table = findTable(panel);
-        
+
         assertThat(table).isNotNull();
-        
+
         // Verify TypeSpec-defined columns from DependencyTableColumn enum
         TableModel model = table.getModel();
         assertThat(model.getColumnCount()).isEqualTo(8);
@@ -44,15 +50,18 @@ public class DependenciesTableComponentTest extends LightJavaCodeInsightFixtureT
 
     @Test
     public void testAddDependencyWithTypeSpecData() {
-        // Test adding dependency with TypeSpec-compliant data
-        tableComponent.addDependency(
+        // Test adding dependency with TypeSpec-compliant data using the new method
+        DependencyInfo dep = new DependencyInfo(
             "com.example", "test-lib", "1.0.0", "2.0.0",
-            "NEEDS_UPGRADE", true, "MEDIUM", "Breaking changes"
+            DependencyMigrationStatus.NEEDS_UPGRADE, true, RiskLevel.MEDIUM, "Breaking changes"
         );
-        
+
+        List<DependencyInfo> deps = Arrays.asList(dep);
+        tableComponent.setDependencies(deps);
+
         JTable table = findTable(tableComponent.getPanel());
         TableModel model = table.getModel();
-        
+
         assertThat(model.getRowCount()).isEqualTo(1);
         assertThat(model.getValueAt(0, 0)).isEqualTo("com.example");
         assertThat(model.getValueAt(0, 1)).isEqualTo("test-lib");
@@ -64,11 +73,19 @@ public class DependenciesTableComponentTest extends LightJavaCodeInsightFixtureT
     @Test
     public void testTableFiltersPresent() {
         JPanel panel = tableComponent.getPanel();
-        
+
         // Verify TypeSpec-defined filters are present
         assertThat(findComponentByType(panel, JTextField.class)).isNotNull(); // Search field
         assertThat(findComponentByType(panel, JComboBox.class)).isNotNull(); // Status filter
         assertThat(findComponentByType(panel, JCheckBox.class)).isNotNull(); // Blockers only
+    }
+
+    @Test
+    public void testSelectedDependencies() {
+        // Test that getSelectedDependencies returns empty list initially
+        List<DependencyInfo> selected = tableComponent.getSelectedDependencies();
+        assertThat(selected).isNotNull();
+        assertThat(selected).isEmpty();
     }
 
     private JTable findTable(JPanel panel) {
