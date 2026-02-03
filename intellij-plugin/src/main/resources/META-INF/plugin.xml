@@ -1,0 +1,44 @@
+<idea-plugin>
+    <id>adrianmikula.jakartamigration.intellij</id>
+    <name>Jakarta Migration</name>
+    <vendor email="support@jakarta-migration.com" url="https://jakarta-migration.com">Jakarta Migration Team</vendor>
+
+    <description><![CDATA[
+    Jakarta Migration IntelliJ Plugin provides tools to analyze and migrate Java applications from Java EE 8 (javax.*) to Jakarta EE 9+ (jakarta.*).
+
+    Features:
+    - Migration readiness analysis
+    - Dependency analysis and recommendations
+    - Module dependency graph visualization
+    - Phased migration planning and execution
+    - Integration with Jakarta Migration MCP server
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Tool Window -->
+        <toolWindow id="JakartaMigrationToolWindow"
+                    displayName="Jakarta Migration"
+                    anchor="right"
+                    factoryClass="adrianmikula.jakartamigration.intellij.ui.MigrationToolWindow"
+                    icon="/icons/jakarta-migration.png"/>
+    </extensions>
+
+    <actions>
+        <!-- Main Migration Action -->
+        <action id="JakartaMigrationAction"
+                class="adrianmikula.jakartamigration.intellij.JakartaMigrationAction"
+                text="Jakarta Migration"
+                description="Analyze and migrate to Jakarta EE">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift J"/>
+        </action>
+    </actions>
+
+    <applicationListeners>
+        <listener class="adrianmikula.jakartamigration.intellij.JakartaMcpRegistrationActivity"
+                  topic="com.intellij.openapi.application.ApplicationActivationListener"/>
+    </applicationListeners>
+</idea-plugin>

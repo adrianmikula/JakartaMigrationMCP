@@ -6,8 +6,12 @@ plugins {
 dependencies {
     implementation(project(":migration-core"))
     
-    // Note: UI testing dependencies removed due to availability issues
-    // Can be added later when needed for UI testing
+    // UI Testing dependencies
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
+    testImplementation("org.junit.platform:junit-platform-suite:1.10.0")
+    testImplementation("org.assertj:assertj-core:3.24.2")
+    testImplementation("org.mockito:mockito-core:5.5.0")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.5.0")
 }
 
 intellij {
@@ -25,6 +29,6 @@ tasks {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion.set(JavaLanguageVersion.of(17))
     }
 }
