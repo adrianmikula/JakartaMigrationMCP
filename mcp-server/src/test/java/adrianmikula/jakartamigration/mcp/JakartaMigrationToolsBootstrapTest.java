@@ -1,4 +1,4 @@
-package unit.jakartamigration.mcp;
+package adrianmikula.jakartamigration.mcp;
 
 import adrianmikula.jakartamigration.coderefactoring.service.MigrationPlanner;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeLibrary;
@@ -168,4 +168,3 @@ class JakartaMigrationToolsBootstrapTest {
         assertThat(memoryIncrease).isLessThan(50 * 1024 * 1024); // 50MB
     }
 }
-

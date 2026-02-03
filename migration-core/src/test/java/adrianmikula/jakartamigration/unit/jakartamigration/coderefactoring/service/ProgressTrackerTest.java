@@ -4,6 +4,7 @@ import adrianmikula.jakartamigration.coderefactoring.domain.Checkpoint;
 import adrianmikula.jakartamigration.coderefactoring.domain.MigrationProgress;
 import adrianmikula.jakartamigration.coderefactoring.domain.MigrationState;
 import adrianmikula.jakartamigration.coderefactoring.domain.ProgressStatistics;
+import adrianmikula.jakartamigration.coderefactoring.service.ProgressTracker;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

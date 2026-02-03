@@ -1,6 +1,7 @@
 package unit.jakartamigration.dependencyanalysis.service;
 
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
+import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Disabled;

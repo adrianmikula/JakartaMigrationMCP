@@ -35,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.MOCK,
-    classes = adrianmikula.projectname.ProjectNameApplication.class,
+    classes = adrianmikula.jakartamigration.JakartaMigrationMcpApplication.class,
     properties = {
         "spring.ai.mcp.server.transport=sse"
     }

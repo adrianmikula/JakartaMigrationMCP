@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests to verify that YAML configuration files load correctly.
  * Only feature-flags configuration (no Stripe/Apify).
  */
-@SpringBootTest(classes = adrianmikula.projectname.ProjectNameApplication.class)
+@SpringBootTest(classes = adrianmikula.jakartamigration.JakartaMigrationMcpApplication.class)
 class YamlConfigurationTest {
 
     @Autowired(required = false)
@@ -31,7 +31,7 @@ class YamlConfigurationTest {
     }
 
     @Nested
-    @SpringBootTest(classes = adrianmikula.projectname.ProjectNameApplication.class)
+    @SpringBootTest(classes = adrianmikula.jakartamigration.JakartaMigrationMcpApplication.class)
     @ActiveProfiles("mcp-stdio")
     class StdioProfileTest {
         @Autowired(required = false)
@@ -45,7 +45,7 @@ class YamlConfigurationTest {
     }
 
     @Nested
-    @SpringBootTest(classes = adrianmikula.projectname.ProjectNameApplication.class)
+    @SpringBootTest(classes = adrianmikula.jakartamigration.JakartaMigrationMcpApplication.class)
     @ActiveProfiles("mcp-sse")
     class SseProfileTest {
         @Autowired(required = false)
@@ -59,7 +59,7 @@ class YamlConfigurationTest {
     }
 
     @Nested
-    @SpringBootTest(classes = adrianmikula.projectname.ProjectNameApplication.class)
+    @SpringBootTest(classes = adrianmikula.jakartamigration.JakartaMigrationMcpApplication.class)
     @TestPropertySource(properties = {
         "jakarta.migration.feature-flags.enabled=false",
         "jakarta.migration.feature-flags.default-tier=PREMIUM",
@@ -80,7 +80,7 @@ class YamlConfigurationTest {
     }
 
     @Nested
-    @SpringBootTest(classes = adrianmikula.projectname.ProjectNameApplication.class)
+    @SpringBootTest(classes = adrianmikula.jakartamigration.JakartaMigrationMcpApplication.class)
     @TestPropertySource(properties = {
         "jakarta.migration.feature-flags.features.auto-fixes=true",
         "jakarta.migration.feature-flags.features.one-click-refactor=false"

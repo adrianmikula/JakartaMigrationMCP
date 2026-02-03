@@ -1,4 +1,4 @@
-package unit.jakartamigration.mcp;
+package adrianmikula.jakartamigration.mcp;
 
 import adrianmikula.jakartamigration.coderefactoring.service.MigrationPlanner;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeLibrary;
@@ -324,4 +324,3 @@ class JakartaMigrationToolsPerformanceTest {
             .toList();
     }
 }
-

@@ -1,4 +1,4 @@
-package unit.jakartamigration.mcp;
+package adrianmikula.jakartamigration.mcp;
 
 import adrianmikula.jakartamigration.coderefactoring.domain.MigrationPlan;
 import adrianmikula.jakartamigration.coderefactoring.service.MigrationPlanner;
@@ -371,4 +371,3 @@ class JakartaMigrationToolsTest {
         assertThat(result).contains("\\n"); // Newlines in content should be escaped
     }
 }
-

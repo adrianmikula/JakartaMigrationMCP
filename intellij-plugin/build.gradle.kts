@@ -6,9 +6,8 @@ plugins {
 dependencies {
     implementation(project(":migration-core"))
     
-    // UI Testing
-    testImplementation("com.intellij.remoterobot:remote-robot-intellij:0.11.23")
-    testImplementation("com.intellij.remoterobot:remote-fixtures:0.11.23")
+    // Note: UI testing dependencies removed due to availability issues
+    // Can be added later when needed for UI testing
 }
 
 intellij {
