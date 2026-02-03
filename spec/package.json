@@ -1,0 +1,27 @@
+{
+  "name": "jakarta-migration-typespec",
+  "version": "1.0.0",
+  "description": "TypeSpec specifications for Jakarta Migration IntelliJ Plugin",
+  "scripts": {
+    "compile": "tsp compile spec/main.tsp",
+    "validate": "tsp compile spec/main.tsp --no-emit",
+    "format": "tsp format spec/**/*.tsp",
+    "watch": "tsp compile spec/main.tsp --watch"
+  },
+  "devDependencies": {
+    "@typespec/compiler": "^0.52.0",
+    "@typespec/http": "^0.52.0",
+    "@typespec/rest": "^0.52.0",
+    "@typespec/openapi3": "^0.52.0",
+    "@typespec/json-schema": "^0.52.0"
+  },
+  "keywords": [
+    "typespec",
+    "jakarta",
+    "migration",
+    "intellij",
+    "plugin",
+    "api",
+    "specification"
+  ]
+}

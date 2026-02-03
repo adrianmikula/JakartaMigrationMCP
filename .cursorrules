@@ -1,0 +1,207 @@
+# Jakarta Migration IntelliJ Plugin - Cursor Rules
+
+## 🎯 TypeSpec-Driven Development Rules
+
+### MANDATORY: TypeSpec Specifications as Source of Truth
+- **ALL code implementation MUST follow the TypeSpec specifications in `spec/` folder**
+- **NEVER implement any data model, interface, or component without first consulting the corresponding TypeSpec file**
+- **TypeSpec files are the authoritative source for:**
+  - Data models and their properties
+  - Enum values and their string representations
+  - Interface method signatures
+  - Component structure and relationships
+  - API request/response formats
+
+### 📁 TypeSpec File Mapping
+- `spec/intellij-plugin-ui.tsp` → Core data models (MigrationDashboard, DependencyInfo, etc.)
+- `spec/mcp-integration.tsp` → MCP client interfaces and request/response models
+- `spec/plugin-components.tsp` → UI components, actions, and user interactions
+- `spec/main.tsp` → Complete API overview and service definition
+
+### 🔒 Implementation Rules
+
+#### 1. Data Models
+```java
+// ✅ CORRECT: Follow TypeSpec exactly
+public class MigrationDashboard {
+    private int readinessScore;           // matches TypeSpec int32
+    private MigrationStatus status;       // matches TypeSpec enum
+    private DependencySummary dependencySummary;
+    private MigrationPhase currentPhase;
+    private Instant lastAnalyzed;         // matches TypeSpec utcDateTime
+}
+
+// ❌ WRONG: Adding fields not in TypeSpec
+public class MigrationDashboard {
+    private int readinessScore;
+    private String customField;  // NOT in TypeSpec - FORBIDDEN
+}
+```
+
+#### 2. Enums
+```java
+// ✅ CORRECT: Exact string values from TypeSpec
+public enum MigrationStatus {
+    NOT_ANALYZED("NOT_ANALYZED"),
+    READY("READY"),
+    HAS_BLOCKERS("HAS_BLOCKERS"),
+    IN_PROGRESS("IN_PROGRESS"),
+    COMPLETED("COMPLETED"),
+    FAILED("FAILED")
+}
+
+// ❌ WRONG: Different string values
+public enum MigrationStatus {
+    NOT_ANALYZED("not_analyzed"),  // Wrong case - FORBIDDEN
+    READY("ready")                 // Wrong case - FORBIDDEN
+}
+```
+
+#### 3. Component Structure
+```java
+// ✅ CORRECT: Follow TypeSpec component model
+public class DashboardComponent {
+    private MigrationDashboard dashboard;
+    private List<DashboardAction> actions;
+    private RefreshState refreshState;
+    private Instant lastUpdated;
+    
+    // Methods must match TypeSpec operations
+}
+
+// ❌ WRONG: Missing required fields from TypeSpec
+public class DashboardComponent {
+    private MigrationDashboard dashboard;
+    // Missing actions, refreshState, lastUpdated - FORBIDDEN
+}
+```
+
+### 🧪 Test-Driven Development (TDD) Rules
+
+#### 1. Test Structure
+- **Write tests FIRST based on TypeSpec specifications**
+- **Test data models match TypeSpec exactly**
+- **Test all enum values defined in TypeSpec**
+- **Test component interactions as specified**
+
+#### 2. Test Examples
+```java
+// ✅ CORRECT: Test based on TypeSpec
+@Test
+void testMigrationDashboardCreation() {
+    MigrationDashboard dashboard = new MigrationDashboard();
+    dashboard.setReadinessScore(85);  // TypeSpec: int32
+    dashboard.setStatus(MigrationStatus.READY);  // TypeSpec enum
+    
+    assertThat(dashboard.getReadinessScore()).isEqualTo(85);
+    assertThat(dashboard.getStatus()).isEqualTo(MigrationStatus.READY);
+}
+
+// ✅ CORRECT: Test all TypeSpec enum values
+@Test
+void testAllMigrationStatusValues() {
+    // Test all values from TypeSpec enum
+    assertThat(MigrationStatus.NOT_ANALYZED.getValue()).isEqualTo("NOT_ANALYZED");
+    assertThat(MigrationStatus.READY.getValue()).isEqualTo("READY");
+    assertThat(MigrationStatus.HAS_BLOCKERS.getValue()).isEqualTo("HAS_BLOCKERS");
+    assertThat(MigrationStatus.IN_PROGRESS.getValue()).isEqualTo("IN_PROGRESS");
+    assertThat(MigrationStatus.COMPLETED.getValue()).isEqualTo("COMPLETED");
+    assertThat(MigrationStatus.FAILED.getValue()).isEqualTo("FAILED");
+}
+```
+
+### 🚫 Forbidden Practices
+
+#### 1. NEVER modify data models without updating TypeSpec first
+```java
+// ❌ FORBIDDEN: Adding fields not in TypeSpec
+public class DependencyInfo {
+    private String groupId;
+    private String artifactId;
+    private String customField;  // NOT in TypeSpec - FORBIDDEN
+}
+```
+
+#### 2. NEVER use different enum values
+```java
+// ❌ FORBIDDEN: Different values than TypeSpec
+public enum RiskLevel {
+    LOW("low"),      // TypeSpec says "LOW" - FORBIDDEN
+    MEDIUM("med"),   // TypeSpec says "MEDIUM" - FORBIDDEN
+}
+```
+
+#### 3. NEVER skip TypeSpec validation
+```java
+// ❌ FORBIDDEN: Implementing without checking TypeSpec
+public class CustomComponent {
+    // Implementation without consulting plugin-components.tsp - FORBIDDEN
+}
+```
+
+### 📋 Development Workflow
+
+#### 1. Before Writing Any Code:
+1. **Check relevant TypeSpec file**
+2. **Understand the exact model/interface definition**
+3. **Note all required fields and their types**
+4. **Check enum values and their string representations**
+
+#### 2. Implementation Steps:
+1. **Write failing test based on TypeSpec**
+2. **Implement minimal code to pass test**
+3. **Verify implementation matches TypeSpec exactly**
+4. **Refactor while maintaining TypeSpec compliance**
+
+#### 3. Code Review Checklist:
+- [ ] All data models match TypeSpec definitions
+- [ ] All enum values use exact TypeSpec strings
+- [ ] All component interfaces follow TypeSpec
+- [ ] No additional fields/methods not in TypeSpec
+- [ ] Tests cover all TypeSpec-defined scenarios
+
+### 🔍 Validation Commands
+
+#### Generate and Compare:
+```bash
+# Generate schemas from TypeSpec
+tsp compile spec/main.tsp
+
+# Validate Java models against generated schemas
+# (Use JSON Schema validation tools)
+```
+
+#### Pre-commit Checks:
+- Verify all Java models have corresponding TypeSpec definitions
+- Check enum values match TypeSpec exactly
+- Ensure no extra fields in data models
+- Validate component structure matches TypeSpec
+
+### 🎯 Success Criteria
+
+#### ✅ Code is TypeSpec-compliant when:
+- Every Java class has a corresponding TypeSpec model
+- All field names and types match exactly
+- All enum values use TypeSpec string representations
+- Component structure follows TypeSpec definitions
+- Tests validate TypeSpec compliance
+
+#### ❌ Code violates TypeSpec when:
+- Adding fields not defined in TypeSpec
+- Using different enum values
+- Implementing components without TypeSpec reference
+- Skipping TypeSpec validation in tests
+- Creating custom models without TypeSpec definition
+
+### 🚀 Benefits of TypeSpec-Driven Development
+
+1. **Type Safety**: Guaranteed consistency between frontend and backend
+2. **Documentation**: TypeSpec serves as living documentation
+3. **API Contracts**: Clear contracts between components
+4. **Code Generation**: Automatic generation of boilerplate code
+5. **Validation**: Schema validation ensures correctness
+6. **Maintainability**: Single source of truth for all models
+
+---
+
+**Remember: TypeSpec files in `spec/` folder are the SINGLE SOURCE OF TRUTH for all implementation. Never deviate from them without updating the TypeSpec first!**
