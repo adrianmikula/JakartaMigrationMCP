@@ -6,6 +6,9 @@ plugins {
 dependencies {
     implementation(project(":migration-core"))
     
+    // Jackson for JSON serialization
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
+    
     // UI Testing dependencies
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
     testImplementation("org.junit.platform:junit-platform-suite:1.10.0")
