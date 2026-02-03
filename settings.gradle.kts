@@ -2,5 +2,8 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.7.0"
 }
 
-rootProject.name = "jakarta-migration-mcp"
+rootProject.name = "jakarta-migration-parent"
 
+include("migration-core")
+include("mcp-server")
+include("intellij-plugin")
