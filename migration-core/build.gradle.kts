@@ -12,6 +12,10 @@ dependencies {
     
     // JSON processing
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.3")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.3")
+    
+    // SQLite database for persistence
+    implementation("org.xerial:sqlite-jdbc:3.44.1.0")
     
     // Bytecode analysis
     api("org.ow2.asm:asm:9.6")
@@ -32,6 +36,6 @@ dependencies {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion.set(JavaLanguageVersion.of(17))
     }
 }

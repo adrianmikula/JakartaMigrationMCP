@@ -12,9 +12,11 @@ import com.intellij.ui.table.JBTable;
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.event.MouseInputAdapter;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
@@ -94,6 +96,16 @@ public class DependenciesTableComponent {
         JBScrollPane scrollPane = new JBScrollPane(table);
         table.setFillsViewportHeight(true);
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        
+        // Add mouse listener for double-click navigation
+        table.addMouseListener(new MouseInputAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    handleDoubleClick();
+                }
+            }
+        });
 
         // Actions panel
         JPanel actionsPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT));
@@ -216,14 +228,22 @@ public class DependenciesTableComponent {
         }
     }
 
+    /**
+     * Handle view details action (from button click).
+     */
     private void handleViewDetails(ActionEvent e) {
         List<DependencyInfo> selected = getSelectedDependencies();
         if (selected.isEmpty()) {
             Messages.showWarningDialog(project, "Please select a dependency to view details.", "No Selection");
             return;
         }
+        showDependencyDetails(selected.get(0));
+    }
 
-        DependencyInfo dep = selected.get(0);
+    /**
+     * Show details for a specific dependency.
+     */
+    public void showDependencyDetails(DependencyInfo dep) {
         String details = String.format("""
             Dependency Details
             ==================
@@ -251,6 +271,20 @@ public class DependenciesTableComponent {
         );
 
         Messages.showInfoMessage(project, details, "Dependency Details - " + dep.getDisplayName());
+    }
+
+    /**
+     * Handle double-click on table row to show details.
+     */
+    private void handleDoubleClick() {
+        int selectedRow = table.getSelectedRow();
+        if (selectedRow >= 0) {
+            int modelRow = table.convertRowIndexToModel(selectedRow);
+            if (modelRow < allDependencies.size()) {
+                DependencyInfo dep = allDependencies.get(modelRow);
+                showDependencyDetails(dep);
+            }
+        }
     }
 
     /**

@@ -1,23 +1,25 @@
 package adrianmikula.jakartamigration.intellij.mcp;
 
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
-import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
-import adrianmikula.jakartamigration.intellij.model.RiskLevel;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Default implementation of McpClientService using HTTP client
- * Communicates with the Jakarta Migration MCP server
+ * Default implementation of McpClientService using MCP JSON-RPC protocol over HTTP.
+ * Communicates with the Jakarta Migration MCP server using the MCP protocol.
+ * 
+ * Reference: https://modelcontextprotocol.io/docs/specification/transport
  */
 public class DefaultMcpClientService implements McpClientService {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultMcpClientService.class);
@@ -27,6 +29,8 @@ public class DefaultMcpClientService implements McpClientService {
     private final ObjectMapper objectMapper;
     private final int connectionTimeoutSeconds;
     private final int requestTimeoutSeconds;
+    private final AtomicLong requestId;
+    private final Map<Long, CompletableFuture<String>> pendingRequests;
 
     public DefaultMcpClientService() {
         this.serverUrl = System.getProperty("jakarta.mcp.server.url", "http://localhost:8080");
@@ -37,6 +41,8 @@ public class DefaultMcpClientService implements McpClientService {
                 .connectTimeout(java.time.Duration.ofSeconds(connectionTimeoutSeconds))
                 .build();
         this.objectMapper = new ObjectMapper();
+        this.requestId = new AtomicLong(1);
+        this.pendingRequests = new ConcurrentHashMap<>();
     }
 
     public DefaultMcpClientService(String serverUrl, int connectionTimeoutSeconds, int requestTimeoutSeconds) {
@@ -48,63 +54,320 @@ public class DefaultMcpClientService implements McpClientService {
                 .connectTimeout(java.time.Duration.ofSeconds(connectionTimeoutSeconds))
                 .build();
         this.objectMapper = new ObjectMapper();
+        this.requestId = new AtomicLong(1);
+        this.pendingRequests = new ConcurrentHashMap<>();
     }
 
     @Override
     public CompletableFuture<AnalyzeMigrationImpactResponse> analyzeMigrationImpact(String projectPath) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                AnalyzeMigrationImpactRequest request = new AnalyzeMigrationImpactRequest(projectPath);
-                String jsonBody = objectMapper.writeValueAsString(request);
-
-                HttpRequest httpRequest = HttpRequest.newBuilder()
-                        .uri(URI.create(serverUrl + "/mcp/analyze-migration-impact"))
-                        .header("Content-Type", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                        .timeout(java.time.Duration.ofSeconds(requestTimeoutSeconds))
-                        .build();
-
-                HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-
-                if (response.statusCode() == 200) {
-                    return objectMapper.readValue(response.body(), AnalyzeMigrationImpactResponse.class);
-                } else {
-                    LOG.warn("MCP server returned status {}: {}", response.statusCode(), response.body());
+        return callTool("analyzeMigrationImpact", Map.of("projectPath", projectPath))
+                .thenApply(responseJson -> {
+                    try {
+                        // The tool returns JSON as a string, parse it
+                        JsonNode root = objectMapper.readTree(responseJson);
+                        return parseAnalyzeMigrationImpactResponse(root);
+                    } catch (JsonProcessingException e) {
+                        LOG.error("Failed to parse analyzeMigrationImpact response: {}", e.getMessage());
+                        return createDefaultResponse();
+                    }
+                })
+                .exceptionally(ex -> {
+                    LOG.error("analyzeMigrationImpact call failed: {}", ex.getMessage());
                     return createDefaultResponse();
-                }
-            } catch (Exception e) {
-                LOG.error("Error calling analyzeMigrationImpact: {}", e.getMessage());
-                return createDefaultResponse();
-            }
-        });
+                });
     }
 
     @Override
     public CompletableFuture<List<DependencyInfo>> detectBlockers(String projectPath) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                // For MVP, return mock data if server is not available
-                // In production, this would call the actual MCP endpoint
-                return createMockBlockers();
-            } catch (Exception e) {
-                LOG.error("Error calling detectBlockers: {}", e.getMessage());
-                return Collections.emptyList();
-            }
-        });
+        return callTool("detectBlockers", Map.of("projectPath", projectPath))
+                .thenApply(responseJson -> {
+                    try {
+                        JsonNode root = objectMapper.readTree(responseJson);
+                        return parseDependencyInfoList(root);
+                    } catch (JsonProcessingException e) {
+                        LOG.error("Failed to parse detectBlockers response: {}", e.getMessage());
+                        return new ArrayList<DependencyInfo>();
+                    }
+                })
+                .exceptionally(ex -> {
+                    LOG.error("detectBlockers call failed: {}", ex.getMessage());
+                    return new ArrayList<DependencyInfo>();
+                });
     }
 
     @Override
     public CompletableFuture<List<DependencyInfo>> recommendVersions(String projectPath) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                // For MVP, return mock data if server is not available
-                // In production, this would call the actual MCP endpoint
-                return createMockRecommendations();
-            } catch (Exception e) {
-                LOG.error("Error calling recommendVersions: {}", e.getMessage());
-                return Collections.emptyList();
+        return callTool("recommendVersions", Map.of("projectPath", projectPath))
+                .thenApply(responseJson -> {
+                    try {
+                        JsonNode root = objectMapper.readTree(responseJson);
+                        return parseDependencyInfoList(root);
+                    } catch (JsonProcessingException e) {
+                        LOG.error("Failed to parse recommendVersions response: {}", e.getMessage());
+                        return new ArrayList<DependencyInfo>();
+                    }
+                })
+                .exceptionally(ex -> {
+                    LOG.error("recommendVersions call failed: {}", ex.getMessage());
+                    return new ArrayList<DependencyInfo>();
+                });
+    }
+
+    /**
+     * Call an MCP tool with the given name and arguments.
+     * Uses the MCP JSON-RPC protocol over HTTP.
+     */
+    private CompletableFuture<String> callTool(String toolName, Map<String, Object> arguments) {
+        long id = requestId.getAndIncrement();
+        
+        // Build JSON-RPC request
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("jsonrpc", "2.0");
+        request.put("id", id);
+        request.put("method", "tools/call");
+        
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("name", toolName);
+        params.put("arguments", arguments);
+        request.put("params", params);
+        
+        CompletableFuture<String> future = new CompletableFuture<>();
+        pendingRequests.put(id, future);
+        
+        try {
+            String jsonBody = objectMapper.writeValueAsString(request);
+            
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(serverUrl + "/mcp/sse"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .timeout(java.time.Duration.ofSeconds(requestTimeoutSeconds))
+                    .build();
+            
+            httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString())
+                    .thenAccept(response -> {
+                        try {
+                            if (response.statusCode() == 200) {
+                                String body = response.body();
+                                // Parse JSON-RPC response
+                                JsonNode root = objectMapper.readTree(body);
+                                
+                                // Check for error
+                                if (root.has("error")) {
+                                    JsonNode error = root.get("error");
+                                    String errorMessage = error.has("message") ? error.get("message").asText() : "Unknown error";
+                                    future.completeExceptionally(new RuntimeException(errorMessage));
+                                    return;
+                                }
+                                
+                                // Extract result
+                                if (root.has("result")) {
+                                    JsonNode result = root.get("result");
+                                    // The content is typically in result.content[0].text
+                                    String content = extractContentFromResult(result);
+                                    future.complete(content);
+                                } else {
+                                    future.completeExceptionally(new RuntimeException("No result in response"));
+                                }
+                            } else {
+                                LOG.warn("MCP server returned status {}: {}", response.statusCode(), response.body());
+                                future.completeExceptionally(new RuntimeException("Server error: " + response.statusCode()));
+                            }
+                        } catch (JsonProcessingException e) {
+                            LOG.error("Failed to parse response: {}", e.getMessage());
+                            future.completeExceptionally(e);
+                        } finally {
+                            pendingRequests.remove(id);
+                        }
+                    })
+                    .exceptionally(ex -> {
+                        pendingRequests.remove(id);
+                        future.completeExceptionally(ex);
+                        return null;
+                    });
+            
+        } catch (JsonProcessingException e) {
+            pendingRequests.remove(id);
+            future.completeExceptionally(e);
+        }
+        
+        return future;
+    }
+
+    /**
+     * Extract content text from MCP JSON-RPC result.
+     */
+    private String extractContentFromResult(JsonNode result) {
+        if (result.has("content")) {
+            JsonNode content = result.get("content");
+            if (content.isArray() && content.size() > 0) {
+                JsonNode firstContent = content.get(0);
+                if (firstContent.has("text")) {
+                    return firstContent.get("text").asText();
+                }
             }
-        });
+        }
+        // If no content structure, return the whole result as string
+        return result.toString();
+    }
+
+    /**
+     * Parse analyzeMigrationImpact response into AnalyzeMigrationImpactResponse object.
+     */
+    private AnalyzeMigrationImpactResponse parseAnalyzeMigrationImpactResponse(JsonNode root) {
+        AnalyzeMigrationImpactResponse response = new AnalyzeMigrationImpactResponse();
+        
+        try {
+            // The response might be a nested JSON string
+            String jsonStr = root.asText();
+            if (jsonStr.startsWith("{") || jsonStr.startsWith("[")) {
+                root = objectMapper.readTree(jsonStr);
+            }
+            
+            AnalyzeMigrationImpactResponse.DependencyImpactDetails impactDetails = 
+                new AnalyzeMigrationImpactResponse.DependencyImpactDetails();
+            
+            if (root.has("dependencyImpact")) {
+                JsonNode depImpact = root.get("dependencyImpact");
+                
+                if (depImpact.has("affectedDependencies")) {
+                    List<DependencyInfo> deps = parseDependencyInfoList(depImpact.get("affectedDependencies"));
+                    impactDetails.setAffectedDependencies(deps);
+                }
+                
+                if (depImpact.has("transitiveDependencyChanges")) {
+                    impactDetails.setTransitiveDependencyChanges(depImpact.get("transitiveDependencyChanges").asInt());
+                }
+                
+                if (depImpact.has("breakingChanges")) {
+                    List<String> changes = new ArrayList<>();
+                    JsonNode breakingChanges = depImpact.get("breakingChanges");
+                    if (breakingChanges.isArray()) {
+                        for (JsonNode change : breakingChanges) {
+                            changes.add(change.asText());
+                        }
+                    }
+                    impactDetails.setBreakingChanges(changes);
+                }
+            }
+            
+            response.setDependencyImpact(impactDetails);
+            
+            // Parse overall impact
+            if (root.has("overallImpact")) {
+                JsonNode impact = root.get("overallImpact");
+                AnalyzeMigrationImpactResponse.ImpactAssessment assessment = 
+                    new AnalyzeMigrationImpactResponse.ImpactAssessment();
+                
+                if (impact.has("level")) {
+                    assessment.setLevel(impact.get("level").asText());
+                }
+                if (impact.has("description")) {
+                    assessment.setDescription(impact.get("description").asText());
+                }
+                if (impact.has("riskFactors")) {
+                    List<String> factors = new ArrayList<>();
+                    JsonNode riskFactors = impact.get("riskFactors");
+                    if (riskFactors.isArray()) {
+                        for (JsonNode factor : riskFactors) {
+                            factors.add(factor.asText());
+                        }
+                    }
+                    assessment.setRiskFactors(factors);
+                }
+                response.setOverallImpact(assessment);
+            }
+            
+            // Parse estimated effort
+            if (root.has("estimatedEffort")) {
+                JsonNode effort = root.get("estimatedEffort");
+                AnalyzeMigrationImpactResponse.EffortEstimate estimate = 
+                    new AnalyzeMigrationImpactResponse.EffortEstimate();
+                
+                if (effort.has("estimatedHours")) {
+                    estimate.setEstimatedHours(effort.get("estimatedHours").asInt());
+                }
+                if (effort.has("confidence")) {
+                    estimate.setConfidence(effort.get("confidence").asText());
+                }
+                response.setEstimatedEffort(estimate);
+            }
+            
+        } catch (JsonProcessingException e) {
+            LOG.error("Failed to parse analyzeMigrationImpact response: {}", e.getMessage());
+        }
+        
+        return response;
+    }
+
+    /**
+     * Parse a JSON node into a list of DependencyInfo objects.
+     */
+    private List<DependencyInfo> parseDependencyInfoList(JsonNode node) {
+        List<DependencyInfo> dependencies = new ArrayList<>();
+        
+        // Handle nested string
+        if (node.isTextual()) {
+            try {
+                node = objectMapper.readTree(node.asText());
+            } catch (JsonProcessingException e) {
+                LOG.error("Failed to parse nested JSON: {}", e.getMessage());
+                return dependencies;
+            }
+        }
+        
+        // Handle array
+        if (node.isArray()) {
+            for (JsonNode item : node) {
+                DependencyInfo info = parseDependencyInfo(item);
+                if (info != null) {
+                    dependencies.add(info);
+                }
+            }
+        }
+        
+        return dependencies;
+    }
+
+    /**
+     * Parse a single DependencyInfo from JSON.
+     */
+    private DependencyInfo parseDependencyInfo(JsonNode node) {
+        if (node == null || !node.isObject()) {
+            return null;
+        }
+        
+        try {
+            String groupId = node.has("groupId") ? node.get("groupId").asText() : "";
+            String artifactId = node.has("artifactId") ? node.get("artifactId").asText() : "";
+            String currentVersion = node.has("currentVersion") ? node.get("currentVersion").asText() : "";
+            String recommendedVersion = node.has("recommendedVersion") ? node.get("recommendedVersion").asText() : null;
+            
+            adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus status = 
+                adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus.NEEDS_UPGRADE;
+            if (node.has("migrationStatus")) {
+                String statusStr = node.get("migrationStatus").asText();
+                status = adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus.valueOf(statusStr);
+            }
+            
+            boolean isBlocker = node.has("isBlocker") && node.get("isBlocker").asBoolean();
+            
+            adrianmikula.jakartamigration.intellij.model.RiskLevel riskLevel = 
+                adrianmikula.jakartamigration.intellij.model.RiskLevel.MEDIUM;
+            if (node.has("riskLevel")) {
+                String riskStr = node.get("riskLevel").asText();
+                riskLevel = adrianmikula.jakartamigration.intellij.model.RiskLevel.valueOf(riskStr);
+            }
+            
+            String migrationStrategy = node.has("migrationStrategy") ? node.get("migrationStrategy").asText() : "";
+            
+            return new DependencyInfo(groupId, artifactId, currentVersion, recommendedVersion, 
+                status, isBlocker, riskLevel, migrationStrategy);
+            
+        } catch (Exception e) {
+            LOG.error("Failed to parse DependencyInfo: {}", e.getMessage());
+            return null;
+        }
     }
 
     @Override
@@ -112,7 +375,7 @@ public class DefaultMcpClientService implements McpClientService {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 HttpRequest request = HttpRequest.newBuilder()
-                        .uri(URI.create(serverUrl + "/actuator/health"))
+                        .uri(java.net.URI.create(serverUrl + "/actuator/health"))
                         .timeout(java.time.Duration.ofSeconds(5))
                         .build();
 
@@ -136,94 +399,5 @@ public class DefaultMcpClientService implements McpClientService {
         response.setOverallImpact(new AnalyzeMigrationImpactResponse.ImpactAssessment());
         response.setEstimatedEffort(new AnalyzeMigrationImpactResponse.EffortEstimate());
         return response;
-    }
-
-    private List<DependencyInfo> createMockBlockers() {
-        List<DependencyInfo> blockers = new ArrayList<>();
-
-        blockers.add(new DependencyInfo(
-                "javax.xml.bind",
-                "jaxb-api",
-                "2.3.1",
-                null,
-                DependencyMigrationStatus.NO_JAKARTA_VERSION,
-                true,
-                RiskLevel.CRITICAL,
-                "No Jakarta equivalent available - requires alternative"
-        ));
-
-        blockers.add(new DependencyInfo(
-                "javax.activation",
-                "javax.activation-api",
-                "1.2.0",
-                "jakarta.activation:jakarta.activation-api:2.3.1",
-                DependencyMigrationStatus.NEEDS_UPGRADE,
-                true,
-                RiskLevel.HIGH,
-                "Upgrade to Jakarta Activation 2.3"
-        ));
-
-        blockers.add(new DependencyInfo(
-                "org.glassfish.jaxb",
-                "jaxb-runtime",
-                "2.3.1",
-                "org.glassfish.jaxb:jaxb-runtime:3.0.2",
-                DependencyMigrationStatus.NEEDS_UPGRADE,
-                false,
-                RiskLevel.MEDIUM,
-                "Update to Jakarta XML Binding 3.0"
-        ));
-
-        return blockers;
-    }
-
-    private List<DependencyInfo> createMockRecommendations() {
-        List<DependencyInfo> recommendations = new ArrayList<>();
-
-        recommendations.add(new DependencyInfo(
-                "org.springframework",
-                "spring-beans",
-                "5.3.27",
-                "6.0.9",
-                DependencyMigrationStatus.NEEDS_UPGRADE,
-                false,
-                RiskLevel.HIGH,
-                "Required for Spring Framework 6.0 migration"
-        ));
-
-        recommendations.add(new DependencyInfo(
-                "org.springframework",
-                "spring-core",
-                "5.3.27",
-                "6.0.9",
-                DependencyMigrationStatus.NEEDS_UPGRADE,
-                false,
-                RiskLevel.HIGH,
-                "Required for Spring Framework 6.0 migration"
-        ));
-
-        recommendations.add(new DependencyInfo(
-                "org.springframework",
-                "spring-web",
-                "5.3.27",
-                "6.0.9",
-                DependencyMigrationStatus.NEEDS_UPGRADE,
-                false,
-                RiskLevel.MEDIUM,
-                "Update for Jakarta Servlet 5.0 compatibility"
-        ));
-
-        recommendations.add(new DependencyInfo(
-                "org.hibernate",
-                "hibernate-core",
-                "5.6.15.Final",
-                "6.2.0.Final",
-                DependencyMigrationStatus.NEEDS_UPGRADE,
-                true,
-                RiskLevel.CRITICAL,
-                "Major version upgrade - significant changes"
-        ));
-
-        return recommendations;
     }
 }

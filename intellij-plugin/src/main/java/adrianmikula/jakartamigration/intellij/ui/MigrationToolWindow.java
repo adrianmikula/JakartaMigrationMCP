@@ -13,8 +13,6 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowFactory;
-import com.intellij.ui.GuiUtils;
-import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
 import org.jetbrains.annotations.NotNull;
@@ -80,8 +78,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
             migrationPhasesComponent = new MigrationPhasesComponent(project);
             tabbedPane.addTab("Migration Phases", migrationPhasesComponent.getPanel());
 
-            // Load initial data
-            loadInitialData();
+            // Load initial state (empty - wait for user to analyze)
+            loadInitialState();
 
             contentPanel.add(toolbarPanel, BorderLayout.NORTH);
             contentPanel.add(tabbedPane, BorderLayout.CENTER);
@@ -137,7 +135,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 .thenAccept(response -> {
                     SwingUtilities.invokeLater(() -> {
                         if (response != null && response.getDependencyImpact() != null && 
-                            response.getDependencyImpact().getAffectedDependencies() != null) {
+                            response.getDependencyImpact().getAffectedDependencies() != null &&
+                            !response.getDependencyImpact().getAffectedDependencies().isEmpty()) {
                             // Update dashboard with real data
                             updateDashboardFromResponse(response);
                             int depsCount = response.getDependencyImpact().getAffectedDependencies().size();
@@ -145,21 +144,20 @@ public class MigrationToolWindow implements ToolWindowFactory {
                                 depsCount + 
                                 " dependencies analyzed.", "Analysis Complete");
                         } else {
-                            // Fallback to mock data if server returns empty
-                            loadMockDashboardData();
+                            // No affected dependencies - project is ready
+                            showEmptyResultsState();
                             Messages.showInfoMessage(project, 
-                                "Using sample analysis data. Connect to MCP server for real analysis.", 
-                                "Demo Mode");
+                                "Analysis complete. No Jakarta migration issues found.", 
+                                "Analysis Complete");
                         }
                     });
                 })
                 .exceptionally(ex -> {
                     SwingUtilities.invokeLater(() -> {
                         dashboardComponent.setStatus(MigrationStatus.FAILED);
-                        // Fallback to mock data on error
-                        loadMockDashboardData();
                         Messages.showWarningDialog(project, 
-                            "Could not connect to MCP server. Using sample data.\n" +
+                            "Could not connect to MCP server. Please ensure the server is running at: " + 
+                            mcpClient.getServerUrl() + "\n" +
                             "Error: " + ex.getMessage(), 
                             "Server Unavailable");
                     });
@@ -168,31 +166,38 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         /**
+         * Show empty results state when no issues are found
+         */
+        private void showEmptyResultsState() {
+            MigrationDashboard dashboard = new MigrationDashboard();
+            dashboard.setReadinessScore(100);
+            dashboard.setStatus(MigrationStatus.READY);
+            dashboard.setLastAnalyzed(Instant.now());
+
+            DependencySummary summary = new DependencySummary();
+            summary.setTotalDependencies(0);
+            summary.setAffectedDependencies(0);
+            summary.setBlockerDependencies(0);
+            summary.setMigrableDependencies(0);
+            dashboard.setDependencySummary(summary);
+
+            dashboardComponent.updateDashboard(dashboard);
+            dependenciesComponent.setDependencies(new ArrayList<>());
+        }
+
+        /**
          * Update dashboard from MCP response
          */
         private void updateDashboardFromResponse(AnalyzeMigrationImpactResponse response) {
             if (response == null || response.getDependencyImpact() == null) {
-                loadMockDashboardData();
+                showEmptyResultsState();
                 return;
             }
 
             List<DependencyInfo> deps = response.getDependencyImpact().getAffectedDependencies();
             if (deps == null || deps.isEmpty()) {
                 // No affected dependencies - project is ready
-                MigrationDashboard dashboard = new MigrationDashboard();
-                dashboard.setReadinessScore(100);
-                dashboard.setStatus(MigrationStatus.READY);
-                dashboard.setLastAnalyzed(Instant.now());
-
-                DependencySummary summary = new DependencySummary();
-                summary.setTotalDependencies(0);
-                summary.setAffectedDependencies(0);
-                summary.setBlockerDependencies(0);
-                summary.setMigrableDependencies(0);
-                dashboard.setDependencySummary(summary);
-
-                dashboardComponent.updateDashboard(dashboard);
-                dependenciesComponent.setDependencies(new ArrayList<>());
+                showEmptyResultsState();
                 return;
             }
 
@@ -237,106 +242,22 @@ public class MigrationToolWindow implements ToolWindowFactory {
             return (int) ((compatible + hasVersion * 0.7) * 100 / deps.size());
         }
 
-        private void loadInitialData() {
-            // Load mock data for MVP demonstration
-            loadMockDashboardData();
-            loadMockDependencies();
-        }
-
-        private void loadMockDashboardData() {
-            // Create a mock dashboard for demonstration
+        private void loadInitialState() {
+            // Set initial empty state - wait for user to analyze
             MigrationDashboard dashboard = new MigrationDashboard();
-            dashboard.setReadinessScore(65);
-            dashboard.setStatus(MigrationStatus.HAS_BLOCKERS);
-            dashboard.setLastAnalyzed(Instant.now());
+            dashboard.setReadinessScore(0);
+            dashboard.setStatus(MigrationStatus.NOT_ANALYZED);
+            dashboard.setLastAnalyzed(null);
 
             DependencySummary summary = new DependencySummary();
-            summary.setTotalDependencies(42);
-            summary.setAffectedDependencies(18);
-            summary.setBlockerDependencies(3);
-            summary.setMigrableDependencies(15);
+            summary.setTotalDependencies(0);
+            summary.setAffectedDependencies(0);
+            summary.setBlockerDependencies(0);
+            summary.setMigrableDependencies(0);
             dashboard.setDependencySummary(summary);
 
             dashboardComponent.updateDashboard(dashboard);
-        }
-
-        private void loadMockDependencies() {
-            List<DependencyInfo> dependencies = new ArrayList<>();
-
-            // Blockers
-            dependencies.add(new DependencyInfo(
-                "javax.xml.bind", "jaxb-api", "2.3.1", null,
-                DependencyMigrationStatus.NO_JAKARTA_VERSION, true,
-                adrianmikula.jakartamigration.intellij.model.RiskLevel.CRITICAL,
-                "No Jakarta equivalent - requires alternative"
-            ));
-
-            dependencies.add(new DependencyInfo(
-                "javax.activation", "javax.activation-api", "1.2.0", "jakarta.activation:jakarta.activation-api:2.3.1",
-                DependencyMigrationStatus.NEEDS_UPGRADE, true,
-                adrianmikula.jakartamigration.intellij.model.RiskLevel.HIGH,
-                "Upgrade to Jakarta Activation 2.3"
-            ));
-
-            dependencies.add(new DependencyInfo(
-                "org.glassfish.jaxb", "jaxb-runtime", "2.3.1", "org.glassfish.jaxb:jaxb-runtime:3.0.2",
-                DependencyMigrationStatus.NEEDS_UPGRADE, true,
-                adrianmikula.jakartamigration.intellij.model.RiskLevel.MEDIUM,
-                "Update to Jakarta XML Binding 3.0"
-            ));
-
-            // Needs upgrade
-            dependencies.add(new DependencyInfo(
-                "org.springframework", "spring-beans", "5.3.27", "6.0.9",
-                DependencyMigrationStatus.NEEDS_UPGRADE, false,
-                adrianmikula.jakartamigration.intellij.model.RiskLevel.HIGH,
-                "Required for Spring Framework 6.0 migration"
-            ));
-
-            dependencies.add(new DependencyInfo(
-                "org.springframework", "spring-core", "5.3.27", "6.0.9",
-                DependencyMigrationStatus.NEEDS_UPGRADE, false,
-                adrianmikula.jakartamigration.intellij.model.RiskLevel.HIGH,
-                "Required for Spring Framework 6.0 migration"
-            ));
-
-            dependencies.add(new DependencyInfo(
-                "org.springframework", "spring-web", "5.3.27", "6.0.9",
-                DependencyMigrationStatus.NEEDS_UPGRADE, false,
-                adrianmikula.jakartamigration.intellij.model.RiskLevel.MEDIUM,
-                "Update for Jakarta Servlet 5.0 compatibility"
-            ));
-
-            dependencies.add(new DependencyInfo(
-                "org.hibernate", "hibernate-core", "5.6.15.Final", "6.2.0.Final",
-                DependencyMigrationStatus.NEEDS_UPGRADE, false,
-                adrianmikula.jakartamigration.intellij.model.RiskLevel.CRITICAL,
-                "Major version upgrade - significant changes"
-            ));
-
-            // Compatible
-            dependencies.add(new DependencyInfo(
-                "jakarta.servlet", "jakarta.servlet-api", "5.0.0", null,
-                DependencyMigrationStatus.COMPATIBLE, false,
-                adrianmikula.jakartamigration.intellij.model.RiskLevel.LOW,
-                "Already using Jakarta EE 9+ compatible version"
-            ));
-
-            dependencies.add(new DependencyInfo(
-                "jakarta.validation", "jakarta.validation-api", "3.0.2", null,
-                DependencyMigrationStatus.COMPATIBLE, false,
-                adrianmikula.jakartamigration.intellij.model.RiskLevel.LOW,
-                "Already using Jakarta EE compatible version"
-            ));
-
-            dependencies.add(new DependencyInfo(
-                "org.apache.commons", "commons-lang3", "3.12.0", null,
-                DependencyMigrationStatus.COMPATIBLE, false,
-                adrianmikula.jakartamigration.intellij.model.RiskLevel.LOW,
-                "No javax dependencies"
-            ));
-
-            dependenciesComponent.setDependencies(dependencies);
+            dependenciesComponent.setDependencies(new ArrayList<>());
         }
 
         /**
