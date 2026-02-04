@@ -73,6 +73,14 @@ public class DependencyGraphComponentTest extends LightJavaCodeInsightFixtureTes
     }
 
     @Test
+    public void testGraphComponentHasOrgDependenciesOption() {
+        JPanel panel = graphComponent.getPanel();
+        JCheckBox orgDepCheckbox = findCheckBoxByText(panel, "Show Org Dependencies");
+        assertThat(orgDepCheckbox).isNotNull();
+        assertThat(orgDepCheckbox.isSelected()).isFalse();
+    }
+
+    @Test
     public void testLayoutSelectorHasOptions() {
         JPanel panel = graphComponent.getPanel();
         @SuppressWarnings("unchecked")

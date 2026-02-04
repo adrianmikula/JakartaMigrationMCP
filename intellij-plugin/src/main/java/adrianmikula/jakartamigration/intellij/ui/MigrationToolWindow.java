@@ -76,7 +76,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Migration Phases tab
             migrationPhasesComponent = new MigrationPhasesComponent(project);
-            tabbedPane.addTab("Migration Phases", migrationPhasesComponent.getPanel());
+            tabbedPane.addTab("Migration Strategy", migrationPhasesComponent.getPanel());
 
             // Load initial state (empty - wait for user to analyze)
             loadInitialState();

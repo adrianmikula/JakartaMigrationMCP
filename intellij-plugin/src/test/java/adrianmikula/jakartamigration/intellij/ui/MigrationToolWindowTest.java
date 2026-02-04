@@ -39,7 +39,7 @@ public class MigrationToolWindowTest extends BaseUITest {
         assertThat(tabbedPane.getTitleAt(0)).isEqualTo("Dashboard");
         assertThat(tabbedPane.getTitleAt(1)).isEqualTo("Dependencies");
         assertThat(tabbedPane.getTitleAt(2)).isEqualTo("Dependency Graph");
-        assertThat(tabbedPane.getTitleAt(3)).isEqualTo("Migration Phases");
+        assertThat(tabbedPane.getTitleAt(3)).isEqualTo("Migration Strategy");
     }
 
     private JTabbedPane findTabbedPane(JPanel panel) {

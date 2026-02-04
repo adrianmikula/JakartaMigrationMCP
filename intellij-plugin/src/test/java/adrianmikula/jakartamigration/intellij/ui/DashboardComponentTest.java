@@ -36,9 +36,11 @@ public class DashboardComponentTest extends LightJavaCodeInsightFixtureTestCase 
         assertThat(panel.getComponentCount()).isGreaterThan(0);
 
         // Check for header and action buttons
-        assertThat(findComponentByText(panel, "Migration Dashboard")).isNotNull();
+        assertThat(findComponentByText(panel, "Migration Summary")).isNotNull();
         assertThat(findComponentByText(panel, "▶ Analyze Project")).isNotNull(); // Analyze button
         assertThat(findComponentByType(panel, JButton.class)).isNotNull(); // Refresh button
+        // Check for MCP tool buttons
+        assertThat(findComponentByText(panel, "Analyze Readiness")).isNotNull(); // MCP tool button
     }
 
     @Test

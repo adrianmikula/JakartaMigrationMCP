@@ -12,7 +12,9 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Dependency graph component from TypeSpec: plugin-components.tsp
@@ -25,7 +27,9 @@ public class DependencyGraphComponent {
     private final JComboBox<String> layoutCombo;
     private final JCheckBox showCriticalPathCheck;
     private final JCheckBox showLabelsCheck;
+    private final JCheckBox showOrgDependenciesCheck;
     private List<DependencyInfo> dependencies;
+    private Set<String> orgNamespacePatterns = new HashSet<>();
 
     public DependencyGraphComponent(Project project) {
         this.project = project;
@@ -37,9 +41,9 @@ public class DependencyGraphComponent {
         });
         this.showCriticalPathCheck = new JCheckBox("Highlight Critical Path", true);
         this.showLabelsCheck = new JCheckBox("Show Labels", true);
+        this.showOrgDependenciesCheck = new JCheckBox("Show Org Dependencies", false);
 
         initializeComponent();
-        loadSampleData();
     }
 
     private void initializeComponent() {
@@ -57,6 +61,9 @@ public class DependencyGraphComponent {
         showLabelsCheck.setSelected(true);
         showLabelsCheck.addActionListener(this::handleShowLabels);
         headerPanel.add(showLabelsCheck);
+
+        showOrgDependenciesCheck.addActionListener(this::handleShowOrgDependencies);
+        headerPanel.add(showOrgDependenciesCheck);
 
         // Graph visualization area
         JPanel graphPanel = new JBPanel<>(new BorderLayout());
@@ -109,10 +116,22 @@ public class DependencyGraphComponent {
         graphCanvas.setShowLabels(showLabelsCheck.isSelected());
     }
 
+    private void handleShowOrgDependencies(ActionEvent e) {
+        updateGraphFromDependencies();
+    }
+
     private void handleLoadDependencies(ActionEvent e) {
         if (dependencies.isEmpty()) {
-            Messages.showInfoMessage(project, "No dependencies loaded. Using sample data.", "Info");
+            Messages.showInfoMessage(project, "No dependencies loaded. Run 'Analyze Readiness' first to load dependency data.", "Info");
         }
+        updateGraphFromDependencies();
+    }
+
+    /**
+     * Set organization namespace patterns for internal dependency detection.
+     */
+    public void setOrgNamespacePatterns(Set<String> patterns) {
+        this.orgNamespacePatterns = patterns != null ? patterns : new HashSet<>();
         updateGraphFromDependencies();
     }
 
@@ -127,6 +146,7 @@ public class DependencyGraphComponent {
     private void updateGraphFromDependencies() {
         List<GraphNode> nodes = new ArrayList<>();
         List<GraphEdge> edges = new ArrayList<>();
+        boolean showOrgDeps = showOrgDependenciesCheck.isSelected();
 
         // Create root node
         GraphNode root = new GraphNode("root", project.getName(), GraphNode.NodeType.ROOT, RiskLevel.LOW);
@@ -139,7 +159,15 @@ public class DependencyGraphComponent {
             GraphNode.NodeType type = dep.isBlocker() ? GraphNode.NodeType.DEPENDENCY : GraphNode.NodeType.MODULE;
             RiskLevel riskLevel = dep.getRiskLevel() != null ? dep.getRiskLevel() : RiskLevel.LOW;
 
-            GraphNode node = new GraphNode(id, dep.getArtifactId(), type, riskLevel);
+            // Check if this is an org internal dependency
+            boolean isOrgInternal = isOrgDependency(dep.getGroupId());
+
+            // If showing org dependencies only and this is not org internal, skip
+            if (showOrgDeps && !isOrgInternal) {
+                continue;
+            }
+
+            GraphNode node = new GraphNode(id, dep.getArtifactId(), type, riskLevel, isOrgInternal, false);
             nodes.add(node);
 
             // Create edge from root to this node
@@ -172,47 +200,26 @@ public class DependencyGraphComponent {
     }
 
     /**
-     * Load sample data for demonstration.
+     * Check if a dependency belongs to the organization based on namespace patterns.
      */
-    public void loadSampleData() {
-        List<DependencyInfo> sampleDeps = new ArrayList<>();
+    private boolean isOrgDependency(String groupId) {
+        for (String pattern : orgNamespacePatterns) {
+            if (matchPattern(pattern, groupId)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-        sampleDeps.add(new DependencyInfo(
-            "javax.servlet", "javax.servlet-api", "4.0.1",
-            "jakarta.servlet-api:5.0.0",
-            DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION,
-            true, RiskLevel.CRITICAL, "High impact - core API"
-        ));
-
-        sampleDeps.add(new DependencyInfo(
-            "javax.persistence", "javax.persistence-api", "2.2.3",
-            "jakarta.persistence:jakarta.persistence-api:3.0.0",
-            DependencyMigrationStatus.NEEDS_UPGRADE,
-            false, RiskLevel.HIGH, "Medium impact"
-        ));
-
-        sampleDeps.add(new DependencyInfo(
-            "javax.annotation", "javax.annotation-api", "1.3.2",
-            "jakarta.annotation:jakarta.annotation-api:2.0.0",
-            DependencyMigrationStatus.COMPATIBLE,
-            false, RiskLevel.LOW, "Low impact"
-        ));
-
-        sampleDeps.add(new DependencyInfo(
-            "org.springframework", "spring-web", "5.3.0",
-            "6.0.0 (requires Jakarta EE 9)",
-            DependencyMigrationStatus.NO_JAKARTA_VERSION,
-            true, RiskLevel.CRITICAL, "Major upgrade needed"
-        ));
-
-        sampleDeps.add(new DependencyInfo(
-            "org.hibernate", "hibernate-core", "5.4.0",
-            "6.0.0 (requires Jakarta EE 9)",
-            DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION,
-            true, RiskLevel.HIGH, "Major changes"
-        ));
-
-        updateGraph(sampleDeps);
+    /**
+     * Match a namespace pattern (supports wildcards like com.myorg.*).
+     */
+    private boolean matchPattern(String pattern, String groupId) {
+        if (pattern.endsWith(".*")) {
+            String prefix = pattern.substring(0, pattern.length() - 2);
+            return groupId.equals(prefix) || groupId.startsWith(prefix + ".");
+        }
+        return groupId.equals(pattern);
     }
 
     public JPanel getPanel() {

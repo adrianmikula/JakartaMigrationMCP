@@ -12,6 +12,13 @@ import java.util.concurrent.CompletableFuture;
 public interface McpClientService {
 
     /**
+     * Analyze Jakarta migration readiness for a project
+     * @param projectPath Path to the project root directory
+     * @return CompletableFuture containing JSON response with readiness data
+     */
+    CompletableFuture<String> analyzeReadiness(String projectPath);
+
+    /**
      * Analyze migration impact for a project
      */
     CompletableFuture<AnalyzeMigrationImpactResponse> analyzeMigrationImpact(String projectPath);

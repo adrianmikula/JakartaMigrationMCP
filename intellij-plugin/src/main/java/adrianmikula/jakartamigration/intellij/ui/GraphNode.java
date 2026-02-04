@@ -11,6 +11,8 @@ public class GraphNode {
     private final String label;
     private final NodeType type;
     private final RiskLevel riskLevel;
+    private boolean isOrgInternal = false;
+    private boolean analyzedForMigration = false;
     private double x;
     private double y;
     private double width = 120;
@@ -19,7 +21,8 @@ public class GraphNode {
     public enum NodeType {
         MODULE,
         DEPENDENCY,
-        ROOT
+        ROOT,
+        ORG_INTERNAL
     }
 
     public GraphNode(String id, String label, NodeType type, RiskLevel riskLevel) {
@@ -27,6 +30,15 @@ public class GraphNode {
         this.label = label;
         this.type = type;
         this.riskLevel = riskLevel;
+    }
+
+    public GraphNode(String id, String label, NodeType type, RiskLevel riskLevel, boolean isOrgInternal, boolean analyzedForMigration) {
+        this.id = id;
+        this.label = label;
+        this.type = type;
+        this.riskLevel = riskLevel;
+        this.isOrgInternal = isOrgInternal;
+        this.analyzedForMigration = analyzedForMigration;
     }
 
     public String getId() {
@@ -87,5 +99,21 @@ public class GraphNode {
 
     public boolean contains(double px, double py) {
         return px >= x && px <= x + width && py >= y && py <= y + height;
+    }
+
+    public boolean isOrgInternal() {
+        return isOrgInternal;
+    }
+
+    public void setOrgInternal(boolean orgInternal) {
+        isOrgInternal = orgInternal;
+    }
+
+    public boolean isAnalyzedForMigration() {
+        return analyzedForMigration;
+    }
+
+    public void setAnalyzedForMigration(boolean analyzedForMigration) {
+        this.analyzedForMigration = analyzedForMigration;
     }
 }

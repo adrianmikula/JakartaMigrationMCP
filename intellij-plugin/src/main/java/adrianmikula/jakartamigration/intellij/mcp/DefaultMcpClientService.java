@@ -59,6 +59,20 @@ public class DefaultMcpClientService implements McpClientService {
     }
 
     @Override
+    public CompletableFuture<String> analyzeReadiness(String projectPath) {
+        LOG.info("Analyzing Jakarta readiness for project: {}", projectPath);
+        return callTool("analyzeJakartaReadiness", Map.of("projectPath", projectPath))
+                .thenApply(responseJson -> {
+                    LOG.debug("Received readiness response: {}", responseJson);
+                    return responseJson;
+                })
+                .exceptionally(ex -> {
+                    LOG.error("analyzeReadiness call failed: {}", ex.getMessage());
+                    return createErrorJson("Failed to analyze readiness: " + ex.getMessage());
+                });
+    }
+
+    @Override
     public CompletableFuture<AnalyzeMigrationImpactResponse> analyzeMigrationImpact(String projectPath) {
         LOG.info("Analyzing migration impact for project: {}", projectPath);
         
@@ -429,5 +443,9 @@ public class DefaultMcpClientService implements McpClientService {
         response.setOverallImpact(new AnalyzeMigrationImpactResponse.ImpactAssessment());
         response.setEstimatedEffort(new AnalyzeMigrationImpactResponse.EffortEstimate());
         return response;
+    }
+
+    private String createErrorJson(String message) {
+        return String.format("{\"error\":\"%s\"}", message);
     }
 }

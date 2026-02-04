@@ -80,9 +80,49 @@ class GraphNodeTest {
 
     @Test
     void testNodeTypes() {
-        assertEquals(3, GraphNode.NodeType.values().length);
+        assertEquals(4, GraphNode.NodeType.values().length);
         assertNotNull(GraphNode.NodeType.MODULE);
         assertNotNull(GraphNode.NodeType.DEPENDENCY);
         assertNotNull(GraphNode.NodeType.ROOT);
+        assertNotNull(GraphNode.NodeType.ORG_INTERNAL);
+    }
+
+    @Test
+    void testOrgInternalFlag() {
+        GraphNode node = new GraphNode("test-id", "Test Label",
+            GraphNode.NodeType.MODULE, RiskLevel.LOW);
+
+        // Default should be false
+        assertFalse(node.isOrgInternal());
+        assertFalse(node.isAnalyzedForMigration());
+
+        // Set and verify
+        node.setOrgInternal(true);
+        node.setAnalyzedForMigration(true);
+
+        assertTrue(node.isOrgInternal());
+        assertTrue(node.isAnalyzedForMigration());
+    }
+
+    @Test
+    void testOrgInternalNodeCreation() {
+        GraphNode node = new GraphNode("com.myorg:internal-lib", "internal-lib",
+            GraphNode.NodeType.ORG_INTERNAL, RiskLevel.HIGH, true, false);
+
+        assertEquals("com.myorg:internal-lib", node.getId());
+        assertEquals("internal-lib", node.getLabel());
+        assertEquals(GraphNode.NodeType.ORG_INTERNAL, node.getType());
+        assertEquals(RiskLevel.HIGH, node.getRiskLevel());
+        assertTrue(node.isOrgInternal());
+        assertFalse(node.isAnalyzedForMigration());
+    }
+
+    @Test
+    void testAnalyzedOrgNode() {
+        GraphNode node = new GraphNode("com.myorg:analyzed-lib", "analyzed-lib",
+            GraphNode.NodeType.ORG_INTERNAL, RiskLevel.MEDIUM, true, true);
+
+        assertTrue(node.isOrgInternal());
+        assertTrue(node.isAnalyzedForMigration());
     }
 }

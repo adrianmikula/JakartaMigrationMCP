@@ -12,6 +12,7 @@ import org.w3c.dom.NodeList;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -153,6 +154,7 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
     
     @Override
     public DependencyGraph buildFromProject(Path projectRoot) {
+        // First, try to find build files in the root directory
         Path pomXml = projectRoot.resolve("pom.xml");
         if (Files.exists(pomXml)) {
             return buildFromMaven(pomXml);
@@ -169,7 +171,43 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
             return buildFromGradle(buildGradleKts);
         }
         
-        throw new DependencyGraphException("No build file found in project root: " + projectRoot);
+        // If no build files found in root, search subdirectories
+        Path foundBuildFile = searchForBuildFile(projectRoot);
+        
+        if (foundBuildFile != null) {
+            String fileName = foundBuildFile.getFileName().toString();
+            if (fileName.equals("pom.xml")) {
+                return buildFromMaven(foundBuildFile);
+            } else {
+                return buildFromGradle(foundBuildFile);
+            }
+        }
+        
+        throw new DependencyGraphException("No build file found in project: " + projectRoot);
+    }
+    
+    /**
+     * Recursively searches for build files (pom.xml, build.gradle, build.gradle.kts)
+     * in the project directory and its subdirectories.
+     *
+     * @param directory The directory to search in
+     * @return The path to the first build file found, or null if none found
+     */
+    private Path searchForBuildFile(Path directory) {
+        try (var stream = Files.walk(directory)) {
+            return stream
+                .filter(Files::isRegularFile)
+                .filter(path -> {
+                    String fileName = path.getFileName().toString();
+                    return fileName.equals("pom.xml") || 
+                           fileName.equals("build.gradle") || 
+                           fileName.equals("build.gradle.kts");
+                })
+                .findFirst()
+                .orElse(null);
+        } catch (IOException e) {
+            throw new DependencyGraphException("Failed to search for build files in: " + directory, e);
+        }
     }
     
     private List<Artifact> parseGradleDependencies(String content) {

@@ -1,6 +1,19 @@
 plugins {
     id("org.jetbrains.intellij")
     java
+    jacoco
+}
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+tasks.withType<JacocoReport> {
+    dependsOn("test")
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
 }
 
 dependencies {

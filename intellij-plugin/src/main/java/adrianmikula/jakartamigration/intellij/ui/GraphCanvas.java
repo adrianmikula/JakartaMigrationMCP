@@ -231,18 +231,29 @@ public class GraphCanvas extends JPanel {
     private void drawNodes(Graphics2D g2d) {
         for (GraphNode node : nodes) {
             Color bgColor;
-            switch (node.getRiskLevel()) {
-                case CRITICAL:
-                    bgColor = new Color(220, 53, 69);
-                    break;
-                case HIGH:
-                    bgColor = new Color(255, 193, 7);
-                    break;
-                case MEDIUM:
-                    bgColor = new Color(23, 162, 184);
-                    break;
-                default:
-                    bgColor = new Color(40, 167, 69);
+
+            // Check if this is an org internal dependency
+            if (node.isOrgInternal()) {
+                // Org internal dependencies get a distinct purple color
+                if (node.isAnalyzedForMigration()) {
+                    bgColor = new Color(111, 66, 193); // Purple - analyzed
+                } else {
+                    bgColor = new Color(156, 39, 176); // Bright purple - needs analysis
+                }
+            } else {
+                switch (node.getRiskLevel()) {
+                    case CRITICAL:
+                        bgColor = new Color(220, 53, 69);
+                        break;
+                    case HIGH:
+                        bgColor = new Color(255, 193, 7);
+                        break;
+                    case MEDIUM:
+                        bgColor = new Color(23, 162, 184);
+                        break;
+                    default:
+                        bgColor = new Color(40, 167, 69);
+                }
             }
 
             // Draw node rectangle
@@ -269,6 +280,13 @@ public class GraphCanvas extends JPanel {
                 Math.min(255, bgColor.getBlue() + 50)
             ));
             g2d.fillRoundRect(x + 1, y + 1, w - 2, h - 2, 7, 7);
+
+            // Draw org internal indicator (small dot in corner)
+            if (node.isOrgInternal()) {
+                g2d.setColor(node.isAnalyzedForMigration() ?
+                    new Color(255, 255, 0) : new Color(255, 100, 100));
+                g2d.fillOval(x + w - 12, y + 4, 8, 8);
+            }
 
             // Draw label
             if (showLabels) {
