@@ -237,22 +237,28 @@ public class GraphCanvas extends JPanel {
                 bgColor = new Color(156, 39, 176); // Bright purple for org internal
             } else {
                 // Use migration status colors (same as dependencies table)
-                switch (node.getMigrationStatus()) {
-                    case COMPATIBLE:
-                        bgColor = new Color(40, 167, 69);  // Green
-                        break;
-                    case NEEDS_UPGRADE:
-                    case REQUIRES_MANUAL_MIGRATION:
-                        bgColor = new Color(255, 193, 7);  // Yellow
-                        break;
-                    case NO_JAKARTA_VERSION:
-                        bgColor = new Color(220, 53, 69);  // Red
-                        break;
-                    case MIGRATED:
-                        bgColor = new Color(23, 162, 184);  // Cyan
-                        break;
-                    default:
-                        bgColor = new Color(108, 117, 125);  // Gray for unknown
+                DependencyMigrationStatus status = node.getMigrationStatus();
+                if (status == null) {
+                    // Root node or unknown status - use gray
+                    bgColor = new Color(108, 117, 125);
+                } else {
+                    switch (status) {
+                        case COMPATIBLE:
+                            bgColor = new Color(40, 167, 69);  // Green
+                            break;
+                        case NEEDS_UPGRADE:
+                        case REQUIRES_MANUAL_MIGRATION:
+                            bgColor = new Color(255, 193, 7);  // Yellow
+                            break;
+                        case NO_JAKARTA_VERSION:
+                            bgColor = new Color(220, 53, 69);  // Red
+                            break;
+                        case MIGRATED:
+                            bgColor = new Color(23, 162, 184);  // Cyan
+                            break;
+                        default:
+                            bgColor = new Color(108, 117, 125);  // Gray for unknown
+                    }
                 }
             }
 
