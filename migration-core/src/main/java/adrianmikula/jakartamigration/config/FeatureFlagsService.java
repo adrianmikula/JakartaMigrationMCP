@@ -8,6 +8,9 @@ import java.util.stream.Collectors;
 
 /**
  * Service for checking feature flag availability.
+ * 
+ * Integrates with JetBrains Marketplace licensing system.
+ * Supports tier-based access (COMMUNITY, PREMIUM) with 7-day free trial.
  */
 @Slf4j
 public class FeatureFlagsService {
@@ -70,12 +73,72 @@ public class FeatureFlagsService {
         return getCurrentTier().ordinal() >= tier.ordinal();
     }
 
+    /**
+     * Check if user has an active subscription (paid or trial).
+     */
+    public boolean hasActiveSubscription() {
+        return licenseService.hasActiveSubscription();
+    }
+
+    /**
+     * Get remaining trial days.
+     */
+    public int getRemainingTrialDays() {
+        return licenseService.getRemainingTrialDays();
+    }
+
+    /**
+     * Check if trial is active.
+     */
+    public boolean isTrialActive() {
+        return licenseService.isTrialActive();
+    }
+
+    /**
+     * Start a free trial.
+     */
+    public void startTrial() {
+        licenseService.startTrial();
+    }
+
+    /**
+     * Get subscription status as a human-readable string.
+     */
+    public String getSubscriptionStatus() {
+        return licenseService.getSubscriptionStatus();
+    }
+
     public String getUpgradeMessage(FeatureFlag flag) {
         return String.format(
-                "The '%s' feature requires a %s license. Your current tier is %s.",
+                "The '%s' feature requires a Premium subscription. %s",
                 flag.getName(),
-                flag.getRequiredTier(),
-                getCurrentTier());
+                getPricingInfo());
+    }
+
+    /**
+     * Get pricing information for upgrade prompts.
+     */
+    public String getPricingInfo() {
+        return String.format(
+                "Upgrade: %s or %s. Start your free 7-day trial today!",
+                FeatureFlagsProperties.getMonthlyPriceFormatted(),
+                FeatureFlagsProperties.getYearlyPriceFormatted());
+    }
+
+    /**
+     * Get upgrade prompt with full pricing details.
+     */
+    public String getFullUpgradePrompt() {
+        int savings = FeatureFlagsProperties.getYearlySavingsPercent();
+        return String.format(
+                "Upgrade to Premium for:\n" +
+                "• %s (billed monthly)\n" +
+                "• %s (billed yearly - save %d%%)\n" +
+                "• 7-day free trial available\n\n" +
+                "Visit JetBrains Marketplace to subscribe.",
+                FeatureFlagsProperties.getMonthlyPriceFormatted(),
+                FeatureFlagsProperties.getYearlyPriceFormatted(),
+                savings);
     }
 
     public UpgradeInfo getUpgradeInfo(FeatureFlag flag) {
@@ -84,8 +147,25 @@ public class FeatureFlagsService {
                 flag.getDescription(),
                 getCurrentTier(),
                 flag.getRequiredTier(),
-                null,
-                getUpgradeMessage(flag));
+                FeatureFlagsProperties.getMarketplaceUrl(),
+                getUpgradeMessage(flag),
+                getSubscriptionStatus(),
+                getRemainingTrialDays());
+    }
+
+    /**
+     * Get upgrade info with full pricing details.
+     */
+    public UpgradeInfo getFullUpgradeInfo() {
+        return new UpgradeInfo(
+                "Premium Subscription",
+                "All premium features including auto-fixes, one-click refactor, and advanced analysis",
+                getCurrentTier(),
+                FeatureFlagsProperties.LicenseTier.PREMIUM,
+                FeatureFlagsProperties.getMarketplaceUrl(),
+                getFullUpgradePrompt(),
+                getSubscriptionStatus(),
+                getRemainingTrialDays());
     }
 
     public static class UpgradeInfo {
@@ -95,6 +175,8 @@ public class FeatureFlagsService {
         private final FeatureFlagsProperties.LicenseTier requiredTier;
         private final String paymentLink;
         private final String message;
+        private final String subscriptionStatus;
+        private final int remainingTrialDays;
 
         public UpgradeInfo(
                 String featureName,
@@ -102,13 +184,17 @@ public class FeatureFlagsService {
                 FeatureFlagsProperties.LicenseTier currentTier,
                 FeatureFlagsProperties.LicenseTier requiredTier,
                 String paymentLink,
-                String message) {
+                String message,
+                String subscriptionStatus,
+                int remainingTrialDays) {
             this.featureName = featureName;
             this.featureDescription = featureDescription;
             this.currentTier = currentTier;
             this.requiredTier = requiredTier;
             this.paymentLink = paymentLink;
             this.message = message;
+            this.subscriptionStatus = subscriptionStatus;
+            this.remainingTrialDays = remainingTrialDays;
         }
 
         public String getFeatureName() {
@@ -133,6 +219,22 @@ public class FeatureFlagsService {
 
         public String getMessage() {
             return message;
+        }
+
+        public String getSubscriptionStatus() {
+            return subscriptionStatus;
+        }
+
+        public int getRemainingTrialDays() {
+            return remainingTrialDays;
+        }
+
+        public boolean isTrialActive() {
+            return remainingTrialDays > 0;
+        }
+
+        public boolean canUpgrade() {
+            return currentTier == FeatureFlagsProperties.LicenseTier.COMMUNITY;
         }
     }
 

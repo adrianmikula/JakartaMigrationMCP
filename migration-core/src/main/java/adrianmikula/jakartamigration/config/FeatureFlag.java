@@ -6,16 +6,19 @@ import lombok.RequiredArgsConstructor;
 /**
  * Enumeration of all feature flags in the Jakarta Migration MCP Server.
  * 
- * Each feature flag represents a capability that can be enabled/disabled
- * based on the user's license tier.
+ * Features are split into COMMUNITY (free) and PREMIUM (paid) tiers.
+ * JetBrains Marketplace handles subscription management and license validation.
  */
 @Getter
 public enum FeatureFlag {
 
+    // === PREMIUM FEATURES ===
+    // All features below require a JetBrains Marketplace subscription
+    // Pricing: $49/month or $399/year (with 7-day free trial)
+
     /**
      * Auto-fixes / Auto-remediation.
-     * Premium feature: Automatically fix detected issues without manual intervention.
-     * Community: Can only identify problems.
+     * Automatically fix detected issues without manual intervention.
      */
     AUTO_FIXES(
         "auto-fixes",
@@ -26,8 +29,7 @@ public enum FeatureFlag {
 
     /**
      * One-click refactor.
-     * Premium feature: Execute complete refactoring with a single command.
-     * Community: Can only create migration plans.
+     * Execute complete refactoring with a single command.
      */
     ONE_CLICK_REFACTOR(
         "one-click-refactor",
@@ -38,8 +40,7 @@ public enum FeatureFlag {
 
     /**
      * Binary fixes.
-     * Premium feature: Fix issues in compiled binaries/JARs.
-     * Community: Can only analyze source code.
+     * Fix issues in compiled binaries/JARs.
      */
     BINARY_FIXES(
         "binary-fixes",
@@ -50,8 +51,7 @@ public enum FeatureFlag {
 
     /**
      * Advanced analysis.
-     * Premium feature: Deep dependency analysis, transitive conflict resolution.
-     * Community: Basic dependency scanning.
+     * Deep dependency analysis, transitive conflict resolution.
      */
     ADVANCED_ANALYSIS(
         "advanced-analysis",
@@ -61,33 +61,8 @@ public enum FeatureFlag {
     ),
 
     /**
-     * Priority support.
-     * Premium feature: Priority support with SLA guarantees.
-     * Community: Community support only.
-     */
-    PRIORITY_SUPPORT(
-        "priority-support",
-        "Priority support",
-        "Priority support with SLA guarantees and faster response times",
-        FeatureFlagsProperties.LicenseTier.PREMIUM
-    ),
-
-    /**
-     * Cloud hosting / Managed hosting.
-     * Premium feature: Hosted version on cloud infrastructure.
-     * Community: Local execution only.
-     */
-    CLOUD_HOSTING(
-        "cloud-hosting",
-        "Cloud hosting",
-        "Managed cloud hosting with automatic scaling and monitoring",
-        FeatureFlagsProperties.LicenseTier.PREMIUM
-    ),
-
-    /**
      * Batch operations.
-     * Premium feature: Process multiple projects in batch.
-     * Community: Single project analysis only.
+     * Process multiple projects in batch.
      */
     BATCH_OPERATIONS(
         "batch-operations",
@@ -98,8 +73,7 @@ public enum FeatureFlag {
 
     /**
      * Custom recipes.
-     * Premium feature: Create and use custom migration recipes.
-     * Community: Standard recipes only.
+     * Create and use custom migration recipes.
      */
     CUSTOM_RECIPES(
         "custom-recipes",
@@ -110,8 +84,7 @@ public enum FeatureFlag {
 
     /**
      * API access.
-     * Premium feature: Programmatic API access for integrations.
-     * Community: MCP interface only.
+     * Programmatic API access for integrations.
      */
     API_ACCESS(
         "api-access",
@@ -122,8 +95,7 @@ public enum FeatureFlag {
 
     /**
      * Export reports.
-     * Premium feature: Export detailed reports in multiple formats.
-     * Community: Basic JSON output only.
+     * Export detailed reports in multiple formats.
      */
     EXPORT_REPORTS(
         "export-reports",
@@ -131,6 +103,13 @@ public enum FeatureFlag {
         "Export detailed migration reports in PDF, HTML, and other formats",
         FeatureFlagsProperties.LicenseTier.PREMIUM
     );
+
+    // === COMMUNITY FEATURES ===
+    // These features are always available (no premium required):
+    // - Basic scanning
+    // - Dependency analysis
+    // - Migration planning
+    // - Problem identification
 
     /**
      * Feature flag key (used in configuration).
@@ -167,6 +146,35 @@ public enum FeatureFlag {
      */
     public boolean isAvailableFor(FeatureFlagsProperties.LicenseTier tier) {
         return tier.ordinal() >= requiredTier.ordinal();
+    }
+
+    /**
+     * Get feature tier as a human-readable string.
+     */
+    public String getTierString() {
+        return requiredTier == FeatureFlagsProperties.LicenseTier.PREMIUM ? "PREMIUM" : "COMMUNITY";
+    }
+
+    /**
+     * Get upgrade message for this feature.
+     */
+    public String getUpgradeMessage() {
+        return String.format(
+            "%s requires a premium subscription. %s",
+            name,
+            getPricingInfo()
+        );
+    }
+
+    /**
+     * Get pricing information for upgrade prompt.
+     */
+    public String getPricingInfo() {
+        return String.format(
+            "Upgrade to Premium: %s or %s. Start your free 7-day trial today!",
+            FeatureFlagsProperties.getMonthlyPriceFormatted(),
+            FeatureFlagsProperties.getYearlyPriceFormatted()
+        );
     }
 }
 

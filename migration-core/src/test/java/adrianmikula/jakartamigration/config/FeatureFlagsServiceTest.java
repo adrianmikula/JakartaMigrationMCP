@@ -113,7 +113,7 @@ class FeatureFlagsServiceTest {
 
         when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
         assertThat(service.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)).isTrue();
-        assertThat(service.hasTier(FeatureFlagsProperties.LicenseTier.ENTERPRISE)).isFalse();
+        assertThat(service.hasTier(FeatureFlagsProperties.LicenseTier.COMMUNITY)).isTrue(); // PREMIUM includes COMMUNITY
     }
 
     @Test

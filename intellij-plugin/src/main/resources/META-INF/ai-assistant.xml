@@ -1,0 +1,12 @@
+<idea-plugin>
+    <!-- AI Assistant specific extensions for MCP integration -->
+    <!-- This file is only loaded when AI Assistant plugin is available -->
+
+    <extensions defaultExtensionNs="com.intellij.ai">
+        <!-- MCP Server Provider for AI Assistant tool discovery -->
+        <!-- Registers Jakarta Migration MCP tools with AI Assistant -->
+        <mcpServerProvider id="jakarta-migration-mcp"
+                          implementation="adrianmikula.jakartamigration.intellij.mcp.JakartaMcpServerProvider"/>
+    </extensions>
+
+</idea-plugin>

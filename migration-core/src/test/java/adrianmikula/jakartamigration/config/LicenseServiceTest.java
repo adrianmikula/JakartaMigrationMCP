@@ -28,9 +28,9 @@ class LicenseServiceTest {
 
     @Test
     void shouldReturnDefaultTierFromProperties() {
-        when(properties.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.ENTERPRISE);
+        when(properties.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
 
-        assertThat(licenseService.getDefaultTier()).isEqualTo(FeatureFlagsProperties.LicenseTier.ENTERPRISE);
+        assertThat(licenseService.getDefaultTier()).isEqualTo(FeatureFlagsProperties.LicenseTier.PREMIUM);
     }
 
     @Test

@@ -1,0 +1,84 @@
+<idea-plugin>
+    <id>adrianmikula.jakartamigration.intellij</id>
+    <name>Jakarta Migration</name>
+    <vendor email="support@jakarta-migration.com" url="https://jakarta-migration.com">Jakarta Migration Team</vendor>
+
+    <description><![CDATA[
+    Jakarta Migration IntelliJ Plugin provides tools to analyze and migrate Java applications from Java EE 8 (javax.*) to Jakarta EE 9+ (jakarta.*).
+
+    Features:
+    - Migration readiness analysis
+    - Dependency analysis and recommendations
+    - Module dependency graph visualization
+    - Phased migration planning and execution
+    - Integration with Jakarta Migration MCP server
+    - AI Assistant integration for automatic tool discovery
+
+    MCP Server Tools Available to AI Assistant:
+    - analyzeJakartaReadiness: Analyzes project readiness for Jakarta EE migration
+    - analyzeMigrationImpact: Provides detailed migration impact analysis
+    - detectBlockers: Identifies migration blockers
+    - recommendVersions: Recommends compatible dependency versions
+    - applyOpenRewriteRefactoring: Applies automated refactoring
+    - scanBinaryDependency: Scans JAR dependencies for compatibility
+    - updateDependency: Updates dependencies to recommended versions
+    - generateMigrationPlan: Creates phased migration plans
+    - validateMigration: Validates migration results
+    ]]></description>
+
+    <!-- IntelliJ Platform Version Requirements -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+
+    <!-- Optional AI Assistant dependency (enables MCP integration) -->
+    <depends optional="true" config-file="ai-assistant.xml">com.intellij.modules.ai</depends>
+
+    <!-- Extensions for MCP Integration -->
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Project Activity for MCP Server Auto-Registration -->
+        <!-- Automatically loads MCP server when plugin is enabled -->
+        <projectActivity implementation="adrianmikula.jakartamigration.intellij.JakartaMcpRegistrationActivity"/>
+
+        <!-- Tool Window -->
+        <toolWindow id="JakartaMigration"
+                    displayName="Jakarta Migration"
+                    anchor="right"
+                    factoryClass="adrianmikula.jakartamigration.intellij.ui.MigrationToolWindow"/>
+
+        <!-- Application Service for MCP Client -->
+        <service serviceImplementation="adrianmikula.jakartamigration.intellij.mcp.DefaultMcpClientService"
+                 serviceInterface="adrianmikula.jakartamigration.intellij.mcp.McpClientService"/>
+
+        <!-- Notification for MCP Server Status -->
+        <notificationGroup id="JakartaMigration.McpStatus"
+                          displayType="BALLOON"
+                          key="mcp.status.notification"/>
+    </extensions>
+
+    <!-- AI Assistant Extensions (loaded when AI Assistant is available) -->
+    <extensions defaultExtensionNs="com.intellij.ai">
+        <!-- MCP Server Provider for AI Assistant tool discovery -->
+        <mcpServerProvider id="jakarta-migration-mcp"
+                          implementation="adrianmikula.jakartamigration.intellij.mcp.JakartaMcpServerProvider"/>
+    </extensions>
+
+    <actions>
+        <!-- Main Migration Action -->
+        <action id="JakartaMigrationAction"
+                class="adrianmikula.jakartamigration.intellij.JakartaMigrationAction"
+                text="Jakarta Migration"
+                description="Analyze and migrate to Jakarta EE">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift J"/>
+        </action>
+
+        <!-- AI Assistant Actions -->
+        <action id="JakartaMigration.AnalyzeProject"
+                class="adrianmikula.jakartamigration.intellij.JakartaMigrationAction"
+                text="Analyze with AI Assistant"
+                description="Analyze project with Jakarta Migration AI Assistant">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+
+</idea-plugin>

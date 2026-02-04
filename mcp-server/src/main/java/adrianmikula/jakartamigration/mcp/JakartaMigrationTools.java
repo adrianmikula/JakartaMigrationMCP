@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.mcp;
 
+import adrianmikula.jakartamigration.analysis.persistence.SqliteMigrationAnalysisStore;
 import adrianmikula.jakartamigration.coderefactoring.domain.MigrationPlan;
 import adrianmikula.jakartamigration.coderefactoring.domain.RefactoringFailure;
 import adrianmikula.jakartamigration.coderefactoring.domain.RefactoringResult;
@@ -72,6 +73,13 @@ public class JakartaMigrationTools {
     }
 
     /**
+     * Gets or creates a persistence store for the project.
+     */
+    private SqliteMigrationAnalysisStore getStore(Path projectPath) {
+        return new SqliteMigrationAnalysisStore(projectPath);
+    }
+
+    /**
      * Analyzes a Java project for Jakarta migration readiness.
      * 
      * @param projectPath Path to the project root directory
@@ -90,6 +98,12 @@ public class JakartaMigrationTools {
 
             // Analyze project dependencies
             DependencyAnalysisReport report = dependencyAnalysisModule.analyzeProject(project);
+
+            // Save to SQLite for shared access between MCP and UI
+            try (SqliteMigrationAnalysisStore store = getStore(project)) {
+                store.saveAnalysisReport(project, report);
+                log.info("Saved analysis report to SQLite store: {}", store.getDbPath());
+            }
 
             // Build response
             return buildReadinessResponse(report);
@@ -205,6 +219,13 @@ public class JakartaMigrationTools {
 
             // Create migration plan
             MigrationPlan plan = migrationPlanner.createPlan(projectPath, report);
+
+            // Save to SQLite for shared access between MCP and UI
+            try (SqliteMigrationAnalysisStore store = getStore(project)) {
+                store.saveAnalysisReport(project, report);
+                store.saveMigrationPlan(project, plan);
+                log.info("Saved migration plan to SQLite store: {}", store.getDbPath());
+            }
 
             // Build response
             return buildMigrationPlanResponse(plan);

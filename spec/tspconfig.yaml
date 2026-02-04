@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "outputDir": "generated",
+    "emitters": {
+      "@typespec/openapi3": {
+        "outputFile": "jakarta-migration-plugin-api.yaml"
+      },
+      "@typespec/json-schema": {
+        "outputFile": "jakarta-migration-plugin-schemas.json"
+      }
+    }
+  },
+  "dependencies": [
+    "@typespec/compiler",
+    "@typespec/http",
+    "@typespec/rest",
+    "@typespec/openapi3",
+    "@typespec/json-schema"
+  ]
+}

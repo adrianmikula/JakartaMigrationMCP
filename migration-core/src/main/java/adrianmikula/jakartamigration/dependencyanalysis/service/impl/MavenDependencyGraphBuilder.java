@@ -5,6 +5,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphException;
+import lombok.extern.slf4j.Slf4j;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -12,6 +13,7 @@ import org.w3c.dom.NodeList;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -20,6 +22,7 @@ import java.util.List;
 /**
  * Builds dependency graphs from Maven pom.xml files.
  */
+@Slf4j
 public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
     
     @Override
@@ -153,8 +156,12 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
     
     @Override
     public DependencyGraph buildFromProject(Path projectRoot) {
+        log.info("Searching for build files in project root: {}", projectRoot);
+        
+        // First, try to find build files in the root directory
         Path pomXml = projectRoot.resolve("pom.xml");
         if (Files.exists(pomXml)) {
+            log.info("Found pom.xml in root: {}", pomXml);
             return buildFromMaven(pomXml);
         }
         
@@ -162,14 +169,65 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
         Path buildGradleKts = projectRoot.resolve("build.gradle.kts");
         
         if (Files.exists(buildGradle)) {
+            log.info("Found build.gradle in root: {}", buildGradle);
             return buildFromGradle(buildGradle);
         }
         
         if (Files.exists(buildGradleKts)) {
+            log.info("Found build.gradle.kts in root: {}", buildGradleKts);
             return buildFromGradle(buildGradleKts);
         }
         
-        throw new DependencyGraphException("No build file found in project root: " + projectRoot);
+        log.info("No build files found in root, searching subdirectories...");
+        
+        // If no build files found in root, search subdirectories
+        Path foundBuildFile = searchForBuildFile(projectRoot);
+        
+        if (foundBuildFile != null) {
+            log.info("Found build file in subdirectory: {}", foundBuildFile);
+            String fileName = foundBuildFile.getFileName().toString();
+            if (fileName.equals("pom.xml")) {
+                return buildFromMaven(foundBuildFile);
+            } else {
+                return buildFromGradle(foundBuildFile);
+            }
+        }
+        
+        log.error("No build file found in project: {}", projectRoot);
+        throw new DependencyGraphException("No build file found in project: " + projectRoot);
+    }
+    
+    /**
+     * Recursively searches for build files (pom.xml, build.gradle, build.gradle.kts)
+     * in the project directory and its subdirectories.
+     *
+     * @param directory The directory to search in
+     * @return The path to the first build file found, or null if none found
+     */
+    private Path searchForBuildFile(Path directory) {
+        log.debug("Walking directory tree to find build files starting from: {}", directory);
+        try (var stream = Files.walk(directory)) {
+            Path foundFile = stream
+                .filter(Files::isRegularFile)
+                .filter(path -> {
+                    String fileName = path.getFileName().toString();
+                    return fileName.equals("pom.xml") || 
+                           fileName.equals("build.gradle") || 
+                           fileName.equals("build.gradle.kts");
+                })
+                .findFirst()
+                .orElse(null);
+            
+            if (foundFile != null) {
+                log.debug("Found build file: {}", foundFile);
+            } else {
+                log.debug("No build files found in directory tree: {}", directory);
+            }
+            return foundFile;
+        } catch (IOException e) {
+            log.error("Failed to search for build files in directory: {}", directory, e);
+            throw new DependencyGraphException("Failed to search for build files in: " + directory, e);
+        }
     }
     
     private List<Artifact> parseGradleDependencies(String content) {
