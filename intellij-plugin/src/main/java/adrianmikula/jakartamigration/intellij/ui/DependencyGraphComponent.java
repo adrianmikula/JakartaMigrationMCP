@@ -27,10 +27,12 @@ public class DependencyGraphComponent {
     private final Project project;
     private final GraphCanvas graphCanvas;
     private final JComboBox<String> layoutCombo;
-    private final JCheckBox showNonOrgDependenciesCheck;
-    private final JCheckBox transitiveOnlyCheck;
+    private final JCheckBox organisationalDependenciesCheck;
+    private final JCheckBox directDependenciesCheck;
+    private final JCheckBox transitiveDependenciesCheck;
     private DependencyGraph dependencyGraph;
     private Set<String> orgNamespacePatterns = new HashSet<>();
+    private Set<String> directDependencyIds = new HashSet<>();
 
     public DependencyGraphComponent(Project project) {
         this.project = project;
@@ -40,8 +42,9 @@ public class DependencyGraphComponent {
         this.layoutCombo = new JComboBox<>(new String[]{
             "Hierarchical", "Force-Directed", "Circular", "Tree"
         });
-        this.showNonOrgDependenciesCheck = new JCheckBox("Show Non-Org Dependencies", true);
-        this.transitiveOnlyCheck = new JCheckBox("Transitive Only", false);
+        this.organisationalDependenciesCheck = new JCheckBox("Organisational Dependencies", true);
+        this.directDependenciesCheck = new JCheckBox("Direct Dependencies", true);
+        this.transitiveDependenciesCheck = new JCheckBox("Transitive Dependencies", true);
 
         initializeComponent();
     }
@@ -55,11 +58,14 @@ public class DependencyGraphComponent {
         layoutCombo.addActionListener(this::handleLayoutChange);
         headerPanel.add(layoutCombo);
 
-        showNonOrgDependenciesCheck.addActionListener(this::handleShowNonOrgDependencies);
-        headerPanel.add(showNonOrgDependenciesCheck);
+        organisationalDependenciesCheck.addActionListener(this::handleFilterChange);
+        headerPanel.add(organisationalDependenciesCheck);
 
-        transitiveOnlyCheck.addActionListener(this::handleTransitiveFilter);
-        headerPanel.add(transitiveOnlyCheck);
+        directDependenciesCheck.addActionListener(this::handleFilterChange);
+        headerPanel.add(directDependenciesCheck);
+
+        transitiveDependenciesCheck.addActionListener(this::handleFilterChange);
+        headerPanel.add(transitiveDependenciesCheck);
 
         // Graph visualization area
         JPanel graphPanel = new JBPanel<>(new BorderLayout());
@@ -104,11 +110,7 @@ public class DependencyGraphComponent {
         }
     }
 
-    private void handleShowNonOrgDependencies(ActionEvent e) {
-        updateGraphFromDependencyGraph();
-    }
-
-    private void handleTransitiveFilter(ActionEvent e) {
+    private void handleFilterChange(ActionEvent e) {
         updateGraphFromDependencyGraph();
     }
 
@@ -173,8 +175,9 @@ public class DependencyGraphComponent {
 
         List<GraphNode> nodes = new ArrayList<>();
         List<GraphEdge> edges = new ArrayList<>();
-        boolean showNonOrgDeps = showNonOrgDependenciesCheck.isSelected();
-        boolean showTransitiveOnly = transitiveOnlyCheck.isSelected();
+        boolean showOrganisationalDeps = organisationalDependenciesCheck.isSelected();
+        boolean showDirectDeps = directDependenciesCheck.isSelected();
+        boolean showTransitiveDeps = transitiveDependenciesCheck.isSelected();
 
         // Map from Artifact to GraphNode for quick lookup
         Map<String, GraphNode> artifactToNode = new HashMap<>();
@@ -208,13 +211,19 @@ public class DependencyGraphComponent {
             // Check if this is an org internal dependency
             boolean isOrgInternal = isOrgDependency(groupId);
 
-            // If org internal and not showing non-org, skip
-            if (isOrgInternal && !showNonOrgDeps) {
+            // Filter based on checkbox states
+            // If org internal and not showing organisational deps, skip
+            if (isOrgInternal && !showOrganisationalDeps) {
                 continue;
             }
-
-            // If transitive-only filter is on and this is not transitive, skip
-            if (showTransitiveOnly && !isTransitive) {
+            
+            // If transitive and not showing transitive deps, skip
+            if (isTransitive && !showTransitiveDeps) {
+                continue;
+            }
+            
+            // If NOT transitive (direct) and not showing direct deps, skip
+            if (!isTransitive && !showDirectDeps) {
                 continue;
             }
 
