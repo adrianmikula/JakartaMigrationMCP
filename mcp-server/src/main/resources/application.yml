@@ -40,8 +40,8 @@ jakarta:
   migration:
     feature-flags:
       enabled: true
-      # Default tier: ENTERPRISE so all features are available (no payment/licensing)
-      default-tier: ENTERPRISE
+      # Default tier: PREMIUM so all features are available (no payment/licensing)
+      default-tier: PREMIUM
       # Per-feature overrides (optional)
       features: {}
 

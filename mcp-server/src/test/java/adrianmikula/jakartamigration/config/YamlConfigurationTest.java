@@ -25,7 +25,7 @@ class YamlConfigurationTest {
 
         assertThat(featureFlagsProperties.getEnabled()).isTrue();
         assertThat(featureFlagsProperties.getDefaultTier())
-            .isEqualTo(FeatureFlagsProperties.LicenseTier.ENTERPRISE);
+            .isEqualTo(FeatureFlagsProperties.LicenseTier.PREMIUM);
         assertThat(featureFlagsProperties.getLicenseKey()).isNotNull();
         assertThat(featureFlagsProperties.getFeatures()).isNotNull();
     }

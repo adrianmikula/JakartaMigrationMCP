@@ -60,16 +60,46 @@ public class DefaultMcpClientService implements McpClientService {
 
     @Override
     public CompletableFuture<AnalyzeMigrationImpactResponse> analyzeMigrationImpact(String projectPath) {
+        LOG.info("Analyzing migration impact for project: {}", projectPath);
+        
         return callTool("analyzeMigrationImpact", Map.of("projectPath", projectPath))
                 .thenApply(responseJson -> {
+                    LOG.debug("Received response: {}", responseJson);
+                    
                     try {
                         // The tool returns JSON as a string, parse it
                         JsonNode root = objectMapper.readTree(responseJson);
+                        
+                        // Check if this is an upgrade required response
+                        if (root.has("error") && "PREMIUM_REQUIRED".equals(root.path("error").path("code").asText())) {
+                            LOG.info("Premium feature requested - falling back to free analysis");
+                            // Fall back to analyzeJakartaReadiness for free tier
+                            return null; // Signal to use fallback
+                        }
+                        
                         return parseAnalyzeMigrationImpactResponse(root);
                     } catch (JsonProcessingException e) {
                         LOG.error("Failed to parse analyzeMigrationImpact response: {}", e.getMessage());
                         return createDefaultResponse();
                     }
+                })
+                .thenCompose(result -> {
+                    // If null (premium required), fall back to free tool
+                    if (result == null) {
+                        LOG.info("Falling back to analyzeJakartaReadiness (free tier)");
+                        return callTool("analyzeJakartaReadiness", Map.of("projectPath", projectPath))
+                                .thenApply(freeResponse -> {
+                                    LOG.debug("Free tier response: {}", freeResponse);
+                                    try {
+                                        JsonNode root = objectMapper.readTree(freeResponse);
+                                        return parseAnalyzeMigrationImpactResponse(root);
+                                    } catch (JsonProcessingException e) {
+                                        LOG.error("Failed to parse analyzeJakartaReadiness response: {}", e.getMessage());
+                                        return createDefaultResponse();
+                                    }
+                                });
+                    }
+                    return CompletableFuture.completedFuture(result);
                 })
                 .exceptionally(ex -> {
                     LOG.error("analyzeMigrationImpact call failed: {}", ex.getMessage());
