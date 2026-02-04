@@ -2,22 +2,18 @@ package adrianmikula.jakartamigration.mcp;
 
 import adrianmikula.jakartamigration.analysis.persistence.SqliteMigrationAnalysisStore;
 import adrianmikula.jakartamigration.coderefactoring.domain.MigrationPlan;
-import adrianmikula.jakartamigration.coderefactoring.domain.RefactoringFailure;
 import adrianmikula.jakartamigration.coderefactoring.domain.RefactoringResult;
 import adrianmikula.jakartamigration.coderefactoring.service.CodeRefactoringModule;
-import adrianmikula.jakartamigration.coderefactoring.service.MigrationPlanner;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeLibrary;
-import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
-import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphException;
 import adrianmikula.jakartamigration.config.FeatureFlag;
-import adrianmikula.jakartamigration.config.FeatureFlagsService;
 import adrianmikula.jakartamigration.config.FeatureFlagsProperties;
+import adrianmikula.jakartamigration.config.FeatureFlagsService;
 import adrianmikula.jakartamigration.runtimeverification.domain.VerificationOptions;
 import adrianmikula.jakartamigration.runtimeverification.domain.VerificationResult;
 import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springaicommunity.mcp.annotation.McpTool;
 import org.springaicommunity.mcp.annotation.McpToolParam;
@@ -29,185 +25,104 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
  * MCP Tools for Jakarta Migration.
- * Exposes Jakarta migration functionality as MCP tools that can be called by AI
- * assistants.
+ * 
+ * This class combines both Community and Premium tools.
+ * Community tools are delegated to {@link CommunityMigrationTools}.
+ * Premium tools require a JetBrains Marketplace license.
  * 
  * Uses Spring AI 1.0.0 MCP Server annotations to expose tools via the MCP
  * protocol.
+ * 
+ * License Tiers:
+ * - COMMUNITY (Free): analyzeJakartaReadiness, detectBlockers, recommendVersions
+ * - PREMIUM ($49/mo or $399/yr): All tools including auto-fixes, one-click refactor
  */
 @Component
 @Slf4j
 public class JakartaMigrationTools {
 
+    // Community tools delegate
+    private final CommunityMigrationTools communityTools;
+    
+    // Premium tools dependencies
     private final DependencyAnalysisModule dependencyAnalysisModule;
-    private final DependencyGraphBuilder dependencyGraphBuilder;
-    private final MigrationPlanner migrationPlanner;
-    private final RecipeLibrary recipeLibrary;
     private final RuntimeVerificationModule runtimeVerificationModule;
+    private final RecipeLibrary recipeLibrary;
     private final FeatureFlagsService featureFlags;
     private final adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner sourceCodeScanner;
     private final CodeRefactoringModule codeRefactoringModule;
 
     public JakartaMigrationTools(
+            CommunityMigrationTools communityTools,
             DependencyAnalysisModule dependencyAnalysisModule,
-            DependencyGraphBuilder dependencyGraphBuilder,
-            MigrationPlanner migrationPlanner,
-            RecipeLibrary recipeLibrary,
             RuntimeVerificationModule runtimeVerificationModule,
+            RecipeLibrary recipeLibrary,
             FeatureFlagsService featureFlags,
             adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner sourceCodeScanner,
             CodeRefactoringModule codeRefactoringModule) {
+        this.communityTools = communityTools;
         this.dependencyAnalysisModule = dependencyAnalysisModule;
-        this.dependencyGraphBuilder = dependencyGraphBuilder;
-        this.migrationPlanner = migrationPlanner;
-        this.recipeLibrary = recipeLibrary;
         this.runtimeVerificationModule = runtimeVerificationModule;
+        this.recipeLibrary = recipeLibrary;
         this.featureFlags = featureFlags;
         this.sourceCodeScanner = sourceCodeScanner;
         this.codeRefactoringModule = codeRefactoringModule;
     }
 
-    /**
-     * Gets or creates a persistence store for the project.
-     */
-    private SqliteMigrationAnalysisStore getStore(Path projectPath) {
-        return new SqliteMigrationAnalysisStore(projectPath);
-    }
+    // === COMMUNITY TOOLS (Delegated) ===
 
     /**
      * Analyzes a Java project for Jakarta migration readiness.
-     * 
-     * @param projectPath Path to the project root directory
-     * @return JSON string containing analysis report
+     * COMMUNITY TOOL - Free to use under Apache License 2.0
      */
     @McpTool(name = "analyzeJakartaReadiness", description = "Analyzes a Java project for Jakarta migration readiness. Returns a JSON report with readiness score, blockers, and recommendations.")
     public String analyzeJakartaReadiness(
             @McpToolParam(description = "Path to the project root directory", required = true) String projectPath) {
-        try {
-            log.info("Analyzing Jakarta readiness for project: {}", projectPath);
-
-            Path project = Paths.get(projectPath);
-            if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
-            }
-
-            // Analyze project dependencies
-            DependencyAnalysisReport report = dependencyAnalysisModule.analyzeProject(project);
-
-            // Save to SQLite for shared access between MCP and UI
-            try (SqliteMigrationAnalysisStore store = getStore(project)) {
-                store.saveAnalysisReport(project, report);
-                log.info("Saved analysis report to SQLite store: {}", store.getDbPath());
-            }
-
-            // Build response
-            return buildReadinessResponse(report);
-
-        } catch (DependencyGraphException e) {
-            log.error("Failed to analyze project: {}", e.getMessage(), e);
-            return createErrorResponse("Failed to analyze project: " + e.getMessage());
-        } catch (Exception e) {
-            log.error("Unexpected error during analysis", e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
-        }
+        return communityTools.analyzeJakartaReadiness(projectPath);
     }
 
     /**
      * Detects blockers that prevent Jakarta migration.
-     * 
-     * @param projectPath Path to the project root directory
-     * @return JSON string containing blockers list
+     * COMMUNITY TOOL - Free to use under Apache License 2.0
      */
     @McpTool(name = "detectBlockers", description = "Detects blockers that prevent Jakarta migration. Returns a JSON list of blockers with types, reasons, and mitigation strategies.")
     public String detectBlockers(
             @McpToolParam(description = "Path to the project root directory", required = true) String projectPath) {
-        try {
-            log.info("Detecting blockers for project: {}", projectPath);
-
-            Path project = Paths.get(projectPath);
-            if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
-            }
-
-            // Build dependency graph
-            DependencyGraph graph = dependencyGraphBuilder.buildFromProject(project);
-
-            // Detect blockers
-            List<Blocker> blockers = dependencyAnalysisModule.detectBlockers(graph);
-
-            // Build response
-            return buildBlockersResponse(blockers);
-
-        } catch (DependencyGraphException e) {
-            log.error("Failed to detect blockers: {}", e.getMessage(), e);
-            return createErrorResponse("Failed to detect blockers: " + e.getMessage());
-        } catch (Exception e) {
-            log.error("Unexpected error during blocker detection", e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
-        }
+        return communityTools.detectBlockers(projectPath);
     }
 
     /**
      * Recommends Jakarta-compatible versions for dependencies.
-     * 
-     * @param projectPath Path to the project root directory
-     * @return JSON string containing version recommendations
+     * COMMUNITY TOOL - Free to use under Apache License 2.0
      */
     @McpTool(name = "recommendVersions", description = "Recommends Jakarta-compatible versions for project dependencies. Returns a JSON list of version recommendations with migration paths and compatibility scores.")
     public String recommendVersions(
             @McpToolParam(description = "Path to the project root directory", required = true) String projectPath) {
-        try {
-            log.info("Recommending versions for project: {}", projectPath);
-
-            Path project = Paths.get(projectPath);
-            if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
-            }
-
-            // Build dependency graph
-            DependencyGraph graph = dependencyGraphBuilder.buildFromProject(project);
-
-            // Get all artifacts
-            List<Artifact> artifacts = graph.getNodes().stream().collect(Collectors.toList());
-
-            // Get recommendations
-            List<VersionRecommendation> recommendations = dependencyAnalysisModule.recommendVersions(artifacts);
-
-            // Build response
-            return buildRecommendationsResponse(recommendations);
-
-        } catch (DependencyGraphException e) {
-            log.error("Failed to recommend versions: {}", e.getMessage(), e);
-            return createErrorResponse("Failed to recommend versions: " + e.getMessage());
-        } catch (Exception e) {
-            log.error("Unexpected error during version recommendation", e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
-        }
+        return communityTools.recommendVersions(projectPath);
     }
+
+    // === PREMIUM TOOLS ===
 
     /**
      * Creates a migration plan for Jakarta migration.
-     * 
-     * @param projectPath Path to the project root directory
-     * @return JSON string containing migration plan
+     * PREMIUM TOOL - Requires JetBrains Marketplace subscription ($49/mo or $399/yr)
      */
     @McpTool(name = "createMigrationPlan", description = "Creates a comprehensive migration plan for Jakarta migration. Returns a JSON plan with phases, estimated duration, and risk assessment. Requires PREMIUM license.")
     public String createMigrationPlan(
             @McpToolParam(description = "Path to the project root directory", required = true) String projectPath) {
+        // Check premium license
+        if (!featureFlags.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)) {
+            return createUpgradeRequiredResponse(
+                    FeatureFlag.ONE_CLICK_REFACTOR,
+                    "The 'createMigrationPlan' tool requires a PREMIUM license. This tool creates comprehensive migration plans with detailed phases and risk assessment.");
+        }
+
         try {
             log.info("Creating migration plan for project: {}", projectPath);
-
-            // Check if user has required tier (PREMIUM or ENTERPRISE)
-            if (!featureFlags.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)) {
-                return createUpgradeRequiredResponse(
-                        FeatureFlag.ONE_CLICK_REFACTOR,
-                        "The 'createMigrationPlan' tool requires a PREMIUM license. This tool creates comprehensive migration plans with detailed phases and risk assessment.");
-            }
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
@@ -218,10 +133,10 @@ public class JakartaMigrationTools {
             DependencyAnalysisReport report = dependencyAnalysisModule.analyzeProject(project);
 
             // Create migration plan
-            MigrationPlan plan = migrationPlanner.createPlan(projectPath, report);
+            MigrationPlan plan = codeRefactoringModule.createMigrationPlan(projectPath, report);
 
             // Save to SQLite for shared access between MCP and UI
-            try (SqliteMigrationAnalysisStore store = getStore(project)) {
+            try (SqliteMigrationAnalysisStore store = new SqliteMigrationAnalysisStore(project)) {
                 store.saveAnalysisReport(project, report);
                 store.saveMigrationPlan(project, plan);
                 log.info("Saved migration plan to SQLite store: {}", store.getDbPath());
@@ -240,24 +155,21 @@ public class JakartaMigrationTools {
     }
 
     /**
-     * Analyzes full migration impact combining dependency analysis and source code
-     * scanning.
-     * 
-     * @param projectPath Path to the project root directory
-     * @return JSON string containing comprehensive migration impact summary
+     * Analyzes full migration impact combining dependency analysis and source code scanning.
+     * PREMIUM TOOL - Requires JetBrains Marketplace subscription
      */
     @McpTool(name = "analyzeMigrationImpact", description = "Analyzes full migration impact combining dependency analysis and source code scanning. Returns a comprehensive summary with file counts, import counts, blockers, and estimated effort. Requires PREMIUM license.")
     public String analyzeMigrationImpact(
             @McpToolParam(description = "Path to the project root directory", required = true) String projectPath) {
+        // Check premium license
+        if (!featureFlags.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)) {
+            return createUpgradeRequiredResponse(
+                    FeatureFlag.ADVANCED_ANALYSIS,
+                    "The 'analyzeMigrationImpact' tool requires a PREMIUM license. This tool provides comprehensive migration impact analysis combining dependency analysis and source code scanning.");
+        }
+
         try {
             log.info("Analyzing migration impact for project: {}", projectPath);
-
-            // Check if user has required tier (PREMIUM or ENTERPRISE)
-            if (!featureFlags.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)) {
-                return createUpgradeRequiredResponse(
-                        FeatureFlag.ADVANCED_ANALYSIS,
-                        "The 'analyzeMigrationImpact' tool requires a PREMIUM license. This tool provides comprehensive migration impact analysis combining dependency analysis and source code scanning.");
-            }
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
@@ -286,24 +198,21 @@ public class JakartaMigrationTools {
 
     /**
      * Verifies runtime execution of a migrated application.
-     * 
-     * @param jarPath        Path to the JAR file to execute
-     * @param timeoutSeconds Optional timeout in seconds (default: 30)
-     * @return JSON string containing verification result
+     * PREMIUM TOOL - Requires JetBrains Marketplace subscription
      */
     @McpTool(name = "verifyRuntime", description = "Verifies runtime execution of a migrated Jakarta application. Returns a JSON result with execution status, errors, and metrics. Requires PREMIUM license.")
     public String verifyRuntime(
             @McpToolParam(description = "Path to the JAR file to execute", required = true) String jarPath,
             @McpToolParam(description = "Optional timeout in seconds (default: 30)", required = false) Integer timeoutSeconds) {
+        // Check premium license
+        if (!featureFlags.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)) {
+            return createUpgradeRequiredResponse(
+                    FeatureFlag.BINARY_FIXES,
+                    "The 'verifyRuntime' tool requires a PREMIUM license. This tool verifies runtime execution of migrated Jakarta applications.");
+        }
+
         try {
             log.info("Verifying runtime for JAR: {}", jarPath);
-
-            // Check if user has required tier (PREMIUM or ENTERPRISE)
-            if (!featureFlags.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)) {
-                return createUpgradeRequiredResponse(
-                        FeatureFlag.BINARY_FIXES,
-                        "The 'verifyRuntime' tool requires a PREMIUM license. This tool verifies runtime execution of migrated Jakarta applications.");
-            }
 
             Path jar = Paths.get(jarPath);
             if (!Files.exists(jar) || !Files.isRegularFile(jar)) {
@@ -334,27 +243,22 @@ public class JakartaMigrationTools {
 
     /**
      * Applies automatic fixes to Jakarta migration issues.
-     * 
-     * @param projectPath Path to the project root directory
-     * @param files       Optional list of relative file paths to fix (defaults to
-     *                    all files in project)
-     * @param dryRun      Optional flag for dry run (default: false)
-     * @return JSON string containing refactoring results
+     * PREMIUM TOOL - Requires JetBrains Marketplace subscription
      */
     @McpTool(name = "applyAutoFixes", description = "Applies automatic Jakarta migration fixes to source files. Updates imports, XML namespaces, and configurations. Returns a JSON result with refactored files and statistics. Requires PREMIUM license.")
     public String applyAutoFixes(
             @McpToolParam(description = "Path to the project root directory", required = true) String projectPath,
             @McpToolParam(description = "Optional list of relative file paths to fix", required = false) List<String> files,
             @McpToolParam(description = "Optional flag for dry run (default: false)", required = false) Boolean dryRun) {
+        // Check premium license
+        if (!featureFlags.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)) {
+            return createUpgradeRequiredResponse(
+                    FeatureFlag.AUTO_FIXES,
+                    "The 'applyAutoFixes' tool requires a PREMIUM license. This tool automatically applies Jakarta migration fixes to your source code.");
+        }
+
         try {
             log.info("Applying auto-fixes for project: {}", projectPath);
-
-            // Check if user has required tier (PREMIUM or ENTERPRISE)
-            if (!featureFlags.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)) {
-                return createUpgradeRequiredResponse(
-                        FeatureFlag.AUTO_FIXES,
-                        "The 'applyAutoFixes' tool requires a PREMIUM license. This tool automatically applies Jakarta migration fixes to your source code.");
-            }
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
@@ -368,8 +272,7 @@ public class JakartaMigrationTools {
             }
 
             // Get all Jakarta recipes
-            List<adrianmikula.jakartamigration.coderefactoring.domain.Recipe> recipes = recipeLibrary
-                    .getJakartaRecipes();
+            List<adrianmikula.jakartamigration.coderefactoring.domain.Recipe> recipes = recipeLibrary.getJakartaRecipes();
 
             // Create refactoring options
             adrianmikula.jakartamigration.coderefactoring.domain.RefactoringOptions options = new adrianmikula.jakartamigration.coderefactoring.domain.RefactoringOptions(
@@ -382,7 +285,7 @@ public class JakartaMigrationTools {
             );
 
             // Run refactoring
-            adrianmikula.jakartamigration.coderefactoring.domain.RefactoringResult result = codeRefactoringModule
+            RefactoringResult result = codeRefactoringModule
                     .refactorBatch(filesToFix, recipes, options);
 
             // Build response
@@ -396,22 +299,20 @@ public class JakartaMigrationTools {
 
     /**
      * Executes a comprehensive Jakarta migration plan.
-     * 
-     * @param projectPath Path to the project root directory
-     * @return JSON string containing execution results
+     * PREMIUM TOOL - Requires JetBrains Marketplace subscription
      */
     @McpTool(name = "executeMigrationPlan", description = "Executes a complete Jakarta migration plan in phases. Applies all refactoring recipes according to the plan. Returns a JSON session result. Requires PREMIUM license.")
     public String executeMigrationPlan(
             @McpToolParam(description = "Path to the project root directory", required = true) String projectPath) {
+        // Check premium license
+        if (!featureFlags.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)) {
+            return createUpgradeRequiredResponse(
+                    FeatureFlag.ONE_CLICK_REFACTOR,
+                    "The 'executeMigrationPlan' tool requires a PREMIUM license. This tool executes your complete migration plan automatically.");
+        }
+
         try {
             log.info("Executing migration plan for project: {}", projectPath);
-
-            // Check if user has required tier (PREMIUM or ENTERPRISE)
-            if (!featureFlags.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)) {
-                return createUpgradeRequiredResponse(
-                        FeatureFlag.ONE_CLICK_REFACTOR,
-                        "The 'executeMigrationPlan' tool requires a PREMIUM license. This tool executes your complete migration plan automatically.");
-            }
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
@@ -425,13 +326,12 @@ public class JakartaMigrationTools {
             MigrationPlan plan = codeRefactoringModule.createMigrationPlan(projectPath, report);
 
             // 3. Execute phases
-            List<adrianmikula.jakartamigration.coderefactoring.domain.RefactoringResult> results = new ArrayList<>();
+            List<RefactoringResult> results = new ArrayList<>();
             for (var phase : plan.phases()) {
                 log.info("Executing migration phase {}: {}", phase.phaseNumber(), phase.description());
 
-                // Get recipes for this phase (for now, use all Jakarta recipes)
-                List<adrianmikula.jakartamigration.coderefactoring.domain.Recipe> recipes = recipeLibrary
-                        .getJakartaRecipes();
+                // Get recipes for this phase
+                List<adrianmikula.jakartamigration.coderefactoring.domain.Recipe> recipes = recipeLibrary.getJakartaRecipes();
 
                 adrianmikula.jakartamigration.coderefactoring.domain.RefactoringOptions options = new adrianmikula.jakartamigration.coderefactoring.domain.RefactoringOptions(
                         project,
@@ -442,7 +342,7 @@ public class JakartaMigrationTools {
                         3 // maxRetries
                 );
 
-                adrianmikula.jakartamigration.coderefactoring.domain.RefactoringResult result = codeRefactoringModule
+                RefactoringResult result = codeRefactoringModule
                         .refactorBatch(phase.files(), recipes, options);
                 results.add(result);
 
@@ -460,11 +360,14 @@ public class JakartaMigrationTools {
         }
     }
 
+    // === Response Builder Methods ===
+
     private String buildExecutionResponse(
-            List<adrianmikula.jakartamigration.coderefactoring.domain.RefactoringResult> results, MigrationPlan plan) {
+            List<RefactoringResult> results, MigrationPlan plan) {
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         json.append("  \"status\": \"success\",\n");
+        json.append("  \"edition\": \"premium\",\n");
         json.append("  \"totalPhases\": ").append(plan.phases().size()).append(",\n");
         json.append("  \"executedPhases\": ").append(results.size()).append(",\n");
 
@@ -492,11 +395,11 @@ public class JakartaMigrationTools {
         }
     }
 
-    private String buildRefactoringResponse(
-            adrianmikula.jakartamigration.coderefactoring.domain.RefactoringResult result) {
+    private String buildRefactoringResponse(RefactoringResult result) {
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         json.append("  \"status\": \"success\",\n");
+        json.append("  \"edition\": \"premium\",\n");
         json.append("  \"refactoredFiles\": ").append(buildStringArray(result.refactoredFiles())).append(",\n");
         json.append("  \"failureCount\": ").append(result.failures().size()).append(",\n");
         if (!result.failures().isEmpty()) {
@@ -525,118 +428,11 @@ public class JakartaMigrationTools {
         return json.toString();
     }
 
-    private String buildReadinessResponse(DependencyAnalysisReport report) {
-        StringBuilder json = new StringBuilder();
-        json.append("{\n");
-        json.append("  \"status\": \"success\",\n");
-        json.append("  \"readinessScore\": ").append(report.readinessScore().score()).append(",\n");
-        json.append("  \"readinessMessage\": \"").append(escapeJson(report.readinessScore().explanation()))
-                .append("\",\n");
-        json.append("  \"totalDependencies\": ").append(report.dependencyGraph().nodeCount()).append(",\n");
-        json.append("  \"blockers\": ").append(report.blockers().size()).append(",\n");
-        json.append("  \"recommendations\": ").append(report.recommendations().size()).append(",\n");
-        json.append("  \"riskScore\": ").append(report.riskAssessment().riskScore()).append(",\n");
-        json.append("  \"riskFactors\": ").append(buildStringArray(report.riskAssessment().riskFactors())).append("\n");
-        json.append("}");
-        return json.toString();
-    }
-
-    private String buildBlockersResponse(List<Blocker> blockers) {
-        StringBuilder json = new StringBuilder();
-        json.append("{\n");
-        json.append("  \"status\": \"success\",\n");
-        json.append("  \"blockerCount\": ").append(blockers.size()).append(",\n");
-        json.append("  \"blockers\": [\n");
-        for (int i = 0; i < blockers.size(); i++) {
-            Blocker blocker = blockers.get(i);
-            json.append("    {\n");
-            json.append("      \"artifact\": \"").append(escapeJson(blocker.artifact().toString())).append("\",\n");
-            json.append("      \"type\": \"").append(blocker.type()).append("\",\n");
-            json.append("      \"reason\": \"").append(escapeJson(blocker.reason())).append("\",\n");
-            json.append("      \"confidence\": ").append(blocker.confidence()).append(",\n");
-            json.append("      \"mitigationStrategies\": ").append(buildStringArray(blocker.mitigationStrategies()))
-                    .append("\n");
-            json.append("    }");
-            if (i < blockers.size() - 1) {
-                json.append(",");
-            }
-            json.append("\n");
-        }
-        json.append("  ]");
-
-        // Add premium feature recommendation if blockers found
-        if (blockers.size() > 0) {
-            json.append(",\n");
-            json.append("  \"premiumFeatures\": {\n");
-            json.append("    \"recommended\": true,\n");
-            json.append(
-                    "    \"message\": \"Premium Auto-Fixes can automatically resolve many blockers without manual intervention.\",\n");
-            json.append("    \"features\": [\n");
-            json.append("      \"Auto-Fixes - Automatically fix detected blockers\",\n");
-            json.append("      \"Advanced Analysis - Deep transitive conflict detection and resolution\",\n");
-            json.append("      \"Binary Fixes - Fix issues in compiled binaries and JAR files\"\n");
-            json.append("    ],\n");
-            json.append("    \"pricingUrl\": \"https://apify.com/adrian_m/jakartamigrationmcp#pricing\"\n");
-            json.append("  }");
-        }
-
-        json.append("\n}");
-        return json.toString();
-    }
-
-    private String buildRecommendationsResponse(List<VersionRecommendation> recommendations) {
-        StringBuilder json = new StringBuilder();
-        json.append("{\n");
-        json.append("  \"status\": \"success\",\n");
-        json.append("  \"recommendationCount\": ").append(recommendations.size()).append(",\n");
-        json.append("  \"recommendations\": [\n");
-        for (int i = 0; i < recommendations.size(); i++) {
-            VersionRecommendation rec = recommendations.get(i);
-            json.append("    {\n");
-            json.append("      \"current\": \"").append(escapeJson(rec.currentArtifact().toString())).append("\",\n");
-            json.append("      \"recommended\": \"").append(escapeJson(rec.recommendedArtifact().toString()))
-                    .append("\",\n");
-            json.append("      \"migrationPath\": \"").append(escapeJson(rec.migrationPath())).append("\",\n");
-            json.append("      \"compatibilityScore\": ").append(rec.compatibilityScore()).append(",\n");
-            json.append("      \"breakingChanges\": ").append(buildStringArray(rec.breakingChanges())).append("\n");
-            json.append("    }");
-            if (i < recommendations.size() - 1) {
-                json.append(",");
-            }
-            json.append("\n");
-        }
-        json.append("  ]");
-
-        // Add premium feature recommendation if many recommendations or complex
-        // migrations
-        boolean hasBreakingChanges = recommendations.stream()
-                .anyMatch(rec -> !rec.breakingChanges().isEmpty());
-        boolean shouldRecommend = recommendations.size() > 5 || hasBreakingChanges;
-
-        if (shouldRecommend) {
-            json.append(",\n");
-            json.append("  \"premiumFeatures\": {\n");
-            json.append("    \"recommended\": true,\n");
-            json.append("    \"message\": \"Premium Auto-Fixes can automatically apply these ")
-                    .append(recommendations.size())
-                    .append(" version recommendations and handle breaking changes.\",\n");
-            json.append("    \"features\": [\n");
-            json.append("      \"Auto-Fixes - Automatically apply version recommendations\",\n");
-            json.append("      \"Advanced Analysis - Handle breaking changes automatically\",\n");
-            json.append("      \"Custom Recipes - Create and use custom migration recipes\"\n");
-            json.append("    ],\n");
-            json.append("    \"pricingUrl\": \"https://apify.com/adrian_m/jakartamigrationmcp#pricing\"\n");
-            json.append("  }");
-        }
-
-        json.append("\n}");
-        return json.toString();
-    }
-
     private String buildMigrationPlanResponse(MigrationPlan plan) {
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         json.append("  \"status\": \"success\",\n");
+        json.append("  \"edition\": \"premium\",\n");
         json.append("  \"phaseCount\": ").append(plan.phases().size()).append(",\n");
         json.append("  \"estimatedDuration\": \"").append(plan.estimatedDuration().toMinutes()).append(" minutes\",\n");
         json.append("  \"riskScore\": ").append(plan.overallRisk().riskScore()).append(",\n");
@@ -657,30 +453,8 @@ public class JakartaMigrationTools {
             }
             json.append("\n");
         }
-        json.append("  ]");
-
-        // Add premium feature recommendation for migration plans
-        long totalMinutes = plan.estimatedDuration().toMinutes();
-        boolean shouldRecommend = totalMinutes > 30 || plan.phases().size() > 5 || plan.overallRisk().riskScore() > 0.3;
-
-        if (shouldRecommend) {
-            json.append(",\n");
-            json.append("  \"premiumFeatures\": {\n");
-            json.append("    \"recommended\": true,\n");
-            json.append(
-                    "    \"message\": \"Premium One-Click Refactor can execute this entire migration plan automatically, saving you ")
-                    .append(totalMinutes).append(" minutes of manual work.\",\n");
-            json.append("    \"features\": [\n");
-            json.append("      \"One-Click Refactor - Execute complete migration automatically\",\n");
-            json.append("      \"Auto-Fixes - Automatically resolve blockers and issues\",\n");
-            json.append("      \"Batch Operations - Process multiple projects simultaneously\"\n");
-            json.append("    ],\n");
-            json.append("    \"pricingUrl\": \"https://apify.com/adrian_m/jakartamigrationmcp#pricing\",\n");
-            json.append("    \"estimatedSavings\": \"").append(totalMinutes).append(" minutes of manual work\"\n");
-            json.append("  }");
-        }
-
-        json.append("\n}");
+        json.append("  ]\n");
+        json.append("}");
         return json.toString();
     }
 
@@ -688,6 +462,7 @@ public class JakartaMigrationTools {
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         json.append("  \"status\": \"").append(result.status()).append("\",\n");
+        json.append("  \"edition\": \"premium\",\n");
         json.append("  \"errorCount\": ").append(result.errors().size()).append(",\n");
         json.append("  \"warningCount\": ").append(result.warnings().size()).append(",\n");
         json.append("  \"executionTime\": \"").append(result.metrics().executionTime().toSeconds())
@@ -712,59 +487,12 @@ public class JakartaMigrationTools {
         return json.toString();
     }
 
-    private String buildSourceCodeResponse(
-            adrianmikula.jakartamigration.sourcecodescanning.domain.SourceCodeAnalysisResult result) {
-        StringBuilder json = new StringBuilder();
-        json.append("{\n");
-        json.append("  \"status\": \"success\",\n");
-        json.append("  \"totalFilesScanned\": ").append(result.totalFilesScanned()).append(",\n");
-        json.append("  \"totalFilesWithJavaxUsage\": ").append(result.totalFilesWithJavaxUsage()).append(",\n");
-        json.append("  \"totalJavaxImports\": ").append(result.totalJavaxImports()).append(",\n");
-        json.append("  \"filesWithJavaxUsage\": [\n");
-
-        for (int i = 0; i < result.filesWithJavaxUsage().size(); i++) {
-            adrianmikula.jakartamigration.sourcecodescanning.domain.FileUsage fileUsage = result.filesWithJavaxUsage()
-                    .get(i);
-            json.append("    {\n");
-            json.append("      \"filePath\": \"").append(escapeJson(fileUsage.filePath().toString())).append("\",\n");
-            json.append("      \"lineCount\": ").append(fileUsage.lineCount()).append(",\n");
-            json.append("      \"javaxImportCount\": ").append(fileUsage.getJavaxImportCount()).append(",\n");
-            json.append("      \"imports\": [\n");
-
-            for (int j = 0; j < fileUsage.javaxImports().size(); j++) {
-                adrianmikula.jakartamigration.sourcecodescanning.domain.ImportStatement imp = fileUsage.javaxImports()
-                        .get(j);
-                json.append("        {\n");
-                json.append("          \"fullImport\": \"").append(escapeJson(imp.fullImport())).append("\",\n");
-                json.append("          \"javaxPackage\": \"").append(escapeJson(imp.javaxPackage())).append("\",\n");
-                json.append("          \"jakartaEquivalent\": \"").append(escapeJson(imp.jakartaEquivalent()))
-                        .append("\",\n");
-                json.append("          \"lineNumber\": ").append(imp.lineNumber()).append("\n");
-                json.append("        }");
-                if (j < fileUsage.javaxImports().size() - 1) {
-                    json.append(",");
-                }
-                json.append("\n");
-            }
-
-            json.append("      ]\n");
-            json.append("    }");
-            if (i < result.filesWithJavaxUsage().size() - 1) {
-                json.append(",");
-            }
-            json.append("\n");
-        }
-
-        json.append("  ]\n");
-        json.append("}");
-        return json.toString();
-    }
-
     private String buildImpactSummaryResponse(
             adrianmikula.jakartamigration.coderefactoring.domain.MigrationImpactSummary summary) {
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         json.append("  \"status\": \"success\",\n");
+        json.append("  \"edition\": \"premium\",\n");
         json.append("  \"totalFilesToMigrate\": ").append(summary.totalFilesToMigrate()).append(",\n");
         json.append("  \"totalJavaxImports\": ").append(summary.totalJavaxImports()).append(",\n");
         json.append("  \"totalBlockers\": ").append(summary.totalBlockers()).append(",\n");
@@ -779,35 +507,6 @@ public class JakartaMigrationTools {
                 .append(escapeJson(summary.dependencyAnalysis().readinessScore().explanation())).append("\",\n");
         json.append("  \"totalFilesScanned\": ").append(summary.sourceCodeAnalysis().totalFilesScanned()).append(",\n");
         json.append("  \"totalDependencies\": ").append(summary.dependencyAnalysis().dependencyGraph().nodeCount());
-
-        // Add premium feature recommendation based on complexity/effort
-        long effortMinutes = summary.estimatedEffort().toMinutes();
-        boolean shouldRecommend = summary
-                .complexity() == adrianmikula.jakartamigration.coderefactoring.domain.MigrationImpactSummary.MigrationComplexity.HIGH
-                ||
-                effortMinutes > 60 ||
-                summary.totalBlockers() > 3 ||
-                summary.totalFilesToMigrate() > 20;
-
-        if (shouldRecommend) {
-            json.append(",\n");
-            json.append("  \"premiumFeatures\": {\n");
-            json.append("    \"recommended\": true,\n");
-            json.append("    \"message\": \"This migration has ").append(summary.complexity())
-                    .append(" complexity and will take approximately ").append(effortMinutes)
-                    .append(" minutes. Premium features can automate most of this work.\",\n");
-            json.append("    \"features\": [\n");
-            json.append("      \"One-Click Refactor - Execute complete migration automatically\",\n");
-            json.append("      \"Auto-Fixes - Automatically resolve ").append(summary.totalBlockers())
-                    .append(" blockers\",\n");
-            json.append("      \"Advanced Analysis - Deep transitive conflict detection\",\n");
-            json.append("      \"Batch Operations - Process multiple projects simultaneously\"\n");
-            json.append("    ],\n");
-            json.append("    \"pricingUrl\": \"https://apify.com/adrian_m/jakartamigrationmcp#pricing\",\n");
-            json.append("    \"estimatedSavings\": \"").append(effortMinutes).append(" minutes of manual work\"\n");
-            json.append("  }");
-        }
-
         json.append("\n}");
         return json.toString();
     }
@@ -826,13 +525,13 @@ public class JakartaMigrationTools {
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         json.append("  \"status\": \"upgrade_required\",\n");
+        json.append("  \"edition\": \"premium\",\n");
         json.append("  \"message\": \"").append(escapeJson(message)).append("\",\n");
         json.append("  \"featureName\": \"").append(escapeJson(upgradeInfo.getFeatureName())).append("\",\n");
         json.append("  \"featureDescription\": \"").append(escapeJson(upgradeInfo.getFeatureDescription()))
                 .append("\",\n");
         json.append("  \"currentTier\": \"").append(currentTier).append("\",\n");
         json.append("  \"requiredTier\": \"").append(upgradeInfo.getRequiredTier()).append("\",\n");
-
         json.append("  \"upgradeMessage\": \"").append(escapeJson(upgradeInfo.getMessage())).append("\"\n");
         json.append("}");
 

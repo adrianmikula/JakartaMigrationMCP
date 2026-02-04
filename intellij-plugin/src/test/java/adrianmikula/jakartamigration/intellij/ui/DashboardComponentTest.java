@@ -67,7 +67,11 @@ public class DashboardComponentTest extends LightJavaCodeInsightFixtureTestCase 
         // Test direct setters that were added for easier MCP integration
         dashboardComponent.setReadinessScore(75);
         dashboardComponent.setStatus(MigrationStatus.HAS_BLOCKERS);
-        dashboardComponent.setDependencySummary(100, 25, 5);
+        DependencySummary summary = new DependencySummary();
+        summary.setTotalDependencies(100);
+        summary.setAffectedDependencies(25);
+        summary.setBlockerDependencies(5);
+        dashboardComponent.setDependencySummary(summary);
         dashboardComponent.setLastAnalyzed(Instant.now());
     }
 

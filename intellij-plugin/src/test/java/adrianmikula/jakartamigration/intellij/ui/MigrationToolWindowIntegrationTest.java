@@ -4,6 +4,7 @@ import adrianmikula.jakartamigration.intellij.mcp.DefaultMcpClientService;
 import adrianmikula.jakartamigration.intellij.mcp.McpClientService;
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
+import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import com.intellij.testFramework.fixtures.LightJavaCodeInsightFixtureTestCase;
 import org.junit.jupiter.api.Test;
 
@@ -76,7 +77,11 @@ public class MigrationToolWindowIntegrationTest extends LightJavaCodeInsightFixt
         // Test direct setters (simulating data from MCP)
         component.setReadinessScore(65);
         component.setStatus(adrianmikula.jakartamigration.intellij.model.MigrationStatus.HAS_BLOCKERS);
-        component.setDependencySummary(42, 18, 3);
+        DependencySummary summary = new DependencySummary();
+        summary.setTotalDependencies(42);
+        summary.setAffectedDependencies(18);
+        summary.setBlockerDependencies(3);
+        component.setDependencySummary(summary);
         component.setLastAnalyzed(java.time.Instant.now());
 
         assertThat(component.getPanel())
