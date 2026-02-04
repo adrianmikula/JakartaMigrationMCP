@@ -1,26 +1,27 @@
 package adrianmikula.jakartamigration.intellij;
 
-import adrianmikula.jakartamigration.intellij.mcp.AnalyzeMigrationImpactResponse;
-import adrianmikula.jakartamigration.intellij.mcp.DefaultMcpClientService;
-import adrianmikula.jakartamigration.intellij.mcp.McpClientService;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import org.jetbrains.annotations.NotNull;
 
+import java.nio.file.Path;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * Main action for Jakarta Migration.
  * Shows a dialog to choose between analysis and refactoring.
- * Connects directly to the MCP server for real operations.
+ * Connects directly to the migration-core library for real operations.
  */
 public class JakartaMigrationAction extends AnAction {
-    private final McpClientService mcpClient;
+    private final MigrationAnalysisService analysisService;
 
     public JakartaMigrationAction() {
-        this.mcpClient = new DefaultMcpClientService();
+        this.analysisService = new MigrationAnalysisService();
     }
 
     @Override
@@ -32,7 +33,7 @@ public class JakartaMigrationAction extends AnAction {
         // Check for premium features
         boolean isPremium = "true".equals(System.getProperty("jakarta.migration.premium"));
 
-        String serverUrl = mcpClient.getServerUrl();
+        String serverUrl = "(direct library call)";
         String message = "Jakarta Migration Tool\n\n" +
                 "Detected project: " + project.getName() + "\n" +
                 "License: " + (isPremium ? "PREMIUM" : "COMMUNITY") + "\n" +
@@ -60,23 +61,25 @@ public class JakartaMigrationAction extends AnAction {
     }
 
     private void performAnalysis(Project project) {
-        String projectPath = project.getBasePath();
-        if (projectPath == null) {
-            projectPath = project.getProjectFilePath();
+        String projectPathStr = project.getBasePath();
+        if (projectPathStr == null) {
+            projectPathStr = project.getProjectFilePath();
         }
 
-        if (projectPath == null) {
+        if (projectPathStr == null) {
             Messages.showWarningDialog(project, "Cannot determine project path. Please open a project first.", "Analysis Failed");
             return;
         }
 
         Messages.showInfoMessage(project, "Analysis started. Results will appear in the Jakarta Migration tool window...", "Analysis Started");
 
-        mcpClient.analyzeMigrationImpact(projectPath)
-            .thenAccept(response -> {
-                if (response != null && response.getDependencyImpact() != null &&
-                    response.getDependencyImpact().getAffectedDependencies() != null) {
-                    int depsCount = response.getDependencyImpact().getAffectedDependencies().size();
+        final Path projectPath = Path.of(projectPathStr);
+
+        // Run analysis directly using the migration-core library
+        CompletableFuture.supplyAsync(() -> analysisService.analyzeProject(projectPath))
+            .thenAccept(report -> {
+                if (report != null && report.dependencyGraph() != null) {
+                    int depsCount = report.dependencyGraph().getNodes().size();
                     Messages.showInfoMessage(project,
                         "Analysis complete! " + depsCount + " dependencies analyzed.\n\n" +
                         "Open the Jakarta Migration tool window to view results.",
@@ -90,34 +93,16 @@ public class JakartaMigrationAction extends AnAction {
             })
             .exceptionally(ex -> {
                 Messages.showWarningDialog(project,
-                    "Analysis failed: " + ex.getMessage() + "\n\n" +
-                    "Please ensure the MCP server is running at: " + mcpClient.getServerUrl(),
+                    "Analysis failed: " + ex.getMessage(),
                     "Analysis Failed");
                 return null;
             });
     }
 
     private void performAutoFix(Project project) {
-        // Check if MCP server supports auto-fix operations
-        mcpClient.isServerAvailable()
-            .thenAccept(available -> {
-                if (available) {
-                    Messages.showInfoMessage(project,
-                        "Auto-fix feature would be executed here.\n\n" +
-                        "This requires the MCP server to support auto-fix operations.",
-                        "Auto-Fix");
-                } else {
-                    Messages.showWarningDialog(project,
-                        "Cannot connect to MCP server at: " + mcpClient.getServerUrl() + "\n\n" +
-                        "Please ensure the server is running before using auto-fix.",
-                        "Server Unavailable");
-                }
-            })
-            .exceptionally(ex -> {
-                Messages.showWarningDialog(project,
-                    "Connection error: " + ex.getMessage(),
-                    "Connection Failed");
-                return null;
-            });
+        Messages.showInfoMessage(project,
+            "Auto-fix feature would be executed here.\n\n" +
+            "This feature uses the migration-core library directly.",
+            "Auto-Fix");
     }
 }

@@ -4,8 +4,7 @@ import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.intellij.openapi.diagnostic.Logger;
 
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -22,7 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Reference: https://modelcontextprotocol.io/docs/specification/transport
  */
 public class DefaultMcpClientService implements McpClientService {
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultMcpClientService.class);
+    private static final Logger LOG = Logger.getInstance(DefaultMcpClientService.class);
 
     private final String serverUrl;
     private final HttpClient httpClient;
@@ -60,25 +59,25 @@ public class DefaultMcpClientService implements McpClientService {
 
     @Override
     public CompletableFuture<String> analyzeReadiness(String projectPath) {
-        LOG.info("Analyzing Jakarta readiness for project: {}", projectPath);
+        LOG.info("Analyzing Jakarta readiness for project: " + projectPath);
         return callTool("analyzeJakartaReadiness", Map.of("projectPath", projectPath))
                 .thenApply(responseJson -> {
-                    LOG.debug("Received readiness response: {}", responseJson);
+                    LOG.debug("Received readiness response: " + responseJson);
                     return responseJson;
                 })
                 .exceptionally(ex -> {
-                    LOG.error("analyzeReadiness call failed: {}", ex.getMessage());
+                    LOG.error("analyzeReadiness call failed: " + ex.getMessage());
                     return createErrorJson("Failed to analyze readiness: " + ex.getMessage());
                 });
     }
 
     @Override
     public CompletableFuture<AnalyzeMigrationImpactResponse> analyzeMigrationImpact(String projectPath) {
-        LOG.info("Analyzing migration impact for project: {}", projectPath);
+        LOG.info("Analyzing migration impact for project: " + projectPath);
         
         return callTool("analyzeMigrationImpact", Map.of("projectPath", projectPath))
                 .thenApply(responseJson -> {
-                    LOG.debug("Received response: {}", responseJson);
+                    LOG.debug("Received response: " + responseJson);
                     
                     try {
                         // The tool returns JSON as a string, parse it
@@ -93,7 +92,7 @@ public class DefaultMcpClientService implements McpClientService {
                         
                         return parseAnalyzeMigrationImpactResponse(root);
                     } catch (JsonProcessingException e) {
-                        LOG.error("Failed to parse analyzeMigrationImpact response: {}", e.getMessage());
+                        LOG.error("Failed to parse analyzeMigrationImpact response: " + e.getMessage());
                         return createDefaultResponse();
                     }
                 })
@@ -103,12 +102,12 @@ public class DefaultMcpClientService implements McpClientService {
                         LOG.info("Falling back to analyzeJakartaReadiness (free tier)");
                         return callTool("analyzeJakartaReadiness", Map.of("projectPath", projectPath))
                                 .thenApply(freeResponse -> {
-                                    LOG.debug("Free tier response: {}", freeResponse);
+                                    LOG.debug("Free tier response: " + freeResponse);
                                     try {
                                         JsonNode root = objectMapper.readTree(freeResponse);
                                         return parseAnalyzeMigrationImpactResponse(root);
                                     } catch (JsonProcessingException e) {
-                                        LOG.error("Failed to parse analyzeJakartaReadiness response: {}", e.getMessage());
+                                        LOG.error("Failed to parse analyzeJakartaReadiness response: " + e.getMessage());
                                         return createDefaultResponse();
                                     }
                                 });
@@ -116,7 +115,7 @@ public class DefaultMcpClientService implements McpClientService {
                     return CompletableFuture.completedFuture(result);
                 })
                 .exceptionally(ex -> {
-                    LOG.error("analyzeMigrationImpact call failed: {}", ex.getMessage());
+                    LOG.error("analyzeMigrationImpact call failed: " + ex.getMessage());
                     return createDefaultResponse();
                 });
     }
@@ -129,12 +128,12 @@ public class DefaultMcpClientService implements McpClientService {
                         JsonNode root = objectMapper.readTree(responseJson);
                         return parseDependencyInfoList(root);
                     } catch (JsonProcessingException e) {
-                        LOG.error("Failed to parse detectBlockers response: {}", e.getMessage());
+                        LOG.error("Failed to parse detectBlockers response: " + e.getMessage());
                         return new ArrayList<DependencyInfo>();
                     }
                 })
                 .exceptionally(ex -> {
-                    LOG.error("detectBlockers call failed: {}", ex.getMessage());
+                    LOG.error("detectBlockers call failed: " + ex.getMessage());
                     return new ArrayList<DependencyInfo>();
                 });
     }
@@ -147,12 +146,12 @@ public class DefaultMcpClientService implements McpClientService {
                         JsonNode root = objectMapper.readTree(responseJson);
                         return parseDependencyInfoList(root);
                     } catch (JsonProcessingException e) {
-                        LOG.error("Failed to parse recommendVersions response: {}", e.getMessage());
+                        LOG.error("Failed to parse recommendVersions response: " + e.getMessage());
                         return new ArrayList<DependencyInfo>();
                     }
                 })
                 .exceptionally(ex -> {
-                    LOG.error("recommendVersions call failed: {}", ex.getMessage());
+                    LOG.error("recommendVersions call failed: " + ex.getMessage());
                     return new ArrayList<DependencyInfo>();
                 });
     }
@@ -214,11 +213,11 @@ public class DefaultMcpClientService implements McpClientService {
                                     future.completeExceptionally(new RuntimeException("No result in response"));
                                 }
                             } else {
-                                LOG.warn("MCP server returned status {}: {}", response.statusCode(), response.body());
+                                LOG.warn("MCP server returned status " + response.statusCode() + ": " + response.body());
                                 future.completeExceptionally(new RuntimeException("Server error: " + response.statusCode()));
                             }
                         } catch (JsonProcessingException e) {
-                            LOG.error("Failed to parse response: {}", e.getMessage());
+                            LOG.error("Failed to parse response: " + e.getMessage());
                             future.completeExceptionally(e);
                         } finally {
                             pendingRequests.remove(id);

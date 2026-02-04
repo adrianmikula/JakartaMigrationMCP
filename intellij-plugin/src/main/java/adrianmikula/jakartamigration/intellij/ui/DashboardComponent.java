@@ -1,14 +1,10 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
-import adrianmikula.jakartamigration.intellij.mcp.AnalyzeMigrationImpactResponse;
-import adrianmikula.jakartamigration.intellij.mcp.DefaultMcpClientService;
-import adrianmikula.jakartamigration.intellij.mcp.McpClientService;
-import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
 import adrianmikula.jakartamigration.intellij.model.MigrationStatus;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -19,13 +15,15 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Dashboard component with text-based key:value table and MCP tool buttons.
- * Connects directly to the real MCP server for Jakarta migration analysis.
+ * Dashboard component with text-based key:value table and migration analysis buttons.
+ * Connects directly to the migration-core library for Jakarta migration analysis.
  */
 public class DashboardComponent {
     private static final Logger LOG = Logger.getInstance(DashboardComponent.class);
@@ -34,8 +32,7 @@ public class DashboardComponent {
     private final Project project;
     private MigrationDashboard dashboard;
     private final Consumer<ActionEvent> onAnalyze;
-    private final McpClientService mcpClient;
-    private final ObjectMapper objectMapper;
+    private final MigrationAnalysisService analysisService;
 
     // UI Components for key:value table
     private JPanel metricsTablePanel;
@@ -51,7 +48,7 @@ public class DashboardComponent {
     private JBLabel statusValue;
     private JBLabel statusIndicator;
 
-    // MCP Tool buttons
+    // Migration Analysis buttons
     private JButton analyzeReadinessBtn;
     private JButton detectBlockersBtn;
     private JButton recommendVersionsBtn;
@@ -63,14 +60,13 @@ public class DashboardComponent {
     public DashboardComponent(@NotNull Project project, Consumer<ActionEvent> onAnalyze) {
         this.project = project;
         this.onAnalyze = onAnalyze;
-        this.mcpClient = new DefaultMcpClientService();
-        this.objectMapper = new ObjectMapper();
+        this.analysisService = new MigrationAnalysisService();
         this.panel = new JBPanel<>(new BorderLayout());
         initializeComponent();
     }
 
     private void initializeComponent() {
-        // MCP Tool Button Bar (along the top)
+        // Migration Analysis Button Bar (along the top)
         JPanel toolButtonBar = createToolButtonBar();
 
         // Content - Key:Value Table (borderless, vertical)
@@ -99,11 +95,11 @@ public class DashboardComponent {
             BorderFactory.createEmptyBorder(8, 8, 8, 8)
         ));
 
-        JLabel toolsLabel = new JLabel("MCP Tools:");
+        JLabel toolsLabel = new JLabel("Migration Analysis:");
         toolsLabel.setFont(toolsLabel.getFont().deriveFont(Font.BOLD, 11f));
         buttonBar.add(toolsLabel);
 
-        // FREE Tools
+        // Free Analysis Tools
         analyzeReadinessBtn = createToolButton("Analyze Readiness", () -> handleToolAction("analyzeReadiness"));
         buttonBar.add(analyzeReadinessBtn);
 
@@ -118,8 +114,8 @@ public class DashboardComponent {
         separator.setPreferredSize(new Dimension(2, 24));
         buttonBar.add(separator);
 
-        // Analyze Impact (Main analysis)
-        analyzeImpactBtn = createToolButton("Analyze Impact ⭐", () -> handleToolAction("analyzeImpact"));
+        // Full Analysis (Main analysis)
+        analyzeImpactBtn = createToolButton("Analyze Impact", () -> handleToolAction("analyzeImpact"));
         buttonBar.add(analyzeImpactBtn);
 
         return buttonBar;
@@ -127,7 +123,7 @@ public class DashboardComponent {
 
     private JButton createToolButton(String text, Runnable action) {
         JButton button = new JButton(text);
-        button.setToolTipText("Run " + text + " MCP tool");
+        button.setToolTipText("Run " + text + " analysis");
         button.addActionListener(e -> {
             setButtonsEnabled(false);
             action.run();
@@ -252,7 +248,7 @@ public class DashboardComponent {
         analyzeButton.addActionListener(this::handleAnalyze);
         actionsPanel.add(analyzeButton);
 
-        JButton refreshButton = new JButton("↻ Refresh");
+        JButton refreshButton = new JButton("Refresh");
         refreshButton.setToolTipText("Refresh analysis results");
         refreshButton.addActionListener(this::handleRefresh);
         actionsPanel.add(refreshButton);
@@ -273,234 +269,185 @@ public class DashboardComponent {
             return;
         }
 
-        LOG.info("Executing MCP tool: " + toolName + " for project: " + projectPath);
+        LOG.info("Executing analysis: " + toolName + " for project: " + projectPath);
         setStatusAndColor(MigrationStatus.IN_PROGRESS, Color.BLUE);
 
-        switch (toolName) {
-            case "analyzeReadiness":
-                executeAnalyzeReadiness(projectPath);
-                break;
+        // Make effectively final for use in SwingWorker
+        final String effectiveProjectPath = projectPath;
+        final Path path = Paths.get(effectiveProjectPath);
 
-            case "detectBlockers":
-                executeDetectBlockers(projectPath);
-                break;
-
-            case "recommendVersions":
-                executeRecommendVersions(projectPath);
-                break;
-
-            case "analyzeImpact":
-                // Trigger the main analyze action which handles the full analysis
-                if (onAnalyze != null) {
-                    onAnalyze.accept(null);
-                }
-                setButtonsEnabled(true);
-                break;
-
-            default:
-                setStatusAndColor(MigrationStatus.NOT_ANALYZED, Color.GRAY);
-                Messages.showInfoMessage(project,
-                    "MCP Tool: " + toolName + "\n\nThis feature would invoke the " + toolName + " MCP tool.",
-                    "MCP Tool: " + toolName);
-                setButtonsEnabled(true);
-        }
-    }
-
-    private void executeAnalyzeReadiness(String projectPath) {
-        mcpClient.analyzeReadiness(projectPath)
-            .thenAccept(responseJson -> SwingUtilities.invokeLater(() -> {
+        // Run analysis in background thread to avoid blocking UI
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() {
                 try {
-                    LOG.debug("Analyze readiness response: " + responseJson);
-                    
-                    // Parse the JSON response
-                    JsonNode root = objectMapper.readTree(responseJson);
-                    
-                    // Check for error
-                    if (root.has("error")) {
-                        String errorMsg = root.path("error").asText();
-                        LOG.error("Analyze readiness error: " + errorMsg);
+                    switch (toolName) {
+                        case "analyzeReadiness":
+                            executeAnalyzeReadiness(path);
+                            break;
+                        case "detectBlockers":
+                            executeDetectBlockers(path);
+                            break;
+                        case "recommendVersions":
+                            executeRecommendVersions(path);
+                            break;
+                        case "analyzeImpact":
+                            if (onAnalyze != null) {
+                                onAnalyze.accept(null);
+                            }
+                            break;
+                        default:
+                            SwingUtilities.invokeLater(() -> {
+                                setStatusAndColor(MigrationStatus.NOT_ANALYZED, Color.GRAY);
+                                Messages.showInfoMessage(project,
+                                    "Analysis: " + toolName + "\n\nThis feature would run the " + toolName + " analysis.",
+                                    "Analysis: " + toolName);
+                            });
+                    }
+                } catch (Exception e) {
+                    LOG.error("Analysis failed: " + e.getMessage(), e);
+                    SwingUtilities.invokeLater(() -> {
                         setStatusAndColor(MigrationStatus.FAILED, Color.RED);
-                        Messages.showWarningDialog(project, "Error: " + errorMsg, "Analysis Failed");
-                        setButtonsEnabled(true);
-                        return;
-                    }
-                    
-                    // Extract readiness data
-                    int score = extractReadinessScore(root);
-                    int totalDeps = extractTotalDependencies(root);
-                    int affectedDeps = extractAffectedDependencies(root);
-                    int blockers = extractBlockerCount(root);
-                    
-                    // Update UI
-                    setReadinessScore(score);
-                    setDependencySummary(totalDeps, affectedDeps, blockers);
-                    setStatusAndColor(score >= 80 ? MigrationStatus.READY : 
-                                     blockers > 0 ? MigrationStatus.HAS_BLOCKERS : 
-                                     MigrationStatus.IN_PROGRESS, 
-                                     getScoreColor(score));
-                    
-                    LOG.info("Readiness analysis complete: score=" + score + ", total=" + totalDeps + ", affected=" + affectedDeps + ", blockers=" + blockers);
-                    
-                } catch (Exception e) {
-                    LOG.error("Failed to parse readiness response: " + e.getMessage(), e);
-                    setStatusAndColor(MigrationStatus.FAILED, Color.RED);
-                    Messages.showWarningDialog(project, "Failed to parse response: " + e.getMessage(), "Parse Error");
+                        Messages.showWarningDialog(project, "Error: " + e.getMessage(), "Analysis Failed");
+                    });
                 }
-                setButtonsEnabled(true);
-            }))
-            .exceptionally(ex -> {
-                LOG.error("Analyze readiness failed: " + ex.getMessage(), ex);
-                SwingUtilities.invokeLater(() -> {
-                    setStatusAndColor(MigrationStatus.FAILED, Color.RED);
-                    Messages.showWarningDialog(project, "Error: " + ex.getMessage(), "Connection Failed");
-                    setButtonsEnabled(true);
-                });
                 return null;
-            });
+            }
+            
+            @Override
+            protected void done() {
+                setButtonsEnabled(true);
+            }
+        }.execute();
     }
 
-    private void executeDetectBlockers(String projectPath) {
-        mcpClient.detectBlockers(projectPath)
-            .thenAccept(blockers -> SwingUtilities.invokeLater(() -> {
-                try {
-                    int count = blockers != null ? blockers.size() : 0;
-                    LOG.info("Detected " + count + " blockers");
-                    
-                    // Update blockers count
-                    if (blockersValue != null) {
-                        blockersValue.setText(String.valueOf(count));
-                    }
-                    
-                    // Update status based on blockers
-                    if (count > 0) {
-                        setStatusAndColor(MigrationStatus.HAS_BLOCKERS, Color.RED);
-                        Messages.showInfoMessage(project, 
-                            "Found " + count + " migration blocker(s).\n\nRun 'Analyze Readiness' for details.", 
-                            "Blockers Detected");
-                    } else {
-                        setStatusAndColor(MigrationStatus.READY, Color.GREEN.darker());
-                        Messages.showInfoMessage(project, 
-                            "No migration blockers detected.", 
-                            "Blockers Check Complete");
-                    }
-                    
-                } catch (Exception e) {
-                    LOG.error("Failed to process blockers: " + e.getMessage(), e);
-                    setStatusAndColor(MigrationStatus.FAILED, Color.RED);
+    private void executeAnalyzeReadiness(Path projectPath) {
+        LOG.info("Running readiness analysis on: " + projectPath);
+        
+        DependencyAnalysisReport report = analysisService.analyzeProject(projectPath);
+        DependencyGraph graph = report.dependencyGraph();
+        int totalDeps = graph.getNodes().size();
+        int affectedDeps = countAffectedDependencies(report);
+        int blockers = report.blockers().size();
+        int score = calculateReadinessScore(report);
+        
+        SwingUtilities.invokeLater(() -> {
+            setReadinessScore(score);
+            setDependencySummary(totalDeps, affectedDeps, blockers);
+            
+            MigrationStatus status;
+            if (blockers > 0) {
+                status = MigrationStatus.HAS_BLOCKERS;
+            } else if (score >= 80) {
+                status = MigrationStatus.READY;
+            } else {
+                status = MigrationStatus.IN_PROGRESS;
+            }
+            setStatusAndColor(status, getScoreColor(score));
+        });
+        
+        LOG.info("Readiness analysis complete: score=" + score + ", total=" + totalDeps + ", affected=" + affectedDeps + ", blockers=" + blockers);
+    }
+    
+    private int countAffectedDependencies(DependencyAnalysisReport report) {
+        int count = 0;
+        NamespaceCompatibilityMap namespaceMap = report.namespaceMap();
+        for (Artifact artifact : report.dependencyGraph().getNodes()) {
+            Namespace namespace = namespaceMap.get(artifact);
+            if (namespace != null && namespace != Namespace.JAKARTA) {
+                count++;
+            }
+        }
+        return count;
+    }
+    
+    private int calculateReadinessScore(DependencyAnalysisReport report) {
+        int total = report.dependencyGraph().getNodes().size();
+        if (total == 0) {
+            return 100;
+        }
+        
+        int jakartaCount = 0;
+        NamespaceCompatibilityMap namespaceMap = report.namespaceMap();
+        for (Artifact artifact : report.dependencyGraph().getNodes()) {
+            Namespace namespace = namespaceMap.get(artifact);
+            if (namespace == Namespace.JAKARTA) {
+                jakartaCount++;
+            }
+        }
+        
+        return (int) ((double) jakartaCount / total * 100);
+    }
+
+    private void executeDetectBlockers(Path projectPath) {
+        LOG.info("Detecting blockers in: " + projectPath);
+        
+        List<Blocker> blockers = analysisService.detectBlockers(projectPath);
+        int count = blockers.size();
+        
+        LOG.info("Detected " + count + " blockers");
+        
+        SwingUtilities.invokeLater(() -> {
+            if (blockersValue != null) {
+                blockersValue.setText(String.valueOf(count));
+            }
+            
+            if (count > 0) {
+                setStatusAndColor(MigrationStatus.HAS_BLOCKERS, Color.RED);
+                
+                StringBuilder msg = new StringBuilder("Found " + count + " migration blocker(s):\n\n");
+                for (int i = 0; i < Math.min(5, blockers.size()); i++) {
+                    Blocker blocker = blockers.get(i);
+                    Artifact artifact = blocker.artifact();
+                    msg.append("- ").append(artifact.groupId()).append(":").append(artifact.artifactId()).append("\n");
+                    msg.append("  Reason: ").append(blocker.reason()).append("\n\n");
                 }
-                setButtonsEnabled(true);
-            }))
-            .exceptionally(ex -> {
-                LOG.error("Detect blockers failed: " + ex.getMessage(), ex);
-                SwingUtilities.invokeLater(() -> {
-                    setStatusAndColor(MigrationStatus.FAILED, Color.RED);
-                    Messages.showWarningDialog(project, "Error: " + ex.getMessage(), "Tool Failed");
-                    setButtonsEnabled(true);
-                });
-                return null;
-            });
-    }
-
-    private void executeRecommendVersions(String projectPath) {
-        mcpClient.recommendVersions(projectPath)
-            .thenAccept(recommendations -> SwingUtilities.invokeLater(() -> {
-                try {
-                    int count = recommendations != null ? recommendations.size() : 0;
-                    LOG.info("Found " + count + " version recommendations");
-                    
-                    // Show recommendations in a dialog
-                    if (count > 0) {
-                        StringBuilder msg = new StringBuilder("Found " + count + " version recommendation(s):\n\n");
-                        for (int i = 0; i < Math.min(5, recommendations.size()); i++) {
-                            DependencyInfo dep = recommendations.get(i);
-                            msg.append("• ").append(dep.getGroupId()).append(":").append(dep.getArtifactId())
-                               .append(" → ").append(dep.getRecommendedVersion()).append("\n");
-                        }
-                        if (recommendations.size() > 5) {
-                            msg.append("... and ").append(recommendations.size() - 5).append(" more");
-                        }
-                        Messages.showInfoMessage(project, msg.toString(), "Version Recommendations");
-                    } else {
-                        Messages.showInfoMessage(project, 
-                            "No version recommendations needed.\nAll dependencies are already Jakarta-compatible.", 
-                            "Version Recommendations");
-                    }
-                    
-                } catch (Exception e) {
-                    LOG.error("Failed to process recommendations: " + e.getMessage(), e);
-                    setStatusAndColor(MigrationStatus.FAILED, Color.RED);
+                if (blockers.size() > 5) {
+                    msg.append("... and ").append(blockers.size() - 5).append(" more");
                 }
-                setButtonsEnabled(true);
-            }))
-            .exceptionally(ex -> {
-                LOG.error("Recommend versions failed: " + ex.getMessage(), ex);
-                SwingUtilities.invokeLater(() -> {
-                    setStatusAndColor(MigrationStatus.FAILED, Color.RED);
-                    Messages.showWarningDialog(project, "Error: " + ex.getMessage(), "Tool Failed");
-                    setButtonsEnabled(true);
-                });
-                return null;
-            });
+                Messages.showInfoMessage(project, msg.toString(), "Blockers Detected");
+            } else {
+                setStatusAndColor(MigrationStatus.READY, Color.GREEN.darker());
+                Messages.showInfoMessage(project, 
+                    "No migration blockers detected.", 
+                    "Blockers Check Complete");
+            }
+        });
     }
 
-    private int extractReadinessScore(JsonNode root) {
-        try {
-            if (root.has("readinessScore")) {
-                return root.get("readinessScore").asInt();
+    private void executeRecommendVersions(Path projectPath) {
+        LOG.info("Recommending versions for: " + projectPath);
+        
+        List<VersionRecommendation> recommendations = analysisService.recommendVersions(projectPath);
+        int count = recommendations.size();
+        
+        LOG.info("Found " + count + " version recommendations");
+        
+        SwingUtilities.invokeLater(() -> {
+            if (count > 0) {
+                StringBuilder msg = new StringBuilder("Found " + count + " version recommendation(s):\n\n");
+                for (int i = 0; i < Math.min(5, recommendations.size()); i++) {
+                    VersionRecommendation rec = recommendations.get(i);
+                    Artifact current = rec.currentArtifact();
+                    Artifact recommended = rec.recommendedArtifact();
+                    msg.append("- ").append(current.groupId()).append(":").append(current.artifactId())
+                       .append(" -> ").append(recommended.version()).append("\n");
+                    String path = rec.migrationPath();
+                    if (path != null && !path.isEmpty()) {
+                        msg.append("  Path: ").append(path).append("\n");
+                    }
+                    msg.append("\n");
+                }
+                if (recommendations.size() > 5) {
+                    msg.append("... and ").append(recommendations.size() - 5).append(" more");
+                }
+                Messages.showInfoMessage(project, msg.toString(), "Version Recommendations");
+            } else {
+                Messages.showInfoMessage(project, 
+                    "No version recommendations needed.\nAll dependencies are already Jakarta-compatible.", 
+                    "Version Recommendations");
             }
-            if (root.has("score")) {
-                return root.get("score").asInt();
-            }
-            // Try to calculate from other fields
-            int total = root.has("totalDependencies") ? root.get("totalDependencies").asInt() : 0;
-            int affected = root.has("affectedDependencies") ? root.get("affectedDependencies").asInt() : 0;
-            if (total > 0) {
-                return Math.round(((float)(total - affected) / total) * 100);
-            }
-        } catch (Exception e) {
-            LOG.debug("Could not extract readiness score: {}", e.getMessage());
-        }
-        return 0;
-    }
-
-    private int extractTotalDependencies(JsonNode root) {
-        try {
-            if (root.has("totalDependencies")) {
-                return root.get("totalDependencies").asInt();
-            }
-            if (root.has("total")) {
-                return root.get("total").asInt();
-            }
-        } catch (Exception e) {
-            LOG.debug("Could not extract total dependencies: {}", e.getMessage());
-        }
-        return 0;
-    }
-
-    private int extractAffectedDependencies(JsonNode root) {
-        try {
-            if (root.has("affectedDependencies")) {
-                return root.get("affectedDependencies").asInt();
-            }
-            if (root.has("affected")) {
-                return root.get("affected").asInt();
-            }
-        } catch (Exception e) {
-            LOG.debug("Could not extract affected dependencies: {}", e.getMessage());
-        }
-        return 0;
-    }
-
-    private int extractBlockerCount(JsonNode root) {
-        try {
-            if (root.has("blockerCount") || root.has("blockers")) {
-                JsonNode blockers = root.has("blockerCount") ? root.get("blockerCount") : root.get("blockers");
-                return blockers.isArray() ? blockers.size() : blockers.asInt();
-            }
-        } catch (Exception e) {
-            LOG.debug("Could not extract blocker count: {}", e.getMessage());
-        }
-        return 0;
+        });
     }
 
     private Color getScoreColor(int score) {
@@ -521,19 +468,16 @@ public class DashboardComponent {
         this.dashboard = dashboard;
         SwingUtilities.invokeLater(() -> {
             if (dashboard != null) {
-                // Update readiness score
                 if (readinessScoreValue != null && dashboard.getReadinessScore() != null) {
                     readinessScoreValue.setText(dashboard.getReadinessScore() + "%");
                     updateReadinessColor(dashboard.getReadinessScore());
                 }
 
-                // Update status
                 if (statusValue != null && dashboard.getStatus() != null) {
                     statusValue.setText(dashboard.getStatus().getValue());
                     updateStatusColor(dashboard.getStatus());
                 }
 
-                // Update dependency summary
                 if (totalDepsValue != null && dashboard.getDependencySummary() != null) {
                     DependencySummary summary = dashboard.getDependencySummary();
                     totalDepsValue.setText(String.valueOf(summary.getTotalDependencies()));
@@ -548,12 +492,10 @@ public class DashboardComponent {
                     }
                 }
 
-                // Initialize additional metrics with "-" for now
                 if (noJakartaSupportValue != null) noJakartaSupportValue.setText("-");
                 if (xmlFilesValue != null) xmlFilesValue.setText("-");
                 if (transitiveDepsValue != null) transitiveDepsValue.setText("-");
 
-                // Update last analyzed
                 if (lastAnalyzedValue != null) {
                     if (dashboard.getLastAnalyzed() != null) {
                         lastAnalyzedValue.setText(formatTimestamp(dashboard.getLastAnalyzed()));

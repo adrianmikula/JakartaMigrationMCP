@@ -1,14 +1,15 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
-import adrianmikula.jakartamigration.intellij.mcp.AnalyzeMigrationImpactRequest;
-import adrianmikula.jakartamigration.intellij.mcp.AnalyzeMigrationImpactResponse;
-import adrianmikula.jakartamigration.intellij.mcp.DefaultMcpClientService;
-import adrianmikula.jakartamigration.intellij.mcp.McpClientService;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Namespace;
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
 import adrianmikula.jakartamigration.intellij.model.MigrationStatus;
+import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.wm.ToolWindow;
@@ -19,10 +20,12 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -41,7 +44,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
     public static class MigrationToolWindowContent {
         private final JPanel contentPanel;
         private final Project project;
-        private final McpClientService mcpClient;
+        private final MigrationAnalysisService analysisService;
 
         // UI Components
         private DashboardComponent dashboardComponent;
@@ -51,7 +54,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
         public MigrationToolWindowContent(Project project) {
             this.project = project;
-            this.mcpClient = new DefaultMcpClientService();
+            this.analysisService = new MigrationAnalysisService();
             this.contentPanel = new JPanel(new BorderLayout());
             initializeContent();
         }
@@ -113,38 +116,39 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         /**
-         * Handle analyze project action - triggers MCP analysis
+         * Handle analyze project action - triggers analysis using migration-core library
          */
-        private void handleAnalyzeProject(ActionEvent e) {
-            String projectPath = project.getBasePath();
-            if (projectPath == null) {
-                projectPath = project.getProjectFilePath();
+        private void handleAnalyzeProject(java.awt.event.ActionEvent e) {
+            String projectPathStr = project.getBasePath();
+            if (projectPathStr == null) {
+                projectPathStr = project.getProjectFilePath();
             }
 
-            if (projectPath == null) {
+            if (projectPathStr == null) {
                 Messages.showWarningDialog(project, "Cannot determine project path. Please open a project first.", "Analysis Failed");
                 return;
             }
+
+            final Path projectPath = Path.of(projectPathStr);
 
             // Show loading state
             dashboardComponent.setStatus(MigrationStatus.IN_PROGRESS);
             dashboardComponent.setReadinessScore(-1); // Show loading
 
-            // Call MCP server asynchronously
-            mcpClient.analyzeMigrationImpact(projectPath)
-                .thenAccept(response -> {
+            // Run analysis directly using the migration-core library
+            CompletableFuture.supplyAsync(() -> analysisService.analyzeProject(projectPath))
+                .thenAccept(report -> {
                     SwingUtilities.invokeLater(() -> {
-                        if (response != null && response.getDependencyImpact() != null && 
-                            response.getDependencyImpact().getAffectedDependencies() != null &&
-                            !response.getDependencyImpact().getAffectedDependencies().isEmpty()) {
+                        if (report != null && report.dependencyGraph() != null && 
+                            !report.dependencyGraph().getNodes().isEmpty()) {
                             // Update dashboard with real data
-                            updateDashboardFromResponse(response);
-                            int depsCount = response.getDependencyImpact().getAffectedDependencies().size();
+                            updateDashboardFromReport(report);
+                            int depsCount = report.dependencyGraph().getNodes().size();
                             Messages.showInfoMessage(project, "Analysis complete! " + 
                                 depsCount + 
                                 " dependencies analyzed.", "Analysis Complete");
                         } else {
-                            // No affected dependencies - project is ready
+                            // No dependencies found - project is ready
                             showEmptyResultsState();
                             Messages.showInfoMessage(project, 
                                 "Analysis complete. No Jakarta migration issues found.", 
@@ -156,10 +160,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     SwingUtilities.invokeLater(() -> {
                         dashboardComponent.setStatus(MigrationStatus.FAILED);
                         Messages.showWarningDialog(project, 
-                            "Could not connect to MCP server. Please ensure the server is running at: " + 
-                            mcpClient.getServerUrl() + "\n" +
-                            "Error: " + ex.getMessage(), 
-                            "Server Unavailable");
+                            "Analysis failed: " + ex.getMessage(), 
+                            "Analysis Failed");
                     });
                     return null;
                 });
@@ -186,19 +188,47 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         /**
-         * Update dashboard from MCP response
+         * Update dashboard from migration analysis report
          */
-        private void updateDashboardFromResponse(AnalyzeMigrationImpactResponse response) {
-            if (response == null || response.getDependencyImpact() == null) {
+        private void updateDashboardFromReport(DependencyAnalysisReport report) {
+            if (report == null || report.dependencyGraph() == null) {
                 showEmptyResultsState();
                 return;
             }
 
-            List<DependencyInfo> deps = response.getDependencyImpact().getAffectedDependencies();
-            if (deps == null || deps.isEmpty()) {
-                // No affected dependencies - project is ready
+            DependencyGraph graph = report.dependencyGraph();
+            Set<Artifact> nodes = graph.getNodes();
+            
+            if (nodes == null || nodes.isEmpty()) {
+                // No dependencies found - project is ready
                 showEmptyResultsState();
                 return;
+            }
+
+            // Convert Artifact objects to DependencyInfo
+            List<DependencyInfo> deps = new ArrayList<>();
+            for (Artifact artifact : nodes) {
+                DependencyInfo info = new DependencyInfo();
+                info.setArtifactId(artifact.artifactId());
+                info.setGroupId(artifact.groupId());
+                info.setCurrentVersion(artifact.version());
+                
+                // Determine migration status based on namespace from the report's namespace map
+                Namespace namespace = report.namespaceMap() != null 
+                    ? report.namespaceMap().get(artifact)
+                    : Namespace.UNKNOWN;
+                
+                if (namespace == Namespace.JAKARTA) {
+                    info.setMigrationStatus(DependencyMigrationStatus.COMPATIBLE);
+                } else if (namespace == Namespace.JAVAX) {
+                    // Check if there's a Jakarta equivalent
+                    info.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
+                    info.setBlocker(false);
+                } else {
+                    info.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
+                }
+                
+                deps.add(info);
             }
 
             // Calculate metrics
@@ -261,9 +291,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         /**
-         * Refresh data from MCP server
+         * Refresh data from migration-core library
          */
-        public void refreshFromMcpServer() {
+        public void refreshFromLibrary() {
             handleAnalyzeProject(null);
         }
 
