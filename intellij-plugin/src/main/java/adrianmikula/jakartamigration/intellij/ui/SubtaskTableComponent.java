@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBPanel;
@@ -15,17 +16,23 @@ import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
 
 /**
  * Subtask table component for migration phases.
  * Displays subtasks with action buttons for automatable tasks.
+ * Connected to real MCP server or core migration library.
  */
 public class SubtaskTableComponent {
+    private static final Logger LOG = Logger.getInstance(SubtaskTableComponent.class);
+
     private final JPanel panel;
     private final JBTable table;
     private final DefaultTableModel tableModel;
     private final Project project;
     private final List<SubtaskItem> subtasks = new ArrayList<>();
+    private MigrationActionHandler actionHandler;
 
     // Automation types that have core library support
     private static final String AUTOMATION_OPEN_REWRITE = "open-rewrite";
@@ -34,6 +41,7 @@ public class SubtaskTableComponent {
 
     public SubtaskTableComponent(Project project) {
         this.project = project;
+        this.actionHandler = new MigrationActionHandler(project);
         this.panel = new JBPanel<>(new BorderLayout());
 
         String[] columns = {
@@ -84,6 +92,7 @@ public class SubtaskTableComponent {
         private final DependencyInfo dependency;
         private final String automationType; // null if no automation available
         private boolean completed;
+        private boolean inProgress;
 
         public SubtaskItem(String name, String description, DependencyInfo dependency, String automationType) {
             this.name = name;
@@ -91,6 +100,7 @@ public class SubtaskTableComponent {
             this.dependency = dependency;
             this.automationType = automationType;
             this.completed = false;
+            this.inProgress = false;
         }
 
         public String getName() { return name; }
@@ -98,7 +108,9 @@ public class SubtaskTableComponent {
         public DependencyInfo getDependency() { return dependency; }
         public String getAutomationType() { return automationType; }
         public boolean isCompleted() { return completed; }
+        public boolean isInProgress() { return inProgress; }
         public void setCompleted(boolean completed) { this.completed = completed; }
+        public void setInProgress(boolean inProgress) { this.inProgress = inProgress; }
         public boolean hasAutomation() { return automationType != null; }
         public String getDependencyName() {
             return dependency != null ? dependency.getArtifactId() : "";
@@ -118,61 +130,69 @@ public class SubtaskTableComponent {
             }
 
             SubtaskItem subtask = subtasks.get(row);
-            JPanel panel = new JPanel(new BorderLayout(5, 0));
-            panel.setOpaque(true);
+            JPanel cellPanel = new JPanel(new BorderLayout(5, 0));
+            cellPanel.setOpaque(true);
 
             if (isSelected) {
-                panel.setBackground(table.getSelectionBackground());
+                cellPanel.setBackground(table.getSelectionBackground());
             } else {
-                panel.setBackground(table.getBackground());
+                cellPanel.setBackground(table.getBackground());
             }
 
-            switch (table.getColumnName(column)) {
+            String columnName = table.getColumnName(column);
+            switch (columnName) {
                 case "Status":
                     JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 0));
                     statusPanel.setOpaque(true);
-                    statusPanel.setBackground(panel.getBackground());
+                    statusPanel.setBackground(cellPanel.getBackground());
 
                     JPanel dot = new JPanel();
                     dot.setPreferredSize(new Dimension(10, 10));
                     dot.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
-                    dot.setBackground(subtask.isCompleted() ? new Color(40, 167, 69) : new Color(108, 117, 125));
+                    
+                    if (subtask.isCompleted()) {
+                        dot.setBackground(new Color(40, 167, 69)); // Green - completed
+                    } else if (subtask.isInProgress()) {
+                        dot.setBackground(new Color(255, 193, 7)); // Yellow - in progress
+                    } else {
+                        dot.setBackground(new Color(108, 117, 125)); // Gray - pending
+                    }
 
                     statusPanel.add(dot);
-                    panel.add(statusPanel, BorderLayout.WEST);
+                    cellPanel.add(statusPanel, BorderLayout.WEST);
                     break;
 
                 case "Subtask":
                     JLabel nameLabel = new JLabel(subtask.getName());
                     nameLabel.setOpaque(true);
-                    nameLabel.setBackground(panel.getBackground());
-                    panel.add(nameLabel, BorderLayout.CENTER);
+                    nameLabel.setBackground(cellPanel.getBackground());
+                    cellPanel.add(nameLabel, BorderLayout.CENTER);
                     break;
 
                 case "Dependency":
                     JLabel depLabel = new JLabel(subtask.getDependencyName());
                     depLabel.setOpaque(true);
-                    depLabel.setBackground(panel.getBackground());
+                    depLabel.setBackground(cellPanel.getBackground());
                     if (subtask.getDependency() != null) {
                         depLabel.setToolTipText(subtask.getDependency().getGroupId() + ":" +
                             subtask.getDependency().getArtifactId() + " v" + subtask.getDependency().getCurrentVersion());
                     }
-                    panel.add(depLabel, BorderLayout.CENTER);
+                    cellPanel.add(depLabel, BorderLayout.CENTER);
                     break;
 
                 case "Action":
                     if (subtask.hasAutomation()) {
                         JButton actionButton = createActionButton(subtask);
-                        panel.add(actionButton, BorderLayout.EAST);
+                        cellPanel.add(actionButton, BorderLayout.EAST);
                     } else {
                         JLabel noActionLabel = new JLabel("-");
                         noActionLabel.setHorizontalAlignment(SwingConstants.CENTER);
-                        panel.add(noActionLabel, BorderLayout.CENTER);
+                        cellPanel.add(noActionLabel, BorderLayout.CENTER);
                     }
                     break;
             }
 
-            return panel;
+            return cellPanel;
         }
 
         private JButton createActionButton(SubtaskItem subtask) {
@@ -206,86 +226,37 @@ public class SubtaskTableComponent {
     }
 
     private void handleAction(SubtaskItem subtask) {
-        if (subtask == null) return;
+        if (subtask == null || !subtask.hasAutomation()) return;
+
+        subtask.setInProgress(true);
+        refreshTable();
 
         switch (subtask.getAutomationType()) {
             case AUTOMATION_OPEN_REWRITE:
-                handleOpenRewriteAction(subtask);
+                actionHandler.handleOpenRewriteAction(subtask, this::handleActionComplete);
                 break;
             case AUTOMATION_BINARY_SCAN:
-                handleBinaryScanAction(subtask);
+                actionHandler.handleBinaryScanAction(subtask, this::handleActionComplete);
                 break;
             case AUTOMATION_DEPENDENCY_UPDATE:
-                handleDependencyUpdateAction(subtask);
+                actionHandler.handleDependencyUpdateAction(subtask, this::handleActionComplete);
                 break;
             default:
+                subtask.setInProgress(false);
                 Messages.showInfoMessage(project, "Action: " + subtask.getName(), "Subtask Action");
         }
     }
 
-    private void handleOpenRewriteAction(SubtaskItem subtask) {
-        String message = String.format("""
-            Run OpenRewrite Refactoring
-
-            Task: %s
-            %s
-
-            This will automatically refactor javax.* imports to jakarta.*
-            in the selected scope.
-            """,
-            subtask.getName(),
-            subtask.getDependency() != null ? "Dependency: " + subtask.getDependencyName() : "");
-
-        int result = Messages.showYesNoDialog(project, message, "OpenRewrite Migration",
-                Messages.getQuestionIcon());
-
-        if (result == Messages.YES) {
-            subtask.setCompleted(true);
+    private void handleActionComplete(SubtaskItem subtask, String message) {
+        SwingUtilities.invokeLater(() -> {
+            subtask.setInProgress(false);
+            if (message != null && !message.contains("successfully") && !message.contains("updated successfully")) {
+                Messages.showMessageDialog(project, message, "Action Failed", Messages.getWarningIcon());
+            } else if (message != null) {
+                Messages.showInfoMessage(project, message, "Action Complete");
+            }
             refreshTable();
-            Messages.showInfoMessage(project, "OpenRewrite refactoring started...", "OpenRewrite");
-        }
-    }
-
-    private void handleBinaryScanAction(SubtaskItem subtask) {
-        String message = String.format("""
-            Scan Binary Dependency
-
-            Task: %s
-            Dependency: %s
-
-            This will scan the binary JAR for Jakarta EE compatibility issues.
-            """,
-            subtask.getName(),
-            subtask.getDependency() != null ? subtask.getDependencyName() : "N/A");
-
-        Messages.showInfoMessage(project, message, "Binary Scan");
-    }
-
-    private void handleDependencyUpdateAction(SubtaskItem subtask) {
-        if (subtask.getDependency() == null) return;
-
-        String message = String.format("""
-            Update Dependency
-
-            Update: %s
-            Current: %s
-            Recommended: %s
-
-            This will update the dependency version in your build file.
-            """,
-            subtask.getDependencyName(),
-            subtask.getDependency().getCurrentVersion(),
-            subtask.getDependency().getRecommendedVersion() != null ?
-                subtask.getDependency().getRecommendedVersion() : "N/A");
-
-        int result = Messages.showYesNoDialog(project, message, "Update Dependency",
-                Messages.getQuestionIcon());
-
-        if (result == Messages.YES) {
-            subtask.setCompleted(true);
-            refreshTable();
-            Messages.showInfoMessage(project, "Dependency update started...", "Update");
-        }
+        });
     }
 
     private void initializeComponent() {

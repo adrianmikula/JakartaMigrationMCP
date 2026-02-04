@@ -6,12 +6,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 
 import javax.swing.*;
-import javax.swing.tree.DefaultMutableTreeNode;
+import java.util.ArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * UI tests for MigrationPhasesComponent based on new JTree accordion design.
+ * UI tests for MigrationPhasesComponent based on new JTabbedPane design.
  */
 public class MigrationPhasesComponentTest extends LightJavaCodeInsightFixtureTestCase {
 
@@ -30,12 +30,12 @@ public class MigrationPhasesComponentTest extends LightJavaCodeInsightFixtureTes
     }
 
     @Test
-    public void testPhasesComponentHasJTree() {
+    public void testPhasesComponentHasTabbedPane() {
         JPanel panel = phasesComponent.getPanel();
-        JTree tree = findComponentByType(panel, JTree.class);
+        JTabbedPane tabbedPane = findComponentByType(panel, JTabbedPane.class);
 
-        assertThat(tree).isNotNull();
-        assertThat(tree.getModel()).isNotNull();
+        assertThat(tabbedPane).isNotNull();
+        assertThat(tabbedPane.getTabCount()).isGreaterThan(0);
     }
 
     @Test
@@ -95,24 +95,24 @@ public class MigrationPhasesComponentTest extends LightJavaCodeInsightFixtureTes
     }
 
     @Test
-    public void testTreeHasRootNode() {
-        JTree tree = findComponentByType(phasesComponent.getPanel(), JTree.class);
-        assertThat(tree.getModel().getRoot()).isNotNull();
+    public void testTabbedPaneHasTabs() {
+        JPanel panel = phasesComponent.getPanel();
+        JTabbedPane tabbedPane = findComponentByType(panel, JTabbedPane.class);
+
+        assertThat(tabbedPane).isNotNull();
+        assertThat(tabbedPane.getTabCount()).isGreaterThan(0);
+        assertThat(tabbedPane.getTitleAt(0)).isNotNull();
     }
 
     @Test
     public void testSetDependenciesUpdatesPhases() {
         // Should not throw exception when setting dependencies
-        phasesComponent.setDependencies(new java.util.ArrayList<>());
+        phasesComponent.setDependencies(new ArrayList<>());
         assertThat(phasesComponent.getSelectedStrategy()).isEqualTo(MigrationStrategy.INCREMENTAL);
     }
 
-    private JTree findTree(JPanel panel) {
-        return findComponentByType(panel, JTree.class);
-    }
-
     private JButton findButtonByText(JPanel panel, String text) {
-        return findComponentByTextAndType(panel, text, JButton.class);
+        return findButtonTextAndType(panel, text, JButton.class);
     }
 
     @SuppressWarnings("unchecked")
@@ -131,7 +131,7 @@ public class MigrationPhasesComponentTest extends LightJavaCodeInsightFixtureTes
     }
 
     @SuppressWarnings("unchecked")
-    private <T extends JComponent> T findComponentByTextAndType(java.awt.Container container, String text, Class<T> type) {
+    private <T extends JComponent> T findButtonTextAndType(java.awt.Container container, String text, Class<T> type) {
         for (int i = 0; i < container.getComponentCount(); i++) {
             java.awt.Component component = container.getComponent(i);
             if (type.isInstance(component)) {
@@ -140,7 +140,7 @@ public class MigrationPhasesComponentTest extends LightJavaCodeInsightFixtureTes
                 }
             }
             if (component instanceof java.awt.Container) {
-                T found = findComponentByTextAndType((java.awt.Container) component, text, type);
+                T found = findButtonTextAndType((java.awt.Container) component, text, type);
                 if (found != null) return found;
             }
         }

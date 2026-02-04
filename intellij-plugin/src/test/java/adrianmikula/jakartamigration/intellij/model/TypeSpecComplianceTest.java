@@ -76,18 +76,6 @@ public class TypeSpecComplianceTest {
     }
 
     @Test
-    public void testRiskLevelEnumMatchesTypeSpec() {
-        // Verify all TypeSpec enum values are present with exact strings
-        assertThat(RiskLevel.LOW.getValue()).isEqualTo("LOW");
-        assertThat(RiskLevel.MEDIUM.getValue()).isEqualTo("MEDIUM");
-        assertThat(RiskLevel.HIGH.getValue()).isEqualTo("HIGH");
-        assertThat(RiskLevel.CRITICAL.getValue()).isEqualTo("CRITICAL");
-
-        // Verify no additional enum values
-        assertThat(RiskLevel.values()).hasSize(4);
-    }
-
-    @Test
     public void testDependencyInfoHasAllTypeSpecFields() {
         DependencyInfo info = new DependencyInfo();
 
@@ -97,9 +85,7 @@ public class TypeSpecComplianceTest {
         info.setCurrentVersion("5.3.27");
         info.setRecommendedVersion("6.0.9");
         info.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
-        info.setBlocker(false);
-        info.setRiskLevel(RiskLevel.HIGH);
-        info.setMigrationImpact("Required for Spring Framework 6.0 migration");
+        info.setTransitive(false);
 
         // Verify all getters work
         assertThat(info.getGroupId()).isEqualTo("org.springframework");
@@ -107,9 +93,7 @@ public class TypeSpecComplianceTest {
         assertThat(info.getCurrentVersion()).isEqualTo("5.3.27");
         assertThat(info.getRecommendedVersion()).isEqualTo("6.0.9");
         assertThat(info.getMigrationStatus()).isEqualTo(DependencyMigrationStatus.NEEDS_UPGRADE);
-        assertThat(info.isBlocker()).isFalse();
-        assertThat(info.getRiskLevel()).isEqualTo(RiskLevel.HIGH);
-        assertThat(info.getMigrationImpact()).isEqualTo("Required for Spring Framework 6.0 migration");
+        assertThat(info.isTransitive()).isFalse();
         assertThat(info.getDisplayName()).isEqualTo("org.springframework:spring-beans");
     }
 
@@ -121,9 +105,7 @@ public class TypeSpecComplianceTest {
             "2.3.1",
             null,
             DependencyMigrationStatus.NO_JAKARTA_VERSION,
-            true,
-            RiskLevel.CRITICAL,
-            "No Jakarta equivalent"
+            true
         );
 
         assertThat(info.getGroupId()).isEqualTo("javax.xml.bind");
@@ -131,8 +113,7 @@ public class TypeSpecComplianceTest {
         assertThat(info.getCurrentVersion()).isEqualTo("2.3.1");
         assertThat(info.getRecommendedVersion()).isNull();
         assertThat(info.getMigrationStatus()).isEqualTo(DependencyMigrationStatus.NO_JAKARTA_VERSION);
-        assertThat(info.isBlocker()).isTrue();
-        assertThat(info.getRiskLevel()).isEqualTo(RiskLevel.CRITICAL);
+        assertThat(info.isTransitive()).isTrue();
     }
 
     @Test

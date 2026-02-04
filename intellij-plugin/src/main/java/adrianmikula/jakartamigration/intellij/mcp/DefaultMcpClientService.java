@@ -386,31 +386,70 @@ public class DefaultMcpClientService implements McpClientService {
             String currentVersion = node.has("currentVersion") ? node.get("currentVersion").asText() : "";
             String recommendedVersion = node.has("recommendedVersion") ? node.get("recommendedVersion").asText() : null;
             
+            // Generate a default recommendedVersion if not provided
+            if (recommendedVersion == null || recommendedVersion.isEmpty()) {
+                recommendedVersion = generateDefaultRecommendedVersion(groupId, artifactId, currentVersion);
+            }
+            
             adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus status = 
                 adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus.NEEDS_UPGRADE;
             if (node.has("migrationStatus")) {
                 String statusStr = node.get("migrationStatus").asText();
-                status = adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus.valueOf(statusStr);
+                try {
+                    status = adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus.valueOf(statusStr);
+                } catch (IllegalArgumentException e) {
+                    LOG.warn("Unknown migration status: " + statusStr);
+                }
             }
             
-            boolean isBlocker = node.has("isBlocker") && node.get("isBlocker").asBoolean();
-            
-            adrianmikula.jakartamigration.intellij.model.RiskLevel riskLevel = 
-                adrianmikula.jakartamigration.intellij.model.RiskLevel.MEDIUM;
-            if (node.has("riskLevel")) {
-                String riskStr = node.get("riskLevel").asText();
-                riskLevel = adrianmikula.jakartamigration.intellij.model.RiskLevel.valueOf(riskStr);
-            }
-            
-            String migrationStrategy = node.has("migrationStrategy") ? node.get("migrationStrategy").asText() : "";
+            boolean isTransitive = node.has("isTransitive") && node.get("isTransitive").asBoolean();
             
             return new DependencyInfo(groupId, artifactId, currentVersion, recommendedVersion, 
-                status, isBlocker);
+                status, isTransitive);
             
         } catch (Exception e) {
             LOG.error("Failed to parse DependencyInfo: {}", e.getMessage());
             return null;
         }
+    }
+    
+    /**
+     * Generate a default recommended version when not provided by the server.
+     * Uses common Jakarta EE version patterns based on the artifact.
+     */
+    private String generateDefaultRecommendedVersion(String groupId, String artifactId, String currentVersion) {
+        // Jakarta EE migration version patterns
+        if (currentVersion != null && !currentVersion.isEmpty()) {
+            // Try to increment the minor/patch version
+            String[] parts = currentVersion.split("\\.");
+            if (parts.length >= 2) {
+                try {
+                    int major = Integer.parseInt(parts[0]);
+                    int minor = Integer.parseInt(parts[1]);
+                    
+                    // Common Jakarta EE version mappings
+                    if (groupId.contains("javax") || groupId.contains("jakarta")) {
+                        // For javax/jakarta artifacts, look for major version 4 or 5
+                        if (major >= 4) {
+                            return major + "." + (minor + 1) + ".0";
+                        }
+                    }
+                    
+                    // General version increment pattern
+                    if (minor < 99) {
+                        return major + "." + (minor + 1) + ".0";
+                    } else {
+                        return (major + 1) + ".0.0";
+                    }
+                } catch (NumberFormatException e) {
+                    // Fallback: append -jakarta
+                    return currentVersion + "-jakarta";
+                }
+            }
+        }
+        
+        // Fallback version
+        return "3.0.0";
     }
 
     @Override
@@ -446,5 +485,69 @@ public class DefaultMcpClientService implements McpClientService {
 
     private String createErrorJson(String message) {
         return String.format("{\"error\":\"%s\"}", message);
+    }
+
+    @Override
+    public CompletableFuture<String> applyOpenRewriteRefactoring(String projectPath, List<String> filePatterns) {
+        LOG.info("Applying OpenRewrite refactoring for project: " + projectPath);
+        
+        Map<String, Object> arguments = new LinkedHashMap<>();
+        arguments.put("projectPath", projectPath);
+        arguments.put("filePatterns", filePatterns);
+        
+        return callTool("applyOpenRewriteRefactoring", arguments)
+                .thenApply(responseJson -> {
+                    LOG.debug("OpenRewrite refactoring response: " + responseJson);
+                    return responseJson;
+                })
+                .exceptionally(ex -> {
+                    LOG.error("applyOpenRewriteRefactoring call failed: " + ex.getMessage());
+                    return createErrorJson("Failed to apply OpenRewrite refactoring: " + ex.getMessage());
+                });
+    }
+
+    @Override
+    public CompletableFuture<String> scanBinaryDependency(String jarPath) {
+        LOG.info("Scanning binary dependency: " + jarPath);
+        
+        Map<String, Object> arguments = new LinkedHashMap<>();
+        arguments.put("jarPath", jarPath);
+        
+        return callTool("scanBinaryDependency", arguments)
+                .thenApply(responseJson -> {
+                    LOG.debug("Binary scan response: " + responseJson);
+                    return responseJson;
+                })
+                .exceptionally(ex -> {
+                    LOG.error("scanBinaryDependency call failed: " + ex.getMessage());
+                    return createErrorJson("Failed to scan binary dependency: " + ex.getMessage());
+                });
+    }
+
+    @Override
+    public CompletableFuture<String> updateDependency(
+            String projectPath,
+            String groupId,
+            String artifactId,
+            String currentVersion,
+            String recommendedVersion) {
+        LOG.info("Updating dependency " + groupId + ":" + artifactId + " from " + currentVersion + " to " + recommendedVersion);
+        
+        Map<String, Object> arguments = new LinkedHashMap<>();
+        arguments.put("projectPath", projectPath);
+        arguments.put("groupId", groupId);
+        arguments.put("artifactId", artifactId);
+        arguments.put("currentVersion", currentVersion);
+        arguments.put("recommendedVersion", recommendedVersion);
+        
+        return callTool("updateDependency", arguments)
+                .thenApply(responseJson -> {
+                    LOG.debug("Dependency update response: " + responseJson);
+                    return responseJson;
+                })
+                .exceptionally(ex -> {
+                    LOG.error("updateDependency call failed: " + ex.getMessage());
+                    return createErrorJson("Failed to update dependency: " + ex.getMessage());
+                });
     }
 }

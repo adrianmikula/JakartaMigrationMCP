@@ -2,7 +2,6 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
-import adrianmikula.jakartamigration.intellij.model.RiskLevel;
 import com.intellij.testFramework.fixtures.LightJavaCodeInsightFixtureTestCase;
 import org.junit.jupiter.api.Test;
 
@@ -97,11 +96,9 @@ public class OrgNamespacePatternTest extends LightJavaCodeInsightFixtureTestCase
 
         List<DependencyInfo> deps = Arrays.asList(
             new DependencyInfo("com.myorg", "internal-lib", "1.0.0",
-                "2.0.0", DependencyMigrationStatus.NEEDS_UPGRADE,
-                false, RiskLevel.HIGH, "Internal lib"),
+                "2.0.0", DependencyMigrationStatus.NEEDS_UPGRADE, false),
             new DependencyInfo("org.springframework", "spring-core", "5.3.0",
-                "6.0.0", DependencyMigrationStatus.NO_JAKARTA_VERSION,
-                true, RiskLevel.CRITICAL, "External lib")
+                null, DependencyMigrationStatus.NO_JAKARTA_VERSION, true)
         );
 
         // Process dependencies and check org status

@@ -259,10 +259,6 @@ public class MigrationPhasesComponent {
             // Create subtasks for this phase
             List<SubtaskItem> subtasks = createSubtasksForPhase(phase, dependencies);
 
-            // First phase gets NEEDS_UPGRADE dependencies, others get REQUIRES_MANUAL_MIGRATION
-            DependencyMigrationStatus targetStatus = (i == 0) ?
-                DependencyMigrationStatus.NEEDS_UPGRADE : DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION;
-
             subtaskTable.setSubtasks(subtasks);
 
             // Create the tab content panel
@@ -280,7 +276,7 @@ public class MigrationPhasesComponent {
             items.add(new SubtaskItem(task, "", null, automationType));
         }
 
-        // Add dependency-specific subtasks for first phase
+        // Add dependency-specific subtasks
         if (deps != null && !deps.isEmpty()) {
             // Add a separator subtask
             items.add(new SubtaskItem("---", "", null, null));
@@ -333,19 +329,8 @@ public class MigrationPhasesComponent {
         // Subtask table
         JPanel subtaskPanel = subtaskTable.getPanel();
 
-        // Phase actions
-        JPanel actionsPanel = new JBPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton startButton = new JButton("Start Phase");
-        startButton.addActionListener(e -> startPhase(phase));
-        JButton viewDetailsButton = new JButton("View Details");
-        viewDetailsButton.addActionListener(e -> viewPhaseDetails(phase));
-
-        actionsPanel.add(startButton);
-        actionsPanel.add(viewDetailsButton);
-
         content.add(descScroll, BorderLayout.NORTH);
         content.add(subtaskPanel, BorderLayout.CENTER);
-        content.add(actionsPanel, BorderLayout.SOUTH);
 
         return content;
     }
@@ -367,58 +352,18 @@ public class MigrationPhasesComponent {
         tabsScroll.setBorder(BorderFactory.createTitledBorder("Migration Phases"));
         mainContent.add(tabsScroll, BorderLayout.CENTER);
 
-        // Execution status panel
-        JPanel statusPanel = new JPanel(new GridLayout(2, 2, 5, 5));
-        statusPanel.setBorder(BorderFactory.createTitledBorder("Execution Status"));
-
-        statusPanel.add(new JLabel("Current Phase:"));
-        JLabel currentPhaseLabel = new JLabel("None");
-        statusPanel.add(currentPhaseLabel);
-        statusPanel.add(new JLabel("Status:"));
-        JLabel statusLabel = new JLabel("Not Started");
-        statusPanel.add(statusLabel);
-
-        mainContent.add(statusPanel, BorderLayout.SOUTH);
-
         panel.add(mainContent, BorderLayout.CENTER);
-    }
-
-    private void startPhase(PhaseDefinition phase) {
-        String message = String.format("""
-            Start Migration Phase
-
-            Phase: %s
-
-            This will begin the execution of tasks in this phase.
-            Automated tasks will run using their configured tools.
-            """, phase.getName());
-
-        int result = Messages.showYesNoDialog(project, message, "Start Phase",
-                Messages.getQuestionIcon());
-
-        if (result == Messages.YES) {
-            Messages.showInfoMessage(project, "Phase '" + phase.getName() + "' started.",
-                "Migration Phase");
-        }
-    }
-
-    private void viewPhaseDetails(PhaseDefinition phase) {
-        StringBuilder details = new StringBuilder();
-        details.append("Phase: ").append(phase.getName()).append("\n\n");
-        details.append("Description:\n").append(phase.getDescription()).append("\n\n");
-        details.append("Subtasks:\n");
-        for (String subtask : phase.getSubtasks()) {
-            details.append("  • ").append(subtask).append("\n");
-        }
-
-        Messages.showInfoMessage(project, details.toString(), "Phase Details");
-    }
-
-    public JPanel getPanel() {
-        return panel;
     }
 
     public void addPhaseListener(PhaseListener listener) {
         phaseListeners.add(listener);
+    }
+
+    public MigrationStrategy getSelectedStrategy() {
+        return selectedStrategy;
+    }
+
+    public JPanel getPanel() {
+        return panel;
     }
 }
