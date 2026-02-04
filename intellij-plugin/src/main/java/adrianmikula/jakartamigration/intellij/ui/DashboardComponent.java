@@ -9,13 +9,12 @@ import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
 import adrianmikula.jakartamigration.intellij.model.MigrationStatus;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBPanel;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
@@ -29,7 +28,7 @@ import java.util.function.Consumer;
  * Connects directly to the real MCP server for Jakarta migration analysis.
  */
 public class DashboardComponent {
-    private static final Logger LOG = LoggerFactory.getLogger(DashboardComponent.class);
+    private static final Logger LOG = Logger.getInstance(DashboardComponent.class);
     
     private final JPanel panel;
     private final Project project;
@@ -274,7 +273,7 @@ public class DashboardComponent {
             return;
         }
 
-        LOG.info("Executing MCP tool: {} for project: {}", toolName, projectPath);
+        LOG.info("Executing MCP tool: " + toolName + " for project: " + projectPath);
         setStatusAndColor(MigrationStatus.IN_PROGRESS, Color.BLUE);
 
         switch (toolName) {
@@ -311,7 +310,7 @@ public class DashboardComponent {
         mcpClient.analyzeReadiness(projectPath)
             .thenAccept(responseJson -> SwingUtilities.invokeLater(() -> {
                 try {
-                    LOG.debug("Analyze readiness response: {}", responseJson);
+                    LOG.debug("Analyze readiness response: " + responseJson);
                     
                     // Parse the JSON response
                     JsonNode root = objectMapper.readTree(responseJson);
@@ -319,7 +318,7 @@ public class DashboardComponent {
                     // Check for error
                     if (root.has("error")) {
                         String errorMsg = root.path("error").asText();
-                        LOG.error("Analyze readiness error: {}", errorMsg);
+                        LOG.error("Analyze readiness error: " + errorMsg);
                         setStatusAndColor(MigrationStatus.FAILED, Color.RED);
                         Messages.showWarningDialog(project, "Error: " + errorMsg, "Analysis Failed");
                         setButtonsEnabled(true);
@@ -340,18 +339,17 @@ public class DashboardComponent {
                                      MigrationStatus.IN_PROGRESS, 
                                      getScoreColor(score));
                     
-                    LOG.info("Readiness analysis complete: score={}, total={}, affected={}, blockers={}", 
-                             score, totalDeps, affectedDeps, blockers);
+                    LOG.info("Readiness analysis complete: score=" + score + ", total=" + totalDeps + ", affected=" + affectedDeps + ", blockers=" + blockers);
                     
                 } catch (Exception e) {
-                    LOG.error("Failed to parse readiness response: {}", e.getMessage(), e);
+                    LOG.error("Failed to parse readiness response: " + e.getMessage(), e);
                     setStatusAndColor(MigrationStatus.FAILED, Color.RED);
                     Messages.showWarningDialog(project, "Failed to parse response: " + e.getMessage(), "Parse Error");
                 }
                 setButtonsEnabled(true);
             }))
             .exceptionally(ex -> {
-                LOG.error("Analyze readiness failed: {}", ex.getMessage(), ex);
+                LOG.error("Analyze readiness failed: " + ex.getMessage(), ex);
                 SwingUtilities.invokeLater(() -> {
                     setStatusAndColor(MigrationStatus.FAILED, Color.RED);
                     Messages.showWarningDialog(project, "Error: " + ex.getMessage(), "Connection Failed");
@@ -366,7 +364,7 @@ public class DashboardComponent {
             .thenAccept(blockers -> SwingUtilities.invokeLater(() -> {
                 try {
                     int count = blockers != null ? blockers.size() : 0;
-                    LOG.info("Detected {} blockers", count);
+                    LOG.info("Detected " + count + " blockers");
                     
                     // Update blockers count
                     if (blockersValue != null) {
@@ -387,13 +385,13 @@ public class DashboardComponent {
                     }
                     
                 } catch (Exception e) {
-                    LOG.error("Failed to process blockers: {}", e.getMessage(), e);
+                    LOG.error("Failed to process blockers: " + e.getMessage(), e);
                     setStatusAndColor(MigrationStatus.FAILED, Color.RED);
                 }
                 setButtonsEnabled(true);
             }))
             .exceptionally(ex -> {
-                LOG.error("Detect blockers failed: {}", ex.getMessage(), ex);
+                LOG.error("Detect blockers failed: " + ex.getMessage(), ex);
                 SwingUtilities.invokeLater(() -> {
                     setStatusAndColor(MigrationStatus.FAILED, Color.RED);
                     Messages.showWarningDialog(project, "Error: " + ex.getMessage(), "Tool Failed");
@@ -408,7 +406,7 @@ public class DashboardComponent {
             .thenAccept(recommendations -> SwingUtilities.invokeLater(() -> {
                 try {
                     int count = recommendations != null ? recommendations.size() : 0;
-                    LOG.info("Found {} version recommendations", count);
+                    LOG.info("Found " + count + " version recommendations");
                     
                     // Show recommendations in a dialog
                     if (count > 0) {
@@ -429,13 +427,13 @@ public class DashboardComponent {
                     }
                     
                 } catch (Exception e) {
-                    LOG.error("Failed to process recommendations: {}", e.getMessage(), e);
+                    LOG.error("Failed to process recommendations: " + e.getMessage(), e);
                     setStatusAndColor(MigrationStatus.FAILED, Color.RED);
                 }
                 setButtonsEnabled(true);
             }))
             .exceptionally(ex -> {
-                LOG.error("Recommend versions failed: {}", ex.getMessage(), ex);
+                LOG.error("Recommend versions failed: " + ex.getMessage(), ex);
                 SwingUtilities.invokeLater(() -> {
                     setStatusAndColor(MigrationStatus.FAILED, Color.RED);
                     Messages.showWarningDialog(project, "Error: " + ex.getMessage(), "Tool Failed");
