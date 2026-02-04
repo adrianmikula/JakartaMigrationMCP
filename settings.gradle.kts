@@ -10,6 +10,5 @@ include("mcp-server")
 include("intellij-plugin")
 
 // Premium modules (JetBrains Marketplace - proprietary)
-// These will be included when premium engine is implemented
-// include("premium-engine")
-// include("premium-intellij")
+// Included when premium module directories exist (loaded by Gradle automatically)
+// No include() needed - Gradle discovers modules with build.gradle.kts
