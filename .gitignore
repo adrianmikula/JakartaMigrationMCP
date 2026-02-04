@@ -64,5 +64,13 @@ npm-debug.log*
 release/
 *.tgz
 
+# IntelliJ Plugin Build Outputs
+intellij-plugin/build/
+!intellij-plugin/build/libs/
+intellij-plugin/build/distributions/
+intellij-plugin/build/idea-sandbox/
+intellij-plugin/build/searchableOptions/
+intellij-plugin/build/sandbox/
+
 stderr.txt
 stdout.txt

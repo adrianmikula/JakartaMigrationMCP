@@ -20,6 +20,49 @@ npx -y @jakarta-migration/mcp-server
 
 See [Local Setup (STDIO)](#local-setup-stdio) below for client configuration.
 
+## 🖥️ IntelliJ IDEA Plugin
+
+A native IntelliJ IDEA plugin is also available for users who prefer an IDE-integrated experience:
+
+### Features
+
+- **Migration Analysis** - Analyze Java projects for Jakarta EE migration readiness
+- **Dependency Graph Visualization** - Visualize module dependencies with multiple layout options (hierarchical, force-directed, circular, tree)
+- **MCP Server Integration** - Automatically connects to Jakarta Migration MCP server
+- **AI Assistant Tools** - AI Assistant integration for intelligent migration suggestions
+- **Tool Window** - Dedicated Jakarta Migration tool window for easy access
+
+### Installation
+
+1. **Download** the plugin from [JetBrains Marketplace](https://plugins.jetbrains.com/)
+2. **Install** via IntelliJ IDEA:
+   - Open **Settings** (`Ctrl+Alt+S` or `Cmd+,`)
+   - Go to **Plugins**
+   - Click **⚙️** → **Install Plugin from Disk...**
+   - Select the downloaded ZIP file
+3. **Restart** IntelliJ IDEA
+
+### Usage
+
+1. Open a Java project
+2. Go to **Tools** → **Jakarta Migration** or use **Ctrl+Shift+J**
+3. The Jakarta Migration tool window will open
+4. Click **Analyze Project** to start analysis
+5. View results in the dependency graph and analysis panel
+
+### AI Assistant Integration
+
+If you have IntelliJ AI Assistant installed:
+1. The plugin automatically registers MCP tools with AI Assistant
+2. Ask AI Assistant: "Analyze my project for Jakarta migration"
+3. AI Assistant will use the MCP tools to analyze your project
+
+### Requirements
+
+- IntelliJ IDEA 2023.3.4 or later
+- Java 17 or later
+- Optional: AI Assistant plugin for AI features
+
 ## 📋 What It Does
 
 The Jakarta Migration MCP Server enables your AI coding assistant to:

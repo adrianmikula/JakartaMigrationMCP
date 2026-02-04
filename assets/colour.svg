@@ -1,0 +1,57 @@
+<svg
+  width="256"
+  height="256"
+  viewBox="0 0 256 256"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <!-- Outer circle -->
+  <circle
+    cx="128"
+    cy="128"
+    r="120"
+    fill="none"
+    stroke="#1E88E5"
+    stroke-width="10"
+  />
+
+  <!-- Top text: JX -->
+  <text
+    x="128"
+    y="80"
+    text-anchor="middle"
+    font-size="64"
+    font-weight="700"
+    font-family="Inter, Segoe UI, Arial, sans-serif"
+    fill="#1E88E5"
+  >
+    JX
+  </text>
+
+  <!-- Arrow -->
+  <line
+    x1="128"
+    y1="100"
+    x2="128"
+    y2="150"
+    stroke="#F57C00"
+    stroke-width="10"
+    stroke-linecap="round"
+  />
+  <polygon
+    points="118,145 138,145 128,165"
+    fill="#F57C00"
+  />
+
+  <!-- Bottom text: JK -->
+  <text
+    x="128"
+    y="210"
+    text-anchor="middle"
+    font-size="64"
+    font-weight="700"
+    font-family="Inter, Segoe UI, Arial, sans-serif"
+    fill="#D32F2F"
+  >
+    JK
+  </text>
+</svg>
