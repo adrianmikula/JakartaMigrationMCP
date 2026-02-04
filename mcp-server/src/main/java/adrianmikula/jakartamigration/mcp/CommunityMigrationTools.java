@@ -23,6 +23,8 @@ import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphE
 import adrianmikula.jakartamigration.dependencyanalysis.service.MavenCentralLookupService;
 import adrianmikula.jakartamigration.sourcecodescanning.domain.ReflectionUsage;
 import adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner;
+import adrianmikula.jakartamigration.runtimeverification.domain.*;
+import adrianmikula.jakartamigration.runtimeverification.service.ErrorAnalyzer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springaicommunity.mcp.annotation.McpTool;
@@ -53,6 +55,7 @@ public class CommunityMigrationTools {
     private final DependencyGraphBuilder dependencyGraphBuilder;
     private final MavenCentralLookupService mavenCentralLookupService;
     private final SourceCodeScanner sourceCodeScanner;
+    private final ErrorAnalyzer errorAnalyzer;
 
     /**
      * Analyzes a Java project for Jakarta migration readiness.
@@ -483,6 +486,109 @@ public class CommunityMigrationTools {
             json.append("  \"premiumFeatures\": {\n");
             json.append("    \"recommended\": true,\n");
             json.append("    \"message\": \"Premium Auto-Fixes can automatically update XML namespace declarations and class references in persistence.xml, web.xml, and other configuration files.\"\n");
+            json.append("  }");
+        }
+        
+        json.append("\n}");
+        return json.toString();
+    }
+    
+    // === Runtime Failure Explanation Tool ===
+    
+    /**
+     * Analyzes a runtime failure stack trace and explains the root cause with remediation steps.
+     * This tool helps developers understand and fix Jakarta EE migration issues.
+     * 
+     * @param stackTrace The stack trace from the runtime error
+     * @param projectPath Optional path to the project root for context
+     * @return JSON string containing error analysis and remediation suggestions
+     */
+    @McpTool(name = "explainRuntimeFailure", description = "Analyzes a runtime failure stack trace and explains the root cause with remediation steps. Returns error category, contributing factors, and step-by-step fixes.")
+    public String explainRuntimeFailure(
+            @McpToolParam(description = "The stack trace from the runtime error", required = true) String stackTrace,
+            @McpToolParam(description = "Optional path to the project root for additional context", required = false) String projectPath) {
+        try {
+            log.info("Explaining runtime failure");
+            
+            // Parse the stack trace into errors
+            List<String> lines = List.of(stackTrace.split("\\r?\\n"));
+            List<RuntimeError> errors = errorAnalyzer.parseErrorsFromOutput(lines, List.of());
+            
+            if (errors.isEmpty()) {
+                return createErrorResponse("No errors found in the provided stack trace");
+            }
+            
+            // Create migration context
+            MigrationContext context = new MigrationContext(
+                projectPath != null ? Paths.get(projectPath) : Paths.get("."),
+                false, // isPostMigration - assume pre-migration by default
+                ""
+            );
+            
+            // Analyze errors
+            ErrorAnalysis analysis = errorAnalyzer.analyzeErrors(errors, context);
+            
+            // Build response
+            return buildRuntimeFailureResponse(errors, analysis);
+            
+        } catch (Exception e) {
+            log.error("Failed to explain runtime failure", e);
+            return createErrorResponse("Failed to analyze stack trace: " + e.getMessage());
+        }
+    }
+    
+    // === Runtime Failure Response Builder ===
+    
+    private String buildRuntimeFailureResponse(List<RuntimeError> errors, ErrorAnalysis analysis) {
+        StringBuilder json = new StringBuilder();
+        json.append("{\n");
+        json.append("  \"status\": \"success\",\n");
+        json.append("  \"edition\": \"community\",\n");
+        json.append("  \"errorCount\": ").append(errors.size()).append(",\n");
+        json.append("  \"category\": \"").append(analysis.category()).append("\",\n");
+        json.append("  \"rootCause\": \"").append(escapeJson(analysis.rootCause())).append("\",\n");
+        json.append("  \"confidence\": ").append(analysis.confidence()).append(",\n");
+        
+        // Contributing factors
+        json.append("  \"contributingFactors\": [");
+        for (int i = 0; i < analysis.contributingFactors().size(); i++) {
+            json.append("\"").append(escapeJson(analysis.contributingFactors().get(i))).append("\"");
+            if (i < analysis.contributingFactors().size() - 1) {
+                json.append(", ");
+            }
+        }
+        json.append("],\n");
+        
+        // Remediation steps
+        json.append("  \"remediationSteps\": [");
+        for (int i = 0; i < analysis.suggestedFixes().size(); i++) {
+            RemediationStep step = analysis.suggestedFixes().get(i);
+            json.append("    {\n");
+            json.append("      \"priority\": ").append(step.priority()).append(",\n");
+            json.append("      \"description\": \"").append(escapeJson(step.description())).append("\",\n");
+            json.append("      \"action\": \"").append(escapeJson(step.action())).append("\",\n");
+            json.append("      \"details\": [");
+            for (int j = 0; j < step.details().size(); j++) {
+                json.append("\"").append(escapeJson(step.details().get(j))).append("\"");
+                if (j < step.details().size() - 1) {
+                    json.append(", ");
+                }
+            }
+            json.append("]\n");
+            json.append("    }");
+            if (i < analysis.suggestedFixes().size() - 1) {
+                json.append(",");
+            }
+            json.append("\n");
+        }
+        json.append("  ],\n");
+        
+        // Premium feature recommendation for complex errors
+        if (errors.size() > 1 || analysis.confidence() < 0.8) {
+            json.append(",\n");
+            json.append("  \"premiumFeatures\": {\n");
+            json.append("    \"recommended\": true,\n");
+            json.append("    \"message\": \"Premium Auto-Fixes can automatically resolve many runtime failures and verify fixes.\"\n");
             json.append("  }");
         }
         
