@@ -4,6 +4,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Namespace;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.VersionRecommendation;
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.intellij.model.DependencySummary;
@@ -24,8 +25,10 @@ import java.awt.*;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -219,12 +222,36 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Convert Artifact objects to DependencyInfo
             List<DependencyInfo> deps = new ArrayList<>();
+            
+            // Build a map of recommendations by current artifact
+            Map<String, Artifact> recommendationMap = new HashMap<>();
+            if (report.recommendations() != null) {
+                for (VersionRecommendation rec : report.recommendations()) {
+                    if (rec.currentArtifact() != null) {
+                        recommendationMap.put(
+                            rec.currentArtifact().groupId() + ":" + rec.currentArtifact().artifactId(),
+                            rec.recommendedArtifact()
+                        );
+                    }
+                }
+            }
+            
+            // Build a set of org namespace patterns from the project
+            Set<String> orgPatterns = new HashSet<>();
+            
             for (Artifact artifact : nodes) {
                 DependencyInfo info = new DependencyInfo();
                 info.setArtifactId(artifact.artifactId());
                 info.setGroupId(artifact.groupId());
                 info.setCurrentVersion(artifact.version());
                 info.setTransitive(artifact.transitive());
+                
+                // Check if there's a recommendation for this artifact
+                String artifactKey = artifact.groupId() + ":" + artifact.artifactId();
+                Artifact recommended = recommendationMap.get(artifactKey);
+                if (recommended != null) {
+                    info.setRecommendedVersion(recommended.version());
+                }
                 
                 // Determine migration status based on namespace from the report's namespace map
                 Namespace namespace = report.namespaceMap() != null 
@@ -241,8 +268,23 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     info.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
                 }
                 
+                // Collect org namespace patterns from JAVAX dependencies
+                if (namespace == Namespace.JAVAX) {
+                    String groupId = artifact.groupId();
+                    // Extract org pattern from groupId (e.g., "javax.servlet" -> "javax.*")
+                    int lastDot = groupId.lastIndexOf('.');
+                    if (lastDot > 0) {
+                        orgPatterns.add(groupId.substring(0, lastDot) + ".*");
+                    } else {
+                        orgPatterns.add(groupId);
+                    }
+                }
+                
                 deps.add(info);
             }
+            
+            // Set org namespace patterns for the dependency graph component
+            dependencyGraphComponent.setOrgNamespacePatterns(orgPatterns);
 
             LOG.info("updateDashboardFromReport: converted " + deps.size() + " dependencies, updating UI");
 
