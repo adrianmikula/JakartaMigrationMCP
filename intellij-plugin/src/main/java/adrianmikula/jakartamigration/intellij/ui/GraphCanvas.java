@@ -1,6 +1,6 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
-import adrianmikula.jakartamigration.intellij.model.RiskLevel;
+import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 
 import javax.swing.*;
 import java.awt.*;
@@ -232,27 +232,27 @@ public class GraphCanvas extends JPanel {
         for (GraphNode node : nodes) {
             Color bgColor;
 
-            // Check if this is an org internal dependency
+            // Check if this is an org internal dependency - use purple for org
             if (node.isOrgInternal()) {
-                // Org internal dependencies get a distinct purple color
-                if (node.isAnalyzedForMigration()) {
-                    bgColor = new Color(111, 66, 193); // Purple - analyzed
-                } else {
-                    bgColor = new Color(156, 39, 176); // Bright purple - needs analysis
-                }
+                bgColor = new Color(156, 39, 176); // Bright purple for org internal
             } else {
-                switch (node.getRiskLevel()) {
-                    case CRITICAL:
-                        bgColor = new Color(220, 53, 69);
+                // Use migration status colors (same as dependencies table)
+                switch (node.getMigrationStatus()) {
+                    case COMPATIBLE:
+                        bgColor = new Color(40, 167, 69);  // Green
                         break;
-                    case HIGH:
-                        bgColor = new Color(255, 193, 7);
+                    case NEEDS_UPGRADE:
+                    case REQUIRES_MANUAL_MIGRATION:
+                        bgColor = new Color(255, 193, 7);  // Yellow
                         break;
-                    case MEDIUM:
-                        bgColor = new Color(23, 162, 184);
+                    case NO_JAKARTA_VERSION:
+                        bgColor = new Color(220, 53, 69);  // Red
+                        break;
+                    case MIGRATED:
+                        bgColor = new Color(23, 162, 184);  // Cyan
                         break;
                     default:
-                        bgColor = new Color(40, 167, 69);
+                        bgColor = new Color(108, 117, 125);  // Gray for unknown
                 }
             }
 

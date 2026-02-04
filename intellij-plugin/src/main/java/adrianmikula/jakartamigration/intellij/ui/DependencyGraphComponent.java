@@ -32,6 +32,7 @@ public class DependencyGraphComponent {
     private final JCheckBox transitiveDependenciesCheck;
     private DependencyGraph dependencyGraph;
     private Set<String> orgNamespacePatterns = new HashSet<>();
+    private Map<String, DependencyMigrationStatus> artifactStatusMap = new HashMap<>();
     private Set<String> directDependencyIds = new HashSet<>();
 
     public DependencyGraphComponent(Project project) {
@@ -165,6 +166,16 @@ public class DependencyGraphComponent {
      */
     public void updateGraphFromDependencyGraph(DependencyGraph graph) {
         this.dependencyGraph = graph != null ? graph : new DependencyGraph();
+        this.artifactStatusMap = new HashMap<String, DependencyMigrationStatus>();
+        updateGraphFromDependencyGraph();
+    }
+    
+    /**
+     * Update the graph with the real DependencyGraph and status map.
+     */
+    public void updateGraphFromDependencyGraph(DependencyGraph graph, Map<String, DependencyMigrationStatus> statusMap) {
+        this.dependencyGraph = graph != null ? graph : new DependencyGraph();
+        this.artifactStatusMap = statusMap != null ? statusMap : new HashMap<String, DependencyMigrationStatus>();
         updateGraphFromDependencyGraph();
     }
 
@@ -229,6 +240,15 @@ public class DependencyGraphComponent {
 
             // Create node with transitive flag for visual styling
             GraphNode node = new GraphNode(id, artifactId, type, riskLevel, isOrgInternal, isTransitive);
+            
+            // Set migration status from the status map
+            DependencyMigrationStatus status = artifactStatusMap.get(id);
+            if (status != null) {
+                node.setMigrationStatus(status);
+            } else {
+                node.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
+            }
+            
             nodes.add(node);
             artifactToNode.put(id, node);
         }

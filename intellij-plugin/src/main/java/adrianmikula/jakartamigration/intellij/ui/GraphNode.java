@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.intellij.model.RiskLevel;
 
 /**
@@ -14,6 +15,7 @@ public class GraphNode {
     private boolean isOrgInternal = false;
     private boolean isTransitive = false;
     private boolean analyzedForMigration = false;
+    private DependencyMigrationStatus migrationStatus = null;
     private double x;
     private double y;
     private double width = 120;
@@ -124,5 +126,13 @@ public class GraphNode {
 
     public void setAnalyzedForMigration(boolean analyzedForMigration) {
         this.analyzedForMigration = analyzedForMigration;
+    }
+
+    public DependencyMigrationStatus getMigrationStatus() {
+        return migrationStatus;
+    }
+
+    public void setMigrationStatus(DependencyMigrationStatus migrationStatus) {
+        this.migrationStatus = migrationStatus;
     }
 }

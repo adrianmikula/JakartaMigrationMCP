@@ -283,6 +283,15 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 deps.add(info);
             }
             
+            // Build status map for the dependency graph
+            Map<String, DependencyMigrationStatus> statusMap = new HashMap<>();
+            for (DependencyInfo info : deps) {
+                statusMap.put(info.getGroupId() + ":" + info.getArtifactId(), info.getMigrationStatus());
+            }
+            
+            // Update the dependency graph with real relationships and status
+            dependencyGraphComponent.updateGraphFromDependencyGraph(report.dependencyGraph(), statusMap);
+
             // Set org namespace patterns for the dependency graph component
             dependencyGraphComponent.setOrgNamespacePatterns(orgPatterns);
 
