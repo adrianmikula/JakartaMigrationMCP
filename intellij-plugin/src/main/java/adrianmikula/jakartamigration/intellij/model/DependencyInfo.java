@@ -21,29 +21,36 @@ public class DependencyInfo {
     @JsonProperty("migrationStatus")
     private DependencyMigrationStatus migrationStatus;
 
-    @JsonProperty("isBlocker")
-    private boolean isBlocker;
+    @JsonProperty("isTransitive")
+    private boolean isTransitive;
 
-    @JsonProperty("riskLevel")
-    private RiskLevel riskLevel;
+    public enum DependencyType {
+        DIRECT("Direct"),
+        TRANSITIVE("Transitive");
 
-    @JsonProperty("migrationImpact")
-    private String migrationImpact;
+        private final String displayName;
+
+        DependencyType(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+    }
 
     public DependencyInfo() {
     }
 
     public DependencyInfo(String groupId, String artifactId, String currentVersion,
                           String recommendedVersion, DependencyMigrationStatus migrationStatus,
-                          boolean isBlocker, RiskLevel riskLevel, String migrationImpact) {
+                          boolean isTransitive) {
         this.groupId = groupId;
         this.artifactId = artifactId;
         this.currentVersion = currentVersion;
         this.recommendedVersion = recommendedVersion;
         this.migrationStatus = migrationStatus;
-        this.isBlocker = isBlocker;
-        this.riskLevel = riskLevel;
-        this.migrationImpact = migrationImpact;
+        this.isTransitive = isTransitive;
     }
 
     public String getGroupId() {
@@ -86,31 +93,31 @@ public class DependencyInfo {
         this.migrationStatus = migrationStatus;
     }
 
+    /**
+     * Blocker flag is no longer used - migration status determines blocking behavior.
+     * Always returns false.
+     */
     public boolean isBlocker() {
-        return isBlocker;
+        return false;
     }
 
     public void setBlocker(boolean blocker) {
-        isBlocker = blocker;
+        // No-op: blockers are no longer used
     }
 
-    public RiskLevel getRiskLevel() {
-        return riskLevel;
+    public boolean isTransitive() {
+        return isTransitive;
     }
 
-    public void setRiskLevel(RiskLevel riskLevel) {
-        this.riskLevel = riskLevel;
-    }
-
-    public String getMigrationImpact() {
-        return migrationImpact;
-    }
-
-    public void setMigrationImpact(String migrationImpact) {
-        this.migrationImpact = migrationImpact;
+    public void setTransitive(boolean transitive) {
+        isTransitive = transitive;
     }
 
     public String getDisplayName() {
         return groupId + ":" + artifactId;
+    }
+
+    public DependencyType getDependencyType() {
+        return isTransitive ? DependencyType.TRANSITIVE : DependencyType.DIRECT;
     }
 }

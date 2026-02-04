@@ -405,7 +405,7 @@ public class DefaultMcpClientService implements McpClientService {
             String migrationStrategy = node.has("migrationStrategy") ? node.get("migrationStrategy").asText() : "";
             
             return new DependencyInfo(groupId, artifactId, currentVersion, recommendedVersion, 
-                status, isBlocker, riskLevel, migrationStrategy);
+                status, isBlocker);
             
         } catch (Exception e) {
             LOG.error("Failed to parse DependencyInfo: {}", e.getMessage());

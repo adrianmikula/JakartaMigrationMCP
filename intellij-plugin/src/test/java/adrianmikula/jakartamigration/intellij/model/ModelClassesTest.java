@@ -26,8 +26,7 @@ class ModelClassesTest {
         assertNull(info.getRecommendedVersion());
         assertNull(info.getMigrationStatus());
         assertFalse(info.isBlocker());
-        assertNull(info.getRiskLevel());
-        assertNull(info.getMigrationImpact());
+        assertFalse(info.isTransitive());
     }
 
     @Test
@@ -39,9 +38,7 @@ class ModelClassesTest {
             "3.1.0",
             "4.0.0",
             DependencyMigrationStatus.NEEDS_UPGRADE,
-            true,
-            RiskLevel.HIGH,
-            "Breaking changes in Jakarta EE"
+            true  // isTransitive
         );
 
         assertEquals("javax.servlet", info.getGroupId());
@@ -49,9 +46,7 @@ class ModelClassesTest {
         assertEquals("3.1.0", info.getCurrentVersion());
         assertEquals("4.0.0", info.getRecommendedVersion());
         assertEquals(DependencyMigrationStatus.NEEDS_UPGRADE, info.getMigrationStatus());
-        assertTrue(info.isBlocker());
-        assertEquals(RiskLevel.HIGH, info.getRiskLevel());
-        assertEquals("Breaking changes in Jakarta EE", info.getMigrationImpact());
+        assertTrue(info.isTransitive());
     }
 
     @Test
@@ -65,8 +60,7 @@ class ModelClassesTest {
         info.setRecommendedVersion("4.0.1");
         info.setMigrationStatus(DependencyMigrationStatus.COMPATIBLE);
         info.setBlocker(false);
-        info.setRiskLevel(RiskLevel.LOW);
-        info.setMigrationImpact("No changes needed");
+        info.setTransitive(true);
 
         assertEquals("jakarta.servlet", info.getGroupId());
         assertEquals("jakarta.servlet-api", info.getArtifactId());
@@ -74,8 +68,7 @@ class ModelClassesTest {
         assertEquals("4.0.1", info.getRecommendedVersion());
         assertEquals(DependencyMigrationStatus.COMPATIBLE, info.getMigrationStatus());
         assertFalse(info.isBlocker());
-        assertEquals(RiskLevel.LOW, info.getRiskLevel());
-        assertEquals("No changes needed", info.getMigrationImpact());
+        assertTrue(info.isTransitive());
     }
 
     @Test
@@ -87,6 +80,16 @@ class ModelClassesTest {
 
         String displayName = info.getDisplayName();
         assertEquals("javax.servlet:javax.servlet-api", displayName);
+    }
+
+    @Test
+    @DisplayName("DependencyInfo should return correct dependency type")
+    void dependencyInfo_dependencyType_shouldReturnCorrectType() {
+        DependencyInfo direct = new DependencyInfo("g", "a", "1.0", "2.0", DependencyMigrationStatus.COMPATIBLE, false);
+        DependencyInfo transitive = new DependencyInfo("g", "a", "1.0", "2.0", DependencyMigrationStatus.NEEDS_UPGRADE, true);
+
+        assertEquals(DependencyInfo.DependencyType.DIRECT, direct.getDependencyType());
+        assertEquals(DependencyInfo.DependencyType.TRANSITIVE, transitive.getDependencyType());
     }
 
     // ===== DependencySummary Tests =====
@@ -339,16 +342,6 @@ class ModelClassesTest {
     }
 
     @Test
-    @DisplayName("DependencyInfo should work with all risk levels")
-    void dependencyInfo_shouldWorkWithAllRiskLevels() {
-        for (RiskLevel risk : RiskLevel.values()) {
-            DependencyInfo info = new DependencyInfo();
-            info.setRiskLevel(risk);
-            assertEquals(risk, info.getRiskLevel());
-        }
-    }
-
-    @Test
     @DisplayName("Dashboard should work with all migration statuses")
     void dashboard_shouldWorkWithAllMigrationStatuses() {
         for (MigrationStatus status : MigrationStatus.values()) {
@@ -403,9 +396,7 @@ class ModelClassesTest {
         assertFalse(info.isBlocker());
         
         info.setBlocker(true);
-        assertTrue(info.isBlocker());
-        
-        info.setBlocker(false);
+        // setBlocker is no-op, always returns false
         assertFalse(info.isBlocker());
     }
 

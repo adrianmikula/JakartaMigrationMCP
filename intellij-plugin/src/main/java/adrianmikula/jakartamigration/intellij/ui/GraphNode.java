@@ -12,6 +12,7 @@ public class GraphNode {
     private final NodeType type;
     private final RiskLevel riskLevel;
     private boolean isOrgInternal = false;
+    private boolean isTransitive = false;
     private boolean analyzedForMigration = false;
     private double x;
     private double y;
@@ -32,13 +33,13 @@ public class GraphNode {
         this.riskLevel = riskLevel;
     }
 
-    public GraphNode(String id, String label, NodeType type, RiskLevel riskLevel, boolean isOrgInternal, boolean analyzedForMigration) {
+    public GraphNode(String id, String label, NodeType type, RiskLevel riskLevel, boolean isOrgInternal, boolean isTransitive) {
         this.id = id;
         this.label = label;
         this.type = type;
         this.riskLevel = riskLevel;
         this.isOrgInternal = isOrgInternal;
-        this.analyzedForMigration = analyzedForMigration;
+        this.isTransitive = isTransitive;
     }
 
     public String getId() {
@@ -107,6 +108,14 @@ public class GraphNode {
 
     public void setOrgInternal(boolean orgInternal) {
         isOrgInternal = orgInternal;
+    }
+
+    public boolean isTransitive() {
+        return isTransitive;
+    }
+
+    public void setTransitive(boolean transitive) {
+        isTransitive = transitive;
     }
 
     public boolean isAnalyzedForMigration() {

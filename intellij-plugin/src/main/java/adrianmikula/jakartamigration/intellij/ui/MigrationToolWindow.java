@@ -10,6 +10,7 @@ import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
 import adrianmikula.jakartamigration.intellij.model.MigrationStatus;
 import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.wm.ToolWindow;
@@ -42,6 +43,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
     }
 
     public static class MigrationToolWindowContent {
+        private static final Logger LOG = Logger.getInstance(MigrationToolWindowContent.class);
+        
         private final JPanel contentPanel;
         private final Project project;
         private final MigrationAnalysisService analysisService;
@@ -191,13 +194,19 @@ public class MigrationToolWindow implements ToolWindowFactory {
          * Update dashboard from migration analysis report
          */
         private void updateDashboardFromReport(DependencyAnalysisReport report) {
+            LOG.info("updateDashboardFromReport: processing report with " + 
+                (report == null ? "null" : "non-null") + " report");
+            
             if (report == null || report.dependencyGraph() == null) {
+                LOG.info("updateDashboardFromReport: null report or dependencyGraph, showing empty results");
                 showEmptyResultsState();
                 return;
             }
 
             DependencyGraph graph = report.dependencyGraph();
             Set<Artifact> nodes = graph.getNodes();
+            
+            LOG.info("updateDashboardFromReport: found " + (nodes == null ? "null" : nodes.size()) + " dependency nodes");
             
             if (nodes == null || nodes.isEmpty()) {
                 // No dependencies found - project is ready
@@ -212,6 +221,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 info.setArtifactId(artifact.artifactId());
                 info.setGroupId(artifact.groupId());
                 info.setCurrentVersion(artifact.version());
+                info.setTransitive(artifact.transitive());
                 
                 // Determine migration status based on namespace from the report's namespace map
                 Namespace namespace = report.namespaceMap() != null 
@@ -223,13 +233,15 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 } else if (namespace == Namespace.JAVAX) {
                     // Check if there's a Jakarta equivalent
                     info.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
-                    info.setBlocker(false);
+                    info.setTransitive(false);
                 } else {
                     info.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
                 }
                 
                 deps.add(info);
             }
+
+            LOG.info("updateDashboardFromReport: converted " + deps.size() + " dependencies, updating UI");
 
             // Calculate metrics
             long blockers = deps.stream().filter(DependencyInfo::isBlocker).count();

@@ -25,9 +25,8 @@ public class DependencyGraphComponent {
     private final Project project;
     private final GraphCanvas graphCanvas;
     private final JComboBox<String> layoutCombo;
-    private final JCheckBox showCriticalPathCheck;
-    private final JCheckBox showLabelsCheck;
-    private final JCheckBox showOrgDependenciesCheck;
+    private final JCheckBox showNonOrgDependenciesCheck;
+    private final JCheckBox transitiveOnlyCheck;
     private List<DependencyInfo> dependencies;
     private Set<String> orgNamespacePatterns = new HashSet<>();
 
@@ -39,9 +38,8 @@ public class DependencyGraphComponent {
         this.layoutCombo = new JComboBox<>(new String[]{
             "Hierarchical", "Force-Directed", "Circular", "Tree"
         });
-        this.showCriticalPathCheck = new JCheckBox("Highlight Critical Path", true);
-        this.showLabelsCheck = new JCheckBox("Show Labels", true);
-        this.showOrgDependenciesCheck = new JCheckBox("Show Org Dependencies", false);
+        this.showNonOrgDependenciesCheck = new JCheckBox("Show Non-Org Dependencies", true);
+        this.transitiveOnlyCheck = new JCheckBox("Transitive Only", false);
 
         initializeComponent();
     }
@@ -55,15 +53,11 @@ public class DependencyGraphComponent {
         layoutCombo.addActionListener(this::handleLayoutChange);
         headerPanel.add(layoutCombo);
 
-        showCriticalPathCheck.addActionListener(this::handleShowCriticalPath);
-        headerPanel.add(showCriticalPathCheck);
+        showNonOrgDependenciesCheck.addActionListener(this::handleShowNonOrgDependencies);
+        headerPanel.add(showNonOrgDependenciesCheck);
 
-        showLabelsCheck.setSelected(true);
-        showLabelsCheck.addActionListener(this::handleShowLabels);
-        headerPanel.add(showLabelsCheck);
-
-        showOrgDependenciesCheck.addActionListener(this::handleShowOrgDependencies);
-        headerPanel.add(showOrgDependenciesCheck);
+        transitiveOnlyCheck.addActionListener(this::handleTransitiveFilter);
+        headerPanel.add(transitiveOnlyCheck);
 
         // Graph visualization area
         JPanel graphPanel = new JBPanel<>(new BorderLayout());
@@ -108,15 +102,11 @@ public class DependencyGraphComponent {
         }
     }
 
-    private void handleShowCriticalPath(ActionEvent e) {
-        graphCanvas.setShowCriticalPath(showCriticalPathCheck.isSelected());
+    private void handleShowNonOrgDependencies(ActionEvent e) {
+        updateGraphFromDependencies();
     }
 
-    private void handleShowLabels(ActionEvent e) {
-        graphCanvas.setShowLabels(showLabelsCheck.isSelected());
-    }
-
-    private void handleShowOrgDependencies(ActionEvent e) {
+    private void handleTransitiveFilter(ActionEvent e) {
         updateGraphFromDependencies();
     }
 
@@ -146,7 +136,8 @@ public class DependencyGraphComponent {
     private void updateGraphFromDependencies() {
         List<GraphNode> nodes = new ArrayList<>();
         List<GraphEdge> edges = new ArrayList<>();
-        boolean showOrgDeps = showOrgDependenciesCheck.isSelected();
+        boolean showNonOrgDeps = showNonOrgDependenciesCheck.isSelected();
+        boolean showTransitiveOnly = transitiveOnlyCheck.isSelected();
 
         // Create root node
         GraphNode root = new GraphNode("root", project.getName(), GraphNode.NodeType.ROOT, RiskLevel.LOW);
@@ -157,17 +148,24 @@ public class DependencyGraphComponent {
             DependencyInfo dep = dependencies.get(i);
             String id = dep.getGroupId() + ":" + dep.getArtifactId();
             GraphNode.NodeType type = dep.isBlocker() ? GraphNode.NodeType.DEPENDENCY : GraphNode.NodeType.MODULE;
-            RiskLevel riskLevel = dep.getRiskLevel() != null ? dep.getRiskLevel() : RiskLevel.LOW;
+            RiskLevel riskLevel = RiskLevel.LOW;
+            boolean isTransitive = dep.isTransitive();
 
             // Check if this is an org internal dependency
             boolean isOrgInternal = isOrgDependency(dep.getGroupId());
 
-            // If showing org dependencies only and this is not org internal, skip
-            if (showOrgDeps && !isOrgInternal) {
+            // If org internal and not showing non-org, skip
+            if (isOrgInternal && !showNonOrgDeps) {
                 continue;
             }
 
-            GraphNode node = new GraphNode(id, dep.getArtifactId(), type, riskLevel, isOrgInternal, false);
+            // If transitive-only filter is on and this is not transitive, skip
+            if (showTransitiveOnly && !isTransitive) {
+                continue;
+            }
+
+            // Create node with transitive flag for visual styling
+            GraphNode node = new GraphNode(id, dep.getArtifactId(), type, riskLevel, isOrgInternal, isTransitive);
             nodes.add(node);
 
             // Create edge from root to this node
@@ -180,7 +178,7 @@ public class DependencyGraphComponent {
                     prevDep.getGroupId() + ":" + prevDep.getArtifactId(),
                     prevDep.getArtifactId(),
                     GraphNode.NodeType.MODULE,
-                    prevDep.getRiskLevel() != null ? prevDep.getRiskLevel() : RiskLevel.LOW
+                    RiskLevel.LOW
                 );
                 if (!nodes.contains(prevNode)) {
                     // Find existing node

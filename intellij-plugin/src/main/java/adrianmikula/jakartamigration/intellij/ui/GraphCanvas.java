@@ -256,10 +256,13 @@ public class GraphCanvas extends JPanel {
                 }
             }
 
-            // Draw node rectangle
+            // Set stroke - dashed for transitive dependencies
             if (node.equals(selectedNode)) {
                 g2d.setColor(Color.BLUE);
                 g2d.setStroke(new BasicStroke(3));
+            } else if (node.isTransitive()) {
+                g2d.setColor(bgColor);
+                g2d.setStroke(new BasicStroke(2f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{8, 4}, 0));
             } else {
                 g2d.setColor(bgColor);
                 g2d.setStroke(new BasicStroke(1));
@@ -286,6 +289,13 @@ public class GraphCanvas extends JPanel {
                 g2d.setColor(node.isAnalyzedForMigration() ?
                     new Color(255, 255, 0) : new Color(255, 100, 100));
                 g2d.fillOval(x + w - 12, y + 4, 8, 8);
+            }
+
+            // Draw transitive indicator (small "T" in corner)
+            if (node.isTransitive() && !node.isOrgInternal()) {
+                g2d.setColor(new Color(108, 117, 125));
+                g2d.setFont(g2d.getFont().deriveFont(Font.BOLD, 9f));
+                g2d.drawString("T", x + w - 12, y + h - 4);
             }
 
             // Draw label

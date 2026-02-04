@@ -92,7 +92,6 @@ public class DefaultMcpClientServiceTest {
             assertThat(blocker.getArtifactId()).isNotNull();
             assertThat(blocker.getCurrentVersion()).isNotNull();
             assertThat(blocker.getMigrationStatus()).isNotNull();
-            assertThat(blocker.getRiskLevel()).isNotNull();
             assertThat(blocker.isBlocker()).isTrue();
         }
     }

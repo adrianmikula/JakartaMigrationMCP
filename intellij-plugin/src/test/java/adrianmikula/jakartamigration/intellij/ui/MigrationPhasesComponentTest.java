@@ -6,13 +6,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 
 import javax.swing.*;
-import javax.swing.table.TableModel;
+import javax.swing.tree.DefaultMutableTreeNode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * UI tests for MigrationPhasesComponent based on TypeSpec: plugin-components.tsp
- * Updated to test migration strategy selection.
+ * UI tests for MigrationPhasesComponent based on new JTree accordion design.
  */
 public class MigrationPhasesComponentTest extends LightJavaCodeInsightFixtureTestCase {
 
@@ -25,107 +24,57 @@ public class MigrationPhasesComponentTest extends LightJavaCodeInsightFixtureTes
     }
 
     @Test
-    public void testPhasesTableHasTypeSpecColumns() {
+    public void testPhasesComponentHasPanel() {
         JPanel panel = phasesComponent.getPanel();
-        JTable table = findTable(panel);
-        
-        assertThat(table).isNotNull();
-        
-        // Verify TypeSpec-defined columns from MigrationPhase model
-        TableModel model = table.getModel();
-        assertThat(model.getColumnCount()).isEqualTo(7);
-        assertThat(model.getColumnName(0)).isEqualTo("Phase");
-        assertThat(model.getColumnName(1)).isEqualTo("Name");
-        assertThat(model.getColumnName(2)).isEqualTo("Status");
-        assertThat(model.getColumnName(3)).isEqualTo("Order");
-        assertThat(model.getColumnName(4)).isEqualTo("Duration (hrs)");
-        assertThat(model.getColumnName(5)).isEqualTo("Prerequisites");
-        assertThat(model.getColumnName(6)).isEqualTo("Tasks");
+        assertThat(panel).isNotNull();
     }
 
     @Test
-    public void testAddPhaseWithTypeSpecData() {
-        // Test adding phase with TypeSpec-compliant data
-        phasesComponent.addPhase(
-            "phase-1", "Dependency Analysis", "NOT_STARTED", 
-            1, 4, "None", 3
-        );
-        
-        JTable table = findTable(phasesComponent.getPanel());
-        TableModel model = table.getModel();
-        
-        assertThat(model.getRowCount()).isEqualTo(1);
-        assertThat(model.getValueAt(0, 0)).isEqualTo("phase-1");
-        assertThat(model.getValueAt(0, 1)).isEqualTo("Dependency Analysis");
-        assertThat(model.getValueAt(0, 2)).isEqualTo("NOT_STARTED");
-        assertThat(model.getValueAt(0, 3)).isEqualTo(1);
-        assertThat(model.getValueAt(0, 4)).isEqualTo("4");
-        assertThat(model.getValueAt(0, 6)).isEqualTo("3 tasks");
+    public void testPhasesComponentHasJTree() {
+        JPanel panel = phasesComponent.getPanel();
+        JTree tree = findComponentByType(panel, JTree.class);
+
+        assertThat(tree).isNotNull();
+        assertThat(tree.getModel()).isNotNull();
     }
 
     @Test
-    public void testPhaseActionsPresent() {
+    public void testPhasesComponentHasActionButtons() {
         JPanel panel = phasesComponent.getPanel();
-        
-        // Verify TypeSpec-defined PhaseAction buttons are present
+
         assertThat(findButtonByText(panel, "Start Phase")).isNotNull();
-        assertThat(findButtonByText(panel, "Pause Phase")).isNotNull();
-        assertThat(findButtonByText(panel, "Skip Phase")).isNotNull();
         assertThat(findButtonByText(panel, "View Details")).isNotNull();
     }
 
     @Test
-    public void testProgressBarPresent() {
+    public void testPhasesComponentHasExecutionStatus() {
         JPanel panel = phasesComponent.getPanel();
-        JProgressBar progressBar = findComponentByType(panel, JProgressBar.class);
-        
-        assertThat(progressBar).isNotNull();
-        assertThat(progressBar.isStringPainted()).isTrue();
-        assertThat(progressBar.getString()).isEqualTo("0% Complete");
+
+        // Should have execution status panel
+        JPanel statusPanel = findComponentByType(panel, JPanel.class);
+        assertThat(statusPanel).isNotNull();
     }
 
     @Test
     public void testStrategyComponentPresent() {
-        // Verify strategy selection component is present by checking for strategy cards
-        JPanel panel = phasesComponent.getPanel();
-        
-        // Look for the strategy selection cards (JPanels with strategy colors)
-        JPanel strategyPanel = findComponentByType(panel, JPanel.class);
-        assertThat(strategyPanel).isNotNull();
-        
-        // Verify strategy component can be accessed
-        assertThat(phasesComponent.getSelectedStrategy()).isNull(); // Initially null until selected
+        // Verify strategy selection component is present
+        assertThat(phasesComponent.getSelectedStrategy()).isEqualTo(MigrationStrategy.INCREMENTAL);
     }
 
     @Test
-    public void testInitialStrategyIsNull() {
-        assertThat(phasesComponent.getSelectedStrategy()).isNull();
+    public void testDefaultStrategyIsIncremental() {
+        assertThat(phasesComponent.getSelectedStrategy()).isEqualTo(MigrationStrategy.INCREMENTAL);
     }
 
     @Test
     public void testFourMigrationStrategies() {
         // Verify all four strategies are available
         assertThat(MigrationStrategy.values()).hasSize(4);
-        
+
         assertThat(MigrationStrategy.BIG_BANG.getDisplayName()).isEqualTo("Big Bang");
         assertThat(MigrationStrategy.INCREMENTAL.getDisplayName()).isEqualTo("Incremental");
         assertThat(MigrationStrategy.BUILD_TRANSFORMATION.getDisplayName()).isEqualTo("Build Transformation");
         assertThat(MigrationStrategy.RUNTIME_TRANSFORMATION.getDisplayName()).isEqualTo("Runtime Transformation");
-    }
-
-    @Test
-    public void testBigBangStrategyPhases() {
-        // Simulate selecting Big Bang strategy
-        phasesComponent.getClass(); // Just verify component exists
-        
-        // The strategy selection should trigger phase generation
-        assertThat(phasesComponent.getSelectedStrategy()).isNull();
-    }
-
-    @Test
-    public void testIncrementalStrategyPhases() {
-        // Incremental strategy should show multiple phases
-        assertThat(phasesComponent.getSelectedStrategy()).isNull();
     }
 
     @Test
@@ -140,13 +89,26 @@ public class MigrationPhasesComponentTest extends LightJavaCodeInsightFixtureTes
                 // Listener callback
             }
         });
-        
+
         // Verify no exception thrown
         assertThat(true).isTrue();
     }
 
-    private JTable findTable(JPanel panel) {
-        return findComponentByType(panel, JTable.class);
+    @Test
+    public void testTreeHasRootNode() {
+        JTree tree = findComponentByType(phasesComponent.getPanel(), JTree.class);
+        assertThat(tree.getModel().getRoot()).isNotNull();
+    }
+
+    @Test
+    public void testSetDependenciesUpdatesPhases() {
+        // Should not throw exception when setting dependencies
+        phasesComponent.setDependencies(new java.util.ArrayList<>());
+        assertThat(phasesComponent.getSelectedStrategy()).isEqualTo(MigrationStrategy.INCREMENTAL);
+    }
+
+    private JTree findTree(JPanel panel) {
+        return findComponentByType(panel, JTree.class);
     }
 
     private JButton findButtonByText(JPanel panel, String text) {

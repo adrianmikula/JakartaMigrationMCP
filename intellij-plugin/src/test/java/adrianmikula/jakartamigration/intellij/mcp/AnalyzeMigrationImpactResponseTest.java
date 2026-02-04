@@ -53,8 +53,7 @@ public class AnalyzeMigrationImpactResponseTest {
         List<DependencyInfo> deps = new ArrayList<>();
         deps.add(new DependencyInfo(
             "org.springframework", "spring-beans", "5.3.27", "6.0.9",
-            DependencyMigrationStatus.NEEDS_UPGRADE, false,
-            RiskLevel.HIGH, "Required for Spring 6.0"
+            DependencyMigrationStatus.NEEDS_UPGRADE, false
         ));
         details.setAffectedDependencies(deps);
         

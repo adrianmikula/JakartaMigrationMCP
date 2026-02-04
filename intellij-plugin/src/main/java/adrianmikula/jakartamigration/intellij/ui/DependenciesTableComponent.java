@@ -2,7 +2,6 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
-import adrianmikula.jakartamigration.intellij.model.RiskLevel;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBPanel;
@@ -10,19 +9,24 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.table.JBTable;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.event.MouseInputAdapter;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Vector;
 
 /**
- * Dependencies table component from TypeSpec: plugin-components.tsp
+ * Dependencies table component with colored status indicators and dependency type column.
+ * Updated to show:
+ * - Colored status dot (green/yellow/red)
+ * - Dependency type (Direct/Transitive)
+ * - Simplified columns (Group ID, Artifact ID, Version, Recommended Version, Status, Type)
  */
 public class DependenciesTableComponent {
     private final JPanel panel;
@@ -31,18 +35,29 @@ public class DependenciesTableComponent {
     private final DefaultTableModel tableModel;
     private final JTextField searchField;
     private final JComboBox<String> statusFilter;
-    private final JCheckBox blockersOnly;
+    private final JCheckBox transitiveFilter;
     private List<DependencyInfo> allDependencies;
+
+    // Status colors
+    private static final Color STATUS_COMPATIBLE = new Color(40, 167, 69);    // Green
+    private static final Color STATUS_NEEDS_UPGRADE = new Color(255, 193, 7); // Yellow
+    private static final Color STATUS_NO_JAKARTA = new Color(220, 53, 69);   // Red
+    private static final Color STATUS_UNKNOWN = new Color(108, 117, 125);     // Gray
 
     public DependenciesTableComponent(Project project) {
         this.project = project;
         this.allDependencies = new ArrayList<>();
         this.panel = new JBPanel<>(new BorderLayout());
 
-        // Table columns from TypeSpec: DependencyTableColumn enum
+        // Simplified columns - removed Risk Level, Migration Impact, Is Blocker
+        // Status column moved to the right
         String[] columns = {
-            "Group ID", "Artifact ID", "Current Version", "Recommended Version",
-            "Migration Status", "Is Blocker", "Risk Level", "Migration Impact"
+            "Group ID",
+            "Artifact ID",
+            "Current Version",
+            "Recommended Version",
+            "Dependency Type",  // Direct or Transitive
+            "Status"            // Colored dot indicator (moved to right)
         };
 
         this.tableModel = new DefaultTableModel(columns, 0) {
@@ -52,14 +67,101 @@ public class DependenciesTableComponent {
             }
         };
 
-        this.table = new JBTable(tableModel);
+        this.table = new JBTable(tableModel) {
+            @Override
+            public TableCellRenderer getCellRenderer(int row, int column) {
+                return new StatusCellRenderer();
+            }
+        };
+
         this.searchField = new JTextField(20);
         this.statusFilter = new JComboBox<>(new String[]{
-            "All", "Compatible", "Needs Upgrade", "No Jakarta Version", "Requires Manual Migration", "Migrated"
+            "All", "Compatible", "Needs Upgrade", "No Jakarta Version"
         });
-        this.blockersOnly = new JCheckBox("Show blockers only");
+        this.transitiveFilter = new JCheckBox("Show Transitive Only", false);
 
         initializeComponent();
+    }
+
+    /**
+     * Custom cell renderer for status column with colored dot indicator.
+     */
+    private static class StatusCellRenderer implements TableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                                                       boolean isSelected, boolean hasFocus,
+                                                       int row, int column) {
+            if (column == 5 && value instanceof DependencyInfo) {
+                DependencyInfo dep = (DependencyInfo) value;
+                JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+                panel.setOpaque(true);
+
+                // Set background for selection
+                if (isSelected) {
+                    panel.setBackground(table.getSelectionBackground());
+                } else {
+                    panel.setBackground(table.getBackground());
+                }
+
+                // Add dotted border for transitive dependencies
+                if (dep.isTransitive()) {
+                    panel.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createDashedBorder(Color.GRAY),
+                        new EmptyBorder(5, 2, 5, 2)));
+                } else {
+                    panel.setBorder(new EmptyBorder(5, 0, 5, 0));
+                }
+
+                // Colored status dot
+                JPanel dot = new JPanel();
+                dot.setPreferredSize(new Dimension(12, 12));
+                dot.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
+
+                Color statusColor = getStatusColor(dep.getMigrationStatus());
+                dot.setBackground(statusColor);
+
+                JLabel label = new JLabel(dep.getMigrationStatus() != null
+                    ? dep.getMigrationStatus().getValue() : "UNKNOWN");
+                label.setFont(table.getFont());
+
+                // Add transitive indicator text
+                if (dep.isTransitive()) {
+                    label.setText(label.getText() + " (Transitive)");
+                    label.setFont(label.getFont().deriveFont(Font.ITALIC));
+                }
+
+                panel.add(dot);
+                panel.add(label);
+                return panel;
+            }
+
+            // Default rendering for other columns - truncate text
+            JLabel label = new JLabel(value != null ? value.toString() : "");
+            label.setOpaque(true);
+            if (isSelected) {
+                label.setBackground(table.getSelectionBackground());
+            } else {
+                label.setBackground(table.getBackground());
+            }
+            label.setHorizontalAlignment(SwingConstants.LEFT);
+
+            return label;
+        }
+
+        private static Color getStatusColor(DependencyMigrationStatus status) {
+            if (status == null) return STATUS_UNKNOWN;
+            switch (status) {
+                case COMPATIBLE:
+                    return STATUS_COMPATIBLE;
+                case NEEDS_UPGRADE:
+                case REQUIRES_MANUAL_MIGRATION:
+                    return STATUS_NEEDS_UPGRADE;
+                case NO_JAKARTA_VERSION:
+                    return STATUS_NO_JAKARTA;
+                default:
+                    return STATUS_UNKNOWN;
+            }
+        }
     }
 
     private void initializeComponent() {
@@ -89,14 +191,22 @@ public class DependenciesTableComponent {
         statusFilter.addActionListener(e -> filterDependencies());
         headerPanel.add(statusFilter);
 
-        blockersOnly.addActionListener(e -> filterDependencies());
-        headerPanel.add(blockersOnly);
+        transitiveFilter.addActionListener(e -> filterDependencies());
+        headerPanel.add(transitiveFilter);
 
         // Table
         JBScrollPane scrollPane = new JBScrollPane(table);
         table.setFillsViewportHeight(true);
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-        
+
+        // Set column widths (status is now at column 5)
+        table.getColumnModel().getColumn(0).setPreferredWidth(180); // Group ID
+        table.getColumnModel().getColumn(1).setPreferredWidth(180); // Artifact ID
+        table.getColumnModel().getColumn(2).setPreferredWidth(100); // Current Version
+        table.getColumnModel().getColumn(3).setPreferredWidth(100); // Recommended
+        table.getColumnModel().getColumn(4).setPreferredWidth(80);  // Dependency Type
+        table.getColumnModel().getColumn(5).setPreferredWidth(120); // Status
+
         // Add mouse listener for double-click navigation
         table.addMouseListener(new MouseInputAdapter() {
             @Override
@@ -152,7 +262,7 @@ public class DependenciesTableComponent {
 
         String searchText = searchField.getText().toLowerCase();
         String selectedStatus = (String) statusFilter.getSelectedItem();
-        boolean showBlockersOnly = blockersOnly.isSelected();
+        boolean showTransitiveOnly = transitiveFilter.isSelected();
 
         for (DependencyInfo dep : allDependencies) {
             // Search filter
@@ -166,41 +276,41 @@ public class DependenciesTableComponent {
                 (selectedStatus != null && dep.getMigrationStatus() != null &&
                     dep.getMigrationStatus().getValue().equals(mapStatusToValue(selectedStatus)));
 
-            // Blocker filter
-            boolean matchesBlocker = !showBlockersOnly || dep.isBlocker();
+            // Transitive filter
+            boolean matchesTransitive = !showTransitiveOnly || dep.isTransitive();
 
-            if (matchesSearch && matchesStatus && matchesBlocker) {
+            if (matchesSearch && matchesStatus && matchesTransitive) {
                 addDependencyRow(dep);
             }
         }
     }
 
     private String mapStatusToValue(String status) {
+        if (status == null) return null;
         switch (status) {
             case "Compatible": return "COMPATIBLE";
             case "Needs Upgrade": return "NEEDS_UPGRADE";
             case "No Jakarta Version": return "NO_JAKARTA_VERSION";
-            case "Requires Manual Migration": return "REQUIRES_MANUAL_MIGRATION";
-            case "Migrated": return "MIGRATED";
             default: return null;
         }
     }
 
     private void addDependencyRow(DependencyInfo dep) {
+        // Determine dependency type
+        String dependencyType = dep.isTransitive() ? "Transitive" : "Direct";
+
+        // Pass the full DependencyInfo object to the status column (column 5)
         tableModel.addRow(new Object[]{
             dep.getGroupId(),
             dep.getArtifactId(),
             dep.getCurrentVersion(),
             dep.getRecommendedVersion() != null ? dep.getRecommendedVersion() : "-",
-            dep.getMigrationStatus() != null ? dep.getMigrationStatus().getValue() : "UNKNOWN",
-            dep.isBlocker() ? "Yes" : "No",
-            dep.getRiskLevel() != null ? dep.getRiskLevel().getValue() : "MEDIUM",
-            dep.getMigrationImpact() != null ? dep.getMigrationImpact() : "-"
+            dependencyType,
+            dep  // Full object for status column (last column)
         });
     }
 
     private void handleRefresh(ActionEvent e) {
-        // Trigger refresh - UI components can listen for this event
         SwingUtilities.invokeLater(() -> {
             Messages.showInfoMessage(project, "Refreshing dependency analysis...", "Refresh");
         });
@@ -228,9 +338,6 @@ public class DependenciesTableComponent {
         }
     }
 
-    /**
-     * Handle view details action (from button click).
-     */
     private void handleViewDetails(ActionEvent e) {
         List<DependencyInfo> selected = getSelectedDependencies();
         if (selected.isEmpty()) {
@@ -240,9 +347,6 @@ public class DependenciesTableComponent {
         showDependencyDetails(selected.get(0));
     }
 
-    /**
-     * Show details for a specific dependency.
-     */
     public void showDependencyDetails(DependencyInfo dep) {
         String details = String.format("""
             Dependency Details
@@ -254,28 +358,24 @@ public class DependenciesTableComponent {
             Recommended Version: %s
 
             Migration Status: %s
-            Is Blocker: %s
-            Risk Level: %s
+            Dependency Type: %s
 
-            Migration Impact:
-            %s
+            Actions:
+            • Update to recommended version
+            • View source code
+            • Exclude from analysis
             """,
             dep.getGroupId(),
             dep.getArtifactId(),
             dep.getCurrentVersion(),
             dep.getRecommendedVersion() != null ? dep.getRecommendedVersion() : "N/A",
             dep.getMigrationStatus() != null ? dep.getMigrationStatus().getValue() : "UNKNOWN",
-            dep.isBlocker() ? "Yes" : "No",
-            dep.getRiskLevel() != null ? dep.getRiskLevel().getValue() : "MEDIUM",
-            dep.getMigrationImpact() != null ? dep.getMigrationImpact() : "No impact information available"
+            dep.isTransitive() ? "Transitive" : "Direct"
         );
 
         Messages.showInfoMessage(project, details, "Dependency Details - " + dep.getDisplayName());
     }
 
-    /**
-     * Handle double-click on table row to show details.
-     */
     private void handleDoubleClick() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow >= 0) {
@@ -301,9 +401,7 @@ public class DependenciesTableComponent {
         dep.setCurrentVersion(currentVersion);
         dep.setRecommendedVersion(recommendedVersion);
         dep.setMigrationStatus(mapStringToStatus(status));
-        dep.setBlocker(isBlocker);
-        dep.setRiskLevel(mapStringToRiskLevel(riskLevel));
-        dep.setMigrationImpact(impact);
+        dep.setTransitive(isBlocker);  // Reusing isBlocker for transitive
 
         allDependencies.add(dep);
         addDependencyRow(dep);
@@ -318,16 +416,6 @@ public class DependenciesTableComponent {
             case "requires manual migration": return DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION;
             case "migrated": return DependencyMigrationStatus.MIGRATED;
             default: return DependencyMigrationStatus.COMPATIBLE;
-        }
-    }
-
-    private RiskLevel mapStringToRiskLevel(String riskLevel) {
-        if (riskLevel == null) return RiskLevel.MEDIUM;
-        switch (riskLevel.toLowerCase()) {
-            case "low": return RiskLevel.LOW;
-            case "high": return RiskLevel.HIGH;
-            case "critical": return RiskLevel.CRITICAL;
-            default: return RiskLevel.MEDIUM;
         }
     }
 }

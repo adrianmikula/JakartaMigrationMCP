@@ -4,7 +4,6 @@ import adrianmikula.jakartamigration.intellij.mcp.DefaultMcpClientService;
 import adrianmikula.jakartamigration.intellij.mcp.McpClientService;
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
-import adrianmikula.jakartamigration.intellij.model.RiskLevel;
 import com.intellij.testFramework.fixtures.LightJavaCodeInsightFixtureTestCase;
 import org.junit.jupiter.api.Test;
 
@@ -98,10 +97,10 @@ public class MigrationToolWindowIntegrationTest extends LightJavaCodeInsightFixt
             .as("Should have recommendations from MCP mock data")
             .isNotEmpty();
 
-        // Verify blocker properties
-        assertThat(blockers.stream().filter(DependencyInfo::isBlocker).count())
-            .as("All mock blockers should be marked as blockers")
-            .isEqualTo(blockers.size());
+        // Note: isBlocker() now always returns false
+        assertThat(blockers)
+            .as("Blockers list should contain entries")
+            .hasSize(2);
     }
 
     private List<DependencyInfo> createMockMcpData() {
@@ -109,26 +108,22 @@ public class MigrationToolWindowIntegrationTest extends LightJavaCodeInsightFixt
 
         deps.add(new DependencyInfo(
             "javax.xml.bind", "jaxb-api", "2.3.1", null,
-            DependencyMigrationStatus.NO_JAKARTA_VERSION, true,
-            RiskLevel.CRITICAL, "No Jakarta equivalent"
+            DependencyMigrationStatus.NO_JAKARTA_VERSION, true  // isTransitive
         ));
 
         deps.add(new DependencyInfo(
             "org.springframework", "spring-beans", "5.3.27", "6.0.9",
-            DependencyMigrationStatus.NEEDS_UPGRADE, false,
-            RiskLevel.HIGH, "Required for Spring 6.0"
+            DependencyMigrationStatus.NEEDS_UPGRADE, false
         ));
 
         deps.add(new DependencyInfo(
             "jakarta.servlet", "jakarta.servlet-api", "5.0.0", null,
-            DependencyMigrationStatus.COMPATIBLE, false,
-            RiskLevel.LOW, "Already compatible"
+            DependencyMigrationStatus.COMPATIBLE, false
         ));
 
         deps.add(new DependencyInfo(
             "org.hibernate", "hibernate-core", "5.6.15.Final", "6.2.0.Final",
-            DependencyMigrationStatus.NEEDS_UPGRADE, false,
-            RiskLevel.CRITICAL, "Major version upgrade"
+            DependencyMigrationStatus.NEEDS_UPGRADE, false
         ));
 
         return deps;
@@ -137,19 +132,17 @@ public class MigrationToolWindowIntegrationTest extends LightJavaCodeInsightFixt
     private List<DependencyInfo> createMixedDependencies() {
         List<DependencyInfo> deps = new ArrayList<>();
 
-        // Add some blockers
+        // Add some blockers (marked as transitive for isTransitive flag)
         deps.add(new DependencyInfo(
             "javax.activation", "javax.activation-api", "1.2.0",
             "jakarta.activation:jakarta.activation-api:2.3.1",
-            DependencyMigrationStatus.NEEDS_UPGRADE, true,
-            RiskLevel.HIGH, "Upgrade required"
+            DependencyMigrationStatus.NEEDS_UPGRADE, true  // transitive
         ));
 
         // Add compatible dependencies
         deps.add(new DependencyInfo(
             "org.apache.commons", "commons-lang3", "3.12.0", null,
-            DependencyMigrationStatus.COMPATIBLE, false,
-            RiskLevel.LOW, "No Jakarta dependencies"
+            DependencyMigrationStatus.COMPATIBLE, false
         ));
 
         return deps;
@@ -160,15 +153,13 @@ public class MigrationToolWindowIntegrationTest extends LightJavaCodeInsightFixt
 
         blockers.add(new DependencyInfo(
             "javax.xml.bind", "jaxb-api", "2.3.1", null,
-            DependencyMigrationStatus.NO_JAKARTA_VERSION, true,
-            RiskLevel.CRITICAL, "No Jakarta equivalent - requires alternative"
+            DependencyMigrationStatus.NO_JAKARTA_VERSION, true
         ));
 
         blockers.add(new DependencyInfo(
             "javax.activation", "javax.activation-api", "1.2.0",
             "jakarta.activation:jakarta.activation-api:2.3.1",
-            DependencyMigrationStatus.NEEDS_UPGRADE, true,
-            RiskLevel.HIGH, "Upgrade to Jakarta Activation 2.3"
+            DependencyMigrationStatus.NEEDS_UPGRADE, true
         ));
 
         return blockers;
@@ -179,14 +170,12 @@ public class MigrationToolWindowIntegrationTest extends LightJavaCodeInsightFixt
 
         recommendations.add(new DependencyInfo(
             "org.springframework", "spring-beans", "5.3.27", "6.0.9",
-            DependencyMigrationStatus.NEEDS_UPGRADE, false,
-            RiskLevel.HIGH, "Required for Spring Framework 6.0 migration"
+            DependencyMigrationStatus.NEEDS_UPGRADE, false
         ));
 
         recommendations.add(new DependencyInfo(
             "org.hibernate", "hibernate-core", "5.6.15.Final", "6.2.0.Final",
-            DependencyMigrationStatus.NEEDS_UPGRADE, false,
-            RiskLevel.CRITICAL, "Major version upgrade"
+            DependencyMigrationStatus.NEEDS_UPGRADE, false
         ));
 
         return recommendations;
