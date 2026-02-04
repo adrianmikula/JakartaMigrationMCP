@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.sourcecodescanning.service.impl;
 
 import adrianmikula.jakartamigration.sourcecodescanning.domain.FileUsage;
 import adrianmikula.jakartamigration.sourcecodescanning.domain.ImportStatement;
+import adrianmikula.jakartamigration.sourcecodescanning.domain.ReflectionUsage;
 import adrianmikula.jakartamigration.sourcecodescanning.domain.SourceCodeAnalysisResult;
 import adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner;
 import lombok.extern.slf4j.Slf4j;
@@ -14,8 +15,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -377,6 +382,237 @@ public class SourceCodeScannerImpl implements SourceCodeScanner {
         }
         
         return references;
+    }
+    
+    // ========== Reflection Detection Methods ==========
+    
+    private static final Pattern CLASS_FOR_NAME_PATTERN = Pattern.compile(
+        "Class\\.forName\\s*\\(\\s*\\"([^\"]*javax\\.[^\"]*)\""
+    );
+    
+    private static final Pattern CLASS_LOADER_PATTERN = Pattern.compile(
+        "(?:loadClass|loadClass\\s*\\()\\s*\\"([^\"]*javax\\.[^\"]*)\""
+    );
+    
+    private static final Pattern JNDI_PATTERN = Pattern.compile(
+        "(?:lookup|listBindings)\\s*\\(\\s*\\"([^\"]*javax\\.[^\"]*)\""
+    );
+    
+    private static final Pattern SPRING_BEAN_PATTERN = Pattern.compile(
+        "@Bean\\s*(?:\\{[^}]*)?\\s*(?:name\\s*=\\s*)?\\"([^\"]*javax\\.[^\"]*)\""
+    );
+    
+    private static final Pattern REFLECTION_UTILS_PATTERN = Pattern.compile(
+        "(?:ReflectionUtils\\.|ClassUtils\\.).*\\(\\s*\\"([^\"]*javax\\.[^\"]*)\""
+    );
+    
+    private static final Pattern ANNOTATION_VALUE_PATTERN = Pattern.compile(
+        "@[A-Za-z0-9_]+\\([^)]*)\"([^\"]*javax\\.[^\"]*)\""
+    );
+    
+    /**
+     * Detects reflection-based javax references in the content.
+     */
+    public List<ReflectionUsage> detectReflectionUsages(String content, String[] lines) {
+        List<ReflectionUsage> usages = new ArrayList<>();
+        
+        // Detect Class.forName() usages
+        Matcher classForNameMatcher = CLASS_FOR_NAME_PATTERN.matcher(content);
+        while (classForNameMatcher.find()) {
+            String className = classForNameMatcher.group(1);
+            int lineNumber = findLineNumberInContent(lines, classForNameMatcher.group(0));
+            
+            usages.add(new ReflectionUsage(
+                className,
+                className.replace("javax.", "jakarta."),
+                ReflectionUsage.ReflectionType.CLASS_FOR_NAME,
+                "Class.forName(\"" + className + "\")",
+                lineNumber
+            ));
+        }
+        
+        // Detect class loader usages
+        Matcher classLoaderMatcher = CLASS_LOADER_PATTERN.matcher(content);
+        while (classLoaderMatcher.find()) {
+            String className = classLoaderMatcher.group(1);
+            int lineNumber = findLineNumberInContent(lines, classLoaderMatcher.group(0));
+            
+            usages.add(new ReflectionUsage(
+                className,
+                className.replace("javax.", "jakarta."),
+                ReflectionUsage.ReflectionType.CLASS_LOADER,
+                "loadClass(\"" + className + "\")",
+                lineNumber
+            ));
+        }
+        
+        // Detect JNDI lookups
+        Matcher jndiMatcher = JNDI_PATTERN.matcher(content);
+        while (jndiMatcher.find()) {
+            String lookupName = jndiMatcher.group(1);
+            int lineNumber = findLineNumberInContent(lines, jndiMatcher.group(0));
+            
+            usages.add(new ReflectionUsage(
+                lookupName,
+                lookupName.replace("javax.", "jakarta."),
+                ReflectionUsage.ReflectionType.JNDI_LOOKUP,
+                "lookup(\"" + lookupName + "\")",
+                lineNumber
+            ));
+        }
+        
+        // Detect Spring @Bean annotations
+        Matcher springBeanMatcher = SPRING_BEAN_PATTERN.matcher(content);
+        while (springBeanMatcher.find()) {
+            String beanName = springBeanMatcher.group(1);
+            int lineNumber = findLineNumberInContent(lines, springBeanMatcher.group(0));
+            
+            usages.add(new ReflectionUsage(
+                beanName,
+                beanName.replace("javax.", "jakarta."),
+                ReflectionUsage.ReflectionType.SPRING_BEAN_NAME,
+                "@Bean(name = \"" + beanName + "\")",
+                lineNumber
+            ));
+        }
+        
+        // Detect annotation values with javax classes
+        Matcher annotationValueMatcher = ANNOTATION_VALUE_PATTERN.matcher(content);
+        while (annotationValueMatcher.find()) {
+            String className = annotationValueMatcher.group(2);
+            int lineNumber = findLineNumberInContent(lines, annotationValueMatcher.group(0));
+            
+            usages.add(new ReflectionUsage(
+                className,
+                className.replace("javax.", "jakarta."),
+                ReflectionUsage.ReflectionType.ANNOTATION_VALUE,
+                annotationValueMatcher.group(1).trim() + "\"" + className + "\"",
+                lineNumber
+            ));
+        }
+        
+        return usages;
+    }
+    
+    /**
+     * Scans a file and returns both import statements and reflection usages.
+     */
+    public FileUsage scanFileWithReflection(Path filePath) {
+        if (filePath == null) {
+            throw new IllegalArgumentException("filePath cannot be null");
+        }
+        if (!Files.exists(filePath)) {
+            log.warn("File does not exist: {}", filePath);
+            return new FileUsage(filePath, List.of(), 0);
+        }
+        
+        try {
+            String content = Files.readString(filePath);
+            int lineCount = countLines(content);
+            String[] lines = content.split("\n");
+            
+            // Use ThreadLocal parser
+            JavaParser parser = javaParserThreadLocal.get();
+            parser.reset();
+            
+            // Parse with OpenRewrite
+            List<SourceFile> sourceFiles = parser.parse(content).collect(java.util.stream.Collectors.toList());
+            
+            if (sourceFiles.isEmpty()) {
+                return new FileUsage(filePath, List.of(), lineCount);
+            }
+            
+            // Extract javax imports
+            List<ImportStatement> imports = new ArrayList<>();
+            for (SourceFile sourceFile : sourceFiles) {
+                if (sourceFile instanceof CompilationUnit) {
+                    CompilationUnit cu = (CompilationUnit) sourceFile;
+                    imports.addAll(extractJavaxImports(cu, content));
+                }
+            }
+            
+            // Detect reflection usages
+            List<ReflectionUsage> reflectionUsages = detectReflectionUsages(content, lines);
+            
+            return new FileUsage(filePath, imports, lineCount, reflectionUsages);
+            
+        } catch (Exception e) {
+            log.warn("Error scanning file: {}", filePath, e);
+            return new FileUsage(filePath, List.of(), 0);
+        }
+    }
+    
+    /**
+     * Returns summary of reflection usages found in the project.
+     */
+    public ReflectionSummary scanForReflectionUsages(Path projectPath) {
+        if (projectPath == null || !Files.exists(projectPath) || !Files.isDirectory(projectPath)) {
+            return new ReflectionSummary(0, 0, List.of(), List.of());
+        }
+        
+        try {
+            List<Path> javaFiles = discoverJavaFiles(projectPath);
+            
+            int totalFiles = javaFiles.size();
+            AtomicInteger filesWithReflection = new AtomicInteger(0);
+            List<ReflectionUsage> allUsages = new ArrayList<>();
+            Set<String> criticalTypes = new HashSet<>();
+            
+            javaFiles.parallelStream().forEach(file -> {
+                try {
+                    String content = Files.readString(file);
+                    String[] lines = content.split("\n");
+                    List<ReflectionUsage> usages = detectReflectionUsages(content, lines);
+                    
+                    if (!usages.isEmpty()) {
+                        filesWithReflection.incrementAndGet();
+                        synchronized(allUsages) {
+                            allUsages.addAll(usages);
+                        }
+                        
+                        // Track critical reflection types
+                        for (ReflectionUsage usage : usages) {
+                            if (usage.isCritical()) {
+                                synchronized(criticalTypes) {
+                                    criticalTypes.add(usage.type().name());
+                                }
+                            }
+                        }
+                    }
+                } catch (IOException e) {
+                    log.debug("Error reading file for reflection scan: {}", file);
+                }
+            });
+            
+            return new ReflectionSummary(
+                totalFiles,
+                filesWithReflection.get(),
+                allUsages,
+                List.copyOf(criticalTypes)
+            );
+            
+        } catch (Exception e) {
+            log.error("Error scanning for reflection usages: {}", projectPath, e);
+            return new ReflectionSummary(0, 0, List.of(), List.of());
+        }
+    }
+    
+    /**
+     * Summary of reflection usages found in a project.
+     */
+    public record ReflectionSummary(
+        int totalFiles,
+        int filesWithReflection,
+        List<ReflectionUsage> usages,
+        List<String> criticalTypes
+    ) {
+        public int getTotalReflectionCount() {
+            return usages.size();
+        }
+        
+        public boolean hasCriticalUsages() {
+            return !criticalTypes.isEmpty();
+        }
     }
     
 }

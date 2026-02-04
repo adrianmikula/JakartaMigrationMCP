@@ -20,6 +20,9 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphException;
+import adrianmikula.jakartamigration.dependencyanalysis.service.MavenCentralLookupService;
+import adrianmikula.jakartamigration.sourcecodescanning.domain.ReflectionUsage;
+import adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springaicommunity.mcp.annotation.McpTool;
@@ -48,6 +51,8 @@ public class CommunityMigrationTools {
 
     private final DependencyAnalysisModule dependencyAnalysisModule;
     private final DependencyGraphBuilder dependencyGraphBuilder;
+    private final MavenCentralLookupService mavenCentralLookupService;
+    private final SourceCodeScanner sourceCodeScanner;
 
     /**
      * Analyzes a Java project for Jakarta migration readiness.
@@ -157,6 +162,99 @@ public class CommunityMigrationTools {
         } catch (Exception e) {
             log.error("Unexpected error during version recommendation", e);
             return createErrorResponse("Unexpected error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Looks up Jakarta equivalents for a specific javax artifact from Maven Central.
+     * 
+     * @param groupId The javax group ID (e.g., "javax.servlet")
+     * @param artifactId The javax artifact ID (e.g., "javax.servlet-api")
+     * @param currentVersion Optional current version (e.g., "4.0.1")
+     * @return JSON string containing artifact lookup results
+     */
+    @McpTool(name = "lookupArtifact", description = "Looks up Jakarta equivalents for a javax artifact from Maven Central. Returns artifact info, latest versions, and migration recommendations.")
+    public String lookupArtifact(
+            @McpToolParam(description = "The javax group ID (e.g., 'javax.servlet')", required = true) String groupId,
+            @McpToolParam(description = "The javax artifact ID (e.g., 'javax.servlet-api')", required = true) String artifactId,
+            @McpToolParam(description = "Optional current version to compare against", required = false) String currentVersion) {
+        try {
+            log.info("Looking up artifact: {}:{} version {}", groupId, artifactId, currentVersion);
+            
+            // Get Jakarta equivalents
+            var equivalents = mavenCentralLookupService.findJakartaEquivalents(groupId, artifactId);
+            
+            // Get version recommendation
+            String version = currentVersion != null ? currentVersion : "latest";
+            var recommendation = mavenCentralLookupService.recommendVersion(groupId, artifactId, version);
+            
+            // Build response
+            return buildArtifactLookupResponse(groupId, artifactId, equivalents, recommendation);
+            
+        } catch (Exception e) {
+            log.error("Failed to lookup artifact: {}:{}", groupId, artifactId, e);
+            return createErrorResponse("Failed to lookup artifact: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Detects reflection-based javax usage in source code.
+     * Finds patterns like Class.forName("javax.servlet.Filter") that regex misses.
+     * 
+     * @param projectPath Path to the project root directory
+     * @return JSON string containing reflection usages found
+     */
+    @McpTool(name = "detectReflectionUsage", description = "Detects reflection-based javax usage in source code. Finds patterns like Class.forName() that standard import scanning misses. Returns JSON with critical usages that may break migration.")
+    public String detectReflectionUsage(
+            @McpToolParam(description = "Path to the project root directory", required = true) String projectPath) {
+        try {
+            log.info("Detecting reflection usage in project: {}", projectPath);
+            
+            Path project = Paths.get(projectPath);
+            if (!Files.exists(project) || !Files.isDirectory(project)) {
+                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+            }
+            
+            // Use the scanner's reflection detection
+            SourceCodeScannerImpl scanner = new SourceCodeScannerImpl();
+            var summary = scanner.scanForReflectionUsages(project);
+            
+            // Build response
+            return buildReflectionDetectionResponse(summary);
+            
+        } catch (Exception e) {
+            log.error("Failed to detect reflection usage: {}", e.getMessage(), e);
+            return createErrorResponse("Failed to detect reflection usage: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Scans for XML namespace issues in configuration files.
+     * Checks persistence.xml, web.xml, faces-config.xml for javax namespaces.
+     * 
+     * @param projectPath Path to the project root directory
+     * @return JSON string containing XML namespace issues found
+     */
+    @McpTool(name = "scanXmlNamespaces", description = "Scans XML configuration files for javax namespaces that need updating. Checks persistence.xml, web.xml, faces-config.xml for namespace declarations and class references.")
+    public String scanXmlNamespaces(
+            @McpToolParam(description = "Path to the project root directory", required = true) String projectPath) {
+        try {
+            log.info("Scanning XML namespaces in project: {}", projectPath);
+            
+            Path project = Paths.get(projectPath);
+            if (!Files.exists(project) || !Files.isDirectory(project)) {
+                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+            }
+            
+            // Scan XML files
+            var xmlUsages = sourceCodeScanner.scanXmlFiles(project);
+            
+            // Build response
+            return buildXmlNamespaceResponse(xmlUsages);
+            
+        } catch (Exception e) {
+            log.error("Failed to scan XML namespaces: {}", e.getMessage(), e);
+            return createErrorResponse("Failed to scan XML namespaces: " + e.getMessage());
         }
     }
 
@@ -289,5 +387,106 @@ public class CommunityMigrationTools {
                 .replace("\n", "\\n")
                 .replace("\r", "\\r")
                 .replace("\t", "\\t");
+    }
+    
+    // === Artifact Lookup Response Builders ===
+    
+    private String buildArtifactLookupResponse(String groupId, String artifactId, 
+            List<MavenCentralLookupService.ArtifactInfo> equivalents,
+            MavenCentralLookupService.VersionRecommendation recommendation) {
+        StringBuilder json = new StringBuilder();
+        json.append("{\n");
+        json.append("  \"status\": \"success\",\n");
+        json.append("  \"edition\": \"community\",\n");
+        json.append("  \"query\": {\n");
+        json.append("    \"groupId\": \"").append(escapeJson(groupId)).append("\",\n");
+        json.append("    \"artifactId\": \"").append(escapeJson(artifactId)).append("\"\n");
+        json.append("  },\n");
+        
+        json.append("  \"equivalents\": [\n");
+        for (int i = 0; i < equivalents.size(); i++) {
+            var eq = equivalents.get(i);
+            json.append("    {\n");
+            json.append("      \"groupId\": \"").append(escapeJson(eq.groupId())).append("\",\n");
+            json.append("      \"artifactId\": \"").append(escapeJson(eq.artifactId())).append("\",\n");
+            json.append("      \"version\": \"").append(escapeJson(eq.version())).append("\",\n");
+            json.append("      \"knownEquivalent\": ").append(eq.knownEquivalent()).append("\n");
+            json.append("    }");
+            if (i < equivalents.size() - 1) json.append(",");
+            json.append("\n");
+        }
+        json.append("  ],\n");
+        
+        json.append("  \"recommendation\": {\n");
+        json.append("    \"type\": \"").append(recommendation.type()).append("\",\n");
+        if (recommendation jakartaGroupId() != null) {
+            json.append("    \"jakartaGroupId\": \"").append(escapeJson(recommendation jakartaGroupId())).append("\",\n");
+            json.append("    \"jakartaArtifactId\": \"").append(escapeJson(recommendation jakartaArtifactId())).append("\",\n");
+            json.append("    \"recommendedVersion\": \"").append(escapeJson(recommendation recommendedVersion())).append("\",\n");
+        }
+        json.append("    \"explanation\": \"").append(escapeJson(recommendation explanation())).append("\"\n");
+        json.append("  }\n");
+        json.append("}");
+        
+        return json.toString();
+    }
+    
+    // === Reflection Detection Response Builders ===
+    
+    private String buildReflectionDetectionResponse(SourceCodeScannerImpl.ReflectionSummary summary) {
+        StringBuilder json = new StringBuilder();
+        json.append("{\n");
+        json.append("  \"status\": \"success\",\n");
+        json.append("  \"edition\": \"community\",\n");
+        json.append("  \"totalFilesScanned\": ").append(summary.totalFiles()).append(",\n");
+        json.append("  \"filesWithReflection\": ").append(summary.filesWithReflection()).append(",\n");
+        json.append("  \"totalReflectionUsages\": ").append(summary.getTotalReflectionCount()).append(",\n");
+        json.append("  \"hasCriticalUsages\": ").append(summary.hasCriticalUsages()).append(",\n");
+        json.append("  \"criticalTypes\": ").append(buildStringArray(summary.criticalTypes())).append(",\n");
+        
+        // Premium upgrade recommendation for critical usages
+        if (summary.hasCriticalUsages()) {
+            json.append(",\n");
+            json.append("  \"premiumFeatures\": {\n");
+            json.append("    \"recommended\": true,\n");
+            json.append("    \"message\": \"Premium Auto-Fixes can automatically update reflection-based references like Class.forName() to use Jakarta equivalents.\"\n");
+            json.append("  }");
+        }
+        
+        json.append("\n}");
+        return json.toString();
+    }
+    
+    // === XML Namespace Response Builders ===
+    
+    private String buildXmlNamespaceResponse(
+            List<adrianmikula.jakartamigration.sourcecodescanning.domain.XmlFileUsage> xmlUsages) {
+        StringBuilder json = new StringBuilder();
+        json.append("{\n");
+        json.append("  \"status\": \"success\",\n");
+        json.append("  \"edition\": \"community\",\n");
+        json.append("  \"filesWithIssues\": ").append(xmlUsages.size()).append(",\n");
+        
+        int totalNamespaces = xmlUsages.stream()
+                .mapToInt(u -> u.namespaceUsages().size())
+                .sum();
+        int totalClassRefs = xmlUsages.stream()
+                .mapToInt(u -> u.classReferences().size())
+                .sum();
+        
+        json.append("  \"totalNamespaceIssues\": ").append(totalNamespaces).append(",\n");
+        json.append("  \"totalClassReferenceIssues\": ").append(totalClassRefs).append(",\n");
+        
+        // Premium upgrade recommendation
+        if (totalNamespaces > 0 || totalClassRefs > 0) {
+            json.append(",\n");
+            json.append("  \"premiumFeatures\": {\n");
+            json.append("    \"recommended\": true,\n");
+            json.append("    \"message\": \"Premium Auto-Fixes can automatically update XML namespace declarations and class references in persistence.xml, web.xml, and other configuration files.\"\n");
+            json.append("  }");
+        }
+        
+        json.append("\n}");
+        return json.toString();
     }
 }
