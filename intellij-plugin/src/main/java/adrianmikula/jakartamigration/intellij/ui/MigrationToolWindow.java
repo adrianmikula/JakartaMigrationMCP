@@ -188,6 +188,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             dashboardComponent.updateDashboard(dashboard);
             dependenciesComponent.setDependencies(new ArrayList<>());
+            
+            // Clear the dependency graph
+            dependencyGraphComponent.updateGraphFromDependencyGraph(new DependencyGraph());
         }
 
         /**
@@ -267,6 +270,11 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             dashboardComponent.updateDashboard(dashboard);
             dependenciesComponent.setDependencies(deps);
+            
+            // Also update the dependency graph with real relationships
+            if (report.dependencyGraph() != null) {
+                dependencyGraphComponent.updateGraphFromDependencyGraph(report.dependencyGraph());
+            }
         }
 
         private int calculateReadinessScore(List<DependencyInfo> deps) {

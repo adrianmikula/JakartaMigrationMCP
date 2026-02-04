@@ -1,5 +1,9 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Namespace;
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.intellij.model.RiskLevel;
@@ -11,14 +15,12 @@ import com.intellij.ui.components.JBScrollPane;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.*;
 import java.util.List;
-import java.util.Set;
 
 /**
- * Dependency graph component from TypeSpec: plugin-components.tsp
- * Displays module dependency graph with interactive visualization.
+ * Dependency graph component that displays module dependency graph with interactive visualization.
+ * Uses the real DependencyGraph from migration-core library.
  */
 public class DependencyGraphComponent {
     private final JPanel panel;
@@ -27,12 +29,12 @@ public class DependencyGraphComponent {
     private final JComboBox<String> layoutCombo;
     private final JCheckBox showNonOrgDependenciesCheck;
     private final JCheckBox transitiveOnlyCheck;
-    private List<DependencyInfo> dependencies;
+    private DependencyGraph dependencyGraph;
     private Set<String> orgNamespacePatterns = new HashSet<>();
 
     public DependencyGraphComponent(Project project) {
         this.project = project;
-        this.dependencies = new ArrayList<>();
+        this.dependencyGraph = new DependencyGraph();
         this.panel = new JBPanel<>(new BorderLayout());
         this.graphCanvas = new GraphCanvas();
         this.layoutCombo = new JComboBox<>(new String[]{
@@ -103,18 +105,18 @@ public class DependencyGraphComponent {
     }
 
     private void handleShowNonOrgDependencies(ActionEvent e) {
-        updateGraphFromDependencies();
+        updateGraphFromDependencyGraph();
     }
 
     private void handleTransitiveFilter(ActionEvent e) {
-        updateGraphFromDependencies();
+        updateGraphFromDependencyGraph();
     }
 
     private void handleLoadDependencies(ActionEvent e) {
-        if (dependencies.isEmpty()) {
+        if (dependencyGraph == null || dependencyGraph.nodeCount() == 0) {
             Messages.showInfoMessage(project, "No dependencies loaded. Run 'Analyze Readiness' first to load dependency data.", "Info");
         }
-        updateGraphFromDependencies();
+        updateGraphFromDependencyGraph();
     }
 
     /**
@@ -122,37 +124,89 @@ public class DependencyGraphComponent {
      */
     public void setOrgNamespacePatterns(Set<String> patterns) {
         this.orgNamespacePatterns = patterns != null ? patterns : new HashSet<>();
-        updateGraphFromDependencies();
+        updateGraphFromDependencyGraph();
     }
 
     /**
-     * Update the graph with dependency data.
+     * Update the graph with dependency data from a flat list (legacy method).
      */
     public void updateGraph(List<DependencyInfo> deps) {
-        this.dependencies = deps != null ? deps : new ArrayList<>();
-        updateGraphFromDependencies();
+        // Convert flat list to DependencyGraph
+        DependencyGraph graph = new DependencyGraph();
+        Set<Artifact> nodes = new HashSet<>();
+        Set<Dependency> edges = new HashSet<>();
+
+        for (DependencyInfo dep : deps) {
+            // Artifact record requires 5 params: groupId, artifactId, version, scope, transitive
+            Artifact artifact = new Artifact(dep.getGroupId(), dep.getArtifactId(), 
+                dep.getCurrentVersion(), "compile", dep.isTransitive());
+            nodes.add(artifact);
+        }
+
+        // Create root node
+        Artifact root = new Artifact("root", project.getName(), "1.0", "system", false);
+        nodes.add(root);
+
+        // Create edges from root to all dependencies
+        for (Artifact artifact : nodes) {
+            if (!artifact.equals(root)) {
+                edges.add(new Dependency(root, artifact, "compile", false));
+            }
+        }
+
+        this.dependencyGraph = new DependencyGraph(nodes, edges);
+        updateGraphFromDependencyGraph();
     }
 
-    private void updateGraphFromDependencies() {
+    /**
+     * Update the graph with the real DependencyGraph from migration-core.
+     */
+    public void updateGraphFromDependencyGraph(DependencyGraph graph) {
+        this.dependencyGraph = graph != null ? graph : new DependencyGraph();
+        updateGraphFromDependencyGraph();
+    }
+
+    private void updateGraphFromDependencyGraph() {
+        if (dependencyGraph == null) {
+            return;
+        }
+
         List<GraphNode> nodes = new ArrayList<>();
         List<GraphEdge> edges = new ArrayList<>();
         boolean showNonOrgDeps = showNonOrgDependenciesCheck.isSelected();
         boolean showTransitiveOnly = transitiveOnlyCheck.isSelected();
 
-        // Create root node
+        // Map from Artifact to GraphNode for quick lookup
+        Map<String, GraphNode> artifactToNode = new HashMap<>();
+        
+        // Also track nodes by toIdentifier() for edge lookup
+        Map<String, Artifact> identifierToArtifact = new HashMap<>();
+        for (Artifact artifact : dependencyGraph.getNodes()) {
+            identifierToArtifact.put(artifact.toIdentifier(), artifact);
+        }
+
+        // Create root node for the project
         GraphNode root = new GraphNode("root", project.getName(), GraphNode.NodeType.ROOT, RiskLevel.LOW);
         nodes.add(root);
+        artifactToNode.put("root:root", root);
 
-        // Create nodes for each dependency
-        for (int i = 0; i < dependencies.size(); i++) {
-            DependencyInfo dep = dependencies.get(i);
-            String id = dep.getGroupId() + ":" + dep.getArtifactId();
-            GraphNode.NodeType type = dep.isBlocker() ? GraphNode.NodeType.DEPENDENCY : GraphNode.NodeType.MODULE;
+        // Create nodes for each artifact in the graph
+        for (Artifact artifact : dependencyGraph.getNodes()) {
+            String artifactId = artifact.artifactId();
+            String groupId = artifact.groupId();
+            String id = groupId + ":" + artifactId;
+
+            // Skip the root node (already added)
+            if ("root".equals(groupId) && project.getName().equals(artifactId)) {
+                continue;
+            }
+
+            GraphNode.NodeType type = GraphNode.NodeType.DEPENDENCY;
             RiskLevel riskLevel = RiskLevel.LOW;
-            boolean isTransitive = dep.isTransitive();
+            boolean isTransitive = artifact.transitive();
 
             // Check if this is an org internal dependency
-            boolean isOrgInternal = isOrgDependency(dep.getGroupId());
+            boolean isOrgInternal = isOrgDependency(groupId);
 
             // If org internal and not showing non-org, skip
             if (isOrgInternal && !showNonOrgDeps) {
@@ -165,32 +219,55 @@ public class DependencyGraphComponent {
             }
 
             // Create node with transitive flag for visual styling
-            GraphNode node = new GraphNode(id, dep.getArtifactId(), type, riskLevel, isOrgInternal, isTransitive);
+            GraphNode node = new GraphNode(id, artifactId, type, riskLevel, isOrgInternal, isTransitive);
             nodes.add(node);
+            artifactToNode.put(id, node);
+        }
 
-            // Create edge from root to this node
-            edges.add(new GraphEdge(root, node, GraphEdge.EdgeType.DEPENDENCY, dep.isBlocker()));
+        // Create edges from the real DependencyGraph
+        for (Dependency dep : dependencyGraph.getEdges()) {
+            String fromId = dep.from().groupId() + ":" + dep.from().artifactId();
+            String toId = dep.to().groupId() + ":" + dep.to().artifactId();
 
-            // Create edges between dependencies (simplified - connect to previous)
-            if (i > 0) {
-                DependencyInfo prevDep = dependencies.get(i - 1);
-                GraphNode prevNode = new GraphNode(
-                    prevDep.getGroupId() + ":" + prevDep.getArtifactId(),
-                    prevDep.getArtifactId(),
-                    GraphNode.NodeType.MODULE,
-                    RiskLevel.LOW
-                );
-                if (!nodes.contains(prevNode)) {
-                    // Find existing node
-                    for (GraphNode existing : nodes) {
-                        if (existing.getId().equals(prevNode.getId())) {
-                            prevNode = existing;
-                            break;
-                        }
-                    }
-                }
-                edges.add(new GraphEdge(node, prevNode, GraphEdge.EdgeType.TRANSITIVE, false));
+            GraphNode fromNode = artifactToNode.get(fromId);
+            GraphNode toNode = artifactToNode.get(toId);
+
+            if (fromNode != null && toNode != null) {
+                GraphEdge.EdgeType edgeType = dep.optional() ? GraphEdge.EdgeType.TRANSITIVE : GraphEdge.EdgeType.DEPENDENCY;
+                edges.add(new GraphEdge(fromNode, toNode, edgeType, dep.optional()));
             }
+        }
+
+        // Add edges from root to all direct dependencies (those with no incoming edges)
+        Set<String> hasIncomingEdges = new HashSet<>();
+        for (Dependency dep : dependencyGraph.getEdges()) {
+            String toId = dep.to().groupId() + ":" + dep.to().artifactId();
+            hasIncomingEdges.add(toId);
+        }
+
+        for (Artifact artifact : dependencyGraph.getNodes()) {
+            String artifactId = artifact.artifactId();
+            String groupId = artifact.groupId();
+            String id = groupId + ":" + artifactId;
+
+            // Skip root
+            if ("root".equals(groupId) && project.getName().equals(artifactId)) {
+                continue;
+            }
+
+            // Skip if already has incoming edges (not a direct dependency)
+            if (hasIncomingEdges.contains(id)) {
+                continue;
+            }
+
+            // Skip if filtered out
+            GraphNode node = artifactToNode.get(id);
+            if (node == null) {
+                continue;
+            }
+
+            // Add edge from root
+            edges.add(new GraphEdge(root, node, GraphEdge.EdgeType.DEPENDENCY, false));
         }
 
         graphCanvas.setNodes(nodes);
