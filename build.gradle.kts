@@ -38,14 +38,6 @@ allprojects {
 // LICENSING ENFORCEMENT
 // =============================================================================
 
-/**
- * Validates license headers in source files.
- * 
- * Rules:
- * - migration-core: Must have Apache 2.0 header
- * - mcp-server: Must have Apache 2.0 header
- * - intellij-plugin: Must have proprietary header
- */
 tasks.register("validateLicenseHeaders") {
     description = "Validates license headers in source files"
     group = "verification"
@@ -96,14 +88,6 @@ tasks.register("validateLicenseHeaders") {
     }
 }
 
-/**
- * Validates dependency licenses to ensure no proprietary code is used.
- * 
- * Rules:
- * - intellij-plugin can use Apache 2.0 dependencies
- * - mcp-server can use Apache 2.0 dependencies
- * - Commercial/proprietary dependencies must be declared in approved list
- */
 tasks.register("validateDependencyLicenses") {
     description = "Validates that all dependencies have compatible licenses"
     group = "verification"
@@ -125,14 +109,6 @@ tasks.register("validateDependencyLicenses") {
     }
 }
 
-/**
- * Ensures module boundaries are respected.
- * 
- * Rules:
- * - intellij-plugin can depend on migration-core (OK - Apache 2.0)
- * - mcp-server can depend on migration-core (OK - Apache 2.0)
- * - Community modules should NOT depend on proprietary modules
- */
 tasks.register("validateModuleBoundaries") {
     description = "Ensures module dependencies respect licensing boundaries"
     group = "verification"

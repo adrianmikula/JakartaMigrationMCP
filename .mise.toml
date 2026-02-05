@@ -56,57 +56,210 @@ description = "Stop Docker services"
 run_windows = "powershell -File scripts/stop-services.ps1"
 run = "bash scripts/stop-services.sh"
 
+# =============================================================================
+# CORE BUILD TASKS (All Platforms)
+# =============================================================================
+
 [tasks.build]
-description = "Build the project (without tests). Linux/macOS: Mill; Windows: Gradle"
+description = "Build the project (compile Java sources, no tests). Cross-platform: Mill on Linux/macOS, Gradle on Windows"
 run_windows = "gradlew.bat compileJava"
 run = "mill jakartaMigrationMcp.compile"
 
 [tasks.build-all]
-description = "Build the project with tests. Linux/macOS: Mill; Windows: Gradle"
+description = "Build the project with all tests. Cross-platform: Mill on Linux/macOS, Gradle on Windows"
 run_windows = "gradlew.bat build"
 run = "mill jakartaMigrationMcp.compile jakartaMigrationMcp.test"
 
 [tasks.test]
-description = "Run all tests. Linux/macOS: Mill; Windows: Gradle"
+description = "Run all tests. Cross-platform: Mill on Linux/macOS, Gradle on Windows"
 run_windows = "gradlew.bat test"
 run = "mill jakartaMigrationMcp.test"
 
 [tasks.run]
-description = "Run the application. Linux/macOS: Mill; Windows: Gradle"
+description = "Run the application (MCP server). Cross-platform: Mill on Linux/macOS, Gradle on Windows"
 run_windows = "gradlew.bat bootRun"
 run = "mill jakartaMigrationMcp.run"
 
 [tasks.assembly]
-description = "Build fat JAR (for release). Linux/macOS: Mill; Windows: Gradle"
+description = "Build fat JAR for release. Cross-platform: Mill on Linux/macOS, Gradle on Windows"
 run_windows = "gradlew.bat bootJar"
 run = "mill jakartaMigrationMcp.assembly"
 
 [tasks.clean]
-description = "Clean build artifacts. Linux/macOS: Mill; Windows: Gradle"
+description = "Clean all build artifacts. Cross-platform: Mill on Linux/macOS, Gradle on Windows"
 run_windows = "gradlew.bat clean"
 run = "mill clean"
 
-# Premium Build Tasks (require -PpremiumEnabled=true)
+[tasks.rebuild]
+description = "Clean and rebuild (equivalent to 'clean' + 'build'). Cross-platform"
+run_windows = "gradlew.bat clean build"
+run = "mill clean compile"
+
+# =============================================================================
+# SUBPROJECT-SPECIFIC TASKS
+# =============================================================================
+
+# Migration Core Module
+
+[tasks.build-migration-core]
+description = "Build migration-core module (compile only)"
+run_windows = "gradlew.bat :migration-core:compileJava"
+run = "mill migrationCore.compile"
+
+[tasks.test-migration-core]
+description = "Run migration-core module tests"
+run_windows = "gradlew.bat :migration-core:test"
+run = "mill migrationCore.test"
+
+[tasks.build-migration-core-jar]
+description = "Build JAR for migration-core module"
+run_windows = "gradlew.bat :migration-core:jar"
+run = "mill migrationCore.jar"
+
+# MCP Server Module
+
+[tasks.build-mcp-server]
+description = "Build mcp-server module (compile only)"
+run_windows = "gradlew.bat :mcp-server:compileJava"
+run = "mill mcpServer.compile"
+
+[tasks.test-mcp-server]
+description = "Run mcp-server module tests"
+run_windows = "gradlew.bat :mcp-server:test"
+run = "mill mcpServer.test"
+
+[tasks.run-mcp-server]
+description = "Run MCP server as standalone application"
+run_windows = "gradlew.bat :mcp-server:bootRun"
+run = "mill mcpServer.run"
+
+[tasks.build-mcp-server-jar]
+description = "Build fat JAR for mcp-server"
+run_windows = "gradlew.bat :mcp-server:bootJar"
+run = "mill mcpServer.assembly"
+
+# IntelliJ Plugin Module
+
+[tasks.build-intellij-plugin]
+description = "Build IntelliJ plugin (compile and build plugin ZIP)"
+run_windows = "gradlew.bat :intellij-plugin:build"
+run = "mill intellijPlugin.build"
+
+[tasks.test-intellij-plugin]
+description = "Run IntelliJ plugin tests"
+run_windows = "gradlew.bat :intellij-plugin:test"
+run = "mill intellijPlugin.test"
+
+[tasks.build-intellij-plugin-zip]
+description = "Build IntelliJ plugin ZIP distribution"
+run_windows = "gradlew.bat :intellij-plugin:buildPlugin"
+run = "mill intellijPlugin.buildPlugin"
+
+[tasks.intellij-patch-xml]
+description = "Patch plugin.xml with version info"
+run_windows = "gradlew.bat :intellij-plugin:patchPluginXml"
+run = "mill intellijPlugin.patchPluginXml"
+
+# =============================================================================
+# CODE QUALITY TASKS
+# =============================================================================
+
+[tasks.check]
+description = "Run all code quality checks (checkstyle, spotbugs, pmd)"
+run_windows = "gradlew.bat check"
+run = "mill mill.scalalib.scalafmt.ScalafmtModule/check"
+
+[tasks.checkstyle]
+description = "Run Checkstyle code style checks"
+run_windows = "gradlew.bat checkstyleMain checkstyleTest"
+run = "mill __.checkstyle"
+
+[tasks.spotbugs]
+description = "Run SpotBugs static analysis"
+run_windows = "gradlew.bat spotbugsMain spotbugsTest"
+run = "mill __.spotbugs"
+
+[tasks.pmd]
+description = "Run PMD code analysis"
+run_windows = "gradlew.bat pmdMain pmdTest"
+run = "mill __.pmd"
+
+[tasks.format]
+description = "Format code using Spotless"
+run_windows = "gradlew.bat spotlessApply"
+run = "mill mill.scalalib.scalafmt.ScalafmtModule/reformat"
+
+[tasks.format-check]
+description = "Check code formatting (fail if not formatted)"
+run_windows = "gradlew.bat spotlessCheck"
+run = "mill mill.scalalib.scalafmt.ScalafmtModule/reformat --check"
+
+[tasks.license-headers]
+description = "Validate license headers in source files"
+run_windows = "gradlew.bat validateLicenseHeaders"
+run = "mill __.validateLicenseHeaders"
+
+[tasks.validate-dependencies]
+description = "Validate dependency licenses"
+run_windows = "gradlew.bat validateDependencyLicenses"
+run = "mill __.validateDependencyLicenses"
+
+[tasks.validate-boundaries]
+description = "Validate module dependency boundaries"
+run_windows = "gradlew.bat validateModuleBoundaries"
+run = "mill __.validateModuleBoundaries"
+
+[tasks.validate-all]
+description = "Run all validation tasks (licenses, dependencies, boundaries)"
+run_windows = "gradlew.bat validateLicenseHeaders validateDependencyLicenses validateModuleBoundaries"
+run = "mill __.validateLicenseHeaders __.validateDependencyLicenses __.validateModuleBoundaries"
+
+# =============================================================================
+# TESTING TASKS
+# =============================================================================
+
+[tasks.test-coverage]
+description = "Run tests with code coverage (Jacoco)"
+run_windows = "gradlew.bat test jacocoTestReport"
+run = "mill __.jacocoReport"
+
+[tasks.test-mcp]
+description = "Run MCP integration tests"
+run_windows = "gradlew.bat :mcp-server:test"
+run = "mill mcpServer.test"
+
+[tasks.test-ui]
+description = "Run IntelliJ plugin UI tests"
+run_windows = "gradlew.bat :intellij-plugin:test"
+run = "mill intellijPlugin.test"
+
+# =============================================================================
+# PREMIUM MODULE TASKS (Requires -PpremiumEnabled=true)
+# =============================================================================
 
 [tasks.build-premium]
-description = "Build premium module with all features. Requires -PpremiumEnabled=true"
-run_windows = "gradlew.bat :premium-engine:compileJava"
+description = "Build premium engine module with all features"
+run_windows = "gradlew.bat :premium-engine:compileJava -PpremiumEnabled=true"
 run = "mill premiumEngine.compile"
 
 [tasks.build-premium-all]
-description = "Build premium module with tests. Requires -PpremiumEnabled=true"
-run_windows = "gradlew.bat :premium-engine:build"
+description = "Build premium engine with tests"
+run_windows = "gradlew.bat :premium-engine:build -PpremiumEnabled=true"
 run = "mill premiumEngine.compile premiumEngine.test"
 
 [tasks.build-premium-intellij]
-description = "Build premium IntelliJ plugin. Requires -PpremiumEnabled=true"
-run_windows = "gradlew.bat :premium-intellij:build"
+description = "Build premium IntelliJ plugin"
+run_windows = "gradlew.bat :premium-intellij:build -PpremiumEnabled=true"
 run = "mill premiumIntellij.build"
 
 [tasks.build-all-modules]
-description = "Build all modules including premium. Requires -PpremiumEnabled=true"
+description = "Build all modules including premium (requires premium sources)"
 run_windows = "gradlew.bat build -PpremiumEnabled=true"
 run = "mill compile test assembly -DpremiumEnabled=true"
+
+# =============================================================================
+# DOCKER & CONTAINER TASKS
+# =============================================================================
 
 [tasks.docker-logs]
 description = "View Docker service logs (follow mode)"
@@ -116,6 +269,19 @@ run = "docker compose logs -f"
 description = "Check Docker services status"
 run = "docker compose ps"
 
+[tasks.docker-build]
+description = "Build Docker image for MCP server"
+run_windows = "docker build -t jakarta-migration-mcp ."
+run = "docker build -t jakarta-migration-mcp ."
+
+[tasks.docker-run]
+description = "Run MCP server in Docker container"
+run = "docker run -p 8080:8080 jakarta-migration-mcp"
+
+# =============================================================================
+# DATABASE TASKS
+# =============================================================================
+
 [tasks.db-connect]
 description = "Connect to PostgreSQL database"
 run = "docker exec -it jakarta-migration-postgres psql -U postgres -d jakarta_migration"
@@ -124,11 +290,30 @@ run = "docker exec -it jakarta-migration-postgres psql -U postgres -d jakarta_mi
 description = "Connect to Redis CLI"
 run = "docker exec -it jakarta-migration-redis redis-cli"
 
+[tasks.db-migrate]
+description = "Run database migrations"
+run_windows = "gradlew.bat :mcp-server:bootRun --args='--spring.jpa.hibernate.ddl-auto=update'"
+run = "mill mcpServer.run"
+
+# =============================================================================
+# HEALTH & MONITORING TASKS
+# =============================================================================
+
 [tasks.health]
-description = "Check application health (requires app to be running)"
+description = "Check application health endpoint"
 run = "curl http://localhost:8080/actuator/health"
 
-# Frontend Development Tasks
+[tasks.info]
+description = "Check application info endpoint"
+run = "curl http://localhost:8080/actuator/info"
+
+[tasks.metrics]
+description = "Check application metrics endpoint"
+run = "curl http://localhost:8080/actuator/metrics"
+
+# =============================================================================
+# FRONTEND DEVELOPMENT TASKS
+# =============================================================================
 
 [tasks.frontend-install]
 description = "Install frontend dependencies"
@@ -151,7 +336,9 @@ description = "Clean frontend build artifacts and node_modules"
 run_windows = "powershell -c 'if (Test-Path \"frontend\\node_modules\") { Remove-Item -Recurse -Force \"frontend\\node_modules\" }; if (Test-Path \"frontend\\dist\") { Remove-Item -Recurse -Force \"frontend\\dist\" }; Write-Host \"Frontend cleaned\"'"
 run = "bash -c 'rm -rf frontend/node_modules frontend/dist && echo \"Frontend cleaned\"'"
 
-# Storybook Tasks
+# =============================================================================
+# STORYBOOK TASKS
+# =============================================================================
 
 [tasks.storybook]
 description = "Start Storybook development server (http://localhost:6006)"
@@ -160,3 +347,70 @@ run = "cd frontend && npm run storybook"
 [tasks.storybook-build]
 description = "Build Storybook for static hosting"
 run = "cd frontend && npm run build-storybook"
+
+# =============================================================================
+# RELEASE & PUBLICATION TASKS
+# =============================================================================
+
+[tasks.release-jar]
+description = "Build release JAR with all dependencies"
+run_windows = "gradlew.bat bootJar"
+run = "mill jakartaMigrationMcp.assembly"
+
+[tasks.release-docker]
+description = "Build and tag Docker image for release"
+run = "docker build -t jakarta-migration-mcp:latest . && docker tag jakarta-migration-mcp:latest jakarta-migration-mcp:v1.0.0"
+
+[tasks.release-all]
+description = "Build all release artifacts (JAR, Docker, frontend)"
+run = "mill jakartaMigrationMcp.assembly && cd frontend && npm run build && docker build -t jakarta-migration-mcp:latest ."
+
+# =============================================================================
+# DOCUMENTATION TASKS
+# =============================================================================
+
+[tasks.docs]
+description = "Generate project documentation"
+run = "echo 'Documentation available in docs/ directory'"
+
+[tasks.readme]
+description = "Generate README from templates"
+run = "echo 'Use templates in docs/templates/'"
+
+# =============================================================================
+# DEVELOPMENT UTILITY TASKS
+# =============================================================================
+
+[tasks.watch]
+description = "Run application with hot reload (development mode)"
+run_windows = "gradlew.bat bootRun --continuous"
+run = "mill --watch jakartaMigrationMcp.run"
+
+[tasks.reload]
+description = "Reload changed classes without restart (JRebel or similar)"
+run_windows = "gradlew.bat bootRun -Pjrebel"
+run = "mill -Drebel=true jakartaMigrationMcp.run"
+
+[tasks.shell]
+description = "Start Gradle/Mill shell for interactive commands"
+run_windows = "gradlew.bat shell"
+run = "mill mill.shell"
+
+[tasks.projects]
+description = "List all projects and their structure"
+run_windows = "gradlew.bat projects"
+run = "mill mill.showProjects"
+
+[tasks.dependencies]
+description = "Print project dependency tree"
+run_windows = "gradlew.bat dependencies"
+run = "mill mill.showClasspath"
+
+[tasks.properties]
+description = "Display all project properties"
+run_windows = "gradlew.bat properties"
+run = "mill mill.showProperties"
+
+[tasks.help]
+description = "Show help for available tasks"
+run = "echo 'Use: mise task list' or 'mise run <task> --help'"

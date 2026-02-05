@@ -2,6 +2,7 @@ plugins {
     `java-library`
 }
 
+
 dependencies {
     implementation("org.slf4j:slf4j-api:2.0.9")
     compileOnly("org.projectlombok:lombok:1.18.30")
@@ -38,4 +39,42 @@ java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
     }
+}
+
+// =============================================================================
+// BUILD CACHE COMPATIBILITY
+// =============================================================================
+
+// Configure Jar task for better caching
+tasks.named<Jar>("jar") {
+    archiveFileName.set("migration-core.jar")
+    manifest {
+        attributes["Implementation-Title"] = "Jakarta Migration Core"
+        attributes["Implementation-Version"] = project.version
+        attributes["Built-By"] = System.getProperty("user.name")
+    }
+}
+
+// Configure test task with caching
+tasks.named<Test>("test") {
+    useJUnitPlatform()
+    testLogging {
+        events("passed", "skipped", "failed")
+    }
+    // Enable test caching
+    outputs.upToDateWhen { false }
+}
+
+// Configure JavaCompile for incremental compilation
+tasks.named<JavaCompile>("compileJava") {
+    options.isIncremental = true
+    options.compilerArgs.addAll(listOf(
+        "-parameters",
+        "-Xlint:deprecation",
+        "-Xlint:unchecked"
+    ))
+}
+
+tasks.named<JavaCompile>("compileTestJava") {
+    options.isIncremental = true
 }
