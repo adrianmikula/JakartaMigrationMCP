@@ -422,10 +422,10 @@ public class CommunityMigrationTools {
         
         json.append("  \"recommendation\": {\n");
         json.append("    \"type\": \"").append(recommendation.type()).append("\",\n");
-        if (recommendation jakartaGroupId() != null) {
-            json.append("    \"jakartaGroupId\": \"").append(escapeJson(recommendation jakartaGroupId())).append("\",\n");
-            json.append("    \"jakartaArtifactId\": \"").append(escapeJson(recommendation jakartaArtifactId())).append("\",\n");
-            json.append("    \"recommendedVersion\": \"").append(escapeJson(recommendation recommendedVersion())).append("\",\n");
+        if (recommendation.jakartaGroupId() != null) {
+            json.append("    \"jakartaGroupId\": \"").append(escapeJson(recommendation.jakartaGroupId())).append("\",\n");
+            json.append("    \"jakartaArtifactId\": \"").append(escapeJson(recommendation.jakartaArtifactId())).append("\",\n");
+            json.append("    \"recommendedVersion\": \"").append(escapeJson(recommendation.recommendedVersion())).append("\",\n");
         }
         json.append("    \"explanation\": \"").append(escapeJson(recommendation explanation())).append("\"\n");
         json.append("  }\n");

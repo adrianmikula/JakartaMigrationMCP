@@ -272,12 +272,12 @@ public class MavenCentralLookupService {
         String explanation = "Replace with Jakarta equivalent";
         
         return new DependencyUpdateRecommendation(
-                recommendation javaxGroupId(),
-                recommendation javaxArtifactId(),
-                recommendation currentVersion(),
-                recommendation jakartaGroupId(),
-                recommendation jakartaArtifactId(),
-                recommendation recommendedVersion(),
+                recommendation.javaxGroupId(),
+                recommendation.javaxArtifactId(),
+                recommendation.currentVersion(),
+                recommendation.jakartaGroupId(),
+                recommendation.jakartaArtifactId(),
+                recommendation.recommendedVersion(),
                 action,
                 explanation
         );
