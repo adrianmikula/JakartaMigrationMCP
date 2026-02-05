@@ -1,72 +1,58 @@
+/*
+ * Copyright 2024 Adrian Kozak
+ * Copyright 2024 Prairie Trail Software
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package adrianmikula.jakartamigration.coderefactoring.service;
 
 import adrianmikula.jakartamigration.coderefactoring.domain.Recipe;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
 
 /**
- * Library of refactoring recipes.
+ * Library of available refactoring recipes.
+ * 
+ * NOTE: This is a community stub. Full implementation with OpenRewrite recipes
+ * is available in the premium edition.
  */
 public class RecipeLibrary {
     
-    private final Map<String, Recipe> recipes = new ConcurrentHashMap<>();
-    
-    public RecipeLibrary() {
-        // Register default Jakarta migration recipes
-        // Use private method to avoid calling overridable method in constructor
-        registerRecipeInternal(Recipe.jakartaNamespaceRecipe());
-        registerRecipeInternal(Recipe.persistenceXmlRecipe());
-        registerRecipeInternal(Recipe.webXmlRecipe());
+    /**
+     * Gets all available recipes.
+     * 
+     * @return List of available recipes (empty in community edition)
+     */
+    public List<Recipe> getAvailableRecipes() {
+        return List.of();
     }
     
     /**
      * Gets a recipe by name.
+     * 
+     * @param name Recipe name
+     * @return Recipe or null if not found
      */
-    public Optional<Recipe> getRecipe(String name) {
-        return Optional.ofNullable(recipes.get(name));
+    public Recipe getRecipe(String name) {
+        return null;
     }
     
     /**
-     * Gets all Jakarta migration recipes.
+     * Gets the Jakarta namespace migration recipe.
+     * 
+     * @return Jakarta namespace recipe
      */
-    public List<Recipe> getJakartaRecipes() {
-        return recipes.values().stream()
-            .filter(recipe -> recipe.name().contains("Jakarta") || 
-                             recipe.name().contains("Persistence") ||
-                             recipe.name().contains("Web"))
-            .toList();
-    }
-    
-    /**
-     * Registers a new recipe.
-     */
-    public final void registerRecipe(Recipe recipe) {
-        registerRecipeInternal(recipe);
-    }
-    
-    /**
-     * Internal method to register a recipe (not overridable).
-     */
-    private void registerRecipeInternal(Recipe recipe) {
-        if (recipe == null) {
-            throw new IllegalArgumentException("Recipe cannot be null");
-        }
-        recipes.put(recipe.name(), recipe);
-    }
-    
-    /**
-     * Returns all registered recipes.
-     */
-    public List<Recipe> getAllRecipes() {
-        return new ArrayList<>(recipes.values());
-    }
-    
-    /**
-     * Checks if a recipe exists.
-     */
-    public boolean hasRecipe(String name) {
-        return recipes.containsKey(name);
+    public Recipe getJakartaNamespaceRecipe() {
+        return Recipe.jakartaNamespaceRecipe();
     }
 }
-

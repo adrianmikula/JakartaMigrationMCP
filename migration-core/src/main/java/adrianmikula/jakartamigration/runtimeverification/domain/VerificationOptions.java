@@ -1,39 +1,44 @@
+/*
+ * Copyright 2024 Adrian Kozak
+ * Copyright 2024 Prairie Trail Software
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package adrianmikula.jakartamigration.runtimeverification.domain;
-
-import java.time.Duration;
-import java.util.List;
-import java.util.Objects;
 
 /**
  * Options for runtime verification.
+ * 
+ * NOTE: This is a community stub. Full implementation with bytecode analysis
+ * is available in the premium edition.
  */
 public record VerificationOptions(
-    Duration timeout,
-    long maxMemoryBytes,
-    boolean captureStdout,
-    boolean captureStderr,
-    List<String> jvmArgs
+    boolean scanDependencies,
+    boolean checkTransitive,
+    boolean generateReport,
+    String outputFormat
 ) {
     public VerificationOptions {
-        Objects.requireNonNull(timeout, "timeout cannot be null");
-        Objects.requireNonNull(jvmArgs, "jvmArgs cannot be null");
-        
-        if (maxMemoryBytes < 0) {
-            throw new IllegalArgumentException("maxMemoryBytes cannot be negative");
+        if (outputFormat == null) {
+            outputFormat = "text";
         }
     }
     
-    /**
-     * Creates default verification options.
-     */
     public static VerificationOptions defaults() {
-        return new VerificationOptions(
-            Duration.ofMinutes(5),
-            2L * 1024 * 1024 * 1024, // 2GB
-            true,
-            true,
-            java.util.Collections.emptyList()
-        );
+        return new VerificationOptions(false, false, false, "text");
+    }
+    
+    public static VerificationOptions defaultOptions() {
+        return new VerificationOptions(false, false, false, "text");
     }
 }
-

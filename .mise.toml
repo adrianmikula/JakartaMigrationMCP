@@ -235,25 +235,36 @@ run = "mill intellijPlugin.test"
 
 # =============================================================================
 # PREMIUM MODULE TASKS (Requires -PpremiumEnabled=true)
+# Premium modules contain proprietary features requiring a commercial license
 # =============================================================================
 
 [tasks.build-premium]
-description = "Build premium engine module with all features"
-run_windows = "gradlew.bat :premium-engine:compileJava -PpremiumEnabled=true"
-run = "mill premiumEngine.compile"
+description = "Build premium modules (premium-core, premium-mcp) with all features"
+run_windows = "gradlew.bat compileJava -PpremiumEnabled=true"
+run = "mill compile -DpremiumEnabled=true"
 
 [tasks.build-premium-all]
-description = "Build premium engine with tests"
-run_windows = "gradlew.bat :premium-engine:build -PpremiumEnabled=true"
-run = "mill premiumEngine.compile premiumEngine.test"
+description = "Build premium modules with tests"
+run_windows = "gradlew.bat build -PpremiumEnabled=true"
+run = "mill compile test -DpremiumEnabled=true"
 
-[tasks.build-premium-intellij]
-description = "Build premium IntelliJ plugin"
-run_windows = "gradlew.bat :premium-intellij:build -PpremiumEnabled=true"
-run = "mill premiumIntellij.build"
+[tasks.build-premium-core]
+description = "Build premium-core module"
+run_windows = "gradlew.bat :premium-core:compileJava -PpremiumEnabled=true"
+run = "mill premiumCore.compile"
+
+[tasks.build-premium-mcp]
+description = "Build premium-mcp module"
+run_windows = "gradlew.bat :premium-mcp:compileJava -PpremiumEnabled=true"
+run = "mill premiumMcp.compile"
+
+[tasks.test-premium]
+description = "Run premium module tests"
+run_windows = "gradlew.bat test -PpremiumEnabled=true"
+run = "mill __.test -DpremiumEnabled=true"
 
 [tasks.build-all-modules]
-description = "Build all modules including premium (requires premium sources)"
+description = "Build all modules including premium (requires premium sources and -PpremiumEnabled=true)"
 run_windows = "gradlew.bat build -PpremiumEnabled=true"
 run = "mill compile test assembly -DpremiumEnabled=true"
 

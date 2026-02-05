@@ -11,10 +11,11 @@ include("intellij-plugin")
 
 // Premium modules (Proprietary - loaded conditionally)
 // These modules contain premium features that require a commercial license
-// They are only included if the directory exists (for development)
-// and when -PpremiumEnabled=true is set
+// They are only included if:
+// 1. The directory exists (for development)
+// 2. -PpremiumEnabled=true is set
 
-if (file("premium-core").exists()) {
+if (file("premium-core").exists() && providers.gradleProperty("premiumEnabled").getOrElse("false").toBoolean()) {
     include("premium-core")
     include("premium-mcp")
 }

@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 Adrian Kozak
+ * Copyright 2024 Prairie Trail Software
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package adrianmikula.jakartamigration.coderefactoring.domain;
 
 import java.time.Duration;
@@ -5,6 +21,9 @@ import java.util.List;
 
 /**
  * Represents a single phase in the migration plan.
+ * 
+ * NOTE: This is a community stub. Full implementation with migration actions
+ * is available in the premium edition.
  */
 public record RefactoringPhase(
     int phaseNumber,
@@ -17,26 +36,25 @@ public record RefactoringPhase(
 ) {
     public RefactoringPhase {
         if (phaseNumber < 1) {
-            throw new IllegalArgumentException("Phase number must be >= 1");
+            phaseNumber = 1;
         }
         if (description == null || description.isBlank()) {
-            throw new IllegalArgumentException("Description cannot be null or blank");
+            description = "Migration Phase";
         }
         if (files == null) {
-            throw new IllegalArgumentException("Files list cannot be null");
+            files = List.of();
         }
         if (actions == null) {
-            throw new IllegalArgumentException("Actions list cannot be null");
+            actions = List.of();
         }
         if (recipes == null) {
-            throw new IllegalArgumentException("Recipes list cannot be null");
+            recipes = List.of();
         }
         if (dependencies == null) {
-            throw new IllegalArgumentException("Dependencies list cannot be null");
+            dependencies = List.of();
         }
         if (estimatedDuration == null || estimatedDuration.isNegative()) {
-            throw new IllegalArgumentException("Estimated duration cannot be null or negative");
+            estimatedDuration = Duration.ZERO;
         }
     }
 }
-

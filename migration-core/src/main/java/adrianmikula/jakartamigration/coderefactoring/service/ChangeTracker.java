@@ -1,82 +1,67 @@
+/*
+ * Copyright 2024 Adrian Kozak
+ * Copyright 2024 Prairie Trail Software
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package adrianmikula.jakartamigration.coderefactoring.service;
 
-import adrianmikula.jakartamigration.coderefactoring.domain.Checkpoint;
-
-import java.time.LocalDateTime;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.nio.file.Path;
+import java.util.List;
 
 /**
- * Tracks changes and manages checkpoints for rollback purposes.
+ * Tracks changes made during refactoring.
+ * 
+ * NOTE: This is a community stub. Full implementation with OpenRewrite-based
+ * change tracking is available in the premium edition.
  */
 public class ChangeTracker {
     
-    private final Map<String, Checkpoint> checkpoints = new ConcurrentHashMap<>();
-    private final Map<String, String> originalContents = new ConcurrentHashMap<>();
-    
     /**
-     * Creates a checkpoint for a file before refactoring.
+     * Records a change to a file.
+     * 
+     * @param filePath Path to the changed file
+     * @param description Description of the change
      */
-    public String createCheckpoint(String filePath, String originalContent, String description) {
-        if (filePath == null || filePath.isBlank()) {
-            throw new IllegalArgumentException("FilePath cannot be null or blank");
-        }
-        if (originalContent == null) {
-            throw new IllegalArgumentException("OriginalContent cannot be null");
-        }
-        if (description == null) {
-            throw new IllegalArgumentException("Description cannot be null");
-        }
-        
-        String checkpointId = UUID.randomUUID().toString();
-        Checkpoint checkpoint = new Checkpoint(
-            checkpointId,
-            filePath,
-            LocalDateTime.now(),
-            description
-        );
-        
-        checkpoints.put(checkpointId, checkpoint);
-        originalContents.put(checkpointId, originalContent);
-        
-        return checkpointId;
+    public void recordChange(Path filePath, String description) {
+        // Premium feature - no-op in community edition
     }
     
     /**
-     * Gets a checkpoint by ID.
+     * Gets all recorded changes.
+     * 
+     * @return List of change descriptions
      */
-    public Optional<Checkpoint> getCheckpoint(String checkpointId) {
-        if (checkpointId == null || checkpointId.isBlank()) {
-            return Optional.empty();
-        }
-        return Optional.ofNullable(checkpoints.get(checkpointId));
+    public java.util.List<String> getChanges() {
+        return List.of();
     }
     
     /**
-     * Gets the original content for a checkpoint.
+     * Creates a checkpoint for rollback.
+     * 
+     * @return Checkpoint ID
      */
-    public Optional<String> getOriginalContent(String checkpointId) {
-        if (checkpointId == null || checkpointId.isBlank()) {
-            return Optional.empty();
-        }
-        return Optional.ofNullable(originalContents.get(checkpointId));
+    public String createCheckpoint() {
+        return "";
     }
     
     /**
-     * Removes a checkpoint (after successful rollback or completion).
+     * Rolls back to a checkpoint.
+     * 
+     * @param checkpointId Checkpoint ID to rollback to
+     * @return true if rollback was successful
      */
-    public void removeCheckpoint(String checkpointId) {
-        checkpoints.remove(checkpointId);
-        originalContents.remove(checkpointId);
-    }
-    
-    /**
-     * Checks if a checkpoint exists.
-     */
-    public boolean hasCheckpoint(String checkpointId) {
-        return checkpointId != null && checkpoints.containsKey(checkpointId);
+    public boolean rollbackToCheckpoint(String checkpointId) {
+        return false;
     }
 }
-

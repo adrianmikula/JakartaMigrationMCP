@@ -1,96 +1,64 @@
+/*
+ * Copyright 2024 Adrian Kozak
+ * Copyright 2024 Prairie Trail Software
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package adrianmikula.jakartamigration.runtimeverification.service;
 
-import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
-import adrianmikula.jakartamigration.runtimeverification.domain.*;
+import adrianmikula.jakartamigration.runtimeverification.domain.VerificationOptions;
+import adrianmikula.jakartamigration.runtimeverification.domain.VerificationResult;
 
 import java.nio.file.Path;
-import java.util.List;
 
 /**
- * Main interface for the Runtime Verification Module.
- * Supports both bytecode analysis (fast) and process execution (comprehensive)
- * for detecting Jakarta migration issues.
+ * Module for runtime verification of migrated applications.
+ * 
+ * NOTE: This is a community stub. Full implementation with bytecode analysis
+ * using ASM is available in the premium edition.
  */
 public interface RuntimeVerificationModule {
     
     /**
-     * Verifies runtime using the specified strategy.
-     *
-     * @param jarPath Path to the JAR file to verify
+     * Verifies a project for javax/jakarta references.
+     * 
+     * @param projectPath Path to the project
      * @param options Verification options
-     * @param strategy Verification strategy to use
-     * @return Verification result with errors, warnings, and analysis
+     * @return Verification result
      */
-    VerificationResult verifyRuntime(
-        Path jarPath,
-        VerificationOptions options,
-        VerificationStrategy strategy
-    );
+    VerificationResult verifyProject(Path projectPath, VerificationOptions options);
     
     /**
-     * Executes JAR in isolated process and monitors for issues.
-     * Uses PROCESS_ONLY strategy (backward compatibility).
-     *
-     * @param jarPath Path to the JAR file to execute
+     * Verifies a JAR file for javax/jakarta references.
+     * 
+     * @param jarPath Path to the JAR file
      * @param options Verification options
-     * @return Verification result with errors, warnings, and analysis
+     * @return Verification result
      */
     VerificationResult verifyRuntime(Path jarPath, VerificationOptions options);
     
     /**
-     * Analyzes JAR using bytecode analysis (fast, lightweight).
-     *
-     * @param jarPath Path to the JAR file to analyze
-     * @return Bytecode analysis result
-     */
-    BytecodeAnalysisResult analyzeBytecode(Path jarPath);
-    
-    /**
-     * Analyzes runtime errors for Jakarta migration issues.
-     *
-     * @param errors List of runtime errors to analyze
-     * @param context Migration context information
-     * @return Error analysis with root cause and remediation suggestions
-     */
-    ErrorAnalysis analyzeErrors(
-        List<RuntimeError> errors,
-        MigrationContext context
-    );
-    
-    /**
-     * Performs static analysis as alternative to runtime execution.
-     *
-     * @param projectPath Path to the project root
-     * @param dependencyGraph Dependency graph of the project
-     * @return Static analysis result
-     */
-    StaticAnalysisResult performStaticAnalysis(
-        Path projectPath,
-        DependencyGraph dependencyGraph
-    );
-    
-    /**
-     * Instruments class loading to detect resolution issues.
-     *
+     * Checks if a JAR file contains javax references.
+     * 
      * @param jarPath Path to the JAR file
-     * @param options Instrumentation options
-     * @return Class loader analysis result
+     * @return true if javax references are found
      */
-    ClassLoaderAnalysisResult instrumentClassLoading(
-        Path jarPath,
-        InstrumentationOptions options
-    );
+    boolean checkJarForjavaxReferences(Path jarPath);
     
     /**
-     * Validates application health after migration.
-     *
-     * @param applicationUrl URL of the application to check
-     * @param options Health check options
-     * @return Health check result
+     * Gets the module name.
+     * 
+     * @return Module name
      */
-    HealthCheckResult performHealthCheck(
-        String applicationUrl,
-        HealthCheckOptions options
-    );
+    String getModuleName();
 }
-

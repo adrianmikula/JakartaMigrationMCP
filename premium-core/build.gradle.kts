@@ -14,12 +14,19 @@ plugins {
 group = "adrianmikula"
 version = "1.0.0"
 
-// License type for validation
-licenseType = "PROPRIETARY"
+// License type for validation - must be defined as extra property for root project access
+extra["licenseType"] = "PROPRIETARY"
 
 dependencies {
     // Free community core dependencies
     implementation(project(":migration-core"))
+    
+    // Lombok for boilerplate reduction
+    compileOnly("org.projectlombok:lombok:1.18.30")
+    annotationProcessor("org.projectlombok:lombok:1.18.30")
+    
+    // SLF4J for logging (used by lombok @Slf4j)
+    compileOnly("org.slf4j:slf4j-simple:2.0.11")
     
     // ASM for bytecode analysis (included in community, but used by premium)
     api("org.ow2.asm:asm:9.6")

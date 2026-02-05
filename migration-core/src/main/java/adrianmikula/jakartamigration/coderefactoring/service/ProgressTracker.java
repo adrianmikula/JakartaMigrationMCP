@@ -1,164 +1,62 @@
+/*
+ * Copyright 2024 Adrian Kozak
+ * Copyright 2024 Prairie Trail Software
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package adrianmikula.jakartamigration.coderefactoring.service;
 
-import adrianmikula.jakartamigration.coderefactoring.domain.Checkpoint;
-import adrianmikula.jakartamigration.coderefactoring.domain.MigrationProgress;
-import adrianmikula.jakartamigration.coderefactoring.domain.MigrationState;
-import adrianmikula.jakartamigration.coderefactoring.domain.ProgressStatistics;
-
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-
 /**
- * Tracks migration progress across the codebase.
+ * Tracks progress of refactoring operations.
+ * 
+ * NOTE: This is a community stub. Full implementation with detailed progress
+ * tracking is available in the premium edition.
  */
 public class ProgressTracker {
     
-    private final Map<String, MigrationProgress> progressMap = new ConcurrentHashMap<>();
-    private final Map<String, Set<String>> refactoredFiles = new ConcurrentHashMap<>();
-    private final Map<String, Set<String>> failedFiles = new ConcurrentHashMap<>();
-    private final Map<String, List<Checkpoint>> checkpoints = new ConcurrentHashMap<>();
-    
     /**
-     * Initializes progress tracking for a project.
+     * Gets the current progress percentage.
+     * 
+     * @return Progress (0-100)
      */
-    public void initialize(String projectPath, int totalFiles) {
-        if (projectPath == null || projectPath.isBlank()) {
-            throw new IllegalArgumentException("ProjectPath cannot be null or blank");
-        }
-        if (totalFiles < 0) {
-            throw new IllegalArgumentException("TotalFiles cannot be negative");
-        }
-        
-        MigrationProgress progress = new MigrationProgress(
-            MigrationState.NOT_STARTED,
-            0,
-            new ProgressStatistics(totalFiles, 0, 0, totalFiles),
-            List.of(),
-            LocalDateTime.now()
-        );
-        
-        progressMap.put(projectPath, progress);
-        refactoredFiles.put(projectPath, new HashSet<>());
-        failedFiles.put(projectPath, new HashSet<>());
-        checkpoints.put(projectPath, new ArrayList<>());
+    public int getProgress() {
+        return 0;
     }
     
     /**
-     * Gets the current progress for a project.
+     * Gets the current status message.
+     * 
+     * @return Status message
      */
-    public MigrationProgress getProgress(String projectPath) {
-        return progressMap.getOrDefault(projectPath, createEmptyProgress());
+    public String getStatus() {
+        return "No active migration";
     }
     
     /**
-     * Marks a file as refactored.
+     * Gets the number of files processed.
+     * 
+     * @return Number of processed files
      */
-    public void markFileRefactored(String projectPath, String filePath) {
-        updateProgress(projectPath, filePath, true);
+    public int getFilesProcessed() {
+        return 0;
     }
     
     /**
-     * Marks a file as failed.
+     * Gets the total number of files to process.
+     * 
+     * @return Total files
      */
-    public void markFileFailed(String projectPath, String filePath) {
-        updateProgress(projectPath, filePath, false);
-    }
-    
-    /**
-     * Adds a checkpoint to the progress.
-     */
-    public void addCheckpoint(String projectPath, Checkpoint checkpoint) {
-        if (projectPath == null || projectPath.isBlank()) {
-            throw new IllegalArgumentException("ProjectPath cannot be null or blank");
-        }
-        if (checkpoint == null) {
-            throw new IllegalArgumentException("Checkpoint cannot be null");
-        }
-        
-        checkpoints.computeIfAbsent(projectPath, k -> new ArrayList<>()).add(checkpoint);
-        updateProgressState(projectPath);
-    }
-    
-    /**
-     * Updates the current phase.
-     */
-    public void updatePhase(String projectPath, int phase) {
-        MigrationProgress current = getProgress(projectPath);
-        MigrationProgress updated = new MigrationProgress(
-            current.currentState(),
-            phase,
-            current.statistics(),
-            current.checkpoints(),
-            LocalDateTime.now()
-        );
-        progressMap.put(projectPath, updated);
-    }
-    
-    private void updateProgress(String projectPath, String filePath, boolean success) {
-        Set<String> refactored = refactoredFiles.computeIfAbsent(projectPath, k -> new HashSet<>());
-        Set<String> failed = failedFiles.computeIfAbsent(projectPath, k -> new HashSet<>());
-        
-        if (success) {
-            refactored.add(filePath);
-            failed.remove(filePath);
-        } else {
-            failed.add(filePath);
-            refactored.remove(filePath);
-        }
-        
-        updateProgressState(projectPath);
-    }
-    
-    private void updateProgressState(String projectPath) {
-        MigrationProgress current = getProgress(projectPath);
-        ProgressStatistics stats = calculateStatistics(projectPath);
-        
-        MigrationState newState = determineState(stats);
-        
-        MigrationProgress updated = new MigrationProgress(
-            newState,
-            current.currentPhase(),
-            stats,
-            checkpoints.getOrDefault(projectPath, List.of()),
-            LocalDateTime.now()
-        );
-        
-        progressMap.put(projectPath, updated);
-    }
-    
-    private ProgressStatistics calculateStatistics(String projectPath) {
-        MigrationProgress current = getProgress(projectPath);
-        int totalFiles = current.statistics().totalFiles();
-        
-        Set<String> refactored = refactoredFiles.getOrDefault(projectPath, Set.of());
-        Set<String> failed = failedFiles.getOrDefault(projectPath, Set.of());
-        
-        int refactoredCount = refactored.size();
-        int failedCount = failed.size();
-        int pendingCount = totalFiles - refactoredCount - failedCount;
-        
-        return new ProgressStatistics(totalFiles, refactoredCount, failedCount, pendingCount);
-    }
-    
-    private MigrationState determineState(ProgressStatistics stats) {
-        if (stats.isComplete()) {
-            return MigrationState.COMPLETE;
-        } else if (stats.refactoredFiles() > 0 || stats.failedFiles() > 0) {
-            return MigrationState.IN_PROGRESS;
-        } else {
-            return MigrationState.NOT_STARTED;
-        }
-    }
-    
-    private MigrationProgress createEmptyProgress() {
-        return new MigrationProgress(
-            MigrationState.NOT_STARTED,
-            0,
-            new ProgressStatistics(0, 0, 0, 0),
-            List.of(),
-            LocalDateTime.now()
-        );
+    public int getTotalFiles() {
+        return 0;
     }
 }
-

@@ -49,8 +49,9 @@ tasks.register("validateLicenseHeaders") {
         val violations = mutableListOf<String>()
         
         allprojects.forEach { project ->
-            if (project.hasProperty("licenseType")) {
-                val expectedType = project.property("licenseType") as String
+            val extraProps = project.extra.properties
+            if (extraProps.containsKey("licenseType")) {
+                val expectedType = extraProps["licenseType"] as String
                 val sourceDirs = project.sourceSets.flatMap { it.java.srcDirs }
                 
                 sourceDirs.forEach { dir ->

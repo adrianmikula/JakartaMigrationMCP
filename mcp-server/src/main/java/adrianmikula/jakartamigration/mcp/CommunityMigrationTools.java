@@ -205,7 +205,7 @@ public class CommunityMigrationTools {
             DependencyAnalysisReport report = dependencyAnalysisModule.analyzeProject(project);
 
             // Create migration plan
-            MigrationPlan plan = migrationPlanner.createPlan(projectPath, report);
+            MigrationPlan plan = migrationPlanner.createPlan(project, report);
 
             // Build response
             return buildMigrationPlanResponse(plan);
