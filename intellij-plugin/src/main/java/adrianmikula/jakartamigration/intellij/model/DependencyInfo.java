@@ -1,3 +1,12 @@
+/*
+ * Copyright © 2026 Adrian Mikula
+ *
+ * All rights reserved.
+ *
+ * This software is proprietary and may not be used, copied,
+ * modified, or distributed except under the terms of a
+ * separate commercial license agreement.
+ */
 package adrianmikula.jakartamigration.intellij.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
