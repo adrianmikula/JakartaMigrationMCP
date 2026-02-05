@@ -18,3 +18,18 @@ allprojects {
         maven { url = uri("https://cache-redirector.jetbrains.com/intellij-dependencies") }
     }
 }
+
+// =============================================================================
+// MODULE STRUCTURE
+// =============================================================================
+//
+// Community Modules (Apache 2.0):
+// - migration-core: Base analysis and scanning logic
+// - mcp-server: MCP server with community tools (analyzeJakartaReadiness, detectBlockers, recommendVersions)
+//
+// Premium Module (Proprietary):
+// - intellij-plugin: IntelliJ plugin with free trial ($49/mo or $399/yr after trial)
+//
+// The MCP server is fully open source (Apache 2.0).
+// The IntelliJ plugin is proprietary and includes premium features.
+//

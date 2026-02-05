@@ -1,21 +1,31 @@
-Apache License 2.0
-===================
+Copyright © 2026 Adrian Mikula
 
-Copyright 2026 Adrian Mikula
+All rights reserved.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+This software is proprietary and may not be used, copied,
+modified, or distributed except under the terms of a
+separate commercial license agreement.
 
-    http://www.apache.org/licenses/LICENSE-2.0
+================================================================
+INTELLIJ PLUGIN - PROPRIETARY LICENSE
+================================================================
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+This IntelliJ plugin is provided with a FREE TRIAL period.
+After the trial expires, a license is required for continued use.
 
----
+Trial: 7 days free trial (no credit card required)
 
-This module is part of the Jakarta Migration MCP project.
-For the full license text, see LICENSE in the repository root.
+Licensed Features (during and after trial with valid license):
+- All IntelliJ plugin features
+- MCP server integration
+- Premium MCP tools when license is active
+
+The underlying MCP server (mcp-server module) is licensed
+separately under Apache License 2.0 and is free to use.
+
+For licensing:
+- Monthly: $49 USD/month
+- Yearly: $399 USD/year (17% savings)
+- JetBrains Marketplace: https://plugins.jetbrains.com
+
+================================================================

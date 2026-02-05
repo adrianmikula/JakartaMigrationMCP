@@ -86,6 +86,28 @@ description = "Clean build artifacts. Linux/macOS: Mill; Windows: Gradle"
 run_windows = "gradlew.bat clean"
 run = "mill clean"
 
+# Premium Build Tasks (require -PpremiumEnabled=true)
+
+[tasks.build-premium]
+description = "Build premium module with all features. Requires -PpremiumEnabled=true"
+run_windows = "gradlew.bat :premium-engine:compileJava"
+run = "mill premiumEngine.compile"
+
+[tasks.build-premium-all]
+description = "Build premium module with tests. Requires -PpremiumEnabled=true"
+run_windows = "gradlew.bat :premium-engine:build"
+run = "mill premiumEngine.compile premiumEngine.test"
+
+[tasks.build-premium-intellij]
+description = "Build premium IntelliJ plugin. Requires -PpremiumEnabled=true"
+run_windows = "gradlew.bat :premium-intellij:build"
+run = "mill premiumIntellij.build"
+
+[tasks.build-all-modules]
+description = "Build all modules including premium. Requires -PpremiumEnabled=true"
+run_windows = "gradlew.bat build -PpremiumEnabled=true"
+run = "mill compile test assembly -DpremiumEnabled=true"
+
 [tasks.docker-logs]
 description = "View Docker service logs (follow mode)"
 run = "docker compose logs -f"
@@ -138,4 +160,3 @@ run = "cd frontend && npm run storybook"
 [tasks.storybook-build]
 description = "Build Storybook for static hosting"
 run = "cd frontend && npm run build-storybook"
-
