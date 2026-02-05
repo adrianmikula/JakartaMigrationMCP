@@ -9,6 +9,12 @@ include("migration-core")
 include("mcp-server")
 include("intellij-plugin")
 
-// Premium modules (JetBrains Marketplace - proprietary)
-// Included when premium module directories exist (loaded by Gradle automatically)
-// No include() needed - Gradle discovers modules with build.gradle.kts
+// Premium modules (Proprietary - loaded conditionally)
+// These modules contain premium features that require a commercial license
+// They are only included if the directory exists (for development)
+// and when -PpremiumEnabled=true is set
+
+if (file("premium-core").exists()) {
+    include("premium-core")
+    include("premium-mcp")
+}
