@@ -196,6 +196,22 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
                 )
             """);
 
+            // Refactoring tasks table
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS refactoring_tasks (
+                    id TEXT PRIMARY KEY,
+                    project_path TEXT NOT NULL,
+                    task_type TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    description TEXT,
+                    status TEXT DEFAULT 'pending',
+                    priority INTEGER DEFAULT 0,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    completed_at TEXT,
+                    error_message TEXT
+                )
+            """);
+
             // Indexes for efficient querying
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_deps_project ON dependencies(project_path)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_edges_from ON dependency_edges(project_path, from_group_id, from_artifact_id)");
@@ -203,6 +219,7 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_blockers_project ON blockers(project_path)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_recommendations_project ON recommendations(project_path)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_phases_plan ON migration_phases(plan_id)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_tasks_project ON refactoring_tasks(project_path)");
 
             conn.commit();
             log.info("Database tables created/verified at {}", dbPath);
@@ -545,6 +562,151 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
         }
     }
 
+    // ==================== Refactoring Task Operations ====================
+
+    /**
+     * Saves a refactoring task to the database.
+     */
+    public void saveRefactoringTask(Path projectPath, StoredRefactoringTask task) {
+        try (Connection conn = getConnection()) {
+            String sql = """
+                INSERT OR REPLACE INTO refactoring_tasks 
+                (id, project_path, task_type, file_path, description, status, priority, completed_at, error_message)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+            
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, task.id());
+                stmt.setString(2, projectPath.toString());
+                stmt.setString(3, task.taskType());
+                stmt.setString(4, task.filePath());
+                stmt.setString(5, task.description());
+                stmt.setString(6, task.status());
+                stmt.setInt(7, task.priority());
+                stmt.setString(8, task.completedAt());
+                stmt.setString(9, task.errorMessage());
+                stmt.executeUpdate();
+            }
+            
+            conn.commit();
+            log.info("Saved refactoring task: {} for project: {}", task.id(), projectPath);
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to save refactoring task", e);
+        }
+    }
+
+    /**
+     * Gets all refactoring tasks for a project.
+     */
+    public List<StoredRefactoringTask> getRefactoringTasks(Path projectPath) {
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement("""
+                SELECT * FROM refactoring_tasks 
+                WHERE project_path = ? 
+                ORDER BY priority DESC, created_at DESC
+                """)) {
+            stmt.setString(1, projectPath.toString());
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                List<StoredRefactoringTask> tasks = new ArrayList<>();
+                while (rs.next()) {
+                    tasks.add(new StoredRefactoringTask(
+                        rs.getString("id"),
+                        rs.getString("task_type"),
+                        rs.getString("file_path"),
+                        rs.getString("description"),
+                        rs.getString("status"),
+                        rs.getInt("priority"),
+                        rs.getString("completed_at"),
+                        rs.getString("error_message")
+                    ));
+                }
+                return tasks;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to get refactoring tasks", e);
+        }
+    }
+
+    /**
+     * Gets refactoring tasks by status.
+     */
+    public List<StoredRefactoringTask> getRefactoringTasksByStatus(Path projectPath, String status) {
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement("""
+                SELECT * FROM refactoring_tasks 
+                WHERE project_path = ? AND status = ?
+                ORDER BY priority DESC
+                """)) {
+            stmt.setString(1, projectPath.toString());
+            stmt.setString(2, status);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                List<StoredRefactoringTask> tasks = new ArrayList<>();
+                while (rs.next()) {
+                    tasks.add(new StoredRefactoringTask(
+                        rs.getString("id"),
+                        rs.getString("task_type"),
+                        rs.getString("file_path"),
+                        rs.getString("description"),
+                        rs.getString("status"),
+                        rs.getInt("priority"),
+                        rs.getString("completed_at"),
+                        rs.getString("error_message")
+                    ));
+                }
+                return tasks;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to get refactoring tasks by status", e);
+        }
+    }
+
+    /**
+     * Updates the status of a refactoring task.
+     */
+    public void updateRefactoringTaskStatus(Path projectPath, String taskId, String newStatus) {
+        try (Connection conn = getConnection()) {
+            String sql = """
+                UPDATE refactoring_tasks 
+                SET status = ?, completed_at = CASE WHEN ? = 'completed' THEN datetime('now') ELSE completed_at END
+                WHERE id = ? AND project_path = ?
+                """;
+            
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, newStatus);
+                stmt.setString(2, newStatus);
+                stmt.setString(3, taskId);
+                stmt.setString(4, projectPath.toString());
+                stmt.executeUpdate();
+            }
+            
+            conn.commit();
+            log.info("Updated refactoring task {} status to {} for project: {}", taskId, newStatus, projectPath);
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to update refactoring task status", e);
+        }
+    }
+
+    /**
+     * Deletes all refactoring tasks for a project.
+     */
+    public void clearRefactoringTasks(Path projectPath) {
+        try (Connection conn = getConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement("""
+                DELETE FROM refactoring_tasks WHERE project_path = ?
+                """)) {
+                stmt.setString(1, projectPath.toString());
+                stmt.executeUpdate();
+            }
+            
+            conn.commit();
+            log.info("Cleared all refactoring tasks for project: {}", projectPath);
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to clear refactoring tasks", e);
+        }
+    }
+
     // ==================== Utility Operations ====================
 
     /**
@@ -601,6 +763,7 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
                 stmt.execute("DELETE FROM dependency_edges WHERE project_path = '" + path + "'");
                 stmt.execute("DELETE FROM dependencies WHERE project_path = '" + path + "'");
                 stmt.execute("DELETE FROM analysis_reports WHERE project_path = '" + path + "'");
+                stmt.execute("DELETE FROM refactoring_tasks WHERE project_path = '" + path + "'");
                 stmt.execute("DELETE FROM projects WHERE project_path = '" + path + "'");
             }
 
@@ -848,5 +1011,19 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
         String description,
         String action,
         String estimatedEffort
+    ) {}
+
+    /**
+     * Stored refactoring task record.
+     */
+    public record StoredRefactoringTask(
+        String id,
+        String taskType,
+        String filePath,
+        String description,
+        String status,
+        int priority,
+        String completedAt,
+        String errorMessage
     ) {}
 }

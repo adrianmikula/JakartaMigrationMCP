@@ -418,4 +418,86 @@ public class DependenciesTableComponent {
             default: return DependencyMigrationStatus.COMPATIBLE;
         }
     }
+
+    // ==================== XML/Reflection Sections ====================
+
+    /**
+     * Panel for showing XML namespace issues found during scanning.
+     */
+    private JPanel xmlIssuesPanel;
+    private JLabel xmlIssueCountLabel;
+    
+    /**
+     * Panel for showing reflection-based javax usage.
+     */
+    private JPanel reflectionIssuesPanel;
+    private JLabel reflectionIssueCountLabel;
+
+    /**
+     * Creates and returns a panel showing XML namespace issues.
+     */
+    public JPanel createXmlNamespaceSection(int issueCount, String... filePaths) {
+        xmlIssuesPanel = new JPanel(new BorderLayout());
+        xmlIssuesPanel.setBorder(BorderFactory.createTitledBorder("XML Namespace Issues"));
+        
+        JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        if (issueCount > 0) {
+            headerPanel.setBackground(new Color(255, 248, 220)); // Light yellow warning
+            xmlIssueCountLabel = new JLabel("⚠️ " + issueCount + " issues found in XML configuration files");
+        } else {
+            headerPanel.setBackground(new Color(240, 255, 240)); // Light green
+            xmlIssueCountLabel = new JLabel("✅ No XML namespace issues found");
+        }
+        xmlIssueCountLabel.setFont(xmlIssueCountLabel.getFont().deriveFont(Font.BOLD));
+        headerPanel.add(xmlIssueCountLabel);
+        
+        xmlIssuesPanel.add(headerPanel, BorderLayout.NORTH);
+        
+        if (issueCount > 0 && filePaths.length > 0) {
+            DefaultListModel<String> listModel = new DefaultListModel<>();
+            for (String path : filePaths) {
+                listModel.addElement("📄 " + path);
+            }
+            JList<String> fileList = new JList<>(listModel);
+            JScrollPane scrollPane = new JScrollPane(fileList);
+            scrollPane.setPreferredSize(new Dimension(200, 100));
+            xmlIssuesPanel.add(scrollPane, BorderLayout.CENTER);
+        }
+        
+        return xmlIssuesPanel;
+    }
+
+    /**
+     * Creates and returns a panel showing reflection-based javax usage.
+     */
+    public JPanel createReflectionSection(int criticalCount, String... types) {
+        reflectionIssuesPanel = new JPanel(new BorderLayout());
+        reflectionIssuesPanel.setBorder(BorderFactory.createTitledBorder("Reflection-Based javax Usage"));
+        
+        JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        if (criticalCount > 0) {
+            headerPanel.setBackground(new Color(255, 220, 220)); // Light red warning
+            reflectionIssueCountLabel = new JLabel("⚠️ " + criticalCount + " critical reflection usages detected");
+        } else {
+            headerPanel.setBackground(new Color(240, 255, 240)); // Light green
+            reflectionIssueCountLabel = new JLabel("✅ No critical reflection usages found");
+        }
+        reflectionIssueCountLabel.setFont(reflectionIssueCountLabel.getFont().deriveFont(Font.BOLD));
+        headerPanel.add(reflectionIssueCountLabel);
+        
+        reflectionIssuesPanel.add(headerPanel, BorderLayout.NORTH);
+        
+        if (criticalCount > 0 && types.length > 0) {
+            DefaultListModel<String> listModel = new DefaultListModel<>();
+            for (String type : types) {
+                listModel.addElement("🔍 " + type);
+            }
+            JList<String> typeList = new JList<>(listModel);
+            JScrollPane scrollPane = new JScrollPane(typeList);
+            scrollPane.setPreferredSize(new Dimension(200, 100));
+            reflectionIssuesPanel.add(scrollPane, BorderLayout.CENTER);
+        }
+        
+        return reflectionIssuesPanel;
+    }
 }
