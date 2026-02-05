@@ -1,8 +1,8 @@
 <idea-plugin>
-    <id>adrianmikula.jakartamigration.intellij</id>
+    <id>com.adrianmikula.jakarta-migration</id>
     <name>Jakarta Migration</name>
-    <vendor email="support@jakarta-migration.com" url="https://jakarta-migration.com">Jakarta Migration Team</vendor>
-    <icon>icons/colour_icon.png</icon>
+    <vendor email="adrian.m@tuta.io" name="Adrian Mikula">Adrian Mikula</vendor>
+    <icon>icons/pluginIcon.svg</icon>
 
     <description><![CDATA[
     Jakarta Migration IntelliJ Plugin provides tools to analyze and migrate Java applications from Java EE 8 (javax.*) to Jakarta EE 9+ (jakarta.*).
@@ -44,7 +44,7 @@
         <toolWindow id="JakartaMigration"
                     displayName="Jakarta Migration"
                     anchor="right"
-                    icon="icons/colour_icon.png"
+                    icon="icons/pluginIcon.svg"
                     factoryClass="adrianmikula.jakartamigration.intellij.ui.MigrationToolWindow"/>
 
         <!-- Application Service for MCP Client -->
@@ -70,7 +70,7 @@
                 class="adrianmikula.jakartamigration.intellij.JakartaMigrationAction"
                 text="Jakarta Migration"
                 description="Analyze and migrate to Jakarta EE"
-                icon="icons/colour_icon.png">
+                icon="icons/pluginIcon.svg">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift J"/>
         </action>
@@ -80,7 +80,7 @@
                 class="adrianmikula.jakartamigration.intellij.JakartaMigrationAction"
                 text="Analyze with AI Assistant"
                 description="Analyze project with Jakarta Migration AI Assistant"
-                icon="icons/colour_icon.png">
+                icon="icons/pluginIcon.svg">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>
     </actions>
