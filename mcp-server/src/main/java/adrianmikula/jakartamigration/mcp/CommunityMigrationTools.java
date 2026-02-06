@@ -1,17 +1,9 @@
 /*
- * Copyright 2026 Adrian Mikula
+ * Copyright 2026 Adrian Kozak
+ * Copyright 2026 Prairie Trail Software
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * This software is proprietary and may not be used, copied, modified,
+ * or distributed except under the terms of a separate commercial license agreement.
  */
 package adrianmikula.jakartamigration.mcp;
 
@@ -47,7 +39,6 @@ import java.util.stream.Collectors;
 
 /**
  * Community Edition MCP Tools for Jakarta Migration.
- * These tools are available under the Apache License 2.0 and are free to use.
  * 
  * Community Features (All 8 Tools):
  * - analyzeJakartaReadiness: Analyze project for Jakarta migration readiness
@@ -501,11 +492,12 @@ public class CommunityMigrationTools {
                 .collect(Collectors.joining(", ")) + "]";
     }
 
-    private String escapeJson(String str) {
-        if (str == null) {
+    private String escapeJson(String value) {
+        if (value == null) {
             return "";
         }
-        return str.replace("\\", "\\\\")
+        return value
+                .replace("\\", "\\\\")
                 .replace("\"", "\\\"")
                 .replace("\n", "\\n")
                 .replace("\r", "\\r")

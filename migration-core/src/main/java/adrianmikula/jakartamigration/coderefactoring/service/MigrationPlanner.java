@@ -2,17 +2,8 @@
  * Copyright 2024 Adrian Kozak
  * Copyright 2024 Prairie Trail Software
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * This software is proprietary and may not be used, copied, modified,
+ * or distributed except under the terms of a separate commercial license agreement.
  */
 package adrianmikula.jakartamigration.coderefactoring.service;
 
@@ -25,7 +16,7 @@ import java.nio.file.Path;
 /**
  * Service for creating migration plans.
  * 
- * NOTE: This is a community stub. Full implementation with OpenRewrite-based
+ * NOTE: This is a stub. Full implementation with OpenRewrite-based
  * planning is available in the premium edition.
  */
 public class MigrationPlanner {
@@ -44,7 +35,7 @@ public class MigrationPlanner {
      * @return Migration plan or null if premium features not available
      */
     public MigrationPlan createPlan(Path projectPath, DependencyAnalysisReport report) {
-        // Premium feature - returns null in community edition
+        // Premium feature - returns null in stub implementation
         return null;
     }
     
@@ -60,7 +51,7 @@ public class MigrationPlanner {
             Path projectPath,
             SourceCodeScanner scanner,
             java.util.List<String> recipes) {
-        // Premium feature - returns null in community edition
+        // Premium feature - returns null in stub implementation
         return null;
     }
     
@@ -68,7 +59,7 @@ public class MigrationPlanner {
      * Estimates the duration of a migration.
      * 
      * @param projectPath Path to the project
-     * @return Estimated duration in seconds, or 0 for community edition
+     * @return Estimated duration in seconds, or 0 for stub implementation
      */
     public long estimateMigrationDuration(Path projectPath) {
         return 0;

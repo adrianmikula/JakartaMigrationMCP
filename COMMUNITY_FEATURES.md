@@ -1,20 +1,20 @@
-# Jakarta Migration MCP - Community Edition
+# Jakarta Migration MCP - Premium Edition
 
-**Open-source Jakarta EE migration tools under Apache License 2.0**
+**Proprietary Jakarta EE migration tools**
 
 ---
 
 ## Overview
 
-The Jakarta Migration MCP provides AI-powered tools for migrating Java applications from `javax.*` to `jakarta.*` namespaces. This document describes the **Community Edition** features that are free to use.
+The Jakarta Migration MCP provides AI-powered tools for migrating Java applications from `javax.*` to `jakarta.*` namespaces.
 
 ### License
 
-All Community Edition features are licensed under the **Apache License 2.0**. See [`LICENSE`](LICENSE) for details.
+All features are proprietary. See [`LICENSE`](LICENSE) for details.
 
 ---
 
-## Community Features (Free)
+## Features
 
 ### MCP Tools
 
@@ -35,7 +35,7 @@ Analyzes a Java project for Jakarta migration readiness.
 ```json
 {
   "status": "success",
-  "edition": "community",
+  "edition": "premium",
   "readinessScore": 0.65,
   "readinessMessage": "Mostly ready, some issues to resolve",
   "totalDependencies": 42,
@@ -50,8 +50,8 @@ Analyzes a Java project for Jakarta migration readiness.
 #### `detectBlockers`
 Detects blockers that prevent Jakarta migration.
 
-**Input:**
-- `projectPath` (required): Path to the project root directory
+**projectPath` (Input:**
+- `required): Path to the project root directory
 
 **Output:**
 - List of blocking dependencies
@@ -63,7 +63,7 @@ Detects blockers that prevent Jakarta migration.
 ```json
 {
   "status": "success",
-  "edition": "community",
+  "edition": "premium",
   "blockerCount": 2,
   "blockers": [
     {
@@ -98,7 +98,7 @@ Recommends Jakarta-compatible versions for project dependencies.
 ```json
 {
   "status": "success",
-  "edition": "community",
+  "edition": "premium",
   "recommendationCount": 5,
   "recommendations": [
     {
@@ -114,14 +114,89 @@ Recommends Jakarta-compatible versions for project dependencies.
 
 ---
 
-## IntelliJ Plugin (Community)
+#### `createMigrationPlan`
+Generate comprehensive migration roadmaps with phased execution.
+
+**Input:**
+- `projectPath` (required): Path to the project root directory
+- `targetVersion` (required): Jakarta EE version (e.g., "9", "10", "11")
+
+**Output:**
+- Phased migration plan
+- Estimated duration
+- Risk assessment
+- Safety levels per phase
+
+---
+
+#### `analyzeMigrationImpact`
+Full impact analysis with effort estimation and change tracking.
+
+**Input:**
+- `projectPath` (required): Path to the project root directory
+- `includeTests` (optional): Include test files in analysis
+
+**Output:**
+- Impact summary
+- Files affected
+- Estimated effort (hours)
+- Risk score
+
+---
+
+#### `verifyRuntime`
+Runtime verification of migrated applications.
+
+**Input:**
+- `jarPath` (required): Path to compiled JAR file
+- `timeoutSeconds` (optional): Timeout for verification
+
+**Output:**
+- Verification status
+- Jakarta EE references found
+- Execution metrics
+- Error analysis
+
+---
+
+#### `applyAutoFixes`
+Automatic refactoring of source code using OpenRewrite.
+
+**Input:**
+- `projectPath` (required): Path to the project root directory
+- `recipes` (optional): Specific recipes to apply
+
+**Output:**
+- Files modified
+- Changes applied
+- Summary of refactorings
+
+---
+
+#### `executeMigrationPlan`
+Execute complete migration in phases.
+
+**Input:**
+- `projectPath` (required): Path to the project root directory
+- `planId` (required): Migration plan ID
+- `phase` (optional): Specific phase to execute
+
+**Output:**
+- Execution status
+- Changes applied
+- Verification results
+
+---
+
+## IntelliJ Plugin
 
 The IntelliJ plugin provides a graphical interface for:
 
 - **Project Analysis**: Scan projects for Jakarta migration issues
 - **Dependency Visualization**: View dependency graphs and blockers
-- **Quick Fixes**: Manual migration guidance
+- **Quick Fixes**: Manual and automated migration guidance
 - **Progress Tracking**: Monitor migration status
+- **Premium Features**: Full access to all 8 migration tools
 
 ### Installation
 
@@ -129,37 +204,16 @@ The IntelliJ plugin provides a graphical interface for:
 2. Go to Settings → Plugins
 3. Search for "Jakarta Migration"
 4. Click Install
+5. Enter license key (purchased separately)
 
 ---
 
-## Premium Features
+## Pricing
 
-Premium features require a JetBrains Marketplace subscription.
-
-### Pricing
-
-| Plan | Price | Savings |
-|------|-------|---------|
-| Monthly | $49/month | - |
-| Yearly | $399/year | 17% |
-
-### Premium Tools
-
-| Tool | Description |
-|------|-------------|
-| `createMigrationPlan` | Generate comprehensive migration roadmaps |
-| `analyzeMigrationImpact` | Full impact analysis with effort estimation |
-| `verifyRuntime` | Runtime verification of migrated applications |
-| `applyAutoFixes` | Automatic refactoring of source code |
-| `executeMigrationPlan` | Execute complete migration in phases |
-
-### Upgrade
-
-To unlock premium features:
-
-1. Purchase a subscription at [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/25558)
-2. Enter your license key in plugin settings
-3. Enjoy unlimited migrations!
+| Plan | Price |
+|------|-------|
+| Monthly | $49/month |
+| Yearly | $399/year |
 
 ---
 
@@ -205,43 +259,18 @@ Add to your `cursor.json` or `claude_desktop_config.json`:
 
 ---
 
-## Comparison Table
+## Purchase
 
-| Feature | Community | Premium |
-|---------|-----------|---------|
-| `analyzeJakartaReadiness` | ✅ Free | ✅ Free |
-| `detectBlockers` | ✅ Free | ✅ Free |
-| `recommendVersions` | ✅ Free | ✅ Free |
-| `createMigrationPlan` | ❌ | ✅ $49/mo |
-| `analyzeMigrationImpact` | ❌ | ✅ $49/mo |
-| `verifyRuntime` | ❌ | ✅ $49/mo |
-| `applyAutoFixes` | ❌ | ✅ $49/mo |
-| `executeMigrationPlan` | ❌ | ✅ $49/mo |
-| Support | Community | Priority Support |
-
----
-
-## Resources
-
-- **GitHub**: https://github.com/adrianmikula/jakarta-migration-mcp
-- **JetBrains Plugin**: https://plugins.jetbrains.com/plugin/25558
-- **Documentation**: See [`docs/`](docs/) directory
-- **Issues**: https://github.com/adrianmikula/jakarta-migration-mcp/issues
+- **JetBrains Marketplace**: https://plugins.jetbrains.com/plugin/25558
+- **Contact**: adrian.mikula@outlook.com
 
 ---
 
 ## License
 
-Copyright 2026 Adrian Mikula
+Copyright 2026 Adrian Kozala
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+This software is proprietary and may not be used, copied, modified, or distributed
+except under the terms of a separate commercial license agreement.
 
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+No open-source license applies to any part of this project.

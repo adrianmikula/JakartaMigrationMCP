@@ -5,8 +5,8 @@ This file provides guidance for Claude Code (and other AI assistants) when worki
 ## Project Overview
 
 Jakarta Migration MCP - A tool for analyzing and migrating Java applications from javax to jakarta namespace. The project includes:
-- **migration-core**: Core analysis and scanning logic (Apache 2.0)
-- **mcp-server**: MCP server with community tools (Apache 2.0)
+- **migration-core**: Core analysis and scanning logic (Proprietary)
+- **mcp-server**: MCP server (Proprietary)
 - **intellij-plugin**: IntelliJ plugin (Proprietary)
 
 ## Build System
