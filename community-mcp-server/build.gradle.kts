@@ -5,7 +5,7 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":migration-core"))
+    implementation(project(":community-core-engine"))
     
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-webflux")

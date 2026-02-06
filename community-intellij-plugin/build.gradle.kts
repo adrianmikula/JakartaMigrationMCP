@@ -20,8 +20,8 @@ dependencies {
     // Jackson for JSON serialization
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     
-    // Migration Core - local project dependency
-    implementation(project(":migration-core"))
+    // Community Core Engine - local project dependency
+    implementation(project(":community-core-engine"))
 
     // UI Testing dependencies
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
@@ -41,6 +41,12 @@ tasks {
     patchPluginXml {
         sinceBuild.set("233")
         untilBuild.set("243.*")
+    }
+
+    // Disable buildSearchableOptions task to avoid JavaVersion.parse() failure with JDK 25
+    // This task is only needed for IDE search index functionality in the plugin distribution
+    buildSearchableOptions {
+        onlyIf { false }
     }
 }
 

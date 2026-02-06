@@ -4,8 +4,7 @@ plugins {
 
 dependencies {
     // Internal dependencies (proprietary)
-    implementation(project(":migration-core"))
-    implementation(project(":mcp-server"))
+    implementation(project(":free-core-engine"))
 
     // External dependencies (must be Apache 2.0 compatible)
     implementation("org.slf4j:slf4j-api:2.0.9")
