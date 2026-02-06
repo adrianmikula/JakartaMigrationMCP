@@ -4,9 +4,9 @@ plugins {
 
 dependencies {
     // Internal dependencies (proprietary)
-    implementation(project(":migration-core"))
-    implementation(project(":mcp-server"))
-    implementation(project(":intellij-plugin"))
+    implementation(project(":free-core-engine"))
+    implementation(project(":free-mcp-server"))
+    implementation(project(":free-intellij-plugin"))
 
     // IntelliJ Platform
     compileOnly(intellijPlatform("com.jetbrains.kotlin.k2oo"))

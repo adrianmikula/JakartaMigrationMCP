@@ -4,11 +4,11 @@ plugins {
 
 rootProject.name = "jakarta-migration-parent"
 
-// Community modules (Apache 2.0)
-include("migration-core")
-include("mcp-server")
-include("intellij-plugin")
+// Free modules (Apache 2.0)
+include("free-core-engine")
+include("free-mcp-server")
+include("free-intellij-plugin")
 
-// Premium modules (JetBrains Marketplace - proprietary)
+// Premium modules (Proprietary - JetBrains Marketplace)
 // Included when premium module directories exist (loaded by Gradle automatically)
 // No include() needed - Gradle discovers modules with build.gradle.kts
