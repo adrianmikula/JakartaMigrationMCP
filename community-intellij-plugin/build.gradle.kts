@@ -42,6 +42,12 @@ tasks {
         sinceBuild.set("233")
         untilBuild.set("243.*")
     }
+
+    // Disable buildSearchableOptions task to avoid JavaVersion.parse() failure with JDK 25
+    // This task is only needed for IDE search index functionality in the plugin distribution
+    buildSearchableOptions {
+        onlyIf { false }
+    }
 }
 
 java {
