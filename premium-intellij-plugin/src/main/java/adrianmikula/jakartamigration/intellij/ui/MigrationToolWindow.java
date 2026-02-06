@@ -57,6 +57,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private DependenciesTableComponent dependenciesComponent;
         private DependencyGraphComponent dependencyGraphComponent;
         private MigrationPhasesComponent migrationPhasesComponent;
+        private RefactorComponent refactorComponent;
+        private RuntimeComponent runtimeComponent;
 
         public MigrationToolWindowContent(Project project) {
             this.project = project;
@@ -86,6 +88,14 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Migration Phases tab
             migrationPhasesComponent = new MigrationPhasesComponent(project);
             tabbedPane.addTab("Migration Strategy", migrationPhasesComponent.getPanel());
+
+            // Refactor tab (Premium)
+            refactorComponent = new RefactorComponent(project);
+            tabbedPane.addTab("Refactor", refactorComponent.getPanel());
+
+            // Runtime tab (Premium)
+            runtimeComponent = new RuntimeComponent(project);
+            tabbedPane.addTab("Runtime", runtimeComponent.getPanel());
 
             // Load initial state (empty - wait for user to analyze)
             loadInitialState();

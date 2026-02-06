@@ -23,6 +23,9 @@ dependencies {
     // Community Core Engine - local project dependency (Apache 2.0)
     implementation(project(":community-core-engine"))
 
+    // Premium Core Engine - runtime verification and premium features (Proprietary)
+    implementation(project(":premium-core-engine"))
+
     // UI Testing dependencies
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
     testImplementation("org.junit.platform:junit-platform-suite:1.10.0")

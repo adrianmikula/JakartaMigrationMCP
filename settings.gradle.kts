@@ -9,4 +9,5 @@ include("community-core-engine")
 include("community-mcp-server")
 
 // Premium modules (Proprietary)
+include("premium-core-engine")
 include("premium-intellij-plugin")

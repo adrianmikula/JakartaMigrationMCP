@@ -3,15 +3,16 @@ plugins {
 }
 
 dependencies {
-    // Internal dependencies (proprietary)
-    implementation(project(":free-core-engine"))
+    // Community Core Engine (Apache 2.0) - base functionality
+    implementation(project(":community-core-engine"))
 
-    // External dependencies (must be Apache 2.0 compatible)
+    // External dependencies
     implementation("org.slf4j:slf4j-api:2.0.9")
+    implementation("org.ow2.asm:asm:9.6")
+    implementation("org.ow2.asm:asm-commons:9.6")
 }
 
 // NOTE: This module is PROPRIETARY and not covered by Apache License 2.0
-// Only included when building with -PpremiumEnabled=true
 
 java {
     toolchain {
