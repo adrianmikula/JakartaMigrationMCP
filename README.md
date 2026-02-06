@@ -492,6 +492,12 @@ See [MCP Tools Documentation](docs/mcp/MCP_TOOLS_IMPLEMENTATION.md) for detailed
 
 Apache License 2.0 - See [LICENSE](LICENSE) file for details.
 
+> **Note**: This repository contains both community and proprietary modules:
+> - **Community Modules** (Apache 2.0 licensed): `community-core-engine`, `community-mcp-server`, `community-intellij-plugin`
+> - **Premium Modules** (Proprietary licensed): `premium-core-engine`, `premium-mcp-server`, `premium-intellij-plugin`
+> 
+> See [Module Structure](build.gradle.kts#L26-L34) for details on the module organization.
+
 ## 🙏 Acknowledgments
 
 Built with ❤️ for the Java community. Special thanks to:
