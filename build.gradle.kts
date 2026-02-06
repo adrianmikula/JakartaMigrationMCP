@@ -23,10 +23,10 @@ allprojects {
 // MODULE STRUCTURE
 // =============================================================================
 //
-// Free Modules (Apache 2.0):
-// - free-core-engine: Base analysis and scanning logic
-// - free-mcp-server: MCP server with community tools
-// - free-intellij-plugin: IntelliJ plugin (free version)
+// Community Modules (Apache 2.0):
+// - community-core-engine: Base analysis and scanning logic
+// - community-mcp-server: MCP server with community tools
+// - community-intellij-plugin: IntelliJ plugin (community version)
 //
 // Premium Modules (Proprietary):
 // - premium-core-engine: Premium features for core engine
@@ -117,18 +117,18 @@ tasks.register("validateModuleBoundaries") {
     
     doLast {
         val proprietaryModules = setOf("premium-core-engine", "premium-mcp-server", "premium-intellij-plugin")
-        val freeModules = setOf("free-core-engine", "free-mcp-server", "free-intellij-plugin")
+        val communityModules = setOf("community-core-engine", "community-mcp-server", "community-intellij-plugin")
         
         allprojects.forEach { project ->
-            if (freeModules.contains(project.name)) {
-                // Free modules - check they don't depend on proprietary modules
+            if (communityModules.contains(project.name)) {
+                // Community modules - check they don't depend on proprietary modules
                 project.configurations.forEach { config ->
                     config.dependencies.forEach { dep ->
                         if (proprietaryModules.any { proprietary -> 
                             dep.name.contains(proprietary, ignoreCase = true) 
                         }) {
                             throw GradleException(
-                                "Module boundary violation: ${project.name} (free) " +
+                                "Module boundary violation: ${project.name} (community) " +
                                 "cannot depend on proprietary module ${dep.name}"
                             )
                         }
