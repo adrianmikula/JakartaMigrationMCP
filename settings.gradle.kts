@@ -4,10 +4,8 @@ plugins {
 
 rootProject.name = "jakarta-migration-parent"
 
-// Community modules (Apache 2.0)
-include("migration-core")
-include("mcp-server")
-include("intellij-plugin")
+// Free community modules (Apache 2.0)
+include("free-core")
 
 // Premium modules (Proprietary - loaded conditionally)
 // These modules contain premium features that require a commercial license
@@ -18,4 +16,5 @@ include("intellij-plugin")
 if (file("premium-core").exists() && providers.gradleProperty("premiumEnabled").getOrElse("false").toBoolean()) {
     include("premium-core")
     include("premium-mcp")
+    include("premium-intellij-plugin")
 }
