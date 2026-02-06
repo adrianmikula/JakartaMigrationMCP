@@ -1,6 +1,8 @@
-# Proprietary License
+# Premium License
 
-## Jakarta Migration Plugin
+The modules in this directory are **proprietary** and not open source.
+
+## Proprietary License
 
 Copyright (c) 2026 Adrian Mikula
 
@@ -16,10 +18,19 @@ any derivatives thereof may NOT be used, copied, modified, merged, published,
 distributed, sublicensed, or sold without the express written permission of the
 copyright holder.
 
+## Premium Modules
+
+The following modules are covered by this proprietary license:
+
+- `premium-core-engine` - Premium migration features and advanced analysis
+- `premium-mcp-server` - Premium MCP server features
+- `premium-intellij-plugin` - Premium IntelliJ plugin features
+
 ## Commercial Use
 
 For commercial licensing options, please contact:
-- Email: adrian.m@tuta.io
+
+- **Email**: adrian.m@tuta.io
 
 ## Disclaimer
 
@@ -33,3 +44,9 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+## Third-Party Dependencies
+
+Premium modules may include third-party dependencies that are subject to their
+own licenses. All such dependencies are used in compliance with their
+respective license terms.
