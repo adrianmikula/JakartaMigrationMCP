@@ -20,8 +20,8 @@ dependencies {
     // Jackson for JSON serialization
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     
-    // Free Core Engine - local project dependency
-    implementation(project(":free-core-engine"))
+    // Community Core Engine - local project dependency
+    implementation(project(":community-core-engine"))
 
     // UI Testing dependencies
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
