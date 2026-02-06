@@ -243,7 +243,7 @@ class JakartaMigrationToolsTest {
         );
         
         when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);
-        when(migrationPlanner.createPlan(anyString(), any(DependencyAnalysisReport.class))).thenReturn(mockPlan);
+        when(migrationPlanner.createPlan(any(Path.class), any(DependencyAnalysisReport.class))).thenReturn(mockPlan);
 
         // When
         String result = tools.createMigrationPlan(testProjectPath.toString());
@@ -251,7 +251,7 @@ class JakartaMigrationToolsTest {
         // Then
         assertThat(result).contains("\"status\": \"success\"");
         assertThat(result).contains("\"estimatedDuration\": \"30 minutes\"");
-        verify(migrationPlanner, times(1)).createPlan(anyString(), any(DependencyAnalysisReport.class));
+        verify(migrationPlanner, times(1)).createPlan(any(Path.class), any(DependencyAnalysisReport.class));
     }
 
     @Test
@@ -259,19 +259,12 @@ class JakartaMigrationToolsTest {
     void shouldVerifyRuntimeSuccessfully() {
         // Given
         VerificationResult mockResult = new VerificationResult(
-            VerificationStatus.SUCCESS,
+            true,
             List.of(),
             List.of(),
-            new ExecutionMetrics(Duration.ofSeconds(15), 0, 0, false),
-            new ErrorAnalysis(
-                adrianmikula.jakartamigration.runtimeverification.domain.ErrorCategory.UNKNOWN,
-                "No errors",
-                List.of(),
-                List.of(),
-                List.of(),
-                1.0
-            ),
-            List.of()
+            List.of(),
+            0,
+            0
         );
         
         when(runtimeVerificationModule.verifyRuntime(any(Path.class), any(VerificationOptions.class)))
@@ -292,19 +285,12 @@ class JakartaMigrationToolsTest {
     void shouldUseDefaultTimeoutWhenTimeoutSecondsIsNull() {
         // Given
         VerificationResult mockResult = new VerificationResult(
-            VerificationStatus.SUCCESS,
+            true,
             List.of(),
             List.of(),
-            new ExecutionMetrics(Duration.ofSeconds(10), 0, 0, false),
-            new ErrorAnalysis(
-                adrianmikula.jakartamigration.runtimeverification.domain.ErrorCategory.UNKNOWN,
-                "No errors",
-                List.of(),
-                List.of(),
-                List.of(),
-                1.0
-            ),
-            List.of()
+            List.of(),
+            0,
+            0
         );
         
         when(runtimeVerificationModule.verifyRuntime(any(Path.class), any(VerificationOptions.class)))
