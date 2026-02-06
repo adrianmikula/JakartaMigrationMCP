@@ -1,4 +1,4 @@
-<idea-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/schemas/plugin/2/plugin.xsd" icon="/icons/colour_bird-icon.png">
+<idea-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/schemas/plugin/2/plugin.xsd" icon="/icons/pluginIcon.svg">
     <id>com.adrianmikula.jakarta-migration</id>
     <name>Jakarta Migration</name>
     <vendor email="adrian.m@tuta.io" name="Adrian Mikula">Adrian Mikula</vendor>
@@ -43,7 +43,7 @@
         <toolWindow id="JakartaMigration"
                     displayName="Jakarta Migration"
                     anchor="right"
-                    icon="icons/colour_bird-icon.png"
+                    icon="/icons/pluginIcon.svg"
                     factoryClass="adrianmikula.jakartamigration.intellij.ui.MigrationToolWindow"/>
 
         <!-- Application Service for MCP Client -->
