@@ -490,13 +490,29 @@ See [MCP Tools Documentation](docs/mcp/MCP_TOOLS_IMPLEMENTATION.md) for detailed
 
 ## 📄 License
 
-Apache License 2.0 - See [LICENSE](LICENSE) file for details.
+This repository uses a **dual-licensing** model:
 
-> **Note**: This repository contains both community and proprietary modules:
-> - **Community Modules** (Apache 2.0 licensed): `community-core-engine`, `community-mcp-server`, `community-intellij-plugin`
-> - **Premium Modules** (Proprietary licensed): `premium-core-engine`, `premium-mcp-server`, `premium-intellij-plugin`
-> 
-> See [Module Structure](build.gradle.kts#L26-L34) for details on the module organization.
+### Root License (Proprietary)
+
+The root `LICENSE` file contains the proprietary license for the overall project repository.
+
+### Community Modules (Apache 2.0)
+
+The following modules are licensed under **Apache License 2.0**:
+- `community-core-engine` - Core migration logic and analysis
+- `community-mcp-server` - Model Context Protocol server
+- `community-intellij-plugin` - IntelliJ IDEA plugin
+
+See [`docs/community/LICENSE`](docs/community/LICENSE) for details.
+
+### Premium Modules (Proprietary)
+
+The following modules are **proprietary** and require a commercial license:
+- `premium-core-engine` - Advanced migration features
+- `premium-mcp-server` - Premium MCP server features
+- `premium-intellij-plugin` - Premium IntelliJ plugin features
+
+See [`docs/premium/LICENSE`](docs/premium/LICENSE) for details.
 
 ## 🙏 Acknowledgments
 
