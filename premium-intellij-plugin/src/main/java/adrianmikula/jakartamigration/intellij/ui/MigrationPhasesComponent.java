@@ -3,7 +3,6 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.intellij.ui.MigrationStrategyComponent.MigrationStrategy;
-import adrianmikula.jakartamigration.intellij.ui.SubtaskTableComponent.SubtaskItem;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBPanel;
@@ -16,15 +15,14 @@ import java.util.*;
 import java.util.List;
 
 /**
- * Migration phases component with expandable accordion UI.
- * Each phase displays a subtask table with action buttons for automatable tasks.
+ * Migration phases component showing detailed phase descriptions.
+ * Each phase displays a longer text description without subtask tables.
  */
 public class MigrationPhasesComponent {
     private final JPanel panel;
     private final Project project;
     private final MigrationStrategyComponent strategyComponent;
     private final JTabbedPane phaseTabs;
-    private final Map<String, SubtaskTableComponent> phaseSubtaskTables = new HashMap<>();
     private MigrationStrategy selectedStrategy;
     private List<DependencyInfo> dependencies;
     private final List<PhaseListener> phaseListeners = new ArrayList<>();
@@ -36,66 +34,72 @@ public class MigrationPhasesComponent {
         PHASE_DEFINITIONS.put(MigrationStrategy.BIG_BANG, new PhaseDefinition[]{
             new PhaseDefinition("phase-1", "Complete Migration",
                 """
-                Migrate all javax dependencies to Jakarta EE in a single pass.
-                This approach requires comprehensive planning and testing.
-                """,
-                new String[]{
-                    "Update dependency declarations in pom.xml/build.gradle",
-                    "Replace javax imports in Java files",
-                    "Update XML configuration files",
-                    "Update property files and resource bundles",
-                    "Run unit and integration tests"
-                })
+                The Big Bang migration approach involves migrating all javax dependencies to Jakarta EE in a single, comprehensive pass. 
+                This strategy is best suited for small to medium-sized projects that are relatively self-contained and have comprehensive 
+                test coverage. The main advantage is speed - you complete the migration in one go, but this also means all your 
+                eggs are in one basket. You'll need to thoroughly plan the migration, ensure you have a complete backup of your codebase, 
+                and be prepared for a potentially longer rollback time if issues arise. This approach requires comprehensive testing 
+                before starting and may cause extended downtime during the migration process.
+                
+                Key activities include updating all dependency declarations in your build files (pom.xml, build.gradle, etc.), 
+                systematically replacing all javax.* imports with jakarta.* across every Java source file, updating XML configuration 
+                files that reference javax, updating property files and resource bundles, and running your complete suite of 
+                unit and integration tests to verify everything works correctly.
+                """)
         });
 
         PHASE_DEFINITIONS.put(MigrationStrategy.INCREMENTAL, new PhaseDefinition[]{
             new PhaseDefinition("phase-1", "Dependency Updates",
                 """
-                Update dependencies incrementally, starting with the lowest-risk ones.
-                Focus on transitive dependencies first, then direct dependencies.
-                """,
-                new String[]{
-                    "Analyze current dependencies",
-                    "Check for Jakarta equivalents",
-                    "Update lowest-risk dependencies first",
-                    "Verify no breaking changes",
-                    "Repeat for remaining dependencies"
-                }),
+                The Incremental migration approach updates dependencies one at a time, starting with the lowest-risk ones and 
+                progressing to higher-risk dependencies. This strategy is ideal for large, complex projects where a big-bang 
+                approach would be too risky. By migrating incrementally, you can identify and fix issues as they arise, 
+                rather than dealing with a massive cascade of failures.
+                
+                Start by analyzing your current dependency tree to understand which dependencies need to be migrated. 
+                Focus on transitive dependencies first (those that are dependencies of your dependencies), then move 
+                to direct dependencies. For each dependency, check if there's a Jakarta EE equivalent available. Update 
+                the lowest-risk dependencies first - typically those with few dependents and good test coverage. After each 
+                update, verify there are no breaking changes before proceeding to the next dependency.
+                """),
             new PhaseDefinition("phase-2", "Import Replacement",
                 """
-                Systematically replace javax.* imports with jakarta.* across the codebase.
-                Use IDE refactoring tools for safe replacement.
-                """,
-                new String[]{
-                    "Replace imports in transitive dependencies",
-                    "Replace imports in direct dependencies",
-                    "Replace imports in application code",
-                    "Update any reflection ConfigFiles"
-                }),
+                Once your dependencies have been updated to use Jakarta EE, the next step is to systematically replace 
+                all javax.* imports with jakarta.* imports across your entire codebase. This is where the bulk of the 
+                work happens. Use your IDE's refactoring tools to perform safe, global replacements.
+                
+                Start with transitive dependencies (libraries you've pulled in), then direct dependencies, then your 
+                application code. Be careful with reflection-based code and configuration files that may contain 
+                class names or package references. You'll also need to update any XML configuration files, deployment 
+                descriptors, and property files that reference the old javax namespaces. Consider using OpenRewrite 
+                recipes to automate much of this work.
+                """),
             new PhaseDefinition("phase-3", "Testing & Verification",
                 """
-                Comprehensive testing after import replacements.
-                Ensure no compilation errors and all tests pass.
-                """,
-                new String[]{
-                    "Run unit tests",
-                    "Run integration tests",
-                    "Verify interactions",
-                    "Test error handling"
-                }),
+                After completing the import replacements, comprehensive testing is essential to ensure everything works 
+                correctly. This phase involves running your full test suite to catch any issues that may have been 
+                introduced during the migration.
+                
+                Run all unit tests first to verify individual components work correctly. Then run integration tests 
+                to ensure different parts of your application work together properly. Pay special attention to testing 
+                code that interacts with external systems, databases, or uses reflection. Verify that error handling 
+                still works correctly and that any custom exception handling is still functional. Don't forget to 
+                test any scheduled jobs, message consumers, and event handlers.
+                """),
             new PhaseDefinition("phase-4", "Production Rollout",
                 """
-                Deploy the runtime transformation solution.
-                Monitor for issues in production environment.
-                """,
-                new String[]{
-                    "Deploy to staging",
-                    "Monitor performance",
-                    "Deploy to production"
-                })
+                The final phase involves deploying your migrated application to production. This requires careful 
+                planning and monitoring to ensure a smooth transition.
+                
+                Start by deploying to a staging environment that mirrors production as closely as possible. Monitor 
+                performance metrics closely during this phase - look for any degradation in response times, increased 
+                error rates, or unusual behavior. Once you're confident the application is working correctly in staging, 
+                deploy to production. Continue monitoring closely after the production deployment and have a rollback 
+                plan ready in case critical issues arise.
+                """)
         });
 
-        PHASE_DEFINITIONS.put(MigrationStrategy.BUILD_TRANSFORMATION, new PhaseDefinition[]{
+        PHASE_DEFINITIONS.put(MigrationStrategy.TRANSFORM, new PhaseDefinition[]{
             new PhaseDefinition("phase-1", "Build Tool Updates",
                 """
                 Update build configuration to use Jakarta EE dependencies.
@@ -141,7 +145,7 @@ public class MigrationPhasesComponent {
                 })
         });
 
-        PHASE_DEFINITIONS.put(MigrationStrategy.RUNTIME_TRANSFORMATION, new PhaseDefinition[]{
+        PHASE_DEFINITIONS.put(MigrationStrategy.MICROSERVICES, new PhaseDefinition[]{
             new PhaseDefinition("phase-1", "Adapter Pattern Setup",
                 """
                 Create adapter classes for javax to jakarta compatibility.
@@ -191,25 +195,22 @@ public class MigrationPhasesComponent {
     }
 
     /**
-     * Phase definition with detailed description and subtasks.
+     * Phase definition with detailed description.
      */
     public static class PhaseDefinition {
         private final String id;
         private final String name;
         private final String description;
-        private final String[] subtasks;
 
-        public PhaseDefinition(String id, String name, String description, String[] subtasks) {
+        public PhaseDefinition(String id, String name, String description) {
             this.id = id;
             this.name = name;
             this.description = description;
-            this.subtasks = subtasks;
         }
 
         public String getId() { return id; }
         public String getName() { return name; }
         public String getDescription() { return description; }
-        public String[] getSubtasks() { return subtasks; }
     }
 
     public MigrationPhasesComponent(Project project) {
@@ -246,91 +247,41 @@ public class MigrationPhasesComponent {
 
     private void updatePhasesForStrategy(MigrationStrategy strategy) {
         phaseTabs.removeAll();
-        phaseSubtaskTables.clear();
 
         PhaseDefinition[] phases = PHASE_DEFINITIONS.getOrDefault(strategy,
             PHASE_DEFINITIONS.get(MigrationStrategy.INCREMENTAL));
 
         for (int i = 0; i < phases.length; i++) {
             PhaseDefinition phase = phases[i];
-            SubtaskTableComponent subtaskTable = new SubtaskTableComponent(project);
-            phaseSubtaskTables.put(phase.getId(), subtaskTable);
-
-            // Create subtasks for this phase
-            List<SubtaskItem> subtasks = createSubtasksForPhase(phase, dependencies);
-
-            subtaskTable.setSubtasks(subtasks);
-
-            // Create the tab content panel
-            JPanel tabContent = createPhaseTabContent(phase, subtaskTable);
+            
+            // Create the tab content panel with just the description
+            JPanel tabContent = createPhaseTabContent(phase);
             phaseTabs.addTab(phase.getName(), tabContent);
         }
     }
 
-    private List<SubtaskItem> createSubtasksForPhase(PhaseDefinition phase, List<DependencyInfo> deps) {
-        List<SubtaskItem> items = new ArrayList<>();
-
-        // Add phase subtasks with automation detection
-        for (String task : phase.getSubtasks()) {
-            String automationType = determineAutomationType(task);
-            items.add(new SubtaskItem(task, "", null, automationType));
-        }
-
-        // Add dependency-specific subtasks
-        if (deps != null && !deps.isEmpty()) {
-            // Add a separator subtask
-            items.add(new SubtaskItem("---", "", null, null));
-
-            List<DependencyInfo> needsUpgrade = deps.stream()
-                .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.NEEDS_UPGRADE)
-                .toList();
-
-            for (DependencyInfo dep : needsUpgrade.stream().limit(5).toList()) {
-                String task = String.format("Migrate %s", dep.getArtifactId());
-                items.add(new SubtaskItem(task, "", dep, "dependency-update"));
-            }
-
-            if (needsUpgrade.size() > 5) {
-                items.add(new SubtaskItem(String.format("... and %d more dependencies", needsUpgrade.size() - 5),
-                    "", null, null));
-            }
-        }
-
-        return items;
-    }
-
-    private String determineAutomationType(String task) {
-        String lower = task.toLowerCase();
-        if (lower.contains("import") || lower.contains("refactor") || lower.contains("rewrite")) {
-            return "open-rewrite";
-        } else if (lower.contains("binary") || lower.contains("scan") || lower.contains("analyze")) {
-            return "binary-scan";
-        } else if (lower.contains("update") || lower.contains("upgrade") || lower.contains("dependency")) {
-            return "dependency-update";
-        }
-        return null;
-    }
-
-    private JPanel createPhaseTabContent(PhaseDefinition phase, SubtaskTableComponent subtaskTable) {
+    private JPanel createPhaseTabContent(PhaseDefinition phase) {
         JPanel content = new JBPanel(new BorderLayout(10, 10));
-        content.setBorder(new EmptyBorder(10, 10, 10, 10));
+        content.setBorder(new EmptyBorder(15, 15, 15, 15));
 
-        // Phase description
+        // Phase title
+        JLabel titleLabel = new JLabel(phase.getName());
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
+        titleLabel.setBorder(new EmptyBorder(0, 0, 10, 0));
+
+        // Phase description - longer text
         JTextArea descriptionArea = new JTextArea(phase.getDescription());
         descriptionArea.setEditable(false);
         descriptionArea.setLineWrap(true);
         descriptionArea.setWrapStyleWord(true);
-        descriptionArea.setFont(descriptionArea.getFont().deriveFont(Font.ITALIC));
+        descriptionArea.setFont(descriptionArea.getFont().deriveFont(Font.PLAIN, 13f));
         descriptionArea.setBackground(UIManager.getColor("Panel.background"));
+        
         JScrollPane descScroll = new JScrollPane(descriptionArea);
         descScroll.setBorder(BorderFactory.createEmptyBorder(5, 0, 10, 0));
-        descScroll.setPreferredSize(new Dimension(0, 80));
 
-        // Subtask table
-        JPanel subtaskPanel = subtaskTable.getPanel();
-
-        content.add(descScroll, BorderLayout.NORTH);
-        content.add(subtaskPanel, BorderLayout.CENTER);
+        content.add(titleLabel, BorderLayout.NORTH);
+        content.add(descScroll, BorderLayout.CENTER);
 
         return content;
     }

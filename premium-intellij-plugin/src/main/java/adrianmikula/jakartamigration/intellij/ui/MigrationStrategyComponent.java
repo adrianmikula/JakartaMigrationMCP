@@ -14,8 +14,8 @@ import java.util.List;
  * Displays clickable cards for different migration strategies:
  * - Big Bang (all at once)
  * - Incremental/One by One
- * - Build Transformation
- * - Runtime Transformation
+ * - Transform (build + runtime transformation)
+ * - Microservices (migrate each service independently)
  */
 public class MigrationStrategyComponent {
     private final JPanel panel;
@@ -58,35 +58,35 @@ public class MigrationStrategyComponent {
                 """,
                 new Color(255, 193, 7)), // Yellow
 
-        BUILD_TRANSFORMATION("Build Transformation", "Transform during build process",
+        TRANSFORM("Transform", "Combined build and runtime transformation",
                 """
-                • Use OpenRewrite recipes during build
-                • Automated code transformation
-                • CI/CD pipeline integration
-                • Best for projects with complex dependencies
+                • Combine build-time and runtime transformation approaches
+                • Use OpenRewrite for automated code changes
+                • Deploy runtime adapters for edge cases
+                • Best for complex enterprise applications
                 """,
                 """
-                • Requires build system access
-                • May need custom OpenRewrite recipes
-                • Build times may increase
-                • Need to handle build failures gracefully
+                • Most complex implementation
+                • Requires both build and runtime configuration
+                • Higher resource overhead
+                • May need specialized expertise
                 """,
                 new Color(23, 162, 184)), // Blue
 
-        RUNTIME_TRANSFORMATION("Runtime Transformation", "Transform at runtime",
+        MICROSERVICES("Microservices", "Migrate each service independently",
                 """
-                • Use adapter pattern for runtime compatibility
-                • No code changes required
-                • Quick to implement
-                • Good for legacy systems
+                • Migrate microservices one at a time
+                • Each service can use different strategy
+                • Independent deployment and testing
+                • Best for distributed architectures
                 """,
                 """
-                • Performance overhead at runtime
-                • Limited to supported patterns
-                • Not a permanent solution
-                • May have edge case issues
+                • Requires coordination across services
+                • Inter-service dependencies must be handled
+                • May need service mesh updates
+                • Longer overall migration timeline
                 """,
-                new Color(40, 167, 69)); // Green
+                new Color(108, 117, 125)); // Gray
 
         private final String displayName;
         private final String description;

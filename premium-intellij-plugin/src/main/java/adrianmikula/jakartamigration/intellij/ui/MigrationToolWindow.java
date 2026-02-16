@@ -117,7 +117,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             dependencyGraphComponent = new DependencyGraphComponent(project);
             tabbedPane.addTab("Dependency Graph", dependencyGraphComponent.getPanel());
 
-            // Migration Phases tab
+            // Migration Strategy tab - strategy cards with benefits/risks and migration steps
             migrationPhasesComponent = new MigrationPhasesComponent(project);
             tabbedPane.addTab("Migration Strategy", migrationPhasesComponent.getPanel());
 
@@ -391,6 +391,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             dashboardComponent.updateDashboard(dashboard);
             dependenciesComponent.setDependencies(new ArrayList<>());
+            migrationPhasesComponent.setDependencies(new ArrayList<>());
             
             // Clear the dependency graph
             dependencyGraphComponent.updateGraphFromDependencyGraph(new DependencyGraph());
@@ -521,6 +522,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             dashboardComponent.updateDashboard(dashboard);
             dependenciesComponent.setDependencies(deps);
+            migrationPhasesComponent.setDependencies(deps);
             
             // Also update the dependency graph with real relationships
             if (report.dependencyGraph() != null) {
@@ -559,6 +561,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             dashboardComponent.updateDashboard(dashboard);
             dependenciesComponent.setDependencies(new ArrayList<>());
+            migrationPhasesComponent.setDependencies(new ArrayList<>());
         }
 
         /**
