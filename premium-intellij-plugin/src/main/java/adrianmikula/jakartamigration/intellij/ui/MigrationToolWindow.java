@@ -59,12 +59,44 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private DependenciesTableComponent dependenciesComponent;
         private DependencyGraphComponent dependencyGraphComponent;
         private MigrationPhasesComponent migrationPhasesComponent;
+        private RefactorTabComponent refactorTabComponent;
+        private RuntimeTabComponent runtimeTabComponent;
+        private boolean isPremium;
 
         public MigrationToolWindowContent(Project project) {
             this.project = project;
             this.analysisService = new MigrationAnalysisService();
             this.contentPanel = new JPanel(new BorderLayout());
+            
+            // Check premium status
+            this.isPremium = checkPremiumStatus();
+            
             initializeContent();
+        }
+
+        /**
+         * Check if user has premium license.
+         */
+        private boolean checkPremiumStatus() {
+            // Check system property (set by trial activation)
+            if ("true".equals(System.getProperty("jakarta.migration.premium"))) {
+                // Check if trial is still valid
+                String trialEnd = System.getProperty("jakarta.migration.trial.end");
+                if (trialEnd != null) {
+                    try {
+                        long endTime = Long.parseLong(trialEnd);
+                        if (System.currentTimeMillis() > endTime) {
+                            // Trial expired, clear premium status
+                            System.setProperty("jakarta.migration.premium", "false");
+                            return false;
+                        }
+                    } catch (NumberFormatException e) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return false;
         }
 
         private void initializeContent() {
@@ -88,6 +120,31 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Migration Phases tab
             migrationPhasesComponent = new MigrationPhasesComponent(project);
             tabbedPane.addTab("Migration Strategy", migrationPhasesComponent.getPanel());
+
+            // Premium tabs - only available for premium users
+            if (isPremium) {
+                // Refactor tab (Premium)
+                refactorTabComponent = new RefactorTabComponent(project);
+                tabbedPane.addTab("Refactor ⭐", refactorTabComponent.getPanel());
+
+                // Runtime Error Diagnosis tab (Premium)
+                runtimeTabComponent = new RuntimeTabComponent(project);
+                tabbedPane.addTab("Runtime ⭐", runtimeTabComponent.getPanel());
+            } else {
+                // Add premium placeholder tabs
+                tabbedPane.addTab("Refactor 🔒", createPremiumPlaceholderPanel(
+                    "Refactor Tab",
+                    "Apply OpenRewrite recipes with one-click refactoring",
+                    "One-click code refactoring",
+                    "Automatic migration fixes"
+                ));
+                tabbedPane.addTab("Runtime 🔒", createPremiumPlaceholderPanel(
+                    "Runtime Tab",
+                    "Diagnose runtime errors with AI-powered analysis",
+                    "Error pattern recognition",
+                    "Automated remediation suggestions"
+                ));
+            }
 
             // Load initial state (empty - wait for user to analyze)
             loadInitialState();
@@ -127,6 +184,75 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         /**
+         * Creates a premium placeholder panel for locked features.
+         */
+        private JPanel createPremiumPlaceholderPanel(String featureName, String description, 
+                                                      String... features) {
+            JPanel panel = new JPanel(new BorderLayout());
+            panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+            
+            // Main content
+            JPanel contentPanel = new JPanel();
+            contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+            
+            // Lock icon and title
+            JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            JLabel lockIcon = new JLabel("🔒");
+            lockIcon.setFont(new Font(lockIcon.getFont().getName(), Font.PLAIN, 24));
+            JLabel titleLabel = new JLabel(featureName + " - Premium Feature");
+            titleLabel.setFont(new Font(titleLabel.getFont().getName(), Font.BOLD, 18));
+            titlePanel.add(lockIcon);
+            titlePanel.add(titleLabel);
+            
+            // Description
+            JLabel descLabel = new JLabel("<html>" + description + "</html>");
+            descLabel.setForeground(Color.GRAY);
+            
+            // Features list
+            JPanel featuresPanel = new JPanel();
+            featuresPanel.setLayout(new BoxLayout(featuresPanel, BoxLayout.Y_AXIS));
+            featuresPanel.add(Box.createVerticalStrut(10));
+            JLabel featuresTitle = new JLabel("Premium features include:");
+            featuresTitle.setFont(new Font(featuresTitle.getFont().getName(), Font.BOLD, 14));
+            featuresPanel.add(featuresTitle);
+            featuresPanel.add(Box.createVerticalStrut(5));
+            
+            for (String feature : features) {
+                JLabel featureLabel = new JLabel("• " + feature);
+                featuresPanel.add(featureLabel);
+            }
+            
+            // Buttons
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 0, 0, 0));
+            
+            JButton upgradeButton = new JButton("⬆ Upgrade to Premium");
+            upgradeButton.setFont(upgradeButton.getFont().deriveFont(Font.BOLD));
+            upgradeButton.addActionListener(e -> openMarketplace());
+            
+            JButton trialButton = new JButton("Start Free Trial");
+            trialButton.addActionListener(e -> startTrial());
+            
+            buttonPanel.add(upgradeButton);
+            buttonPanel.add(trialButton);
+            
+            // Add all to content
+            contentPanel.add(titlePanel);
+            contentPanel.add(Box.createVerticalStrut(10));
+            contentPanel.add(descLabel);
+            contentPanel.add(featuresPanel);
+            contentPanel.add(buttonPanel);
+            
+            // Center the content
+            JPanel centerPanel = new JPanel(new GridBagLayout());
+            centerPanel.add(contentPanel);
+            
+            panel.add(centerPanel, BorderLayout.CENTER);
+            
+            return panel;
+        }
+
+        /**
          * Add license status indicator and upgrade button to toolbar.
          */
         private void addLicenseButton(JPanel toolbarPanel) {
@@ -162,7 +288,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 Desktop.getDesktop().browse(new URI("https://plugins.jetbrains.com/plugin/30093-jakarta-migration"));
             } catch (Exception ex) {
                 LOG.warn("Failed to open marketplace URL", ex);
-                Messages.showInfoDialog(project, 
+                Messages.showInfoMessage(
                     "Please visit: https://plugins.jetbrains.com/plugin/30093-jakarta-migration",
                     "Upgrade to Premium");
             }
@@ -180,8 +306,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 "• Binary fixes for JAR files\n" +
                 "• Advanced dependency analysis",
                 "Start Free Trial",
-                "Start Trial",
-                "Maybe Later");
+                Messages.getQuestionIcon());
             
             if (result == Messages.YES) {
                 // Set system property to enable premium (in production, use proper license storage)
@@ -189,7 +314,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 System.setProperty("jakarta.migration.trial.end", 
                     String.valueOf(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000));
                 
-                Messages.showInfoDialog(project,
+                Messages.showInfoMessage(
                     "Trial started! You now have 7 days of Premium access.\n\n" +
                     "Restart the tool window to see the changes.",
                     "Trial Activated");
