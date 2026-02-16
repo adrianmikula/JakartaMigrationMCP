@@ -43,7 +43,7 @@ import java.util.Optional;
 public class MarketplaceLicenseService {
 
     private static final String MARKETPLACE_API_URL = "https://plugins.jetbrains.com/api/license/";
-    private static final String PLUGIN_ID = "25558"; // Jakarta Migration MCP plugin ID
+    private static final String PLUGIN_ID = "30093"; // Jakarta Migration plugin ID from marketplace
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
     
     private final HttpClient httpClient;
@@ -56,7 +56,8 @@ public class MarketplaceLicenseService {
 
     /**
      * Validates a license key against the JetBrains Marketplace API.
-     * 
+     * Falls back to local validation if the API is unavailable.
+     *
      * @param licenseKey The license key to validate
      * @return LicenseValidationResult containing validation status and details
      */
@@ -66,20 +67,117 @@ public class MarketplaceLicenseService {
         }
 
         try {
-            // In production, this would call the actual JetBrains API
-            // For now, we simulate the validation
-            return validateLicenseKey(licenseKey);
+            // Try real JetBrains Marketplace API first
+            return callMarketplaceApi(licenseKey);
         } catch (Exception e) {
-            log.error("Failed to validate license key: {}", e.getMessage(), e);
-            return LicenseValidationResult.error("Failed to validate license: " + e.getMessage());
+            log.warn("Failed to validate via Marketplace API, falling back to local validation: {}", e.getMessage());
+            // Fall back to local validation for offline/dev mode
+            return validateLicenseKeyLocal(licenseKey);
         }
     }
 
     /**
-     * Validates a license key (simulated for development).
-     * In production, this would call the actual JetBrains Marketplace API.
+     * Calls the JetBrains Marketplace API to validate a license key.
      */
-    private LicenseValidationResult validateLicenseKey(String licenseKey) {
+    private LicenseValidationResult callMarketplaceApi(String licenseKey) throws Exception {
+        String requestBody = String.format(
+            "{\"pluginId\": \"%s\", \"licenseKey\": \"%s\"}",
+            PLUGIN_ID,
+            licenseKey
+        );
+
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(MARKETPLACE_API_URL + "validate"))
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+            .timeout(TIMEOUT)
+            .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() == 200) {
+            return parseMarketplaceResponse(response.body());
+        } else if (response.statusCode() == 401 || response.statusCode() == 403) {
+            return LicenseValidationResult.invalid("Invalid license key");
+        } else if (response.statusCode() == 404) {
+            return LicenseValidationResult.invalid("License not found for this plugin");
+        } else {
+            throw new Exception("Marketplace API error: " + response.statusCode());
+        }
+    }
+
+    /**
+     * Parses the JetBrains Marketplace API JSON response.
+     */
+    private LicenseValidationResult parseMarketplaceResponse(String jsonResponse) {
+        try {
+            boolean valid = jsonResponse.contains("\"valid\":true") || jsonResponse.contains("\"valid\" : true");
+            
+            if (!valid) {
+                return LicenseValidationResult.invalid("License validation failed");
+            }
+
+            Instant expirationDate = extractExpirationDate(jsonResponse);
+            LicenseType licenseType = extractLicenseType(jsonResponse);
+
+            return LicenseValidationResult.valid(
+                "validated",
+                licenseType,
+                expirationDate,
+                "Valid JetBrains Marketplace license"
+            );
+        } catch (Exception e) {
+            log.error("Failed to parse Marketplace response: {}", e.getMessage());
+            return LicenseValidationResult.error("Failed to parse API response: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Extracts the expiration date from the API response.
+     */
+    private Instant extractExpirationDate(String json) {
+        String marker = "\"expirationDate\":";
+        int start = json.indexOf(marker);
+        if (start == -1) {
+            marker = "\"expirationDate\" : ";
+            start = json.indexOf(marker);
+        }
+        if (start == -1) {
+            return Instant.now().plusSeconds(86400 * 30); // Default 30 days
+        }
+        
+        start += marker.length();
+        int end = json.indexOf(',', start);
+        if (end == -1) end = json.indexOf('}', start);
+        if (end == -1) end = json.length();
+        
+        String dateStr = json.substring(start, end).trim().replace("\"", "");
+        try {
+            return Instant.parse(dateStr);
+        } catch (Exception e) {
+            return Instant.now().plusSeconds(86400 * 30);
+        }
+    }
+
+    /**
+     * Extracts the license type from the API response.
+     */
+    private LicenseType extractLicenseType(String json) {
+        if (json.contains("\"licenseType\":\"enterprise\"") || json.contains("\"licenseType\" : \"enterprise\"")) {
+            return LicenseType.ENTERPRISE;
+        }
+        if (json.contains("\"licenseType\":\"commercial\"") || json.contains("\"licenseType\" : \"commercial\"")) {
+            return LicenseType.PREMIUM;
+        }
+        return LicenseType.PREMIUM;
+    }
+
+    /**
+     * Local license validation for offline mode and development.
+     * Supports test keys for testing purposes.
+     */
+    private LicenseValidationResult validateLicenseKeyLocal(String licenseKey) {
         // Simulate license key validation
         // In production, replace with actual API call:
         // HttpRequest request = HttpRequest.newBuilder()

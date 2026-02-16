@@ -22,6 +22,8 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.Desktop;
+import java.net.URI;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -118,7 +120,80 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Add glue to push content to the left
             toolbarPanel.add(Box.createHorizontalGlue());
 
+            // Add license status / upgrade button
+            addLicenseButton(toolbarPanel);
+
             return toolbarPanel;
+        }
+
+        /**
+         * Add license status indicator and upgrade button to toolbar.
+         */
+        private void addLicenseButton(JPanel toolbarPanel) {
+            // Check if premium (for now, check system property)
+            boolean isPremium = "true".equals(System.getProperty("jakarta.migration.premium"));
+            
+            if (isPremium) {
+                // Show premium badge
+                JLabel premiumBadge = new JLabel("⭐ PREMIUM");
+                premiumBadge.setForeground(new Color(255, 215, 0)); // Gold color
+                premiumBadge.setToolTipText("Premium license active");
+                toolbarPanel.add(premiumBadge);
+            } else {
+                // Show upgrade button
+                JButton upgradeButton = new JButton("⬆ Upgrade to Premium");
+                upgradeButton.setToolTipText("Get premium features: Auto-fixes, one-click refactoring, binary fixes");
+                upgradeButton.addActionListener(e -> openMarketplace());
+                toolbarPanel.add(upgradeButton);
+                
+                // Show trial link
+                JButton trialButton = new JButton("Start Free Trial");
+                trialButton.setToolTipText("Start a 7-day free trial");
+                trialButton.addActionListener(e -> startTrial());
+                toolbarPanel.add(trialButton);
+            }
+        }
+
+        /**
+         * Open JetBrains Marketplace to purchase/upgrade.
+         */
+        private void openMarketplace() {
+            try {
+                Desktop.getDesktop().browse(new URI("https://plugins.jetbrains.com/plugin/30093-jakarta-migration"));
+            } catch (Exception ex) {
+                LOG.warn("Failed to open marketplace URL", ex);
+                Messages.showInfoDialog(project, 
+                    "Please visit: https://plugins.jetbrains.com/plugin/30093-jakarta-migration",
+                    "Upgrade to Premium");
+            }
+        }
+
+        /**
+         * Start a free trial (stores in system properties for demo).
+         */
+        private void startTrial() {
+            int result = Messages.showYesNoDialog(project,
+                "Start a 7-day free trial of Premium features?\n\n" +
+                "Premium features include:\n" +
+                "• Auto-fixes for migration issues\n" +
+                "• One-click refactoring\n" +
+                "• Binary fixes for JAR files\n" +
+                "• Advanced dependency analysis",
+                "Start Free Trial",
+                "Start Trial",
+                "Maybe Later");
+            
+            if (result == Messages.YES) {
+                // Set system property to enable premium (in production, use proper license storage)
+                System.setProperty("jakarta.migration.premium", "true");
+                System.setProperty("jakarta.migration.trial.end", 
+                    String.valueOf(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000));
+                
+                Messages.showInfoDialog(project,
+                    "Trial started! You now have 7 days of Premium access.\n\n" +
+                    "Restart the tool window to see the changes.",
+                    "Trial Activated");
+            }
         }
 
         /**
