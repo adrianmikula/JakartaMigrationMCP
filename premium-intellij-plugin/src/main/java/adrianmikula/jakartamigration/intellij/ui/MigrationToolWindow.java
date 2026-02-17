@@ -61,6 +61,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private MigrationPhasesComponent migrationPhasesComponent;
         private RefactorTabComponent refactorTabComponent;
         private RuntimeTabComponent runtimeTabComponent;
+        private JTabbedPane tabbedPane;
+        private JPanel toolbarPanel;
         private boolean isPremium;
 
         public MigrationToolWindowContent(Project project) {
@@ -70,6 +72,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             
             // Check premium status
             this.isPremium = checkPremiumStatus();
+            LOG.info("MigrationToolWindowContent: Constructor called, isPremium=" + isPremium);
+            LOG.info("MigrationToolWindowContent: System property jakarta.migration.premium=" + 
+                System.getProperty("jakarta.migration.premium"));
             
             initializeContent();
         }
@@ -101,9 +106,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
         private void initializeContent() {
             // Toolbar with action buttons
-            JPanel toolbarPanel = createToolbar();
+            toolbarPanel = createToolbar();
 
-            JTabbedPane tabbedPane = new JTabbedPane();
+            tabbedPane = new JTabbedPane();
 
             // Dashboard tab
             dashboardComponent = new DashboardComponent(project, this::handleAnalyzeProject);
@@ -122,14 +127,17 @@ public class MigrationToolWindow implements ToolWindowFactory {
             tabbedPane.addTab("Migration Strategy", migrationPhasesComponent.getPanel());
 
             // Premium tabs - only available for premium users
+            LOG.info("initializeContent: Creating tabs, isPremium=" + isPremium);
             if (isPremium) {
                 // Refactor tab (Premium)
                 refactorTabComponent = new RefactorTabComponent(project);
                 tabbedPane.addTab("Refactor ⭐", refactorTabComponent.getPanel());
+                LOG.info("initializeContent: Added PREMIUM Refactor tab");
 
                 // Runtime Error Diagnosis tab (Premium)
                 runtimeTabComponent = new RuntimeTabComponent(project);
                 tabbedPane.addTab("Runtime ⭐", runtimeTabComponent.getPanel());
+                LOG.info("initializeContent: Added PREMIUM Runtime tab");
             } else {
                 // Add premium placeholder tabs
                 tabbedPane.addTab("Refactor 🔒", createPremiumPlaceholderPanel(
@@ -138,12 +146,14 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     "One-click code refactoring",
                     "Automatic migration fixes"
                 ));
+                LOG.info("initializeContent: Added LOCKED Refactor placeholder tab");
                 tabbedPane.addTab("Runtime 🔒", createPremiumPlaceholderPanel(
                     "Runtime Tab",
                     "Diagnose runtime errors with AI-powered analysis",
                     "Error pattern recognition",
                     "Automated remediation suggestions"
                 ));
+                LOG.info("initializeContent: Added LOCKED Runtime placeholder tab");
             }
 
             // Load initial state (empty - wait for user to analyze)
@@ -154,7 +164,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         private JPanel createToolbar() {
-            JPanel toolbarPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            toolbarPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
             toolbarPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
             // Analyze Project button
@@ -258,6 +268,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private void addLicenseButton(JPanel toolbarPanel) {
             // Check if premium (for now, check system property)
             boolean isPremium = "true".equals(System.getProperty("jakarta.migration.premium"));
+            LOG.info("addLicenseButton: Called, system property premium=" + 
+                System.getProperty("jakarta.migration.premium") + ", local isPremium=" + isPremium);
             
             if (isPremium) {
                 // Show premium badge
@@ -298,6 +310,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
          * Start a free trial (stores in system properties for demo).
          */
         private void startTrial() {
+            LOG.info("startTrial: User clicked Start Free Trial button");
+            
             int result = Messages.showYesNoDialog(project,
                 "Start a 7-day free trial of Premium features?\n\n" +
                 "Premium features include:\n" +
@@ -314,11 +328,108 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 System.setProperty("jakarta.migration.trial.end", 
                     String.valueOf(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000));
                 
+                LOG.info("startTrial: System properties set - premium=true, trial.end=" + 
+                    System.getProperty("jakarta.migration.trial.end"));
+                LOG.info("startTrial: Calling refreshPremiumUI() to update the UI dynamically");
+                
+                // Refresh the UI to show premium features
+                refreshPremiumUI();
+                
                 Messages.showInfoMessage(
                     "Trial started! You now have 7 days of Premium access.\n\n" +
-                    "Restart the tool window to see the changes.",
+                    "Premium features are now available!",
                     "Trial Activated");
+                
+                LOG.info("startTrial: UI has been refreshed successfully!");
             }
+        }
+
+        /**
+         * Refresh the UI to show premium features after trial activation.
+         * This method updates the premium status, rebuilds the tabbed pane, and updates the toolbar.
+         */
+        private void refreshPremiumUI() {
+            LOG.info("refreshPremiumUI: Starting UI refresh");
+            
+            // Re-check premium status
+            this.isPremium = checkPremiumStatus();
+            LOG.info("refreshPremiumUI: New isPremium value = " + isPremium);
+            
+            if (isPremium) {
+                // Find and remove the locked placeholder tabs, replace with premium tabs
+                // The tab indices for locked tabs are: Refactor 🔒 (index 4) and Runtime 🔒 (index 5)
+                // after Dashboard, Dependencies, Dependency Graph, Migration Strategy
+                
+                int tabCount = tabbedPane.getTabCount();
+                LOG.info("refreshPremiumUI: Current tab count = " + tabCount);
+                
+                // Remove locked tabs and add premium tabs
+                // We need to remove from higher index to lower to avoid index shifting
+                for (int i = tabCount - 1; i >= 4; i--) {
+                    String title = tabbedPane.getTitleAt(i);
+                    LOG.info("refreshPremiumUI: Removing tab at index " + i + " with title: " + title);
+                    tabbedPane.removeTabAt(i);
+                }
+                
+                // Add premium tabs
+                refactorTabComponent = new RefactorTabComponent(project);
+                tabbedPane.addTab("Refactor ⭐", refactorTabComponent.getPanel());
+                LOG.info("refreshPremiumUI: Added PREMIUM Refactor tab");
+
+                runtimeTabComponent = new RuntimeTabComponent(project);
+                tabbedPane.addTab("Runtime ⭐", runtimeTabComponent.getPanel());
+                LOG.info("refreshPremiumUI: Added PREMIUM Runtime tab");
+                
+                // Update toolbar - remove upgrade/trial buttons and add premium badge
+                updateToolbarForPremium();
+                
+                LOG.info("refreshPremiumUI: UI refresh completed successfully!");
+            }
+        }
+
+        /**
+         * Update the toolbar to show premium badge instead of upgrade/trial buttons.
+         */
+        private void updateToolbarForPremium() {
+            LOG.info("updateToolbarForPremium: Starting toolbar update");
+            
+            // Find and remove the upgrade and trial buttons
+            Component[] components = toolbarPanel.getComponents();
+            List<Component> buttonsToRemove = new ArrayList<>();
+            
+            for (Component comp : components) {
+                if (comp instanceof JButton) {
+                    JButton button = (JButton) comp;
+                    String text = button.getText();
+                    if ("⬆ Upgrade to Premium".equals(text) || "Start Free Trial".equals(text)) {
+                        buttonsToRemove.add(comp);
+                        LOG.info("updateToolbarForPremium: Found button to remove: " + text);
+                    }
+                }
+            }
+            
+            for (Component btn : buttonsToRemove) {
+                toolbarPanel.remove(btn);
+            }
+            
+            // Add premium badge before the last component (if there's a glue)
+            JLabel premiumBadge = new JLabel("⭐ PREMIUM");
+            premiumBadge.setForeground(new Color(255, 215, 0)); // Gold color
+            premiumBadge.setToolTipText("Premium license active");
+            
+            // Insert before the glue (second to last if there's a glue)
+            int insertIndex = toolbarPanel.getComponentCount() - 1;
+            if (insertIndex >= 0) {
+                toolbarPanel.add(premiumBadge, insertIndex);
+            } else {
+                toolbarPanel.add(premiumBadge);
+            }
+            
+            // Revalidate and repaint
+            toolbarPanel.revalidate();
+            toolbarPanel.repaint();
+            
+            LOG.info("updateToolbarForPremium: Toolbar update completed");
         }
 
         /**

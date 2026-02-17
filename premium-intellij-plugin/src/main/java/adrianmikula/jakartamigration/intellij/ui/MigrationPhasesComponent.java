@@ -201,16 +201,24 @@ public class MigrationPhasesComponent {
         private final String id;
         private final String name;
         private final String description;
+        private final String[] steps;
 
-        public PhaseDefinition(String id, String name, String description) {
+        public PhaseDefinition(String id, String name, String description, String[] steps) {
             this.id = id;
             this.name = name;
             this.description = description;
+            this.steps = steps;
+        }
+
+        // Overloaded constructor for backward compatibility
+        public PhaseDefinition(String id, String name, String description) {
+            this(id, name, description, new String[0]);
         }
 
         public String getId() { return id; }
         public String getName() { return name; }
         public String getDescription() { return description; }
+        public String[] getSteps() { return steps; }
     }
 
     public MigrationPhasesComponent(Project project) {
