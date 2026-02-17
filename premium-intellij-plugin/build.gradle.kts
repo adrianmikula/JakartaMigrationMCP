@@ -68,6 +68,19 @@ java {
     }
 }
 
+// Include community-core-engine classes in the plugin JAR
+tasks.named<Jar>("jar") {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    
+    // Include community-core-engine classes
+    val communityCoreEngine = project(":community-core-engine")
+    from(communityCoreEngine.sourceSets.main.get().output)
+    
+    // Also include premium-core-engine classes
+    val premiumCoreEngine = project(":premium-core-engine")
+    from(premiumCoreEngine.sourceSets.main.get().output)
+}
+
 // Create a task to generate MCP tool definitions JSON
 tasks.register("generateMcpToolsJson") {
     doLast {
