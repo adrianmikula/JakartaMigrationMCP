@@ -10,9 +10,12 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class RecipeLibrary {
     
+    private static final java.util.logging.Logger LOG = java.util.logging.Logger.getLogger(RecipeLibrary.class.getName());
+    
     private final Map<String, Recipe> recipes = new ConcurrentHashMap<>();
     
     public RecipeLibrary() {
+        LOG.info("RecipeLibrary: Initializing with 20 recipes...");
         // Register default Jakarta migration recipes
         // Use private method to avoid calling overridable method in constructor
         registerRecipeInternal(Recipe.jakartaNamespaceRecipe());
@@ -35,6 +38,7 @@ public class RecipeLibrary {
         registerRecipeInternal(Recipe.soapRecipe());
         registerRecipeInternal(Recipe.saajRecipe());
         registerRecipeInternal(Recipe.authorizationRecipe());
+        LOG.info("RecipeLibrary: Registered " + recipes.size() + " recipes");
     }
     
     /**
@@ -76,6 +80,7 @@ public class RecipeLibrary {
      * Returns all registered recipes.
      */
     public List<Recipe> getAllRecipes() {
+        LOG.info("RecipeLibrary.getAllRecipes: Returning " + recipes.size() + " recipes");
         return new ArrayList<>(recipes.values());
     }
     

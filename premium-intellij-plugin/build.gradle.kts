@@ -1,5 +1,6 @@
 plugins {
     id("org.jetbrains.intellij")
+    `java-library`
     java
     jacoco
 }
@@ -21,7 +22,8 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     
     // Community Core Engine - local project dependency (Apache 2.0)
-    implementation(project(":community-core-engine"))
+    // Using 'api' to include classes in the final plugin JAR
+    api(project(":community-core-engine"))
 
     // Premium Core Engine - local project dependency (Proprietary)
     // Contains premium features: refactoring, runtime verification, etc.
