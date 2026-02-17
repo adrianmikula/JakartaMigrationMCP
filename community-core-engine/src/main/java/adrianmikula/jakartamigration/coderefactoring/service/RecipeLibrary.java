@@ -20,6 +20,7 @@ public class RecipeLibrary {
         // Use private method to avoid calling overridable method in constructor
         registerRecipeInternal(Recipe.jakartaNamespaceRecipe());
         registerRecipeInternal(Recipe.persistenceXmlRecipe());
+        registerRecipeInternal(Recipe.webXmlRecipe());
         registerRecipeInternal(Recipe.servletApiRecipe());
         registerRecipeInternal(Recipe.jpaRecipe());
         registerRecipeInternal(Recipe.cdiRecipe());
