@@ -16,6 +16,7 @@ import java.util.List;
  * - Incremental/One by One
  * - Transform (build + runtime transformation)
  * - Microservices (migrate each service independently)
+ * - Adapter Pattern (use adapter classes for javax/jakarta compatibility)
  */
 public class MigrationStrategyComponent {
     private final JPanel panel;
@@ -29,64 +30,39 @@ public class MigrationStrategyComponent {
 
     public enum MigrationStrategy {
         BIG_BANG("Big Bang", "Migrate everything at once",
-                """
-                • Migrate all javax dependencies to Jakarta EE at once
-                • Single comprehensive change
-                • Best for small, self-contained projects
-                • Requires thorough testing before starting
-                """,
-                """
-                • Higher risk - issues affect entire codebase
-                • Longer rollback time if problems occur
-                • Requires comprehensive test suite
-                • May cause extended downtime during migration
-                """,
+                UiTextLoader.getWithNewlines("strategy.big_bang.benefits",
+                    "• Migrate all javax dependencies to Jakarta EE at once\n• Single comprehensive change\n• Best for small, self-contained projects"),
+                UiTextLoader.getWithNewlines("strategy.big_bang.risks",
+                    "• Higher risk - issues affect entire codebase\n• Longer rollback time if problems occur\n• Requires comprehensive test suite"),
                 new Color(220, 53, 69)), // Red
 
         INCREMENTAL("Incremental", "One dependency at a time",
-                """
-                • Migrate dependencies incrementally
-                • Update one dependency, test, then proceed
-                • Lower risk per change
-                • Best for large, complex projects
-                """,
-                """
-                • Longer overall migration timeline
-                • Must maintain compatibility during transition
-                • May require temporary dual dependencies
-                • Need careful dependency ordering
-                """,
+                UiTextLoader.getWithNewlines("strategy.incremental.benefits",
+                    "• Migrate dependencies incrementally\n• Update one dependency, test, then proceed\n• Lower risk per change\n• Best for large, complex projects"),
+                UiTextLoader.getWithNewlines("strategy.incremental.risks",
+                    "• Longer overall migration timeline\n• Must maintain compatibility during transition\n• May require temporary dual dependencies"),
                 new Color(255, 193, 7)), // Yellow
 
         TRANSFORM("Transform", "Combined build and runtime transformation",
-                """
-                • Combine build-time and runtime transformation approaches
-                • Use OpenRewrite for automated code changes
-                • Deploy runtime adapters for edge cases
-                • Best for complex enterprise applications
-                """,
-                """
-                • Most complex implementation
-                • Requires both build and runtime configuration
-                • Higher resource overhead
-                • May need specialized expertise
-                """,
+                UiTextLoader.getWithNewlines("strategy.transform.benefits",
+                    "• Combine build-time and runtime transformation approaches\n• Use OpenRewrite for automated code changes\n• Deploy runtime adapters for edge cases"),
+                UiTextLoader.getWithNewlines("strategy.transform.risks",
+                    "• Most complex implementation\n• Requires both build and runtime configuration\n• Higher resource overhead"),
                 new Color(23, 162, 184)), // Blue
 
         MICROSERVICES("Microservices", "Migrate each service independently",
-                """
-                • Migrate microservices one at a time
-                • Each service can use different strategy
-                • Independent deployment and testing
-                • Best for distributed architectures
-                """,
-                """
-                • Requires coordination across services
-                • Inter-service dependencies must be handled
-                • May need service mesh updates
-                • Longer overall migration timeline
-                """,
-                new Color(108, 117, 125)); // Gray
+                UiTextLoader.getWithNewlines("strategy.microservices.benefits",
+                    "• Migrate microservices one at a time\n• Each service can use different strategy\n• Independent deployment and testing"),
+                UiTextLoader.getWithNewlines("strategy.microservices.risks",
+                    "• Requires coordination across services\n• Inter-service dependencies must be handled\n• May need service mesh updates"),
+                new Color(108, 117, 125)), // Gray
+
+        ADAPTER("Adapter Pattern", "Use adapter classes for javax/jakarta compatibility",
+                UiTextLoader.getWithNewlines("strategy.adapter.benefits",
+                    "• Maintain backward compatibility during migration\n• Gradual replacement of javax with jakarta\n• Lower risk changes\n• Easy to rollback individual adapters"),
+                UiTextLoader.getWithNewlines("strategy.adapter.risks",
+                    "• Additional code maintenance\n• Runtime overhead for adapter layer\n• More complex classpath management"),
+                new Color(111, 66, 193)); // Purple
 
         private final String displayName;
         private final String description;

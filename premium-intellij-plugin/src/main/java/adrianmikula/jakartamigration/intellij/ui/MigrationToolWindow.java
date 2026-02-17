@@ -363,12 +363,15 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 int tabCount = tabbedPane.getTabCount();
                 LOG.info("refreshPremiumUI: Current tab count = " + tabCount);
                 
-                // Remove locked tabs and add premium tabs
+                // First, check what tabs we have and remove only the locked ones
                 // We need to remove from higher index to lower to avoid index shifting
-                for (int i = tabCount - 1; i >= 4; i--) {
+                for (int i = tabCount - 1; i >= 0; i--) {
                     String title = tabbedPane.getTitleAt(i);
-                    LOG.info("refreshPremiumUI: Removing tab at index " + i + " with title: " + title);
-                    tabbedPane.removeTabAt(i);
+                    LOG.info("refreshPremiumUI: Checking tab at index " + i + " with title: " + title);
+                    if (title.contains("🔒")) {
+                        LOG.info("refreshPremiumUI: Removing locked tab at index " + i + " with title: " + title);
+                        tabbedPane.removeTabAt(i);
+                    }
                 }
                 
                 // Add premium tabs
@@ -379,6 +382,10 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 runtimeTabComponent = new RuntimeTabComponent(project);
                 tabbedPane.addTab("Runtime ⭐", runtimeTabComponent.getPanel());
                 LOG.info("refreshPremiumUI: Added PREMIUM Runtime tab");
+                
+                // Revalidate and repaint to ensure UI updates
+                tabbedPane.revalidate();
+                tabbedPane.repaint();
                 
                 // Update toolbar - remove upgrade/trial buttons and add premium badge
                 updateToolbarForPremium();
@@ -401,28 +408,45 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 if (comp instanceof JButton) {
                     JButton button = (JButton) comp;
                     String text = button.getText();
-                    if ("⬆ Upgrade to Premium".equals(text) || "Start Free Trial".equals(text)) {
+                    LOG.info("updateToolbarForPremium: Found button with text: '" + text + "'");
+                    // Use contains for more flexible matching (handles potential unicode differences)
+                    if (text != null && (text.contains("Upgrade to Premium") || text.contains("Start Free Trial"))) {
                         buttonsToRemove.add(comp);
-                        LOG.info("updateToolbarForPremium: Found button to remove: " + text);
+                        LOG.info("updateToolbarForPremium: Will remove button: " + text);
                     }
                 }
             }
             
-            for (Component btn : buttonsToRemove) {
-                toolbarPanel.remove(btn);
+            // Remove buttons
+            for (Component button : buttonsToRemove) {
+                toolbarPanel.remove(button);
             }
             
-            // Add premium badge before the last component (if there's a glue)
-            JLabel premiumBadge = new JLabel("⭐ PREMIUM");
-            premiumBadge.setForeground(new Color(255, 215, 0)); // Gold color
-            premiumBadge.setToolTipText("Premium license active");
+            // Check if premium badge already exists
+            boolean badgeExists = false;
+            for (Component comp : toolbarPanel.getComponents()) {
+                if (comp instanceof JLabel) {
+                    JLabel label = (JLabel) comp;
+                    if ("⭐ PREMIUM".equals(label.getText())) {
+                        badgeExists = true;
+                        break;
+                    }
+                }
+            }
             
-            // Insert before the glue (second to last if there's a glue)
-            int insertIndex = toolbarPanel.getComponentCount() - 1;
-            if (insertIndex >= 0) {
-                toolbarPanel.add(premiumBadge, insertIndex);
-            } else {
-                toolbarPanel.add(premiumBadge);
+            if (!badgeExists) {
+                // Add premium badge before the glue (second to last if there's a glue)
+                JLabel premiumBadge = new JLabel("⭐ PREMIUM");
+                premiumBadge.setForeground(new Color(255, 215, 0)); // Gold color
+                premiumBadge.setToolTipText("Premium license active - 7-day trial");
+                
+                // Insert before the glue
+                int insertIndex = toolbarPanel.getComponentCount() - 1;
+                if (insertIndex >= 0) {
+                    toolbarPanel.add(premiumBadge, insertIndex);
+                } else {
+                    toolbarPanel.add(premiumBadge);
+                }
             }
             
             // Revalidate and repaint

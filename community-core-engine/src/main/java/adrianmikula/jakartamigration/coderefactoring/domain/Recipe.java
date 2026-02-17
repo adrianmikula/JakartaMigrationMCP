@@ -63,5 +63,70 @@ public record Recipe(
             true
         );
     }
+    
+    /**
+     * Creates a recipe for migrating Servlet API from javax to jakarta.
+     */
+    public static Recipe servletApiRecipe() {
+        return new Recipe(
+            "MigrateServletApi",
+            "Migrates javax.servlet.* packages to jakarta.servlet.*",
+            "javax.servlet → jakarta.servlet",
+            SafetyLevel.HIGH,
+            true
+        );
+    }
+    
+    /**
+     * Creates a recipe for migrating JPA from javax to jakarta.
+     */
+    public static Recipe jpaRecipe() {
+        return new Recipe(
+            "MigrateJpa",
+            "Migrates javax.persistence.* packages to jakarta.persistence.*",
+            "javax.persistence → jakarta.persistence",
+            SafetyLevel.HIGH,
+            true
+        );
+    }
+    
+    /**
+     * Creates a recipe for migrating CDI from javax to jakarta.
+     */
+    public static Recipe cdiRecipe() {
+        return new Recipe(
+            "MigrateCdi",
+            "Migrates javax.inject.* and javax.enterprise.* packages to jakarta.*",
+            "javax.inject/javax.enterprise → jakarta.inject/jakarta.enterprise",
+            SafetyLevel.HIGH,
+            true
+        );
+    }
+    
+    /**
+     * Creates a recipe for migrating JAXB from javax to jakarta.
+     */
+    public static Recipe jaxbRecipe() {
+        return new Recipe(
+            "MigrateJaxb",
+            "Migrates javax.xml.bind.* packages to jakarta.xml.bind.*",
+            "javax.xml.bind → jakarta.xml.bind",
+            SafetyLevel.MEDIUM,
+            true
+        );
+    }
+    
+    /**
+     * Creates a recipe for migrating Bean Validation from javax to jakarta.
+     */
+    public static Recipe validatorRecipe() {
+        return new Recipe(
+            "MigrateValidator",
+            "Migrates javax.validation.* packages to jakarta.validation.*",
+            "javax.validation → jakarta.validation",
+            SafetyLevel.HIGH,
+            true
+        );
+    }
 }
 
