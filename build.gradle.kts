@@ -8,19 +8,16 @@ plugins {
     id("org.jetbrains.intellij") version "1.17.2" apply false
 }
 
-// Generate automatic version based on timestamp for development builds
-val buildType = System.getProperty("BUILD_TYPE", "dev")
-val autoVersion = if (buildType == "release") {
-    "1.0.0"  // Stable release version
-} else {
-    // Dev builds get timestamp-based version: 1.0.x.timestamp
-    val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
-    "1.0.1.$timestamp"
-}
+// Generate automatic version based on timestamp for all builds (dev and release)
+// This ensures IntelliJ always reloads the plugin with a fresh version
+val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+val autoVersion = "1.0.1.$timestamp"
 
 allprojects {
     group = "adrianmikula"
     version = autoVersion
+    
+    println(">>> Project: $name, Version: $version")
 
     repositories {
         mavenCentral()

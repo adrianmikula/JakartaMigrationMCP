@@ -13,8 +13,10 @@ import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Refactor Tab Component - Displays available OpenRewrite recipes with Apply buttons.
@@ -107,7 +109,7 @@ public class RefactorTabComponent {
         
         // Set up button column renderer
         table.getColumnModel().getColumn(3).setCellRenderer(new ButtonRenderer());
-        table.getColumnModel().getColumn(3).setCellEditor(new ButtonEditor(new JCheckBox()));
+        table.getColumnModel().getColumn(3).setCellEditor(new ButtonEditor(new JCheckBox(), this::handleApplyRecipe));
         
         return table;
     }
@@ -136,10 +138,26 @@ public class RefactorTabComponent {
         int result = Messages.showYesNoDialog(project, message, "Confirm Refactor", Messages.getQuestionIcon());
         
         if (result == Messages.YES) {
-            // TODO: Trigger refactoring via CodeRefactoringModule
-            Messages.showInfoMessage(project, 
-                "Refactoring triggered for: " + recipe.name() + "\n\n(This feature requires Premium license)", 
-                "Refactor");
+            // Get project base path
+            Path projectPath = project.getBasePath() != null ? Path.of(project.getBasePath()) : null;
+            
+            if (projectPath == null) {
+                Messages.showErrorDialog(project, "Unable to determine project path.", "Error");
+                return;
+            }
+            
+            // Apply the recipe via the analysis service
+            boolean success = analysisService.applyRecipe(recipe.name(), projectPath);
+            
+            if (success) {
+                Messages.showInfoMessage(project, 
+                    "Recipe '" + recipe.name() + "' applied successfully!\n\nFiles have been modified.", 
+                    "Refactor Complete");
+            } else {
+                Messages.showErrorDialog(project, 
+                    "Failed to apply recipe '" + recipe.name() + "'.\n\nPlease check the logs for details.", 
+                    "Refactor Failed");
+            }
         }
     }
     
@@ -205,17 +223,21 @@ public class RefactorTabComponent {
     }
     
     // Button Editor
-    private static class ButtonEditor extends DefaultCellEditor {
+    private class ButtonEditor extends DefaultCellEditor {
         private final JButton button;
         private int selectedRow;
+        private final Consumer<Integer> applyCallback;
         
-        public ButtonEditor(JCheckBox checkBox) {
+        public ButtonEditor(JCheckBox checkBox, Consumer<Integer> onApply) {
             super(checkBox);
+            this.applyCallback = onApply;
             button = new JButton("Apply");
             button.setOpaque(true);
             button.addActionListener(e -> {
                 fireEditingStopped();
-                // This would trigger the apply action - handled by parent
+                if (applyCallback != null) {
+                    applyCallback.accept(selectedRow);
+                }
             });
         }
         

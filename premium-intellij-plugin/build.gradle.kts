@@ -5,6 +5,12 @@ plugins {
     jacoco
 }
 
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
+// Force version override for development - ensures plugin is always reloaded
+version = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+
 jacoco {
     toolVersion = "0.8.11"
 }
@@ -261,5 +267,26 @@ tasks.register("generateMcpToolsJson") {
             |  ]
             |}
         """.trimMargin())
+    }
+}
+
+/**
+ * Build development plugin: clean, rebuild all modules, and run IDE.
+ * Force rebuilds community-core-engine and premium-core-engine to ensure fresh code.
+ * 
+ * Usage: ./gradlew :premium-intellij-plugin:buildDevPlugin
+ */
+tasks.register("buildDevPlugin") {
+    group = "build"
+    description = "Clean, rebuild all modules, and run IDE for development"
+    
+    // Clean all modules to ensure fresh rebuild
+    dependsOn(":community-core-engine:clean", ":premium-core-engine:clean", "clean")
+    // Build and run
+    dependsOn("jar", "runIde")
+    
+    doLast {
+        println("\n=== Distribution Build Complete ===")
+        println("Distribution files in build/distributions:")
     }
 }

@@ -69,9 +69,18 @@ public class DashboardComponent {
         JPanel contentPanel = new JBPanel<>(new BorderLayout());
         contentPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
+        // Title with version
+        JPanel titlePanel = new JBPanel(new FlowLayout(FlowLayout.LEFT));
         JLabel titleLabel = new JLabel("Migration Summary", SwingConstants.LEFT);
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 14f));
-        contentPanel.add(titleLabel, BorderLayout.NORTH);
+        titlePanel.add(titleLabel);
+        
+        // Add version - show we're using the latest build
+        JLabel versionLabel = new JLabel("(timestamp build)");
+        versionLabel.setForeground(new Color(100, 100, 100));
+        versionLabel.setFont(versionLabel.getFont().deriveFont(Font.ITALIC, 10f));
+        titlePanel.add(versionLabel);
+        contentPanel.add(titlePanel, BorderLayout.NORTH);
 
         metricsTablePanel = createMetricsTable();
         contentPanel.add(metricsTablePanel, BorderLayout.CENTER);
