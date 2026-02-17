@@ -108,6 +108,10 @@ public class RefactorTabComponent {
     
     private void loadRecipes() {
         List<Recipe> recipes = analysisService.getAvailableRecipes();
+        LOG.info("loadRecipes: Found " + recipes.size() + " recipes");
+        for (Recipe recipe : recipes) {
+            LOG.info("loadRecipes: - " + recipe.name() + ": " + recipe.description());
+        }
         tableModel.setRecipes(recipes);
     }
     
