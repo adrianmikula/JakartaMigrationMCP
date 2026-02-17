@@ -356,29 +356,38 @@ public class MigrationToolWindow implements ToolWindowFactory {
             LOG.info("refreshPremiumUI: New isPremium value = " + isPremium);
             
             if (isPremium) {
-                // Find and remove the locked placeholder tabs, replace with premium tabs
-                // The tab indices for locked tabs are: Refactor 🔒 (index 4) and Runtime 🔒 (index 5)
-                // after Dashboard, Dependencies, Dependency Graph, Migration Strategy
-                
+                // First, remove any existing premium or locked tabs
+                // Check for: "Refactor 🔒", "Runtime 🔒", "Refactor ⭐", "Runtime ⭐"
+                List<String> tabsToRemove = new ArrayList<>();
                 int tabCount = tabbedPane.getTabCount();
                 LOG.info("refreshPremiumUI: Current tab count = " + tabCount);
                 
-                // First, check what tabs we have and remove only the locked ones
-                // We need to remove from higher index to lower to avoid index shifting
-                for (int i = tabCount - 1; i >= 0; i--) {
+                // First pass: identify premium/locked tabs to remove
+                for (int i = 0; i < tabCount; i++) {
                     String title = tabbedPane.getTitleAt(i);
                     LOG.info("refreshPremiumUI: Checking tab at index " + i + " with title: " + title);
-                    if (title.contains("🔒")) {
-                        LOG.info("refreshPremiumUI: Removing locked tab at index " + i + " with title: " + title);
+                    if (title.contains("🔒") || title.contains("⭐") || 
+                        title.contains("Refactor") || title.contains("Runtime")) {
+                        tabsToRemove.add(title);
+                    }
+                }
+                
+                // Second pass: remove identified tabs (in reverse order to avoid index issues)
+                for (int i = tabCount - 1; i >= 0; i--) {
+                    String title = tabbedPane.getTitleAt(i);
+                    if (tabsToRemove.contains(title)) {
+                        LOG.info("refreshPremiumUI: Removing tab at index " + i + " with title: " + title);
                         tabbedPane.removeTabAt(i);
                     }
                 }
                 
-                // Add premium tabs
+                // Now add premium tabs in the correct order
+                // Refactor tab (Premium) - with OpenRewrite recipe table
                 refactorTabComponent = new RefactorTabComponent(project);
                 tabbedPane.addTab("Refactor ⭐", refactorTabComponent.getPanel());
                 LOG.info("refreshPremiumUI: Added PREMIUM Refactor tab");
 
+                // Runtime Error Diagnosis tab (Premium) - with error diagnosis UI
                 runtimeTabComponent = new RuntimeTabComponent(project);
                 tabbedPane.addTab("Runtime ⭐", runtimeTabComponent.getPanel());
                 LOG.info("refreshPremiumUI: Added PREMIUM Runtime tab");
