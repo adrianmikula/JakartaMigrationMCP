@@ -356,50 +356,62 @@ public class MigrationToolWindow implements ToolWindowFactory {
             LOG.info("refreshPremiumUI: New isPremium value = " + isPremium);
             
             if (isPremium) {
-                // First, remove any existing premium or locked tabs
-                // Check for: "Refactor 🔒", "Runtime 🔒", "Refactor ⭐", "Runtime ⭐"
-                List<String> tabsToRemove = new ArrayList<>();
-                int tabCount = tabbedPane.getTabCount();
-                LOG.info("refreshPremiumUI: Current tab count = " + tabCount);
+                // First, get current state of tabs
+                int tabCountBefore = tabbedPane.getTabCount();
+                LOG.info("refreshPremiumUI: Tab count before refresh = " + tabCountBefore);
                 
-                // First pass: identify premium/locked tabs to remove
-                for (int i = 0; i < tabCount; i++) {
+                // List all current tabs
+                List<String> currentTabs = new ArrayList<>();
+                for (int i = 0; i < tabCountBefore; i++) {
                     String title = tabbedPane.getTitleAt(i);
-                    LOG.info("refreshPremiumUI: Checking tab at index " + i + " with title: " + title);
-                    if (title.contains("🔒") || title.contains("⭐") || 
-                        title.contains("Refactor") || title.contains("Runtime")) {
-                        tabsToRemove.add(title);
+                    currentTabs.add(title);
+                    LOG.info("refreshPremiumUI: Current tab[" + i + "] = " + title);
+                }
+                
+                // Remove all premium and locked tabs by checking titles
+                // We need to iterate carefully to avoid index issues
+                for (int i = tabCountBefore - 1; i >= 0; i--) {
+                    if (i < tabbedPane.getTabCount()) {
+                        String title = tabbedPane.getTitleAt(i);
+                        if (title.contains("🔒") || title.contains("⭐")) {
+                            LOG.info("refreshPremiumUI: Removing tab[" + i + "] = " + title);
+                            tabbedPane.removeTabAt(i);
+                        }
                     }
                 }
                 
-                // Second pass: remove identified tabs (in reverse order to avoid index issues)
-                for (int i = tabCount - 1; i >= 0; i--) {
-                    String title = tabbedPane.getTitleAt(i);
-                    if (tabsToRemove.contains(title)) {
-                        LOG.info("refreshPremiumUI: Removing tab at index " + i + " with title: " + title);
-                        tabbedPane.removeTabAt(i);
-                    }
-                }
+                // Verify tabs are removed
+                int tabCountAfter = tabbedPane.getTabCount();
+                LOG.info("refreshPremiumUI: Tab count after removing premium/locked = " + tabCountAfter);
                 
-                // Now add premium tabs in the correct order
-                // Refactor tab (Premium) - with OpenRewrite recipe table
+                // Add premium tabs - Refactor first, then Runtime
+                LOG.info("refreshPremiumUI: Creating and adding Refactor tab...");
                 refactorTabComponent = new RefactorTabComponent(project);
                 tabbedPane.addTab("Refactor ⭐", refactorTabComponent.getPanel());
-                LOG.info("refreshPremiumUI: Added PREMIUM Refactor tab");
+                LOG.info("refreshPremiumUI: Added Refactor tab, tab count now = " + tabbedPane.getTabCount());
 
-                // Runtime Error Diagnosis tab (Premium) - with error diagnosis UI
+                LOG.info("refreshPremiumUI: Creating and adding Runtime tab...");
                 runtimeTabComponent = new RuntimeTabComponent(project);
                 tabbedPane.addTab("Runtime ⭐", runtimeTabComponent.getPanel());
-                LOG.info("refreshPremiumUI: Added PREMIUM Runtime tab");
+                LOG.info("refreshPremiumUI: Added Runtime tab, tab count now = " + tabbedPane.getTabCount());
+                
+                // List final tabs
+                for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+                    LOG.info("refreshPremiumUI: Final tab[" + i + "] = " + tabbedPane.getTitleAt(i));
+                }
                 
                 // Revalidate and repaint to ensure UI updates
                 tabbedPane.revalidate();
                 tabbedPane.repaint();
+                contentPanel.revalidate();
+                contentPanel.repaint();
                 
                 // Update toolbar - remove upgrade/trial buttons and add premium badge
                 updateToolbarForPremium();
                 
                 LOG.info("refreshPremiumUI: UI refresh completed successfully!");
+            } else {
+                LOG.warn("refreshPremiumUI: isPremium is false, not refreshing UI");
             }
         }
 

@@ -37,11 +37,13 @@ public class RuntimeTabComponent {
     public RuntimeTabComponent(Project project) {
         this.project = project;
         this.errorAnalyzer = new ErrorAnalyzer();
-        this.panel = createPanel();
+        // Create components first BEFORE creating the panel that uses them
         this.errorInputArea = createErrorInputArea();
         this.outputArea = createOutputArea();
         this.diagnoseButton = createDiagnoseButton();
         this.statusLabel = createStatusLabel();
+        // Now create the panel that uses these components
+        this.panel = createPanel();
     }
     
     private JPanel createPanel() {
