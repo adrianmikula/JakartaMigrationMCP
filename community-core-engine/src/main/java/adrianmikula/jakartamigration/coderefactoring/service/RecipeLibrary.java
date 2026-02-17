@@ -22,6 +22,19 @@ public class RecipeLibrary {
         registerRecipeInternal(Recipe.cdiRecipe());
         registerRecipeInternal(Recipe.jaxbRecipe());
         registerRecipeInternal(Recipe.validatorRecipe());
+        registerRecipeInternal(Recipe.ejbRecipe());
+        registerRecipeInternal(Recipe.jmsRecipe());
+        registerRecipeInternal(Recipe.jaxrsRecipe());
+        registerRecipeInternal(Recipe.jaxwsRecipe());
+        registerRecipeInternal(Recipe.jtaRecipe());
+        registerRecipeInternal(Recipe.javaMailRecipe());
+        registerRecipeInternal(Recipe.websocketRecipe());
+        registerRecipeInternal(Recipe.jsonbRecipe());
+        registerRecipeInternal(Recipe.jsonpRecipe());
+        registerRecipeInternal(Recipe.activationRecipe());
+        registerRecipeInternal(Recipe.soapRecipe());
+        registerRecipeInternal(Recipe.saajRecipe());
+        registerRecipeInternal(Recipe.authorizationRecipe());
     }
     
     /**
