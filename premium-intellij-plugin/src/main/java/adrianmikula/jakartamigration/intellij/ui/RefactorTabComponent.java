@@ -29,12 +29,18 @@ public class RefactorTabComponent {
     private final JTable table;
     
     public RefactorTabComponent(Project project) {
+        LOG.info("RefactorTabComponent: Constructor called for project: " + project.getName());
         this.project = project;
         this.analysisService = new MigrationAnalysisService();
-        this.panel = createPanel();
+        LOG.info("RefactorTabComponent: MigrationAnalysisService created");
+        // Create table model and table BEFORE creating the panel (so scroll pane has a valid table)
         this.tableModel = new RecipeTableModel();
         this.table = createTable();
+        LOG.info("RefactorTabComponent: Table created");
+        this.panel = createPanel();
+        LOG.info("RefactorTabComponent: About to load recipes...");
         loadRecipes();
+        LOG.info("RefactorTabComponent: Constructor complete");
     }
     
     private JPanel createPanel() {
