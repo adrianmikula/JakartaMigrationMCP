@@ -1,3 +1,6 @@
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
 plugins {
     java
     id("org.springframework.boot") version "3.2.0" apply false
@@ -5,9 +8,19 @@ plugins {
     id("org.jetbrains.intellij") version "1.17.2" apply false
 }
 
+// Generate automatic version based on timestamp for development builds
+val buildType = System.getProperty("BUILD_TYPE", "dev")
+val autoVersion = if (buildType == "release") {
+    "1.0.0"  // Stable release version
+} else {
+    // Dev builds get timestamp-based version: 1.0.x.timestamp
+    val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+    "1.0.1.$timestamp"
+}
+
 allprojects {
     group = "adrianmikula"
-    version = "1.0.1"
+    version = autoVersion
 
     repositories {
         mavenCentral()
