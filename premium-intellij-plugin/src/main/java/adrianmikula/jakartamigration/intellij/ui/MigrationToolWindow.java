@@ -59,6 +59,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private MigrationPhasesComponent migrationPhasesComponent;
         private RefactorComponent refactorComponent;
         private RuntimeComponent runtimeComponent;
+        private AdvancedScansComponent advancedScansComponent;
+        private SupportComponent supportComponent;
 
         public MigrationToolWindowContent(Project project) {
             this.project = project;
@@ -98,8 +100,12 @@ public class MigrationToolWindow implements ToolWindowFactory {
             tabbedPane.addTab("Runtime", runtimeComponent.getPanel());
 
             // Advanced Scans tab (Premium) - JPA, Bean Validation, Servlet/JSP
-            AdvancedScansComponent advancedScansComponent = new AdvancedScansComponent(project);
+            advancedScansComponent = new AdvancedScansComponent(project);
             tabbedPane.addTab("Advanced Scans", advancedScansComponent.getPanel());
+
+            // Support tab - Links to GitHub, LinkedIn, Sponsor pages
+            supportComponent = new SupportComponent(project);
+            tabbedPane.addTab("Support", supportComponent.getPanel());
 
             // Load initial state (empty - wait for user to analyze)
             loadInitialState();
