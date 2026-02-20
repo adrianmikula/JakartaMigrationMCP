@@ -97,6 +97,10 @@ public class MigrationToolWindow implements ToolWindowFactory {
             runtimeComponent = new RuntimeComponent(project);
             tabbedPane.addTab("Runtime", runtimeComponent.getPanel());
 
+            // Advanced Scans tab (Premium) - JPA, Bean Validation, Servlet/JSP
+            AdvancedScansComponent advancedScansComponent = new AdvancedScansComponent(project);
+            tabbedPane.addTab("Advanced Scans", advancedScansComponent.getPanel());
+
             // Load initial state (empty - wait for user to analyze)
             loadInitialState();
 
