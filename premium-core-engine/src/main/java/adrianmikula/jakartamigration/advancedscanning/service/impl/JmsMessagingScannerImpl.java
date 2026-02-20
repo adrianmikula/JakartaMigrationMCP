@@ -154,7 +154,7 @@ public class JmsMessagingScannerImpl implements JmsMessagingScanner {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
-            int totalUsages = results.stream().mapToInt(r -> r.usages().size()).sum();
+            int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
 
             return new JmsMessagingProjectScanResult(results, totalScanned.get(), results.size(), totalUsages);
         } catch (Exception e) {

@@ -83,7 +83,7 @@ public class ConfigFileScannerImpl implements ConfigFileScanner {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
-            int totalUsages = results.stream().mapToInt(r -> r.usages().size()).sum();
+            int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
 
             return new ConfigFileProjectScanResult(results, totalScanned.get(), results.size(), totalUsages);
         } catch (Exception e) {
