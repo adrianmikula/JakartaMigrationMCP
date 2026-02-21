@@ -1,17 +1,24 @@
 package adrianmikula.jakartamigration.advancedscanning.service;
 
+import adrianmikula.jakartamigration.advancedscanning.service.impl.AppServerScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.BeanValidationScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.BuildConfigScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.CdiInjectionScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.ClassloaderModuleScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.ConfigFileScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.DeprecatedApiScannerImpl;
+import adrianmikula.jakartamigration.advancedscanning.service.impl.IntegrationPointsScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.JpaAnnotationScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.JmsMessagingScannerImpl;
+import adrianmikula.jakartamigration.advancedscanning.service.impl.LoggingMetricsScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.RestSoapScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.SecurityApiScannerImpl;
+import adrianmikula.jakartamigration.advancedscanning.service.impl.SerializationCacheScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.ServletJspScannerImpl;
+import adrianmikula.jakartamigration.advancedscanning.service.impl.TestContainersScannerImpl;
+import adrianmikula.jakartamigration.advancedscanning.service.impl.ThirdPartyLibScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.TransitiveDependencyScannerImpl;
+import adrianmikula.jakartamigration.advancedscanning.service.impl.UnitTestScannerImpl;
 
 /**
  * Module that provides access to all premium advanced scanning services.
@@ -31,6 +38,13 @@ public class AdvancedScanningModule {
     private final TransitiveDependencyScanner transitiveDependencyScanner;
     private final ConfigFileScanner configFileScanner;
     private final ClassloaderModuleScanner classloaderModuleScanner;
+    private final LoggingMetricsScanner loggingMetricsScanner;
+    private final SerializationCacheScanner serializationCacheScanner;
+    private final ThirdPartyLibScanner thirdPartyLibScanner;
+    private final UnitTestScanner unitTestScanner;
+    private final TestContainersScanner testContainersScanner;
+    private final IntegrationPointsScanner integrationPointsScanner;
+    private final AppServerScanner appServerScanner;
 
     public AdvancedScanningModule() {
         // Initialize all scanners
@@ -46,6 +60,13 @@ public class AdvancedScanningModule {
         this.transitiveDependencyScanner = new TransitiveDependencyScannerImpl();
         this.configFileScanner = new ConfigFileScannerImpl();
         this.classloaderModuleScanner = new ClassloaderModuleScannerImpl();
+        this.loggingMetricsScanner = new LoggingMetricsScannerImpl();
+        this.serializationCacheScanner = new SerializationCacheScannerImpl();
+        this.thirdPartyLibScanner = new ThirdPartyLibScannerImpl();
+        this.unitTestScanner = new UnitTestScannerImpl();
+        this.testContainersScanner = new TestContainersScannerImpl();
+        this.integrationPointsScanner = new IntegrationPointsScannerImpl();
+        this.appServerScanner = new AppServerScannerImpl();
     }
 
     /**
@@ -130,5 +151,42 @@ public class AdvancedScanningModule {
      */
     public ClassloaderModuleScanner getClassloaderModuleScanner() {
         return classloaderModuleScanner;
+    }
+
+    /**
+     * Gets the Logging/Metrics Scanner.
+     */
+    public LoggingMetricsScanner getLoggingMetricsScanner() {
+        return loggingMetricsScanner;
+    }
+
+    /**
+     * Gets the Serialization/Cache Scanner.
+     */
+    public SerializationCacheScanner getSerializationCacheScanner() {
+        return serializationCacheScanner;
+    }
+
+    /**
+     * Gets the Third-Party Library Scanner.
+     */
+    public ThirdPartyLibScanner getThirdPartyLibScanner() {
+        return thirdPartyLibScanner;
+    }
+
+    public UnitTestScanner getUnitTestScanner() {
+        return unitTestScanner;
+    }
+
+    public TestContainersScanner getTestContainersScanner() {
+        return testContainersScanner;
+    }
+
+    public IntegrationPointsScanner getIntegrationPointsScanner() {
+        return integrationPointsScanner;
+    }
+
+    public AppServerScanner getAppServerScanner() {
+        return appServerScanner;
     }
 }

@@ -27,6 +27,16 @@ public class AdvancedScanningService {
     private final TransitiveDependencyScanner transitiveDependencyScanner;
     private final ConfigFileScanner configFileScanner;
     private final ClassloaderModuleScanner classloaderModuleScanner;
+    private final LoggingMetricsScanner loggingMetricsScanner;
+    private final SerializationCacheScanner serializationCacheScanner;
+    private final ThirdPartyLibScanner thirdPartyLibScanner;
+
+    // Cache for the last scan results
+    private AdvancedScanSummary cachedSummary;
+    private Path cachedProjectPath;
+    private long lastScanTime;
+
+    private static final long CACHE_VALIDITY_MS = 5 * 60 * 1000; // 5 minutes
 
     public AdvancedScanningService() {
         // Initialize the scanning module
@@ -43,6 +53,9 @@ public class AdvancedScanningService {
         this.transitiveDependencyScanner = scanningModule.getTransitiveDependencyScanner();
         this.configFileScanner = scanningModule.getConfigFileScanner();
         this.classloaderModuleScanner = scanningModule.getClassloaderModuleScanner();
+        this.loggingMetricsScanner = scanningModule.getLoggingMetricsScanner();
+        this.serializationCacheScanner = scanningModule.getSerializationCacheScanner();
+        this.thirdPartyLibScanner = scanningModule.getThirdPartyLibScanner();
 
         LOG.info("AdvancedScanningService initialized with premium scanning features");
     }
@@ -82,12 +95,21 @@ public class AdvancedScanningService {
 
     /**
      * Scans a project for all advanced scanning types.
+     * Results are cached for 5 minutes.
      *
      * @param projectPath Path to the project root directory
      * @return AdvancedScanSummary containing combined results
      */
     public AdvancedScanSummary scanAll(Path projectPath) {
         LOG.info("Running all advanced scans in: " + projectPath);
+        
+        // Check if cached result is still valid
+        if (cachedSummary != null && cachedProjectPath != null 
+            && cachedProjectPath.equals(projectPath)
+            && (System.currentTimeMillis() - lastScanTime) < CACHE_VALIDITY_MS) {
+            LOG.info("Returning cached scan results");
+            return cachedSummary;
+        }
         
         JpaProjectScanResult jpaResult = scanForJpaAnnotations(projectPath);
         BeanValidationProjectScanResult beanValidationResult = scanForBeanValidation(projectPath);
@@ -101,8 +123,11 @@ public class AdvancedScanningService {
         TransitiveDependencyProjectScanResult transitiveDependencyResult = scanForTransitiveDependencies(projectPath);
         ConfigFileProjectScanResult configFileResult = scanForConfigFiles(projectPath);
         ClassloaderModuleProjectScanResult classloaderModuleResult = scanForClassloaderModule(projectPath);
+        LoggingMetricsProjectScanResult loggingMetricsResult = scanForLoggingMetrics(projectPath);
+        SerializationCacheProjectScanResult serializationCacheResult = scanForSerializationCache(projectPath);
+        ThirdPartyLibProjectScanResult thirdPartyLibResult = scanForThirdPartyLib(projectPath);
         
-        return new AdvancedScanSummary(
+        cachedSummary = new AdvancedScanSummary(
             jpaResult,
             beanValidationResult,
             servletJspResult,
@@ -114,8 +139,33 @@ public class AdvancedScanningService {
             jmsMessagingResult,
             transitiveDependencyResult,
             configFileResult,
-            classloaderModuleResult
+            classloaderModuleResult,
+            loggingMetricsResult,
+            serializationCacheResult,
+            thirdPartyLibResult
         );
+        cachedProjectPath = projectPath;
+        lastScanTime = System.currentTimeMillis();
+        
+        return cachedSummary;
+    }
+
+    /**
+     * Gets the cached scan summary if available.
+     * 
+     * @return Cached AdvancedScanSummary or null if no scan has been run
+     */
+    public AdvancedScanSummary getCachedSummary() {
+        return cachedSummary;
+    }
+
+    /**
+     * Returns whether a scan has been performed and cached.
+     * 
+     * @return true if cached results exist
+     */
+    public boolean hasCachedResults() {
+        return cachedSummary != null;
     }
 
     // Individual scan methods for each scanner type
@@ -164,6 +214,21 @@ public class AdvancedScanningService {
         return classloaderModuleScanner.scanProject(projectPath);
     }
 
+    public LoggingMetricsProjectScanResult scanForLoggingMetrics(Path projectPath) {
+        LOG.info("Scanning for Logging/Metrics in: " + projectPath);
+        return loggingMetricsScanner.scanProject(projectPath);
+    }
+
+    public SerializationCacheProjectScanResult scanForSerializationCache(Path projectPath) {
+        LOG.info("Scanning for Serialization/Cache in: " + projectPath);
+        return serializationCacheScanner.scanProject(projectPath);
+    }
+
+    public ThirdPartyLibProjectScanResult scanForThirdPartyLib(Path projectPath) {
+        LOG.info("Scanning for Third-Party Libs in: " + projectPath);
+        return thirdPartyLibScanner.scanProject(projectPath);
+    }
+
     /**
      * Summary of all advanced scanning results.
      */
@@ -179,8 +244,116 @@ public class AdvancedScanningService {
         JmsMessagingProjectScanResult jmsMessagingResult,
         TransitiveDependencyProjectScanResult transitiveDependencyResult,
         ConfigFileProjectScanResult configFileResult,
-        ClassloaderModuleProjectScanResult classloaderModuleResult
+        ClassloaderModuleProjectScanResult classloaderModuleResult,
+        LoggingMetricsProjectScanResult loggingMetricsResult,
+        SerializationCacheProjectScanResult serializationCacheResult,
+        ThirdPartyLibProjectScanResult thirdPartyLibResult
     ) {
+        /**
+         * Returns individual count for JPA annotations.
+         */
+        public int getJpaCount() {
+            return jpaResult != null ? jpaResult.totalAnnotationsFound() : 0;
+        }
+
+        /**
+         * Returns individual count for Bean Validation.
+         */
+        public int getBeanValidationCount() {
+            return beanValidationResult != null ? beanValidationResult.totalAnnotationsFound() : 0;
+        }
+
+        /**
+         * Returns individual count for Servlet/JSP.
+         */
+        public int getServletJspCount() {
+            return servletJspResult != null ? servletJspResult.totalUsagesFound() : 0;
+        }
+
+        /**
+         * Returns individual count for CDI Injection.
+         */
+        public int getCdiInjectionCount() {
+            return cdiInjectionResult != null ? cdiInjectionResult.totalAnnotationsFound() : 0;
+        }
+
+        /**
+         * Returns individual count for Build Config.
+         */
+        public int getBuildConfigCount() {
+            return buildConfigResult != null ? buildConfigResult.totalDependenciesFound() : 0;
+        }
+
+        /**
+         * Returns individual count for REST/SOAP.
+         */
+        public int getRestSoapCount() {
+            return restSoapResult != null ? restSoapResult.totalUsagesFound() : 0;
+        }
+
+        /**
+         * Returns individual count for Deprecated API.
+         */
+        public int getDeprecatedApiCount() {
+            return deprecatedApiResult != null ? deprecatedApiResult.totalUsagesFound() : 0;
+        }
+
+        /**
+         * Returns individual count for Security API.
+         */
+        public int getSecurityApiCount() {
+            return securityApiResult != null ? securityApiResult.getTotalJavaxUsages() : 0;
+        }
+
+        /**
+         * Returns individual count for JMS Messaging.
+         */
+        public int getJmsMessagingCount() {
+            return jmsMessagingResult != null ? jmsMessagingResult.getTotalJavaxUsages() : 0;
+        }
+
+        /**
+         * Returns individual count for Transitive Dependencies.
+         */
+        public int getTransitiveDependencyCount() {
+            return transitiveDependencyResult != null ? transitiveDependencyResult.getTotalJavaxDependencies() : 0;
+        }
+
+        /**
+         * Returns individual count for Config Files.
+         */
+        public int getConfigFileCount() {
+            return configFileResult != null ? configFileResult.getTotalJavaxUsages() : 0;
+        }
+
+        /**
+         * Returns individual count for Classloader/Module.
+         */
+        public int getClassloaderModuleCount() {
+            return classloaderModuleResult != null ? classloaderModuleResult.getTotalJavaxUsages() : 0;
+        }
+
+        /**
+         * Returns individual count for Logging/Metrics.
+         */
+        public int getLoggingMetricsCount() {
+            return loggingMetricsResult != null ? loggingMetricsResult.getTotalFindings() : 0;
+        }
+
+        /**
+         * Returns individual count for Serialization/Cache.
+         */
+        public int getSerializationCacheCount() {
+            return serializationCacheResult != null ? serializationCacheResult.getTotalFindings() : 0;
+        }
+
+        /**
+         * Returns individual count for Third-Party Libs.
+         */
+        public int getThirdPartyLibCount() {
+            return thirdPartyLibResult != null ? thirdPartyLibResult.getTotalLibraries() : 0;
+        }
+
         /**
          * Returns the total number of issues found across all scans.
          */
@@ -221,6 +394,15 @@ public class AdvancedScanningService {
             }
             if (classloaderModuleResult != null) {
                 total += classloaderModuleResult.getTotalJavaxUsages();
+            }
+            if (loggingMetricsResult != null) {
+                total += loggingMetricsResult.getTotalFindings();
+            }
+            if (serializationCacheResult != null) {
+                total += serializationCacheResult.getTotalFindings();
+            }
+            if (thirdPartyLibResult != null) {
+                total += thirdPartyLibResult.getTotalLibraries();
             }
             return total;
         }

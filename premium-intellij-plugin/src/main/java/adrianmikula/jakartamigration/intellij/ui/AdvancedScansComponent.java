@@ -37,6 +37,9 @@ private JTable securityApiTable;
 private JTable jmsMessagingTable;
 private JTable transitiveDependencyTable;
 private JTable classloaderModuleTable;
+private JTable loggingMetricsTable;
+private JTable serializationCacheTable;
+private JTable thirdPartyLibTable;
 private JLabel jpaStatusLabel;
 private JLabel beanValidationStatusLabel;
 private JLabel servletJspStatusLabel;
@@ -49,8 +52,11 @@ private JLabel securityApiStatusLabel;
 private JLabel jmsMessagingStatusLabel;
 private JLabel transitiveDependencyStatusLabel;
 private JLabel classloaderModuleStatusLabel;
+private JLabel loggingMetricsStatusLabel;
+private JLabel serializationCacheStatusLabel;
+private JLabel thirdPartyLibStatusLabel;
     
-    private JButton scanButton;
+private JButton scanButton;
     private JProgressBar progressBar;
 
     public AdvancedScansComponent(Project project) {
@@ -110,6 +116,18 @@ private JLabel classloaderModuleStatusLabel;
         // Classloader/Module Tab
         JPanel classloaderModulePanel = createClassloaderModulePanel();
         tabbedPane.addTab("Classloader", classloaderModulePanel);
+        
+        // Logging/Metrics Tab
+        JPanel loggingMetricsPanel = createLoggingMetricsPanel();
+        tabbedPane.addTab("Logging/Metrics", loggingMetricsPanel);
+        
+        // Serialization/Cache Tab
+        JPanel serializationCachePanel = createSerializationCachePanel();
+        tabbedPane.addTab("Serialization/Cache", serializationCachePanel);
+        
+        // Third-Party Libs Tab
+        JPanel thirdPartyLibPanel = createThirdPartyLibPanel();
+        tabbedPane.addTab("Third-Party Libs", thirdPartyLibPanel);
         
         mainPanel.add(toolbarPanel, BorderLayout.NORTH);
         mainPanel.add(tabbedPane, BorderLayout.CENTER);
@@ -396,6 +414,78 @@ private JLabel classloaderModuleStatusLabel;
  
  panel.add(classloaderModuleStatusLabel, BorderLayout.NORTH);
  panel.add(new JScrollPane(classloaderModuleTable), BorderLayout.CENTER);
+ 
+ return panel;
+ }
+ 
+ private JPanel createLoggingMetricsPanel() {
+ JPanel panel = new JPanel(new BorderLayout());
+ panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+ 
+ // Status label
+ loggingMetricsStatusLabel = new JLabel("Not scanned yet");
+ loggingMetricsStatusLabel.setForeground(Color.GRAY);
+ 
+ // Table
+ String[] columns = {"File", "Line", "Usage Type", "Replacement"};
+ loggingMetricsTable = new JTable(new DefaultTableModel(columns, 0) {
+ @Override
+ public boolean isCellEditable(int row, int column) {
+ return false;
+ }
+ });
+ loggingMetricsTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+ 
+ panel.add(loggingMetricsStatusLabel, BorderLayout.NORTH);
+ panel.add(new JScrollPane(loggingMetricsTable), BorderLayout.CENTER);
+ 
+ return panel;
+ }
+ 
+ private JPanel createSerializationCachePanel() {
+ JPanel panel = new JPanel(new BorderLayout());
+ panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+ 
+ // Status label
+ serializationCacheStatusLabel = new JLabel("Not scanned yet");
+ serializationCacheStatusLabel.setForeground(Color.GRAY);
+ 
+ // Table
+ String[] columns = {"File", "Line", "Usage Type", "Risk Assessment"};
+ serializationCacheTable = new JTable(new DefaultTableModel(columns, 0) {
+ @Override
+ public boolean isCellEditable(int row, int column) {
+ return false;
+ }
+ });
+ serializationCacheTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+ 
+ panel.add(serializationCacheStatusLabel, BorderLayout.NORTH);
+ panel.add(new JScrollPane(serializationCacheTable), BorderLayout.CENTER);
+ 
+ return panel;
+ }
+ 
+ private JPanel createThirdPartyLibPanel() {
+ JPanel panel = new JPanel(new BorderLayout());
+ panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+ 
+ // Status label
+ thirdPartyLibStatusLabel = new JLabel("Not scanned yet");
+ thirdPartyLibStatusLabel.setForeground(Color.GRAY);
+ 
+ // Table
+ String[] columns = {"Library", "GroupId:ArtifactId", "Issue Type", "Suggested Replacement"};
+ thirdPartyLibTable = new JTable(new DefaultTableModel(columns, 0) {
+ @Override
+ public boolean isCellEditable(int row, int column) {
+ return false;
+ }
+ });
+ thirdPartyLibTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+ 
+ panel.add(thirdPartyLibStatusLabel, BorderLayout.NORTH);
+ panel.add(new JScrollPane(thirdPartyLibTable), BorderLayout.CENTER);
  
  return panel;
  }

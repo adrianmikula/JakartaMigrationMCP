@@ -21,6 +21,8 @@ import com.intellij.ui.content.ContentFactory;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import java.awt.*;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -106,6 +108,18 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Support tab - Links to GitHub, LinkedIn, Sponsor pages
             supportComponent = new SupportComponent(project);
             tabbedPane.addTab("Support", supportComponent.getPanel());
+
+            // Add tab change listener to update dashboard scan counts when switching to dashboard tab
+            tabbedPane.addChangeListener(new ChangeListener() {
+                @Override
+                public void stateChanged(ChangeEvent e) {
+                    int selectedIndex = tabbedPane.getSelectedIndex();
+                    // Dashboard is the first tab (index 0)
+                    if (selectedIndex == 0 && dashboardComponent != null) {
+                        dashboardComponent.updateAdvancedScanCounts();
+                    }
+                }
+            });
 
             // Load initial state (empty - wait for user to analyze)
             loadInitialState();
