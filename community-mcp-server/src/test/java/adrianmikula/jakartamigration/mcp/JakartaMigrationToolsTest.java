@@ -8,12 +8,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalys
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphException;
 import adrianmikula.jakartamigration.mcp.JakartaMigrationTools;
-import adrianmikula.jakartamigration.runtimeverification.domain.VerificationOptions;
-import adrianmikula.jakartamigration.runtimeverification.domain.VerificationResult;
-import adrianmikula.jakartamigration.runtimeverification.domain.VerificationStatus;
-import adrianmikula.jakartamigration.runtimeverification.domain.ExecutionMetrics;
-import adrianmikula.jakartamigration.runtimeverification.domain.ErrorAnalysis;
-import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
+// NOTE: RuntimeVerificationModule is a PREMIUM feature - removed from community tests
 import adrianmikula.jakartamigration.config.FeatureFlagsService;
 import adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,8 +50,7 @@ class JakartaMigrationToolsTest {
     @Mock
     private RecipeLibrary recipeLibrary;
 
-    @Mock
-    private RuntimeVerificationModule runtimeVerificationModule;
+    // NOTE: RuntimeVerificationModule is a PREMIUM feature - not tested in community tests
 
     @Mock
     private FeatureFlagsService featureFlagsService;
@@ -252,97 +246,6 @@ class JakartaMigrationToolsTest {
         assertThat(result).contains("\"status\": \"success\"");
         assertThat(result).contains("\"estimatedDuration\": \"30 minutes\"");
         verify(migrationPlanner, times(1)).createPlan(anyString(), any(DependencyAnalysisReport.class));
-    }
-
-    @Test
-    @DisplayName("Should verify runtime successfully")
-    void shouldVerifyRuntimeSuccessfully() {
-        // Given
-        VerificationResult mockResult = new VerificationResult(
-            VerificationStatus.SUCCESS,
-            List.of(),
-            List.of(),
-            new ExecutionMetrics(Duration.ofSeconds(15), 0, 0, false),
-            new ErrorAnalysis(
-                adrianmikula.jakartamigration.runtimeverification.domain.ErrorCategory.UNKNOWN,
-                "No errors",
-                List.of(),
-                List.of(),
-                List.of(),
-                1.0
-            ),
-            List.of()
-        );
-        
-        when(runtimeVerificationModule.verifyRuntime(any(Path.class), any(VerificationOptions.class)))
-            .thenReturn(mockResult);
-
-        // When
-        String result = tools.verifyRuntime(testJarPath.toString(), 30);
-
-        // Then
-        assertThat(result).contains("\"status\": \"SUCCESS\"");
-        assertThat(result).contains("\"errorCount\": 0");
-        assertThat(result).contains("\"executionTime\": \"15 seconds\"");
-        verify(runtimeVerificationModule, times(1)).verifyRuntime(any(Path.class), any(VerificationOptions.class));
-    }
-
-    @Test
-    @DisplayName("Should use default timeout when timeoutSeconds is null")
-    void shouldUseDefaultTimeoutWhenTimeoutSecondsIsNull() {
-        // Given
-        VerificationResult mockResult = new VerificationResult(
-            VerificationStatus.SUCCESS,
-            List.of(),
-            List.of(),
-            new ExecutionMetrics(Duration.ofSeconds(10), 0, 0, false),
-            new ErrorAnalysis(
-                adrianmikula.jakartamigration.runtimeverification.domain.ErrorCategory.UNKNOWN,
-                "No errors",
-                List.of(),
-                List.of(),
-                List.of(),
-                1.0
-            ),
-            List.of()
-        );
-        
-        when(runtimeVerificationModule.verifyRuntime(any(Path.class), any(VerificationOptions.class)))
-            .thenReturn(mockResult);
-
-        // When
-        String result = tools.verifyRuntime(testJarPath.toString(), null);
-
-        // Then
-        assertThat(result).contains("\"status\": \"SUCCESS\"");
-        verify(runtimeVerificationModule, times(1)).verifyRuntime(any(Path.class), eq(VerificationOptions.defaults()));
-    }
-
-    @Test
-    @DisplayName("Should return error when JAR file does not exist")
-    void shouldReturnErrorWhenJarFileDoesNotExist() {
-        // When
-        String result = tools.verifyRuntime("/non/existent/app.jar", 30);
-
-        // Then
-        assertThat(result).contains("\"status\": \"error\"");
-        assertThat(result).contains("does not exist");
-        verify(runtimeVerificationModule, never()).verifyRuntime(any(), any());
-    }
-
-    @Test
-    @DisplayName("Should handle runtime verification errors gracefully")
-    void shouldHandleRuntimeVerificationErrorsGracefully() {
-        // Given
-        when(runtimeVerificationModule.verifyRuntime(any(Path.class), any(VerificationOptions.class)))
-            .thenThrow(new RuntimeException("JAR execution failed"));
-
-        // When
-        String result = tools.verifyRuntime(testJarPath.toString(), 30);
-
-        // Then
-        assertThat(result).contains("\"status\": \"error\"");
-        assertThat(result).contains("Unexpected error");
     }
 
     @Test

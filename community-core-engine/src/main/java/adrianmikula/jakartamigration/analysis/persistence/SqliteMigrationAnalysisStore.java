@@ -196,6 +196,42 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
                 )
             """);
 
+            // Migration Issues Registry - maps scanner types to namespaces and refactor recipes
+            // This enables looking up what scanner handles which issue type
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS migration_issues_registry (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    scanner_type TEXT NOT NULL UNIQUE,
+                    ui_tab_name TEXT NOT NULL,
+                    legacy_namespace TEXT NOT NULL,
+                    target_namespace TEXT NOT NULL,
+                    refactor_recipe TEXT,
+                    description TEXT,
+                    anticipated_error_messages TEXT,
+                    solution_hint TEXT,
+                    is_premium BOOLEAN DEFAULT FALSE,
+                    created_at TEXT DEFAULT (datetime('now'))
+                )
+            """);
+
+            // Migration Issues - stores found issues from scans
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS migration_issues (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    project_path TEXT NOT NULL,
+                    registry_id INTEGER NOT NULL,
+                    file_path TEXT,
+                    line_number INTEGER,
+                    column_number INTEGER,
+                    code_snippet TEXT,
+                    issue_severity TEXT DEFAULT 'medium',
+                    is_resolved BOOLEAN DEFAULT FALSE,
+                    resolved_at TEXT,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    FOREIGN KEY (registry_id) REFERENCES migration_issues_registry(id)
+                )
+            """);
+
             // Indexes for efficient querying
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_deps_project ON dependencies(project_path)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_edges_from ON dependency_edges(project_path, from_group_id, from_artifact_id)");
@@ -203,6 +239,8 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_blockers_project ON blockers(project_path)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_recommendations_project ON recommendations(project_path)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_phases_plan ON migration_phases(plan_id)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_issues_project ON migration_issues(project_path)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_issues_registry ON migration_issues(registry_id)");
 
             conn.commit();
             log.info("Database tables created/verified at {}", dbPath);
@@ -786,6 +824,105 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
         return "HIGH";
     }
 
+    // ==================== Migration Issues Registry Operations ====================
+
+    /**
+     * Registers a new scanner type in the migration issues registry.
+     * This maps scanner types to their UI tab, namespaces, and refactor recipe.
+     */
+    public void registerMigrationIssueType(
+            String scannerType,
+            String uiTabName,
+            String legacyNamespace,
+            String targetNamespace,
+            String refactorRecipe,
+            String description,
+            String anticipatedErrorMessages,
+            String solutionHint,
+            boolean isPremium) {
+        try (Connection conn = getConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement("""
+                INSERT OR REPLACE INTO migration_issues_registry 
+                (scanner_type, ui_tab_name, legacy_namespace, target_namespace, refactor_recipe, description, anticipated_error_messages, solution_hint, is_premium)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """)) {
+                stmt.setString(1, scannerType);
+                stmt.setString(2, uiTabName);
+                stmt.setString(3, legacyNamespace);
+                stmt.setString(4, targetNamespace);
+                stmt.setString(5, refactorRecipe);
+                stmt.setString(6, description);
+                stmt.setString(7, anticipatedErrorMessages);
+                stmt.setString(8, solutionHint);
+                stmt.setBoolean(9, isPremium);
+                stmt.executeUpdate();
+                conn.commit();
+                log.info("Registered migration issue type: {}", scannerType);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to register migration issue type: " + scannerType, e);
+        }
+    }
+
+    /**
+     * Gets all registered migration issue types.
+     */
+    public List<MigrationIssueRegistry> getRegisteredIssueTypes() {
+        List<MigrationIssueRegistry> results = new ArrayList<>();
+        try (Connection conn = getConnection()) {
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT * FROM migration_issues_registry")) {
+                while (rs.next()) {
+                    results.add(new MigrationIssueRegistry(
+                        rs.getLong("id"),
+                        rs.getString("scanner_type"),
+                        rs.getString("ui_tab_name"),
+                        rs.getString("legacy_namespace"),
+                        rs.getString("target_namespace"),
+                        rs.getString("refactor_recipe"),
+                        rs.getString("description"),
+                        rs.getString("anticipated_error_messages"),
+                        rs.getString("solution_hint"),
+                        rs.getBoolean("is_premium")
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to get registered issue types", e);
+        }
+        return results;
+    }
+
+    /**
+     * Gets a registered issue type by scanner type.
+     */
+    public Optional<MigrationIssueRegistry> getRegistryByScannerType(String scannerType) {
+        try (Connection conn = getConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement("SELECT * FROM migration_issues_registry WHERE scanner_type = ?")) {
+                stmt.setString(1, scannerType);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        return Optional.of(new MigrationIssueRegistry(
+                            rs.getLong("id"),
+                            rs.getString("scanner_type"),
+                            rs.getString("ui_tab_name"),
+                            rs.getString("legacy_namespace"),
+                            rs.getString("target_namespace"),
+                            rs.getString("refactor_recipe"),
+                            rs.getString("description"),
+                            rs.getString("anticipated_error_messages"),
+                            rs.getString("solution_hint"),
+                            rs.getBoolean("is_premium")
+                        ));
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to get registry by scanner type: " + scannerType, e);
+        }
+        return Optional.empty();
+    }
+
     @Override
     public void close() {
         Connection conn = connectionHolder.get();
@@ -848,5 +985,21 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
         String description,
         String action,
         String estimatedEffort
+    ) {}
+
+    /**
+     * Migration issue registry record - maps scanner types to UI tabs, namespaces, and refactor recipes.
+     */
+    public record MigrationIssueRegistry(
+        long id,
+        String scannerType,
+        String uiTabName,
+        String legacyNamespace,
+        String targetNamespace,
+        String refactorRecipe,
+        String description,
+        String anticipatedErrorMessages,
+        String solutionHint,
+        boolean isPremium
     ) {}
 }

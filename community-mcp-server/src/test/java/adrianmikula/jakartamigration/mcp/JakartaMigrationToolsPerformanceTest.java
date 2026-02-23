@@ -6,7 +6,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
 import adrianmikula.jakartamigration.mcp.JakartaMigrationTools;
-import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
+// NOTE: RuntimeVerificationModule is a PREMIUM feature - removed from community tests
 import adrianmikula.jakartamigration.config.FeatureFlagsService;
 import adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,8 +53,7 @@ class JakartaMigrationToolsPerformanceTest {
     @Mock
     private RecipeLibrary recipeLibrary;
 
-    @Mock
-    private RuntimeVerificationModule runtimeVerificationModule;
+    // NOTE: RuntimeVerificationModule is a PREMIUM feature - not mocked in community tests
 
     @Mock
     private FeatureFlagsService featureFlagsService;

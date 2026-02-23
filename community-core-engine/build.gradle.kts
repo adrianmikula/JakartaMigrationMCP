@@ -39,3 +39,27 @@ java {
         languageVersion.set(JavaLanguageVersion.of(17))
     }
 }
+
+// =============================================================================
+// LICENSE ENFORCEMENT - Community modules must not depend on premium modules
+// =============================================================================
+
+val premiumModules = setOf(
+    ":premium-core-engine",
+    ":premium-mcp-server",
+    ":premium-intellij-plugin"
+)
+
+afterEvaluate {
+    configurations.forEach { configuration ->
+        configuration.dependencies.forEach { dependency ->
+            if (premiumModules.any { dependency.name.contains(it.removePrefix(":")) }) {
+                throw GradleException(
+                    "License Violation: ${project.name} (community) cannot depend on " +
+                    "premium module '${dependency.name}'. " +
+                    "Community modules must only use other community modules."
+                )
+            }
+        }
+    }
+}

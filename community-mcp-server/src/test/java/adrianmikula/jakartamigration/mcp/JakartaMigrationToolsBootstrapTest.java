@@ -7,7 +7,6 @@ import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalys
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
 import adrianmikula.jakartamigration.mcp.JakartaMigrationTools;
-import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationContext;
@@ -60,7 +59,7 @@ class JakartaMigrationToolsBootstrapTest {
         NamespaceClassifier classifier = context.getBean(NamespaceClassifier.class);
         MigrationPlanner planner = context.getBean(MigrationPlanner.class);
         RecipeLibrary recipeLibrary = context.getBean(RecipeLibrary.class);
-        RuntimeVerificationModule verificationModule = context.getBean(RuntimeVerificationModule.class);
+        // NOTE: RuntimeVerificationModule is a PREMIUM feature - removed from community tests
         JakartaMigrationTools tools = context.getBean(JakartaMigrationTools.class);
         
         long initializationTime = System.currentTimeMillis() - startTime;
@@ -71,7 +70,7 @@ class JakartaMigrationToolsBootstrapTest {
         assertThat(classifier).isNotNull();
         assertThat(planner).isNotNull();
         assertThat(recipeLibrary).isNotNull();
-        assertThat(verificationModule).isNotNull();
+        // NOTE: RuntimeVerificationModule is a PREMIUM feature - not tested in community
         assertThat(tools).isNotNull();
         assertThat(initializationTime).isLessThan(1500); // All beans should initialize within 1.5 seconds
         

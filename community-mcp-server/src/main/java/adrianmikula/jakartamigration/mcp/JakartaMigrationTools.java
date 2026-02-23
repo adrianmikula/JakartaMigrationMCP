@@ -11,9 +11,6 @@ import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphE
 import adrianmikula.jakartamigration.config.FeatureFlag;
 import adrianmikula.jakartamigration.config.FeatureFlagsProperties;
 import adrianmikula.jakartamigration.config.FeatureFlagsService;
-import adrianmikula.jakartamigration.runtimeverification.domain.VerificationOptions;
-import adrianmikula.jakartamigration.runtimeverification.domain.VerificationResult;
-import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
 import lombok.extern.slf4j.Slf4j;
 import org.springaicommunity.mcp.annotation.McpTool;
 import org.springaicommunity.mcp.annotation.McpToolParam;
@@ -48,9 +45,8 @@ public class JakartaMigrationTools {
     // Community tools delegate
     private final CommunityMigrationTools communityTools;
     
-    // Premium tools dependencies
+    // Premium tools dependencies (not available in community)
     private final DependencyAnalysisModule dependencyAnalysisModule;
-    private final RuntimeVerificationModule runtimeVerificationModule;
     private final RecipeLibrary recipeLibrary;
     private final FeatureFlagsService featureFlags;
     private final adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner sourceCodeScanner;
@@ -59,14 +55,12 @@ public class JakartaMigrationTools {
     public JakartaMigrationTools(
             CommunityMigrationTools communityTools,
             DependencyAnalysisModule dependencyAnalysisModule,
-            RuntimeVerificationModule runtimeVerificationModule,
             RecipeLibrary recipeLibrary,
             FeatureFlagsService featureFlags,
             adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner sourceCodeScanner,
             CodeRefactoringModule codeRefactoringModule) {
         this.communityTools = communityTools;
         this.dependencyAnalysisModule = dependencyAnalysisModule;
-        this.runtimeVerificationModule = runtimeVerificationModule;
         this.recipeLibrary = recipeLibrary;
         this.featureFlags = featureFlags;
         this.sourceCodeScanner = sourceCodeScanner;
@@ -199,46 +193,17 @@ public class JakartaMigrationTools {
     /**
      * Verifies runtime execution of a migrated application.
      * PREMIUM TOOL - Requires JetBrains Marketplace subscription
+     * 
+     * NOTE: Runtime verification is a PREMIUM feature and is not available in community edition.
      */
     @McpTool(name = "verifyRuntime", description = "Verifies runtime execution of a migrated Jakarta application. Returns a JSON result with execution status, errors, and metrics. Requires PREMIUM license.")
     public String verifyRuntime(
             @McpToolParam(description = "Path to the JAR file to execute", required = true) String jarPath,
             @McpToolParam(description = "Optional timeout in seconds (default: 30)", required = false) Integer timeoutSeconds) {
-        // Check premium license
-        if (!featureFlags.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)) {
-            return createUpgradeRequiredResponse(
-                    FeatureFlag.BINARY_FIXES,
-                    "The 'verifyRuntime' tool requires a PREMIUM license. This tool verifies runtime execution of migrated Jakarta applications.");
-        }
-
-        try {
-            log.info("Verifying runtime for JAR: {}", jarPath);
-
-            Path jar = Paths.get(jarPath);
-            if (!Files.exists(jar) || !Files.isRegularFile(jar)) {
-                return createErrorResponse("JAR file does not exist or is not a file: " + jarPath);
-            }
-
-            // Create verification options
-            VerificationOptions options = timeoutSeconds != null
-                    ? new VerificationOptions(
-                            java.time.Duration.ofSeconds(timeoutSeconds),
-                            VerificationOptions.defaults().maxMemoryBytes(),
-                            VerificationOptions.defaults().captureStdout(),
-                            VerificationOptions.defaults().captureStderr(),
-                            VerificationOptions.defaults().jvmArgs())
-                    : VerificationOptions.defaults();
-
-            // Verify runtime
-            VerificationResult result = runtimeVerificationModule.verifyRuntime(jar, options);
-
-            // Build response
-            return buildVerificationResponse(result);
-
-        } catch (Exception e) {
-            log.error("Unexpected error during runtime verification", e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
-        }
+        // Runtime verification is a PREMIUM feature - always return upgrade message in community
+        return createUpgradeRequiredResponse(
+                FeatureFlag.BINARY_FIXES,
+                "The 'verifyRuntime' tool requires a PREMIUM license. This tool verifies runtime execution of migrated Jakarta applications.");
     }
 
     /**
@@ -454,35 +419,6 @@ public class JakartaMigrationTools {
             json.append("\n");
         }
         json.append("  ]\n");
-        json.append("}");
-        return json.toString();
-    }
-
-    private String buildVerificationResponse(VerificationResult result) {
-        StringBuilder json = new StringBuilder();
-        json.append("{\n");
-        json.append("  \"status\": \"").append(result.status()).append("\",\n");
-        json.append("  \"edition\": \"premium\",\n");
-        json.append("  \"errorCount\": ").append(result.errors().size()).append(",\n");
-        json.append("  \"warningCount\": ").append(result.warnings().size()).append(",\n");
-        json.append("  \"executionTime\": \"").append(result.metrics().executionTime().toSeconds())
-                .append(" seconds\",\n");
-        json.append("  \"exitCode\": ").append(result.metrics().exitCode()).append(",\n");
-        if (result.errors().isEmpty()) {
-            json.append("  \"message\": \"Runtime verification passed\"\n");
-        } else {
-            json.append("  \"message\": \"Runtime verification found issues\",\n");
-            json.append("  \"errors\": [\n");
-            for (int i = 0; i < Math.min(result.errors().size(), 5); i++) {
-                var error = result.errors().get(i);
-                json.append("    \"").append(escapeJson(error.message())).append("\"");
-                if (i < Math.min(result.errors().size(), 5) - 1) {
-                    json.append(",");
-                }
-                json.append("\n");
-            }
-            json.append("  ]\n");
-        }
         json.append("}");
         return json.toString();
     }
