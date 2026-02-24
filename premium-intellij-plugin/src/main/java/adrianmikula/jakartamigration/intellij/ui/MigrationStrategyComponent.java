@@ -22,6 +22,8 @@ public class MigrationStrategyComponent {
     private final Project project;
     private final List<MigrationStrategyListener> listeners = new ArrayList<>();
     private MigrationStrategy selectedStrategy;
+    private JTextArea benefitsText;
+    private JTextArea risksText;
 
     public interface MigrationStrategyListener {
         void onStrategySelected(MigrationStrategy strategy);
@@ -30,62 +32,62 @@ public class MigrationStrategyComponent {
     public enum MigrationStrategy {
         BIG_BANG("Big Bang", "Migrate everything at once",
                 """
-                • Migrate all javax dependencies to Jakarta EE at once
-                • Single comprehensive change
-                • Best for small, self-contained projects
-                • Requires thorough testing before starting
-                """,
+                        • Migrate all javax dependencies to Jakarta EE at once
+                        • Single comprehensive change
+                        • Best for small, self-contained projects
+                        • Requires thorough testing before starting
+                        """,
                 """
-                • Higher risk - issues affect entire codebase
-                • Longer rollback time if problems occur
-                • Requires comprehensive test suite
-                • May cause extended downtime during migration
-                """,
+                        • Higher risk - issues affect entire codebase
+                        • Longer rollback time if problems occur
+                        • Requires comprehensive test suite
+                        • May cause extended downtime during migration
+                        """,
                 new Color(220, 53, 69)), // Red
 
         INCREMENTAL("Incremental", "One dependency at a time",
                 """
-                • Migrate dependencies incrementally
-                • Update one dependency, test, then proceed
-                • Lower risk per change
-                • Best for large, complex projects
-                """,
+                        • Migrate dependencies incrementally
+                        • Update one dependency, test, then proceed
+                        • Lower risk per change
+                        • Best for large, complex projects
+                        """,
                 """
-                • Longer overall migration timeline
-                • Must maintain compatibility during transition
-                • May require temporary dual dependencies
-                • Need careful dependency ordering
-                """,
+                        • Longer overall migration timeline
+                        • Must maintain compatibility during transition
+                        • May require temporary dual dependencies
+                        • Need careful dependency ordering
+                        """,
                 new Color(255, 193, 7)), // Yellow
 
         BUILD_TRANSFORMATION("Build Transformation", "Transform during build process",
                 """
-                • Use OpenRewrite recipes during build
-                • Automated code transformation
-                • CI/CD pipeline integration
-                • Best for projects with complex dependencies
-                """,
+                        • Use OpenRewrite recipes during build
+                        • Automated code transformation
+                        • CI/CD pipeline integration
+                        • Best for projects with complex dependencies
+                        """,
                 """
-                • Requires build system access
-                • May need custom OpenRewrite recipes
-                • Build times may increase
-                • Need to handle build failures gracefully
-                """,
+                        • Requires build system access
+                        • May need custom OpenRewrite recipes
+                        • Build times may increase
+                        • Need to handle build failures gracefully
+                        """,
                 new Color(23, 162, 184)), // Blue
 
         RUNTIME_TRANSFORMATION("Runtime Transformation", "Transform at runtime",
                 """
-                • Use adapter pattern for runtime compatibility
-                • No code changes required
-                • Quick to implement
-                • Good for legacy systems
-                """,
+                        • Use adapter pattern for runtime compatibility
+                        • No code changes required
+                        • Quick to implement
+                        • Good for legacy systems
+                        """,
                 """
-                • Performance overhead at runtime
-                • Limited to supported patterns
-                • Not a permanent solution
-                • May have edge case issues
-                """,
+                        • Performance overhead at runtime
+                        • Limited to supported patterns
+                        • Not a permanent solution
+                        • May have edge case issues
+                        """,
                 new Color(40, 167, 69)); // Green
 
         private final String displayName;
@@ -157,7 +159,7 @@ public class MigrationStrategyComponent {
         benefitsPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         JLabel benefitsTitle = new JLabel("✓ Benefits");
         benefitsTitle.setFont(benefitsTitle.getFont().deriveFont(Font.BOLD, 12f));
-        JTextArea benefitsText = new JTextArea("Click on a strategy card to see details here.");
+        this.benefitsText = new JTextArea("Click on a strategy card to see details here.");
         benefitsText.setEditable(false);
         benefitsText.setWrapStyleWord(true);
         benefitsText.setLineWrap(true);
@@ -170,7 +172,7 @@ public class MigrationStrategyComponent {
         risksPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         JLabel risksTitle = new JLabel("⚠ Risks");
         risksTitle.setFont(risksTitle.getFont().deriveFont(Font.BOLD, 12f));
-        JTextArea risksText = new JTextArea("");
+        this.risksText = new JTextArea("");
         risksText.setEditable(false);
         risksText.setWrapStyleWord(true);
         risksText.setLineWrap(true);
@@ -192,8 +194,7 @@ public class MigrationStrategyComponent {
         JPanel card = new JBPanel<>(new BorderLayout(5, 5));
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.GRAY, 1),
-                BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)));
         card.setPreferredSize(new Dimension(180, 160));
 
         // Header with color indicator
@@ -229,8 +230,7 @@ public class MigrationStrategyComponent {
             public void mouseEntered(MouseEvent e) {
                 card.setBorder(BorderFactory.createCompoundBorder(
                         BorderFactory.createLineBorder(strategy.getColor(), 2),
-                        BorderFactory.createEmptyBorder(9, 9, 9, 9)
-                ));
+                        BorderFactory.createEmptyBorder(9, 9, 9, 9)));
             }
 
             @Override
@@ -238,8 +238,7 @@ public class MigrationStrategyComponent {
                 if (selectedStrategy != strategy) {
                     card.setBorder(BorderFactory.createCompoundBorder(
                             BorderFactory.createLineBorder(Color.GRAY, 1),
-                            BorderFactory.createEmptyBorder(10, 10, 10, 10)
-                    ));
+                            BorderFactory.createEmptyBorder(10, 10, 10, 10)));
                 }
             }
         });
@@ -248,6 +247,10 @@ public class MigrationStrategyComponent {
         card.add(descArea, BorderLayout.CENTER);
 
         return card;
+    }
+
+    public void setSelectedStrategy(MigrationStrategy strategy) {
+        selectStrategy(strategy);
     }
 
     private void selectStrategy(MigrationStrategy strategy) {
@@ -276,14 +279,12 @@ public class MigrationStrategyComponent {
                     if (cardStrategy == selectedStrategy) {
                         card.setBorder(BorderFactory.createCompoundBorder(
                                 BorderFactory.createLineBorder(cardStrategy.getColor(), 3),
-                                BorderFactory.createEmptyBorder(8, 8, 8, 8)
-                        ));
+                                BorderFactory.createEmptyBorder(8, 8, 8, 8)));
                         card.setBackground(new Color(245, 245, 245));
                     } else {
                         card.setBorder(BorderFactory.createCompoundBorder(
                                 BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1),
-                                BorderFactory.createEmptyBorder(10, 10, 10, 10)
-                        ));
+                                BorderFactory.createEmptyBorder(10, 10, 10, 10)));
                         card.setBackground(null);
                     }
                 }
@@ -307,16 +308,7 @@ public class MigrationStrategyComponent {
     }
 
     private void updateInfoPanel(MigrationStrategy strategy) {
-        JPanel infoPanel = (JPanel) panel.getComponent(2);
-
-        // Benefits panel
-        JPanel benefitsPanel = (JPanel) infoPanel.getComponent(0);
-        JTextArea benefitsText = (JTextArea) benefitsPanel.getComponent(1);
         benefitsText.setText(strategy.getBenefits());
-
-        // Risks panel
-        JPanel risksPanel = (JPanel) infoPanel.getComponent(1);
-        JTextArea risksText = (JTextArea) risksPanel.getComponent(1);
         risksText.setText(strategy.getRisks());
     }
 
@@ -330,5 +322,13 @@ public class MigrationStrategyComponent {
 
     public JPanel getPanel() {
         return panel;
+    }
+
+    public JTextArea getBenefitsText() {
+        return benefitsText;
+    }
+
+    public JTextArea getRisksText() {
+        return risksText;
     }
 }

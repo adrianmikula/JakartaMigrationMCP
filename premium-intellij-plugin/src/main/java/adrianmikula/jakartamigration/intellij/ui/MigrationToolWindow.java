@@ -43,13 +43,14 @@ public class MigrationToolWindow implements ToolWindowFactory {
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
         MigrationToolWindowContent content = new MigrationToolWindowContent(project);
-        Content tabContent = ContentFactory.getInstance().createContent(content.getContentPanel(), "Jakarta Migration", false);
+        Content tabContent = ContentFactory.getInstance().createContent(content.getContentPanel(), "Jakarta Migration",
+                false);
         toolWindow.getContentManager().addContent(tabContent);
     }
 
     public static class MigrationToolWindowContent {
         private static final Logger LOG = Logger.getInstance(MigrationToolWindowContent.class);
-        
+
         private final JPanel contentPanel;
         private final Project project;
         private final MigrationAnalysisService analysisService;
@@ -58,7 +59,6 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private DashboardComponent dashboardComponent;
         private DependenciesTableComponent dependenciesComponent;
         private DependencyGraphComponent dependencyGraphComponent;
-        private MigrationPhasesComponent migrationPhasesComponent;
         private RefactorComponent refactorComponent;
         private RuntimeComponent runtimeComponent;
         private AdvancedScansComponent advancedScansComponent;
@@ -89,12 +89,12 @@ public class MigrationToolWindow implements ToolWindowFactory {
             dependencyGraphComponent = new DependencyGraphComponent(project);
             tabbedPane.addTab("Dependency Graph", dependencyGraphComponent.getPanel());
 
-            // Migration Phases tab
-            migrationPhasesComponent = new MigrationPhasesComponent(project);
-            tabbedPane.addTab("Migration Strategy", migrationPhasesComponent.getPanel());
-
             // Refactor tab (Premium)
             refactorComponent = new RefactorComponent(project);
+            refactorComponent.setRecipes(List.of(
+                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.jakartaNamespaceRecipe(),
+                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.persistenceXmlRecipe(),
+                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.webXmlRecipe()));
             tabbedPane.addTab("Refactor", refactorComponent.getPanel());
 
             // Runtime tab (Premium)
@@ -103,13 +103,19 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Advanced Scans tab (Premium) - JPA, Bean Validation, Servlet/JSP
             advancedScansComponent = new AdvancedScansComponent(project);
+            advancedScansComponent.addScanCompletionListener(() -> {
+                if (dashboardComponent != null) {
+                    dashboardComponent.updateAdvancedScanCounts();
+                }
+            });
             tabbedPane.addTab("Advanced Scans", advancedScansComponent.getPanel());
 
             // Support tab - Links to GitHub, LinkedIn, Sponsor pages
             supportComponent = new SupportComponent(project);
             tabbedPane.addTab("Support", supportComponent.getPanel());
 
-            // Add tab change listener to update dashboard scan counts when switching to dashboard tab
+            // Add tab change listener to update dashboard scan counts when switching to
+            // dashboard tab
             tabbedPane.addChangeListener(new ChangeListener() {
                 @Override
                 public void stateChanged(ChangeEvent e) {
@@ -156,7 +162,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         /**
-         * Handle analyze project action - triggers analysis using migration-core library
+         * Handle analyze project action - triggers analysis using migration-core
+         * library
          */
         private void handleAnalyzeProject(java.awt.event.ActionEvent e) {
             String projectPathStr = project.getBasePath();
@@ -165,7 +172,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
             }
 
             if (projectPathStr == null) {
-                Messages.showWarningDialog(project, "Cannot determine project path. Please open a project first.", "Analysis Failed");
+                Messages.showWarningDialog(project, "Cannot determine project path. Please open a project first.",
+                        "Analysis Failed");
                 return;
             }
 
@@ -177,34 +185,34 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Run analysis directly using the migration-core library
             CompletableFuture.supplyAsync(() -> analysisService.analyzeProject(projectPath))
-                .thenAccept(report -> {
-                    SwingUtilities.invokeLater(() -> {
-                        if (report != null && report.dependencyGraph() != null && 
-                            !report.dependencyGraph().getNodes().isEmpty()) {
-                            // Update dashboard with real data
-                            updateDashboardFromReport(report);
-                            int depsCount = report.dependencyGraph().getNodes().size();
-                            Messages.showInfoMessage(project, "Analysis complete! " + 
-                                depsCount + 
-                                " dependencies analyzed.", "Analysis Complete");
-                        } else {
-                            // No dependencies found - project is ready
-                            showEmptyResultsState();
-                            Messages.showInfoMessage(project, 
-                                "Analysis complete. No Jakarta migration issues found.", 
-                                "Analysis Complete");
-                        }
+                    .thenAccept(report -> {
+                        SwingUtilities.invokeLater(() -> {
+                            if (report != null && report.dependencyGraph() != null &&
+                                    !report.dependencyGraph().getNodes().isEmpty()) {
+                                // Update dashboard with real data
+                                updateDashboardFromReport(report);
+                                int depsCount = report.dependencyGraph().getNodes().size();
+                                Messages.showInfoMessage(project, "Analysis complete! " +
+                                        depsCount +
+                                        " dependencies analyzed.", "Analysis Complete");
+                            } else {
+                                // No dependencies found - project is ready
+                                showEmptyResultsState();
+                                Messages.showInfoMessage(project,
+                                        "Analysis complete. No Jakarta migration issues found.",
+                                        "Analysis Complete");
+                            }
+                        });
+                    })
+                    .exceptionally(ex -> {
+                        SwingUtilities.invokeLater(() -> {
+                            dashboardComponent.setStatus(MigrationStatus.FAILED);
+                            Messages.showWarningDialog(project,
+                                    "Analysis failed: " + ex.getMessage(),
+                                    "Analysis Failed");
+                        });
+                        return null;
                     });
-                })
-                .exceptionally(ex -> {
-                    SwingUtilities.invokeLater(() -> {
-                        dashboardComponent.setStatus(MigrationStatus.FAILED);
-                        Messages.showWarningDialog(project, 
-                            "Analysis failed: " + ex.getMessage(), 
-                            "Analysis Failed");
-                    });
-                    return null;
-                });
         }
 
         /**
@@ -225,7 +233,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             dashboardComponent.updateDashboard(dashboard);
             dependenciesComponent.setDependencies(new ArrayList<>());
-            
+
             // Clear the dependency graph
             dependencyGraphComponent.updateGraphFromDependencyGraph(new DependencyGraph());
         }
@@ -234,9 +242,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
          * Update dashboard from migration analysis report
          */
         private void updateDashboardFromReport(DependencyAnalysisReport report) {
-            LOG.info("updateDashboardFromReport: processing report with " + 
-                (report == null ? "null" : "non-null") + " report");
-            
+            LOG.info("updateDashboardFromReport: processing report with " +
+                    (report == null ? "null" : "non-null") + " report");
+
             if (report == null || report.dependencyGraph() == null) {
                 LOG.info("updateDashboardFromReport: null report or dependencyGraph, showing empty results");
                 showEmptyResultsState();
@@ -245,9 +253,10 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             DependencyGraph graph = report.dependencyGraph();
             Set<Artifact> nodes = graph.getNodes();
-            
-            LOG.info("updateDashboardFromReport: found " + (nodes == null ? "null" : nodes.size()) + " dependency nodes");
-            
+
+            LOG.info("updateDashboardFromReport: found " + (nodes == null ? "null" : nodes.size())
+                    + " dependency nodes");
+
             if (nodes == null || nodes.isEmpty()) {
                 // No dependencies found - project is ready
                 showEmptyResultsState();
@@ -256,42 +265,41 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Convert Artifact objects to DependencyInfo
             List<DependencyInfo> deps = new ArrayList<>();
-            
+
             // Build a map of recommendations by current artifact
             Map<String, Artifact> recommendationMap = new HashMap<>();
             if (report.recommendations() != null) {
                 for (VersionRecommendation rec : report.recommendations()) {
                     if (rec.currentArtifact() != null) {
                         recommendationMap.put(
-                            rec.currentArtifact().groupId() + ":" + rec.currentArtifact().artifactId(),
-                            rec.recommendedArtifact()
-                        );
+                                rec.currentArtifact().groupId() + ":" + rec.currentArtifact().artifactId(),
+                                rec.recommendedArtifact());
                     }
                 }
             }
-            
+
             // Build a set of org namespace patterns from the project
             Set<String> orgPatterns = new HashSet<>();
-            
+
             for (Artifact artifact : nodes) {
                 DependencyInfo info = new DependencyInfo();
                 info.setArtifactId(artifact.artifactId());
                 info.setGroupId(artifact.groupId());
                 info.setCurrentVersion(artifact.version());
                 info.setTransitive(artifact.transitive());
-                
+
                 // Check if there's a recommendation for this artifact
                 String artifactKey = artifact.groupId() + ":" + artifact.artifactId();
                 Artifact recommended = recommendationMap.get(artifactKey);
                 if (recommended != null) {
                     info.setRecommendedVersion(recommended.version());
                 }
-                
+
                 // Determine migration status based on namespace from the report's namespace map
-                Namespace namespace = report.namespaceMap() != null 
-                    ? report.namespaceMap().get(artifact)
-                    : Namespace.UNKNOWN;
-                
+                Namespace namespace = report.namespaceMap() != null
+                        ? report.namespaceMap().get(artifact)
+                        : Namespace.UNKNOWN;
+
                 if (namespace == Namespace.JAKARTA) {
                     info.setMigrationStatus(DependencyMigrationStatus.COMPATIBLE);
                 } else if (namespace == Namespace.JAVAX) {
@@ -301,7 +309,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 } else {
                     info.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
                 }
-                
+
                 // Collect org namespace patterns from JAVAX dependencies
                 if (namespace == Namespace.JAVAX) {
                     String groupId = artifact.groupId();
@@ -313,16 +321,16 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         orgPatterns.add(groupId);
                     }
                 }
-                
+
                 deps.add(info);
             }
-            
+
             // Build status map for the dependency graph
             Map<String, DependencyMigrationStatus> statusMap = new HashMap<>();
             for (DependencyInfo info : deps) {
                 statusMap.put(info.getGroupId() + ":" + info.getArtifactId(), info.getMigrationStatus());
             }
-            
+
             // Update the dependency graph with real relationships and status
             dependencyGraphComponent.updateGraphFromDependencyGraph(report.dependencyGraph(), statusMap);
 
@@ -335,8 +343,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
             long blockers = deps.stream().filter(DependencyInfo::isBlocker).count();
             long migrable = deps.stream().filter(d -> d.getRecommendedVersion() != null).count();
             long compatible = deps.stream()
-                .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE)
-                .count();
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE)
+                    .count();
 
             int score = calculateReadinessScore(deps);
 
@@ -355,7 +363,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             dashboardComponent.updateDashboard(dashboard);
             dependenciesComponent.setDependencies(deps);
-            
+
             // Also update the dependency graph with real relationships
             if (report.dependencyGraph() != null) {
                 dependencyGraphComponent.updateGraphFromDependencyGraph(report.dependencyGraph());
@@ -368,11 +376,11 @@ public class MigrationToolWindow implements ToolWindowFactory {
             }
 
             long compatible = deps.stream()
-                .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE)
-                .count();
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE)
+                    .count();
             long hasVersion = deps.stream()
-                .filter(d -> d.getRecommendedVersion() != null)
-                .count();
+                    .filter(d -> d.getRecommendedVersion() != null)
+                    .count();
 
             return (int) ((compatible + hasVersion * 0.7) * 100 / deps.size());
         }

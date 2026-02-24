@@ -30,7 +30,7 @@ import java.util.function.Consumer;
  */
 public class DashboardComponent {
     private static final Logger LOG = Logger.getInstance(DashboardComponent.class);
-    
+
     private final JPanel panel;
     private final Project project;
     private MigrationDashboard dashboard;
@@ -121,9 +121,8 @@ public class DashboardComponent {
     private JPanel createAdvancedScanCountsPanel() {
         advancedScanCountsPanel = new JBPanel<>(new BorderLayout());
         advancedScanCountsPanel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(200, 200, 200)),
-            BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
+                BorderFactory.createLineBorder(new Color(200, 200, 200)),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)));
         advancedScanCountsPanel.setBackground(new Color(250, 250, 255));
 
         // Title
@@ -140,7 +139,8 @@ public class DashboardComponent {
         gbc.anchor = GridBagConstraints.WEST;
 
         // Row 1: JPA, Bean Validation, Servlet/JSP, CDI
-        gbc.gridx = 0; gbc.gridy = 0;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
         scanCountsGrid.add(createScanCountLabel("JPA:", "0"), gbc);
         gbc.gridx = 1;
         jpaScanCountValue = createScanCountValueLabel("0");
@@ -165,7 +165,8 @@ public class DashboardComponent {
         scanCountsGrid.add(cdiInjectionScanCountValue, gbc);
 
         // Row 2: Build Config, REST/SOAP, Deprecated API, Security API
-        gbc.gridx = 0; gbc.gridy = 1;
+        gbc.gridx = 0;
+        gbc.gridy = 1;
         scanCountsGrid.add(createScanCountLabel("Build:", "0"), gbc);
         gbc.gridx = 1;
         buildConfigScanCountValue = createScanCountValueLabel("0");
@@ -190,7 +191,8 @@ public class DashboardComponent {
         scanCountsGrid.add(securityApiScanCountValue, gbc);
 
         // Row 3: JMS, Transitive, Config, Classloader + Total
-        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.gridx = 0;
+        gbc.gridy = 2;
         scanCountsGrid.add(createScanCountLabel("JMS:", "0"), gbc);
         gbc.gridx = 1;
         jmsMessagingScanCountValue = createScanCountValueLabel("0");
@@ -215,7 +217,8 @@ public class DashboardComponent {
         scanCountsGrid.add(classloaderModuleScanCountValue, gbc);
 
         // Row 4: Total
-        gbc.gridx = 0; gbc.gridy = 3;
+        gbc.gridx = 0;
+        gbc.gridy = 3;
         gbc.gridwidth = 6;
         JLabel totalLabel = new JLabel("Total Issues:", SwingConstants.LEFT);
         totalLabel.setFont(totalLabel.getFont().deriveFont(Font.BOLD, 12f));
@@ -303,9 +306,8 @@ public class DashboardComponent {
     private JPanel createMcpStatusPanel() {
         mcpStatusPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 10, 5));
         mcpStatusPanel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(200, 200, 200)),
-            BorderFactory.createEmptyBorder(8, 12, 8, 12)
-        ));
+                BorderFactory.createLineBorder(new Color(200, 200, 200)),
+                BorderFactory.createEmptyBorder(8, 12, 8, 12)));
         mcpStatusPanel.setBackground(new Color(245, 245, 250));
 
         // Title
@@ -406,6 +408,7 @@ public class DashboardComponent {
 
     /**
      * Gets the current MCP server status as a string.
+     * 
      * @return "Connected", "Not Ready", or "Not Initialized"
      */
     public String getMcpStatus() {
@@ -421,6 +424,7 @@ public class DashboardComponent {
 
     /**
      * Gets the number of loaded MCP tools.
+     * 
      * @return Number of tools, or 0 if not ready
      */
     public int getMcpToolCount() {
@@ -438,59 +442,68 @@ public class DashboardComponent {
         gbc.anchor = GridBagConstraints.WEST;
 
         // Row 1
-        gbc.gridx = 0; gbc.gridy = 0;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
         tablePanel.add(createKeyLabel("Readiness Score:"), gbc);
         gbc.gridx = 1;
         readinessScoreValue = createValueLabel("-");
         tablePanel.add(readinessScoreValue, gbc);
 
-        gbc.gridx = 2; gbc.gridy = 0;
+        gbc.gridx = 2;
+        gbc.gridy = 0;
         tablePanel.add(createKeyLabel("Total Dependencies:"), gbc);
         gbc.gridx = 3;
         totalDepsValue = createValueLabel("-");
         tablePanel.add(totalDepsValue, gbc);
 
         // Row 2
-        gbc.gridx = 0; gbc.gridy = 1;
+        gbc.gridx = 0;
+        gbc.gridy = 1;
         tablePanel.add(createKeyLabel("Affected Dependencies:"), gbc);
         gbc.gridx = 1;
         affectedDepsValue = createValueLabel("-");
         tablePanel.add(affectedDepsValue, gbc);
 
-        gbc.gridx = 2; gbc.gridy = 1;
+        gbc.gridx = 2;
+        gbc.gridy = 1;
         tablePanel.add(createKeyLabel("No Jakarta Support:"), gbc);
         gbc.gridx = 3;
         noJakartaSupportValue = createValueLabel("-");
         tablePanel.add(noJakartaSupportValue, gbc);
 
         // Row 3
-        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.gridx = 0;
+        gbc.gridy = 2;
         tablePanel.add(createKeyLabel("XML Files Affected:"), gbc);
         gbc.gridx = 1;
         xmlFilesValue = createValueLabel("-");
         tablePanel.add(xmlFilesValue, gbc);
 
-        gbc.gridx = 2; gbc.gridy = 2;
+        gbc.gridx = 2;
+        gbc.gridy = 2;
         tablePanel.add(createKeyLabel("Transitive Deps:"), gbc);
         gbc.gridx = 3;
         transitiveDepsValue = createValueLabel("-");
         tablePanel.add(transitiveDepsValue, gbc);
 
         // Row 4
-        gbc.gridx = 0; gbc.gridy = 3;
+        gbc.gridx = 0;
+        gbc.gridy = 3;
         tablePanel.add(createKeyLabel("Blockers:"), gbc);
         gbc.gridx = 1;
         blockersValue = createValueLabel("-");
         tablePanel.add(blockersValue, gbc);
 
-        gbc.gridx = 2; gbc.gridy = 3;
+        gbc.gridx = 2;
+        gbc.gridy = 3;
         tablePanel.add(createKeyLabel("Migrable:"), gbc);
         gbc.gridx = 3;
         migrableValue = createValueLabel("-");
         tablePanel.add(migrableValue, gbc);
 
         // Row 5 - Status spans full width
-        gbc.gridx = 0; gbc.gridy = 4;
+        gbc.gridx = 0;
+        gbc.gridy = 4;
         gbc.gridwidth = 4;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(12, 8, 4, 8);
@@ -499,7 +512,7 @@ public class DashboardComponent {
         statusIndicator.setFont(statusIndicator.getFont().deriveFont(Font.BOLD, 14f));
         statusPanel.add(statusIndicator);
         statusPanel.add(new JBLabel("Status:"));
-        statusValue = createValueLabel("Not Analyzed");
+        statusValue = createValueLabel(MigrationStatus.NOT_ANALYZED.getValue());
         statusValue.setFont(statusValue.getFont().deriveFont(Font.BOLD));
         statusPanel.add(statusValue);
         tablePanel.add(statusPanel, gbc);
@@ -546,11 +559,11 @@ public class DashboardComponent {
 
     private Color getScoreColor(int score) {
         if (score >= 80) {
-            return new Color(0, 140, 0);  // Green
+            return new Color(0, 140, 0); // Green
         } else if (score >= 50) {
-            return new Color(200, 140, 0);  // Orange
+            return new Color(200, 140, 0); // Orange
         } else {
-            return new Color(180, 0, 0);  // Red
+            return new Color(180, 0, 0); // Red
         }
     }
 
@@ -595,13 +608,14 @@ public class DashboardComponent {
         blockersValue.setText("-");
         migrableValue.setText("-");
         lastAnalyzedValue.setText("Never");
-        statusValue.setText("Not Analyzed");
+        statusValue.setText(MigrationStatus.NOT_ANALYZED.getValue());
         statusValue.setForeground(Color.GRAY);
         statusIndicator.setForeground(Color.GRAY);
     }
 
     /**
      * Set the migration status (called by MigrationToolWindow).
+     * 
      * @param status The new status
      */
     public void setStatus(MigrationStatus status) {
@@ -629,7 +643,9 @@ public class DashboardComponent {
     }
 
     /**
-     * Update the dashboard from a MigrationDashboard object (called by MigrationToolWindow).
+     * Update the dashboard from a MigrationDashboard object (called by
+     * MigrationToolWindow).
+     * 
      * @param dashboard The dashboard with data to display
      */
     public void updateDashboard(MigrationDashboard dashboard) {
@@ -664,6 +680,7 @@ public class DashboardComponent {
 
     /**
      * Get the current dashboard state.
+     * 
      * @return The current dashboard
      */
     public MigrationDashboard getDashboard() {
@@ -672,5 +689,29 @@ public class DashboardComponent {
 
     public JPanel getPanel() {
         return panel;
+    }
+
+    public JBLabel getReadinessScoreValue() {
+        return readinessScoreValue;
+    }
+
+    public JBLabel getStatusValue() {
+        return statusValue;
+    }
+
+    public JBLabel getJpaScanCountValue() {
+        return jpaScanCountValue;
+    }
+
+    public JBLabel getBeanValidationScanCountValue() {
+        return beanValidationScanCountValue;
+    }
+
+    public JBLabel getServletJspScanCountValue() {
+        return servletJspScanCountValue;
+    }
+
+    public JBLabel getMcpStatusValue() {
+        return mcpStatusValue;
     }
 }

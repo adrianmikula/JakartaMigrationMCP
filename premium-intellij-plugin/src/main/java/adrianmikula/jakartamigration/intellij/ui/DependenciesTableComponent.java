@@ -22,11 +22,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Dependencies table component with colored status indicators and dependency type column.
+ * Dependencies table component with colored status indicators and dependency
+ * type column.
  * Updated to show:
  * - Colored status dot (green/yellow/red)
  * - Dependency type (Direct/Transitive)
- * - Simplified columns (Group ID, Artifact ID, Version, Recommended Version, Status, Type)
+ * - Simplified columns (Group ID, Artifact ID, Version, Recommended Version,
+ * Status, Type)
  */
 public class DependenciesTableComponent {
     private final JPanel panel;
@@ -39,10 +41,10 @@ public class DependenciesTableComponent {
     private List<DependencyInfo> allDependencies;
 
     // Status colors
-    private static final Color STATUS_COMPATIBLE = new Color(40, 167, 69);    // Green
+    private static final Color STATUS_COMPATIBLE = new Color(40, 167, 69); // Green
     private static final Color STATUS_NEEDS_UPGRADE = new Color(255, 193, 7); // Yellow
-    private static final Color STATUS_NO_JAKARTA = new Color(220, 53, 69);   // Red
-    private static final Color STATUS_UNKNOWN = new Color(108, 117, 125);     // Gray
+    private static final Color STATUS_NO_JAKARTA = new Color(220, 53, 69); // Red
+    private static final Color STATUS_UNKNOWN = new Color(108, 117, 125); // Gray
 
     public DependenciesTableComponent(Project project) {
         this.project = project;
@@ -52,12 +54,12 @@ public class DependenciesTableComponent {
         // Simplified columns - removed Risk Level, Migration Impact, Is Blocker
         // Status column moved to the right
         String[] columns = {
-            "Group ID",
-            "Artifact ID",
-            "Current Version",
-            "Recommended Version",
-            "Dependency Type",  // Direct or Transitive
-            "Status"            // Colored dot indicator (moved to right)
+                "Group ID",
+                "Artifact ID",
+                "Current Version",
+                "Recommended Version",
+                "Dependency Type", // Direct or Transitive
+                "Status" // Colored dot indicator (moved to right)
         };
 
         this.tableModel = new DefaultTableModel(columns, 0) {
@@ -75,8 +77,8 @@ public class DependenciesTableComponent {
         };
 
         this.searchField = new JTextField(20);
-        this.statusFilter = new JComboBox<>(new String[]{
-            "All", "Compatible", "Needs Upgrade", "No Jakarta Version"
+        this.statusFilter = new JComboBox<>(new String[] {
+                "All", "Compatible", "Needs Upgrade", "No Jakarta Version"
         });
         this.transitiveFilter = new JCheckBox("Show Transitive Only", false);
 
@@ -89,8 +91,8 @@ public class DependenciesTableComponent {
     private static class StatusCellRenderer implements TableCellRenderer {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
-                                                       boolean isSelected, boolean hasFocus,
-                                                       int row, int column) {
+                boolean isSelected, boolean hasFocus,
+                int row, int column) {
             if (column == 5 && value instanceof DependencyInfo) {
                 DependencyInfo dep = (DependencyInfo) value;
                 JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
@@ -106,8 +108,8 @@ public class DependenciesTableComponent {
                 // Add dotted border for transitive dependencies
                 if (dep.isTransitive()) {
                     panel.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createDashedBorder(Color.GRAY),
-                        new EmptyBorder(5, 2, 5, 2)));
+                            BorderFactory.createDashedBorder(Color.GRAY),
+                            new EmptyBorder(5, 2, 5, 2)));
                 } else {
                     panel.setBorder(new EmptyBorder(5, 0, 5, 0));
                 }
@@ -121,7 +123,8 @@ public class DependenciesTableComponent {
                 dot.setBackground(statusColor);
 
                 JLabel label = new JLabel(dep.getMigrationStatus() != null
-                    ? dep.getMigrationStatus().getValue() : "UNKNOWN");
+                        ? dep.getMigrationStatus().getValue()
+                        : "UNKNOWN");
                 label.setFont(table.getFont());
 
                 // Add transitive indicator text
@@ -149,7 +152,8 @@ public class DependenciesTableComponent {
         }
 
         private static Color getStatusColor(DependencyMigrationStatus status) {
-            if (status == null) return STATUS_UNKNOWN;
+            if (status == null)
+                return STATUS_UNKNOWN;
             switch (status) {
                 case COMPATIBLE:
                     return STATUS_COMPATIBLE;
@@ -204,7 +208,7 @@ public class DependenciesTableComponent {
         table.getColumnModel().getColumn(1).setPreferredWidth(180); // Artifact ID
         table.getColumnModel().getColumn(2).setPreferredWidth(100); // Current Version
         table.getColumnModel().getColumn(3).setPreferredWidth(100); // Recommended
-        table.getColumnModel().getColumn(4).setPreferredWidth(80);  // Dependency Type
+        table.getColumnModel().getColumn(4).setPreferredWidth(80); // Dependency Type
         table.getColumnModel().getColumn(5).setPreferredWidth(120); // Status
 
         // Add mouse listener for double-click navigation
@@ -267,14 +271,14 @@ public class DependenciesTableComponent {
         for (DependencyInfo dep : allDependencies) {
             // Search filter
             boolean matchesSearch = searchText.isEmpty() ||
-                dep.getGroupId().toLowerCase().contains(searchText) ||
-                dep.getArtifactId().toLowerCase().contains(searchText) ||
-                dep.getCurrentVersion().toLowerCase().contains(searchText);
+                    dep.getGroupId().toLowerCase().contains(searchText) ||
+                    dep.getArtifactId().toLowerCase().contains(searchText) ||
+                    dep.getCurrentVersion().toLowerCase().contains(searchText);
 
             // Status filter
             boolean matchesStatus = "All".equals(selectedStatus) ||
-                (selectedStatus != null && dep.getMigrationStatus() != null &&
-                    dep.getMigrationStatus().getValue().equals(mapStatusToValue(selectedStatus)));
+                    (selectedStatus != null && dep.getMigrationStatus() != null &&
+                            dep.getMigrationStatus().getValue().equals(mapStatusToValue(selectedStatus)));
 
             // Transitive filter
             boolean matchesTransitive = !showTransitiveOnly || dep.isTransitive();
@@ -286,12 +290,17 @@ public class DependenciesTableComponent {
     }
 
     private String mapStatusToValue(String status) {
-        if (status == null) return null;
+        if (status == null)
+            return null;
         switch (status) {
-            case "Compatible": return "COMPATIBLE";
-            case "Needs Upgrade": return "NEEDS_UPGRADE";
-            case "No Jakarta Version": return "NO_JAKARTA_VERSION";
-            default: return null;
+            case "Compatible":
+                return "COMPATIBLE";
+            case "Needs Upgrade":
+                return "NEEDS_UPGRADE";
+            case "No Jakarta Version":
+                return "NO_JAKARTA_VERSION";
+            default:
+                return null;
         }
     }
 
@@ -300,13 +309,13 @@ public class DependenciesTableComponent {
         String dependencyType = dep.isTransitive() ? "Transitive" : "Direct";
 
         // Pass the full DependencyInfo object to the status column (column 5)
-        tableModel.addRow(new Object[]{
-            dep.getGroupId(),
-            dep.getArtifactId(),
-            dep.getCurrentVersion(),
-            dep.getRecommendedVersion() != null ? dep.getRecommendedVersion() : "-",
-            dependencyType,
-            dep  // Full object for status column (last column)
+        tableModel.addRow(new Object[] {
+                dep.getGroupId(),
+                dep.getArtifactId(),
+                dep.getCurrentVersion(),
+                dep.getRecommendedVersion() != null ? dep.getRecommendedVersion() : "-",
+                dependencyType,
+                dep // Full object for status column (last column)
         });
     }
 
@@ -326,8 +335,9 @@ public class DependenciesTableComponent {
         StringBuilder message = new StringBuilder("Update selected dependencies:\n\n");
         for (DependencyInfo dep : selected) {
             message.append("- ").append(dep.getDisplayName())
-                  .append(" -> ").append(dep.getRecommendedVersion() != null ? dep.getRecommendedVersion() : "No Jakarta version")
-                   .append("\n");
+                    .append(" -> ")
+                    .append(dep.getRecommendedVersion() != null ? dep.getRecommendedVersion() : "No Jakarta version")
+                    .append("\n");
         }
 
         int result = Messages.showYesNoDialog(project, message.toString(), "Confirm Updates",
@@ -349,29 +359,28 @@ public class DependenciesTableComponent {
 
     public void showDependencyDetails(DependencyInfo dep) {
         String details = String.format("""
-            Dependency Details
-            ==================
+                Dependency Details
+                ==================
 
-            Group ID: %s
-            Artifact ID: %s
-            Current Version: %s
-            Recommended Version: %s
+                Group ID: %s
+                Artifact ID: %s
+                Current Version: %s
+                Recommended Version: %s
 
-            Migration Status: %s
-            Dependency Type: %s
+                Migration Status: %s
+                Dependency Type: %s
 
-            Actions:
-            • Update to recommended version
-            • View source code
-            • Exclude from analysis
-            """,
-            dep.getGroupId(),
-            dep.getArtifactId(),
-            dep.getCurrentVersion(),
-            dep.getRecommendedVersion() != null ? dep.getRecommendedVersion() : "N/A",
-            dep.getMigrationStatus() != null ? dep.getMigrationStatus().getValue() : "UNKNOWN",
-            dep.isTransitive() ? "Transitive" : "Direct"
-        );
+                Actions:
+                • Update to recommended version
+                • View source code
+                • Exclude from analysis
+                """,
+                dep.getGroupId(),
+                dep.getArtifactId(),
+                dep.getCurrentVersion(),
+                dep.getRecommendedVersion() != null ? dep.getRecommendedVersion() : "N/A",
+                dep.getMigrationStatus() != null ? dep.getMigrationStatus().getValue() : "UNKNOWN",
+                dep.isTransitive() ? "Transitive" : "Direct");
 
         Messages.showInfoMessage(project, details, "Dependency Details - " + dep.getDisplayName());
     }
@@ -392,8 +401,8 @@ public class DependenciesTableComponent {
      */
     @Deprecated
     public void addDependency(String groupId, String artifactId, String currentVersion,
-                             String recommendedVersion, String status, boolean isBlocker,
-                             String riskLevel, String impact) {
+            String recommendedVersion, String status, boolean isBlocker,
+            String riskLevel, String impact) {
         // Convert legacy string parameters to DependencyInfo
         DependencyInfo dep = new DependencyInfo();
         dep.setGroupId(groupId);
@@ -401,21 +410,44 @@ public class DependenciesTableComponent {
         dep.setCurrentVersion(currentVersion);
         dep.setRecommendedVersion(recommendedVersion);
         dep.setMigrationStatus(mapStringToStatus(status));
-        dep.setTransitive(isBlocker);  // Reusing isBlocker for transitive
+        dep.setTransitive(isBlocker); // Reusing isBlocker for transitive
 
         allDependencies.add(dep);
         addDependencyRow(dep);
     }
 
     private DependencyMigrationStatus mapStringToStatus(String status) {
-        if (status == null) return null;
+        if (status == null)
+            return null;
         switch (status.toLowerCase()) {
-            case "compatible": return DependencyMigrationStatus.COMPATIBLE;
-            case "needs upgrade": return DependencyMigrationStatus.NEEDS_UPGRADE;
-            case "no jakarta version": return DependencyMigrationStatus.NO_JAKARTA_VERSION;
-            case "requires manual migration": return DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION;
-            case "migrated": return DependencyMigrationStatus.MIGRATED;
-            default: return DependencyMigrationStatus.COMPATIBLE;
+            case "compatible":
+                return DependencyMigrationStatus.COMPATIBLE;
+            case "needs upgrade":
+                return DependencyMigrationStatus.NEEDS_UPGRADE;
+            case "no jakarta version":
+                return DependencyMigrationStatus.NO_JAKARTA_VERSION;
+            case "requires manual migration":
+                return DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION;
+            case "migrated":
+                return DependencyMigrationStatus.MIGRATED;
+            default:
+                return DependencyMigrationStatus.COMPATIBLE;
         }
+    }
+
+    public DefaultTableModel getTableModel() {
+        return tableModel;
+    }
+
+    public JTextField getSearchField() {
+        return searchField;
+    }
+
+    public JComboBox<String> getStatusFilter() {
+        return statusFilter;
+    }
+
+    public JCheckBox getTransitiveFilter() {
+        return transitiveFilter;
     }
 }

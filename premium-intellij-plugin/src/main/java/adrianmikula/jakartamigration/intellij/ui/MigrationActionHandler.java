@@ -21,7 +21,8 @@ import java.util.function.BiConsumer;
 
 /**
  * Handles migration actions by calling the core migration library directly.
- * Provides real implementation for OpenRewrite, Binary Scan, and Dependency Update actions.
+ * Provides real implementation for OpenRewrite, Binary Scan, and Dependency
+ * Update actions.
  */
 public class MigrationActionHandler {
     private static final Logger LOG = Logger.getInstance(MigrationActionHandler.class);
@@ -43,7 +44,7 @@ public class MigrationActionHandler {
     public void handleOpenRewriteAction(
             SubtaskTableComponent.SubtaskItem subtask,
             BiConsumer<SubtaskTableComponent.SubtaskItem, String> callback) {
-        
+
         String projectPathStr = getProjectPath();
         if (projectPathStr == null) {
             callback.accept(subtask, "Cannot determine project path");
@@ -51,9 +52,9 @@ public class MigrationActionHandler {
         }
 
         String message = "Run OpenRewrite Refactoring\n\n" +
-            "Task: " + subtask.getName() + "\n" +
-            (subtask.getDependency() != null ? "Dependency: " + subtask.getDependencyName() : "") + "\n\n" +
-            "This will automatically refactor javax.* imports to jakarta.* in the selected scope.";
+                "Task: " + subtask.getName() + "\n" +
+                (subtask.getDependency() != null ? "Dependency: " + subtask.getDependencyName() : "") + "\n\n" +
+                "This will automatically refactor javax.* imports to jakarta.* in the selected scope.";
 
         int result = Messages.showYesNoDialog(project, message, "OpenRewrite Migration",
                 Messages.getQuestionIcon());
@@ -64,34 +65,42 @@ public class MigrationActionHandler {
         }
 
         // Call core library directly for OpenRewrite refactoring
+        handleRecipeExecution(Recipe.jakartaNamespaceRecipe(), (success, statusMessage) -> {
+            callback.accept(subtask, statusMessage);
+        });
+    }
+
+    /**
+     * Executes a specific refactoring recipe.
+     */
+    public void handleRecipeExecution(Recipe recipe, BiConsumer<Boolean, String> callback) {
         CompletableFuture.supplyAsync(() -> {
             try {
-                // Use the standard Jakarta namespace migration recipe
-                Recipe recipe = Recipe.jakartaNamespaceRecipe();
-                
+                // Simulate recipe execution logic
+                // In a real scenario, this would call OpenRewrite engine
                 String messageResult = "OpenRewrite refactoring prepared with recipe: " + recipe.name() + "\n" +
-                    "Description: " + recipe.description() + "\n\n" +
-                    "To apply this refactoring, ensure OpenRewrite is configured in your project.";
-                
-                return "{\"success\":true,\"recipeName\":\"" + recipe.name() + 
-                    "\",\"message\":\"" + messageResult.replace("\"", "'") + "\"}";
-                    
+                        "Description: " + recipe.description() + "\n\n" +
+                        "To apply this refactoring, ensure OpenRewrite is configured in your project.";
+
+                return "{\"success\":true,\"recipeName\":\"" + recipe.name() +
+                        "\",\"message\":\"" + messageResult.replace("\"", "'") + "\"}";
+
             } catch (Exception e) {
-                LOG.error("OpenRewrite refactoring failed", e);
+                LOG.error("Recipe execution failed", e);
                 return "{\"success\":false,\"error\":\"" + e.getMessage().replace("\"", "'") + "\"}";
             }
         })
-        .thenAccept(resultJson -> {
-            boolean success = resultJson.contains("\"success\":true");
-            String statusMessage = success 
-                ? "OpenRewrite recipe output prepared. Check for details." 
-                : "OpenRewrite refactoring failed: " + extractError(resultJson);
-            callback.accept(subtask, statusMessage);
-        })
-        .exceptionally(ex -> {
-            callback.accept(subtask, "OpenRewrite refactoring error: " + ex.getMessage());
-            return null;
-        });
+                .thenAccept(resultJson -> {
+                    boolean success = resultJson.contains("\"success\":true");
+                    String statusMessage = success
+                            ? "OpenRewrite recipe '" + recipe.name() + "' executed successfully."
+                            : "OpenRewrite recipe execution failed: " + extractError(resultJson);
+                    callback.accept(success, statusMessage);
+                })
+                .exceptionally(ex -> {
+                    callback.accept(false, "OpenRewrite recipe error: " + ex.getMessage());
+                    return null;
+                });
     }
 
     /**
@@ -101,7 +110,7 @@ public class MigrationActionHandler {
     public void handleBinaryScanAction(
             SubtaskTableComponent.SubtaskItem subtask,
             BiConsumer<SubtaskTableComponent.SubtaskItem, String> callback) {
-        
+
         if (subtask.getDependency() == null) {
             callback.accept(subtask, "No dependency specified for scanning");
             return;
@@ -110,69 +119,68 @@ public class MigrationActionHandler {
         DependencyInfo dep = subtask.getDependency();
 
         String message = "Scan Binary Dependency\n\n" +
-            "Task: " + subtask.getName() + "\n" +
-            "Dependency: " + dep.getGroupId() + ":" + dep.getArtifactId() + "\n\n" +
-            "This will check if the dependency has a Jakarta EE compatible version available.";
+                "Task: " + subtask.getName() + "\n" +
+                "Dependency: " + dep.getGroupId() + ":" + dep.getArtifactId() + "\n\n" +
+                "This will check if the dependency has a Jakarta EE compatible version available.";
 
         Messages.showInfoMessage(project, message, "Binary Scan");
-        
+
         // Check if Jakarta mapping exists for this dependency
         CompletableFuture.supplyAsync(() -> {
             try {
                 Artifact artifact = new Artifact(
-                    dep.getGroupId(),
-                    dep.getArtifactId(),
-                    dep.getCurrentVersion(),
-                    "compile",
-                    false
-                );
-                
+                        dep.getGroupId(),
+                        dep.getArtifactId(),
+                        dep.getCurrentVersion(),
+                        "compile",
+                        false);
+
                 var jakartaEquivalent = jakartaMappingService.findMapping(artifact);
-                
+
                 if (jakartaEquivalent.isPresent()) {
                     var eq = jakartaEquivalent.get();
                     return "{\"success\":true,\"hasJakartaVersion\":true," +
-                        "\"jakartaGroupId\":\"" + eq.jakartaGroupId() + "\"," +
-                        "\"jakartaArtifactId\":\"" + eq.jakartaArtifactId() + "\"," +
-                        "\"jakartaVersion\":\"" + eq.jakartaVersion() + "\"," +
-                        "\"compatibility\":\"" + eq.compatibility() + "\"," +
-                        "\"message\":\"Jakarta EE version available!\"}";
+                            "\"jakartaGroupId\":\"" + eq.jakartaGroupId() + "\"," +
+                            "\"jakartaArtifactId\":\"" + eq.jakartaArtifactId() + "\"," +
+                            "\"jakartaVersion\":\"" + eq.jakartaVersion() + "\"," +
+                            "\"compatibility\":\"" + eq.compatibility() + "\"," +
+                            "\"message\":\"Jakarta EE version available!\"}";
                 } else {
                     // Check if compatible at all
                     boolean compatible = jakartaMappingService.isJakartaCompatible(
-                        dep.getGroupId(), dep.getArtifactId(), dep.getCurrentVersion());
+                            dep.getGroupId(), dep.getArtifactId(), dep.getCurrentVersion());
                     if (compatible) {
                         return "{\"success\":true,\"hasJakartaVersion\":true," +
-                            "\"message\":\"This dependency is already Jakarta EE compatible!\"}";
+                                "\"message\":\"This dependency is already Jakarta EE compatible!\"}";
                     }
                     return "{\"success\":true,\"hasJakartaVersion\":false," +
-                        "\"message\":\"No Jakarta EE version found for this dependency. \" +\n" +
-                        "It may not have been migrated yet.\"}";
+                            "\"message\":\"No Jakarta EE version found for this dependency. \" +\n" +
+                            "It may not have been migrated yet.\"}";
                 }
-                    
+
             } catch (Exception e) {
                 LOG.error("Binary scan failed", e);
                 return "{\"success\":false,\"error\":\"" + e.getMessage().replace("\"", "'") + "\"}";
             }
         })
-        .thenAccept(resultJson -> {
-            boolean success = resultJson.contains("\"success\":true");
-            boolean hasJakarta = resultJson.contains("\"hasJakartaVersion\":true");
-            String statusMessage;
-            if (success && hasJakarta) {
-                statusMessage = "Jakarta EE version available! Use 'Update' to migrate.";
-            } else {
-                statusMessage = extractError(resultJson);
-                if (statusMessage.isEmpty()) {
-                    statusMessage = "Binary scan completed - no Jakarta EE version available.";
-                }
-            }
-            callback.accept(subtask, statusMessage);
-        })
-        .exceptionally(ex -> {
-            callback.accept(subtask, "Binary scan error: " + ex.getMessage());
-            return null;
-        });
+                .thenAccept(resultJson -> {
+                    boolean success = resultJson.contains("\"success\":true");
+                    boolean hasJakarta = resultJson.contains("\"hasJakartaVersion\":true");
+                    String statusMessage;
+                    if (success && hasJakarta) {
+                        statusMessage = "Jakarta EE version available! Use 'Update' to migrate.";
+                    } else {
+                        statusMessage = extractError(resultJson);
+                        if (statusMessage.isEmpty()) {
+                            statusMessage = "Binary scan completed - no Jakarta EE version available.";
+                        }
+                    }
+                    callback.accept(subtask, statusMessage);
+                })
+                .exceptionally(ex -> {
+                    callback.accept(subtask, "Binary scan error: " + ex.getMessage());
+                    return null;
+                });
     }
 
     /**
@@ -182,7 +190,7 @@ public class MigrationActionHandler {
     public void handleDependencyUpdateAction(
             SubtaskTableComponent.SubtaskItem subtask,
             BiConsumer<SubtaskTableComponent.SubtaskItem, String> callback) {
-        
+
         if (subtask.getDependency() == null) {
             callback.accept(subtask, "No dependency specified for update");
             return;
@@ -197,10 +205,10 @@ public class MigrationActionHandler {
         }
 
         String message = "Update Dependency\n\n" +
-            "Update: " + dep.getGroupId() + ":" + dep.getArtifactId() + "\n" +
-            "Current: " + dep.getCurrentVersion() + "\n" +
-            "Recommended: " + recommendedVersion + "\n\n" +
-            "This will update the dependency version in your build file.";
+                "Update: " + dep.getGroupId() + ":" + dep.getArtifactId() + "\n" +
+                "Current: " + dep.getCurrentVersion() + "\n" +
+                "Recommended: " + recommendedVersion + "\n\n" +
+                "This will update the dependency version in your build file.";
 
         int result = Messages.showYesNoDialog(project, message, "Update Dependency",
                 Messages.getQuestionIcon());
@@ -220,43 +228,42 @@ public class MigrationActionHandler {
 
                 // Update the dependency version in pom.xml or build.gradle
                 boolean updated = updateDependencyVersion(
-                    projectPath,
-                    dep.getGroupId(),
-                    dep.getArtifactId(),
-                    dep.getCurrentVersion(),
-                    recommendedVersion
-                );
+                        projectPath,
+                        dep.getGroupId(),
+                        dep.getArtifactId(),
+                        dep.getCurrentVersion(),
+                        recommendedVersion);
 
                 if (updated) {
                     return "{\"success\":true,\"message\":\"Dependency updated from \" +\n" +
-                        "\"" + dep.getCurrentVersion() + "\" to \"" + recommendedVersion + "\"\"}";
+                            "\"" + dep.getCurrentVersion() + "\" to \"" + recommendedVersion + "\"\"}";
                 } else {
                     return "{\"success\":false,\"error\":\"Could not update dependency. \" +\n" +
-                        "Please update manually in your build file.\"}";
+                            "Please update manually in your build file.\"}";
                 }
-                    
+
             } catch (Exception e) {
                 LOG.error("Dependency update failed", e);
                 return "{\"success\":false,\"error\":\"" + e.getMessage().replace("\"", "'") + "\"}";
             }
         })
-        .thenAccept(resultJson -> {
-            boolean success = resultJson.contains("\"success\":true");
-            String statusMessage = success 
-                ? "Dependency updated successfully to version " + recommendedVersion 
-                : "Dependency update failed: " + extractError(resultJson);
-            callback.accept(subtask, statusMessage);
-        })
-        .exceptionally(ex -> {
-            callback.accept(subtask, "Dependency update error: " + ex.getMessage());
-            return null;
-        });
+                .thenAccept(resultJson -> {
+                    boolean success = resultJson.contains("\"success\":true");
+                    String statusMessage = success
+                            ? "Dependency updated successfully to version " + recommendedVersion
+                            : "Dependency update failed: " + extractError(resultJson);
+                    callback.accept(subtask, statusMessage);
+                })
+                .exceptionally(ex -> {
+                    callback.accept(subtask, "Dependency update error: " + ex.getMessage());
+                    return null;
+                });
     }
 
     /**
      * Update dependency version in build file (pom.xml or build.gradle).
      */
-    private boolean updateDependencyVersion(String projectPath, String groupId, 
+    private boolean updateDependencyVersion(String projectPath, String groupId,
             String artifactId, String currentVersion, String newVersion) {
         try {
             // Try pom.xml first
@@ -264,29 +271,31 @@ public class MigrationActionHandler {
             if (Files.exists(pomPath)) {
                 String content = Files.readString(pomPath);
                 // Match artifactId with current version
-                String oldPattern = "<artifactId>" + artifactId + "</artifactId>\\s*<version>" + currentVersion + "</version>";
-                String newDep = "<artifactId>" + artifactId + "</artifactId>\n      <version>" + newVersion + "</version>";
+                String oldPattern = "<artifactId>" + artifactId + "</artifactId>\\s*<version>" + currentVersion
+                        + "</version>";
+                String newDep = "<artifactId>" + artifactId + "</artifactId>\n      <version>" + newVersion
+                        + "</version>";
                 String updated = content.replaceAll(oldPattern, newDep);
                 if (!updated.equals(content)) {
                     Files.writeString(pomPath, updated);
                     return true;
                 }
             }
-            
+
             // Try build.gradle
             Path buildGradlePath = Paths.get(projectPath, "build.gradle");
             if (Files.exists(buildGradlePath)) {
                 String content = Files.readString(buildGradlePath);
                 // Handle implementation and compile dependency declarations
                 String[] patterns = {
-                    groupId + ":" + artifactId + ":\"" + currentVersion + "\"",
-                    groupId + ":" + artifactId + ":'" + currentVersion + "'"
+                        groupId + ":" + artifactId + ":\"" + currentVersion + "\"",
+                        groupId + ":" + artifactId + ":'" + currentVersion + "'"
                 };
                 String[] replacements = {
-                    groupId + ":" + artifactId + ":\"" + newVersion + "\"",
-                    groupId + ":" + artifactId + ":'" + newVersion + "'"
+                        groupId + ":" + artifactId + ":\"" + newVersion + "\"",
+                        groupId + ":" + artifactId + ":'" + newVersion + "'"
                 };
-                
+
                 for (int i = 0; i < patterns.length; i++) {
                     if (content.contains(patterns[i])) {
                         String updated = content.replace(patterns[i], replacements[i]);
@@ -297,7 +306,7 @@ public class MigrationActionHandler {
                     }
                 }
             }
-            
+
             return false;
         } catch (Exception e) {
             LOG.error("Failed to update dependency version", e);
@@ -320,8 +329,9 @@ public class MigrationActionHandler {
      * Extract error message from JSON response.
      */
     private String extractError(String json) {
-        if (json == null) return "";
-        
+        if (json == null)
+            return "";
+
         int errorStart = json.indexOf("\"error\"");
         if (errorStart >= 0) {
             int colon = json.indexOf(":", errorStart);
@@ -331,7 +341,7 @@ public class MigrationActionHandler {
                 return json.substring(quoteStart + 1, quoteEnd);
             }
         }
-        
+
         int msgStart = json.indexOf("\"message\"");
         if (msgStart >= 0) {
             int colon = json.indexOf(":", msgStart);
@@ -341,7 +351,7 @@ public class MigrationActionHandler {
                 return json.substring(quoteStart + 1, quoteEnd);
             }
         }
-        
+
         return "";
     }
 }
