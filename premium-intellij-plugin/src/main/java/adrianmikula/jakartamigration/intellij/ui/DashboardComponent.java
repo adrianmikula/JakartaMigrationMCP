@@ -77,10 +77,11 @@ public class DashboardComponent {
     // Status indicator panel
     private JPanel statusPanel;
 
-    public DashboardComponent(@NotNull Project project, Consumer<ActionEvent> onAnalyze) {
+    public DashboardComponent(@NotNull Project project, AdvancedScanningService advancedScanningService,
+            Consumer<ActionEvent> onAnalyze) {
         this.project = project;
         this.onAnalyze = onAnalyze;
-        this.advancedScanningService = new AdvancedScanningService();
+        this.advancedScanningService = advancedScanningService;
         this.panel = new JBPanel<>(new BorderLayout());
         initializeComponent();
     }

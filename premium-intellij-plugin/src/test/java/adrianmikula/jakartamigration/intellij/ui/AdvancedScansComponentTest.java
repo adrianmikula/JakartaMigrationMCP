@@ -1,16 +1,19 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class AdvancedScansComponentTest extends BasePlatformTestCase {
 
     private AdvancedScansComponent advancedScansComponent;
+    private AdvancedScanningService scanningService;
 
     @Override
     protected void setUp() throws Exception {
         super.setUp();
-        advancedScansComponent = new AdvancedScansComponent(getProject());
+        scanningService = new AdvancedScanningService();
+        advancedScansComponent = new AdvancedScansComponent(getProject(), scanningService);
     }
 
     public void testInitialization() {

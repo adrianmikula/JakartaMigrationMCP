@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
 import adrianmikula.jakartamigration.intellij.model.MigrationStatus;
+import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -11,11 +12,13 @@ import java.time.Instant;
 public class DashboardComponentTest extends BasePlatformTestCase {
 
     private DashboardComponent dashboardComponent;
+    private AdvancedScanningService advancedScanningService;
 
     @Override
     protected void setUp() throws Exception {
         super.setUp();
-        dashboardComponent = new DashboardComponent(getProject(), e -> {
+        advancedScanningService = new AdvancedScanningService();
+        dashboardComponent = new DashboardComponent(getProject(), advancedScanningService, e -> {
         });
     }
 

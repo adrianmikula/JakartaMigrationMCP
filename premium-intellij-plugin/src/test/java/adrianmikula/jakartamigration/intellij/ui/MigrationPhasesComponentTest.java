@@ -50,7 +50,9 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
         // Check if dependency-specific subtask was added
         boolean found = false;
         for (int i = 0; i < phase1Table.getTableModel().getRowCount(); i++) {
-            String task = (String) phase1Table.getTableModel().getValueAt(i, 0);
+            SubtaskTableComponent.SubtaskItem subtask = (SubtaskTableComponent.SubtaskItem) phase1Table.getTableModel()
+                    .getValueAt(i, 0);
+            String task = subtask.getName();
             if (task.contains("Migrate hibernate-core")) {
                 found = true;
                 break;

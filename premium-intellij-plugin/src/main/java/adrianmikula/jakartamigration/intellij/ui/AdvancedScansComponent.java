@@ -60,9 +60,9 @@ public class AdvancedScansComponent {
     private JButton scanButton;
     private JProgressBar progressBar;
 
-    public AdvancedScansComponent(Project project) {
+    public AdvancedScansComponent(Project project, AdvancedScanningService scanningService) {
         this.project = project;
-        this.scanningService = new AdvancedScanningService();
+        this.scanningService = scanningService;
         this.mainPanel = new JPanel(new BorderLayout());
         initializeUI();
     }

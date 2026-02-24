@@ -10,6 +10,7 @@ import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
 import adrianmikula.jakartamigration.intellij.model.MigrationStatus;
+import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -52,6 +53,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private static final Logger LOG = Logger.getInstance(MigrationToolWindowContent.class);
 
         private final JPanel contentPanel;
+        private final AdvancedScanningService advancedScanningService;
         private final Project project;
         private final MigrationAnalysisService analysisService;
 
@@ -67,6 +69,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         public MigrationToolWindowContent(Project project) {
             this.project = project;
             this.analysisService = new MigrationAnalysisService();
+            this.advancedScanningService = new AdvancedScanningService();
             this.contentPanel = new JPanel(new BorderLayout());
             initializeContent();
         }
@@ -78,7 +81,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             JTabbedPane tabbedPane = new JTabbedPane();
 
             // Dashboard tab
-            dashboardComponent = new DashboardComponent(project, this::handleAnalyzeProject);
+            dashboardComponent = new DashboardComponent(project, advancedScanningService, this::handleAnalyzeProject);
             tabbedPane.addTab("Dashboard", dashboardComponent.getPanel());
 
             // Dependencies tab
@@ -102,7 +105,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             tabbedPane.addTab("Runtime", runtimeComponent.getPanel());
 
             // Advanced Scans tab (Premium) - JPA, Bean Validation, Servlet/JSP
-            advancedScansComponent = new AdvancedScansComponent(project);
+            advancedScansComponent = new AdvancedScansComponent(project, advancedScanningService);
             advancedScansComponent.addScanCompletionListener(() -> {
                 if (dashboardComponent != null) {
                     dashboardComponent.updateAdvancedScanCounts();
@@ -342,9 +345,6 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Calculate metrics
             long blockers = deps.stream().filter(DependencyInfo::isBlocker).count();
             long migrable = deps.stream().filter(d -> d.getRecommendedVersion() != null).count();
-            long compatible = deps.stream()
-                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE)
-                    .count();
 
             int score = calculateReadinessScore(deps);
 
