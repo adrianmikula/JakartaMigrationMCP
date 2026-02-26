@@ -15,7 +15,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Default implementation of McpClientService using MCP JSON-RPC protocol over HTTP.
+ * Default implementation of McpClientService using MCP JSON-RPC protocol over
+ * HTTP.
  * Communicates with the Jakarta Migration MCP server using the MCP protocol.
  * 
  * Reference: https://modelcontextprotocol.io/docs/specification/transport
@@ -74,22 +75,22 @@ public class DefaultMcpClientService implements McpClientService {
     @Override
     public CompletableFuture<AnalyzeMigrationImpactResponse> analyzeMigrationImpact(String projectPath) {
         LOG.info("Analyzing migration impact for project: " + projectPath);
-        
+
         return callTool("analyzeMigrationImpact", Map.of("projectPath", projectPath))
                 .thenApply(responseJson -> {
                     LOG.debug("Received response: " + responseJson);
-                    
+
                     try {
                         // The tool returns JSON as a string, parse it
                         JsonNode root = objectMapper.readTree(responseJson);
-                        
+
                         // Check if this is an upgrade required response
                         if (root.has("error") && "PREMIUM_REQUIRED".equals(root.path("error").path("code").asText())) {
                             LOG.info("Premium feature requested - falling back to free analysis");
                             // Fall back to analyzeJakartaReadiness for free tier
                             return null; // Signal to use fallback
                         }
-                        
+
                         return parseAnalyzeMigrationImpactResponse(root);
                     } catch (JsonProcessingException e) {
                         LOG.error("Failed to parse analyzeMigrationImpact response: " + e.getMessage());
@@ -107,7 +108,8 @@ public class DefaultMcpClientService implements McpClientService {
                                         JsonNode root = objectMapper.readTree(freeResponse);
                                         return parseAnalyzeMigrationImpactResponse(root);
                                     } catch (JsonProcessingException e) {
-                                        LOG.error("Failed to parse analyzeJakartaReadiness response: " + e.getMessage());
+                                        LOG.error(
+                                                "Failed to parse analyzeJakartaReadiness response: " + e.getMessage());
                                         return createDefaultResponse();
                                     }
                                 });
@@ -162,31 +164,31 @@ public class DefaultMcpClientService implements McpClientService {
      */
     private CompletableFuture<String> callTool(String toolName, Map<String, Object> arguments) {
         long id = requestId.getAndIncrement();
-        
+
         // Build JSON-RPC request
         Map<String, Object> request = new LinkedHashMap<>();
         request.put("jsonrpc", "2.0");
         request.put("id", id);
         request.put("method", "tools/call");
-        
+
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("name", toolName);
         params.put("arguments", arguments);
         request.put("params", params);
-        
+
         CompletableFuture<String> future = new CompletableFuture<>();
         pendingRequests.put(id, future);
-        
+
         try {
             String jsonBody = objectMapper.writeValueAsString(request);
-            
+
             HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(serverUrl + "/mcp/sse"))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                     .timeout(java.time.Duration.ofSeconds(requestTimeoutSeconds))
                     .build();
-            
+
             httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString())
                     .thenAccept(response -> {
                         try {
@@ -194,15 +196,16 @@ public class DefaultMcpClientService implements McpClientService {
                                 String body = response.body();
                                 // Parse JSON-RPC response
                                 JsonNode root = objectMapper.readTree(body);
-                                
+
                                 // Check for error
                                 if (root.has("error")) {
                                     JsonNode error = root.get("error");
-                                    String errorMessage = error.has("message") ? error.get("message").asText() : "Unknown error";
+                                    String errorMessage = error.has("message") ? error.get("message").asText()
+                                            : "Unknown error";
                                     future.completeExceptionally(new RuntimeException(errorMessage));
                                     return;
                                 }
-                                
+
                                 // Extract result
                                 if (root.has("result")) {
                                     JsonNode result = root.get("result");
@@ -213,8 +216,10 @@ public class DefaultMcpClientService implements McpClientService {
                                     future.completeExceptionally(new RuntimeException("No result in response"));
                                 }
                             } else {
-                                LOG.warn("MCP server returned status " + response.statusCode() + ": " + response.body());
-                                future.completeExceptionally(new RuntimeException("Server error: " + response.statusCode()));
+                                LOG.warn(
+                                        "MCP server returned status " + response.statusCode() + ": " + response.body());
+                                future.completeExceptionally(
+                                        new RuntimeException("Server error: " + response.statusCode()));
                             }
                         } catch (JsonProcessingException e) {
                             LOG.error("Failed to parse response: " + e.getMessage());
@@ -228,12 +233,12 @@ public class DefaultMcpClientService implements McpClientService {
                         future.completeExceptionally(ex);
                         return null;
                     });
-            
+
         } catch (JsonProcessingException e) {
             pendingRequests.remove(id);
             future.completeExceptionally(e);
         }
-        
+
         return future;
     }
 
@@ -255,33 +260,33 @@ public class DefaultMcpClientService implements McpClientService {
     }
 
     /**
-     * Parse analyzeMigrationImpact response into AnalyzeMigrationImpactResponse object.
+     * Parse analyzeMigrationImpact response into AnalyzeMigrationImpactResponse
+     * object.
      */
     private AnalyzeMigrationImpactResponse parseAnalyzeMigrationImpactResponse(JsonNode root) {
         AnalyzeMigrationImpactResponse response = new AnalyzeMigrationImpactResponse();
-        
+
         try {
             // The response might be a nested JSON string
             String jsonStr = root.asText();
             if (jsonStr.startsWith("{") || jsonStr.startsWith("[")) {
                 root = objectMapper.readTree(jsonStr);
             }
-            
-            AnalyzeMigrationImpactResponse.DependencyImpactDetails impactDetails = 
-                new AnalyzeMigrationImpactResponse.DependencyImpactDetails();
-            
+
+            AnalyzeMigrationImpactResponse.DependencyImpactDetails impactDetails = new AnalyzeMigrationImpactResponse.DependencyImpactDetails();
+
             if (root.has("dependencyImpact")) {
                 JsonNode depImpact = root.get("dependencyImpact");
-                
+
                 if (depImpact.has("affectedDependencies")) {
                     List<DependencyInfo> deps = parseDependencyInfoList(depImpact.get("affectedDependencies"));
                     impactDetails.setAffectedDependencies(deps);
                 }
-                
+
                 if (depImpact.has("transitiveDependencyChanges")) {
                     impactDetails.setTransitiveDependencyChanges(depImpact.get("transitiveDependencyChanges").asInt());
                 }
-                
+
                 if (depImpact.has("breakingChanges")) {
                     List<String> changes = new ArrayList<>();
                     JsonNode breakingChanges = depImpact.get("breakingChanges");
@@ -293,15 +298,14 @@ public class DefaultMcpClientService implements McpClientService {
                     impactDetails.setBreakingChanges(changes);
                 }
             }
-            
+
             response.setDependencyImpact(impactDetails);
-            
+
             // Parse overall impact
             if (root.has("overallImpact")) {
                 JsonNode impact = root.get("overallImpact");
-                AnalyzeMigrationImpactResponse.ImpactAssessment assessment = 
-                    new AnalyzeMigrationImpactResponse.ImpactAssessment();
-                
+                AnalyzeMigrationImpactResponse.ImpactAssessment assessment = new AnalyzeMigrationImpactResponse.ImpactAssessment();
+
                 if (impact.has("level")) {
                     assessment.setLevel(impact.get("level").asText());
                 }
@@ -320,13 +324,12 @@ public class DefaultMcpClientService implements McpClientService {
                 }
                 response.setOverallImpact(assessment);
             }
-            
+
             // Parse estimated effort
             if (root.has("estimatedEffort")) {
                 JsonNode effort = root.get("estimatedEffort");
-                AnalyzeMigrationImpactResponse.EffortEstimate estimate = 
-                    new AnalyzeMigrationImpactResponse.EffortEstimate();
-                
+                AnalyzeMigrationImpactResponse.EffortEstimate estimate = new AnalyzeMigrationImpactResponse.EffortEstimate();
+
                 if (effort.has("estimatedHours")) {
                     estimate.setEstimatedHours(effort.get("estimatedHours").asInt());
                 }
@@ -335,11 +338,11 @@ public class DefaultMcpClientService implements McpClientService {
                 }
                 response.setEstimatedEffort(estimate);
             }
-            
+
         } catch (JsonProcessingException e) {
             LOG.error("Failed to parse analyzeMigrationImpact response: {}", e.getMessage());
         }
-        
+
         return response;
     }
 
@@ -348,7 +351,7 @@ public class DefaultMcpClientService implements McpClientService {
      */
     private List<DependencyInfo> parseDependencyInfoList(JsonNode node) {
         List<DependencyInfo> dependencies = new ArrayList<>();
-        
+
         // Handle nested string
         if (node.isTextual()) {
             try {
@@ -358,7 +361,7 @@ public class DefaultMcpClientService implements McpClientService {
                 return dependencies;
             }
         }
-        
+
         // Handle array
         if (node.isArray()) {
             for (JsonNode item : node) {
@@ -368,7 +371,7 @@ public class DefaultMcpClientService implements McpClientService {
                 }
             }
         }
-        
+
         return dependencies;
     }
 
@@ -379,20 +382,19 @@ public class DefaultMcpClientService implements McpClientService {
         if (node == null || !node.isObject()) {
             return null;
         }
-        
+
         try {
             String groupId = node.has("groupId") ? node.get("groupId").asText() : "";
             String artifactId = node.has("artifactId") ? node.get("artifactId").asText() : "";
             String currentVersion = node.has("currentVersion") ? node.get("currentVersion").asText() : "";
             String recommendedVersion = node.has("recommendedVersion") ? node.get("recommendedVersion").asText() : null;
-            
+
             // Generate a default recommendedVersion if not provided
             if (recommendedVersion == null || recommendedVersion.isEmpty()) {
                 recommendedVersion = generateDefaultRecommendedVersion(groupId, artifactId, currentVersion);
             }
-            
-            adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus status = 
-                adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus.NEEDS_UPGRADE;
+
+            adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus status = adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus.NEEDS_UPGRADE;
             if (node.has("migrationStatus")) {
                 String statusStr = node.get("migrationStatus").asText();
                 try {
@@ -401,18 +403,18 @@ public class DefaultMcpClientService implements McpClientService {
                     LOG.warn("Unknown migration status: " + statusStr);
                 }
             }
-            
+
             boolean isTransitive = node.has("isTransitive") && node.get("isTransitive").asBoolean();
-            
-            return new DependencyInfo(groupId, artifactId, currentVersion, recommendedVersion, 
-                status, isTransitive);
-            
+
+            return new DependencyInfo(groupId, artifactId, currentVersion, recommendedVersion,
+                    status, isTransitive, false);
+
         } catch (Exception e) {
             LOG.error("Failed to parse DependencyInfo: {}", e.getMessage());
             return null;
         }
     }
-    
+
     /**
      * Generate a default recommended version when not provided by the server.
      * Uses common Jakarta EE version patterns based on the artifact.
@@ -426,7 +428,7 @@ public class DefaultMcpClientService implements McpClientService {
                 try {
                     int major = Integer.parseInt(parts[0]);
                     int minor = Integer.parseInt(parts[1]);
-                    
+
                     // Common Jakarta EE version mappings
                     if (groupId.contains("javax") || groupId.contains("jakarta")) {
                         // For javax/jakarta artifacts, look for major version 4 or 5
@@ -434,7 +436,7 @@ public class DefaultMcpClientService implements McpClientService {
                             return major + "." + (minor + 1) + ".0";
                         }
                     }
-                    
+
                     // General version increment pattern
                     if (minor < 99) {
                         return major + "." + (minor + 1) + ".0";
@@ -447,7 +449,7 @@ public class DefaultMcpClientService implements McpClientService {
                 }
             }
         }
-        
+
         // Fallback version
         return "3.0.0";
     }
@@ -490,11 +492,11 @@ public class DefaultMcpClientService implements McpClientService {
     @Override
     public CompletableFuture<String> applyOpenRewriteRefactoring(String projectPath, List<String> filePatterns) {
         LOG.info("Applying OpenRewrite refactoring for project: " + projectPath);
-        
+
         Map<String, Object> arguments = new LinkedHashMap<>();
         arguments.put("projectPath", projectPath);
         arguments.put("filePatterns", filePatterns);
-        
+
         return callTool("applyOpenRewriteRefactoring", arguments)
                 .thenApply(responseJson -> {
                     LOG.debug("OpenRewrite refactoring response: " + responseJson);
@@ -509,10 +511,10 @@ public class DefaultMcpClientService implements McpClientService {
     @Override
     public CompletableFuture<String> scanBinaryDependency(String jarPath) {
         LOG.info("Scanning binary dependency: " + jarPath);
-        
+
         Map<String, Object> arguments = new LinkedHashMap<>();
         arguments.put("jarPath", jarPath);
-        
+
         return callTool("scanBinaryDependency", arguments)
                 .thenApply(responseJson -> {
                     LOG.debug("Binary scan response: " + responseJson);
@@ -531,15 +533,16 @@ public class DefaultMcpClientService implements McpClientService {
             String artifactId,
             String currentVersion,
             String recommendedVersion) {
-        LOG.info("Updating dependency " + groupId + ":" + artifactId + " from " + currentVersion + " to " + recommendedVersion);
-        
+        LOG.info("Updating dependency " + groupId + ":" + artifactId + " from " + currentVersion + " to "
+                + recommendedVersion);
+
         Map<String, Object> arguments = new LinkedHashMap<>();
         arguments.put("projectPath", projectPath);
         arguments.put("groupId", groupId);
         arguments.put("artifactId", artifactId);
         arguments.put("currentVersion", currentVersion);
         arguments.put("recommendedVersion", recommendedVersion);
-        
+
         return callTool("updateDependency", arguments)
                 .thenApply(responseJson -> {
                     LOG.debug("Dependency update response: " + responseJson);

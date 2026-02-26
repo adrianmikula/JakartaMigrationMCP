@@ -12,6 +12,7 @@ import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
 import adrianmikula.jakartamigration.intellij.model.MigrationStatus;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
+import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -56,6 +57,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private final AdvancedScanningService advancedScanningService;
         private final Project project;
         private final MigrationAnalysisService analysisService;
+        private final CentralMigrationAnalysisStore store;
 
         // UI Components
         private DashboardComponent dashboardComponent;
@@ -71,6 +73,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             this.project = project;
             this.analysisService = new MigrationAnalysisService();
             this.advancedScanningService = new AdvancedScanningService();
+            this.store = new CentralMigrationAnalysisStore();
             this.contentPanel = new JPanel(new BorderLayout());
             initializeContent();
         }
@@ -203,6 +206,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         SwingUtilities.invokeLater(() -> {
                             if (report != null && report.dependencyGraph() != null &&
                                     !report.dependencyGraph().getNodes().isEmpty()) {
+                                // Save to database
+                                store.saveAnalysisReport(projectPath, report, false);
                                 // Update dashboard with real data
                                 updateDashboardFromReport(report);
                                 int depsCount = report.dependencyGraph().getNodes().size();
@@ -277,6 +282,19 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 return;
             }
 
+            // Build a set of root packages to determine organizational namespace
+            Set<String> rootGroupIds = new HashSet<>();
+            Set<Artifact> targetNodes = new HashSet<>();
+            for (adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency edge : graph.getEdges()) {
+                targetNodes.add(edge.to());
+            }
+
+            for (Artifact node : nodes) {
+                if (!targetNodes.contains(node)) {
+                    rootGroupIds.add(node.groupId());
+                }
+            }
+
             // Convert Artifact objects to DependencyInfo
             List<DependencyInfo> deps = new ArrayList<>();
 
@@ -294,6 +312,10 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Build a set of org namespace patterns from the project
             Set<String> orgPatterns = new HashSet<>();
+            for (String root : rootGroupIds) {
+                orgPatterns.add(root);
+                orgPatterns.add(root + ".*");
+            }
 
             for (Artifact artifact : nodes) {
                 DependencyInfo info = new DependencyInfo();
@@ -301,6 +323,16 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 info.setGroupId(artifact.groupId());
                 info.setCurrentVersion(artifact.version());
                 info.setTransitive(artifact.transitive());
+
+                // Check if it's an organizational artifact
+                boolean isOrg = false;
+                for (String rootGroup : rootGroupIds) {
+                    if (artifact.groupId().startsWith(rootGroup) || rootGroup.startsWith(artifact.groupId())) {
+                        isOrg = true;
+                        break;
+                    }
+                }
+                info.setOrganizational(isOrg);
 
                 // Check if there's a recommendation for this artifact
                 String artifactKey = artifact.groupId() + ":" + artifact.artifactId();
@@ -397,6 +429,19 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         private void loadInitialState() {
+            String projectPathStr = project.getBasePath();
+            if (projectPathStr == null) {
+                projectPathStr = project.getProjectFilePath();
+            }
+            if (projectPathStr != null) {
+                Path projectPath = Path.of(projectPathStr);
+                DependencyAnalysisReport report = store.getLatestAnalysisReport(projectPath);
+                if (report != null) {
+                    updateDashboardFromReport(report);
+                    return;
+                }
+            }
+
             // Set initial empty state - wait for user to analyze
             MigrationDashboard dashboard = new MigrationDashboard();
             dashboard.setReadinessScore(0);

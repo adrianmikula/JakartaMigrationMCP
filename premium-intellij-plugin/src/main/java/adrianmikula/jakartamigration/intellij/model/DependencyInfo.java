@@ -3,7 +3,8 @@ package adrianmikula.jakartamigration.intellij.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Individual dependency information for the dependencies table from TypeSpec: intellij-plugin-ui.tsp
+ * Individual dependency information for the dependencies table from TypeSpec:
+ * intellij-plugin-ui.tsp
  */
 public class DependencyInfo {
     @JsonProperty("groupId")
@@ -24,6 +25,9 @@ public class DependencyInfo {
     @JsonProperty("isTransitive")
     private boolean isTransitive;
 
+    @JsonProperty("isOrganizational")
+    private boolean isOrganizational;
+
     public enum DependencyType {
         DIRECT("Direct"),
         TRANSITIVE("Transitive");
@@ -43,14 +47,15 @@ public class DependencyInfo {
     }
 
     public DependencyInfo(String groupId, String artifactId, String currentVersion,
-                          String recommendedVersion, DependencyMigrationStatus migrationStatus,
-                          boolean isTransitive) {
+            String recommendedVersion, DependencyMigrationStatus migrationStatus,
+            boolean isTransitive, boolean isOrganizational) {
         this.groupId = groupId;
         this.artifactId = artifactId;
         this.currentVersion = currentVersion;
         this.recommendedVersion = recommendedVersion;
         this.migrationStatus = migrationStatus;
         this.isTransitive = isTransitive;
+        this.isOrganizational = isOrganizational;
     }
 
     public String getGroupId() {
@@ -94,7 +99,8 @@ public class DependencyInfo {
     }
 
     /**
-     * Blocker flag is no longer used - migration status determines blocking behavior.
+     * Blocker flag is no longer used - migration status determines blocking
+     * behavior.
      * Always returns false.
      */
     public boolean isBlocker() {
@@ -111,6 +117,14 @@ public class DependencyInfo {
 
     public void setTransitive(boolean transitive) {
         isTransitive = transitive;
+    }
+
+    public boolean isOrganizational() {
+        return isOrganizational;
+    }
+
+    public void setOrganizational(boolean organizational) {
+        isOrganizational = organizational;
     }
 
     public String getDisplayName() {

@@ -38,6 +38,7 @@ public class DependenciesTableComponent {
     private final JTextField searchField;
     private final JComboBox<String> statusFilter;
     private final JCheckBox transitiveFilter;
+    private final JCheckBox organizationalFilter;
     private List<DependencyInfo> allDependencies;
 
     // Status colors
@@ -81,6 +82,7 @@ public class DependenciesTableComponent {
                 "All", "Compatible", "Needs Upgrade", "No Jakarta Version"
         });
         this.transitiveFilter = new JCheckBox("Show Transitive Only", false);
+        this.organizationalFilter = new JCheckBox("Show All Organisational Artifacts", false);
 
         initializeComponent();
     }
@@ -102,7 +104,11 @@ public class DependenciesTableComponent {
                 if (isSelected) {
                     panel.setBackground(table.getSelectionBackground());
                 } else {
-                    panel.setBackground(table.getBackground());
+                    if (dep.isOrganizational()) {
+                        panel.setBackground(new Color(230, 240, 255)); // Light blue tint
+                    } else {
+                        panel.setBackground(table.getBackground());
+                    }
                 }
 
                 // Add dotted border for transitive dependencies
@@ -144,7 +150,18 @@ public class DependenciesTableComponent {
             if (isSelected) {
                 label.setBackground(table.getSelectionBackground());
             } else {
-                label.setBackground(table.getBackground());
+                // Determine if this row is organizational
+                boolean isOrg = false;
+                Object depObj = table.getModel().getValueAt(row, 5);
+                if (depObj instanceof DependencyInfo) {
+                    isOrg = ((DependencyInfo) depObj).isOrganizational();
+                }
+
+                if (isOrg) {
+                    label.setBackground(new Color(230, 240, 255)); // Light blue for organizational
+                } else {
+                    label.setBackground(table.getBackground());
+                }
             }
             label.setHorizontalAlignment(SwingConstants.LEFT);
 
@@ -197,6 +214,9 @@ public class DependenciesTableComponent {
 
         transitiveFilter.addActionListener(e -> filterDependencies());
         headerPanel.add(transitiveFilter);
+
+        organizationalFilter.addActionListener(e -> filterDependencies());
+        headerPanel.add(organizationalFilter);
 
         // Table
         JBScrollPane scrollPane = new JBScrollPane(table);
@@ -267,6 +287,7 @@ public class DependenciesTableComponent {
         String searchText = searchField.getText().toLowerCase();
         String selectedStatus = (String) statusFilter.getSelectedItem();
         boolean showTransitiveOnly = transitiveFilter.isSelected();
+        boolean showOrganizationalOnly = organizationalFilter.isSelected();
 
         for (DependencyInfo dep : allDependencies) {
             // Search filter
@@ -283,7 +304,10 @@ public class DependenciesTableComponent {
             // Transitive filter
             boolean matchesTransitive = !showTransitiveOnly || dep.isTransitive();
 
-            if (matchesSearch && matchesStatus && matchesTransitive) {
+            // Organizational filter
+            boolean matchesOrganizational = !showOrganizationalOnly || dep.isOrganizational();
+
+            if (matchesSearch && matchesStatus && matchesTransitive && matchesOrganizational) {
                 addDependencyRow(dep);
             }
         }

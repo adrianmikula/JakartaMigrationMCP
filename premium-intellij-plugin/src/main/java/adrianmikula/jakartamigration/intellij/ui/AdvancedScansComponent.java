@@ -2,7 +2,8 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.advancedscanning.domain.*;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
-import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
+import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
+import adrianmikula.jakartamigration.analysis.persistence.ObjectMapperService;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 
@@ -60,11 +61,17 @@ public class AdvancedScansComponent {
     private JButton scanButton;
     private JProgressBar progressBar;
 
+    private final CentralMigrationAnalysisStore store;
+    private final ObjectMapperService objectMapper;
+
     public AdvancedScansComponent(Project project, AdvancedScanningService scanningService) {
         this.project = project;
         this.scanningService = scanningService;
+        this.store = new CentralMigrationAnalysisStore();
+        this.objectMapper = new ObjectMapperService();
         this.mainPanel = new JPanel(new BorderLayout());
         initializeUI();
+        loadInitialState();
     }
 
     private void initializeUI() {
@@ -522,6 +529,11 @@ public class AdvancedScansComponent {
             protected void done() {
                 try {
                     AdvancedScanningService.AdvancedScanSummary summary = get();
+
+                    // Save to database
+                    String stateJson = objectMapper.toJson(summary);
+                    store.savePluginState(projectPath, "advancedScansSummary", stateJson);
+
                     displayResults(summary);
                 } catch (Exception e) {
                     LOG.error("Error running scans", e);
@@ -539,102 +551,153 @@ public class AdvancedScansComponent {
         worker.execute();
     }
 
+    private void updateTabTitle(int index, String baseTitle, int issueCount) {
+        if (index >= 0 && index < tabbedPane.getTabCount()) {
+            if (issueCount > 0) {
+                tabbedPane.setTitleAt(index, baseTitle + " [" + issueCount + "]");
+                tabbedPane.setForegroundAt(index, new Color(200, 0, 0)); // Red for issues
+            } else {
+                tabbedPane.setTitleAt(index, baseTitle);
+                tabbedPane.setForegroundAt(index, new Color(0, 150, 0)); // Green for none
+            }
+        }
+    }
+
     private void displayResults(AdvancedScanningService.AdvancedScanSummary summary) {
         // Display JPA results
         JpaProjectScanResult jpaResult = summary.jpaResult();
+        int jpaIssues = 0;
         if (jpaResult != null) {
             displayJpaResults(jpaResult);
+            jpaIssues = jpaResult.hasJavaxUsage() ? jpaResult.totalAnnotationsFound() : 0;
         }
+        updateTabTitle(0, "JPA Annotations", jpaIssues);
 
         // Display Bean Validation results
         BeanValidationProjectScanResult beanValidationResult = summary.beanValidationResult();
+        int bvIssues = 0;
         if (beanValidationResult != null) {
             displayBeanValidationResults(beanValidationResult);
+            bvIssues = beanValidationResult.hasJavaxUsage() ? beanValidationResult.totalAnnotationsFound() : 0;
         }
+        updateTabTitle(1, "Bean Validation", bvIssues);
 
         // Display Servlet/JSP results
         ServletJspProjectScanResult servletJspResult = summary.servletJspResult();
+        int servletJspIssues = 0;
         if (servletJspResult != null) {
             displayServletJspResults(servletJspResult);
+            servletJspIssues = servletJspResult.hasJavaxUsage() ? servletJspResult.totalUsagesFound() : 0;
         }
+        updateTabTitle(2, "Servlet/JSP", servletJspIssues);
 
         // Display Build Config results
         BuildConfigProjectScanResult buildConfigResult = summary.buildConfigResult();
+        int buildConfigIssues = 0;
         if (buildConfigResult != null) {
             displayBuildConfigResults(buildConfigResult);
+            buildConfigIssues = buildConfigResult.hasJavaxDependencies() ? buildConfigResult.totalDependenciesFound()
+                    : 0;
         }
+        updateTabTitle(3, "Build Config", buildConfigIssues);
 
         // Display Config File results
         ConfigFileProjectScanResult configFileResult = summary.configFileResult();
+        int configFileIssues = 0;
         if (configFileResult != null) {
             displayConfigFileResults(configFileResult);
+            configFileIssues = configFileResult.hasJavaxUsage() ? configFileResult.getTotalJavaxUsages() : 0;
         }
+        updateTabTitle(4, "Config Files", configFileIssues);
 
         // Display Deprecated API results
         DeprecatedApiProjectScanResult deprecatedApiResult = summary.deprecatedApiResult();
+        int deprecatedApiIssues = 0;
         if (deprecatedApiResult != null) {
             displayDeprecatedApiResults(deprecatedApiResult);
+            deprecatedApiIssues = deprecatedApiResult.hasDeprecatedApiUsage() ? deprecatedApiResult.totalUsagesFound()
+                    : 0;
         }
+        updateTabTitle(5, "Deprecated API", deprecatedApiIssues);
 
         // Display CDI Injection results
         CdiInjectionProjectScanResult cdiInjectionResult = summary.cdiInjectionResult();
+        int cdiIssues = 0;
         if (cdiInjectionResult != null) {
             displayCdiInjectionResults(cdiInjectionResult);
+            cdiIssues = cdiInjectionResult.hasJavaxUsage() ? cdiInjectionResult.totalAnnotationsFound() : 0;
         }
+        updateTabTitle(6, "CDI Injection", cdiIssues);
 
         // Display REST/SOAP results
         RestSoapProjectScanResult restSoapResult = summary.restSoapResult();
+        int restSoapIssues = 0;
         if (restSoapResult != null) {
             displayRestSoapResults(restSoapResult);
+            restSoapIssues = restSoapResult.hasJavaxUsage() ? restSoapResult.totalUsagesFound() : 0;
         }
+        updateTabTitle(7, "REST/SOAP", restSoapIssues);
 
         // Display Security API results
         SecurityApiProjectScanResult securityApiResult = summary.securityApiResult();
+        int securityApiIssues = 0;
         if (securityApiResult != null) {
             displaySecurityApiResults(securityApiResult);
+            securityApiIssues = securityApiResult.hasJavaxUsage() ? securityApiResult.getTotalJavaxUsages() : 0;
         }
+        updateTabTitle(8, "Security API", securityApiIssues);
 
         // Display JMS Messaging results
         JmsMessagingProjectScanResult jmsMessagingResult = summary.jmsMessagingResult();
+        int jmsMessagingIssues = 0;
         if (jmsMessagingResult != null) {
             displayJmsMessagingResults(jmsMessagingResult);
+            jmsMessagingIssues = jmsMessagingResult.hasJavaxUsage() ? jmsMessagingResult.getTotalJavaxUsages() : 0;
         }
+        updateTabTitle(9, "JMS Messaging", jmsMessagingIssues);
 
         // Display Classloader/Module results
         ClassloaderModuleProjectScanResult classloaderModuleResult = summary.classloaderModuleResult();
+        int classloaderModuleIssues = 0;
         if (classloaderModuleResult != null) {
             displayClassloaderModuleResults(classloaderModuleResult);
+            classloaderModuleIssues = classloaderModuleResult.hasJavaxUsage()
+                    ? classloaderModuleResult.getTotalJavaxUsages()
+                    : 0;
         }
+        updateTabTitle(10, "Classloader", classloaderModuleIssues);
 
         // Display Logging/Metrics results
         LoggingMetricsProjectScanResult loggingMetricsResult = summary.loggingMetricsResult();
+        int loggingMetricsIssues = 0;
         if (loggingMetricsResult != null) {
             displayLoggingMetricsResults(loggingMetricsResult);
+            loggingMetricsIssues = loggingMetricsResult.hasFindings() ? loggingMetricsResult.getTotalFindings() : 0;
         }
+        updateTabTitle(11, "Logging/Metrics", loggingMetricsIssues);
 
         // Display Serialization/Cache results
         SerializationCacheProjectScanResult serializationCacheResult = summary.serializationCacheResult();
+        int serializationCacheIssues = 0;
         if (serializationCacheResult != null) {
             displaySerializationCacheResults(serializationCacheResult);
+            serializationCacheIssues = serializationCacheResult.hasFindings()
+                    ? serializationCacheResult.getTotalFindings()
+                    : 0;
         }
+        updateTabTitle(12, "Serialization/Cache", serializationCacheIssues);
 
         // Display Third-Party Libs results
         ThirdPartyLibProjectScanResult thirdPartyLibResult = summary.thirdPartyLibResult();
+        int thirdPartyLibIssues = 0;
         if (thirdPartyLibResult != null) {
             displayThirdPartyLibResults(thirdPartyLibResult);
+            thirdPartyLibIssues = thirdPartyLibResult.hasFindings() ? thirdPartyLibResult.getTotalLibraries() : 0;
         }
+        updateTabTitle(13, "Third-Party Libs", thirdPartyLibIssues);
 
-        // Notify listeners that scan is complete
+        // Notify listener if present
         notifyScanComplete();
-
-        // Show summary message
-        int totalIssues = summary.getTotalIssuesFound();
-        String message = totalIssues > 0
-                ? "Found " + totalIssues + " issues requiring attention across all scanners."
-                : "No advanced scan issues found. Your code looks good!";
-
-        JOptionPane.showMessageDialog(mainPanel, message, "Advanced Scan Complete",
-                JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void displayJpaResults(JpaProjectScanResult result) {
@@ -1046,6 +1109,28 @@ public class AdvancedScansComponent {
     private void notifyScanComplete() {
         for (ScanCompletionListener listener : listeners) {
             listener.onScanComplete();
+        }
+    }
+
+    private void loadInitialState() {
+        String projectPathStr = project.getBasePath();
+        if (projectPathStr == null) {
+            projectPathStr = project.getProjectFilePath();
+        }
+        if (projectPathStr != null) {
+            Path projectPath = Path.of(projectPathStr);
+            String stateJson = store.getPluginState(projectPath, "advancedScansSummary");
+            if (stateJson != null && !stateJson.isEmpty()) {
+                try {
+                    AdvancedScanningService.AdvancedScanSummary summary = objectMapper.fromJson(stateJson,
+                            AdvancedScanningService.AdvancedScanSummary.class);
+                    if (summary != null) {
+                        displayResults(summary);
+                    }
+                } catch (Exception e) {
+                    LOG.error("Failed to load initial state for AdvancedScansComponent", e);
+                }
+            }
         }
     }
 }

@@ -1,6 +1,8 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+import com.intellij.ide.plugins.PluginManagerCore;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 
@@ -22,6 +24,7 @@ public class SupportComponent {
     private static final String GITHUB_SPONSOR_URL = "https://github.com/sponsors/adrianmikula";
     private static final String LINKEDIN_URL = "https://linkedin.com/in/adrianmikula";
     private static final String PLUGIN_PAGE_URL = "https://plugins.jetbrains.com/plugin/25558-jakarta-migration";
+    private static final String UPDATE_URL = "https://plugins.jetbrains.com/plugin/25558-jakarta-migration/versions";
 
     private final JPanel panel;
     private final Project project;
@@ -95,11 +98,17 @@ public class SupportComponent {
                 "Rate and review the plugin",
                 PLUGIN_PAGE_URL));
 
+        // Check for updates link
+        contentPanel.add(createLinkButton(
+                "Check for Updates",
+                "View the latest versions and release notes",
+                UPDATE_URL));
+
         contentPanel.add(Box.createVerticalStrut(20));
 
         // Version info
         contentPanel.add(createSectionHeader("Version Info"));
-        JLabel versionLabel = new JLabel("Version: 1.0.0 (Premium Edition)");
+        JLabel versionLabel = new JLabel("Version: " + getPluginVersion() + " (Premium Edition)");
         versionLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
         versionLabel.setForeground(Color.GRAY);
         contentPanel.add(versionLabel);
@@ -197,7 +206,19 @@ public class SupportComponent {
         }
     }
 
+    private String getPluginVersion() {
+        try {
+            var plugin = PluginManagerCore.getPlugin(PluginId.getId("adrianmikula.jakartamigration"));
+            if (plugin != null) {
+                return plugin.getVersion();
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to get plugin version", e);
+        }
+        return "Unknown";
+    }
+
     private String getBuildTimestamp() {
-        return "2026-02-20";
+        return "2026-02-26";
     }
 }

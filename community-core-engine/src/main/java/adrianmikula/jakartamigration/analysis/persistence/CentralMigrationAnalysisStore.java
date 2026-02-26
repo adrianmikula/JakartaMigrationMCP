@@ -15,7 +15,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Centralized SQLite-based persistence service for Jakarta migration analysis data.
+ * Centralized SQLite-based persistence service for Jakarta migration analysis
+ * data.
  * Stores data in user profile folder (~/.jakarta-migration/) to enable:
  * - Cross-repository dependency tracking
  * - Organization/internal dependency classification
@@ -105,6 +106,9 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
         Connection conn = connectionHolder.get();
         if (conn == null || conn.isClosed()) {
             conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("PRAGMA foreign_keys = ON;");
+            }
             conn.setAutoCommit(false);
             connectionHolder.set(conn);
         }
@@ -124,134 +128,152 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
         try (Statement stmt = conn.createStatement()) {
             // Metadata table
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS metadata (
-                    key TEXT PRIMARY KEY,
-                    value TEXT,
-                    updated_at TEXT DEFAULT (datetime('now'))
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS metadata (
+                            key TEXT PRIMARY KEY,
+                            value TEXT,
+                            updated_at TEXT DEFAULT (datetime('now'))
+                        )
+                    """);
 
             // Repositories table - tracks analyzed repositories
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS repositories (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    repository_path TEXT UNIQUE NOT NULL,
-                    repository_name TEXT,
-                    is_org_repo BOOLEAN DEFAULT FALSE,
-                    created_at TEXT DEFAULT (datetime('now')),
-                    last_analyzed_at TEXT
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS repositories (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            repository_path TEXT UNIQUE NOT NULL,
+                            repository_name TEXT,
+                            is_org_repo BOOLEAN DEFAULT FALSE,
+                            created_at TEXT DEFAULT (datetime('now')),
+                            last_analyzed_at TEXT
+                        )
+                    """);
 
             // Organization dependencies table - tracks cross-repo internal dependencies
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS org_dependencies (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    group_id TEXT NOT NULL,
-                    artifact_id TEXT NOT NULL,
-                    version TEXT,
-                    source_repository_id INTEGER,
-                    is_analyzed BOOLEAN DEFAULT FALSE,
-                    analyzed_repository_id INTEGER,
-                    analyzed_at TEXT,
-                    jakarta_ready BOOLEAN,
-                    migration_status TEXT,
-                    notes TEXT,
-                    created_at TEXT DEFAULT (datetime('now')),
-                    updated_at TEXT DEFAULT (datetime('now')),
-                    UNIQUE(group_id, artifact_id, version)
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS org_dependencies (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            group_id TEXT NOT NULL,
+                            artifact_id TEXT NOT NULL,
+                            version TEXT,
+                            source_repository_id INTEGER,
+                            is_analyzed BOOLEAN DEFAULT FALSE,
+                            analyzed_repository_id INTEGER,
+                            analyzed_at TEXT,
+                            jakarta_ready BOOLEAN,
+                            migration_status TEXT,
+                            notes TEXT,
+                            created_at TEXT DEFAULT (datetime('now')),
+                            updated_at TEXT DEFAULT (datetime('now')),
+                            UNIQUE(group_id, artifact_id, version)
+                        )
+                    """);
 
             // Dependencies table - stores all discovered dependencies (from all repos)
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS dependencies (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    repository_path TEXT NOT NULL,
-                    group_id TEXT NOT NULL,
-                    artifact_id TEXT NOT NULL,
-                    version TEXT,
-                    scope TEXT,
-                    is_direct BOOLEAN DEFAULT TRUE,
-                    is_org_dependency BOOLEAN DEFAULT FALSE,
-                    namespace TEXT,
-                    is_jakarta_compatible BOOLEAN,
-                    risk_level TEXT,
-                    migration_status TEXT,
-                    created_at TEXT DEFAULT (datetime('now')),
-                    UNIQUE(repository_path, group_id, artifact_id, version)
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS dependencies (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            repository_path TEXT NOT NULL,
+                            group_id TEXT NOT NULL,
+                            artifact_id TEXT NOT NULL,
+                            version TEXT,
+                            scope TEXT,
+                            is_direct BOOLEAN DEFAULT TRUE,
+                            is_org_dependency BOOLEAN DEFAULT FALSE,
+                            namespace TEXT,
+                            is_jakarta_compatible BOOLEAN,
+                            risk_level TEXT,
+                            migration_status TEXT,
+                            created_at TEXT DEFAULT (datetime('now')),
+                            UNIQUE(repository_path, group_id, artifact_id, version),
+                            FOREIGN KEY(repository_path) REFERENCES repositories(repository_path) ON DELETE CASCADE
+                        )
+                    """);
 
             // Dependency graph edges
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS dependency_edges (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    repository_path TEXT NOT NULL,
-                    from_group_id TEXT NOT NULL,
-                    from_artifact_id TEXT NOT NULL,
-                    to_group_id TEXT NOT NULL,
-                    to_artifact_id TEXT NOT NULL,
-                    edge_type TEXT DEFAULT 'dependency',
-                    created_at TEXT DEFAULT (datetime('now'))
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS dependency_edges (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            repository_path TEXT NOT NULL,
+                            from_group_id TEXT NOT NULL,
+                            from_artifact_id TEXT NOT NULL,
+                            to_group_id TEXT NOT NULL,
+                            to_artifact_id TEXT NOT NULL,
+                            edge_type TEXT DEFAULT 'dependency',
+                            created_at TEXT DEFAULT (datetime('now')),
+                            FOREIGN KEY(repository_path) REFERENCES repositories(repository_path) ON DELETE CASCADE
+                        )
+                    """);
 
             // Analysis reports table
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS analysis_reports (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    repository_path TEXT NOT NULL,
-                    analysis_time TEXT DEFAULT (datetime('now')),
-                    total_dependencies INTEGER,
-                    direct_dependencies INTEGER,
-                    transitive_dependencies INTEGER,
-                    org_dependencies INTEGER,
-                    jakarta_ready_count INTEGER,
-                    needs_migration_count INTEGER,
-                    blocked_count INTEGER,
-                    readiness_score REAL,
-                    risk_level TEXT,
-                    raw_report TEXT,
-                    UNIQUE(repository_path, analysis_time)
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS analysis_reports (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            repository_path TEXT NOT NULL,
+                            analysis_time TEXT DEFAULT (datetime('now')),
+                            total_dependencies INTEGER,
+                            direct_dependencies INTEGER,
+                            transitive_dependencies INTEGER,
+                            org_dependencies INTEGER,
+                            jakarta_ready_count INTEGER,
+                            needs_migration_count INTEGER,
+                            blocked_count INTEGER,
+                            readiness_score REAL,
+                            risk_level TEXT,
+                            raw_report TEXT,
+                            UNIQUE(repository_path, analysis_time),
+                            FOREIGN KEY(repository_path) REFERENCES repositories(repository_path) ON DELETE CASCADE
+                        )
+                    """);
 
             // Blockers table
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS blockers (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    repository_path TEXT NOT NULL,
-                    analysis_report_id INTEGER,
-                    blocker_type TEXT NOT NULL,
-                    description TEXT,
-                    affected_artifact TEXT,
-                    confidence REAL,
-                    created_at TEXT DEFAULT (datetime('now'))
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS blockers (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            repository_path TEXT NOT NULL,
+                            analysis_report_id INTEGER,
+                            blocker_type TEXT NOT NULL,
+                            description TEXT,
+                            affected_artifact TEXT,
+                            confidence REAL,
+                            created_at TEXT DEFAULT (datetime('now')),
+                            FOREIGN KEY(repository_path) REFERENCES repositories(repository_path) ON DELETE CASCADE
+                        )
+                    """);
 
             // Recommendations table
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS recommendations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    repository_path TEXT NOT NULL,
-                    analysis_report_id INTEGER,
-                    category TEXT,
-                    priority TEXT,
-                    description TEXT,
-                    action TEXT,
-                    estimated_effort TEXT,
-                    created_at TEXT DEFAULT (datetime('now'))
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS recommendations (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            repository_path TEXT NOT NULL,
+                            analysis_report_id INTEGER,
+                            category TEXT,
+                            priority TEXT,
+                            description TEXT,
+                            action TEXT,
+                            estimated_effort TEXT,
+                            created_at TEXT DEFAULT (datetime('now')),
+                            FOREIGN KEY(repository_path) REFERENCES repositories(repository_path) ON DELETE CASCADE
+                        )
+                    """);
+
+            // Plugin state table - stores arbitrary JSON state for the IDE plugin
+            stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS plugin_state (
+                            repository_path TEXT NOT NULL,
+                            state_key TEXT NOT NULL,
+                            state_json TEXT,
+                            updated_at TEXT DEFAULT (datetime('now')),
+                            PRIMARY KEY (repository_path, state_key)
+                        )
+                    """);
 
             // Indexes for efficient querying
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_deps_repo ON dependencies(repository_path)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_deps_group ON dependencies(group_id, artifact_id)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_org_deps ON org_dependencies(group_id, artifact_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_edges_from ON dependency_edges(repository_path, from_group_id, from_artifact_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_edges_to ON dependency_edges(repository_path, to_group_id, to_artifact_id)");
+            stmt.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_edges_from ON dependency_edges(repository_path, from_group_id, from_artifact_id)");
+            stmt.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_edges_to ON dependency_edges(repository_path, to_group_id, to_artifact_id)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_blockers_repo ON blockers(repository_path)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_recommendations_repo ON recommendations(repository_path)");
 
@@ -262,7 +284,7 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
 
     private void updateSchema(Connection conn) throws SQLException {
         try (Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("PRAGMA user_version")) {
+                ResultSet rs = stmt.executeQuery("PRAGMA user_version")) {
             int version = rs.getInt(1);
             if (version < DB_VERSION) {
                 stmt.execute("PRAGMA user_version = " + DB_VERSION);
@@ -279,13 +301,13 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
     public void registerRepository(Path repositoryPath, boolean isOrgRepo) {
         try (Connection conn = getConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement("""
-                INSERT INTO repositories (repository_path, repository_name, is_org_repo, last_analyzed_at)
-                VALUES (?, ?, ?, datetime('now'))
-                ON CONFLICT(repository_path) DO UPDATE SET
-                    repository_name = excluded.repository_name,
-                    is_org_repo = excluded.is_org_repo,
-                    last_analyzed_at = datetime('now')
-                """)) {
+                    INSERT INTO repositories (repository_path, repository_name, is_org_repo, last_analyzed_at)
+                    VALUES (?, ?, ?, datetime('now'))
+                    ON CONFLICT(repository_path) DO UPDATE SET
+                        repository_name = excluded.repository_name,
+                        is_org_repo = excluded.is_org_repo,
+                        last_analyzed_at = datetime('now')
+                    """)) {
                 stmt.setString(1, repositoryPath.toString());
                 stmt.setString(2, repositoryPath.getFileName().toString());
                 stmt.setBoolean(3, isOrgRepo);
@@ -302,18 +324,18 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
      */
     public List<RepositoryInfo> getRepositories() {
         try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("""
-                 SELECT * FROM repositories ORDER BY last_analyzed_at DESC
-                 """)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery("""
+                        SELECT * FROM repositories ORDER BY last_analyzed_at DESC
+                        """)) {
             List<RepositoryInfo> repos = new ArrayList<>();
             while (rs.next()) {
                 repos.add(new RepositoryInfo(
-                    rs.getString("repository_path"),
-                    rs.getString("repository_name"),
-                    rs.getBoolean("is_org_repo"),
-                    rs.getTimestamp("last_analyzed_at") != null ? rs.getTimestamp("last_analyzed_at").toInstant() : null
-                ));
+                        rs.getString("repository_path"),
+                        rs.getString("repository_name"),
+                        rs.getBoolean("is_org_repo"),
+                        rs.getTimestamp("last_analyzed_at") != null ? rs.getTimestamp("last_analyzed_at").toInstant()
+                                : null));
             }
             return repos;
         } catch (SQLException e) {
@@ -324,25 +346,26 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
     // ==================== Org Dependency Operations ====================
 
     /**
-     * Saves an organization dependency that needs to be tracked across repositories.
+     * Saves an organization dependency that needs to be tracked across
+     * repositories.
      */
     public void saveOrgDependency(String groupId, String artifactId, String version,
-                                  boolean isAnalyzed, String sourceRepositoryPath) {
+            boolean isAnalyzed, String sourceRepositoryPath) {
         try (Connection conn = getConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement("""
-                INSERT INTO org_dependencies (
-                    group_id, artifact_id, version, source_repository_id,
-                    is_analyzed, analyzed_at, migration_status
-                )
-                VALUES (
-                    (SELECT id FROM repositories WHERE repository_path = ?),
-                    ?, ?, ?,
-                    ?, datetime('now'), 'PENDING'
-                )
-                ON CONFLICT(group_id, artifact_id, version) DO UPDATE SET
-                    is_analyzed = excluded.is_analyzed,
-                    updated_at = datetime('now')
-                """)) {
+                    INSERT INTO org_dependencies (
+                        group_id, artifact_id, version, source_repository_id,
+                        is_analyzed, analyzed_at, migration_status
+                    )
+                    VALUES (
+                        (SELECT id FROM repositories WHERE repository_path = ?),
+                        ?, ?, ?,
+                        ?, datetime('now'), 'PENDING'
+                    )
+                    ON CONFLICT(group_id, artifact_id, version) DO UPDATE SET
+                        is_analyzed = excluded.is_analyzed,
+                        updated_at = datetime('now')
+                    """)) {
                 // Note: Simplified - actual implementation would need proper subquery handling
             }
             conn.commit();
@@ -356,25 +379,24 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
      */
     public List<OrgDependencyInfo> getOrgDependencies() {
         try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("""
-                 SELECT od.*, r.repository_path as source_repo
-                 FROM org_dependencies od
-                 LEFT JOIN repositories r ON od.source_repository_id = r.id
-                 ORDER BY od.group_id, od.artifact_id
-                 """)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery("""
+                        SELECT od.*, r.repository_path as source_repo
+                        FROM org_dependencies od
+                        LEFT JOIN repositories r ON od.source_repository_id = r.id
+                        ORDER BY od.group_id, od.artifact_id
+                        """)) {
             List<OrgDependencyInfo> deps = new ArrayList<>();
             while (rs.next()) {
                 deps.add(new OrgDependencyInfo(
-                    rs.getString("group_id"),
-                    rs.getString("artifact_id"),
-                    rs.getString("version"),
-                    rs.getString("source_repo"),
-                    rs.getBoolean("is_analyzed"),
-                    rs.getTimestamp("analyzed_at") != null ? rs.getTimestamp("analyzed_at").toInstant() : null,
-                    rs.getBoolean("jakarta_ready"),
-                    rs.getString("migration_status")
-                ));
+                        rs.getString("group_id"),
+                        rs.getString("artifact_id"),
+                        rs.getString("version"),
+                        rs.getString("source_repo"),
+                        rs.getBoolean("is_analyzed"),
+                        rs.getTimestamp("analyzed_at") != null ? rs.getTimestamp("analyzed_at").toInstant() : null,
+                        rs.getBoolean("jakarta_ready"),
+                        rs.getString("migration_status")));
             }
             return deps;
         } catch (SQLException e) {
@@ -387,26 +409,25 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
      */
     public List<OrgDependencyInfo> getUnanalyzedOrgDependencies() {
         try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement("""
-                 SELECT od.*, r.repository_path as source_repo
-                 FROM org_dependencies od
-                 LEFT JOIN repositories r ON od.source_repository_id = r.id
-                 WHERE od.is_analyzed = FALSE
-                 ORDER BY od.group_id, od.artifact_id
-                 """)) {
+                PreparedStatement stmt = conn.prepareStatement("""
+                        SELECT od.*, r.repository_path as source_repo
+                        FROM org_dependencies od
+                        LEFT JOIN repositories r ON od.source_repository_id = r.id
+                        WHERE od.is_analyzed = FALSE
+                        ORDER BY od.group_id, od.artifact_id
+                        """)) {
             try (ResultSet rs = stmt.executeQuery()) {
                 List<OrgDependencyInfo> deps = new ArrayList<>();
                 while (rs.next()) {
                     deps.add(new OrgDependencyInfo(
-                        rs.getString("group_id"),
-                        rs.getString("artifact_id"),
-                        rs.getString("version"),
-                        rs.getString("source_repo"),
-                        rs.getBoolean("is_analyzed"),
-                        null,
-                        rs.getBoolean("jakarta_ready"),
-                        rs.getString("migration_status")
-                    ));
+                            rs.getString("group_id"),
+                            rs.getString("artifact_id"),
+                            rs.getString("version"),
+                            rs.getString("source_repo"),
+                            rs.getBoolean("is_analyzed"),
+                            null,
+                            rs.getBoolean("jakarta_ready"),
+                            rs.getString("migration_status")));
                 }
                 return deps;
             }
@@ -419,17 +440,17 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
      * Marks an organization dependency as analyzed.
      */
     public void markOrgDependencyAnalyzed(String groupId, String artifactId, String version,
-                                          boolean jakartaReady, String migrationStatus) {
+            boolean jakartaReady, String migrationStatus) {
         try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement("""
-                 UPDATE org_dependencies SET
-                     is_analyzed = TRUE,
-                     analyzed_at = datetime('now'),
-                     jakarta_ready = ?,
-                     migration_status = ?,
-                     updated_at = datetime('now')
-                 WHERE group_id = ? AND artifact_id = ? AND (version = ? OR version IS NULL)
-                 """)) {
+                PreparedStatement stmt = conn.prepareStatement("""
+                        UPDATE org_dependencies SET
+                            is_analyzed = TRUE,
+                            analyzed_at = datetime('now'),
+                            jakarta_ready = ?,
+                            migration_status = ?,
+                            updated_at = datetime('now')
+                        WHERE group_id = ? AND artifact_id = ? AND (version = ? OR version IS NULL)
+                        """)) {
             stmt.setBoolean(1, jakartaReady);
             stmt.setString(2, migrationStatus);
             stmt.setString(3, groupId);
@@ -460,19 +481,19 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
 
             // Count org dependencies
             long orgDepsCount = report.dependencyGraph().getNodes().stream()
-                .filter(a -> isOrgDependency(a.groupId()))
-                .count();
+                    .filter(a -> isOrgDependency(a.groupId()))
+                    .count();
 
             // Insert analysis report
             long reportId;
             try (PreparedStatement stmt = conn.prepareStatement("""
-                INSERT INTO analysis_reports (
-                    repository_path, total_dependencies, direct_dependencies,
-                    transitive_dependencies, org_dependencies,
-                    jakarta_ready_count, needs_migration_count,
-                    blocked_count, readiness_score, risk_level, raw_report
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, Statement.RETURN_GENERATED_KEYS)) {
+                    INSERT INTO analysis_reports (
+                        repository_path, total_dependencies, direct_dependencies,
+                        transitive_dependencies, org_dependencies,
+                        jakarta_ready_count, needs_migration_count,
+                        blocked_count, readiness_score, risk_level, raw_report
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, Statement.RETURN_GENERATED_KEYS)) {
 
                 Set<Artifact> allArtifacts = report.dependencyGraph().getNodes();
                 stmt.setString(1, repositoryPath.toString());
@@ -507,9 +528,9 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
 
             // Update last analyzed timestamp
             try (PreparedStatement stmt = conn.prepareStatement("""
-                UPDATE repositories SET last_analyzed_at = datetime('now')
-                WHERE repository_path = ?
-                """)) {
+                    UPDATE repositories SET last_analyzed_at = datetime('now')
+                    WHERE repository_path = ?
+                    """)) {
                 stmt.setString(1, repositoryPath.toString());
                 stmt.executeUpdate();
             }
@@ -521,6 +542,80 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
         }
     }
 
+    /**
+     * Gets the latest dependency analysis report for a repository.
+     */
+    public DependencyAnalysisReport getLatestAnalysisReport(Path repositoryPath) {
+        try (Connection conn = getConnection();
+                PreparedStatement stmt = conn.prepareStatement("""
+                        SELECT raw_report FROM analysis_reports
+                        WHERE repository_path = ?
+                        ORDER BY analysis_time DESC LIMIT 1
+                        """)) {
+            stmt.setString(1, repositoryPath.toString());
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String rawReportJson = rs.getString("raw_report");
+                    if (rawReportJson != null && !rawReportJson.isEmpty()) {
+                        return objectMapper.fromJson(rawReportJson, DependencyAnalysisReport.class);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Failed to get latest analysis report", e);
+        }
+        return null;
+    }
+
+    // ==================== Plugin State Operations ====================
+
+    /**
+     * Saves arbitrary JSON state for the plugin.
+     */
+    public void savePluginState(Path repositoryPath, String stateKey, String stateJson) {
+        // Ensure repository exists before referencing it
+        registerRepository(repositoryPath, false);
+
+        try (Connection conn = getConnection();
+                PreparedStatement stmt = conn.prepareStatement("""
+                        INSERT INTO plugin_state (repository_path, state_key, state_json, updated_at)
+                        VALUES (?, ?, ?, datetime('now'))
+                        ON CONFLICT(repository_path, state_key) DO UPDATE SET
+                            state_json = excluded.state_json,
+                            updated_at = datetime('now')
+                        """)) {
+            stmt.setString(1, repositoryPath.toString());
+            stmt.setString(2, stateKey);
+            stmt.setString(3, stateJson);
+            stmt.executeUpdate();
+            conn.commit();
+        } catch (SQLException e) {
+            log.error("Failed to save plugin state", e);
+        }
+    }
+
+    /**
+     * Retrieves arbitrary JSON state for the plugin.
+     */
+    public String getPluginState(Path repositoryPath, String stateKey) {
+        try (Connection conn = getConnection();
+                PreparedStatement stmt = conn.prepareStatement("""
+                        SELECT state_json FROM plugin_state
+                        WHERE repository_path = ? AND state_key = ?
+                        """)) {
+            stmt.setString(1, repositoryPath.toString());
+            stmt.setString(2, stateKey);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("state_json");
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Failed to get plugin state", e);
+        }
+        return null;
+    }
+
     // ==================== Dependency Operations ====================
 
     /**
@@ -528,25 +623,24 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
      */
     public List<DependencyInfo> getDependencies(Path repositoryPath) {
         try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement("""
-                 SELECT * FROM dependencies WHERE repository_path = ? ORDER BY group_id, artifact_id
-                 """)) {
+                PreparedStatement stmt = conn.prepareStatement("""
+                        SELECT * FROM dependencies WHERE repository_path = ? ORDER BY group_id, artifact_id
+                        """)) {
             stmt.setString(1, repositoryPath.toString());
             try (ResultSet rs = stmt.executeQuery()) {
                 List<DependencyInfo> deps = new ArrayList<>();
                 while (rs.next()) {
                     String namespace = rs.getBoolean("is_org_dependency") ? "INTERNAL" : "EXTERNAL";
                     deps.add(new DependencyInfo(
-                        rs.getString("group_id"),
-                        rs.getString("artifact_id"),
-                        rs.getString("version"),
-                        rs.getString("scope"),
-                        namespace,
-                        rs.getString("namespace"),
-                        rs.getBoolean("is_jakarta_compatible"),
-                        rs.getString("risk_level"),
-                        rs.getString("migration_status")
-                    ));
+                            rs.getString("group_id"),
+                            rs.getString("artifact_id"),
+                            rs.getString("version"),
+                            rs.getString("scope"),
+                            namespace,
+                            rs.getString("namespace"),
+                            rs.getBoolean("is_jakarta_compatible"),
+                            rs.getString("risk_level"),
+                            rs.getString("migration_status")));
                 }
                 return deps;
             }
@@ -560,24 +654,23 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
      */
     public List<DependencyInfo> getAllDependencies() {
         try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("""
-                 SELECT * FROM dependencies ORDER BY repository_path, group_id, artifact_id
-                 """)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery("""
+                        SELECT * FROM dependencies ORDER BY repository_path, group_id, artifact_id
+                        """)) {
             List<DependencyInfo> deps = new ArrayList<>();
             while (rs.next()) {
                 String namespace = rs.getBoolean("is_org_dependency") ? "INTERNAL" : "EXTERNAL";
                 deps.add(new DependencyInfo(
-                    rs.getString("group_id"),
-                    rs.getString("artifact_id"),
-                    rs.getString("version"),
-                    rs.getString("scope"),
-                    namespace,
-                    rs.getString("namespace"),
-                    rs.getBoolean("is_jakarta_compatible"),
-                    rs.getString("risk_level"),
-                    rs.getString("migration_status")
-                ));
+                        rs.getString("group_id"),
+                        rs.getString("artifact_id"),
+                        rs.getString("version"),
+                        rs.getString("scope"),
+                        namespace,
+                        rs.getString("namespace"),
+                        rs.getBoolean("is_jakarta_compatible"),
+                        rs.getString("risk_level"),
+                        rs.getString("migration_status")));
             }
             return deps;
         } catch (SQLException e) {
@@ -588,7 +681,7 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
     // ==================== Utility Methods ====================
 
     private void saveDependencies(Connection conn, Path repositoryPath, DependencyAnalysisReport report,
-                                  NamespaceCompatibilityMap namespaceMap) throws SQLException {
+            NamespaceCompatibilityMap namespaceMap) throws SQLException {
         String path = repositoryPath.toString();
 
         // Clear existing dependencies
@@ -602,11 +695,11 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
             boolean isOrg = isOrgDependency(artifact.groupId());
 
             try (PreparedStatement stmt = conn.prepareStatement("""
-                INSERT INTO dependencies (
-                    repository_path, group_id, artifact_id, version, scope,
-                    is_direct, is_org_dependency, namespace, is_jakarta_compatible, risk_level, migration_status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """)) {
+                    INSERT INTO dependencies (
+                        repository_path, group_id, artifact_id, version, scope,
+                        is_direct, is_org_dependency, namespace, is_jakarta_compatible, risk_level, migration_status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """)) {
                 stmt.setString(1, path);
                 stmt.setString(2, artifact.groupId());
                 stmt.setString(3, artifact.artifactId());
@@ -623,7 +716,8 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
         }
     }
 
-    private void saveDependencyEdges(Connection conn, Path repositoryPath, DependencyAnalysisReport report) throws SQLException {
+    private void saveDependencyEdges(Connection conn, Path repositoryPath, DependencyAnalysisReport report)
+            throws SQLException {
         String path = repositoryPath.toString();
 
         try (Statement stmt = conn.createStatement()) {
@@ -631,10 +725,11 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
         }
 
         for (Dependency dep : report.dependencyGraph().getEdges()) {
-            try (PreparedStatement stmt = conn.prepareStatement("""
-                INSERT INTO dependency_edges (repository_path, from_group_id, from_artifact_id, to_group_id, to_artifact_id)
-                VALUES (?, ?, ?, ?, ?)
-                """)) {
+            try (PreparedStatement stmt = conn.prepareStatement(
+                    """
+                            INSERT INTO dependency_edges (repository_path, from_group_id, from_artifact_id, to_group_id, to_artifact_id)
+                            VALUES (?, ?, ?, ?, ?)
+                            """)) {
                 stmt.setString(1, path);
                 stmt.setString(2, dep.from().groupId());
                 stmt.setString(3, dep.from().artifactId());
@@ -645,7 +740,8 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
         }
     }
 
-    private void saveBlockers(Connection conn, Path repositoryPath, long reportId, List<Blocker> blockers) throws SQLException {
+    private void saveBlockers(Connection conn, Path repositoryPath, long reportId, List<Blocker> blockers)
+            throws SQLException {
         String path = repositoryPath.toString();
 
         try (Statement stmt = conn.createStatement()) {
@@ -653,10 +749,11 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
         }
 
         for (Blocker blocker : blockers) {
-            try (PreparedStatement stmt = conn.prepareStatement("""
-                INSERT INTO blockers (repository_path, analysis_report_id, blocker_type, description, affected_artifact, confidence)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """)) {
+            try (PreparedStatement stmt = conn.prepareStatement(
+                    """
+                            INSERT INTO blockers (repository_path, analysis_report_id, blocker_type, description, affected_artifact, confidence)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            """)) {
                 stmt.setString(1, path);
                 stmt.setLong(2, reportId);
                 stmt.setString(3, blocker.type().name());
@@ -669,7 +766,7 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
     }
 
     private void saveRecommendations(Connection conn, Path repositoryPath, long reportId,
-                                     List<VersionRecommendation> recommendations) throws SQLException {
+            List<VersionRecommendation> recommendations) throws SQLException {
         String path = repositoryPath.toString();
 
         try (Statement stmt = conn.createStatement()) {
@@ -677,17 +774,19 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
         }
 
         for (VersionRecommendation rec : recommendations) {
-            try (PreparedStatement stmt = conn.prepareStatement("""
-                INSERT INTO recommendations (repository_path, analysis_report_id, category, priority, description, action, estimated_effort)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """)) {
+            try (PreparedStatement stmt = conn.prepareStatement(
+                    """
+                            INSERT INTO recommendations (repository_path, analysis_report_id, category, priority, description, action, estimated_effort)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """)) {
                 stmt.setString(1, path);
                 stmt.setLong(2, reportId);
                 stmt.setString(3, rec.currentArtifact().groupId() + ":" + rec.currentArtifact().artifactId());
                 stmt.setString(4, rec.compatibilityScore() > 0.8 ? "high" : "medium");
-                stmt.setString(5, "Upgrade " + rec.currentArtifact().groupId() + ":" + rec.currentArtifact().artifactId() +
-                    " from " + rec.currentArtifact().version() + " to " +
-                    (rec.recommendedArtifact() != null ? rec.recommendedArtifact().version() : "latest"));
+                stmt.setString(5,
+                        "Upgrade " + rec.currentArtifact().groupId() + ":" + rec.currentArtifact().artifactId() +
+                                " from " + rec.currentArtifact().version() + " to " +
+                                (rec.recommendedArtifact() != null ? rec.recommendedArtifact().version() : "latest"));
                 stmt.setString(6, "Update dependency version in pom.xml/build.gradle");
                 stmt.setString(7, rec.compatibilityScore() > 0.8 ? "low" : "medium");
                 stmt.executeUpdate();
@@ -697,17 +796,17 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
 
     private int countJakartaReady(Set<Artifact> artifacts, NamespaceCompatibilityMap namespaceMap) {
         return (int) artifacts.stream()
-            .filter(a -> namespaceMap.get(a) == Namespace.JAKARTA)
-            .count();
+                .filter(a -> namespaceMap.get(a) == Namespace.JAKARTA)
+                .count();
     }
 
     private int countNeedsMigration(Set<Artifact> artifacts, NamespaceCompatibilityMap namespaceMap) {
         return (int) artifacts.stream()
-            .filter(a -> {
-                Namespace ns = namespaceMap.get(a);
-                return ns == Namespace.JAVAX || ns == Namespace.MIXED;
-            })
-            .count();
+                .filter(a -> {
+                    Namespace ns = namespaceMap.get(a);
+                    return ns == Namespace.JAVAX || ns == Namespace.MIXED;
+                })
+                .count();
     }
 
     private String determineRiskLevel(Namespace namespace) {
@@ -727,8 +826,10 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
     }
 
     private String riskLevelFromScore(double score) {
-        if (score < 0.3) return "LOW";
-        if (score < 0.7) return "MEDIUM";
+        if (score < 0.3)
+            return "LOW";
+        if (score < 0.7)
+            return "MEDIUM";
         return "HIGH";
     }
 
@@ -755,38 +856,38 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
      * Dependency info with classification (INTERNAL/EXTERNAL).
      */
     public record DependencyInfo(
-        String groupId,
-        String artifactId,
-        String version,
-        String scope,
-        String classification, // "INTERNAL" or "EXTERNAL"
-        String namespace,
-        boolean isJakartaCompatible,
-        String riskLevel,
-        String migrationStatus
-    ) {}
+            String groupId,
+            String artifactId,
+            String version,
+            String scope,
+            String classification, // "INTERNAL" or "EXTERNAL"
+            String namespace,
+            boolean isJakartaCompatible,
+            String riskLevel,
+            String migrationStatus) {
+    }
 
     /**
      * Organization dependency info with analysis status.
      */
     public record OrgDependencyInfo(
-        String groupId,
-        String artifactId,
-        String version,
-        String sourceRepository,
-        boolean isAnalyzed,
-        Instant analyzedAt,
-        boolean jakartaReady,
-        String migrationStatus
-    ) {}
+            String groupId,
+            String artifactId,
+            String version,
+            String sourceRepository,
+            boolean isAnalyzed,
+            Instant analyzedAt,
+            boolean jakartaReady,
+            String migrationStatus) {
+    }
 
     /**
      * Repository info.
      */
     public record RepositoryInfo(
-        String repositoryPath,
-        String repositoryName,
-        boolean isOrgRepo,
-        Instant lastAnalyzedAt
-    ) {}
+            String repositoryPath,
+            String repositoryName,
+            boolean isOrgRepo,
+            Instant lastAnalyzedAt) {
+    }
 }
