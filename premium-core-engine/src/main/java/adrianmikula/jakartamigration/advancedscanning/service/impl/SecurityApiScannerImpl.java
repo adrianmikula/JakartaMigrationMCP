@@ -10,7 +10,6 @@ import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.J.CompilationUnit;
 import org.openrewrite.SourceFile;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -18,7 +17,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
+import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 
 @Slf4j
 public class SecurityApiScannerImpl implements SecurityApiScanner {
@@ -28,65 +28,73 @@ public class SecurityApiScannerImpl implements SecurityApiScanner {
 
     static {
         // JAAS - Java Authentication and Authorization Service
-        SECURITY_APIS.put("javax.security.auth.callback.CallbackHandler", 
-            new SecurityApiInfo("jakarta.security.auth.callback.CallbackHandler", "JAAS"));
-        SECURITY_APIS.put("javax.security.auth.login.LoginContext", 
-            new SecurityApiInfo("jakarta.security.auth.login.LoginContext", "JAAS"));
-        SECURITY_APIS.put("javax.security.auth.Subject", 
-            new SecurityApiInfo("jakarta.security.auth.Subject", "JAAS"));
-        SECURITY_APIS.put("javax.security.auth.spi.LoginModule", 
-            new SecurityApiInfo("jakarta.security.auth.spi.LoginModule", "JAAS"));
-        SECURITY_APIS.put("javax.security.auth.AuthPermission", 
-            new SecurityApiInfo("jakarta.security.auth.AuthPermission", "JAAS"));
-        
+        SECURITY_APIS.put("javax.security.auth.callback.CallbackHandler",
+                new SecurityApiInfo("jakarta.security.auth.callback.CallbackHandler", "JAAS"));
+        SECURITY_APIS.put("javax.security.auth.login.LoginContext",
+                new SecurityApiInfo("jakarta.security.auth.login.LoginContext", "JAAS"));
+        SECURITY_APIS.put("javax.security.auth.Subject",
+                new SecurityApiInfo("jakarta.security.auth.Subject", "JAAS"));
+        SECURITY_APIS.put("javax.security.auth.spi.LoginModule",
+                new SecurityApiInfo("jakarta.security.auth.spi.LoginModule", "JAAS"));
+        SECURITY_APIS.put("javax.security.auth.AuthPermission",
+                new SecurityApiInfo("jakarta.security.auth.AuthPermission", "JAAS"));
+
         // JACC - Java Authorization Contract for Containers
-        SECURITY_APIS.put("javax.security.jacc.PolicyContext", 
-            new SecurityApiInfo("jakarta.security.jacc.PolicyContext", "JACC"));
-        SECURITY_APIS.put("javax.security.jacc.PolicyContextException", 
-            new SecurityApiInfo("jakarta.security.jacc.PolicyContextException", "JACC"));
-        SECURITY_APIS.put("javax.security.jacc.PolicyConfiguration", 
-            new SecurityApiInfo("jakarta.security.jacc.PolicyConfiguration", "JACC"));
-        SECURITY_APIS.put("javax.security.jacc.PolicyConfigurationFactory", 
-            new SecurityApiInfo("jakarta.security.jacc.PolicyConfigurationFactory", "JACC"));
-        SECURITY_APIS.put("javax.security.jacc.WebResourcePermission", 
-            new SecurityApiInfo("jakarta.security.jacc.WebResourcePermission", "JACC"));
-        SECURITY_APIS.put("javax.security.jacc.WebRoleRefPermission", 
-            new SecurityApiInfo("jakarta.security.jacc.WebRoleRefPermission", "JACC"));
-        SECURITY_APIS.put("javax.security.jacc.EJBRoleRefPermission", 
-            new SecurityApiInfo("jakarta.security.jacc.EJBRoleRefPermission", "JACC"));
-        
+        SECURITY_APIS.put("javax.security.jacc.PolicyContext",
+                new SecurityApiInfo("jakarta.security.jacc.PolicyContext", "JACC"));
+        SECURITY_APIS.put("javax.security.jacc.PolicyContextException",
+                new SecurityApiInfo("jakarta.security.jacc.PolicyContextException", "JACC"));
+        SECURITY_APIS.put("javax.security.jacc.PolicyConfiguration",
+                new SecurityApiInfo("jakarta.security.jacc.PolicyConfiguration", "JACC"));
+        SECURITY_APIS.put("javax.security.jacc.PolicyConfigurationFactory",
+                new SecurityApiInfo("jakarta.security.jacc.PolicyConfigurationFactory", "JACC"));
+        SECURITY_APIS.put("javax.security.jacc.WebResourcePermission",
+                new SecurityApiInfo("jakarta.security.jacc.WebResourcePermission", "JACC"));
+        SECURITY_APIS.put("javax.security.jacc.WebRoleRefPermission",
+                new SecurityApiInfo("jakarta.security.jacc.WebRoleRefPermission", "JACC"));
+        SECURITY_APIS.put("javax.security.jacc.EJBRoleRefPermission",
+                new SecurityApiInfo("jakarta.security.jacc.EJBRoleRefPermission", "JACC"));
+
         // Security API (JSR 375) - but this was added in Java EE 8
-        SECURITY_APIS.put("javax.security.enterprise.SecurityContext", 
-            new SecurityApiInfo("jakarta.security.enterprise.SecurityContext", "Security API"));
-        SECURITY_APIS.put("javax.security.enterprise.authentication.mechanism.http.HttpAuthenticationMechanism", 
-            new SecurityApiInfo("jakarta.security.enterprise.authentication.mechanism.http.HttpAuthenticationMechanism", "Security API"));
-        SECURITY_APIS.put("javax.security.enterprise.identitystore.IdentityStore", 
-            new SecurityApiInfo("jakarta.security.enterprise.identitystore.IdentityStore", "Security API"));
-        SECURITY_APIS.put("javax.security.enterprise.identitystore.IdentityStoreHandler", 
-            new SecurityApiInfo("jakarta.security.enterprise.identitystore.IdentityStoreHandler", "Security API"));
-        SECURITY_APIS.put("javax.security.enterprise.identitystore.LdapIdentityStoreDefinition", 
-            new SecurityApiInfo("jakarta.security.enterprise.identitystore.LdapIdentityStoreDefinition", "Security API"));
-        SECURITY_APIS.put("javax.security.enterprise.identitystore.DatabaseIdentityStoreDefinition", 
-            new SecurityApiInfo("jakarta.security.enterprise.identitystore.DatabaseIdentityStoreDefinition", "Security API"));
-        SECURITY_APIS.put("javax.security.enterprise.identitystore.Credential", 
-            new SecurityApiInfo("jakarta.security.enterprise.identitystore.Credential", "Security API"));
-        SECURITY_APIS.put("javax.security.enterprise.identitystore.IdentityStore.ValidationType", 
-            new SecurityApiInfo("jakarta.security.enterprise.identitystore.IdentityStore.ValidationType", "Security API"));
-        
+        SECURITY_APIS.put("javax.security.enterprise.SecurityContext",
+                new SecurityApiInfo("jakarta.security.enterprise.SecurityContext", "Security API"));
+        SECURITY_APIS.put("javax.security.enterprise.authentication.mechanism.http.HttpAuthenticationMechanism",
+                new SecurityApiInfo(
+                        "jakarta.security.enterprise.authentication.mechanism.http.HttpAuthenticationMechanism",
+                        "Security API"));
+        SECURITY_APIS.put("javax.security.enterprise.identitystore.IdentityStore",
+                new SecurityApiInfo("jakarta.security.enterprise.identitystore.IdentityStore", "Security API"));
+        SECURITY_APIS.put("javax.security.enterprise.identitystore.IdentityStoreHandler",
+                new SecurityApiInfo("jakarta.security.enterprise.identitystore.IdentityStoreHandler", "Security API"));
+        SECURITY_APIS.put("javax.security.enterprise.identitystore.LdapIdentityStoreDefinition",
+                new SecurityApiInfo("jakarta.security.enterprise.identitystore.LdapIdentityStoreDefinition",
+                        "Security API"));
+        SECURITY_APIS.put("javax.security.enterprise.identitystore.DatabaseIdentityStoreDefinition",
+                new SecurityApiInfo("jakarta.security.enterprise.identitystore.DatabaseIdentityStoreDefinition",
+                        "Security API"));
+        SECURITY_APIS.put("javax.security.enterprise.identitystore.Credential",
+                new SecurityApiInfo("jakarta.security.enterprise.identitystore.Credential", "Security API"));
+        SECURITY_APIS.put("javax.security.enterprise.identitystore.IdentityStore.ValidationType",
+                new SecurityApiInfo("jakarta.security.enterprise.identitystore.IdentityStore.ValidationType",
+                        "Security API"));
+
         // Additional security-related classes
-        SECURITY_APIS.put("javax.security.cert.X509Certificate", 
-            new SecurityApiInfo("java.security.cert.X509Certificate (moved to standard Java)", "Certificate"));
+        SECURITY_APIS.put("javax.security.cert.X509Certificate",
+                new SecurityApiInfo("java.security.cert.X509Certificate (moved to standard Java)", "Certificate"));
     }
 
-    private record SecurityApiInfo(String jakartaEquivalent, String category) {}
+    private record SecurityApiInfo(String jakartaEquivalent, String category) {
+    }
 
-    private final ThreadLocal<JavaParser> javaParserThreadLocal = ThreadLocal.withInitial(() -> JavaParser.fromJavaVersion().build());
+    private final ThreadLocal<JavaParser> javaParserThreadLocal = ThreadLocal
+            .withInitial(() -> JavaParser.fromJavaVersion().build());
+
+    private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
 
     // Pattern for javax.security imports
     private static final Pattern SECURITY_IMPORT_PATTERN = Pattern.compile(
-        "import\\s+javax\\.security[\\.\\w]*;",
-        Pattern.MULTILINE
-    );
+            "import\\s+javax\\.security[\\.\\w]*;",
+            Pattern.MULTILINE);
 
     @Override
     public SecurityApiProjectScanResult scanProject(Path projectPath) {
@@ -96,17 +104,18 @@ public class SecurityApiScannerImpl implements SecurityApiScanner {
 
         try {
             List<Path> javaFiles = discoverJavaFiles(projectPath);
-            if (javaFiles.isEmpty()) return SecurityApiProjectScanResult.empty();
+            if (javaFiles.isEmpty())
+                return SecurityApiProjectScanResult.empty();
 
             AtomicInteger totalScanned = new AtomicInteger(0);
             List<SecurityApiScanResult> results = javaFiles.parallelStream()
-                .map(file -> {
-                    totalScanned.incrementAndGet();
-                    SecurityApiScanResult result = scanFile(file);
-                    return result.hasJavaxUsage() ? result : null;
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                    .map(file -> {
+                        totalScanned.incrementAndGet();
+                        SecurityApiScanResult result = scanFile(file);
+                        return result.hasJavaxUsage() ? result : null;
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
 
             int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
 
@@ -152,7 +161,8 @@ public class SecurityApiScannerImpl implements SecurityApiScanner {
             parser.reset();
 
             List<SourceFile> sourceFiles = parser.parse(content).collect(Collectors.toList());
-            if (sourceFiles.isEmpty()) return SecurityApiScanResult.empty(filePath);
+            if (sourceFiles.isEmpty())
+                return SecurityApiScanResult.empty(filePath);
 
             List<SecurityApiUsage> usages = new ArrayList<>();
             for (SourceFile sourceFile : sourceFiles) {
@@ -169,19 +179,7 @@ public class SecurityApiScannerImpl implements SecurityApiScanner {
     }
 
     private List<Path> discoverJavaFiles(Path projectPath) {
-        try (Stream<Path> paths = Files.walk(projectPath)) {
-            return paths.filter(Files::isRegularFile)
-                .filter(p -> p.toString().endsWith(".java"))
-                .filter(this::shouldScanFile)
-                .collect(Collectors.toList());
-        } catch (IOException e) {
-            return List.of();
-        }
-    }
-
-    private boolean shouldScanFile(Path file) {
-        String path = file.toString().replace('\\', '/');
-        return !path.contains("/target/") && !path.contains("/build/") && !path.contains("/.git/");
+        return fileScanner.findFiles(projectPath, List.of(".java"));
     }
 
     private List<SecurityApiUsage> extractSecurityApis(CompilationUnit cu, String content, List<String> foundImports) {
@@ -192,7 +190,8 @@ public class SecurityApiScannerImpl implements SecurityApiScanner {
             SecurityApiInfo info = SECURITY_APIS.get(importName);
             if (info != null) {
                 int lineNumber = findLineNumber(lines, importName);
-                usages.add(new SecurityApiUsage(importName, null, info.jakartaEquivalent(), lineNumber, info.category()));
+                usages.add(
+                        new SecurityApiUsage(importName, null, info.jakartaEquivalent(), lineNumber, info.category()));
             }
         }
 
@@ -201,7 +200,8 @@ public class SecurityApiScannerImpl implements SecurityApiScanner {
 
     private int findLineNumber(String[] lines, String searchText) {
         for (int i = 0; i < lines.length; i++) {
-            if (lines[i].contains(searchText)) return i + 1;
+            if (lines[i].contains(searchText))
+                return i + 1;
         }
         return 1;
     }

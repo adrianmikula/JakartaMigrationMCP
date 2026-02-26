@@ -13,38 +13,38 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
+import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 
 /**
  * Scanner implementation for detecting javax.logging and JMX API usage.
- * Helps identify observability/monitoring code that needs migration to Jakarta EE.
+ * Helps identify observability/monitoring code that needs migration to Jakarta
+ * EE.
  */
 @Slf4j
 public class LoggingMetricsScannerImpl implements LoggingMetricsScanner {
 
+    private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
+
     // Patterns to detect javax.logging usage
     private static final Pattern LOGGER_PATTERN = Pattern.compile(
-        "import\\s+javax\\.logging\\.([^;]+);|" +
-        "Logger\\s+\\w+\\s*=\\s*Logger\\.getLogger\\(|" +
-        "\\.getLogger\\(\\s*\"[^\"]+\"\\s*\\)|" +
-        "import\\s+java\\.util\\.logging\\.Logger;"
-    );
+            "import\\s+javax\\.logging\\.([^;]+);|" +
+                    "Logger\\s+\\w+\\s*=\\s*Logger\\.getLogger\\(|" +
+                    "\\.getLogger\\(\\s*\"[^\"]+\"\\s*\\)|" +
+                    "import\\s+java\\.util\\.logging\\.Logger;");
 
     // Patterns to detect JMX-related usage
     private static final Pattern JMX_PATTERN = Pattern.compile(
-        "import\\s+javax\\.management\\.([^;]+);|" +
-        "import\\s+javax\\.management\\.monitoring\\.([^;]+);|" +
-        "import\\s+javax\\.management\\.modelmbean\\.([^;]+);|" +
-        "import\\s+javax\\.management\\.remote\\.([^;]+);|" +
-        "MBeanServer|ObjectName|JMXConnectorServer|JMXConnectorClient"
-    );
+            "import\\s+javax\\.management\\.([^;]+);|" +
+                    "import\\s+javax\\.management\\.monitoring\\.([^;]+);|" +
+                    "import\\s+javax\\.management\\.modelmbean\\.([^;]+);|" +
+                    "import\\s+javax\\.management\\.remote\\.([^;]+);|" +
+                    "MBeanServer|ObjectName|JMXConnectorServer|JMXConnectorClient");
 
     // Patterns for javax.annotation processing (for logging via annotations)
     private static final Pattern ANNOTATION_PATTERN = Pattern.compile(
-        "import\\s+javax\\.annotation\\.([^;]+);|" +
-        "@PostConstruct|@PreDestroy"
-    );
+            "import\\s+javax\\.annotation\\.([^;]+);|" +
+                    "@PostConstruct|@PreDestroy");
 
     // File extensions to scan
     private static final Set<String> SCAN_EXTENSIONS = Set.of(".java", ".xml", ".properties");
@@ -52,18 +52,15 @@ public class LoggingMetricsScannerImpl implements LoggingMetricsScanner {
     @Override
     public LoggingMetricsProjectScanResult scanProject(Path projectPath) {
         log.info("Starting logging/metrics scan for project: {}", projectPath);
-        
+
         List<LoggingMetricsScanResult> fileResults = new ArrayList<>();
-        
-        try (Stream<Path> paths = Files.walk(projectPath)) {
-            List<Path> javaFiles = paths
-                .filter(Files::isRegularFile)
-                .filter(this::shouldScan)
-                .collect(Collectors.toList());
-            
-            log.info("Found {} files to scan for logging/metrics", javaFiles.size());
-            
-            for (Path filePath : javaFiles) {
+
+        try {
+            List<Path> filesToScan = fileScanner.findFiles(projectPath, List.of(".java", ".xml", ".properties"));
+
+            log.info("Found {} files to scan for logging/metrics", filesToScan.size());
+
+            for (Path filePath : filesToScan) {
                 try {
                     LoggingMetricsScanResult result = scanFile(filePath);
                     if (result.hasFindings()) {
@@ -73,77 +70,68 @@ public class LoggingMetricsScannerImpl implements LoggingMetricsScanner {
                     log.warn("Error scanning file {}: {}", filePath, e.getMessage());
                 }
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Error walking project directory: {}", e.getMessage());
         }
-        
-        log.info("Logging/metrics scan complete. Found {} files with issues", fileResults.size());
-        
-        return new LoggingMetricsProjectScanResult(
-            projectPath.toString(),
-            fileResults
-        );
-    }
 
-    private boolean shouldScan(Path path) {
-        String fileName = path.getFileName().toString();
-        return SCAN_EXTENSIONS.stream().anyMatch(fileName::endsWith);
+        log.info("Logging/metrics scan complete. Found {} files with issues", fileResults.size());
+
+        return new LoggingMetricsProjectScanResult(
+                projectPath.toString(),
+                fileResults);
     }
 
     private LoggingMetricsScanResult scanFile(Path filePath) {
         List<LoggingMetricsUsage> usages = new ArrayList<>();
-        
+
         try {
             String content = Files.readString(filePath);
             String[] lines = content.split("\\r?\\n");
-            
+
             for (int i = 0; i < lines.length; i++) {
                 String line = lines[i];
                 int lineNumber = i + 1;
-                
+
                 // Check for javax.logging usage
                 Matcher loggerMatcher = LOGGER_PATTERN.matcher(line);
                 if (loggerMatcher.find()) {
                     String usageType = detectUsageType(line, "javax.logging", "java.util.logging");
                     usages.add(new LoggingMetricsUsage(
-                        filePath.toString(),
-                        lineNumber,
-                        usageType,
-                        extractClassName(line),
-                        extractMethodName(line)
-                    ));
+                            filePath.toString(),
+                            lineNumber,
+                            usageType,
+                            extractClassName(line),
+                            extractMethodName(line)));
                 }
-                
+
                 // Check for JMX usage
                 Matcher jmxMatcher = JMX_PATTERN.matcher(line);
                 if (jmxMatcher.find()) {
                     String usageType = detectUsageType(line, "javax.management", "jakarta.management");
                     usages.add(new LoggingMetricsUsage(
-                        filePath.toString(),
-                        lineNumber,
-                        usageType,
-                        extractClassName(line),
-                        extractMethodName(line)
-                    ));
+                            filePath.toString(),
+                            lineNumber,
+                            usageType,
+                            extractClassName(line),
+                            extractMethodName(line)));
                 }
-                
+
                 // Check for javax.annotation usage
                 Matcher annotationMatcher = ANNOTATION_PATTERN.matcher(line);
                 if (annotationMatcher.find()) {
                     String usageType = detectUsageType(line, "javax.annotation", "jakarta.annotation");
                     usages.add(new LoggingMetricsUsage(
-                        filePath.toString(),
-                        lineNumber,
-                        usageType,
-                        extractClassName(line),
-                        extractMethodName(line)
-                    ));
+                            filePath.toString(),
+                            lineNumber,
+                            usageType,
+                            extractClassName(line),
+                            extractMethodName(line)));
                 }
             }
         } catch (IOException e) {
             log.warn("Error reading file {}: {}", filePath, e.getMessage());
         }
-        
+
         return new LoggingMetricsScanResult(filePath.toString(), usages);
     }
 

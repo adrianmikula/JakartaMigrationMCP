@@ -6,6 +6,7 @@ import adrianmikula.jakartamigration.advancedscanning.service.*;
 import com.intellij.openapi.diagnostic.Logger;
 
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Service for performing advanced scanning using premium core engine.
@@ -15,147 +16,120 @@ public class AdvancedScanningService {
     private static final Logger LOG = Logger.getInstance(AdvancedScanningService.class);
 
     private final AdvancedScanningModule scanningModule;
-    private final JpaAnnotationScanner jpaScanner;
-    private final BeanValidationScanner beanValidationScanner;
-    private final ServletJspScanner servletJspScanner;
-    private final CdiInjectionScanner cdiInjectionScanner;
-    private final BuildConfigScanner buildConfigScanner;
-    private final RestSoapScanner restSoapScanner;
-    private final DeprecatedApiScanner deprecatedApiScanner;
-    private final SecurityApiScanner securityApiScanner;
-    private final JmsMessagingScanner jmsMessagingScanner;
-    private final TransitiveDependencyScanner transitiveDependencyScanner;
-    private final ConfigFileScanner configFileScanner;
-    private final ClassloaderModuleScanner classloaderModuleScanner;
-    private final LoggingMetricsScanner loggingMetricsScanner;
-    private final SerializationCacheScanner serializationCacheScanner;
     private final ThirdPartyLibScanner thirdPartyLibScanner;
 
-    // Cache for the last scan results
-    private AdvancedScanSummary cachedSummary;
+    // Cache for the last scan results using SoftReference to prevent OOM
+    private java.lang.ref.SoftReference<AdvancedScanSummary> cachedSummaryRef = new java.lang.ref.SoftReference<>(null);
     private Path cachedProjectPath;
     private long lastScanTime;
 
     private static final long CACHE_VALIDITY_MS = 5 * 60 * 1000; // 5 minutes
+    private final java.util.concurrent.ExecutorService scanExecutor = java.util.concurrent.Executors
+            .newWorkStealingPool();
 
     public AdvancedScanningService() {
         // Initialize the scanning module
         this.scanningModule = new AdvancedScanningModule();
-        this.jpaScanner = scanningModule.getJpaAnnotationScanner();
-        this.beanValidationScanner = scanningModule.getBeanValidationScanner();
-        this.servletJspScanner = scanningModule.getServletJspScanner();
-        this.cdiInjectionScanner = scanningModule.getCdiInjectionScanner();
-        this.buildConfigScanner = scanningModule.getBuildConfigScanner();
-        this.restSoapScanner = scanningModule.getRestSoapScanner();
-        this.deprecatedApiScanner = scanningModule.getDeprecatedApiScanner();
-        this.securityApiScanner = scanningModule.getSecurityApiScanner();
-        this.jmsMessagingScanner = scanningModule.getJmsMessagingScanner();
-        this.transitiveDependencyScanner = scanningModule.getTransitiveDependencyScanner();
-        this.configFileScanner = scanningModule.getConfigFileScanner();
-        this.classloaderModuleScanner = scanningModule.getClassloaderModuleScanner();
-        this.loggingMetricsScanner = scanningModule.getLoggingMetricsScanner();
-        this.serializationCacheScanner = scanningModule.getSerializationCacheScanner();
         this.thirdPartyLibScanner = scanningModule.getThirdPartyLibScanner();
 
-        LOG.info("AdvancedScanningService initialized with premium scanning features");
+        LOG.info("AdvancedScanningService initialized with parallel scanning and memory optimizations");
     }
 
     /**
-     * Scans a project for JPA/Hibernate annotations.
-     *
-     * @param projectPath Path to the project root directory
-     * @return JpaProjectScanResult containing the analysis results
-     */
-    public JpaProjectScanResult scanForJpaAnnotations(Path projectPath) {
-        LOG.info("Scanning for JPA annotations in: " + projectPath);
-        return jpaScanner.scanProject(projectPath);
-    }
-
-    /**
-     * Scans a project for Bean Validation constraints.
-     *
-     * @param projectPath Path to the project root directory
-     * @return BeanValidationProjectScanResult containing the analysis results
-     */
-    public BeanValidationProjectScanResult scanForBeanValidation(Path projectPath) {
-        LOG.info("Scanning for Bean Validation in: " + projectPath);
-        return beanValidationScanner.scanProject(projectPath);
-    }
-
-    /**
-     * Scans a project for Servlet/JSP usage.
-     *
-     * @param projectPath Path to the project root directory
-     * @return ServletJspProjectScanResult containing the analysis results
-     */
-    public ServletJspProjectScanResult scanForServletJsp(Path projectPath) {
-        LOG.info("Scanning for Servlet/JSP in: " + projectPath);
-        return servletJspScanner.scanProject(projectPath);
-    }
-
-    /**
-     * Scans a project for all advanced scanning types.
-     * Results are cached for 5 minutes.
+     * Scans a project for all advanced scanning types in parallel.
+     * Results are cached for 5 minutes using SoftReferences.
      *
      * @param projectPath Path to the project root directory
      * @return AdvancedScanSummary containing combined results
      */
     public AdvancedScanSummary scanAll(Path projectPath) {
-        LOG.info("Running all advanced scans in: " + projectPath);
+        LOG.info("Running parallel advanced scans in: " + projectPath);
 
+        AdvancedScanSummary existing = cachedSummaryRef.get();
         // Check if cached result is still valid
-        if (cachedSummary != null && cachedProjectPath != null
+        if (existing != null && cachedProjectPath != null
                 && cachedProjectPath.equals(projectPath)
                 && (System.currentTimeMillis() - lastScanTime) < CACHE_VALIDITY_MS) {
             LOG.info("Returning cached scan results");
-            return cachedSummary;
+            return existing;
         }
 
-        JpaProjectScanResult jpaResult = scanForJpaAnnotations(projectPath);
-        BeanValidationProjectScanResult beanValidationResult = scanForBeanValidation(projectPath);
-        ServletJspProjectScanResult servletJspResult = scanForServletJsp(projectPath);
-        CdiInjectionProjectScanResult cdiInjectionResult = scanForCdiInjection(projectPath);
-        BuildConfigProjectScanResult buildConfigResult = scanForBuildConfig(projectPath);
-        RestSoapProjectScanResult restSoapResult = scanForRestSoap(projectPath);
-        DeprecatedApiProjectScanResult deprecatedApiResult = scanForDeprecatedApi(projectPath);
-        SecurityApiProjectScanResult securityApiResult = scanForSecurityApi(projectPath);
-        JmsMessagingProjectScanResult jmsMessagingResult = scanForJmsMessaging(projectPath);
-        TransitiveDependencyProjectScanResult transitiveDependencyResult = scanForTransitiveDependencies(projectPath);
-        ConfigFileProjectScanResult configFileResult = scanForConfigFiles(projectPath);
-        ClassloaderModuleProjectScanResult classloaderModuleResult = scanForClassloaderModule(projectPath);
-        LoggingMetricsProjectScanResult loggingMetricsResult = scanForLoggingMetrics(projectPath);
-        SerializationCacheProjectScanResult serializationCacheResult = scanForSerializationCache(projectPath);
-        ThirdPartyLibProjectScanResult thirdPartyLibResult = scanForThirdPartyLib(projectPath);
+        try {
+            // Execute all scans in parallel
+            CompletableFuture<JpaProjectScanResult> jpaFuture = CompletableFuture
+                    .supplyAsync(() -> scanForJpaAnnotations(projectPath), scanExecutor);
+            CompletableFuture<BeanValidationProjectScanResult> bvFuture = CompletableFuture
+                    .supplyAsync(() -> scanForBeanValidation(projectPath), scanExecutor);
+            CompletableFuture<ServletJspProjectScanResult> sjFuture = CompletableFuture
+                    .supplyAsync(() -> scanForServletJsp(projectPath), scanExecutor);
+            CompletableFuture<CdiInjectionProjectScanResult> cdiFuture = CompletableFuture
+                    .supplyAsync(() -> scanForCdiInjection(projectPath), scanExecutor);
+            CompletableFuture<BuildConfigProjectScanResult> bcFuture = CompletableFuture
+                    .supplyAsync(() -> scanForBuildConfig(projectPath), scanExecutor);
+            CompletableFuture<RestSoapProjectScanResult> rsFuture = CompletableFuture
+                    .supplyAsync(() -> scanForRestSoap(projectPath), scanExecutor);
+            CompletableFuture<DeprecatedApiProjectScanResult> daFuture = CompletableFuture
+                    .supplyAsync(() -> scanForDeprecatedApi(projectPath), scanExecutor);
+            CompletableFuture<SecurityApiProjectScanResult> saFuture = CompletableFuture
+                    .supplyAsync(() -> scanForSecurityApi(projectPath), scanExecutor);
+            CompletableFuture<JmsMessagingProjectScanResult> jmFuture = CompletableFuture
+                    .supplyAsync(() -> scanForJmsMessaging(projectPath), scanExecutor);
+            CompletableFuture<TransitiveDependencyProjectScanResult> tdFuture = CompletableFuture
+                    .supplyAsync(() -> scanForTransitiveDependencies(projectPath), scanExecutor);
+            CompletableFuture<ConfigFileProjectScanResult> cfFuture = CompletableFuture
+                    .supplyAsync(() -> scanForConfigFiles(projectPath), scanExecutor);
+            CompletableFuture<ClassloaderModuleProjectScanResult> clFuture = CompletableFuture
+                    .supplyAsync(() -> scanForClassloaderModule(projectPath), scanExecutor);
+            CompletableFuture<LoggingMetricsProjectScanResult> lmFuture = CompletableFuture
+                    .supplyAsync(() -> scanForLoggingMetrics(projectPath), scanExecutor);
+            CompletableFuture<SerializationCacheProjectScanResult> scFuture = CompletableFuture
+                    .supplyAsync(() -> scanForSerializationCache(projectPath), scanExecutor);
+            CompletableFuture<ThirdPartyLibProjectScanResult> tpFuture = CompletableFuture
+                    .supplyAsync(() -> scanForThirdPartyLib(projectPath), scanExecutor);
 
-        cachedSummary = new AdvancedScanSummary(
-                jpaResult,
-                beanValidationResult,
-                servletJspResult,
-                cdiInjectionResult,
-                buildConfigResult,
-                restSoapResult,
-                deprecatedApiResult,
-                securityApiResult,
-                jmsMessagingResult,
-                transitiveDependencyResult,
-                configFileResult,
-                classloaderModuleResult,
-                loggingMetricsResult,
-                serializationCacheResult,
-                thirdPartyLibResult);
-        cachedProjectPath = projectPath;
-        lastScanTime = System.currentTimeMillis();
+            // Wait for all to complete
+            CompletableFuture.allOf(jpaFuture, bvFuture, sjFuture, cdiFuture, bcFuture, rsFuture, daFuture, saFuture,
+                    jmFuture, tdFuture, cfFuture, clFuture, lmFuture, scFuture, tpFuture).join();
 
-        return cachedSummary;
+            AdvancedScanSummary summary = new AdvancedScanSummary(
+                    jpaFuture.join(),
+                    bvFuture.join(),
+                    sjFuture.join(),
+                    cdiFuture.join(),
+                    bcFuture.join(),
+                    rsFuture.join(),
+                    daFuture.join(),
+                    saFuture.join(),
+                    jmFuture.join(),
+                    tdFuture.join(),
+                    cfFuture.join(),
+                    clFuture.join(),
+                    lmFuture.join(),
+                    scFuture.join(),
+                    tpFuture.join());
+
+            cachedSummaryRef = new java.lang.ref.SoftReference<>(summary);
+            cachedProjectPath = projectPath;
+            lastScanTime = System.currentTimeMillis();
+
+            // Suggest GC after heavy scan to reclaim memory from ASTs
+            System.gc();
+
+            return summary;
+        } catch (Exception e) {
+            LOG.error("Parallel scan failed", e);
+            throw new RuntimeException("Advanced scan failed", e);
+        }
     }
 
     /**
      * Gets the cached scan summary if available.
      * 
-     * @return Cached AdvancedScanSummary or null if no scan has been run
+     * @return Cached AdvancedScanSummary or null if no scan has been run or memory
+     *         was reclaimed
      */
     public AdvancedScanSummary getCachedSummary() {
-        return cachedSummary;
+        return cachedSummaryRef.get();
     }
 
     /**
@@ -164,72 +138,87 @@ public class AdvancedScanningService {
      * @param summary The summary to cache
      */
     public void setCachedSummary(AdvancedScanSummary summary) {
-        this.cachedSummary = summary;
+        this.cachedSummaryRef = new java.lang.ref.SoftReference<>(summary);
     }
 
     /**
      * Returns whether a scan has been performed and cached.
      * 
-     * @return true if cached results exist
+     * @return true if valid cached results exist
      */
     public boolean hasCachedResults() {
-        return cachedSummary != null;
+        return cachedSummaryRef.get() != null;
     }
 
     // Individual scan methods for each scanner type
+    public JpaProjectScanResult scanForJpaAnnotations(Path projectPath) {
+        LOG.info("Scanning for JPA annotations in: " + projectPath);
+        return scanningModule.getJpaAnnotationScanner().scanProject(projectPath);
+    }
+
+    public BeanValidationProjectScanResult scanForBeanValidation(Path projectPath) {
+        LOG.info("Scanning for Bean Validation in: " + projectPath);
+        return scanningModule.getBeanValidationScanner().scanProject(projectPath);
+    }
+
+    public ServletJspProjectScanResult scanForServletJsp(Path projectPath) {
+        LOG.info("Scanning for Servlet/JSP in: " + projectPath);
+        return scanningModule.getServletJspScanner().scanProject(projectPath);
+    }
+
     public CdiInjectionProjectScanResult scanForCdiInjection(Path projectPath) {
         LOG.info("Scanning for CDI Injection in: " + projectPath);
-        return cdiInjectionScanner.scanProject(projectPath);
+        return scanningModule.getCdiInjectionScanner().scanProject(projectPath);
     }
 
     public BuildConfigProjectScanResult scanForBuildConfig(Path projectPath) {
         LOG.info("Scanning for Build Config in: " + projectPath);
-        return buildConfigScanner.scanProject(projectPath);
+        return scanningModule.getBuildConfigScanner().scanProject(projectPath);
     }
 
     public RestSoapProjectScanResult scanForRestSoap(Path projectPath) {
         LOG.info("Scanning for REST/SOAP in: " + projectPath);
-        return restSoapScanner.scanProject(projectPath);
+        return scanningModule.getRestSoapScanner().scanProject(projectPath);
     }
 
     public DeprecatedApiProjectScanResult scanForDeprecatedApi(Path projectPath) {
         LOG.info("Scanning for Deprecated API in: " + projectPath);
-        return deprecatedApiScanner.scanProject(projectPath);
+        return scanningModule.getDeprecatedApiScanner().scanProject(projectPath);
     }
 
     public SecurityApiProjectScanResult scanForSecurityApi(Path projectPath) {
         LOG.info("Scanning for Security API in: " + projectPath);
-        return securityApiScanner.scanProject(projectPath);
+        return scanningModule.getSecurityApiScanner().scanProject(projectPath);
     }
 
     public JmsMessagingProjectScanResult scanForJmsMessaging(Path projectPath) {
         LOG.info("Scanning for JMS Messaging in: " + projectPath);
-        return jmsMessagingScanner.scanProject(projectPath);
+        return scanningModule.getJmsMessagingScanner().scanProject(projectPath);
     }
 
     public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(Path projectPath) {
         LOG.info("Scanning for Transitive Dependencies in: " + projectPath);
-        return transitiveDependencyScanner.scanProject(projectPath);
+        return scanningModule.getTransitiveDependencyScanner().scanProject(projectPath);
     }
 
     public ConfigFileProjectScanResult scanForConfigFiles(Path projectPath) {
         LOG.info("Scanning for Config Files in: " + projectPath);
-        return configFileScanner.scanProject(projectPath);
+        return scanningModule.getConfigFileScanner().scanProject(projectPath);
     }
 
     public ClassloaderModuleProjectScanResult scanForClassloaderModule(Path projectPath) {
         LOG.info("Scanning for Classloader/Module in: " + projectPath);
-        return classloaderModuleScanner.scanProject(projectPath);
+        return scanningModule.getClassloaderModuleScanner().scanProject(projectPath);
     }
 
     public LoggingMetricsProjectScanResult scanForLoggingMetrics(Path projectPath) {
         LOG.info("Scanning for Logging/Metrics in: " + projectPath);
-        return loggingMetricsScanner.scanProject(projectPath);
+        return scanningModule.getLoggingMetricsScanner().scanProject(projectPath);
     }
 
     public SerializationCacheProjectScanResult scanForSerializationCache(Path projectPath) {
         LOG.info("Scanning for Serialization/Cache in: " + projectPath);
-        return serializationCacheScanner.scanProject(projectPath);
+        return scanningModule.getSerializationCacheScanner().scanProject(projectPath);
     }
 
     public ThirdPartyLibProjectScanResult scanForThirdPartyLib(Path projectPath) {

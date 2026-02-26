@@ -11,11 +11,13 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
+import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 
 @Slf4j
 public class IntegrationPointsScannerImpl implements IntegrationPointsScanner {
+
+    private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
 
     private static final Map<String, String> INTEGRATION_PATTERNS = new HashMap<>();
     static {
@@ -35,18 +37,15 @@ public class IntegrationPointsScannerImpl implements IntegrationPointsScanner {
     public IntegrationPointsProjectScanResult scanProject(Path projectPath) {
         log.info("Starting integration points scan for project: {}", projectPath);
         List<IntegrationPointUsage> usages = new ArrayList<>();
-        
-        try (Stream<Path> paths = Files.walk(projectPath)) {
-            List<Path> javaFiles = paths
-                .filter(Files::isRegularFile)
-                .filter(p -> SCAN_EXTENSIONS.stream().anyMatch(p.toString()::endsWith))
-                .collect(Collectors.toList());
-            
+
+        try {
+            List<Path> javaFiles = fileScanner.findFiles(projectPath, List.of(".java"));
+
             for (Path filePath : javaFiles) {
                 try {
                     String content = Files.readString(filePath);
                     String[] lines = content.split("\\r?\\n");
-                    
+
                     for (int i = 0; i < lines.length; i++) {
                         Matcher matcher = IMPORT_PATTERN.matcher(lines[i]);
                         if (matcher.find()) {
@@ -54,11 +53,10 @@ public class IntegrationPointsScannerImpl implements IntegrationPointsScanner {
                             for (Map.Entry<String, String> entry : INTEGRATION_PATTERNS.entrySet()) {
                                 if (pkg.startsWith(entry.getKey())) {
                                     usages.add(new IntegrationPointUsage(
-                                        filePath.toString(),
-                                        i + 1,
-                                        entry.getValue(),
-                                        extractClassName(lines[i])
-                                    ));
+                                            filePath.toString(),
+                                            i + 1,
+                                            entry.getValue(),
+                                            extractClassName(lines[i])));
                                     break;
                                 }
                             }
@@ -68,17 +66,18 @@ public class IntegrationPointsScannerImpl implements IntegrationPointsScanner {
                     log.warn("Error reading file: {}", e.getMessage());
                 }
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Error scanning integration points: {}", e.getMessage());
         }
-        
+
         return new IntegrationPointsProjectScanResult(projectPath.toString(), usages);
     }
 
     private String extractClassName(String line) {
         Pattern p = Pattern.compile("(class|interface|enum)\\s+(\\w+)");
         Matcher m = p.matcher(line);
-        if (m.find()) return m.group(2);
+        if (m.find())
+            return m.group(2);
         return "Unknown";
     }
 }

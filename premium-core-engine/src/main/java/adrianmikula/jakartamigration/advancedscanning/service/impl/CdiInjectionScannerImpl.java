@@ -10,7 +10,6 @@ import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.J.CompilationUnit;
 import org.openrewrite.SourceFile;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -21,7 +20,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
+import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 
 /**
  * Implementation of CdiInjectionScanner using OpenRewrite JavaParser.
@@ -49,7 +49,8 @@ public class CdiInjectionScannerImpl implements CdiInjectionScanner {
         CDI_MAPPINGS.put("javax.enterprise.context.ApplicationScoped", "jakarta.enterprise.context.ApplicationScoped");
         CDI_MAPPINGS.put("javax.enterprise.context.RequestScoped", "jakarta.enterprise.context.RequestScoped");
         CDI_MAPPINGS.put("javax.enterprise.context.SessionScoped", "jakarta.enterprise.context.SessionScoped");
-        CDI_MAPPINGS.put("javax.enterprise.context.ConversationScoped", "jakarta.enterprise.context.ConversationScoped");
+        CDI_MAPPINGS.put("javax.enterprise.context.ConversationScoped",
+                "jakarta.enterprise.context.ConversationScoped");
         CDI_MAPPINGS.put("javax.enterprise.context.Dependent", "jakarta.enterprise.context.Dependent");
         CDI_MAPPINGS.put("javax.enterprise.context.ApplicationScoped", "jakarta.enterprise.context.ApplicationScoped");
         CDI_MAPPINGS.put("javax.enterprise.context.NormalScope", "jakarta.enterprise.context.NormalScope");
@@ -79,8 +80,8 @@ public class CdiInjectionScannerImpl implements CdiInjectionScanner {
         CDI_MAPPINGS.put("javax.enterprise.util.Instance", "jakarta.enterprise.util.Instance");
 
         // javax.enterprise.v09.framework
-        CDI_MAPPINGS.put("javax.enterprise.context.control.RequestContextController", 
-            "jakarta.enterprise.context.control.RequestContextController");
+        CDI_MAPPINGS.put("javax.enterprise.context.control.RequestContextController",
+                "jakarta.enterprise.context.control.RequestContextController");
 
         // Interceptors and Decorators
         CDI_MAPPINGS.put("javax.interceptor.Interceptor", "jakarta.interceptor.Interceptor");
@@ -92,9 +93,10 @@ public class CdiInjectionScannerImpl implements CdiInjectionScanner {
         CDI_MAPPINGS.put("javax.decorator.Delegate", "jakarta.decorator.Delegate");
     }
 
-    private final ThreadLocal<JavaParser> javaParserThreadLocal = ThreadLocal.withInitial(() ->
-        JavaParser.fromJavaVersion().build()
-    );
+    private final ThreadLocal<JavaParser> javaParserThreadLocal = ThreadLocal
+            .withInitial(() -> JavaParser.fromJavaVersion().build());
+
+    private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
 
     @Override
     public CdiInjectionProjectScanResult scanProject(Path projectPath) {
@@ -115,31 +117,30 @@ public class CdiInjectionScannerImpl implements CdiInjectionScanner {
 
             AtomicInteger totalScanned = new AtomicInteger(0);
             List<CdiInjectionScanResult> results = javaFiles.parallelStream()
-                .map(file -> {
-                    totalScanned.incrementAndGet();
-                    CdiInjectionScanResult result = scanFile(file);
-                    if (result.hasJavaxUsage()) {
-                        log.debug("Found CDI usage in: {}", file);
-                        return result;
-                    }
-                    return null;
-                })
-                .filter(java.util.Objects::nonNull)
-                .collect(Collectors.toList());
+                    .map(file -> {
+                        totalScanned.incrementAndGet();
+                        CdiInjectionScanResult result = scanFile(file);
+                        if (result.hasJavaxUsage()) {
+                            log.debug("Found CDI usage in: {}", file);
+                            return result;
+                        }
+                        return null;
+                    })
+                    .filter(java.util.Objects::nonNull)
+                    .collect(Collectors.toList());
 
             int totalAnnotations = results.stream()
-                .mapToInt(r -> r.usages().size())
-                .sum();
+                    .mapToInt(r -> r.usages().size())
+                    .sum();
 
             log.info("CDI scan complete: {} files scanned, {} files with usage, {} total usages",
-                totalScanned.get(), results.size(), totalAnnotations);
+                    totalScanned.get(), results.size(), totalAnnotations);
 
             return new CdiInjectionProjectScanResult(
-                results,
-                totalScanned.get(),
-                results.size(),
-                totalAnnotations
-            );
+                    results,
+                    totalScanned.get(),
+                    results.size(),
+                    totalAnnotations);
 
         } catch (Exception e) {
             log.error("Error scanning project for CDI: {}", projectPath, e);
@@ -187,33 +188,7 @@ public class CdiInjectionScannerImpl implements CdiInjectionScanner {
     }
 
     private List<Path> discoverJavaFiles(Path projectPath) {
-        List<Path> javaFiles = new ArrayList<>();
-
-        try (Stream<Path> paths = Files.walk(projectPath)) {
-            paths
-                .filter(Files::isRegularFile)
-                .filter(p -> p.toString().endsWith(".java"))
-                .filter(this::shouldScanFile)
-                .forEach(javaFiles::add);
-        } catch (IOException e) {
-            log.error("Error discovering Java files in: {}", projectPath, e);
-        }
-
-        return javaFiles;
-    }
-
-    private boolean shouldScanFile(Path file) {
-        String path = file.toString().replace('\\', '/');
-        return !path.contains("/target/") &&
-               !path.contains("/build/") &&
-               !path.contains("/.git/") &&
-               !path.contains("/node_modules/") &&
-               !path.contains("/.gradle/") &&
-               !path.contains("/.mvn/") &&
-               !path.contains("/.idea/") &&
-               !path.contains("/.vscode/") &&
-               !path.contains("/out/") &&
-               !path.contains("/bin/");
+        return fileScanner.findFiles(projectPath, List.of(".java"));
     }
 
     private List<CdiInjectionUsage> extractCdiUsages(CompilationUnit cu, String content) {
@@ -224,44 +199,43 @@ public class CdiInjectionScannerImpl implements CdiInjectionScanner {
         for (J.Import imp : cu.getImports()) {
             String importName = imp.getQualid().toString();
 
-            if (importName.startsWith("javax.inject.") || 
-                importName.startsWith("javax.enterprise.")) {
+            if (importName.startsWith("javax.inject.") ||
+                    importName.startsWith("javax.enterprise.")) {
 
                 String jakartaEquivalent = CDI_MAPPINGS.get(importName);
                 int lineNumber = findLineNumber(lines, importName);
 
                 usages.add(new CdiInjectionUsage(
-                    importName,
-                    jakartaEquivalent != null ? jakartaEquivalent : importName.replace("javax.", "jakarta."),
-                    lineNumber,
-                    "import",
-                    "import"
-                ));
+                        importName,
+                        jakartaEquivalent != null ? jakartaEquivalent : importName.replace("javax.", "jakarta."),
+                        lineNumber,
+                        "import",
+                        "import"));
             }
         }
 
         // Search for annotation usages
-        Pattern annotationPattern = Pattern.compile("@((?:javax\\\\.inject[\\\\w.]*|javax\\\\.enterprise[\\\\w.]*|javax\\\\.interceptor[\\\\w.]*|javax\\\\.decorator[\\\\w.]*))");
+        Pattern annotationPattern = Pattern.compile(
+                "@((?:javax\\\\.inject[\\\\w.]*|javax\\\\.enterprise[\\\\w.]*|javax\\\\.interceptor[\\\\w.]*|javax\\\\.decorator[\\\\w.]*))");
         Matcher matcher = annotationPattern.matcher(content);
 
         while (matcher.find()) {
             String annotationName = matcher.group(1);
 
-            if (annotationName.startsWith("javax.inject") || 
-                annotationName.startsWith("javax.enterprise") ||
-                annotationName.startsWith("javax.interceptor") ||
-                annotationName.startsWith("javax.decorator")) {
+            if (annotationName.startsWith("javax.inject") ||
+                    annotationName.startsWith("javax.enterprise") ||
+                    annotationName.startsWith("javax.interceptor") ||
+                    annotationName.startsWith("javax.decorator")) {
 
                 String jakartaEquivalent = CDI_MAPPINGS.get(annotationName);
                 int lineNumber = findLineNumber(lines, matcher.group(0));
 
                 usages.add(new CdiInjectionUsage(
-                    annotationName,
-                    jakartaEquivalent != null ? jakartaEquivalent : annotationName.replace("javax.", "jakarta."),
-                    lineNumber,
-                    "annotation",
-                    "annotation"
-                ));
+                        annotationName,
+                        jakartaEquivalent != null ? jakartaEquivalent : annotationName.replace("javax.", "jakarta."),
+                        lineNumber,
+                        "annotation",
+                        "annotation"));
             }
         }
 

@@ -10,7 +10,6 @@ import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.J.CompilationUnit;
 import org.openrewrite.SourceFile;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -18,7 +17,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
+import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 
 @Slf4j
 public class ClassloaderModuleScannerImpl implements ClassloaderModuleScanner {
@@ -28,43 +28,44 @@ public class ClassloaderModuleScannerImpl implements ClassloaderModuleScanner {
 
     static {
         // Thread Context ClassLoader
-        CLASSLOADER_MODULE_APIS.put("javax.management.loading.MLet", 
-            new ClassloaderModuleInfo("Use standard classloading or CDI", "MLet"));
-        
+        CLASSLOADER_MODULE_APIS.put("javax.management.loading.MLet",
+                new ClassloaderModuleInfo("Use standard classloading or CDI", "MLet"));
+
         // RMI ClassLoader
-        CLASSLOADER_MODULE_APIS.put("java.rmi.server.ObjID", 
-            new ClassloaderModuleInfo("Review RMI usage", "RMI"));
-        
+        CLASSLOADER_MODULE_APIS.put("java.rmi.server.ObjID",
+                new ClassloaderModuleInfo("Review RMI usage", "RMI"));
+
         // JNDI ClassLoader
-        CLASSLOADER_MODULE_APIS.put("javax.naming.Context", 
-            new ClassloaderModuleInfo("jakarta.naming.Context", "JNDI"));
-        
+        CLASSLOADER_MODULE_APIS.put("javax.naming.Context",
+                new ClassloaderModuleInfo("jakarta.naming.Context", "JNDI"));
+
         // Module system (Java 9+) related
-        CLASSLOADER_MODULE_APIS.put("javax.annotation.processing.Processor", 
-            new ClassloaderModuleInfo("jakarta.annotation.processing.Processor", "Annotation Processing"));
+        CLASSLOADER_MODULE_APIS.put("javax.annotation.processing.Processor",
+                new ClassloaderModuleInfo("jakarta.annotation.processing.Processor", "Annotation Processing"));
     }
 
-    private record ClassloaderModuleInfo(String replacement, String context) {}
+    private record ClassloaderModuleInfo(String replacement, String context) {
+    }
 
-    private final ThreadLocal<JavaParser> javaParserThreadLocal = ThreadLocal.withInitial(() -> JavaParser.fromJavaVersion().build());
+    private final ThreadLocal<JavaParser> javaParserThreadLocal = ThreadLocal
+            .withInitial(() -> JavaParser.fromJavaVersion().build());
+
+    private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
 
     // Pattern for javax classloader/module imports
     private static final Pattern CLASSLOADER_IMPORT_PATTERN = Pattern.compile(
-        "import\\s+javax\\.(management\\.loading|annotation\\.processing|\\w*\\.classloader|\\w*\\.module)[\\.\\w]*;",
-        Pattern.MULTILINE
-    );
+            "import\\s+javax\\.(management\\.loading|annotation\\.processing|\\w*\\.classloader|\\w*\\.module)[\\.\\w]*;",
+            Pattern.MULTILINE);
 
     // Pattern for Thread.currentThread().getContextClassLoader() usage
     private static final Pattern CONTEXT_CLASSLOADER_PATTERN = Pattern.compile(
-        "getContextClassLoader\\(\\)|setContextClassLoader",
-        Pattern.MULTILINE
-    );
+            "getContextClassLoader\\(\\)|setContextClassLoader",
+            Pattern.MULTILINE);
 
     // Pattern for module-related calls
     private static final Pattern MODULE_PATTERN = Pattern.compile(
-        "getModule\\(\\)|getClassLoader\\(\\)",
-        Pattern.MULTILINE
-    );
+            "getModule\\(\\)|getClassLoader\\(\\)",
+            Pattern.MULTILINE);
 
     @Override
     public ClassloaderModuleProjectScanResult scanProject(Path projectPath) {
@@ -74,17 +75,18 @@ public class ClassloaderModuleScannerImpl implements ClassloaderModuleScanner {
 
         try {
             List<Path> javaFiles = discoverJavaFiles(projectPath);
-            if (javaFiles.isEmpty()) return ClassloaderModuleProjectScanResult.empty();
+            if (javaFiles.isEmpty())
+                return ClassloaderModuleProjectScanResult.empty();
 
             AtomicInteger totalScanned = new AtomicInteger(0);
             List<ClassloaderModuleScanResult> results = javaFiles.parallelStream()
-                .map(file -> {
-                    totalScanned.incrementAndGet();
-                    ClassloaderModuleScanResult result = scanFile(file);
-                    return result.hasJavaxUsage() ? result : null;
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                    .map(file -> {
+                        totalScanned.incrementAndGet();
+                        ClassloaderModuleScanResult result = scanFile(file);
+                        return result.hasJavaxUsage() ? result : null;
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
 
             int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
 
@@ -107,9 +109,9 @@ public class ClassloaderModuleScannerImpl implements ClassloaderModuleScanner {
 
             // Quick check using regex first for performance
             boolean hasPotentialUsage = CLASSLOADER_IMPORT_PATTERN.matcher(content).find() ||
-                CONTEXT_CLASSLOADER_PATTERN.matcher(content).find() ||
-                MODULE_PATTERN.matcher(content).find();
-            
+                    CONTEXT_CLASSLOADER_PATTERN.matcher(content).find() ||
+                    MODULE_PATTERN.matcher(content).find();
+
             if (!hasPotentialUsage) {
                 return ClassloaderModuleScanResult.empty(filePath);
             }
@@ -119,7 +121,8 @@ public class ClassloaderModuleScannerImpl implements ClassloaderModuleScanner {
             parser.reset();
 
             List<SourceFile> sourceFiles = parser.parse(content).collect(Collectors.toList());
-            if (sourceFiles.isEmpty()) return ClassloaderModuleScanResult.empty(filePath);
+            if (sourceFiles.isEmpty())
+                return ClassloaderModuleScanResult.empty(filePath);
 
             List<ClassloaderModuleUsage> usages = new ArrayList<>();
             for (SourceFile sourceFile : sourceFiles) {
@@ -136,19 +139,7 @@ public class ClassloaderModuleScannerImpl implements ClassloaderModuleScanner {
     }
 
     private List<Path> discoverJavaFiles(Path projectPath) {
-        try (Stream<Path> paths = Files.walk(projectPath)) {
-            return paths.filter(Files::isRegularFile)
-                .filter(p -> p.toString().endsWith(".java"))
-                .filter(this::shouldScanFile)
-                .collect(Collectors.toList());
-        } catch (IOException e) {
-            return List.of();
-        }
-    }
-
-    private boolean shouldScanFile(Path file) {
-        String path = file.toString().replace('\\', '/');
-        return !path.contains("/target/") && !path.contains("/build/") && !path.contains("/.git/");
+        return fileScanner.findFiles(projectPath, List.of(".java"));
     }
 
     private List<ClassloaderModuleUsage> extractClassloaderModuleApis(CompilationUnit cu, String content) {
@@ -162,7 +153,8 @@ public class ClassloaderModuleScannerImpl implements ClassloaderModuleScanner {
 
             if (info != null) {
                 int lineNumber = findLineNumber(lines, importName);
-                usages.add(new ClassloaderModuleUsage(importName, null, lineNumber, info.context(), info.replacement()));
+                usages.add(
+                        new ClassloaderModuleUsage(importName, null, lineNumber, info.context(), info.replacement()));
             }
         }
 
@@ -171,12 +163,11 @@ public class ClassloaderModuleScannerImpl implements ClassloaderModuleScanner {
         while (matcher.find()) {
             int lineNumber = findLineNumber(lines, "getContextClassLoader");
             usages.add(new ClassloaderModuleUsage(
-                "Thread.getContextClassLoader()", 
-                "getContextClassLoader", 
-                lineNumber, 
-                "ClassLoader", 
-                "Review for Jakarta EE compatibility"
-            ));
+                    "Thread.getContextClassLoader()",
+                    "getContextClassLoader",
+                    lineNumber,
+                    "ClassLoader",
+                    "Review for Jakarta EE compatibility"));
         }
 
         // Check for module-related patterns
@@ -185,12 +176,11 @@ public class ClassloaderModuleScannerImpl implements ClassloaderModuleScanner {
             int lineNumber = findLineNumber(lines, "getModule");
             if (lineNumber > 0) {
                 usages.add(new ClassloaderModuleUsage(
-                    "Class.getModule()", 
-                    "getModule", 
-                    lineNumber, 
-                    "Module", 
-                    "Use standard Java module API"
-                ));
+                        "Class.getModule()",
+                        "getModule",
+                        lineNumber,
+                        "Module",
+                        "Use standard Java module API"));
             }
         }
 
@@ -199,7 +189,8 @@ public class ClassloaderModuleScannerImpl implements ClassloaderModuleScanner {
 
     private int findLineNumber(String[] lines, String searchText) {
         for (int i = 0; i < lines.length; i++) {
-            if (lines[i].contains(searchText)) return i + 1;
+            if (lines[i].contains(searchText))
+                return i + 1;
         }
         return 1;
     }

@@ -1,25 +1,38 @@
 package adrianmikula.jakartamigration.advancedscanning.domain;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 /**
- * Represents an application server configuration or dependency that may need migration.
+ * Represents an application server configuration or dependency that may need
+ * migration.
  */
+@Getter
+@NoArgsConstructor(force = true, access = AccessLevel.PRIVATE)
+@AllArgsConstructor
 public class AppServerUsage {
     private final String filePath;
     private final String serverType;
     private final String configurationType;
     private final String currentValue;
 
-    public AppServerUsage(String filePath, String serverType, String configurationType, String currentValue) {
-        this.filePath = filePath;
-        this.serverType = serverType;
-        this.configurationType = configurationType;
-        this.currentValue = currentValue;
+    public String getFilePath() {
+        return filePath;
     }
 
-    public String getFilePath() { return filePath; }
-    public String getServerType() { return serverType; }
-    public String getConfigurationType() { return configurationType; }
-    public String getCurrentValue() { return currentValue; }
+    public String getServerType() {
+        return serverType;
+    }
+
+    public String getConfigurationType() {
+        return configurationType;
+    }
+
+    public String getCurrentValue() {
+        return currentValue;
+    }
 
     public String getMigrationGuidance() {
         return switch (serverType.toLowerCase()) {

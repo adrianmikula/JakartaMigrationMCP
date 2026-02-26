@@ -8,10 +8,9 @@ import java.util.Objects;
  * Result of scanning a file for javax.validation.* usage.
  */
 public record BeanValidationScanResult(
-    Path filePath,
-    List<BeanValidationUsage> annotations,
-    int lineCount
-) {
+        Path filePath,
+        List<BeanValidationUsage> annotations,
+        int lineCount) {
     public BeanValidationScanResult {
         Objects.requireNonNull(filePath, "filePath cannot be null");
         Objects.requireNonNull(annotations, "annotations cannot be null");

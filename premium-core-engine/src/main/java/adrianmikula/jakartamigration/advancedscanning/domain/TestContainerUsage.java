@@ -1,25 +1,21 @@
 package adrianmikula.jakartamigration.advancedscanning.domain;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 /**
  * Represents a test container or embedded server that needs migration.
  */
+@Getter
+@NoArgsConstructor(force = true, access = AccessLevel.PRIVATE)
+@AllArgsConstructor
 public class TestContainerUsage {
     private final String filePath;
     private final String containerType;
     private final String currentVersion;
     private final String issueType;
-
-    public TestContainerUsage(String filePath, String containerType, String currentVersion, String issueType) {
-        this.filePath = filePath;
-        this.containerType = containerType;
-        this.currentVersion = currentVersion;
-        this.issueType = issueType;
-    }
-
-    public String getFilePath() { return filePath; }
-    public String getContainerType() { return containerType; }
-    public String getCurrentVersion() { return currentVersion; }
-    public String getIssueType() { return issueType; }
 
     public String getSuggestedReplacement() {
         return switch (containerType.toLowerCase()) {

@@ -1,11 +1,19 @@
 package adrianmikula.jakartamigration.advancedscanning.domain;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Result of scanning a single file for serialization/cache compatibility issues.
+ * Result of scanning a single file for serialization/cache compatibility
+ * issues.
  */
+@Getter
+@NoArgsConstructor(force = true, access = AccessLevel.PRIVATE)
 public class SerializationCacheScanResult {
     private final String filePath;
     private final List<SerializationCacheUsage> usages;
@@ -21,18 +29,6 @@ public class SerializationCacheScanResult {
         this.filePath = filePath;
         this.usages = usages;
         this.totalFindings = usages.size();
-    }
-
-    public String getFilePath() {
-        return filePath;
-    }
-
-    public List<SerializationCacheUsage> getUsages() {
-        return usages;
-    }
-
-    public int getTotalFindings() {
-        return totalFindings;
     }
 
     public boolean hasFindings() {

@@ -12,49 +12,46 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
+import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 
 /**
- * Scanner implementation for detecting serialization and cache compatibility issues.
+ * Scanner implementation for detecting serialization and cache compatibility
+ * issues.
  * Helps identify code that serializes or caches javax.* objects which may cause
  * compatibility issues during Jakarta EE migration.
  */
 @Slf4j
 public class SerializationCacheScannerImpl implements SerializationCacheScanner {
 
+    private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
+
     // Patterns for Java serialization
     private static final Pattern SERIALIZABLE_PATTERN = Pattern.compile(
-        "implements\\s+(?:public\\s+)?Serializable|" +
-        "extends\\s+\\w+\\s+implements\\s+Serializable"
-    );
+            "implements\\s+(?:public\\s+)?Serializable|" +
+                    "extends\\s+\\w+\\s+implements\\s+Serializable");
 
     private static final Pattern OBJECT_INPUT_STREAM = Pattern.compile(
-        "new\\s+ObjectInputStream\\(|" +
-        "ObjectInputStream\\s+\\w+\\s*="
-    );
+            "new\\s+ObjectInputStream\\(|" +
+                    "ObjectInputStream\\s+\\w+\\s*=");
 
     private static final Pattern OBJECT_OUTPUT_STREAM = Pattern.compile(
-        "new\\s+ObjectOutputStream\\(|" +
-        "ObjectOutputStream\\s+\\w+\\s*="
-    );
+            "new\\s+ObjectOutputStream\\(|" +
+                    "ObjectOutputStream\\s+\\w+\\s*=");
 
     // Patterns for session serialization (HttpSession)
     private static final Pattern HTTP_SESSION_PATTERN = Pattern.compile(
-        "HttpSession|getSession\\(|setAttribute\\(|getAttribute\\(|removeAttribute\\("
-    );
+            "HttpSession|getSession\\(|setAttribute\\(|getAttribute\\(|removeAttribute\\(");
 
     // Patterns for cache implementations
     private static final Pattern CACHE_PATTERN = Pattern.compile(
-        "Cache\\s*\\{|" +
-        "@Cache(?:able|Evict|Put)?|" +
-        "CacheManager|"
-    );
+            "Cache\\s*\\{|" +
+                    "@Cache(?:able|Evict|Put)?|" +
+                    "CacheManager|");
 
     // Third-party cache libraries that may serialize javax objects
     private static final Pattern CACHE_LIB_PATTERN = Pattern.compile(
-        "ehcache|hazelcast|infinispan|redis|caffeine|memcached|jboss\\.cache"
-    );
+            "ehcache|hazelcast|infinispan|redis|caffeine|memcached|jboss\\.cache");
 
     // File extensions to scan
     private static final Set<String> SCAN_EXTENSIONS = Set.of(".java", ".xml", ".properties");
@@ -62,17 +59,14 @@ public class SerializationCacheScannerImpl implements SerializationCacheScanner 
     @Override
     public SerializationCacheProjectScanResult scanProject(Path projectPath) {
         log.info("Starting serialization/cache scan for project: {}", projectPath);
-        
+
         List<SerializationCacheScanResult> fileResults = new ArrayList<>();
-        
-        try (Stream<Path> paths = Files.walk(projectPath)) {
-            List<Path> filesToScan = paths
-                .filter(Files::isRegularFile)
-                .filter(this::shouldScan)
-                .collect(Collectors.toList());
-            
+
+        try {
+            List<Path> filesToScan = fileScanner.findFiles(projectPath, List.of(".java", ".xml", ".properties"));
+
             log.info("Found {} files to scan for serialization/cache", filesToScan.size());
-            
+
             for (Path filePath : filesToScan) {
                 try {
                     SerializationCacheScanResult result = scanFile(filePath);
@@ -83,113 +77,101 @@ public class SerializationCacheScannerImpl implements SerializationCacheScanner 
                     log.warn("Error scanning file {}: {}", filePath, e.getMessage());
                 }
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Error walking project directory: {}", e.getMessage());
         }
-        
-        log.info("Serialization/cache scan complete. Found {} files with issues", fileResults.size());
-        
-        return new SerializationCacheProjectScanResult(
-            projectPath.toString(),
-            fileResults
-        );
-    }
 
-    private boolean shouldScan(Path path) {
-        String fileName = path.getFileName().toString();
-        return SCAN_EXTENSIONS.stream().anyMatch(fileName::endsWith);
+        log.info("Serialization/cache scan complete. Found {} files with issues", fileResults.size());
+
+        return new SerializationCacheProjectScanResult(
+                projectPath.toString(),
+                fileResults);
     }
 
     private SerializationCacheScanResult scanFile(Path filePath) {
         List<SerializationCacheUsage> usages = new ArrayList<>();
-        
+
         try {
             String content = Files.readString(filePath);
             String[] lines = content.split("\\r?\\n");
-            
+
             for (int i = 0; i < lines.length; i++) {
                 String line = lines[i];
                 int lineNumber = i + 1;
-                
+
                 // Check for Serializable implementation
                 Matcher serializableMatcher = SERIALIZABLE_PATTERN.matcher(line);
                 if (serializableMatcher.find()) {
                     usages.add(new SerializationCacheUsage(
-                        filePath.toString(),
-                        lineNumber,
-                        "Serializable",
-                        extractClassName(line),
-                        "class definition"
-                    ));
+                            filePath.toString(),
+                            lineNumber,
+                            "Serializable",
+                            extractClassName(line),
+                            "class definition"));
                 }
-                
+
                 // Check for ObjectInputStream (deserialization)
                 Matcher oisMatcher = OBJECT_INPUT_STREAM.matcher(line);
                 if (oisMatcher.find()) {
                     usages.add(new SerializationCacheUsage(
-                        filePath.toString(),
-                        lineNumber,
-                        "ObjectInputStream",
-                        extractClassName(line),
-                        extractMethodName(line)
-                    ));
+                            filePath.toString(),
+                            lineNumber,
+                            "ObjectInputStream",
+                            extractClassName(line),
+                            extractMethodName(line)));
                 }
-                
+
                 // Check for ObjectOutputStream (serialization)
                 Matcher oosMatcher = OBJECT_OUTPUT_STREAM.matcher(line);
                 if (oosMatcher.find()) {
                     usages.add(new SerializationCacheUsage(
-                        filePath.toString(),
-                        lineNumber,
-                        "ObjectOutputStream",
-                        extractClassName(line),
-                        extractMethodName(line)
-                    ));
+                            filePath.toString(),
+                            lineNumber,
+                            "ObjectOutputStream",
+                            extractClassName(line),
+                            extractMethodName(line)));
                 }
-                
+
                 // Check for HttpSession usage
                 Matcher sessionMatcher = HTTP_SESSION_PATTERN.matcher(line);
                 if (sessionMatcher.find() && line.contains("javax.")) {
                     usages.add(new SerializationCacheUsage(
-                        filePath.toString(),
-                        lineNumber,
-                        "SessionSerialization",
-                        extractClassName(line),
-                        extractMethodName(line)
-                    ));
+                            filePath.toString(),
+                            lineNumber,
+                            "SessionSerialization",
+                            extractClassName(line),
+                            extractMethodName(line)));
                 }
-                
+
                 // Check for cache annotations/usage
                 Matcher cacheMatcher = CACHE_PATTERN.matcher(line);
                 if (cacheMatcher.find()) {
                     usages.add(new SerializationCacheUsage(
-                        filePath.toString(),
-                        lineNumber,
-                        "CacheEntry",
-                        extractClassName(line),
-                        extractMethodName(line)
-                    ));
+                            filePath.toString(),
+                            lineNumber,
+                            "CacheEntry",
+                            extractClassName(line),
+                            extractMethodName(line)));
                 }
             }
-            
+
             // Check file content for cache library imports
             if (CACHE_LIB_PATTERN.matcher(content).find()) {
                 // Add a single finding for the file if it uses cache libs
                 if (!usages.isEmpty()) {
                     usages.add(new SerializationCacheUsage(
-                        filePath.toString(),
-                        1,
-                        "CacheLibrary",
-                        "Multiple classes",
-                        "Cache library detected"
-                    ));
+                            filePath.toString(),
+                            1,
+                            "CacheLibrary",
+                            "Multiple classes",
+                            "Cache library detected"));
                 }
             }
-            
+
         } catch (IOException e) {
             log.warn("Error reading file {}: {}", filePath, e.getMessage());
         }
-        
+
         return new SerializationCacheScanResult(filePath.toString(), usages);
     }
 

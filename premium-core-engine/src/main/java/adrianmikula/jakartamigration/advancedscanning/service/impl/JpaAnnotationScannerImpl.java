@@ -10,7 +10,6 @@ import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.J.CompilationUnit;
 import org.openrewrite.SourceFile;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -21,7 +20,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
+import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 
 /**
  * Implementation of JpaAnnotationScanner using OpenRewrite JavaParser.
@@ -32,7 +32,7 @@ public class JpaAnnotationScannerImpl implements JpaAnnotationScanner {
 
     // Map of javax.persistence annotations to their Jakarta equivalents
     private static final Map<String, String> JPA_ANNOTATION_MAPPINGS = new HashMap<>();
-    
+
     static {
         // Entity and lifecycle annotations
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.Entity", "jakarta.persistence.Entity");
@@ -40,7 +40,7 @@ public class JpaAnnotationScannerImpl implements JpaAnnotationScanner {
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.Embeddable", "jakarta.persistence.Embeddable");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.Embedded", "jakarta.persistence.Embedded");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.EmbeddedId", "jakarta.persistence.EmbeddedId");
-        
+
         // Field/Property annotations
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.Id", "jakarta.persistence.Id");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.GeneratedValue", "jakarta.persistence.GeneratedValue");
@@ -51,7 +51,7 @@ public class JpaAnnotationScannerImpl implements JpaAnnotationScanner {
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.Transient", "jakarta.persistence.Transient");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.Temporal", "jakarta.persistence.Temporal");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.Enumerated", "jakarta.persistence.Enumerated");
-        
+
         // Relationship annotations
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.OneToOne", "jakarta.persistence.OneToOne");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.OneToMany", "jakarta.persistence.OneToMany");
@@ -59,28 +59,30 @@ public class JpaAnnotationScannerImpl implements JpaAnnotationScanner {
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.ManyToMany", "jakarta.persistence.ManyToMany");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.JoinColumn", "jakarta.persistence.JoinColumn");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.JoinColumns", "jakarta.persistence.JoinColumns");
-        JPA_ANNOTATION_MAPPINGS.put("javax.persistence.PrimaryKeyJoinColumn", "jakarta.persistence.PrimaryKeyJoinColumn");
-        JPA_ANNOTATION_MAPPINGS.put("javax.persistence.PrimaryKeyJoinColumns", "jakarta.persistence.PrimaryKeyJoinColumns");
+        JPA_ANNOTATION_MAPPINGS.put("javax.persistence.PrimaryKeyJoinColumn",
+                "jakarta.persistence.PrimaryKeyJoinColumn");
+        JPA_ANNOTATION_MAPPINGS.put("javax.persistence.PrimaryKeyJoinColumns",
+                "jakarta.persistence.PrimaryKeyJoinColumns");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.OrderBy", "jakarta.persistence.OrderBy");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.OrderColumn", "jakarta.persistence.OrderColumn");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.MapKey", "jakarta.persistence.MapKey");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.MapKeyJoinColumn", "jakarta.persistence.MapKeyJoinColumn");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.MapKeyClass", "jakarta.persistence.MapKeyClass");
-        
+
         // Table and schema annotations
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.Table", "jakarta.persistence.Table");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.SecondaryTable", "jakarta.persistence.SecondaryTable");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.SecondaryTables", "jakarta.persistence.SecondaryTables");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.UniqueConstraint", "jakarta.persistence.UniqueConstraint");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.Index", "jakarta.persistence.Index");
-        
+
         // Query annotations
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.NamedQuery", "jakarta.persistence.NamedQuery");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.NamedQueries", "jakarta.persistence.NamedQueries");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.NamedNativeQuery", "jakarta.persistence.NamedNativeQuery");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.NamedNativeQueries", "jakarta.persistence.NamedNativeQueries");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.QueryHint", "jakarta.persistence.QueryHint");
-        
+
         // Lifecycle callbacks
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.PrePersist", "jakarta.persistence.PrePersist");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.PostPersist", "jakarta.persistence.PostPersist");
@@ -89,32 +91,32 @@ public class JpaAnnotationScannerImpl implements JpaAnnotationScanner {
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.PreUpdate", "jakarta.persistence.PreUpdate");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.PostUpdate", "jakarta.persistence.PostUpdate");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.PostLoad", "jakarta.persistence.PostLoad");
-        
+
         // Converter and attributes
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.AttributeConverter", "jakarta.persistence.AttributeConverter");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.Converter", "jakarta.persistence.Converter");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.Convert", "jakarta.persistence.Convert");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.BasicMap", "jakarta.persistence.BasicMap");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.ElementCollection", "jakarta.persistence.ElementCollection");
-        
+
         // Cache annotations
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.Cacheable", "jakarta.persistence.Cacheable");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.Cache", "jakarta.persistence.Cache");
-        
+
         // Inheritance
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.Inheritance", "jakarta.persistence.Inheritance");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.InheritanceType", "jakarta.persistence.InheritanceType");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.DiscriminatorColumn", "jakarta.persistence.DiscriminatorColumn");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.DiscriminatorValue", "jakarta.persistence.DiscriminatorValue");
-        
+
         // Sequence
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.SequenceGenerator", "jakarta.persistence.SequenceGenerator");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.TableGenerator", "jakarta.persistence.TableGenerator");
-        
+
         // Locking
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.LockModeType", "jakarta.persistence.LockModeType");
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.LockMode", "jakarta.persistence.LockMode");
-        
+
         // Callbacks
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.Externalized", "jakarta.persistence.Externalized");
         // Persistence context
@@ -124,11 +126,10 @@ public class JpaAnnotationScannerImpl implements JpaAnnotationScanner {
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.PersistenceUnits", "jakarta.persistence.PersistenceUnits");
     }
 
-    // Use ThreadLocal to avoid JavaParser reset() issues when parsing files
-    // with the same fully qualified names in parallel
-    private final ThreadLocal<JavaParser> javaParserThreadLocal = ThreadLocal.withInitial(() ->
-        JavaParser.fromJavaVersion().build()
-    );
+    private final ThreadLocal<JavaParser> javaParserThreadLocal = ThreadLocal
+            .withInitial(() -> JavaParser.fromJavaVersion().build());
+
+    private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
 
     @Override
     public JpaProjectScanResult scanProject(Path projectPath) {
@@ -151,31 +152,30 @@ public class JpaAnnotationScannerImpl implements JpaAnnotationScanner {
             // Scan files in parallel
             AtomicInteger totalScanned = new AtomicInteger(0);
             List<JpaScanResult> results = javaFiles.parallelStream()
-                .map(file -> {
-                    totalScanned.incrementAndGet();
-                    JpaScanResult result = scanFile(file);
-                    if (result.hasJavaxUsage()) {
-                        log.debug("Found JPA annotations in: {}", file);
-                        return result;
-                    }
-                    return null;
-                })
-                .filter(java.util.Objects::nonNull)
-                .collect(Collectors.toList());
+                    .map(file -> {
+                        totalScanned.incrementAndGet();
+                        JpaScanResult result = scanFile(file);
+                        if (result.hasJavaxUsage()) {
+                            log.debug("Found JPA annotations in: {}", file);
+                            return result;
+                        }
+                        return null;
+                    })
+                    .filter(java.util.Objects::nonNull)
+                    .collect(Collectors.toList());
 
             int totalAnnotations = results.stream()
-                .mapToInt(r -> r.annotations().size())
-                .sum();
+                    .mapToInt(r -> r.annotations().size())
+                    .sum();
 
             log.info("JPA scan complete: {} files scanned, {} files with JPA usage, {} total annotations",
-                totalScanned.get(), results.size(), totalAnnotations);
+                    totalScanned.get(), results.size(), totalAnnotations);
 
             return new JpaProjectScanResult(
-                results,
-                totalScanned.get(),
-                results.size(),
-                totalAnnotations
-            );
+                    results,
+                    totalScanned.get(),
+                    results.size(),
+                    totalAnnotations);
 
         } catch (Exception e) {
             log.error("Error scanning project for JPA annotations: {}", projectPath, e);
@@ -225,39 +225,10 @@ public class JpaAnnotationScannerImpl implements JpaAnnotationScanner {
     }
 
     /**
-     * Discovers all Java files in the project, excluding build directories.
+     * Discovers all Java files in the project efficiently.
      */
     private List<Path> discoverJavaFiles(Path projectPath) {
-        List<Path> javaFiles = new ArrayList<>();
-
-        try (Stream<Path> paths = Files.walk(projectPath)) {
-            paths
-                .filter(Files::isRegularFile)
-                .filter(p -> p.toString().endsWith(".java"))
-                .filter(this::shouldScanFile)
-                .forEach(javaFiles::add);
-        } catch (IOException e) {
-            log.error("Error discovering Java files in: {}", projectPath, e);
-        }
-
-        return javaFiles;
-    }
-
-    /**
-     * Determines if a file should be scanned (excludes build directories only).
-     */
-    private boolean shouldScanFile(Path file) {
-        String path = file.toString().replace('\\', '/');
-        return !path.contains("/target/") &&
-               !path.contains("/build/") &&
-               !path.contains("/.git/") &&
-               !path.contains("/node_modules/") &&
-               !path.contains("/.gradle/") &&
-               !path.contains("/.mvn/") &&
-               !path.contains("/.idea/") &&
-               !path.contains("/.vscode/") &&
-               !path.contains("/out/") &&
-               !path.contains("/bin/");
+        return fileScanner.findFiles(projectPath, List.of(".java"));
     }
 
     /**
@@ -265,60 +236,61 @@ public class JpaAnnotationScannerImpl implements JpaAnnotationScanner {
      */
     private List<JpaAnnotationUsage> extractJpaAnnotations(CompilationUnit cu, String content) {
         List<JpaAnnotationUsage> annotations = new ArrayList<>();
-        
+
         String[] lines = content.split("\n");
-        
+
         // Find all imports first
         for (J.Import imp : cu.getImports()) {
             String importName = imp.getQualid().toString();
-            
+
             if (importName.startsWith("javax.persistence.")) {
                 String jakartaEquivalent = JPA_ANNOTATION_MAPPINGS.get(importName);
-                
+
                 // Find line number
                 int lineNumber = findLineNumberInContent(lines, importName);
-                
+
                 annotations.add(new JpaAnnotationUsage(
-                    importName,
-                    jakartaEquivalent != null ? jakartaEquivalent : "jakarta.persistence." + importName.substring(17),
-                    lineNumber,
-                    "import",
-                    "import"
-                ));
+                        importName,
+                        jakartaEquivalent != null ? jakartaEquivalent
+                                : "jakarta.persistence." + importName.substring(17),
+                        lineNumber,
+                        "import",
+                        "import"));
             }
         }
-        
+
         // Now search for annotation usages in the content using regex
-        // Pattern: @javax.persistence.SomeAnnotation or @SomeAnnotation (for annotations in javax.persistence package)
+        // Pattern: @javax.persistence.SomeAnnotation or @SomeAnnotation (for
+        // annotations in javax.persistence package)
         Pattern annotationPattern = Pattern.compile("@((?:javax\\.persistence\\.\\w+|\\w+(?=\\s*\\()))");
         Matcher matcher = annotationPattern.matcher(content);
-        
+
         while (matcher.find()) {
             String annotationName = matcher.group(1);
-            
+
             // Skip if it's not javax.persistence
             if (!annotationName.startsWith("javax.persistence.") && !annotationName.contains(".")) {
                 // This might be a short annotation name - need to check imports
                 // For now, skip these
                 continue;
             }
-            
+
             if (annotationName.startsWith("javax.persistence.")) {
                 String jakartaEquivalent = JPA_ANNOTATION_MAPPINGS.get(annotationName);
-                
+
                 // Find line number
                 int lineNumber = findLineNumberInContent(lines, matcher.group(0));
-                
+
                 annotations.add(new JpaAnnotationUsage(
-                    annotationName,
-                    jakartaEquivalent != null ? jakartaEquivalent : "jakarta.persistence." + annotationName.substring(17),
-                    lineNumber,
-                    "annotation",
-                    "annotation"
-                ));
+                        annotationName,
+                        jakartaEquivalent != null ? jakartaEquivalent
+                                : "jakarta.persistence." + annotationName.substring(17),
+                        lineNumber,
+                        "annotation",
+                        "annotation"));
             }
         }
-        
+
         return annotations;
     }
 

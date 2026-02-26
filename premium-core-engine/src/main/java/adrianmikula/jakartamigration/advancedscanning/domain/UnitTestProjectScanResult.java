@@ -1,11 +1,18 @@
 package adrianmikula.jakartamigration.advancedscanning.domain;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Result of scanning test files for javax.* usage.
  */
+@Getter
+@NoArgsConstructor(force = true, access = AccessLevel.PRIVATE)
 public class UnitTestProjectScanResult {
     private final String projectPath;
     private final List<UnitTestUsage> usages;
@@ -26,9 +33,7 @@ public class UnitTestProjectScanResult {
         this.totalFindings = usages.size();
     }
 
-    public String getProjectPath() { return projectPath; }
-    public List<UnitTestUsage> getUsages() { return usages; }
-    public int getTotalFilesScanned() { return totalFilesScanned; }
-    public int getTotalFindings() { return totalFindings; }
-    public boolean hasFindings() { return !usages.isEmpty(); }
+    public boolean hasFindings() {
+        return !usages.isEmpty();
+    }
 }

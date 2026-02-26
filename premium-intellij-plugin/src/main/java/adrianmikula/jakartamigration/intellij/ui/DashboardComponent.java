@@ -481,13 +481,19 @@ public class DashboardComponent {
         affectedDepsValue.setText(String.valueOf(summary.getAffectedDependencies()));
         migrableValue.setText(String.valueOf(summary.getMigrableDependencies()));
 
-        // Task 6 Fixes: correctly populate remaining fields if available
-        noJakartaSupportValue.setText(
-                summary.getNoJakartaSupportCount() != null ? String.valueOf(summary.getNoJakartaSupportCount()) : "-");
-        xmlFilesValue.setText(summary.getXmlFilesCount() != null ? String.valueOf(summary.getXmlFilesCount()) : "-");
-        transitiveDepsValue.setText(
-                summary.getTransitiveDependencies() != null ? String.valueOf(summary.getTransitiveDependencies())
-                        : "-");
+        // Task 6 Fixes: correctly populate remaining fields
+        String noSupport = summary.getNoJakartaSupportCount() != null
+                ? String.valueOf(summary.getNoJakartaSupportCount())
+                : "0";
+        noJakartaSupportValue.setText(noSupport);
+
+        String xmlFiles = summary.getXmlFilesCount() != null ? String.valueOf(summary.getXmlFilesCount()) : "0";
+        xmlFilesValue.setText(xmlFiles);
+
+        String transitive = summary.getTransitiveDependencies() != null
+                ? String.valueOf(summary.getTransitiveDependencies())
+                : "0";
+        transitiveDepsValue.setText(transitive);
     }
 
     public void setLastAnalyzed(Instant lastAnalyzed) {

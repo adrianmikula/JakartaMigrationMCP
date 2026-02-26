@@ -1,9 +1,18 @@
 package adrianmikula.jakartamigration.advancedscanning.domain;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 /**
  * Represents a third-party library that hasn't been migrated to Jakarta EE.
- * This is used by the ThirdPartyLibScanner to track dependency migration issues.
+ * This is used by the ThirdPartyLibScanner to track dependency migration
+ * issues.
  */
+@Getter
+@NoArgsConstructor(force = true, access = AccessLevel.PRIVATE)
+@AllArgsConstructor
 public class ThirdPartyLibUsage {
     private final String libraryName;
     private final String groupId;
@@ -11,40 +20,6 @@ public class ThirdPartyLibUsage {
     private final String currentVersion;
     private final String issueType;
     private final String suggestedReplacement;
-
-    public ThirdPartyLibUsage(String libraryName, String groupId, String artifactId, 
-                            String currentVersion, String issueType, String suggestedReplacement) {
-        this.libraryName = libraryName;
-        this.groupId = groupId;
-        this.artifactId = artifactId;
-        this.currentVersion = currentVersion;
-        this.issueType = issueType;
-        this.suggestedReplacement = suggestedReplacement;
-    }
-
-    public String getLibraryName() {
-        return libraryName;
-    }
-
-    public String getGroupId() {
-        return groupId;
-    }
-
-    public String getArtifactId() {
-        return artifactId;
-    }
-
-    public String getCurrentVersion() {
-        return currentVersion;
-    }
-
-    public String getIssueType() {
-        return issueType;
-    }
-
-    public String getSuggestedReplacement() {
-        return suggestedReplacement;
-    }
 
     /**
      * Returns the Maven/Gradle coordinate for the library.

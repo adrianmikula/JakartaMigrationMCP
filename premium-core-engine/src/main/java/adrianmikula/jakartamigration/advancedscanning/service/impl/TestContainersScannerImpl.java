@@ -12,10 +12,13 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
+import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 
 @Slf4j
 public class TestContainersScannerImpl implements TestContainersScanner {
+
+    private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
 
     private static final Map<String, String> CONTAINER_PATTERNS = new HashMap<>();
     static {
@@ -29,31 +32,35 @@ public class TestContainersScannerImpl implements TestContainersScanner {
     }
 
     private static final Pattern MAVEN_DEP = Pattern.compile(
-        "<dependency>\\s*<groupId>([^<]+)</groupId>\\s*<artifactId>([^<]+)</artifactId>\\s*<version>([^<]*)</version>"
-    );
+            "<dependency>\\s*<groupId>([^<]+)</groupId>\\s*<artifactId>([^<]+)</artifactId>\\s*<version>([^<]*)</version>");
     private static final Pattern GRADLE_DEP = Pattern.compile(
-        "(testImplementation|testCompile|implementation|compile)\\s*['\"]([^:]+):([^:]+):([^'\"]+)['\"]"
-    );
+            "(testImplementation|testCompile|implementation|compile)\\s*['\"]([^:]+):([^:]+):([^'\"]+)['\"]");
 
     @Override
     public TestContainersProjectScanResult scanProject(Path projectPath) {
         log.info("Starting test containers scan for project: {}", projectPath);
         List<TestContainerUsage> usages = new ArrayList<>();
-        
+
         try {
-            Path pomPath = projectPath.resolve("pom.xml");
-            if (Files.exists(pomPath)) {
+            // Scan ALL pom.xml recursively
+            List<Path> mavenFiles = fileScanner.findFiles(projectPath,
+                    path -> path.getFileName().toString().equals("pom.xml"));
+            for (Path pomPath : mavenFiles) {
                 usages.addAll(scanMaven(pomPath));
             }
-            
-            Path gradlePath = projectPath.resolve("build.gradle");
-            if (Files.exists(gradlePath)) {
+
+            // Scan ALL build.gradle files recursively
+            List<Path> gradleFiles = fileScanner.findFiles(projectPath, path -> {
+                String name = path.getFileName().toString();
+                return name.startsWith("build.gradle") || name.endsWith(".gradle");
+            });
+            for (Path gradlePath : gradleFiles) {
                 usages.addAll(scanGradle(gradlePath));
             }
         } catch (Exception e) {
             log.error("Error scanning test containers: {}", e.getMessage());
         }
-        
+
         return new TestContainersProjectScanResult(projectPath.toString(), usages);
     }
 
@@ -67,15 +74,14 @@ public class TestContainersScannerImpl implements TestContainersScanner {
                 String artifactId = matcher.group(2);
                 String version = matcher.group(3);
                 String key = groupId + ":" + artifactId;
-                
+
                 for (Map.Entry<String, String> entry : CONTAINER_PATTERNS.entrySet()) {
                     if (key.contains(entry.getKey())) {
                         usages.add(new TestContainerUsage(
-                            pomPath.toString(),
-                            entry.getValue(),
-                            version,
-                            "javax-only"
-                        ));
+                                pomPath.toString(),
+                                entry.getValue(),
+                                version,
+                                "javax-only"));
                         break;
                     }
                 }
@@ -94,15 +100,14 @@ public class TestContainersScannerImpl implements TestContainersScanner {
             while (matcher.find()) {
                 String dep = matcher.group(2) + ":" + matcher.group(3);
                 String version = matcher.group(4);
-                
+
                 for (Map.Entry<String, String> entry : CONTAINER_PATTERNS.entrySet()) {
                     if (dep.contains(entry.getKey())) {
                         usages.add(new TestContainerUsage(
-                            gradlePath.toString(),
-                            entry.getValue(),
-                            version,
-                            "javax-only"
-                        ));
+                                gradlePath.toString(),
+                                entry.getValue(),
+                                version,
+                                "javax-only"));
                         break;
                     }
                 }

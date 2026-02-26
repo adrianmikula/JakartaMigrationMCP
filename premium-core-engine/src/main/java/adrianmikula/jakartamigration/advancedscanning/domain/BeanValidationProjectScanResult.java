@@ -7,11 +7,10 @@ import java.util.Objects;
  * Aggregated result of scanning a project for javax.validation.* usage.
  */
 public record BeanValidationProjectScanResult(
-    List<BeanValidationScanResult> fileResults,
-    int totalFilesScanned,
-    int totalFilesWithJavaxUsage,
-    int totalAnnotationsFound
-) {
+        List<BeanValidationScanResult> fileResults,
+        int totalFilesScanned,
+        int totalFilesWithJavaxUsage,
+        int totalAnnotationsFound) {
     public BeanValidationProjectScanResult {
         Objects.requireNonNull(fileResults, "fileResults cannot be null");
     }

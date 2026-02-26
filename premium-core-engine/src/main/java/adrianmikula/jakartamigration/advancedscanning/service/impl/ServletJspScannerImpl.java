@@ -10,7 +10,6 @@ import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.J.CompilationUnit;
 import org.openrewrite.SourceFile;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -21,18 +20,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
+import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 
 /**
  * Implementation of ServletJspScanner using OpenRewrite JavaParser.
- * Provides AST-based scanning for javax.servlet.* and javax.servlet.jsp.* usage.
+ * Provides AST-based scanning for javax.servlet.* and javax.servlet.jsp.*
+ * usage.
  */
 @Slf4j
 public class ServletJspScannerImpl implements ServletJspScanner {
 
     // Map of javax.servlet classes to their Jakarta equivalents
     private static final Map<String, String> SERVLET_MAPPINGS = new HashMap<>();
-    
+
     static {
         // Core Servlet API
         SERVLET_MAPPINGS.put("javax.servlet.Servlet", "jakarta.servlet.Servlet");
@@ -43,7 +44,7 @@ public class ServletJspScannerImpl implements ServletJspScanner {
         SERVLET_MAPPINGS.put("javax.servlet.ServletException", "jakarta.servlet.ServletException");
         SERVLET_MAPPINGS.put("javax.servlet.SingleThreadModel", "jakarta.servlet.SingleThreadModel");
         SERVLET_MAPPINGS.put("javax.servlet.UnavailableException", "jakarta.servlet.UnavailableException");
-        
+
         // Servlet Container
         SERVLET_MAPPINGS.put("javax.servlet.http.HttpServlet", "jakarta.servlet.http.HttpServlet");
         SERVLET_MAPPINGS.put("javax.servlet.http.HttpServletRequest", "jakarta.servlet.http.HttpServletRequest");
@@ -51,37 +52,45 @@ public class ServletJspScannerImpl implements ServletJspScanner {
         SERVLET_MAPPINGS.put("javax.servlet.http.HttpSession", "jakarta.servlet.http.HttpSession");
         SERVLET_MAPPINGS.put("javax.servlet.http.Cookie", "jakarta.servlet.http.Cookie");
         SERVLET_MAPPINGS.put("javax.servlet.http.HttpUtils", "jakarta.servlet.http.HttpUtils");
-        
+
         // Filters
         SERVLET_MAPPINGS.put("javax.servlet.Filter", "jakarta.servlet.Filter");
         SERVLET_MAPPINGS.put("javax.servlet.FilterChain", "jakarta.servlet.FilterChain");
         SERVLET_MAPPINGS.put("javax.servlet.FilterConfig", "jakarta.servlet.FilterConfig");
-        
+
         // Listeners
         SERVLET_MAPPINGS.put("javax.servlet.ServletContextListener", "jakarta.servlet.ServletContextListener");
-        SERVLET_MAPPINGS.put("javax.servlet.ServletContextAttributeListener", "jakarta.servlet.ServletContextAttributeListener");
+        SERVLET_MAPPINGS.put("javax.servlet.ServletContextAttributeListener",
+                "jakarta.servlet.ServletContextAttributeListener");
         SERVLET_MAPPINGS.put("javax.servlet.ServletRequestListener", "jakarta.servlet.ServletRequestListener");
-        SERVLET_MAPPINGS.put("javax.servlet.ServletRequestAttributeListener", "jakarta.servlet.ServletRequestAttributeListener");
+        SERVLET_MAPPINGS.put("javax.servlet.ServletRequestAttributeListener",
+                "jakarta.servlet.ServletRequestAttributeListener");
         SERVLET_MAPPINGS.put("javax.servlet.http.HttpSessionListener", "jakarta.servlet.http.HttpSessionListener");
-        SERVLET_MAPPINGS.put("javax.servlet.http.HttpSessionAttributeListener", "jakarta.servlet.http.HttpSessionAttributeListener");
-        SERVLET_MAPPINGS.put("javax.servlet.http.HttpSessionBindingListener", "jakarta.servlet.http.HttpSessionBindingListener");
-        SERVLET_MAPPINGS.put("javax.servlet.http.HttpSessionActivationListener", "jakarta.servlet.http.HttpSessionActivationListener");
-        
+        SERVLET_MAPPINGS.put("javax.servlet.http.HttpSessionAttributeListener",
+                "jakarta.servlet.http.HttpSessionAttributeListener");
+        SERVLET_MAPPINGS.put("javax.servlet.http.HttpSessionBindingListener",
+                "jakarta.servlet.http.HttpSessionBindingListener");
+        SERVLET_MAPPINGS.put("javax.servlet.http.HttpSessionActivationListener",
+                "jakarta.servlet.http.HttpSessionActivationListener");
+
         // Servlet Container Lifecycle
         SERVLET_MAPPINGS.put("javax.servlet.ServletContextEvent", "jakarta.servlet.ServletContextEvent");
-        SERVLET_MAPPINGS.put("javax.servlet.ServletContextAttributeEvent", "jakarta.servlet.ServletContextAttributeEvent");
+        SERVLET_MAPPINGS.put("javax.servlet.ServletContextAttributeEvent",
+                "jakarta.servlet.ServletContextAttributeEvent");
         SERVLET_MAPPINGS.put("javax.servlet.ServletRequestEvent", "jakarta.servlet.ServletRequestEvent");
-        SERVLET_MAPPINGS.put("javax.servlet.ServletRequestAttributeEvent", "jakarta.servlet.ServletRequestAttributeEvent");
+        SERVLET_MAPPINGS.put("javax.servlet.ServletRequestAttributeEvent",
+                "jakarta.servlet.ServletRequestAttributeEvent");
         SERVLET_MAPPINGS.put("javax.servlet.http.HttpSessionEvent", "jakarta.servlet.http.HttpSessionEvent");
-        SERVLET_MAPPINGS.put("javax.servlet.http.HttpSessionBindingEvent", "jakarta.servlet.http.HttpSessionBindingEvent");
-        
+        SERVLET_MAPPINGS.put("javax.servlet.http.HttpSessionBindingEvent",
+                "jakarta.servlet.http.HttpSessionBindingEvent");
+
         // Async
         SERVLET_MAPPINGS.put("javax.servlet.AsyncEvent", "jakarta.servlet.AsyncEvent");
         SERVLET_MAPPINGS.put("javax.servlet.AsyncListener", "jakarta.servlet.AsyncListener");
         SERVLET_MAPPINGS.put("javax.servlet.AsyncContext", "jakarta.servlet.AsyncContext");
         SERVLET_MAPPINGS.put("javax.servlet.ReadListener", "jakarta.servlet.ReadListener");
         SERVLET_MAPPINGS.put("javax.servlet.WriteListener", "jakarta.servlet.WriteListener");
-        
+
         // JSP (deprecated in Jakarta EE 9+, but still scanned)
         SERVLET_MAPPINGS.put("javax.servlet.jsp.JspPage", "jakarta.servlet.jsp.JspPage");
         SERVLET_MAPPINGS.put("javax.servlet.jsp.HttpJspPage", "jakarta.servlet.jsp.HttpJspPage");
@@ -89,18 +98,18 @@ public class ServletJspScannerImpl implements ServletJspScanner {
         SERVLET_MAPPINGS.put("javax.servlet.jsp.PageContext", "jakarta.servlet.jsp.PageContext");
         SERVLET_MAPPINGS.put("javax.servlet.jsp.JspException", "jakarta.servlet.jsp.JspException");
         SERVLET_MAPPINGS.put("javax.servlet.jsp.JspTagException", "jakarta.servlet.jsp.JspTagException");
-        
+
         // JSP Tags
         SERVLET_MAPPINGS.put("javax.servlet.jsp.tagext.BodyTagSupport", "jakarta.servlet.jsp.tagext.BodyTagSupport");
         SERVLET_MAPPINGS.put("javax.servlet.jsp.tagext.IterationTag", "jakarta.servlet.jsp.tagext.IterationTag");
         SERVLET_MAPPINGS.put("javax.servlet.jsp.tagext.TagSupport", "jakarta.servlet.jsp.tagext.TagSupport");
         SERVLET_MAPPINGS.put("javax.servlet.jsp.tagext.Tag", "jakarta.servlet.jsp.tagext.Tag");
         SERVLET_MAPPINGS.put("javax.servlet.jsp.tagext.BodyTag", "jakarta.servlet.jsp.tagext.BodyTag");
-        
+
         // JSP Attributes
         SERVLET_MAPPINGS.put("javax.servlet.jsp.tagext.VariableInfo", "jakarta.servlet.jsp.tagext.VariableInfo");
         SERVLET_MAPPINGS.put("javax.servlet.jsp.tagext.TryCatchFinally", "jakarta.servlet.jsp.tagext.TryCatchFinally");
-        
+
         // JSP EL
         SERVLET_MAPPINGS.put("javax.el.ELContext", "jakarta.el.ELContext");
         SERVLET_MAPPINGS.put("javax.el.ELResolver", "jakarta.el.ELResolver");
@@ -115,10 +124,10 @@ public class ServletJspScannerImpl implements ServletJspScanner {
         SERVLET_MAPPINGS.put("javax.el.MapELResolver", "jakarta.el.MapELResolver");
     }
 
-    // Use ThreadLocal to avoid JavaParser reset() issues when parsing files
-    private final ThreadLocal<JavaParser> javaParserThreadLocal = ThreadLocal.withInitial(() ->
-        JavaParser.fromJavaVersion().build()
-    );
+    private final ThreadLocal<JavaParser> javaParserThreadLocal = ThreadLocal
+            .withInitial(() -> JavaParser.fromJavaVersion().build());
+
+    private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
 
     @Override
     public ServletJspProjectScanResult scanProject(Path projectPath) {
@@ -137,48 +146,47 @@ public class ServletJspScannerImpl implements ServletJspScanner {
                 return ServletJspProjectScanResult.empty();
             }
 
-            log.info("Scanning {} Java files and {} JSP files for Servlet/JSP in project: {}", 
-                javaFiles.size(), jspFiles.size(), projectPath);
+            log.info("Scanning {} Java files and {} JSP files for Servlet/JSP in project: {}",
+                    javaFiles.size(), jspFiles.size(), projectPath);
 
             // Scan Java files
             AtomicInteger totalScanned = new AtomicInteger(0);
             List<ServletJspScanResult> results = new ArrayList<>();
-            
+
             // Scan Java files in parallel
             javaFiles.parallelStream().forEach(file -> {
                 totalScanned.incrementAndGet();
                 ServletJspScanResult result = scanJavaFile(file);
                 if (result.hasJavaxUsage()) {
-                    synchronized(results) {
+                    synchronized (results) {
                         results.add(result);
                     }
                 }
             });
-            
+
             // Scan JSP files in parallel
             jspFiles.parallelStream().forEach(file -> {
                 totalScanned.incrementAndGet();
                 ServletJspScanResult result = scanJspFile(file);
                 if (result.hasJavaxUsage()) {
-                    synchronized(results) {
+                    synchronized (results) {
                         results.add(result);
                     }
                 }
             });
 
             int totalUsages = results.stream()
-                .mapToInt(r -> r.usages().size())
-                .sum();
+                    .mapToInt(r -> r.usages().size())
+                    .sum();
 
             log.info("Servlet/JSP scan complete: {} files scanned, {} files with usage, {} total usages",
-                totalScanned.get(), results.size(), totalUsages);
+                    totalScanned.get(), results.size(), totalUsages);
 
             return new ServletJspProjectScanResult(
-                results,
-                totalScanned.get(),
-                results.size(),
-                totalUsages
-            );
+                    results,
+                    totalScanned.get(),
+                    results.size(),
+                    totalUsages);
 
         } catch (Exception e) {
             log.error("Error scanning project for Servlet/JSP: {}", projectPath, e);
@@ -262,34 +270,32 @@ public class ServletJspScannerImpl implements ServletJspScanner {
     private List<ServletJspUsage> extractJspUsages(String content) {
         List<ServletJspUsage> usages = new ArrayList<>();
         String[] lines = content.split("\n");
-        
+
         // Match servlet class references in JSP (e.g., extends HttpServlet)
         Pattern classPattern = Pattern.compile("extends\\s+(javax\\.servlet[\\w.]+)");
         Matcher classMatcher = classPattern.matcher(content);
         while (classMatcher.find()) {
             String className = classMatcher.group(1);
             usages.add(new ServletJspUsage(
-                className,
-                SERVLET_MAPPINGS.getOrDefault(className, className.replace("javax.", "jakarta.")),
-                findLineNumber(lines, classMatcher.group(0)),
-                "class declaration",
-                "servlet"
-            ));
+                    className,
+                    SERVLET_MAPPINGS.getOrDefault(className, className.replace("javax.", "jakarta.")),
+                    findLineNumber(lines, classMatcher.group(0)),
+                    "class declaration",
+                    "servlet"));
         }
-        
+
         // Match taglib directives
         Pattern taglibPattern = Pattern.compile("taglib\\s+uri=[\"']http://java\\.sun\\.com[^\"']+[\"']");
         Matcher taglibMatcher = taglibPattern.matcher(content);
         while (taglibMatcher.find()) {
             usages.add(new ServletJspUsage(
-                "http://java.sun.com/xml/ns/javaee",
-                "https://jakarta.ee/xml/ns/jakartaee",
-                findLineNumber(lines, taglibMatcher.group(0)),
-                "taglib directive",
-                "jsp"
-            ));
+                    "http://java.sun.com/xml/ns/javaee",
+                    "https://jakarta.ee/xml/ns/jakartaee",
+                    findLineNumber(lines, taglibMatcher.group(0)),
+                    "taglib directive",
+                    "jsp"));
         }
-        
+
         return usages;
     }
 
@@ -309,36 +315,7 @@ public class ServletJspScannerImpl implements ServletJspScanner {
      * Discovers all files of a specific type in the project.
      */
     private List<Path> discoverFiles(Path projectPath, String extension) {
-        List<Path> files = new ArrayList<>();
-
-        try (Stream<Path> paths = Files.walk(projectPath)) {
-            paths
-                .filter(Files::isRegularFile)
-                .filter(p -> p.toString().endsWith(extension))
-                .filter(this::shouldScanFile)
-                .forEach(files::add);
-        } catch (IOException e) {
-            log.error("Error discovering {} files in: {}", extension, projectPath, e);
-        }
-
-        return files;
-    }
-
-    /**
-     * Determines if a file should be scanned.
-     */
-    private boolean shouldScanFile(Path file) {
-        String path = file.toString().replace('\\', '/');
-        return !path.contains("/target/") &&
-               !path.contains("/build/") &&
-               !path.contains("/.git/") &&
-               !path.contains("/node_modules/") &&
-               !path.contains("/.gradle/") &&
-               !path.contains("/.mvn/") &&
-               !path.contains("/.idea/") &&
-               !path.contains("/.vscode/") &&
-               !path.contains("/out/") &&
-               !path.contains("/bin/");
+        return fileScanner.findFiles(projectPath, List.of(extension));
     }
 
     /**
@@ -346,32 +323,30 @@ public class ServletJspScannerImpl implements ServletJspScanner {
      */
     private List<ServletJspUsage> extractServletUsages(CompilationUnit cu, String content) {
         List<ServletJspUsage> usages = new ArrayList<>();
-        
+
         String[] lines = content.split("\n");
-        
+
         // Check imports
         for (J.Import imp : cu.getImports()) {
             String importName = imp.getQualid().toString();
-            
-            if (importName.startsWith("javax.servlet.") || 
-                importName.startsWith("javax.el.")) {
-                
+
+            if (importName.startsWith("javax.servlet.") ||
+                    importName.startsWith("javax.el.")) {
+
                 String jakartaEquivalent = SERVLET_MAPPINGS.get(importName);
                 int lineNumber = findLineNumber(lines, importName);
-                
-                String usageType = importName.contains("jsp") ? "jsp" : 
-                                  importName.contains("el") ? "el" : "servlet";
-                
+
+                String usageType = importName.contains("jsp") ? "jsp" : importName.contains("el") ? "el" : "servlet";
+
                 usages.add(new ServletJspUsage(
-                    importName,
-                    jakartaEquivalent != null ? jakartaEquivalent : importName.replace("javax.", "jakarta."),
-                    lineNumber,
-                    "import",
-                    usageType
-                ));
+                        importName,
+                        jakartaEquivalent != null ? jakartaEquivalent : importName.replace("javax.", "jakarta."),
+                        lineNumber,
+                        "import",
+                        usageType));
             }
         }
-        
+
         return usages;
     }
 

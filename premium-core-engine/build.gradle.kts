@@ -29,6 +29,10 @@ dependencies {
     testAnnotationProcessor("org.projectlombok:lombok:1.18.30")
 }
 
+tasks.test {
+    useJUnitPlatform()
+}
+
 // NOTE: This module is PROPRIETARY and not covered by Apache License 2.0
 
 java {
