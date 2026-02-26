@@ -101,17 +101,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
             tabbedPane.addTab("Migration Strategy", strategyComponent.getPanel());
 
             // Refactor tab (Premium)
-            refactorComponent = new RefactorComponent(project);
-            refactorComponent.setRecipes(List.of(
-                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.jakartaNamespaceRecipe(),
-                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.persistenceXmlRecipe(),
-                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.webXmlRecipe(),
-                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.jpaRecipe(),
-                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.beanValidationRecipe(),
-                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.servletRecipe(),
-                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.cdiRecipe(),
-                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.restRecipe(),
-                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.soapRecipe()));
+            refactorComponent = new RefactorComponent(project, store);
+            refactorComponent.setRecipes(adrianmikula.jakartamigration.coderefactoring.domain.Recipe.allRecipes());
             tabbedPane.addTab("Refactor", refactorComponent.getPanel());
 
             // Runtime tab (Premium)
@@ -198,7 +189,6 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Show loading state
             dashboardComponent.setStatus(MigrationStatus.IN_PROGRESS);
-            dashboardComponent.setReadinessScore(-1); // Show loading
 
             // Run analysis directly using the migration-core library
             CompletableFuture.supplyAsync(() -> analysisService.analyzeProject(projectPath))
@@ -239,7 +229,6 @@ public class MigrationToolWindow implements ToolWindowFactory {
          */
         private void showEmptyResultsState() {
             MigrationDashboard dashboard = new MigrationDashboard();
-            dashboard.setReadinessScore(100);
             dashboard.setStatus(MigrationStatus.READY);
             dashboard.setLastAnalyzed(Instant.now());
 
@@ -444,7 +433,6 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Set initial empty state - wait for user to analyze
             MigrationDashboard dashboard = new MigrationDashboard();
-            dashboard.setReadinessScore(0);
             dashboard.setStatus(MigrationStatus.NOT_ANALYZED);
             dashboard.setLastAnalyzed(null);
 

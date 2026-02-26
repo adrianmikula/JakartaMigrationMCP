@@ -13,7 +13,8 @@ public class RefactorComponentTest extends BasePlatformTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp();
-        refactorComponent = new RefactorComponent(getProject());
+        refactorComponent = new RefactorComponent(getProject(),
+                new adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore());
     }
 
     public void testInitialization() {

@@ -91,7 +91,8 @@ class SqliteMigrationAnalysisStoreTest {
 
         // Then
         assertThat(dependencies).isNotEmpty();
-        assertThat(dependencies).anyMatch(d -> "jakarta.servlet".equals(d.groupId()) && "jakarta.servlet-api".equals(d.artifactId()));
+        assertThat(dependencies)
+                .anyMatch(d -> "jakarta.servlet".equals(d.groupId()) && "jakarta.servlet-api".equals(d.artifactId()));
     }
 
     @Test
@@ -102,7 +103,8 @@ class SqliteMigrationAnalysisStoreTest {
         store.saveAnalysisReport(tempDir, report);
 
         // When
-        List<SqliteMigrationAnalysisStore.DependencyInfo> needsMigration = store.getDependenciesNeedingMigration(tempDir);
+        List<SqliteMigrationAnalysisStore.DependencyInfo> needsMigration = store
+                .getDependenciesNeedingMigration(tempDir);
 
         // Then
         assertThat(needsMigration).isNotEmpty();
@@ -227,84 +229,80 @@ class SqliteMigrationAnalysisStoreTest {
 
         Set<Dependency> dependencies = new HashSet<>();
         dependencies.add(new Dependency(
-            new Artifact("com.example", "myapp", "1.0.0", "compile", false),
-            new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", false),
-            "compile",
-            false
-        ));
+                new Artifact("com.example", "myapp", "1.0.0", "compile", false),
+                new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", false),
+                "compile",
+                false));
 
         DependencyGraph graph = new DependencyGraph(artifacts, dependencies);
 
         Map<Artifact, Namespace> namespaceMap = new HashMap<>();
-        namespaceMap.put(new Artifact("jakarta.servlet", "jakarta.servlet-api", "6.0.0", "compile", false), Namespace.JAKARTA);
-        namespaceMap.put(new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", false), Namespace.JAVAX);
-        namespaceMap.put(new Artifact("jakarta.validation", "jakarta.validation-api", "3.0.0", "compile", false), Namespace.JAKARTA);
-        NamespaceCompatibilityMap compatMap = new NamespaceCompatibilityMap(namespaceMap);
+        namespaceMap.put(new Artifact("jakarta.servlet", "jakarta.servlet-api", "6.0.0", "compile", false),
+                Namespace.JAKARTA);
+        namespaceMap.put(new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", false),
+                Namespace.JAVAX);
+        namespaceMap.put(new Artifact("jakarta.validation", "jakarta.validation-api", "3.0.0", "compile", false),
+                Namespace.JAKARTA);
+        NamespaceCompatibilityMap compatMap = NamespaceCompatibilityMap.fromMap(namespaceMap);
 
         List<Blocker> blockers = List.of(
-            new Blocker(
-                new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", false),
-                BlockerType.NO_JAKARTA_EQUIVALENT,
-                "No Jakarta equivalent available",
-                List.of("Consider using a different servlet implementation"),
-                0.95
-            )
-        );
+                new Blocker(
+                        new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", false),
+                        BlockerType.NO_JAKARTA_EQUIVALENT,
+                        "No Jakarta equivalent available",
+                        List.of("Consider using a different servlet implementation"),
+                        0.95));
 
         List<VersionRecommendation> recommendations = List.of(
-            new VersionRecommendation(
-                new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", false),
-                new Artifact("jakarta.servlet", "jakarta.servlet-api", "6.0.0", "compile", false),
-                "Direct upgrade",
-                List.of("API changes in servlet methods"),
-                0.9
-            )
-        );
+                new VersionRecommendation(
+                        new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", false),
+                        new Artifact("jakarta.servlet", "jakarta.servlet-api", "6.0.0", "compile", false),
+                        "Direct upgrade",
+                        List.of("API changes in servlet methods"),
+                        0.9));
 
         RiskAssessment risk = new RiskAssessment(
-            0.6,
-            List.of("javax dependencies found", "Mixed namespace usage"),
-            List.of("Update dependencies first", "Test thoroughly")
-        );
+                0.6,
+                List.of("javax dependencies found", "Mixed namespace usage"),
+                List.of("Update dependencies first", "Test thoroughly"));
 
-        MigrationReadinessScore score = new MigrationReadinessScore(0.65, "Moderate readiness - some dependencies need migration");
+        MigrationReadinessScore score = new MigrationReadinessScore(0.65,
+                "Moderate readiness - some dependencies need migration");
 
-        return new DependencyAnalysisReport(graph, compatMap, blockers, recommendations, risk, score);
+        return new DependencyAnalysisReport(graph, compatMap.namespaceMap(), blockers, recommendations, risk, score);
     }
 
     private MigrationPlan createSamplePlan() {
         RefactoringPhase phase1 = new RefactoringPhase(
-            1,
-            "Update servlet dependencies",
-            List.of("src/main/java/com/example/MyServlet.java"),
-            List.of(new PhaseAction("src/main/java/com/example/MyServlet.java", "UPDATE_IMPORTS", List.of("javax.servlet.http.HttpServlet -> jakarta.servlet.http.HttpServlet"))),
-            List.of("jakarta-servlet-recipe"),
-            List.of("jakarta.servlet:jakarta.servlet-api:6.0.0"),
-            Duration.ofHours(1)
-        );
+                1,
+                "Update servlet dependencies",
+                List.of("src/main/java/com/example/MyServlet.java"),
+                List.of(new PhaseAction("src/main/java/com/example/MyServlet.java", "UPDATE_IMPORTS",
+                        List.of("javax.servlet.http.HttpServlet -> jakarta.servlet.http.HttpServlet"))),
+                List.of("jakarta-servlet-recipe"),
+                List.of("jakarta.servlet:jakarta.servlet-api:6.0.0"),
+                Duration.ofHours(1));
 
         RefactoringPhase phase2 = new RefactoringPhase(
-            2,
-            "Update validation dependencies",
-            List.of("src/main/java/com/example/MyValidator.java"),
-            List.of(new PhaseAction("src/main/java/com/example/MyValidator.java", "UPDATE_IMPORTS", List.of("javax.validation -> jakarta.validation"))),
-            List.of("jakarta-validation-recipe"),
-            List.of("jakarta.validation:jakarta.validation-api:3.0.0"),
-            Duration.ofMinutes(30)
-        );
+                2,
+                "Update validation dependencies",
+                List.of("src/main/java/com/example/MyValidator.java"),
+                List.of(new PhaseAction("src/main/java/com/example/MyValidator.java", "UPDATE_IMPORTS",
+                        List.of("javax.validation -> jakarta.validation"))),
+                List.of("jakarta-validation-recipe"),
+                List.of("jakarta.validation:jakarta.validation-api:3.0.0"),
+                Duration.ofMinutes(30));
 
         RiskAssessment risk = new RiskAssessment(
-            0.4,
-            List.of("Small number of files"),
-            List.of("Test after each phase")
-        );
+                0.4,
+                List.of("Small number of files"),
+                List.of("Test after each phase"));
 
         return new MigrationPlan(
-            List.of(phase1, phase2),
-            List.of("src/main/java/com/example/MyServlet.java", "src/main/java/com/example/MyValidator.java"),
-            Duration.ofHours(2),
-            risk,
-            List.of("Ensure all tests pass before starting")
-        );
+                List.of(phase1, phase2),
+                List.of("src/main/java/com/example/MyServlet.java", "src/main/java/com/example/MyValidator.java"),
+                Duration.ofHours(2),
+                risk,
+                List.of("Ensure all tests pass before starting"));
     }
 }

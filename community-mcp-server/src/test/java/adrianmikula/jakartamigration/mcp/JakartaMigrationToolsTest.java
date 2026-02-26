@@ -50,7 +50,8 @@ class JakartaMigrationToolsTest {
     @Mock
     private RecipeLibrary recipeLibrary;
 
-    // NOTE: RuntimeVerificationModule is a PREMIUM feature - not tested in community tests
+    // NOTE: RuntimeVerificationModule is a PREMIUM feature - not tested in
+    // community tests
 
     @Mock
     private FeatureFlagsService featureFlagsService;
@@ -63,7 +64,7 @@ class JakartaMigrationToolsTest {
 
     @TempDir
     Path tempDir;
-    
+
     private Path testProjectPath;
     private Path testJarPath;
     private DependencyAnalysisReport mockReport;
@@ -73,28 +74,25 @@ class JakartaMigrationToolsTest {
     void setUp() throws IOException {
         testProjectPath = tempDir.resolve("project");
         Files.createDirectories(testProjectPath);
-        
+
         testJarPath = tempDir.resolve("app.jar");
         Files.createFile(testJarPath);
-        
+
         // Create mock dependency graph
         mockGraph = new DependencyGraph(
-            new java.util.HashSet<>(List.of(
-                new Artifact("com.example", "test-app", "1.0.0", "compile", false),
-                new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", true)
-            )),
-            new java.util.HashSet<>()
-        );
-        
+                new java.util.HashSet<>(List.of(
+                        new Artifact("com.example", "test-app", "1.0.0", "compile", false),
+                        new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", true))),
+                new java.util.HashSet<>());
+
         // Create mock analysis report
         mockReport = new DependencyAnalysisReport(
-            mockGraph,
-            new NamespaceCompatibilityMap(java.util.Map.of()),
-            List.of(),
-            List.of(),
-            new RiskAssessment(0.3, List.of("Low risk"), List.of()),
-            new MigrationReadinessScore(0.8, "Ready for migration")
-        );
+                mockGraph,
+                java.util.Map.of(),
+                List.of(),
+                List.of(),
+                new RiskAssessment(0.3, List.of("Low risk"), List.of()),
+                new MigrationReadinessScore(0.8, "Ready for migration"));
     }
 
     @Test
@@ -133,7 +131,7 @@ class JakartaMigrationToolsTest {
     void shouldHandleDependencyGraphExceptionGracefully() {
         // Given - path exists, but analysis throws exception
         when(dependencyAnalysisModule.analyzeProject(any(Path.class)))
-            .thenThrow(new DependencyGraphException("Failed to parse pom.xml"));
+                .thenThrow(new DependencyGraphException("Failed to parse pom.xml"));
 
         // When
         String result = tools.analyzeJakartaReadiness(testProjectPath.toString());
@@ -148,15 +146,13 @@ class JakartaMigrationToolsTest {
     void shouldDetectBlockersSuccessfully() throws Exception {
         // Given
         List<Blocker> blockers = List.of(
-            new Blocker(
-                new Artifact("com.legacy", "legacy-lib", "1.0.0", "compile", false),
-                BlockerType.NO_JAKARTA_EQUIVALENT,
-                "No Jakarta equivalent found",
-                List.of("Find alternative library"),
-                0.9
-            )
-        );
-        
+                new Blocker(
+                        new Artifact("com.legacy", "legacy-lib", "1.0.0", "compile", false),
+                        BlockerType.NO_JAKARTA_EQUIVALENT,
+                        "No Jakarta equivalent found",
+                        List.of("Find alternative library"),
+                        0.9));
+
         when(dependencyGraphBuilder.buildFromProject(any(Path.class))).thenReturn(mockGraph);
         when(dependencyAnalysisModule.detectBlockers(any(DependencyGraph.class))).thenReturn(blockers);
 
@@ -191,15 +187,13 @@ class JakartaMigrationToolsTest {
     void shouldRecommendVersionsSuccessfully() throws Exception {
         // Given
         List<VersionRecommendation> recommendations = List.of(
-            new VersionRecommendation(
-                new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", true),
-                new Artifact("jakarta.servlet", "jakarta.servlet-api", "6.0.0", "compile", true),
-                "Migrate to Jakarta namespace",
-                List.of("Update imports"),
-                0.95
-            )
-        );
-        
+                new VersionRecommendation(
+                        new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", true),
+                        new Artifact("jakarta.servlet", "jakarta.servlet-api", "6.0.0", "compile", true),
+                        "Migrate to Jakarta namespace",
+                        List.of("Update imports"),
+                        0.95));
+
         when(dependencyGraphBuilder.buildFromProject(any(Path.class))).thenReturn(mockGraph);
         when(dependencyAnalysisModule.recommendVersions(any())).thenReturn(recommendations);
 
@@ -217,25 +211,22 @@ class JakartaMigrationToolsTest {
     @DisplayName("Should create migration plan successfully")
     void shouldCreateMigrationPlanSuccessfully() throws Exception {
         // Given
-        adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase phase = 
-            new adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase(
+        adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase phase = new adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase(
                 1,
                 "Update build files",
                 List.of("pom.xml"),
                 List.of(), // actions
                 List.of("UpdateMavenCoordinates"),
                 List.of(),
-                Duration.ofMinutes(5)
-            );
-        
+                Duration.ofMinutes(5));
+
         MigrationPlan mockPlan = new MigrationPlan(
-            List.of(phase),
-            List.of("pom.xml", "src/main/java/Example.java"),
-            Duration.ofMinutes(30),
-            new RiskAssessment(0.3, List.of("Low risk"), List.of()),
-            List.of()
-        );
-        
+                List.of(phase),
+                List.of("pom.xml", "src/main/java/Example.java"),
+                Duration.ofMinutes(30),
+                new RiskAssessment(0.3, List.of("Low risk"), List.of()),
+                List.of());
+
         when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);
         when(migrationPlanner.createPlan(anyString(), any(DependencyAnalysisReport.class))).thenReturn(mockPlan);
 
@@ -253,14 +244,13 @@ class JakartaMigrationToolsTest {
     void shouldEscapeJsonSpecialCharactersCorrectly() {
         // Given
         DependencyAnalysisReport reportWithSpecialChars = new DependencyAnalysisReport(
-            mockGraph,
-            new NamespaceCompatibilityMap(java.util.Map.of()),
-            List.of(),
-            List.of(),
-            new RiskAssessment(0.3, List.of("Risk with \"quotes\" and\nnewlines"), List.of()),
-            new MigrationReadinessScore(0.8, "Message with \"quotes\"")
-        );
-        
+                mockGraph,
+                java.util.Map.of(),
+                List.of(),
+                List.of(),
+                new RiskAssessment(0.3, List.of("Risk with \"quotes\" and\nnewlines"), List.of()),
+                new MigrationReadinessScore(0.8, "Message with \"quotes\""));
+
         when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(reportWithSpecialChars);
 
         // When
@@ -270,7 +260,8 @@ class JakartaMigrationToolsTest {
         assertThat(result).contains("\"status\": \"success\"");
         // Check that quotes in content are escaped (not the JSON structure quotes)
         assertThat(result).contains("\\\"quotes\\\""); // Quotes should be escaped in content
-        // Check that newlines in content are escaped (the JSON structure can have newlines for formatting)
+        // Check that newlines in content are escaped (the JSON structure can have
+        // newlines for formatting)
         assertThat(result).contains("\\n"); // Newlines in content should be escaped
     }
 }

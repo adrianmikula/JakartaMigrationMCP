@@ -53,7 +53,8 @@ class JakartaMigrationToolsPerformanceTest {
     @Mock
     private RecipeLibrary recipeLibrary;
 
-    // NOTE: RuntimeVerificationModule is a PREMIUM feature - not mocked in community tests
+    // NOTE: RuntimeVerificationModule is a PREMIUM feature - not mocked in
+    // community tests
 
     @Mock
     private FeatureFlagsService featureFlagsService;
@@ -66,7 +67,7 @@ class JakartaMigrationToolsPerformanceTest {
 
     @TempDir
     Path tempDir;
-    
+
     private Path testProjectPath;
 
     @BeforeEach
@@ -80,25 +81,24 @@ class JakartaMigrationToolsPerformanceTest {
     void shouldAnalyzeLargeProjectWithinTimeLimit() {
         // Given - Create a large dependency graph
         List<Artifact> largeArtifactList = IntStream.range(0, 1000)
-            .mapToObj(i -> new Artifact(
-                "com.example",
-                "dependency-" + i,
-                "1.0." + i,
-                "compile",
-                i % 2 == 0
-            ))
-            .toList();
+                .mapToObj(i -> new Artifact(
+                        "com.example",
+                        "dependency-" + i,
+                        "1.0." + i,
+                        "compile",
+                        i % 2 == 0))
+                .toList();
 
-        DependencyGraph largeGraph = new DependencyGraph(new java.util.HashSet<>(largeArtifactList), new java.util.HashSet<>());
-        
+        DependencyGraph largeGraph = new DependencyGraph(new java.util.HashSet<>(largeArtifactList),
+                new java.util.HashSet<>());
+
         DependencyAnalysisReport largeReport = new DependencyAnalysisReport(
-            largeGraph,
-            new NamespaceCompatibilityMap(java.util.Map.of()),
-            createLargeBlockersList(100),
-            createLargeRecommendationsList(200),
-            new RiskAssessment(0.5, createLargeStringList(50), List.of()),
-            new MigrationReadinessScore(0.7, "Large project analysis")
-        );
+                largeGraph,
+                java.util.Map.of(),
+                createLargeBlockersList(100),
+                createLargeRecommendationsList(200),
+                new RiskAssessment(0.5, createLargeStringList(50), List.of()),
+                new MigrationReadinessScore(0.7, "Large project analysis"));
 
         when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(largeReport);
 
@@ -118,14 +118,13 @@ class JakartaMigrationToolsPerformanceTest {
     void shouldDetectBlockersInLargeProjectWithinTimeLimit() {
         // Given
         DependencyGraph largeGraph = new DependencyGraph(
-            new java.util.HashSet<>(IntStream.range(0, 1000)
-                .mapToObj(i -> new Artifact("com.example", "dep-" + i, "1.0.0", "compile", false))
-                .toList()),
-            new java.util.HashSet<>()
-        );
+                new java.util.HashSet<>(IntStream.range(0, 1000)
+                        .mapToObj(i -> new Artifact("com.example", "dep-" + i, "1.0.0", "compile", false))
+                        .toList()),
+                new java.util.HashSet<>());
 
         List<Blocker> largeBlockersList = createLargeBlockersList(500);
-        
+
         when(dependencyGraphBuilder.buildFromProject(any(Path.class))).thenReturn(largeGraph);
         when(dependencyAnalysisModule.detectBlockers(any(DependencyGraph.class))).thenReturn(largeBlockersList);
 
@@ -145,14 +144,13 @@ class JakartaMigrationToolsPerformanceTest {
     void shouldRecommendVersionsForLargeProjectWithinTimeLimit() {
         // Given
         DependencyGraph largeGraph = new DependencyGraph(
-            new java.util.HashSet<>(IntStream.range(0, 1000)
-                .mapToObj(i -> new Artifact("javax.example", "dep-" + i, "1.0.0", "compile", false))
-                .toList()),
-            new java.util.HashSet<>()
-        );
+                new java.util.HashSet<>(IntStream.range(0, 1000)
+                        .mapToObj(i -> new Artifact("javax.example", "dep-" + i, "1.0.0", "compile", false))
+                        .toList()),
+                new java.util.HashSet<>());
 
         List<VersionRecommendation> largeRecommendations = createLargeRecommendationsList(1000);
-        
+
         when(dependencyGraphBuilder.buildFromProject(any(Path.class))).thenReturn(largeGraph);
         when(dependencyAnalysisModule.recommendVersions(any())).thenReturn(largeRecommendations);
 
@@ -172,39 +170,34 @@ class JakartaMigrationToolsPerformanceTest {
     void shouldCreateMigrationPlanForLargeProjectWithinTimeLimit() {
         // Given
         DependencyAnalysisReport report = new DependencyAnalysisReport(
-            new DependencyGraph(new java.util.HashSet<>(), new java.util.HashSet<>()),
-            new NamespaceCompatibilityMap(java.util.Map.of()),
-            List.of(),
-            List.of(),
-            new RiskAssessment(0.3, List.of(), List.of()),
-            new MigrationReadinessScore(0.8, "Ready")
-        );
+                new DependencyGraph(new java.util.HashSet<>(), new java.util.HashSet<>()),
+                java.util.Map.of(),
+                List.of(),
+                List.of(),
+                new RiskAssessment(0.3, List.of(), List.of()),
+                new MigrationReadinessScore(0.8, "Ready"));
 
         // Create large file list
         List<String> largeFileList = IntStream.range(0, 500)
-            .mapToObj(i -> "src/main/java/com/example/File" + i + ".java")
-            .toList();
+                .mapToObj(i -> "src/main/java/com/example/File" + i + ".java")
+                .toList();
 
         // Create at least one phase to satisfy MigrationPlan validation
-        adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase phase = 
-            new adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase(
+        adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase phase = new adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase(
                 1,
                 "Phase 1",
                 largeFileList.subList(0, Math.min(100, largeFileList.size())),
                 List.of(), // actions
                 List.of("AddJakartaNamespace"),
                 List.of(),
-                Duration.ofMinutes(30)
-            );
-        
-        adrianmikula.jakartamigration.coderefactoring.domain.MigrationPlan largePlan = 
-            new adrianmikula.jakartamigration.coderefactoring.domain.MigrationPlan(
+                Duration.ofMinutes(30));
+
+        adrianmikula.jakartamigration.coderefactoring.domain.MigrationPlan largePlan = new adrianmikula.jakartamigration.coderefactoring.domain.MigrationPlan(
                 List.of(phase),
                 largeFileList,
                 Duration.ofHours(2),
                 new RiskAssessment(0.3, List.of(), List.of()),
-                List.of()
-            );
+                List.of());
 
         when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(report);
         when(migrationPlanner.createPlan(any(), any(DependencyAnalysisReport.class))).thenReturn(largePlan);
@@ -224,13 +217,12 @@ class JakartaMigrationToolsPerformanceTest {
     void shouldHandleJsonSerializationOfLargeResponsesEfficiently() {
         // Given - Create response with many items
         List<Blocker> manyBlockers = createLargeBlockersList(1000);
-        
+
         DependencyGraph graph = new DependencyGraph(
-            new java.util.HashSet<>(IntStream.range(0, 1000)
-                .mapToObj(i -> new Artifact("com.example", "dep-" + i, "1.0.0", "compile", false))
-                .toList()),
-            new java.util.HashSet<>()
-        );
+                new java.util.HashSet<>(IntStream.range(0, 1000)
+                        .mapToObj(i -> new Artifact("com.example", "dep-" + i, "1.0.0", "compile", false))
+                        .toList()),
+                new java.util.HashSet<>());
 
         when(dependencyGraphBuilder.buildFromProject(any(Path.class))).thenReturn(graph);
         when(dependencyAnalysisModule.detectBlockers(any(DependencyGraph.class))).thenReturn(manyBlockers);
@@ -251,13 +243,12 @@ class JakartaMigrationToolsPerformanceTest {
     void shouldProcessMultipleConcurrentRequestsEfficiently() throws InterruptedException {
         // Given
         DependencyAnalysisReport report = new DependencyAnalysisReport(
-            new DependencyGraph(new java.util.HashSet<>(), new java.util.HashSet<>()),
-            new NamespaceCompatibilityMap(java.util.Map.of()),
-            List.of(),
-            List.of(),
-            new RiskAssessment(0.3, List.of(), List.of()),
-            new MigrationReadinessScore(0.8, "Ready")
-        );
+                new DependencyGraph(new java.util.HashSet<>(), new java.util.HashSet<>()),
+                java.util.Map.of(),
+                List.of(),
+                List.of(),
+                new RiskAssessment(0.3, List.of(), List.of()),
+                new MigrationReadinessScore(0.8, "Ready"));
 
         when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(report);
 
@@ -265,7 +256,7 @@ class JakartaMigrationToolsPerformanceTest {
         int threadCount = 10;
         Thread[] threads = new Thread[threadCount];
         long[] durations = new long[threadCount];
-        
+
         for (int i = 0; i < threadCount; i++) {
             final int index = i;
             threads[i] = new Thread(() -> {
@@ -295,31 +286,29 @@ class JakartaMigrationToolsPerformanceTest {
 
     private List<Blocker> createLargeBlockersList(int count) {
         return IntStream.range(0, count)
-            .mapToObj(i -> new Blocker(
-                new Artifact("com.legacy", "legacy-lib-" + i, "1.0.0", "compile", false),
-                BlockerType.NO_JAKARTA_EQUIVALENT,
-                "No Jakarta equivalent found for library " + i,
-                List.of("Find alternative", "Check compatibility"),
-                0.9
-            ))
-            .toList();
+                .mapToObj(i -> new Blocker(
+                        new Artifact("com.legacy", "legacy-lib-" + i, "1.0.0", "compile", false),
+                        BlockerType.NO_JAKARTA_EQUIVALENT,
+                        "No Jakarta equivalent found for library " + i,
+                        List.of("Find alternative", "Check compatibility"),
+                        0.9))
+                .toList();
     }
 
     private List<VersionRecommendation> createLargeRecommendationsList(int count) {
         return IntStream.range(0, count)
-            .mapToObj(i -> new VersionRecommendation(
-                new Artifact("javax.example", "dep-" + i, "1.0.0", "compile", false),
-                new Artifact("jakarta.example", "dep-" + i, "2.0.0", "compile", false),
-                "Migrate to Jakarta namespace",
-                List.of("Update imports", "Update dependencies"),
-                0.95
-            ))
-            .toList();
+                .mapToObj(i -> new VersionRecommendation(
+                        new Artifact("javax.example", "dep-" + i, "1.0.0", "compile", false),
+                        new Artifact("jakarta.example", "dep-" + i, "2.0.0", "compile", false),
+                        "Migrate to Jakarta namespace",
+                        List.of("Update imports", "Update dependencies"),
+                        0.95))
+                .toList();
     }
 
     private List<String> createLargeStringList(int count) {
         return IntStream.range(0, count)
-            .mapToObj(i -> "Risk factor " + i)
-            .toList();
+                .mapToObj(i -> "Risk factor " + i)
+                .toList();
     }
 }

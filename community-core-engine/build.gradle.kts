@@ -26,6 +26,7 @@ dependencies {
     api("org.openrewrite:rewrite-java:8.10.0")
     api("org.openrewrite:rewrite-maven:8.10.0")
     api("org.openrewrite:rewrite-xml:8.10.0")
+    runtimeOnly("org.openrewrite:rewrite-java-17:8.10.0")
 
     testImplementation(platform("org.junit:junit-bom:5.10.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -38,6 +39,10 @@ java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
     }
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 // =============================================================================

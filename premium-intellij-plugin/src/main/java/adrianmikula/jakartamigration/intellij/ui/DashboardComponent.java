@@ -1,8 +1,5 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
-import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
-import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
-import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.intellij.JakartaMcpRegistrationActivity;
 import adrianmikula.jakartamigration.intellij.mcp.JakartaMcpServerProvider;
 import adrianmikula.jakartamigration.intellij.model.DependencySummary;
@@ -19,8 +16,6 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.function.Consumer;
 
@@ -39,16 +34,13 @@ public class DashboardComponent {
 
     // UI Components for key:value table
     private JPanel metricsTablePanel;
-    private JBLabel readinessScoreValue;
     private JBLabel totalDepsValue;
     private JBLabel affectedDepsValue;
     private JBLabel noJakartaSupportValue;
     private JBLabel xmlFilesValue;
     private JBLabel transitiveDepsValue;
-    private JBLabel blockersValue;
     private JBLabel migrableValue;
     private JBLabel lastAnalyzedValue;
-    private JBLabel statusValue;
     private JBLabel statusIndicator;
 
     // MCP Server Status components
@@ -307,32 +299,32 @@ public class DashboardComponent {
         // Row 1
         gbc.gridx = 0;
         gbc.gridy = 0;
-        tablePanel.add(createKeyLabel("Readiness Score:"), gbc);
+        tablePanel.add(createKeyLabel("Total Dependencies:"), gbc);
         gbc.gridx = 1;
-        readinessScoreValue = createValueLabel("-");
-        tablePanel.add(readinessScoreValue, gbc);
+        totalDepsValue = createValueLabel("-");
+        tablePanel.add(totalDepsValue, gbc);
 
         gbc.gridx = 2;
         gbc.gridy = 0;
-        tablePanel.add(createKeyLabel("Total Dependencies:"), gbc);
+        tablePanel.add(createKeyLabel("Affected Dependencies:"), gbc);
         gbc.gridx = 3;
-        totalDepsValue = createValueLabel("-");
-        tablePanel.add(totalDepsValue, gbc);
+        affectedDepsValue = createValueLabel("-");
+        tablePanel.add(affectedDepsValue, gbc);
 
         // Row 2
         gbc.gridx = 0;
         gbc.gridy = 1;
-        tablePanel.add(createKeyLabel("Affected Dependencies:"), gbc);
+        tablePanel.add(createKeyLabel("No Jakarta Support:"), gbc);
         gbc.gridx = 1;
-        affectedDepsValue = createValueLabel("-");
-        tablePanel.add(affectedDepsValue, gbc);
+        noJakartaSupportValue = createValueLabel("-");
+        tablePanel.add(noJakartaSupportValue, gbc);
 
         gbc.gridx = 2;
         gbc.gridy = 1;
-        tablePanel.add(createKeyLabel("No Jakarta Support:"), gbc);
+        tablePanel.add(createKeyLabel("Transitive Deps:"), gbc);
         gbc.gridx = 3;
-        noJakartaSupportValue = createValueLabel("-");
-        tablePanel.add(noJakartaSupportValue, gbc);
+        transitiveDepsValue = createValueLabel("-");
+        tablePanel.add(transitiveDepsValue, gbc);
 
         // Row 3
         gbc.gridx = 0;
@@ -344,89 +336,74 @@ public class DashboardComponent {
 
         gbc.gridx = 2;
         gbc.gridy = 2;
-        tablePanel.add(createKeyLabel("Transitive Deps:"), gbc);
-        gbc.gridx = 3;
-        transitiveDepsValue = createValueLabel("-");
-        tablePanel.add(transitiveDepsValue, gbc);
-
-        // Row 4
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        tablePanel.add(createKeyLabel("Blockers:"), gbc);
-        gbc.gridx = 1;
-        blockersValue = createValueLabel("-");
-        tablePanel.add(blockersValue, gbc);
-
-        gbc.gridx = 2;
-        gbc.gridy = 3;
         tablePanel.add(createKeyLabel("Migrable:"), gbc);
         gbc.gridx = 3;
         migrableValue = createValueLabel("-");
         tablePanel.add(migrableValue, gbc);
 
-        // Row 5: JPA, Bean Validation
+        // Row 4: JPA, Bean Validation
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy = 3;
         tablePanel.add(createKeyLabel("JPA Issues:"), gbc);
         gbc.gridx = 1;
         jpaScanCountValue = createValueLabel("0");
         tablePanel.add(jpaScanCountValue, gbc);
 
         gbc.gridx = 2;
-        gbc.gridy = 4;
+        gbc.gridy = 3;
         tablePanel.add(createKeyLabel("Bean Validation:"), gbc);
         gbc.gridx = 3;
         beanValidationScanCountValue = createValueLabel("0");
         tablePanel.add(beanValidationScanCountValue, gbc);
 
-        // Row 6: Servlet/JSP, CDI
+        // Row 5: Servlet/JSP, CDI
         gbc.gridx = 0;
-        gbc.gridy = 5;
+        gbc.gridy = 4;
         tablePanel.add(createKeyLabel("Servlet/JSP:"), gbc);
         gbc.gridx = 1;
         servletJspScanCountValue = createValueLabel("0");
         tablePanel.add(servletJspScanCountValue, gbc);
 
         gbc.gridx = 2;
-        gbc.gridy = 5;
+        gbc.gridy = 4;
         tablePanel.add(createKeyLabel("CDI Injection:"), gbc);
         gbc.gridx = 3;
         cdiInjectionScanCountValue = createValueLabel("0");
         tablePanel.add(cdiInjectionScanCountValue, gbc);
 
-        // Row 7: Build, REST/SOAP
+        // Row 6: Build, REST/SOAP
         gbc.gridx = 0;
-        gbc.gridy = 6;
+        gbc.gridy = 5;
         tablePanel.add(createKeyLabel("Build Config:"), gbc);
         gbc.gridx = 1;
         buildConfigScanCountValue = createValueLabel("0");
         tablePanel.add(buildConfigScanCountValue, gbc);
 
         gbc.gridx = 2;
-        gbc.gridy = 6;
+        gbc.gridy = 5;
         tablePanel.add(createKeyLabel("REST/SOAP:"), gbc);
         gbc.gridx = 3;
         restSoapScanCountValue = createValueLabel("0");
         tablePanel.add(restSoapScanCountValue, gbc);
 
-        // Row 8: Deprecated, Security
+        // Row 7: Deprecated, Security
         gbc.gridx = 0;
-        gbc.gridy = 7;
+        gbc.gridy = 6;
         tablePanel.add(createKeyLabel("Deprecated API:"), gbc);
         gbc.gridx = 1;
         deprecatedApiScanCountValue = createValueLabel("0");
         tablePanel.add(deprecatedApiScanCountValue, gbc);
 
         gbc.gridx = 2;
-        gbc.gridy = 7;
+        gbc.gridy = 6;
         tablePanel.add(createKeyLabel("Security API:"), gbc);
         gbc.gridx = 3;
         securityApiScanCountValue = createValueLabel("0");
         tablePanel.add(securityApiScanCountValue, gbc);
 
-        // Row 9: Total Advanced Issues (Spans width)
+        // Row 8: Total Advanced Issues (Spans width)
         gbc.gridx = 0;
-        gbc.gridy = 8;
+        gbc.gridy = 7;
         gbc.gridwidth = 2;
         JLabel totalAdvancedLabel = createKeyLabel("Total Advanced Issues:");
         totalAdvancedLabel.setFont(totalAdvancedLabel.getFont().deriveFont(Font.BOLD));
@@ -446,9 +423,9 @@ public class DashboardComponent {
         configFileScanCountValue = createValueLabel("0");
         classloaderModuleScanCountValue = createValueLabel("0");
 
-        // Row 11 - Status spans full width
+        // Row 9 - Status indicator spans full width
         gbc.gridx = 0;
-        gbc.gridy = 9;
+        gbc.gridy = 8;
         gbc.gridwidth = 4;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(12, 8, 4, 8);
@@ -456,14 +433,11 @@ public class DashboardComponent {
         statusIndicator = new JBLabel("●");
         statusIndicator.setFont(statusIndicator.getFont().deriveFont(Font.BOLD, 14f));
         statusPanel.add(statusIndicator);
-        statusPanel.add(new JBLabel("Status:"));
-        statusValue = createValueLabel(MigrationStatus.NOT_ANALYZED.getValue());
-        statusValue.setFont(statusValue.getFont().deriveFont(Font.BOLD));
-        statusPanel.add(statusValue);
+        statusPanel.add(new JBLabel("Jakarta Status Indicator"));
         tablePanel.add(statusPanel, gbc);
 
-        // Row 11 - Last Analyzed spans full width
-        gbc.gridy = 10;
+        // Row 10 - Last Analyzed spans full width
+        gbc.gridy = 9;
         gbc.insets = new Insets(4, 8, 4, 8);
         JPanel lastAnalyzedPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 10, 0));
         lastAnalyzedPanel.add(new JBLabel("Last Analyzed:"));
@@ -502,29 +476,18 @@ public class DashboardComponent {
         Messages.showInfoMessage(project, "Refreshing analysis results...", "Refresh");
     }
 
-    private Color getScoreColor(int score) {
-        if (score >= 80) {
-            return new Color(0, 140, 0); // Green
-        } else if (score >= 50) {
-            return new Color(200, 140, 0); // Orange
-        } else {
-            return new Color(180, 0, 0); // Red
-        }
-    }
-
-    public void setReadinessScore(int score) {
-        readinessScoreValue.setText(score + "%");
-        readinessScoreValue.setForeground(getScoreColor(score));
-    }
-
     public void setDependencySummary(DependencySummary summary) {
         totalDepsValue.setText(String.valueOf(summary.getTotalDependencies()));
         affectedDepsValue.setText(String.valueOf(summary.getAffectedDependencies()));
-        blockersValue.setText(String.valueOf(summary.getBlockerDependencies()));
         migrableValue.setText(String.valueOf(summary.getMigrableDependencies()));
-        noJakartaSupportValue.setText("-");
-        xmlFilesValue.setText("-");
-        transitiveDepsValue.setText("-");
+
+        // Task 6 Fixes: correctly populate remaining fields if available
+        noJakartaSupportValue.setText(
+                summary.getNoJakartaSupportCount() != null ? String.valueOf(summary.getNoJakartaSupportCount()) : "-");
+        xmlFilesValue.setText(summary.getXmlFilesCount() != null ? String.valueOf(summary.getXmlFilesCount()) : "-");
+        transitiveDepsValue.setText(
+                summary.getTransitiveDependencies() != null ? String.valueOf(summary.getTransitiveDependencies())
+                        : "-");
     }
 
     public void setLastAnalyzed(Instant lastAnalyzed) {
@@ -536,25 +499,19 @@ public class DashboardComponent {
     }
 
     public void setStatusAndColor(MigrationStatus status, Color color) {
-        statusValue.setText(status.getValue());
-        statusValue.setForeground(color);
         statusIndicator.setForeground(color);
         dashboard = new MigrationDashboard();
         dashboard.setStatus(status);
     }
 
     public void clearMetrics() {
-        readinessScoreValue.setText("-");
         totalDepsValue.setText("-");
         affectedDepsValue.setText("-");
         noJakartaSupportValue.setText("-");
         xmlFilesValue.setText("-");
         transitiveDepsValue.setText("-");
-        blockersValue.setText("-");
         migrableValue.setText("-");
         lastAnalyzedValue.setText("Never");
-        statusValue.setText(MigrationStatus.NOT_ANALYZED.getValue());
-        statusValue.setForeground(Color.GRAY);
         statusIndicator.setForeground(Color.GRAY);
     }
 
@@ -565,9 +522,7 @@ public class DashboardComponent {
      */
     public void setStatus(MigrationStatus status) {
         if (status != null) {
-            statusValue.setText(status.getValue());
             Color color = getStatusColor(status);
-            statusValue.setForeground(color);
             statusIndicator.setForeground(color);
             dashboard = new MigrationDashboard();
             dashboard.setStatus(status);
@@ -600,11 +555,6 @@ public class DashboardComponent {
 
         this.dashboard = dashboard;
 
-        // Update readiness score
-        if (dashboard.getReadinessScore() >= 0) {
-            setReadinessScore(dashboard.getReadinessScore());
-        }
-
         // Update dependency summary
         if (dashboard.getDependencySummary() != null) {
             setDependencySummary(dashboard.getDependencySummary());
@@ -636,12 +586,8 @@ public class DashboardComponent {
         return panel;
     }
 
-    public JBLabel getReadinessScoreValue() {
-        return readinessScoreValue;
-    }
-
-    public JBLabel getStatusValue() {
-        return statusValue;
+    public JBLabel getStatusIndicator() {
+        return statusIndicator;
     }
 
     public JBLabel getJpaScanCountValue() {

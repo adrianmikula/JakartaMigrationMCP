@@ -10,6 +10,17 @@ jacoco {
 
 tasks.withType<JacocoReport> {
     dependsOn("test")
+    
+    // Include both original and instrumented classes for Jacoco report.
+    // The IntelliJ plugin instruments classes for forms and @NotNull, 
+    // and tests often use these instrumented classes.
+    classDirectories.setFrom(
+        files(
+            "$buildDir/classes/java/main",
+            "$buildDir/instrumented/instrumentCode"
+        )
+    )
+    
     reports {
         xml.required.set(true)
         html.required.set(true)
@@ -44,6 +55,15 @@ tasks {
     patchPluginXml {
         sinceBuild.set("233")
         untilBuild.set("243.*")
+        changeNotes.set("""
+            <h>${project.version}</h>
+            <ul>
+                <li>Automated builds with unique versioning</li>
+                <li>Jakarta EE migration tools for dependencies and code</li>
+                <li>OpenRewrite refactoring integration</li>
+                <li>MCP Server for AI Assistant discovery</li>
+            </ul>
+        """.trimIndent())
     }
 
     // Disable buildSearchableOptions task to avoid JavaVersion.parse() failure with JDK 25
@@ -67,7 +87,7 @@ tasks.register("generateMcpToolsJson") {
             |{
             |  "server": {
             |    "name": "jakarta-migration-mcp",
-            |    "version": "1.0.0",
+            |    "version": "${project.version}",
             |    "description": "MCP server for Jakarta EE migration analysis and automation",
             |    "author": "Jakarta Migration Team",
             |    "vendor": "jakarta-migration.com"

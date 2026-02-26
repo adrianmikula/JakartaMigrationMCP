@@ -1,3 +1,7 @@
+import java.time.format.DateTimeFormatter
+import java.time.ZoneId
+import java.time.Instant
+
 plugins {
     java
     id("org.springframework.boot") version "3.2.0" apply false
@@ -7,7 +11,7 @@ plugins {
 
 allprojects {
     group = "adrianmikula"
-    version = "1.0.0"
+    version = project.findProperty("version") ?: "1.0.0"
 
     repositories {
         mavenCentral()
@@ -16,6 +20,42 @@ allprojects {
         maven { url = uri("https://oss.sonatype.org/content/repositories/snapshots") }
         maven { url = uri("https://www.jetbrains.com/intellij-repository/releases") }
         maven { url = uri("https://cache-redirector.jetbrains.com/intellij-dependencies") }
+    }
+}
+
+tasks.register("generateUniqueVersion") {
+    description = "Generates a unique version number by appending a timestamp"
+    group = "versioning"
+
+    doLast {
+        val gradlePropsFile = project.file("gradle.properties")
+        if (gradlePropsFile.exists()) {
+            val lines = gradlePropsFile.readLines().toMutableList()
+            val timestamp = DateTimeFormatter.ofPattern("yyyyMMddHHmm")
+                .withZone(ZoneId.of("UTC"))
+                .format(Instant.now())
+            
+            var versionUpdated = false
+            for (i in lines.indices) {
+                if (lines[i].trim().startsWith("version=")) {
+                    val currentVersion = lines[i].substringAfter("=").substringBefore("-").trim()
+                    val newVersion = "$currentVersion-$timestamp"
+                    lines[i] = "version=$newVersion"
+                    versionUpdated = true
+                    println("🚀 Updating version to: $newVersion")
+                    break
+                }
+            }
+            
+            if (!versionUpdated) {
+                lines.add("version=1.0.0-$timestamp")
+                println("🚀 Adding version: 1.0.0-$timestamp")
+            }
+            
+            gradlePropsFile.writeText(lines.joinToString("\n") + "\n")
+        } else {
+            error("gradle.properties not found")
+        }
     }
 }
 

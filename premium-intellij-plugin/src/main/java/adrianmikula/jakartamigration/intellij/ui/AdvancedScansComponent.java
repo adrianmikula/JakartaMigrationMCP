@@ -5,11 +5,18 @@ import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.analysis.persistence.ObjectMapperService;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.vfs.LocalFileSystem;
+import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.ui.table.JBTable;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableColumnModel;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,21 +34,21 @@ public class AdvancedScansComponent {
     private final JPanel mainPanel;
 
     private JTabbedPane tabbedPane;
-    private JTable jpaTable;
-    private JTable beanValidationTable;
-    private JTable servletJspTable;
-    private JTable buildConfigTable;
-    private JTable configFileTable;
-    private JTable deprecatedApiTable;
-    private JTable cdiInjectionTable;
-    private JTable restSoapTable;
-    private JTable securityApiTable;
-    private JTable jmsMessagingTable;
-    private JTable transitiveDependencyTable;
-    private JTable classloaderModuleTable;
-    private JTable loggingMetricsTable;
-    private JTable serializationCacheTable;
-    private JTable thirdPartyLibTable;
+    private JBTable jpaTable;
+    private JBTable beanValidationTable;
+    private JBTable servletJspTable;
+    private JBTable buildConfigTable;
+    private JBTable configFileTable;
+    private JBTable deprecatedApiTable;
+    private JBTable cdiInjectionTable;
+    private JBTable restSoapTable;
+    private JBTable securityApiTable;
+    private JBTable jmsMessagingTable;
+    private JBTable transitiveDependencyTable;
+    private JBTable classloaderModuleTable;
+    private JBTable loggingMetricsTable;
+    private JBTable serializationCacheTable;
+    private JBTable thirdPartyLibTable;
     private JLabel jpaStatusLabel;
     private JLabel beanValidationStatusLabel;
     private JLabel servletJspStatusLabel;
@@ -170,14 +177,14 @@ public class AdvancedScansComponent {
         jpaStatusLabel.setForeground(Color.GRAY);
 
         // Table
-        String[] columns = { "File", "Line", "Annotation", "Jakarta Equivalent" };
-        jpaTable = new JTable(new DefaultTableModel(columns, 0) {
+        String[] columns = { "File", "Line", "Annotation", "Jakarta Equivalent", "Path" };
+        jpaTable = new JBTable(new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         });
-        jpaTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        setupTable(jpaTable);
 
         panel.add(jpaStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(jpaTable), BorderLayout.CENTER);
@@ -194,14 +201,14 @@ public class AdvancedScansComponent {
         beanValidationStatusLabel.setForeground(Color.GRAY);
 
         // Table
-        String[] columns = { "File", "Line", "Constraint", "Jakarta Equivalent" };
-        beanValidationTable = new JTable(new DefaultTableModel(columns, 0) {
+        String[] columns = { "File", "Line", "Constraint", "Jakarta Equivalent", "Path" };
+        beanValidationTable = new JBTable(new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         });
-        beanValidationTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        setupTable(beanValidationTable);
 
         panel.add(beanValidationStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(beanValidationTable), BorderLayout.CENTER);
@@ -218,14 +225,14 @@ public class AdvancedScansComponent {
         servletJspStatusLabel.setForeground(Color.GRAY);
 
         // Table
-        String[] columns = { "File", "Line", "Class/Usage", "Type", "Jakarta Equivalent" };
-        servletJspTable = new JTable(new DefaultTableModel(columns, 0) {
+        String[] columns = { "File", "Line", "Class/Usage", "Type", "Jakarta Equivalent", "Path" };
+        servletJspTable = new JBTable(new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         });
-        servletJspTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        setupTable(servletJspTable);
 
         panel.add(servletJspStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(servletJspTable), BorderLayout.CENTER);
@@ -243,14 +250,14 @@ public class AdvancedScansComponent {
         buildConfigStatusLabel.setForeground(Color.GRAY);
 
         // Table
-        String[] columns = { "File", "Line", "Configuration", "Jakarta Equivalent" };
-        buildConfigTable = new JTable(new DefaultTableModel(columns, 0) {
+        String[] columns = { "File", "Line", "Configuration", "Jakarta Equivalent", "Path" };
+        buildConfigTable = new JBTable(new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         });
-        buildConfigTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        setupTable(buildConfigTable);
 
         panel.add(buildConfigStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(buildConfigTable), BorderLayout.CENTER);
@@ -267,14 +274,14 @@ public class AdvancedScansComponent {
         configFileStatusLabel.setForeground(Color.GRAY);
 
         // Table
-        String[] columns = { "File", "Line", "Configuration", "Jakarta Equivalent" };
-        configFileTable = new JTable(new DefaultTableModel(columns, 0) {
+        String[] columns = { "File", "Line", "Configuration", "Jakarta Equivalent", "Path" };
+        configFileTable = new JBTable(new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         });
-        configFileTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        setupTable(configFileTable);
 
         panel.add(configFileStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(configFileTable), BorderLayout.CENTER);
@@ -291,14 +298,14 @@ public class AdvancedScansComponent {
         deprecatedApiStatusLabel.setForeground(Color.GRAY);
 
         // Table
-        String[] columns = { "File", "Line", "Deprecated API", "Jakarta Equivalent" };
-        deprecatedApiTable = new JTable(new DefaultTableModel(columns, 0) {
+        String[] columns = { "File", "Line", "Deprecated API", "Jakarta Equivalent", "Path" };
+        deprecatedApiTable = new JBTable(new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         });
-        deprecatedApiTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        setupTable(deprecatedApiTable);
 
         panel.add(deprecatedApiStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(deprecatedApiTable), BorderLayout.CENTER);
@@ -315,14 +322,14 @@ public class AdvancedScansComponent {
         cdiInjectionStatusLabel.setForeground(Color.GRAY);
 
         // Table
-        String[] columns = { "File", "Line", "CDI Injection", "Jakarta Equivalent" };
-        cdiInjectionTable = new JTable(new DefaultTableModel(columns, 0) {
+        String[] columns = { "File", "Line", "CDI Injection", "Jakarta Equivalent", "Path" };
+        cdiInjectionTable = new JBTable(new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         });
-        cdiInjectionTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        setupTable(cdiInjectionTable);
 
         panel.add(cdiInjectionStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(cdiInjectionTable), BorderLayout.CENTER);
@@ -339,14 +346,14 @@ public class AdvancedScansComponent {
         restSoapStatusLabel.setForeground(Color.GRAY);
 
         // Table
-        String[] columns = { "File", "Line", "REST/SOAP", "Jakarta Equivalent" };
-        restSoapTable = new JTable(new DefaultTableModel(columns, 0) {
+        String[] columns = { "File", "Line", "REST/SOAP", "Jakarta Equivalent", "Path" };
+        restSoapTable = new JBTable(new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         });
-        restSoapTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        setupTable(restSoapTable);
 
         panel.add(restSoapStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(restSoapTable), BorderLayout.CENTER);
@@ -363,14 +370,14 @@ public class AdvancedScansComponent {
         securityApiStatusLabel.setForeground(Color.GRAY);
 
         // Table
-        String[] columns = { "File", "Line", "Security API", "Jakarta Equivalent" };
-        securityApiTable = new JTable(new DefaultTableModel(columns, 0) {
+        String[] columns = { "File", "Line", "Security API", "Jakarta Equivalent", "Path" };
+        securityApiTable = new JBTable(new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         });
-        securityApiTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        setupTable(securityApiTable);
 
         panel.add(securityApiStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(securityApiTable), BorderLayout.CENTER);
@@ -387,14 +394,14 @@ public class AdvancedScansComponent {
         jmsMessagingStatusLabel.setForeground(Color.GRAY);
 
         // Table
-        String[] columns = { "File", "Line", "JMS Messaging", "Jakarta Equivalent" };
-        jmsMessagingTable = new JTable(new DefaultTableModel(columns, 0) {
+        String[] columns = { "File", "Line", "JMS Messaging", "Jakarta Equivalent", "Path" };
+        jmsMessagingTable = new JBTable(new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         });
-        jmsMessagingTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        setupTable(jmsMessagingTable);
 
         panel.add(jmsMessagingStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(jmsMessagingTable), BorderLayout.CENTER);
@@ -411,14 +418,14 @@ public class AdvancedScansComponent {
         classloaderModuleStatusLabel.setForeground(Color.GRAY);
 
         // Table
-        String[] columns = { "File", "Line", "Classloader/Module", "Jakarta Equivalent" };
-        classloaderModuleTable = new JTable(new DefaultTableModel(columns, 0) {
+        String[] columns = { "File", "Line", "Classloader/Module", "Jakarta Equivalent", "Path" };
+        classloaderModuleTable = new JBTable(new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         });
-        classloaderModuleTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        setupTable(classloaderModuleTable);
 
         panel.add(classloaderModuleStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(classloaderModuleTable), BorderLayout.CENTER);
@@ -435,14 +442,14 @@ public class AdvancedScansComponent {
         loggingMetricsStatusLabel.setForeground(Color.GRAY);
 
         // Table
-        String[] columns = { "File", "Line", "Usage Type", "Replacement" };
-        loggingMetricsTable = new JTable(new DefaultTableModel(columns, 0) {
+        String[] columns = { "File", "Line", "Usage Type", "Replacement", "Path" };
+        loggingMetricsTable = new JBTable(new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         });
-        loggingMetricsTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        setupTable(loggingMetricsTable);
 
         panel.add(loggingMetricsStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(loggingMetricsTable), BorderLayout.CENTER);
@@ -459,14 +466,14 @@ public class AdvancedScansComponent {
         serializationCacheStatusLabel.setForeground(Color.GRAY);
 
         // Table
-        String[] columns = { "File", "Line", "Usage Type", "Risk Assessment" };
-        serializationCacheTable = new JTable(new DefaultTableModel(columns, 0) {
+        String[] columns = { "File", "Line", "Usage Type", "Risk Assessment", "Path" };
+        serializationCacheTable = new JBTable(new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         });
-        serializationCacheTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        setupTable(serializationCacheTable);
 
         panel.add(serializationCacheStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(serializationCacheTable), BorderLayout.CENTER);
@@ -483,14 +490,14 @@ public class AdvancedScansComponent {
         thirdPartyLibStatusLabel.setForeground(Color.GRAY);
 
         // Table
-        String[] columns = { "Library", "GroupId:ArtifactId", "Issue Type", "Suggested Replacement" };
-        thirdPartyLibTable = new JTable(new DefaultTableModel(columns, 0) {
+        String[] columns = { "Library", "GroupId:ArtifactId", "Issue Type", "Suggested Replacement", "Path" };
+        thirdPartyLibTable = new JBTable(new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         });
-        thirdPartyLibTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        setupTable(thirdPartyLibTable);
 
         panel.add(thirdPartyLibStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(thirdPartyLibTable), BorderLayout.CENTER);
@@ -715,7 +722,8 @@ public class AdvancedScansComponent {
                             fileResult.filePath().getFileName(),
                             annotation.lineNumber(),
                             annotation.annotationName(),
-                            annotation.jakartaEquivalent()
+                            annotation.jakartaEquivalent(),
+                            fileResult.filePath().toString()
                     });
                 }
             }
@@ -740,7 +748,8 @@ public class AdvancedScansComponent {
                             fileResult.filePath().getFileName(),
                             annotation.lineNumber(),
                             annotation.annotationName(),
-                            annotation.jakartaEquivalent()
+                            annotation.jakartaEquivalent(),
+                            fileResult.filePath().toString()
                     });
                 }
             }
@@ -766,7 +775,8 @@ public class AdvancedScansComponent {
                             usage.lineNumber(),
                             usage.className(),
                             usage.usageType(),
-                            usage.jakartaEquivalent()
+                            usage.jakartaEquivalent(),
+                            fileResult.filePath().toString()
                     });
                 }
             }
@@ -791,7 +801,8 @@ public class AdvancedScansComponent {
                             fileResult.filePath().getFileName(),
                             usage.lineNumber(),
                             usage.groupId() + ":" + usage.artifactId(),
-                            usage.jakartaGroupId() + ":" + usage.jakartaArtifactId()
+                            usage.jakartaGroupId() + ":" + usage.jakartaArtifactId(),
+                            fileResult.filePath().toString()
                     });
                 }
             }
@@ -816,7 +827,8 @@ public class AdvancedScansComponent {
                             fileResult.getFilePath().getFileName(),
                             usage.getLineNumber(),
                             usage.getJavaxReference(),
-                            usage.getReplacement()
+                            usage.getReplacement(),
+                            fileResult.getFilePath().toString()
                     });
                 }
             }
@@ -843,7 +855,8 @@ public class AdvancedScansComponent {
                             usage.className() + (usage.methodName() != null && !usage.methodName().isEmpty()
                                     ? "." + usage.methodName()
                                     : ""),
-                            usage.jakartaEquivalent()
+                            usage.jakartaEquivalent(),
+                            fileResult.filePath().toString()
                     });
                 }
             }
@@ -868,7 +881,8 @@ public class AdvancedScansComponent {
                             fileResult.filePath().getFileName(),
                             usage.lineNumber(),
                             usage.className(),
-                            usage.jakartaEquivalent()
+                            usage.jakartaEquivalent(),
+                            fileResult.filePath().toString()
                     });
                 }
             }
@@ -893,7 +907,8 @@ public class AdvancedScansComponent {
                             fileResult.filePath().getFileName(),
                             usage.lineNumber(),
                             usage.className(),
-                            usage.jakartaEquivalent()
+                            usage.jakartaEquivalent(),
+                            fileResult.filePath().toString()
                     });
                 }
             }
@@ -918,7 +933,8 @@ public class AdvancedScansComponent {
                             fileResult.getFilePath().getFileName(),
                             usage.getLineNumber(),
                             usage.getJavaxClass(),
-                            usage.getJakartaEquivalent()
+                            usage.getJakartaEquivalent(),
+                            fileResult.getFilePath().toString()
                     });
                 }
             }
@@ -943,7 +959,8 @@ public class AdvancedScansComponent {
                             fileResult.getFilePath().getFileName(),
                             usage.getLineNumber(),
                             usage.getJavaxClass(),
-                            usage.getJakartaEquivalent()
+                            usage.getJakartaEquivalent(),
+                            fileResult.getFilePath().toString()
                     });
                 }
             }
@@ -968,7 +985,8 @@ public class AdvancedScansComponent {
                             fileResult.getFilePath().getFileName(),
                             usage.getLineNumber(),
                             usage.getJavaxClass(),
-                            usage.getReplacement()
+                            usage.getReplacement(),
+                            fileResult.getFilePath().toString()
                     });
                 }
             }
@@ -993,7 +1011,8 @@ public class AdvancedScansComponent {
                             Path.of(fileResult.getFilePath()).getFileName(),
                             usage.getLineNumber(),
                             usage.getUsageType(),
-                            usage.getReplacement()
+                            usage.getReplacement(),
+                            fileResult.getFilePath()
                     });
                 }
             }
@@ -1013,18 +1032,54 @@ public class AdvancedScansComponent {
             serializationCacheStatusLabel.setForeground(new Color(200, 100, 0));
 
             for (var fileResult : result.getFileResults()) {
+                boolean firstRow = true;
                 for (var usage : fileResult.getUsages()) {
                     model.addRow(new Object[] {
-                            Path.of(fileResult.getFilePath()).getFileName(),
+                            firstRow ? Path.of(fileResult.getFilePath()).getFileName() : "",
                             usage.getLineNumber(),
                             usage.getUsageType(),
-                            usage.getRiskAssessment()
+                            usage.getRiskAssessment(),
+                            fileResult.getFilePath()
                     });
+                    firstRow = false;
                 }
             }
         } else {
             serializationCacheStatusLabel.setText("No javax.* serialization/cache usage found");
             serializationCacheStatusLabel.setForeground(new Color(0, 150, 0));
+        }
+    }
+
+    private void setupTable(JBTable table) {
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+
+        // Hide the Path column (last column)
+        TableColumnModel columnModel = table.getColumnModel();
+        int pathColumnIndex = columnModel.getColumnCount() - 1;
+        columnModel.removeColumn(columnModel.getColumn(pathColumnIndex));
+
+        // Add double-click listener to open file
+        table.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    int row = table.getSelectedRow();
+                    if (row >= 0) {
+                        // Get path from model (even if column is hidden in view)
+                        String pathStr = (String) table.getModel().getValueAt(row, pathColumnIndex);
+                        if (pathStr != null && !pathStr.isEmpty()) {
+                            openFileInEditor(pathStr);
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    private void openFileInEditor(String pathStr) {
+        VirtualFile virtualFile = LocalFileSystem.getInstance().findFileByPath(pathStr);
+        if (virtualFile != null) {
+            FileEditorManager.getInstance(project).openFile(virtualFile, true);
         }
     }
 
@@ -1042,7 +1097,8 @@ public class AdvancedScansComponent {
                         usage.getLibraryName(),
                         usage.getGroupId() + ":" + usage.getArtifactId(),
                         usage.getIssueType(),
-                        usage.getSuggestedReplacement()
+                        usage.getSuggestedReplacement(),
+                        "" // No file path for libraries
                 });
             }
         } else {

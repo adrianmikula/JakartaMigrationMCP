@@ -210,7 +210,7 @@ public class MigrationStrategyComponent {
         titlePanel.add(titleLabel);
 
         // Strategy cards panel
-        JPanel cardsPanel = new JPanel(new GridLayout(1, 6, 10, 10));
+        JPanel cardsPanel = new JPanel(new GridLayout(2, 3, 10, 10));
         cardsPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         for (MigrationStrategy strategy : MigrationStrategy.values()) {

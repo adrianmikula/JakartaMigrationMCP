@@ -68,174 +68,177 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
         try (Statement stmt = conn.createStatement()) {
             // Metadata table
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS metadata (
-                    key TEXT PRIMARY KEY,
-                    value TEXT,
-                    updated_at TEXT DEFAULT (datetime('now'))
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS metadata (
+                            key TEXT PRIMARY KEY,
+                            value TEXT,
+                            updated_at TEXT DEFAULT (datetime('now'))
+                        )
+                    """);
 
             // Projects table - supports multiple projects
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS projects (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    project_path TEXT UNIQUE NOT NULL,
-                    name TEXT,
-                    created_at TEXT DEFAULT (datetime('now')),
-                    last_analyzed_at TEXT
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS projects (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            project_path TEXT UNIQUE NOT NULL,
+                            name TEXT,
+                            created_at TEXT DEFAULT (datetime('now')),
+                            last_analyzed_at TEXT
+                        )
+                    """);
 
             // Dependencies table - stores all discovered dependencies
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS dependencies (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    project_path TEXT NOT NULL,
-                    group_id TEXT NOT NULL,
-                    artifact_id TEXT NOT NULL,
-                    version TEXT,
-                    scope TEXT,
-                    is_direct BOOLEAN DEFAULT TRUE,
-                    namespace TEXT,
-                    is_jakarta_compatible BOOLEAN,
-                    risk_level TEXT,
-                    migration_status TEXT,
-                    created_at TEXT DEFAULT (datetime('now')),
-                    UNIQUE(project_path, group_id, artifact_id, version)
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS dependencies (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            project_path TEXT NOT NULL,
+                            group_id TEXT NOT NULL,
+                            artifact_id TEXT NOT NULL,
+                            version TEXT,
+                            scope TEXT,
+                            is_direct BOOLEAN DEFAULT TRUE,
+                            namespace TEXT,
+                            is_jakarta_compatible BOOLEAN,
+                            risk_level TEXT,
+                            migration_status TEXT,
+                            created_at TEXT DEFAULT (datetime('now')),
+                            UNIQUE(project_path, group_id, artifact_id, version)
+                        )
+                    """);
 
             // Dependency graph edges
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS dependency_edges (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    project_path TEXT NOT NULL,
-                    from_group_id TEXT NOT NULL,
-                    from_artifact_id TEXT NOT NULL,
-                    to_group_id TEXT NOT NULL,
-                    to_artifact_id TEXT NOT NULL,
-                    edge_type TEXT DEFAULT 'dependency',
-                    created_at TEXT DEFAULT (datetime('now'))
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS dependency_edges (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            project_path TEXT NOT NULL,
+                            from_group_id TEXT NOT NULL,
+                            from_artifact_id TEXT NOT NULL,
+                            to_group_id TEXT NOT NULL,
+                            to_artifact_id TEXT NOT NULL,
+                            edge_type TEXT DEFAULT 'dependency',
+                            created_at TEXT DEFAULT (datetime('now'))
+                        )
+                    """);
 
             // Analysis reports table
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS analysis_reports (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    project_path TEXT NOT NULL,
-                    analysis_time TEXT DEFAULT (datetime('now')),
-                    total_dependencies INTEGER,
-                    direct_dependencies INTEGER,
-                    transitive_dependencies INTEGER,
-                    jakarta_ready_count INTEGER,
-                    needs_migration_count INTEGER,
-                    blocked_count INTEGER,
-                    readiness_score REAL,
-                    risk_level TEXT,
-                    raw_report TEXT,
-                    UNIQUE(project_path, analysis_time)
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS analysis_reports (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            project_path TEXT NOT NULL,
+                            analysis_time TEXT DEFAULT (datetime('now')),
+                            total_dependencies INTEGER,
+                            direct_dependencies INTEGER,
+                            transitive_dependencies INTEGER,
+                            jakarta_ready_count INTEGER,
+                            needs_migration_count INTEGER,
+                            blocked_count INTEGER,
+                            readiness_score REAL,
+                            risk_level TEXT,
+                            raw_report TEXT,
+                            UNIQUE(project_path, analysis_time)
+                        )
+                    """);
 
             // Blockers table
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS blockers (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    project_path TEXT NOT NULL,
-                    analysis_report_id INTEGER,
-                    blocker_type TEXT NOT NULL,
-                    description TEXT,
-                    affected_artifact TEXT,
-                    confidence REAL,
-                    created_at TEXT DEFAULT (datetime('now'))
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS blockers (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            project_path TEXT NOT NULL,
+                            analysis_report_id INTEGER,
+                            blocker_type TEXT NOT NULL,
+                            description TEXT,
+                            affected_artifact TEXT,
+                            confidence REAL,
+                            created_at TEXT DEFAULT (datetime('now'))
+                        )
+                    """);
 
             // Recommendations table
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS recommendations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    project_path TEXT NOT NULL,
-                    analysis_report_id INTEGER,
-                    category TEXT,
-                    priority TEXT,
-                    description TEXT,
-                    action TEXT,
-                    estimated_effort TEXT,
-                    created_at TEXT DEFAULT (datetime('now'))
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS recommendations (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            project_path TEXT NOT NULL,
+                            analysis_report_id INTEGER,
+                            category TEXT,
+                            priority TEXT,
+                            description TEXT,
+                            action TEXT,
+                            estimated_effort TEXT,
+                            created_at TEXT DEFAULT (datetime('now'))
+                        )
+                    """);
 
             // Migration plans table
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS migration_plans (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    project_path TEXT NOT NULL,
-                    created_at TEXT DEFAULT (datetime('now')),
-                    total_phases INTEGER,
-                    total_files INTEGER,
-                    estimated_duration TEXT,
-                    overall_risk_score REAL,
-                    raw_plan TEXT,
-                    UNIQUE(project_path, created_at)
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS migration_plans (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            project_path TEXT NOT NULL,
+                            created_at TEXT DEFAULT (datetime('now')),
+                            total_phases INTEGER,
+                            total_files INTEGER,
+                            estimated_duration TEXT,
+                            overall_risk_score REAL,
+                            raw_plan TEXT,
+                            UNIQUE(project_path, created_at)
+                        )
+                    """);
 
             // Migration phases table
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS migration_phases (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    plan_id INTEGER NOT NULL,
-                    phase_number INTEGER NOT NULL,
-                    description TEXT,
-                    file_count INTEGER,
-                    estimated_duration TEXT,
-                    status TEXT DEFAULT 'pending',
-                    raw_phase TEXT
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS migration_phases (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            plan_id INTEGER NOT NULL,
+                            phase_number INTEGER NOT NULL,
+                            description TEXT,
+                            file_count INTEGER,
+                            estimated_duration TEXT,
+                            status TEXT DEFAULT 'pending',
+                            raw_phase TEXT
+                        )
+                    """);
 
-            // Migration Issues Registry - maps scanner types to namespaces and refactor recipes
+            // Migration Issues Registry - maps scanner types to namespaces and refactor
+            // recipes
             // This enables looking up what scanner handles which issue type
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS migration_issues_registry (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    scanner_type TEXT NOT NULL UNIQUE,
-                    ui_tab_name TEXT NOT NULL,
-                    legacy_namespace TEXT NOT NULL,
-                    target_namespace TEXT NOT NULL,
-                    refactor_recipe TEXT,
-                    description TEXT,
-                    anticipated_error_messages TEXT,
-                    solution_hint TEXT,
-                    is_premium BOOLEAN DEFAULT FALSE,
-                    created_at TEXT DEFAULT (datetime('now'))
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS migration_issues_registry (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            scanner_type TEXT NOT NULL UNIQUE,
+                            ui_tab_name TEXT NOT NULL,
+                            legacy_namespace TEXT NOT NULL,
+                            target_namespace TEXT NOT NULL,
+                            refactor_recipe TEXT,
+                            description TEXT,
+                            anticipated_error_messages TEXT,
+                            solution_hint TEXT,
+                            is_premium BOOLEAN DEFAULT FALSE,
+                            created_at TEXT DEFAULT (datetime('now'))
+                        )
+                    """);
 
             // Migration Issues - stores found issues from scans
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS migration_issues (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    project_path TEXT NOT NULL,
-                    registry_id INTEGER NOT NULL,
-                    file_path TEXT,
-                    line_number INTEGER,
-                    column_number INTEGER,
-                    code_snippet TEXT,
-                    issue_severity TEXT DEFAULT 'medium',
-                    is_resolved BOOLEAN DEFAULT FALSE,
-                    resolved_at TEXT,
-                    created_at TEXT DEFAULT (datetime('now')),
-                    FOREIGN KEY (registry_id) REFERENCES migration_issues_registry(id)
-                )
-            """);
+                        CREATE TABLE IF NOT EXISTS migration_issues (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            project_path TEXT NOT NULL,
+                            registry_id INTEGER NOT NULL,
+                            file_path TEXT,
+                            line_number INTEGER,
+                            column_number INTEGER,
+                            code_snippet TEXT,
+                            issue_severity TEXT DEFAULT 'medium',
+                            is_resolved BOOLEAN DEFAULT FALSE,
+                            resolved_at TEXT,
+                            created_at TEXT DEFAULT (datetime('now')),
+                            FOREIGN KEY (registry_id) REFERENCES migration_issues_registry(id)
+                        )
+                    """);
 
             // Indexes for efficient querying
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_deps_project ON dependencies(project_path)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_edges_from ON dependency_edges(project_path, from_group_id, from_artifact_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_edges_to ON dependency_edges(project_path, to_group_id, to_artifact_id)");
+            stmt.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_edges_from ON dependency_edges(project_path, from_group_id, from_artifact_id)");
+            stmt.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_edges_to ON dependency_edges(project_path, to_group_id, to_artifact_id)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_blockers_project ON blockers(project_path)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_recommendations_project ON recommendations(project_path)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_phases_plan ON migration_phases(plan_id)");
@@ -250,7 +253,7 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
     private void updateSchema(Connection conn) throws SQLException {
         // Check and apply schema updates for future versions
         try (Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("PRAGMA user_version")) {
+                ResultSet rs = stmt.executeQuery("PRAGMA user_version")) {
             int version = rs.getInt(1);
             if (version < DB_VERSION) {
                 stmt.execute("PRAGMA user_version = " + DB_VERSION);
@@ -280,12 +283,12 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
             // Insert analysis report
             long reportId;
             try (PreparedStatement stmt = conn.prepareStatement("""
-                INSERT INTO analysis_reports (
-                    project_path, total_dependencies, direct_dependencies,
-                    transitive_dependencies, jakarta_ready_count, needs_migration_count,
-                    blocked_count, readiness_score, risk_level, raw_report
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, Statement.RETURN_GENERATED_KEYS)) {
+                    INSERT INTO analysis_reports (
+                        project_path, total_dependencies, direct_dependencies,
+                        transitive_dependencies, jakarta_ready_count, needs_migration_count,
+                        blocked_count, readiness_score, risk_level, raw_report
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """)) {
 
                 Set<Artifact> allArtifacts = report.dependencyGraph().getNodes();
                 stmt.setString(1, projectPath.toString());
@@ -299,10 +302,12 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
                 stmt.setString(9, riskLevelFromScore(report.riskAssessment().riskScore()));
                 stmt.setString(10, rawReportJson);
                 stmt.executeUpdate();
+            }
 
-                try (ResultSet rs = stmt.getGeneratedKeys()) {
-                    reportId = rs.next() ? rs.getLong(1) : -1;
-                }
+            // Get the last inserted row id for SQLite
+            try (Statement stmt = conn.createStatement();
+                    ResultSet rs = stmt.executeQuery("SELECT last_insert_rowid()")) {
+                reportId = rs.next() ? rs.getLong(1) : -1;
             }
 
             // Save dependencies
@@ -334,10 +339,10 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
         try (Connection conn = getConnection()) {
             // Try to load from raw JSON first
             try (PreparedStatement stmt = conn.prepareStatement("""
-                SELECT raw_report FROM analysis_reports
-                WHERE project_path = ?
-                ORDER BY analysis_time DESC LIMIT 1
-                """)) {
+                    SELECT raw_report FROM analysis_reports
+                    WHERE project_path = ?
+                    ORDER BY analysis_time DESC LIMIT 1
+                    """)) {
                 stmt.setString(1, projectPath.toString());
                 try (ResultSet rs = stmt.executeQuery()) {
                     if (rs.next()) {
@@ -357,24 +362,26 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
      */
     public Optional<AnalysisSummary> getAnalysisSummary(Path projectPath) {
         try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement("""
-                SELECT * FROM analysis_reports
-                WHERE project_path = ?
-                ORDER BY analysis_time DESC LIMIT 1
-                """)) {
+                PreparedStatement stmt = conn.prepareStatement("""
+                        SELECT * FROM analysis_reports
+                        WHERE project_path = ?
+                        ORDER BY analysis_time DESC LIMIT 1
+                        """)) {
             stmt.setString(1, projectPath.toString());
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
+                    String lastTime = rs.getString("analysis_time");
                     return Optional.of(new AnalysisSummary(
-                        rs.getInt("total_dependencies"),
-                        rs.getInt("direct_dependencies"),
-                        rs.getInt("jakarta_ready_count"),
-                        rs.getInt("needs_migration_count"),
-                        rs.getInt("blocked_count"),
-                        rs.getDouble("readiness_score"),
-                        rs.getString("risk_level"),
-                        rs.getTimestamp("analysis_time").toInstant()
-                    ));
+                            rs.getInt("total_dependencies"),
+                            rs.getInt("direct_dependencies"),
+                            rs.getInt("jakarta_ready_count"),
+                            rs.getInt("needs_migration_count"),
+                            rs.getInt("blocked_count"),
+                            rs.getDouble("readiness_score"),
+                            rs.getString("risk_level"),
+                            lastTime != null
+                                    ? Instant.parse(lastTime.replace(" ", "T") + (lastTime.contains("T") ? "" : "Z"))
+                                    : Instant.now()));
                 }
             }
             return Optional.empty();
@@ -390,23 +397,22 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
      */
     public List<DependencyInfo> getDependencies(Path projectPath) {
         try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement("""
-                SELECT * FROM dependencies WHERE project_path = ? ORDER BY group_id, artifact_id
-                """)) {
+                PreparedStatement stmt = conn.prepareStatement("""
+                        SELECT * FROM dependencies WHERE project_path = ? ORDER BY group_id, artifact_id
+                        """)) {
             stmt.setString(1, projectPath.toString());
             try (ResultSet rs = stmt.executeQuery()) {
                 List<DependencyInfo> deps = new ArrayList<>();
                 while (rs.next()) {
                     deps.add(new DependencyInfo(
-                        rs.getString("group_id"),
-                        rs.getString("artifact_id"),
-                        rs.getString("version"),
-                        rs.getString("scope"),
-                        rs.getString("namespace"),
-                        rs.getBoolean("is_jakarta_compatible"),
-                        rs.getString("risk_level"),
-                        rs.getString("migration_status")
-                    ));
+                            rs.getString("group_id"),
+                            rs.getString("artifact_id"),
+                            rs.getString("version"),
+                            rs.getString("scope"),
+                            rs.getString("namespace"),
+                            rs.getBoolean("is_jakarta_compatible"),
+                            rs.getString("risk_level"),
+                            rs.getString("migration_status")));
                 }
                 return deps;
             }
@@ -420,25 +426,24 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
      */
     public List<DependencyInfo> getDependenciesNeedingMigration(Path projectPath) {
         try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement("""
-                SELECT * FROM dependencies
-                WHERE project_path = ? AND (is_jakarta_compatible = FALSE OR is_jakarta_compatible IS NULL)
-                ORDER BY risk_level, group_id, artifact_id
-                """)) {
+                PreparedStatement stmt = conn.prepareStatement("""
+                        SELECT * FROM dependencies
+                        WHERE project_path = ? AND (is_jakarta_compatible = FALSE OR is_jakarta_compatible IS NULL)
+                        ORDER BY risk_level, group_id, artifact_id
+                        """)) {
             stmt.setString(1, projectPath.toString());
             try (ResultSet rs = stmt.executeQuery()) {
                 List<DependencyInfo> deps = new ArrayList<>();
                 while (rs.next()) {
                     deps.add(new DependencyInfo(
-                        rs.getString("group_id"),
-                        rs.getString("artifact_id"),
-                        rs.getString("version"),
-                        rs.getString("scope"),
-                        rs.getString("namespace"),
-                        rs.getBoolean("is_jakarta_compatible"),
-                        rs.getString("risk_level"),
-                        rs.getString("migration_status")
-                    ));
+                            rs.getString("group_id"),
+                            rs.getString("artifact_id"),
+                            rs.getString("version"),
+                            rs.getString("scope"),
+                            rs.getString("namespace"),
+                            rs.getBoolean("is_jakarta_compatible"),
+                            rs.getString("risk_level"),
+                            rs.getString("migration_status")));
                 }
                 return deps;
             }
@@ -459,11 +464,11 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
             // Insert plan
             long planId;
             try (PreparedStatement stmt = conn.prepareStatement("""
-                INSERT INTO migration_plans (
-                    project_path, total_phases, total_files,
-                    estimated_duration, overall_risk_score, raw_plan
-                ) VALUES (?, ?, ?, ?, ?, ?)
-                """, Statement.RETURN_GENERATED_KEYS)) {
+                    INSERT INTO migration_plans (
+                        project_path, total_phases, total_files,
+                        estimated_duration, overall_risk_score, raw_plan
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """)) {
 
                 stmt.setString(1, projectPath.toString());
                 stmt.setInt(2, plan.phases().size());
@@ -472,20 +477,22 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
                 stmt.setDouble(5, plan.overallRisk().riskScore());
                 stmt.setString(6, objectMapper.toJson(plan));
                 stmt.executeUpdate();
+            }
 
-                try (ResultSet rs = stmt.getGeneratedKeys()) {
-                    planId = rs.next() ? rs.getLong(1) : -1;
-                }
+            // Get the last inserted row id for SQLite
+            try (Statement stmt = conn.createStatement();
+                    ResultSet rs = stmt.executeQuery("SELECT last_insert_rowid()")) {
+                planId = rs.next() ? rs.getLong(1) : -1;
             }
 
             // Insert phases
             for (RefactoringPhase phase : plan.phases()) {
                 try (PreparedStatement stmt = conn.prepareStatement("""
-                    INSERT INTO migration_phases (
-                        plan_id, phase_number, description, file_count,
-                        estimated_duration, raw_phase
-                    ) VALUES (?, ?, ?, ?, ?, ?)
-                    """)) {
+                        INSERT INTO migration_phases (
+                            plan_id, phase_number, description, file_count,
+                            estimated_duration, raw_phase
+                        ) VALUES (?, ?, ?, ?, ?, ?)
+                        """)) {
                     stmt.setLong(1, planId);
                     stmt.setInt(2, phase.phaseNumber());
                     stmt.setString(3, phase.description());
@@ -508,11 +515,11 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
      */
     public Optional<MigrationPlan> loadLatestMigrationPlan(Path projectPath) {
         try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement("""
-                SELECT raw_plan FROM migration_plans
-                WHERE project_path = ?
-                ORDER BY created_at DESC LIMIT 1
-                """)) {
+                PreparedStatement stmt = conn.prepareStatement("""
+                        SELECT raw_plan FROM migration_plans
+                        WHERE project_path = ?
+                        ORDER BY created_at DESC LIMIT 1
+                        """)) {
             stmt.setString(1, projectPath.toString());
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -533,19 +540,18 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
      */
     public List<StoredBlocker> getBlockers(Path projectPath) {
         try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement("""
-                SELECT * FROM blockers WHERE project_path = ? ORDER BY confidence DESC
-                """)) {
+                PreparedStatement stmt = conn.prepareStatement("""
+                        SELECT * FROM blockers WHERE project_path = ? ORDER BY confidence DESC
+                        """)) {
             stmt.setString(1, projectPath.toString());
             try (ResultSet rs = stmt.executeQuery()) {
                 List<StoredBlocker> blockers = new ArrayList<>();
                 while (rs.next()) {
                     blockers.add(new StoredBlocker(
-                        rs.getString("blocker_type"),
-                        rs.getString("description"),
-                        rs.getString("affected_artifact"),
-                        rs.getDouble("confidence")
-                    ));
+                            rs.getString("blocker_type"),
+                            rs.getString("description"),
+                            rs.getString("affected_artifact"),
+                            rs.getDouble("confidence")));
                 }
                 return blockers;
             }
@@ -561,20 +567,19 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
      */
     public List<StoredRecommendation> getRecommendations(Path projectPath) {
         try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement("""
-                SELECT * FROM recommendations WHERE project_path = ? ORDER BY priority, created_at DESC
-                """)) {
+                PreparedStatement stmt = conn.prepareStatement("""
+                        SELECT * FROM recommendations WHERE project_path = ? ORDER BY priority, created_at DESC
+                        """)) {
             stmt.setString(1, projectPath.toString());
             try (ResultSet rs = stmt.executeQuery()) {
                 List<StoredRecommendation> recs = new ArrayList<>();
                 while (rs.next()) {
                     recs.add(new StoredRecommendation(
-                        rs.getString("category"),
-                        rs.getString("priority"),
-                        rs.getString("description"),
-                        rs.getString("action"),
-                        rs.getString("estimated_effort")
-                    ));
+                            rs.getString("category"),
+                            rs.getString("priority"),
+                            rs.getString("description"),
+                            rs.getString("action"),
+                            rs.getString("estimated_effort")));
                 }
                 return recs;
             }
@@ -590,9 +595,9 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
      */
     public boolean hasAnalysisData(Path projectPath) {
         try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement("""
-                SELECT 1 FROM analysis_reports WHERE project_path = ? LIMIT 1
-                """)) {
+                PreparedStatement stmt = conn.prepareStatement("""
+                        SELECT 1 FROM analysis_reports WHERE project_path = ? LIMIT 1
+                        """)) {
             stmt.setString(1, projectPath.toString());
             try (ResultSet rs = stmt.executeQuery()) {
                 return rs.next();
@@ -607,13 +612,17 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
      */
     public Optional<Instant> getLastAnalysisTime(Path projectPath) {
         try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement("""
-                SELECT MAX(analysis_time) as last_time FROM analysis_reports WHERE project_path = ?
-                """)) {
+                PreparedStatement stmt = conn.prepareStatement("""
+                        SELECT MAX(analysis_time) as last_time FROM analysis_reports WHERE project_path = ?
+                        """)) {
             stmt.setString(1, projectPath.toString());
             try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next() && rs.getTimestamp("last_time") != null) {
-                    return Optional.of(rs.getTimestamp("last_time").toInstant());
+                if (rs.next()) {
+                    String lastTime = rs.getString("last_time");
+                    if (lastTime != null) {
+                        return Optional
+                                .of(Instant.parse(lastTime.replace(" ", "T") + (lastTime.contains("T") ? "" : "Z")));
+                    }
                 }
             }
             return Optional.empty();
@@ -632,7 +641,7 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
 
             try (Statement stmt = conn.createStatement()) {
                 stmt.execute("DELETE FROM migration_phases WHERE plan_id IN " +
-                    "(SELECT id FROM migration_plans WHERE project_path = '" + path + "')");
+                        "(SELECT id FROM migration_plans WHERE project_path = '" + path + "')");
                 stmt.execute("DELETE FROM migration_plans WHERE project_path = '" + path + "'");
                 stmt.execute("DELETE FROM blockers WHERE project_path = '" + path + "'");
                 stmt.execute("DELETE FROM recommendations WHERE project_path = '" + path + "'");
@@ -661,17 +670,18 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
 
     private void upsertProject(Connection conn, Path projectPath) throws SQLException {
         try (PreparedStatement stmt = conn.prepareStatement("""
-            INSERT INTO projects (project_path, name, last_analyzed_at)
-            VALUES (?, ?, datetime('now'))
-            ON CONFLICT(project_path) DO UPDATE SET last_analyzed_at = datetime('now')
-            """)) {
+                INSERT INTO projects (project_path, name, last_analyzed_at)
+                VALUES (?, ?, datetime('now'))
+                ON CONFLICT(project_path) DO UPDATE SET last_analyzed_at = datetime('now')
+                """)) {
             stmt.setString(1, projectPath.toString());
             stmt.setString(2, projectPath.getFileName().toString());
             stmt.executeUpdate();
         }
     }
 
-    private void saveDependencies(Connection conn, Path projectPath, DependencyAnalysisReport report, NamespaceCompatibilityMap namespaceMap) throws SQLException {
+    private void saveDependencies(Connection conn, Path projectPath, DependencyAnalysisReport report,
+            NamespaceCompatibilityMap namespaceMap) throws SQLException {
         String path = projectPath.toString();
 
         // Clear existing dependencies
@@ -683,11 +693,11 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
         for (Artifact artifact : report.dependencyGraph().getNodes()) {
             Namespace namespace = namespaceMap.get(artifact);
             try (PreparedStatement stmt = conn.prepareStatement("""
-                INSERT INTO dependencies (
-                    project_path, group_id, artifact_id, version, scope,
-                    is_direct, namespace, is_jakarta_compatible, risk_level, migration_status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """)) {
+                    INSERT INTO dependencies (
+                        project_path, group_id, artifact_id, version, scope,
+                        is_direct, namespace, is_jakarta_compatible, risk_level, migration_status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """)) {
                 stmt.setString(1, path);
                 stmt.setString(2, artifact.groupId());
                 stmt.setString(3, artifact.artifactId());
@@ -703,7 +713,8 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
         }
     }
 
-    private void saveDependencyEdges(Connection conn, Path projectPath, DependencyAnalysisReport report) throws SQLException {
+    private void saveDependencyEdges(Connection conn, Path projectPath, DependencyAnalysisReport report)
+            throws SQLException {
         String path = projectPath.toString();
 
         // Clear existing edges
@@ -713,10 +724,11 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
 
         // Insert edges from the graph
         for (Dependency dep : report.dependencyGraph().getEdges()) {
-            try (PreparedStatement stmt = conn.prepareStatement("""
-                INSERT INTO dependency_edges (project_path, from_group_id, from_artifact_id, to_group_id, to_artifact_id)
-                VALUES (?, ?, ?, ?, ?)
-                """)) {
+            try (PreparedStatement stmt = conn.prepareStatement(
+                    """
+                            INSERT INTO dependency_edges (project_path, from_group_id, from_artifact_id, to_group_id, to_artifact_id)
+                            VALUES (?, ?, ?, ?, ?)
+                            """)) {
                 stmt.setString(1, path);
                 stmt.setString(2, dep.from().groupId());
                 stmt.setString(3, dep.from().artifactId());
@@ -727,7 +739,8 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
         }
     }
 
-    private void saveBlockers(Connection conn, Path projectPath, long reportId, List<Blocker> blockers) throws SQLException {
+    private void saveBlockers(Connection conn, Path projectPath, long reportId, List<Blocker> blockers)
+            throws SQLException {
         String path = projectPath.toString();
 
         // Clear existing blockers
@@ -736,10 +749,11 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
         }
 
         for (Blocker blocker : blockers) {
-            try (PreparedStatement stmt = conn.prepareStatement("""
-                INSERT INTO blockers (project_path, analysis_report_id, blocker_type, description, affected_artifact, confidence)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """)) {
+            try (PreparedStatement stmt = conn.prepareStatement(
+                    """
+                            INSERT INTO blockers (project_path, analysis_report_id, blocker_type, description, affected_artifact, confidence)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            """)) {
                 stmt.setString(1, path);
                 stmt.setLong(2, reportId);
                 stmt.setString(3, blocker.type().name());
@@ -751,7 +765,8 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
         }
     }
 
-    private void saveRecommendations(Connection conn, Path projectPath, long reportId, List<VersionRecommendation> recommendations) throws SQLException {
+    private void saveRecommendations(Connection conn, Path projectPath, long reportId,
+            List<VersionRecommendation> recommendations) throws SQLException {
         String path = projectPath.toString();
 
         // Clear existing recommendations
@@ -760,15 +775,19 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
         }
 
         for (VersionRecommendation rec : recommendations) {
-            try (PreparedStatement stmt = conn.prepareStatement("""
-                INSERT INTO recommendations (project_path, analysis_report_id, category, priority, description, action, estimated_effort)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """)) {
+            try (PreparedStatement stmt = conn.prepareStatement(
+                    """
+                            INSERT INTO recommendations (project_path, analysis_report_id, category, priority, description, action, estimated_effort)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """)) {
                 stmt.setString(1, path);
                 stmt.setLong(2, reportId);
                 stmt.setString(3, rec.currentArtifact().groupId() + ":" + rec.currentArtifact().artifactId());
                 stmt.setString(4, rec.compatibilityScore() > 0.8 ? "high" : "medium");
-                stmt.setString(5, "Upgrade " + rec.currentArtifact().groupId() + ":" + rec.currentArtifact().artifactId() + " from " + rec.currentArtifact().version() + " to " + (rec.recommendedArtifact() != null ? rec.recommendedArtifact().version() : "latest"));
+                stmt.setString(5,
+                        "Upgrade " + rec.currentArtifact().groupId() + ":" + rec.currentArtifact().artifactId()
+                                + " from " + rec.currentArtifact().version() + " to "
+                                + (rec.recommendedArtifact() != null ? rec.recommendedArtifact().version() : "latest"));
                 stmt.setString(6, "Update dependency version in pom.xml/build.gradle");
                 stmt.setString(7, rec.compatibilityScore() > 0.8 ? "low" : "medium");
                 stmt.executeUpdate();
@@ -778,8 +797,8 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
 
     private void updateMetadata(Connection conn, String key, String value) throws SQLException {
         try (PreparedStatement stmt = conn.prepareStatement("""
-            INSERT OR REPLACE INTO metadata (key, value, updated_at) VALUES (?, ?, datetime('now'))
-            """)) {
+                INSERT OR REPLACE INTO metadata (key, value, updated_at) VALUES (?, ?, datetime('now'))
+                """)) {
             stmt.setString(1, key);
             stmt.setString(2, value);
             stmt.executeUpdate();
@@ -788,17 +807,17 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
 
     private int countJakartaReady(Set<Artifact> artifacts, NamespaceCompatibilityMap namespaceMap) {
         return (int) artifacts.stream()
-            .filter(a -> namespaceMap.get(a) == Namespace.JAKARTA)
-            .count();
+                .filter(a -> namespaceMap.get(a) == Namespace.JAKARTA)
+                .count();
     }
 
     private int countNeedsMigration(Set<Artifact> artifacts, NamespaceCompatibilityMap namespaceMap) {
         return (int) artifacts.stream()
-            .filter(a -> {
-                Namespace ns = namespaceMap.get(a);
-                return ns == Namespace.JAVAX || ns == Namespace.MIXED;
-            })
-            .count();
+                .filter(a -> {
+                    Namespace ns = namespaceMap.get(a);
+                    return ns == Namespace.JAVAX || ns == Namespace.MIXED;
+                })
+                .count();
     }
 
     private String determineRiskLevel(Namespace namespace) {
@@ -819,12 +838,15 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
     }
 
     private String riskLevelFromScore(double score) {
-        if (score < 0.3) return "LOW";
-        if (score < 0.7) return "MEDIUM";
+        if (score < 0.3)
+            return "LOW";
+        if (score < 0.7)
+            return "MEDIUM";
         return "HIGH";
     }
 
-    // ==================== Migration Issues Registry Operations ====================
+    // ==================== Migration Issues Registry Operations
+    // ====================
 
     /**
      * Registers a new scanner type in the migration issues registry.
@@ -841,11 +863,12 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
             String solutionHint,
             boolean isPremium) {
         try (Connection conn = getConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement("""
-                INSERT OR REPLACE INTO migration_issues_registry 
-                (scanner_type, ui_tab_name, legacy_namespace, target_namespace, refactor_recipe, description, anticipated_error_messages, solution_hint, is_premium)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """)) {
+            try (PreparedStatement stmt = conn.prepareStatement(
+                    """
+                            INSERT OR REPLACE INTO migration_issues_registry
+                            (scanner_type, ui_tab_name, legacy_namespace, target_namespace, refactor_recipe, description, anticipated_error_messages, solution_hint, is_premium)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """)) {
                 stmt.setString(1, scannerType);
                 stmt.setString(2, uiTabName);
                 stmt.setString(3, legacyNamespace);
@@ -871,20 +894,19 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
         List<MigrationIssueRegistry> results = new ArrayList<>();
         try (Connection conn = getConnection()) {
             try (Statement stmt = conn.createStatement();
-                 ResultSet rs = stmt.executeQuery("SELECT * FROM migration_issues_registry")) {
+                    ResultSet rs = stmt.executeQuery("SELECT * FROM migration_issues_registry")) {
                 while (rs.next()) {
                     results.add(new MigrationIssueRegistry(
-                        rs.getLong("id"),
-                        rs.getString("scanner_type"),
-                        rs.getString("ui_tab_name"),
-                        rs.getString("legacy_namespace"),
-                        rs.getString("target_namespace"),
-                        rs.getString("refactor_recipe"),
-                        rs.getString("description"),
-                        rs.getString("anticipated_error_messages"),
-                        rs.getString("solution_hint"),
-                        rs.getBoolean("is_premium")
-                    ));
+                            rs.getLong("id"),
+                            rs.getString("scanner_type"),
+                            rs.getString("ui_tab_name"),
+                            rs.getString("legacy_namespace"),
+                            rs.getString("target_namespace"),
+                            rs.getString("refactor_recipe"),
+                            rs.getString("description"),
+                            rs.getString("anticipated_error_messages"),
+                            rs.getString("solution_hint"),
+                            rs.getBoolean("is_premium")));
                 }
             }
         } catch (SQLException e) {
@@ -898,22 +920,22 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
      */
     public Optional<MigrationIssueRegistry> getRegistryByScannerType(String scannerType) {
         try (Connection conn = getConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement("SELECT * FROM migration_issues_registry WHERE scanner_type = ?")) {
+            try (PreparedStatement stmt = conn
+                    .prepareStatement("SELECT * FROM migration_issues_registry WHERE scanner_type = ?")) {
                 stmt.setString(1, scannerType);
                 try (ResultSet rs = stmt.executeQuery()) {
                     if (rs.next()) {
                         return Optional.of(new MigrationIssueRegistry(
-                            rs.getLong("id"),
-                            rs.getString("scanner_type"),
-                            rs.getString("ui_tab_name"),
-                            rs.getString("legacy_namespace"),
-                            rs.getString("target_namespace"),
-                            rs.getString("refactor_recipe"),
-                            rs.getString("description"),
-                            rs.getString("anticipated_error_messages"),
-                            rs.getString("solution_hint"),
-                            rs.getBoolean("is_premium")
-                        ));
+                                rs.getLong("id"),
+                                rs.getString("scanner_type"),
+                                rs.getString("ui_tab_name"),
+                                rs.getString("legacy_namespace"),
+                                rs.getString("target_namespace"),
+                                rs.getString("refactor_recipe"),
+                                rs.getString("description"),
+                                rs.getString("anticipated_error_messages"),
+                                rs.getString("solution_hint"),
+                                rs.getBoolean("is_premium")));
                     }
                 }
             }
@@ -942,64 +964,65 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
      * Simple dependency info record for queries.
      */
     public record DependencyInfo(
-        String groupId,
-        String artifactId,
-        String version,
-        String scope,
-        String namespace,
-        boolean isJakartaCompatible,
-        String riskLevel,
-        String migrationStatus
-    ) {}
+            String groupId,
+            String artifactId,
+            String version,
+            String scope,
+            String namespace,
+            boolean isJakartaCompatible,
+            String riskLevel,
+            String migrationStatus) {
+    }
 
     /**
      * Analysis summary record.
      */
     public record AnalysisSummary(
-        int totalDependencies,
-        int directDependencies,
-        int jakartaReady,
-        int needsMigration,
-        int blocked,
-        double readinessScore,
-        String riskLevel,
-        Instant analysisTime
-    ) {}
+            int totalDependencies,
+            int directDependencies,
+            int jakartaReady,
+            int needsMigration,
+            int blocked,
+            double readinessScore,
+            String riskLevel,
+            Instant analysisTime) {
+    }
 
     /**
      * Stored blocker record.
      */
     public record StoredBlocker(
-        String type,
-        String description,
-        String affectedArtifact,
-        double confidence
-    ) {}
+            String type,
+            String description,
+            String affectedArtifact,
+            double confidence) {
+    }
 
     /**
      * Stored recommendation record.
      */
     public record StoredRecommendation(
-        String category,
-        String priority,
-        String description,
-        String action,
-        String estimatedEffort
-    ) {}
+            String category,
+            String priority,
+            String description,
+            String action,
+            String estimatedEffort) {
+    }
 
     /**
-     * Migration issue registry record - maps scanner types to UI tabs, namespaces, and refactor recipes.
+     * Migration issue registry record - maps scanner types to UI tabs, namespaces,
+     * and refactor recipes.
      */
     public record MigrationIssueRegistry(
-        long id,
-        String scannerType,
-        String uiTabName,
-        String legacyNamespace,
-        String targetNamespace,
-        String refactorRecipe,
-        String description,
-        String anticipatedErrorMessages,
-        String solutionHint,
-        boolean isPremium
-    ) {}
+            long id,
+            String scannerType,
+            String uiTabName,
+            String legacyNamespace,
+            String targetNamespace,
+            String refactorRecipe,
+            String description,
+            String anticipatedErrorMessages,
+            String solutionHint,
+            boolean isPremium) {
+    }
 }

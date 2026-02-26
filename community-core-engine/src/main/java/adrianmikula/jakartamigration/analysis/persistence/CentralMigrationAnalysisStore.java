@@ -1,9 +1,7 @@
 package adrianmikula.jakartamigration.analysis.persistence;
 
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
-import adrianmikula.jakartamigration.coderefactoring.domain.*;
 import lombok.extern.slf4j.Slf4j;
-import org.sqlite.SQLiteConnection;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,7 +10,6 @@ import java.nio.file.Paths;
 import java.sql.*;
 import java.time.Instant;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Centralized SQLite-based persistence service for Jakarta migration analysis
@@ -30,14 +27,17 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
     private static final int DB_VERSION = 2; // Increment for schema changes
 
     private final Path dbPath;
-    private final ThreadLocal<Connection> connectionHolder = new ThreadLocal<>();
     private final ObjectMapperService objectMapper;
 
     // User-configurable org namespace patterns
     private final Set<String> orgNamespacePatterns = new HashSet<>();
 
     public CentralMigrationAnalysisStore() {
-        this.dbPath = getCentralDbPath();
+        this(getCentralDbPath());
+    }
+
+    public CentralMigrationAnalysisStore(Path dbPath) {
+        this.dbPath = dbPath;
         this.objectMapper = new ObjectMapperService();
         initializeDatabase();
     }
@@ -95,6 +95,10 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
         if (pattern.equals("*") || pattern.equals(groupId)) {
             return true;
         }
+        if (pattern.endsWith(".*")) {
+            String prefix = pattern.substring(0, pattern.length() - 2);
+            return groupId.equals(prefix) || groupId.startsWith(prefix + ".");
+        }
         if (pattern.endsWith("*")) {
             String prefix = pattern.substring(0, pattern.length() - 1);
             return groupId.startsWith(prefix);
@@ -103,15 +107,18 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
     }
 
     private Connection getConnection() throws SQLException {
-        Connection conn = connectionHolder.get();
-        if (conn == null || conn.isClosed()) {
-            conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
-            try (Statement stmt = conn.createStatement()) {
-                stmt.execute("PRAGMA foreign_keys = ON;");
-            }
-            conn.setAutoCommit(false);
-            connectionHolder.set(conn);
+        try {
+            // Ensure the driver is loaded by the plugin classloader
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException e) {
+            log.error("SQLite JDBC driver not found on classpath", e);
+            throw new SQLException("SQLite JDBC driver not found", e);
         }
+        Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("PRAGMA foreign_keys = ON;");
+        }
+        conn.setAutoCommit(false);
         return conn;
     }
 
@@ -277,6 +284,21 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_blockers_repo ON blockers(repository_path)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_recommendations_repo ON recommendations(repository_path)");
 
+            // Recipe executions table
+            stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS recipe_executions (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            repository_path TEXT NOT NULL,
+                            recipe_name TEXT NOT NULL,
+                            executed_at TEXT DEFAULT (datetime('now')),
+                            success BOOLEAN,
+                            message TEXT,
+                            affected_files TEXT,
+                            FOREIGN KEY(repository_path) REFERENCES repositories(repository_path) ON DELETE CASCADE
+                        )
+                    """);
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_recipe_exec_repo ON recipe_executions(repository_path)");
+
             conn.commit();
             log.info("Central database created at {}", dbPath);
         }
@@ -330,11 +352,14 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                         """)) {
             List<RepositoryInfo> repos = new ArrayList<>();
             while (rs.next()) {
+                String lastAnalyzed = rs.getString("last_analyzed_at");
                 repos.add(new RepositoryInfo(
                         rs.getString("repository_path"),
                         rs.getString("repository_name"),
                         rs.getBoolean("is_org_repo"),
-                        rs.getTimestamp("last_analyzed_at") != null ? rs.getTimestamp("last_analyzed_at").toInstant()
+                        lastAnalyzed != null
+                                ? Instant
+                                        .parse(lastAnalyzed.replace(" ", "T") + (lastAnalyzed.contains("T") ? "" : "Z"))
                                 : null));
             }
             return repos;
@@ -352,25 +377,38 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
     public void saveOrgDependency(String groupId, String artifactId, String version,
             boolean isAnalyzed, String sourceRepositoryPath) {
         try (Connection conn = getConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement("""
-                    INSERT INTO org_dependencies (
-                        group_id, artifact_id, version, source_repository_id,
-                        is_analyzed, analyzed_at, migration_status
-                    )
-                    VALUES (
-                        (SELECT id FROM repositories WHERE repository_path = ?),
-                        ?, ?, ?,
-                        ?, datetime('now'), 'PENDING'
-                    )
-                    ON CONFLICT(group_id, artifact_id, version) DO UPDATE SET
-                        is_analyzed = excluded.is_analyzed,
-                        updated_at = datetime('now')
-                    """)) {
-                // Note: Simplified - actual implementation would need proper subquery handling
-            }
+            upsertOrgDependencyInternal(conn, groupId, artifactId, version, isAnalyzed, sourceRepositoryPath, false,
+                    "PENDING");
             conn.commit();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to save org dependency", e);
+        }
+    }
+
+    private void upsertOrgDependencyInternal(Connection conn, String groupId, String artifactId, String version,
+            boolean isAnalyzed, String sourceRepositoryPath, boolean jakartaReady, String migrationStatus)
+            throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement(
+                """
+                        INSERT INTO org_dependencies (
+                            group_id, artifact_id, version, source_repository_id,
+                            is_analyzed, analyzed_at, jakarta_ready, migration_status
+                        )
+                        VALUES (?, ?, ?, (SELECT id FROM repositories WHERE repository_path = ?), ?, datetime('now'), ?, ?)
+                        ON CONFLICT(group_id, artifact_id, version) DO UPDATE SET
+                            is_analyzed = excluded.is_analyzed,
+                            jakarta_ready = excluded.jakarta_ready,
+                            migration_status = excluded.migration_status,
+                            updated_at = datetime('now')
+                        """)) {
+            stmt.setString(1, groupId);
+            stmt.setString(2, artifactId);
+            stmt.setString(3, version);
+            stmt.setString(4, sourceRepositoryPath);
+            stmt.setBoolean(5, isAnalyzed);
+            stmt.setBoolean(6, jakartaReady);
+            stmt.setString(7, migrationStatus);
+            stmt.executeUpdate();
         }
     }
 
@@ -388,13 +426,17 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                         """)) {
             List<OrgDependencyInfo> deps = new ArrayList<>();
             while (rs.next()) {
+                String analyzedAtStr = rs.getString("analyzed_at");
                 deps.add(new OrgDependencyInfo(
                         rs.getString("group_id"),
                         rs.getString("artifact_id"),
                         rs.getString("version"),
                         rs.getString("source_repo"),
                         rs.getBoolean("is_analyzed"),
-                        rs.getTimestamp("analyzed_at") != null ? rs.getTimestamp("analyzed_at").toInstant() : null,
+                        analyzedAtStr != null
+                                ? Instant.parse(
+                                        analyzedAtStr.replace(" ", "T") + (analyzedAtStr.contains("T") ? "" : "Z"))
+                                : null,
                         rs.getBoolean("jakarta_ready"),
                         rs.getString("migration_status")));
             }
@@ -440,26 +482,26 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
      * Marks an organization dependency as analyzed.
      */
     public void markOrgDependencyAnalyzed(String groupId, String artifactId, String version,
-            boolean jakartaReady, String migrationStatus) {
-        try (Connection conn = getConnection();
-                PreparedStatement stmt = conn.prepareStatement("""
-                        UPDATE org_dependencies SET
-                            is_analyzed = TRUE,
-                            analyzed_at = datetime('now'),
-                            jakarta_ready = ?,
-                            migration_status = ?,
-                            updated_at = datetime('now')
-                        WHERE group_id = ? AND artifact_id = ? AND (version = ? OR version IS NULL)
-                        """)) {
-            stmt.setBoolean(1, jakartaReady);
-            stmt.setString(2, migrationStatus);
-            stmt.setString(3, groupId);
-            stmt.setString(4, artifactId);
-            stmt.setString(5, version);
-            stmt.executeUpdate();
+            boolean isAnalyzed, String migrationStatus) {
+        try (Connection conn = getConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement("""
+                    UPDATE org_dependencies
+                    SET is_analyzed = ?,
+                        analyzed_at = datetime('now'),
+                        migration_status = ?,
+                        updated_at = datetime('now')
+                    WHERE group_id = ? AND artifact_id = ? AND version = ?
+                    """)) {
+                stmt.setBoolean(1, isAnalyzed);
+                stmt.setString(2, migrationStatus);
+                stmt.setString(3, groupId);
+                stmt.setString(4, artifactId);
+                stmt.setString(5, version);
+                stmt.executeUpdate();
+            }
             conn.commit();
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to mark org dependency as analyzed", e);
+            throw new RuntimeException("Failed to mark org dependency analyzed", e);
         }
     }
 
@@ -469,11 +511,11 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
      * Saves a complete dependency analysis report.
      */
     public void saveAnalysisReport(Path repositoryPath, DependencyAnalysisReport report, boolean isOrgRepo) {
+        // Register/update repository to satisfy foreign keys
+        registerRepository(repositoryPath, isOrgRepo);
+
         try (Connection conn = getConnection()) {
             conn.setAutoCommit(false);
-
-            // Register/update repository
-            registerRepository(repositoryPath, isOrgRepo);
 
             // Save raw report as JSON
             String rawReportJson = objectMapper.toJson(report);
@@ -493,7 +535,7 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                         jakarta_ready_count, needs_migration_count,
                         blocked_count, readiness_score, risk_level, raw_report
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, Statement.RETURN_GENERATED_KEYS)) {
+                    """)) {
 
                 Set<Artifact> allArtifacts = report.dependencyGraph().getNodes();
                 stmt.setString(1, repositoryPath.toString());
@@ -508,10 +550,12 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                 stmt.setString(10, riskLevelFromScore(report.riskAssessment().riskScore()));
                 stmt.setString(11, rawReportJson);
                 stmt.executeUpdate();
+            }
 
-                try (ResultSet rs = stmt.getGeneratedKeys()) {
-                    reportId = rs.next() ? rs.getLong(1) : -1;
-                }
+            // Get the last inserted row id for SQLite
+            try (Statement stmt = conn.createStatement();
+                    ResultSet rs = stmt.executeQuery("SELECT last_insert_rowid()")) {
+                reportId = rs.next() ? rs.getLong(1) : -1;
             }
 
             // Save dependencies with org classification
@@ -713,6 +757,20 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                 stmt.setString(11, determineMigrationStatus(namespace));
                 stmt.executeUpdate();
             }
+
+            // If it's an organization dependency and this is an org repo, or if it's a
+            // direct org dependency,
+            // track it globally to enable cross-repository visibility.
+            if (isOrg) {
+                upsertOrgDependencyInternal(conn,
+                        artifact.groupId(),
+                        artifact.artifactId(),
+                        artifact.version(),
+                        false, // isAnalyzed set to false until proven otherwise
+                        path,
+                        namespace == Namespace.JAKARTA,
+                        determineMigrationStatus(namespace));
+            }
         }
     }
 
@@ -835,19 +893,70 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
 
     @Override
     public void close() {
-        Connection conn = connectionHolder.get();
-        if (conn != null) {
-            try {
-                conn.close();
-            } catch (SQLException e) {
-                log.warn("Error closing database connection", e);
-            }
-            connectionHolder.remove();
-        }
+        // No persistent connection to close
     }
 
     public Path getDbPath() {
         return dbPath;
+    }
+
+    // ==================== Recipe Execution Operations ====================
+
+    /**
+     * Saves a recipe execution result.
+     */
+    public void saveRecipeExecution(String repositoryPath, String recipeName, boolean success, String message,
+            List<String> affectedFiles) {
+        String sql = """
+                    INSERT INTO recipe_executions (repository_path, recipe_name, success, message, affected_files)
+                    VALUES (?, ?, ?, ?, ?)
+                """;
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            registerRepository(Paths.get(repositoryPath), false); // Ensure repo exists
+
+            pstmt.setString(1, repositoryPath);
+            pstmt.setString(2, recipeName);
+            pstmt.setBoolean(3, success);
+            pstmt.setString(4, message);
+            pstmt.setString(5, affectedFiles != null ? String.join(",", affectedFiles) : "");
+
+            pstmt.executeUpdate();
+            conn.commit();
+        } catch (SQLException e) {
+            log.error("Failed to save recipe execution", e);
+        }
+    }
+
+    /**
+     * Gets execution history for a specific recipe in a repository.
+     */
+    public List<Map<String, Object>> getRecipeExecutions(String repositoryPath, String recipeName) {
+        List<Map<String, Object>> results = new ArrayList<>();
+        String sql = "SELECT * FROM recipe_executions WHERE repository_path = ? AND recipe_name = ? ORDER BY executed_at DESC";
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, repositoryPath);
+            pstmt.setString(2, recipeName);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", rs.getInt("id"));
+                    map.put("executed_at", rs.getString("executed_at"));
+                    map.put("success", rs.getBoolean("success"));
+                    map.put("message", rs.getString("message"));
+                    map.put("affected_files", rs.getString("affected_files"));
+                    results.add(map);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Failed to get recipe executions", e);
+        }
+        return results;
     }
 
     // ==================== Inner Classes ====================

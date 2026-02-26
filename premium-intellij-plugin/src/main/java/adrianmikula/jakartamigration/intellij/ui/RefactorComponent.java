@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.coderefactoring.domain.Recipe;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -10,7 +11,9 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Refactor tab component for code refactoring operations.
@@ -22,18 +25,22 @@ public class RefactorComponent {
 
     private final JPanel panel;
     private final Project project;
+    private final CentralMigrationAnalysisStore store;
     private final DefaultListModel<Recipe> recipeListModel;
     private final JList<Recipe> recipeList;
     private final JTextArea previewArea;
+    private final JTextArea resultsArea;
     private final JButton runRecipeButton;
     private final JLabel statusLabel;
     private final MigrationActionHandler actionHandler;
 
-    public RefactorComponent(Project project) {
+    public RefactorComponent(Project project, CentralMigrationAnalysisStore store) {
         this.project = project;
+        this.store = store;
         this.recipeListModel = new DefaultListModel<>();
         this.recipeList = new JList<>(recipeListModel);
         this.previewArea = new JTextArea(10, 40);
+        this.resultsArea = new JTextArea(10, 40);
         this.runRecipeButton = new JButton("Run Recipe");
         this.statusLabel = new JLabel("Ready");
         this.actionHandler = new MigrationActionHandler(project);
@@ -81,9 +88,25 @@ public class RefactorComponent {
         rightPanel.setBorder(new TitledBorder("Details Preview"));
 
         previewArea.setEditable(false);
+        previewArea.setLineWrap(true);
+        previewArea.setWrapStyleWord(true);
         previewArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         JScrollPane previewScrollPane = new JScrollPane(previewArea);
-        rightPanel.add(previewScrollPane, BorderLayout.CENTER);
+
+        // Results section
+        JPanel resultsPanel = new JPanel(new BorderLayout(5, 5));
+        resultsPanel.setBorder(new TitledBorder("Refactoring Results"));
+        resultsArea.setEditable(false);
+        resultsArea.setLineWrap(true);
+        resultsArea.setWrapStyleWord(true);
+        resultsArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        JScrollPane resultsScrollPane = new JScrollPane(resultsArea);
+        resultsPanel.add(resultsScrollPane, BorderLayout.CENTER);
+
+        // Split right panel
+        JSplitPane rightSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, previewScrollPane, resultsPanel);
+        rightSplitPane.setResizeWeight(0.5);
+        rightPanel.add(rightSplitPane, BorderLayout.CENTER);
 
         // Status panel
         JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -107,9 +130,42 @@ public class RefactorComponent {
                 Recipe selectedRecipe = recipeList.getSelectedValue();
                 if (selectedRecipe != null) {
                     updateRecipePreview(selectedRecipe);
+                    loadRecipeHistory(selectedRecipe);
                 }
             }
         });
+    }
+
+    private void loadRecipeHistory(Recipe recipe) {
+        if (store == null)
+            return;
+
+        List<Map<String, Object>> history = store.getRecipeExecutions(project.getBasePath(), recipe.name());
+        if (history.isEmpty()) {
+            resultsArea.setText("No execution history found for this recipe.");
+            return;
+        }
+
+        StringBuilder results = new StringBuilder();
+        results.append("Execution History for ").append(recipe.name()).append(":\n\n");
+
+        for (Map<String, Object> entry : history) {
+            results.append("Date: ").append(entry.get("executed_at")).append("\n");
+            results.append("Status: ").append((boolean) entry.get("success") ? "SUCCESS" : "FAILED").append("\n");
+            results.append("Message: ").append(entry.get("message")).append("\n");
+
+            String affectedFiles = (String) entry.get("affected_files");
+            if (affectedFiles != null && !affectedFiles.isEmpty()) {
+                results.append("Files modified:\n");
+                for (String file : affectedFiles.split(",")) {
+                    results.append("  - ").append(file).append("\n");
+                }
+            }
+            results.append("--------------------------------------------------\n\n");
+        }
+
+        resultsArea.setText(results.toString());
+        resultsArea.setCaretPosition(0);
     }
 
     private void handleRunRecipe(ActionEvent e) {
@@ -141,10 +197,23 @@ public class RefactorComponent {
                     statusLabel.setText("Recipe executed successfully");
                     statusLabel.setForeground(Color.GREEN);
                     Messages.showInfoMessage(project, message, "Success");
+
+                    // Save execution to DB
+                    if (store != null) {
+                        store.saveRecipeExecution(project.getBasePath(), recipe.name(), true, message,
+                                Collections.emptyList());
+                        loadRecipeHistory(recipe);
+                    }
                 } else {
                     statusLabel.setText("Execution failed");
                     statusLabel.setForeground(Color.RED);
                     Messages.showErrorDialog(project, message, "Error");
+
+                    if (store != null) {
+                        store.saveRecipeExecution(project.getBasePath(), recipe.name(), false, message,
+                                Collections.emptyList());
+                        loadRecipeHistory(recipe);
+                    }
                 }
             });
         });
