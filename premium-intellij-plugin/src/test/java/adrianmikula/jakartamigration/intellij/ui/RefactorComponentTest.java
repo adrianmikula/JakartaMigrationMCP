@@ -1,7 +1,6 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.coderefactoring.domain.Recipe;
-import adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.ArrayList;
@@ -19,19 +18,7 @@ public class RefactorComponentTest extends BasePlatformTestCase {
 
     public void testInitialization() {
         assertThat(refactorComponent.getPanel()).isNotNull();
-        assertThat(refactorComponent.getPhaseListModel().isEmpty()).isTrue();
         assertThat(refactorComponent.getRecipeListModel().isEmpty()).isTrue();
-    }
-
-    public void testSetPhases() {
-        List<RefactoringPhase> phases = new ArrayList<>();
-        phases.add(new RefactoringPhase(1, "Phase 1", new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
-                new ArrayList<>(), java.time.Duration.ZERO));
-
-        refactorComponent.setPhases(phases);
-
-        assertThat(refactorComponent.getPhaseListModel().getSize()).isEqualTo(1);
-        assertThat(refactorComponent.getPhaseListModel().getElementAt(0)).isEqualTo("Phase 1");
     }
 
     public void testSetRecipes() {
@@ -44,19 +31,32 @@ public class RefactorComponentTest extends BasePlatformTestCase {
         assertThat(refactorComponent.getRecipeListModel().getElementAt(0).name()).isEqualTo("AddJakartaNamespace");
     }
 
-    public void testClearAll() {
-        List<RefactoringPhase> phases = new ArrayList<>();
-        phases.add(new RefactoringPhase(1, "Phase 1", new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
-                new ArrayList<>(), java.time.Duration.ZERO));
-        refactorComponent.setPhases(phases);
+    public void testSetAllRestoredRecipes() {
+        List<Recipe> recipes = List.of(
+                Recipe.jakartaNamespaceRecipe(),
+                Recipe.persistenceXmlRecipe(),
+                Recipe.webXmlRecipe(),
+                Recipe.jpaRecipe(),
+                Recipe.beanValidationRecipe(),
+                Recipe.servletRecipe(),
+                Recipe.cdiRecipe(),
+                Recipe.restRecipe(),
+                Recipe.soapRecipe());
 
+        refactorComponent.setRecipes(recipes);
+
+        assertThat(refactorComponent.getRecipeListModel().getSize()).isEqualTo(9);
+        assertThat(refactorComponent.getRecipeListModel().getElementAt(3).name()).isEqualTo("MigrateJPA");
+        assertThat(refactorComponent.getRecipeListModel().getElementAt(8).name()).isEqualTo("MigrateSOAP");
+    }
+
+    public void testClearAll() {
         List<Recipe> recipes = new ArrayList<>();
         recipes.add(Recipe.jakartaNamespaceRecipe());
         refactorComponent.setRecipes(recipes);
 
         refactorComponent.clearAll();
 
-        assertThat(refactorComponent.getPhaseListModel().isEmpty()).isTrue();
         assertThat(refactorComponent.getRecipeListModel().isEmpty()).isTrue();
         assertThat(refactorComponent.getPreviewArea().getText()).isEmpty();
     }

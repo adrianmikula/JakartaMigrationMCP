@@ -24,6 +24,8 @@
     - updateDependency: Updates dependencies to recommended versions
     - generateMigrationPlan: Creates phased migration plans
     - validateMigration: Validates migration results
+    - runAdvancedScan: Executes deep technology-specific analysis
+    - applyJakartaRecipe: Applies targeted migration recipes
     ]]></description>
 
     <!-- IntelliJ Platform Version Requirements -->

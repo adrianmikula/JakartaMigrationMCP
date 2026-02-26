@@ -39,7 +39,7 @@ public class MigrationStrategyComponentTest extends BasePlatformTestCase {
         assertThat(strategyComponent.getBenefitsText().getText()).contains("Migrate all javax dependencies");
         assertThat(strategyComponent.getRisksText().getText()).contains("Higher risk");
 
-        strategyComponent.setSelectedStrategy(MigrationStrategy.RUNTIME_TRANSFORMATION);
+        strategyComponent.setSelectedStrategy(MigrationStrategy.ADAPTER);
 
         assertThat(strategyComponent.getBenefitsText().getText()).contains("No code changes required");
         assertThat(strategyComponent.getRisksText().getText()).contains("Performance overhead");

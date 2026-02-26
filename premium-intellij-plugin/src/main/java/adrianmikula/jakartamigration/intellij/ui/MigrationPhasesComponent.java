@@ -5,9 +5,7 @@ import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.intellij.ui.MigrationStrategyComponent.MigrationStrategy;
 import adrianmikula.jakartamigration.intellij.ui.SubtaskTableComponent.SubtaskItem;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBPanel;
-import com.intellij.ui.components.JBScrollPane;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -100,7 +98,7 @@ public class MigrationPhasesComponent {
                                                 })
                 });
 
-                PHASE_DEFINITIONS.put(MigrationStrategy.BUILD_TRANSFORMATION, new PhaseDefinition[] {
+                PHASE_DEFINITIONS.put(MigrationStrategy.TRANSFORM, new PhaseDefinition[] {
                                 new PhaseDefinition("phase-1", "Build Tool Updates",
                                                 """
                                                                 Update build configuration to use Jakarta EE dependencies.
@@ -146,7 +144,7 @@ public class MigrationPhasesComponent {
                                                 })
                 });
 
-                PHASE_DEFINITIONS.put(MigrationStrategy.RUNTIME_TRANSFORMATION, new PhaseDefinition[] {
+                PHASE_DEFINITIONS.put(MigrationStrategy.ADAPTER, new PhaseDefinition[] {
                                 new PhaseDefinition("phase-1", "Adapter Pattern Setup",
                                                 """
                                                                 Create adapter classes for javax to jakarta compatibility.

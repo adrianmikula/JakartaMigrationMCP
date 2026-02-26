@@ -102,15 +102,15 @@ public class AdvancedScanningService {
      */
     public AdvancedScanSummary scanAll(Path projectPath) {
         LOG.info("Running all advanced scans in: " + projectPath);
-        
+
         // Check if cached result is still valid
-        if (cachedSummary != null && cachedProjectPath != null 
-            && cachedProjectPath.equals(projectPath)
-            && (System.currentTimeMillis() - lastScanTime) < CACHE_VALIDITY_MS) {
+        if (cachedSummary != null && cachedProjectPath != null
+                && cachedProjectPath.equals(projectPath)
+                && (System.currentTimeMillis() - lastScanTime) < CACHE_VALIDITY_MS) {
             LOG.info("Returning cached scan results");
             return cachedSummary;
         }
-        
+
         JpaProjectScanResult jpaResult = scanForJpaAnnotations(projectPath);
         BeanValidationProjectScanResult beanValidationResult = scanForBeanValidation(projectPath);
         ServletJspProjectScanResult servletJspResult = scanForServletJsp(projectPath);
@@ -126,27 +126,26 @@ public class AdvancedScanningService {
         LoggingMetricsProjectScanResult loggingMetricsResult = scanForLoggingMetrics(projectPath);
         SerializationCacheProjectScanResult serializationCacheResult = scanForSerializationCache(projectPath);
         ThirdPartyLibProjectScanResult thirdPartyLibResult = scanForThirdPartyLib(projectPath);
-        
+
         cachedSummary = new AdvancedScanSummary(
-            jpaResult,
-            beanValidationResult,
-            servletJspResult,
-            cdiInjectionResult,
-            buildConfigResult,
-            restSoapResult,
-            deprecatedApiResult,
-            securityApiResult,
-            jmsMessagingResult,
-            transitiveDependencyResult,
-            configFileResult,
-            classloaderModuleResult,
-            loggingMetricsResult,
-            serializationCacheResult,
-            thirdPartyLibResult
-        );
+                jpaResult,
+                beanValidationResult,
+                servletJspResult,
+                cdiInjectionResult,
+                buildConfigResult,
+                restSoapResult,
+                deprecatedApiResult,
+                securityApiResult,
+                jmsMessagingResult,
+                transitiveDependencyResult,
+                configFileResult,
+                classloaderModuleResult,
+                loggingMetricsResult,
+                serializationCacheResult,
+                thirdPartyLibResult);
         cachedProjectPath = projectPath;
         lastScanTime = System.currentTimeMillis();
-        
+
         return cachedSummary;
     }
 
@@ -157,6 +156,15 @@ public class AdvancedScanningService {
      */
     public AdvancedScanSummary getCachedSummary() {
         return cachedSummary;
+    }
+
+    /**
+     * Sets the cached summary manually (primarily for testing).
+     * 
+     * @param summary The summary to cache
+     */
+    public void setCachedSummary(AdvancedScanSummary summary) {
+        this.cachedSummary = summary;
     }
 
     /**
@@ -233,22 +241,21 @@ public class AdvancedScanningService {
      * Summary of all advanced scanning results.
      */
     public record AdvancedScanSummary(
-        JpaProjectScanResult jpaResult,
-        BeanValidationProjectScanResult beanValidationResult,
-        ServletJspProjectScanResult servletJspResult,
-        CdiInjectionProjectScanResult cdiInjectionResult,
-        BuildConfigProjectScanResult buildConfigResult,
-        RestSoapProjectScanResult restSoapResult,
-        DeprecatedApiProjectScanResult deprecatedApiResult,
-        SecurityApiProjectScanResult securityApiResult,
-        JmsMessagingProjectScanResult jmsMessagingResult,
-        TransitiveDependencyProjectScanResult transitiveDependencyResult,
-        ConfigFileProjectScanResult configFileResult,
-        ClassloaderModuleProjectScanResult classloaderModuleResult,
-        LoggingMetricsProjectScanResult loggingMetricsResult,
-        SerializationCacheProjectScanResult serializationCacheResult,
-        ThirdPartyLibProjectScanResult thirdPartyLibResult
-    ) {
+            JpaProjectScanResult jpaResult,
+            BeanValidationProjectScanResult beanValidationResult,
+            ServletJspProjectScanResult servletJspResult,
+            CdiInjectionProjectScanResult cdiInjectionResult,
+            BuildConfigProjectScanResult buildConfigResult,
+            RestSoapProjectScanResult restSoapResult,
+            DeprecatedApiProjectScanResult deprecatedApiResult,
+            SecurityApiProjectScanResult securityApiResult,
+            JmsMessagingProjectScanResult jmsMessagingResult,
+            TransitiveDependencyProjectScanResult transitiveDependencyResult,
+            ConfigFileProjectScanResult configFileResult,
+            ClassloaderModuleProjectScanResult classloaderModuleResult,
+            LoggingMetricsProjectScanResult loggingMetricsResult,
+            SerializationCacheProjectScanResult serializationCacheResult,
+            ThirdPartyLibProjectScanResult thirdPartyLibResult) {
         /**
          * Returns individual count for JPA annotations.
          */

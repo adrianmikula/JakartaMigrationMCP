@@ -64,6 +64,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private RefactorComponent refactorComponent;
         private RuntimeComponent runtimeComponent;
         private AdvancedScansComponent advancedScansComponent;
+        private MigrationStrategyComponent strategyComponent;
         private SupportComponent supportComponent;
 
         public MigrationToolWindowContent(Project project) {
@@ -92,12 +93,22 @@ public class MigrationToolWindow implements ToolWindowFactory {
             dependencyGraphComponent = new DependencyGraphComponent(project);
             tabbedPane.addTab("Dependency Graph", dependencyGraphComponent.getPanel());
 
+            // Migration Strategy tab
+            strategyComponent = new MigrationStrategyComponent(project);
+            tabbedPane.addTab("Migration Strategy", strategyComponent.getPanel());
+
             // Refactor tab (Premium)
             refactorComponent = new RefactorComponent(project);
             refactorComponent.setRecipes(List.of(
                     adrianmikula.jakartamigration.coderefactoring.domain.Recipe.jakartaNamespaceRecipe(),
                     adrianmikula.jakartamigration.coderefactoring.domain.Recipe.persistenceXmlRecipe(),
-                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.webXmlRecipe()));
+                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.webXmlRecipe(),
+                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.jpaRecipe(),
+                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.beanValidationRecipe(),
+                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.servletRecipe(),
+                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.cdiRecipe(),
+                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.restRecipe(),
+                    adrianmikula.jakartamigration.coderefactoring.domain.Recipe.soapRecipe()));
             tabbedPane.addTab("Refactor", refactorComponent.getPanel());
 
             // Runtime tab (Premium)

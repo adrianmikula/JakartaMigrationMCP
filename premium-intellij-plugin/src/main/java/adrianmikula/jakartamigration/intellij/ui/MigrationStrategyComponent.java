@@ -24,6 +24,7 @@ public class MigrationStrategyComponent {
     private MigrationStrategy selectedStrategy;
     private JTextArea benefitsText;
     private JTextArea risksText;
+    private JTextArea phasesText;
 
     public interface MigrationStrategyListener {
         void onStrategySelected(MigrationStrategy strategy);
@@ -43,6 +44,12 @@ public class MigrationStrategyComponent {
                         • Requires comprehensive test suite
                         • May cause extended downtime during migration
                         """,
+                """
+                        1. Dependency Upgrade: Update all pom.xml/build.gradle files
+                        2. Code Refactor: Replace all javax.* imports with jakarta.*
+                        3. XML/Config Update: Update persistence.xml, web.xml, etc.
+                        4. Global Testing: Comprehensive unit and integration testing
+                        """,
                 new Color(220, 53, 69)), // Red
 
         INCREMENTAL("Incremental", "One dependency at a time",
@@ -58,24 +65,73 @@ public class MigrationStrategyComponent {
                         • May require temporary dual dependencies
                         • Need careful dependency ordering
                         """,
+                """
+                        1. Dependency Scan: Identify all javax dependencies
+                        2. Priority Ranking: Order by risk and dependency level
+                        3. Step-by-Step Upgrade: One artifact at a time
+                        4. Continuous Integration: Test after every single change
+                        """,
                 new Color(255, 193, 7)), // Yellow
 
-        BUILD_TRANSFORMATION("Build Transformation", "Transform during build process",
+        STRANGLER("Strangler", "Migrate module by module",
                 """
-                        • Use OpenRewrite recipes during build
-                        • Automated code transformation
-                        • CI/CD pipeline integration
-                        • Best for projects with complex dependencies
+                        • Migrate one functional module or service at a time
+                        • New features built in Jakarta EE
+                        • Existing features gradually migrated
+                        • Good for monolithic applications
                         """,
                 """
-                        • Requires build system access
-                        • May need custom OpenRewrite recipes
-                        • Build times may increase
-                        • Need to handle build failures gracefully
+                        • Requires inter-module compatibility layers
+                        • Can create duplicate logic during transition
+                        • Managing two different EE environments simultaneously
+                        """,
+                """
+                        1. Interface Definition: Define boundaries between modules
+                        2. Bridge Setup: Create compatibility layer for cross-module calls
+                        3. Vertical Slices: Migrate one full functional slice at a time
+                        4. Decommission: Remove legacy modules once fully replaced
+                        """,
+                new Color(111, 66, 193)), // Purple
+
+        DUAL_BUILDS("Dual Builds", "Support both javax and jakarta simultaneously",
+                """
+                        • Build two versions of the app from one codebase
+                        • Use build-time shading or source transformation
+                        • High flexibility for library developers
+                        """,
+                """
+                        • Increased CI/CD complexity
+                        • Harder to debug build-time transformations
+                        • Source code remains in one format (usually javax)
+                        """,
+                """
+                        1. Multi-Release Setup: Configure build tool for shadow JARs
+                        2. Transformer Integration: Setup Eclipse Transformer in build
+                        3. Automated CI: Running two sets of tests (javax/jakarta)
+                        4. Deployment Choice: Select version based on target runtime
+                        """,
+                new Color(253, 126, 20)), // Orange
+
+        TRANSFORM("Transform", "Automatic bytecode/source transformation",
+                """
+                        • Use OpenRewrite/Eclipse Transformer automatically
+                        • Large scale changes handled by machine
+                        • Consistent application of rules
+                        """,
+                """
+                        • Hard to handle complex custom logic
+                        • Machine changes still require human review
+                        • Risk of unexpected transformation errors
+                        """,
+                """
+                        1. Recipe Selection: Choose standard and custom Rewrite recipes
+                        2. Batch Execution: Run transformation across the whole codebase
+                        3. Diff Review: Manual inspection of critical logic changes
+                        4. Final Validation: Automated test suite verification
                         """,
                 new Color(23, 162, 184)), // Blue
 
-        RUNTIME_TRANSFORMATION("Runtime Transformation", "Transform at runtime",
+        ADAPTER("Adapter", "Runtime compatibility layer",
                 """
                         • Use adapter pattern for runtime compatibility
                         • No code changes required
@@ -88,19 +144,28 @@ public class MigrationStrategyComponent {
                         • Not a permanent solution
                         • May have edge case issues
                         """,
+                """
+                        1. Adapter Config: Setup runtime bytecode instrumentation
+                        2. Runtime Proxy: Intercept javax calls and redirect to jakarta
+                        3. Legacy Support: Link old libraries to new EE runtime
+                        4. Monitor: Aggressive monitoring of performance/errors
+                        """,
                 new Color(40, 167, 69)); // Green
 
         private final String displayName;
         private final String description;
         private final String benefits;
         private final String risks;
+        private final String phases;
         private final Color color;
 
-        MigrationStrategy(String displayName, String description, String benefits, String risks, Color color) {
+        MigrationStrategy(String displayName, String description, String benefits, String risks, String phases,
+                Color color) {
             this.displayName = displayName;
             this.description = description;
             this.benefits = benefits;
             this.risks = risks;
+            this.phases = phases;
             this.color = color;
         }
 
@@ -118,6 +183,10 @@ public class MigrationStrategyComponent {
 
         public String getRisks() {
             return risks;
+        }
+
+        public String getPhases() {
+            return phases;
         }
 
         public Color getColor() {
@@ -141,7 +210,7 @@ public class MigrationStrategyComponent {
         titlePanel.add(titleLabel);
 
         // Strategy cards panel
-        JPanel cardsPanel = new JPanel(new GridLayout(1, 4, 10, 10));
+        JPanel cardsPanel = new JPanel(new GridLayout(1, 6, 10, 10));
         cardsPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         for (MigrationStrategy strategy : MigrationStrategy.values()) {
@@ -149,8 +218,8 @@ public class MigrationStrategyComponent {
             cardsPanel.add(card);
         }
 
-        // Info panel for selected strategy - now with Benefits and Risks
-        JPanel infoPanel = new JPanel(new GridLayout(1, 2, 10, 0));
+        // Info panel for selected strategy
+        JPanel infoPanel = new JPanel(new GridLayout(1, 3, 10, 0));
         infoPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         infoPanel.setPreferredSize(new Dimension(0, 180));
 
@@ -180,9 +249,23 @@ public class MigrationStrategyComponent {
         risksPanel.add(risksTitle, BorderLayout.NORTH);
         risksPanel.add(risksText, BorderLayout.CENTER);
 
-        // Add benefits and risks to info panel (50% each)
-        infoPanel.add(benefitsPanel, 0);
-        infoPanel.add(risksPanel, 1);
+        // Phases section
+        JPanel phasesPanel = new JPanel(new BorderLayout());
+        phasesPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        JLabel phasesTitle = new JLabel("⚑ Migration Phases");
+        phasesTitle.setFont(phasesTitle.getFont().deriveFont(Font.BOLD, 12f));
+        this.phasesText = new JTextArea("");
+        phasesText.setEditable(false);
+        phasesText.setWrapStyleWord(true);
+        phasesText.setLineWrap(true);
+        phasesText.setFont(phasesText.getFont().deriveFont(Font.PLAIN, 11f));
+        phasesPanel.add(phasesTitle, BorderLayout.NORTH);
+        phasesPanel.add(phasesText, BorderLayout.CENTER);
+
+        // Add sections to info panel (33% each)
+        infoPanel.add(benefitsPanel);
+        infoPanel.add(risksPanel);
+        infoPanel.add(phasesPanel);
 
         // Add components
         panel.add(titlePanel, BorderLayout.NORTH);
@@ -195,7 +278,7 @@ public class MigrationStrategyComponent {
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.GRAY, 1),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)));
-        card.setPreferredSize(new Dimension(180, 160));
+        card.setPreferredSize(new Dimension(150, 160));
 
         // Header with color indicator
         JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
@@ -208,14 +291,16 @@ public class MigrationStrategyComponent {
         headerPanel.add(colorIndicator);
 
         JLabel nameLabel = new JLabel(strategy.getDisplayName());
-        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 13f));
+        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 12f));
         headerPanel.add(nameLabel);
 
         // Description
         JTextArea descArea = new JTextArea(strategy.getDescription());
         descArea.setEditable(false);
         descArea.setOpaque(false);
-        descArea.setFont(descArea.getFont().deriveFont(Font.PLAIN, 11f));
+        descArea.setLineWrap(true);
+        descArea.setWrapStyleWord(true);
+        descArea.setFont(descArea.getFont().deriveFont(Font.PLAIN, 10f));
 
         // Make the card clickable
         card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -293,13 +378,15 @@ public class MigrationStrategyComponent {
     }
 
     private MigrationStrategy findStrategyForCard(JPanel card) {
-        // Find the strategy by checking the border color of the inner panel
-        for (Component comp : card.getComponents()) {
-            if (comp instanceof JPanel) {
-                JPanel innerPanel = (JPanel) comp;
-                for (MigrationStrategy strategy : MigrationStrategy.values()) {
-                    if (innerPanel.getBackground().equals(strategy.getColor())) {
-                        return strategy;
+        // Find the strategy by checking the color indicator inside the header
+        Component headerComp = card.getComponent(0);
+        if (headerComp instanceof JPanel headerPanel) {
+            for (Component subComp : headerPanel.getComponents()) {
+                if (subComp instanceof JPanel colorIndicator) {
+                    for (MigrationStrategy strategy : MigrationStrategy.values()) {
+                        if (colorIndicator.getBackground().equals(strategy.getColor())) {
+                            return strategy;
+                        }
                     }
                 }
             }
@@ -310,6 +397,7 @@ public class MigrationStrategyComponent {
     private void updateInfoPanel(MigrationStrategy strategy) {
         benefitsText.setText(strategy.getBenefits());
         risksText.setText(strategy.getRisks());
+        phasesText.setText(strategy.getPhases());
     }
 
     public void addMigrationStrategyListener(MigrationStrategyListener listener) {
