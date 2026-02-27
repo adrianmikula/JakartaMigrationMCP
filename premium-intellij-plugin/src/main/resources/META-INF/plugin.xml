@@ -1,31 +1,29 @@
 <idea-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/schemas/plugin/2/plugin.xsd" icon="/icons/colour_bird-icon.png">
     <id>com.adrianmikula.jakarta-migration</id>
     <name>Jakarta Migration</name>
-    <vendor email="adrian.m@tuta.io" name="Adrian Mikula">Adrian Mikula</vendor>
+    <vendor email="adrian.m@tuta.io" url="https://github.com/adrianmikula/jakarta-migration" name="Adrian Mikula">Adrian Mikula</vendor>
 
     <description><![CDATA[
-    Jakarta Migration IntelliJ Plugin provides tools to analyze and migrate Java applications from Java EE 8 (javax.*) to Jakarta EE 9+ (jakarta.*).
+    Analyze and automate migration of Java EE (javax.*) code to Jakarta EE (jakarta.*) within the IDE.
 
-    Features:
-    - Migration readiness analysis
-    - Dependency analysis and recommendations
-    - Module dependency graph visualization
-    - Phased migration planning and execution
-    - Integration with Jakarta Migration MCP server
-    - AI Assistant integration for automatic tool discovery
+    <h3>Key Features:</h3>
+    <ul>
+        <li>Detect all javax references in your codebase</li>
+        <li>Analyze dependency compatibility with Jakarta EE</li>
+        <li>Visualize module dependency graphs</li>
+        <li>Get automated refactoring suggestions</li>
+        <li>Plan your migration with phased strategies</li>
+    </ul>
 
-    MCP Server Tools Available to AI Assistant:
-    - analyzeJakartaReadiness: Analyzes project readiness for Jakarta EE migration
-    - analyzeMigrationImpact: Provides detailed migration impact analysis
-    - detectBlockers: Identifies migration blockers
-    - recommendVersions: Recommends compatible dependency versions
-    - applyOpenRewriteRefactoring: Applies automated refactoring
-    - scanBinaryDependency: Scans JAR dependencies for compatibility
-    - updateDependency: Updates dependencies to recommended versions
-    - generateMigrationPlan: Creates phased migration plans
-    - validateMigration: Validates migration results
-    - runAdvancedScan: Executes deep technology-specific analysis
-    - applyJakartaRecipe: Applies targeted migration recipes
+    <h3>Supported Technologies:</h3>
+    <ul>
+        <li>Maven and Gradle dependencies</li>
+        <li>Spring Boot applications</li>
+        <li>Servlet/JSP, JPA, Bean Validation</li>
+        <li>Custom namespace transformations</li>
+    </ul>
+
+    If you find this useful, please leave a rating on the JetBrains Marketplace. Report bugs on GitHub.
     ]]></description>
 
     <!-- IntelliJ Platform Version Requirements -->

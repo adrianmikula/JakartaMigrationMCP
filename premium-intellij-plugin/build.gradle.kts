@@ -51,10 +51,9 @@ intellij {
     plugins.set(listOf("com.intellij.java"))
 }
 
-tasks {
+    tasks {
     patchPluginXml {
-        sinceBuild.set("233")
-        untilBuild.set("243.*")
+        sinceBuild.set(providers.gradleProperty("intellij.sinceBuild").orElse("233"))
         changeNotes.set("""
             <h>${project.version}</h>
             <ul>

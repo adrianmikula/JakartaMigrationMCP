@@ -105,9 +105,13 @@ public class MigrationToolWindow implements ToolWindowFactory {
             refactorComponent.setRecipes(adrianmikula.jakartamigration.coderefactoring.domain.Recipe.allRecipes());
             tabbedPane.addTab("Refactor", refactorComponent.getPanel());
 
-            // Runtime tab (Premium)
-            runtimeComponent = new RuntimeComponent(project);
-            tabbedPane.addTab("Runtime", runtimeComponent.getPanel());
+            // =============================================================================
+            // Runtime tab (Premium) - HIDDEN: This feature is not ready yet
+            // The code is kept behind this comment for future implementation.
+            // TODO: Re-enable this tab once RuntimeComponent is fully implemented
+            // =============================================================================
+            // runtimeComponent = new RuntimeComponent(project);
+            // tabbedPane.addTab("Runtime", runtimeComponent.getPanel());
 
             // Advanced Scans tab (Premium) - JPA, Bean Validation, Servlet/JSP
             advancedScansComponent = new AdvancedScansComponent(project, advancedScanningService);

@@ -1,7 +1,3 @@
-import java.time.format.DateTimeFormatter
-import java.time.ZoneId
-import java.time.Instant
-
 plugins {
     java
     id("org.springframework.boot") version "3.2.0" apply false
@@ -24,32 +20,36 @@ allprojects {
 }
 
 tasks.register("generateUniqueVersion") {
-    description = "Generates a unique version number by appending a timestamp"
+    description = "Increments the minor version number for publishing"
     group = "versioning"
 
     doLast {
         val gradlePropsFile = project.file("gradle.properties")
         if (gradlePropsFile.exists()) {
             val lines = gradlePropsFile.readLines().toMutableList()
-            val timestamp = DateTimeFormatter.ofPattern("yyyyMMddHHmm")
-                .withZone(ZoneId.of("UTC"))
-                .format(Instant.now())
             
             var versionUpdated = false
             for (i in lines.indices) {
                 if (lines[i].trim().startsWith("version=")) {
-                    val currentVersion = lines[i].substringAfter("=").substringBefore("-").trim()
-                    val newVersion = "$currentVersion-$timestamp"
-                    lines[i] = "version=$newVersion"
-                    versionUpdated = true
-                    println("🚀 Updating version to: $newVersion")
-                    break
+                    val currentVersion = lines[i].substringAfter("=").trim()
+                    // Parse version (assuming format like "1.0.0" or "1.0.1")
+                    val versionParts = currentVersion.split(".")
+                    if (versionParts.size >= 2) {
+                        val major = versionParts[0].toIntOrNull() ?: 1
+                        val minor = versionParts[1].toIntOrNull() ?: 0
+                        val newMinor = minor + 1
+                        val newVersion = "$major.$newMinor"
+                        lines[i] = "version=$newVersion"
+                        versionUpdated = true
+                        println("🚀 Incremented version to: $newVersion")
+                        break
+                    }
                 }
             }
             
             if (!versionUpdated) {
-                lines.add("version=1.0.0-$timestamp")
-                println("🚀 Adding version: 1.0.0-$timestamp")
+                lines.add("version=1.1.0")
+                println("🚀 Adding version: 1.1.0")
             }
             
             gradlePropsFile.writeText(lines.joinToString("\n") + "\n")

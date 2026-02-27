@@ -93,9 +93,53 @@ public class DependencyGraphComponent {
         controlsPanel.add(resetViewButton);
         controlsPanel.add(loadDataButton);
 
+        // Legend panel
+        JPanel legendPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 15, 5));
+        legendPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        legendPanel.setBackground(new Color(245, 245, 245));
+
+        // Compatible (Green)
+        JPanel legendItem1 = createLegendItem(new Color(40, 167, 69), "Jakarta Compatible");
+        legendPanel.add(legendItem1);
+
+        // Needs Upgrade (Yellow)
+        JPanel legendItem2 = createLegendItem(new Color(255, 193, 7), "Needs Upgrade");
+        legendPanel.add(legendItem2);
+
+        // No Jakarta Version (Red)
+        JPanel legendItem3 = createLegendItem(new Color(220, 53, 69), "No Jakarta Version");
+        legendPanel.add(legendItem3);
+
+        // Organisational (Purple)
+        JPanel legendItem4 = createLegendItem(new Color(156, 39, 176), "Organisational");
+        legendPanel.add(legendItem4);
+
+        // Combine controls and legend in a wrapper panel
+        JPanel bottomPanel = new JBPanel<>(new BorderLayout());
+        bottomPanel.add(controlsPanel, BorderLayout.NORTH);
+        bottomPanel.add(legendPanel, BorderLayout.SOUTH);
+
         panel.add(headerPanel, BorderLayout.NORTH);
         panel.add(graphPanel, BorderLayout.CENTER);
-        panel.add(controlsPanel, BorderLayout.SOUTH);
+        panel.add(bottomPanel, BorderLayout.SOUTH);
+    }
+
+    private JPanel createLegendItem(Color color, String label) {
+        JPanel itemPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        itemPanel.setOpaque(false);
+
+        JPanel colorBox = new JPanel();
+        colorBox.setBackground(color);
+        colorBox.setPreferredSize(new Dimension(16, 16));
+        colorBox.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
+
+        JLabel labelText = new JLabel(label);
+        labelText.setFont(labelText.getFont().deriveFont(Font.PLAIN, 11f));
+
+        itemPanel.add(colorBox);
+        itemPanel.add(labelText);
+
+        return itemPanel;
     }
 
     private void handleLayoutChange(ActionEvent e) {

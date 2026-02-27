@@ -221,13 +221,13 @@ public class MigrationStrategyComponent {
         // Info panel for selected strategy
         JPanel infoPanel = new JPanel(new GridLayout(1, 3, 10, 0));
         infoPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        infoPanel.setPreferredSize(new Dimension(0, 180));
+        infoPanel.setPreferredSize(new Dimension(0, 220));
 
         // Benefits section
         JPanel benefitsPanel = new JPanel(new BorderLayout());
         benefitsPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         JLabel benefitsTitle = new JLabel("✓ Benefits");
-        benefitsTitle.setFont(benefitsTitle.getFont().deriveFont(Font.BOLD, 12f));
+        benefitsTitle.setFont(benefitsTitle.getFont().deriveFont(Font.BOLD, 13f));
         this.benefitsText = new JTextArea("Click on a strategy card to see details here.");
         benefitsText.setEditable(false);
         benefitsText.setWrapStyleWord(true);
@@ -278,7 +278,7 @@ public class MigrationStrategyComponent {
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.GRAY, 1),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)));
-        card.setPreferredSize(new Dimension(150, 160));
+        card.setPreferredSize(new Dimension(150, 120));
 
         // Header with color indicator
         JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
@@ -291,7 +291,7 @@ public class MigrationStrategyComponent {
         headerPanel.add(colorIndicator);
 
         JLabel nameLabel = new JLabel(strategy.getDisplayName());
-        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 12f));
+        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 14f));
         headerPanel.add(nameLabel);
 
         // Description
@@ -300,7 +300,7 @@ public class MigrationStrategyComponent {
         descArea.setOpaque(false);
         descArea.setLineWrap(true);
         descArea.setWrapStyleWord(true);
-        descArea.setFont(descArea.getFont().deriveFont(Font.PLAIN, 10f));
+        descArea.setFont(descArea.getFont().deriveFont(Font.PLAIN, 12f));
 
         // Make the card clickable
         card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
