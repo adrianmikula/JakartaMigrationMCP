@@ -5,7 +5,6 @@ import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalys
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
-import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -59,12 +58,9 @@ class JakartaMigrationConfigTest {
     void shouldCreateRecipeLibraryBean() {
         assertThat(config.recipeLibrary()).isNotNull();
     }
-
-    @Test
-    @DisplayName("Should create RuntimeVerificationModule bean")
-    void shouldCreateRuntimeVerificationModuleBean() {
-        assertThat(config.runtimeVerificationModule()).isNotNull();
-    }
+    
+    // NOTE: RuntimeVerificationModule is a PREMIUM feature - not available in community
+    // This test was removed as part of open-core licensing cleanup
 
     @Test
     @DisplayName("Should create RefactoringEngine bean")

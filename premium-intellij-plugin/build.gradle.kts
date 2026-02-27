@@ -17,6 +17,17 @@ jacoco {
 
 tasks.withType<JacocoReport> {
     dependsOn("test")
+    
+    // Include both original and instrumented classes for Jacoco report.
+    // The IntelliJ plugin instruments classes for forms and @NotNull, 
+    // and tests often use these instrumented classes.
+    classDirectories.setFrom(
+        files(
+            "$buildDir/classes/java/main",
+            "$buildDir/instrumented/instrumentCode"
+        )
+    )
+    
     reports {
         xml.required.set(true)
         html.required.set(true)
@@ -35,6 +46,9 @@ dependencies {
     // Contains premium features: refactoring, runtime verification, etc.
     implementation(project(":premium-core-engine"))
 
+    // Premium Core Engine - runtime verification and premium features (Proprietary)
+    implementation(project(":premium-core-engine"))
+
     // UI Testing dependencies
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.0")
@@ -51,10 +65,21 @@ intellij {
     plugins.set(listOf("com.intellij.java"))
 }
 
-tasks {
+    tasks {
     patchPluginXml {
-        sinceBuild.set("233")
-        untilBuild.set("243.*")
+        sinceBuild.set(providers.gradleProperty("intellij.sinceBuild").orElse("233"))
+        // Use empty string to get open-ended compatibility (no until-build in generated XML)
+        // This allows plugin to work with all future IntelliJ versions
+        untilBuild.set(providers.gradleProperty("intellij.untilBuild").orElse(""))
+        changeNotes.set("""
+            <h>${project.version}</h>
+            <ul>
+                <li>Automated builds with unique versioning</li>
+                <li>Jakarta EE migration tools for dependencies and code</li>
+                <li>OpenRewrite refactoring integration</li>
+                <li>MCP Server for AI Assistant discovery</li>
+            </ul>
+        """.trimIndent())
     }
 
     // Disable buildSearchableOptions task to avoid JavaVersion.parse() failure with JDK 25
@@ -96,7 +121,7 @@ tasks.register("generateMcpToolsJson") {
             |{
             |  "server": {
             |    "name": "jakarta-migration-mcp",
-            |    "version": "1.0.0",
+            |    "version": "${project.version}",
             |    "description": "MCP server for Jakarta EE migration analysis and automation",
             |    "author": "Jakarta Migration Team",
             |    "vendor": "jakarta-migration.com"

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.24.xsd">
+
+    <!-- Example: Create examples table -->
+    <!-- This is a template example - replace with your own schema -->
+    <changeSet id="001-create-examples-table" author="liquibase">
+        <createTable tableName="examples">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="category" type="VARCHAR(100)"/>
+            <column name="status" type="VARCHAR(50)"/>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP"/>
+        </createTable>
+        
+        <createIndex indexName="idx_name" tableName="examples">
+            <column name="name"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

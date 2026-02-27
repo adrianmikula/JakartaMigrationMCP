@@ -13,6 +13,8 @@ dependencies {
     // JSON processing
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.3")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.3")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.15.3")
+    implementation("com.fasterxml.jackson.module:jackson-module-parameter-names:2.15.3")
     
     // SQLite database for persistence
     implementation("org.xerial:sqlite-jdbc:3.44.1.0")
@@ -26,6 +28,7 @@ dependencies {
     api("org.openrewrite:rewrite-java:8.10.0")
     api("org.openrewrite:rewrite-maven:8.10.0")
     api("org.openrewrite:rewrite-xml:8.10.0")
+    runtimeOnly("org.openrewrite:rewrite-java-17:8.10.0")
 
     testImplementation(platform("org.junit:junit-bom:5.10.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -37,5 +40,33 @@ dependencies {
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+// =============================================================================
+// LICENSE ENFORCEMENT - Community modules must not depend on premium modules
+// =============================================================================
+
+val premiumModules = setOf(
+    ":premium-core-engine",
+    ":premium-mcp-server",
+    ":premium-intellij-plugin"
+)
+
+afterEvaluate {
+    configurations.forEach { configuration ->
+        configuration.dependencies.forEach { dependency ->
+            if (premiumModules.any { dependency.name.contains(it.removePrefix(":")) }) {
+                throw GradleException(
+                    "License Violation: ${project.name} (community) cannot depend on " +
+                    "premium module '${dependency.name}'. " +
+                    "Community modules must only use other community modules."
+                )
+            }
+        }
     }
 }

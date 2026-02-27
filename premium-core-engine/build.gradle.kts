@@ -8,7 +8,7 @@ dependencies {
     // Contains base domain models and interfaces needed by premium features
     implementation(project(":community-core-engine"))
 
-    // External dependencies (must be Apache 2.0 compatible)
+    // External dependencies
     implementation("org.slf4j:slf4j-api:2.0.9")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     implementation("org.ow2.asm:asm:9.6") // For bytecode analysis

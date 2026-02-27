@@ -1,0 +1,105 @@
+mappings:
+  - javax:
+      groupId: "javax.mail"
+      artifactId: "javax.mail"
+    jakarta:
+      groupId: "com.sun.mail"
+      artifactId: "jakarta.mail"
+    versionMapping:
+      "1.5.5": "2.0.1"
+      "1.6.2": "2.0.1"
+      "1.5.0": "2.0.1"
+  
+  - javax:
+      groupId: "javax.servlet"
+      artifactId: "javax.servlet-api"
+    jakarta:
+      groupId: "jakarta.servlet"
+      artifactId: "jakarta.servlet-api"
+    versionMapping:
+      "4.0.1": "6.0.0"
+      "3.1.0": "5.0.0"
+      "4.0.0": "6.0.0"
+  
+  - javax:
+      groupId: "javax.validation"
+      artifactId: "validation-api"
+    jakarta:
+      groupId: "jakarta.validation"
+      artifactId: "jakarta.validation-api"
+    versionMapping:
+      "2.0.1.Final": "3.1.0"
+      "1.1.0.Final": "2.0.2"
+      "2.0.0.Final": "3.0.0"
+  
+  - javax:
+      groupId: "javax.persistence"
+      artifactId: "javax.persistence-api"
+    jakarta:
+      groupId: "jakarta.persistence"
+      artifactId: "jakarta.persistence-api"
+    versionMapping:
+      "2.2": "3.0.0"
+      "2.1": "2.2.3"
+      "2.0": "2.2.3"
+  
+  - javax:
+      groupId: "javax.ejb"
+      artifactId: "javax.ejb-api"
+    jakarta:
+      groupId: "jakarta.ejb"
+      artifactId: "jakarta.ejb-api"
+    versionMapping:
+      "3.2": "4.0.0"
+      "3.2.6": "4.0.0"
+  
+  - javax:
+      groupId: "javax.activation"
+      artifactId: "javax.activation-api"
+    jakarta:
+      groupId: "jakarta.activation"
+      artifactId: "jakarta.activation-api"
+    versionMapping:
+      "1.2.0": "2.1.0"
+      "1.2.2": "2.1.0"
+  
+  - javax:
+      groupId: "javax.annotation"
+      artifactId: "javax.annotation-api"
+    jakarta:
+      groupId: "jakarta.annotation"
+      artifactId: "jakarta.annotation-api"
+    versionMapping:
+      "1.3.2": "2.1.0"
+      "1.3.5": "2.1.0"
+  
+  - javax:
+      groupId: "javax.inject"
+      artifactId: "javax.inject"
+    jakarta:
+      groupId: "jakarta.inject"
+      artifactId: "jakarta.inject"
+    versionMapping:
+      "1": "2.0.0"
+      "1.0": "2.0.0"
+  
+  - javax:
+      groupId: "javax.transaction"
+      artifactId: "javax.transaction-api"
+    jakarta:
+      groupId: "jakarta.transaction"
+      artifactId: "jakarta.transaction-api"
+    versionMapping:
+      "1.3": "2.0.0"
+      "1.2": "1.3.3"
+  
+  - javax:
+      groupId: "javax.websocket"
+      artifactId: "javax.websocket-api"
+    jakarta:
+      groupId: "jakarta.websocket"
+      artifactId: "jakarta.websocket-api"
+    versionMapping:
+      "1.1": "2.1.0"
+      "1.0": "2.0.0"
+

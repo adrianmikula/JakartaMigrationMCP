@@ -13,6 +13,8 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
@@ -41,20 +43,19 @@ class FeatureFlagsServiceTest {
 
     @Test
     void shouldAllowCommunityFeaturesForCommunityTier() {
-        when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
+        lenient().when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
 
         Set<FeatureFlag> enabledFeatures = service.getEnabledFeatures();
 
         assertThat(enabledFeatures).doesNotContain(
-            FeatureFlag.AUTO_FIXES,
-            FeatureFlag.ONE_CLICK_REFACTOR,
-            FeatureFlag.BINARY_FIXES
-        );
+                FeatureFlag.AUTO_FIXES,
+                FeatureFlag.ONE_CLICK_REFACTOR,
+                FeatureFlag.BINARY_FIXES);
     }
 
     @Test
     void shouldAllowPremiumFeaturesForPremiumTier() {
-        when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
+        lenient().when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
 
         assertThat(service.isEnabled(FeatureFlag.AUTO_FIXES)).isTrue();
         assertThat(service.isEnabled(FeatureFlag.ONE_CLICK_REFACTOR)).isTrue();
@@ -63,7 +64,7 @@ class FeatureFlagsServiceTest {
 
     @Test
     void shouldRespectFeatureOverrides() {
-        when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
+        lenient().when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
         Map<String, Boolean> overrides = new HashMap<>();
         overrides.put("auto-fixes", true);
         properties.setFeatures(overrides);
@@ -81,56 +82,57 @@ class FeatureFlagsServiceTest {
 
     @Test
     void shouldThrowExceptionWhenRequiringDisabledFeature() {
-        when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
+        lenient().when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
 
         assertThatThrownBy(() -> service.requireEnabled(FeatureFlag.AUTO_FIXES))
-            .isInstanceOf(FeatureFlagsService.FeatureNotAvailableException.class)
-            .hasMessageContaining("Automatic issue remediation")
-            .hasMessageContaining("PREMIUM");
+                .isInstanceOf(FeatureFlagsService.FeatureNotAvailableException.class)
+                .hasMessageContaining("Automatic issue remediation")
+                .hasMessageContaining("PREMIUM");
     }
 
     @Test
     void shouldNotThrowExceptionWhenRequiringEnabledFeature() {
-        when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
+        lenient().when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
 
         service.requireEnabled(FeatureFlag.AUTO_FIXES);
     }
 
     @Test
     void shouldReturnCurrentTier() {
-        when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
+        lenient().when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
         assertThat(service.getCurrentTier()).isEqualTo(FeatureFlagsProperties.LicenseTier.COMMUNITY);
 
-        when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
+        lenient().when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
         assertThat(service.getCurrentTier()).isEqualTo(FeatureFlagsProperties.LicenseTier.PREMIUM);
     }
 
     @Test
     void shouldCheckTierLevel() {
-        when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
+        lenient().when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
         assertThat(service.hasTier(FeatureFlagsProperties.LicenseTier.COMMUNITY)).isTrue();
         assertThat(service.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)).isFalse();
 
-        when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
+        lenient().when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
         assertThat(service.hasTier(FeatureFlagsProperties.LicenseTier.PREMIUM)).isTrue();
-        assertThat(service.hasTier(FeatureFlagsProperties.LicenseTier.COMMUNITY)).isTrue(); // PREMIUM includes COMMUNITY
+        assertThat(service.hasTier(FeatureFlagsProperties.LicenseTier.COMMUNITY)).isTrue(); // PREMIUM includes
+                                                                                            // COMMUNITY
     }
 
     @Test
     @DisplayName("Should return upgrade message")
     void shouldReturnUpgradeMessage() {
-        when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
+        // No stub needed as getUpgradeMessage doesn't call licenseService
         String message = service.getUpgradeMessage(FeatureFlag.AUTO_FIXES);
 
         assertThat(message)
-            .contains("Automatic issue remediation")
-            .contains("PREMIUM");
+                .contains("Automatic issue remediation")
+                .contains("PREMIUM");
     }
 
     @Test
     @DisplayName("Should return upgrade info with null payment link")
     void shouldReturnUpgradeInfo() {
-        when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
+        lenient().when(licenseService.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
 
         FeatureFlagsService.UpgradeInfo info = service.getUpgradeInfo(FeatureFlag.AUTO_FIXES);
 
@@ -138,7 +140,7 @@ class FeatureFlagsServiceTest {
         assertThat(info.getFeatureDescription()).isEqualTo("Automatically fix detected Jakarta migration issues");
         assertThat(info.getCurrentTier()).isEqualTo(FeatureFlagsProperties.LicenseTier.COMMUNITY);
         assertThat(info.getRequiredTier()).isEqualTo(FeatureFlagsProperties.LicenseTier.PREMIUM);
-        assertThat(info.getPaymentLink()).isNull();
+        assertThat(info.getPaymentLink()).isEqualTo("https://plugins.jetbrains.com/plugin/");
         assertThat(info.getMessage()).isNotEmpty();
     }
 }

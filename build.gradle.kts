@@ -29,6 +29,46 @@ allprojects {
     }
 }
 
+tasks.register("generateUniqueVersion") {
+    description = "Increments the minor version number for publishing"
+    group = "versioning"
+
+    doLast {
+        val gradlePropsFile = project.file("gradle.properties")
+        if (gradlePropsFile.exists()) {
+            val lines = gradlePropsFile.readLines().toMutableList()
+            
+            var versionUpdated = false
+            for (i in lines.indices) {
+                if (lines[i].trim().startsWith("version=")) {
+                    val currentVersion = lines[i].substringAfter("=").trim()
+                    // Parse version (assuming format like "1.0.0" or "1.0.1")
+                    val versionParts = currentVersion.split(".")
+                    if (versionParts.size >= 2) {
+                        val major = versionParts[0].toIntOrNull() ?: 1
+                        val minor = versionParts[1].toIntOrNull() ?: 0
+                        val newMinor = minor + 1
+                        val newVersion = "$major.$newMinor"
+                        lines[i] = "version=$newVersion"
+                        versionUpdated = true
+                        println("🚀 Incremented version to: $newVersion")
+                        break
+                    }
+                }
+            }
+            
+            if (!versionUpdated) {
+                lines.add("version=1.1.0")
+                println("🚀 Adding version: 1.1.0")
+            }
+            
+            gradlePropsFile.writeText(lines.joinToString("\n") + "\n")
+        } else {
+            error("gradle.properties not found")
+        }
+    }
+}
+
 // =============================================================================
 // MODULE STRUCTURE
 // =============================================================================

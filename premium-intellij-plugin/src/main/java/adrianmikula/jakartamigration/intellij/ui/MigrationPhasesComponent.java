@@ -4,9 +4,7 @@ import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.intellij.ui.MigrationStrategyComponent.MigrationStrategy;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBPanel;
-import com.intellij.ui.components.JBScrollPane;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -19,6 +17,7 @@ import java.util.List;
  * Each phase displays a longer text description without subtask tables.
  * Phase data is loaded from property files via UiTextLoader.
  */
+@Deprecated
 public class MigrationPhasesComponent {
     private final JPanel panel;
     private final Project project;
@@ -129,13 +128,13 @@ public class MigrationPhasesComponent {
         if (selectedStrategy != null) {
             updatePhasesForStrategy(selectedStrategy);
         }
-    }
 
     private void updatePhasesForStrategy(MigrationStrategy strategy) {
         phaseTabs.removeAll();
 
-        PhaseDefinition[] phases = PHASE_DEFINITIONS.getOrDefault(strategy,
-            PHASE_DEFINITIONS.get(MigrationStrategy.INCREMENTAL));
+        private JPanel createPhaseTabContent(PhaseDefinition phase, SubtaskTableComponent subtaskTable) {
+                JPanel content = new JBPanel(new BorderLayout(10, 10));
+                content.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         for (int i = 0; i < phases.length; i++) {
             PhaseDefinition phase = phases[i];
@@ -144,7 +143,6 @@ public class MigrationPhasesComponent {
             JPanel tabContent = createPhaseTabContent(phase);
             phaseTabs.addTab(phase.getName(), tabContent);
         }
-    }
 
     private JPanel createPhaseTabContent(PhaseDefinition phase) {
         JPanel content = new JBPanel(new BorderLayout(10, 10));

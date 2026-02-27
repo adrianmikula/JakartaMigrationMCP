@@ -45,10 +45,10 @@ public class SubtaskTableComponent {
         this.panel = new JBPanel<>(new BorderLayout());
 
         String[] columns = {
-            "Status",
-            "Subtask",
-            "Dependency",
-            "Action"
+                "Status",
+                "Subtask",
+                "Dependency",
+                "Action"
         };
 
         this.tableModel = new DefaultTableModel(columns, 0) {
@@ -103,15 +103,42 @@ public class SubtaskTableComponent {
             this.inProgress = false;
         }
 
-        public String getName() { return name; }
-        public String getDescription() { return description; }
-        public DependencyInfo getDependency() { return dependency; }
-        public String getAutomationType() { return automationType; }
-        public boolean isCompleted() { return completed; }
-        public boolean isInProgress() { return inProgress; }
-        public void setCompleted(boolean completed) { this.completed = completed; }
-        public void setInProgress(boolean inProgress) { this.inProgress = inProgress; }
-        public boolean hasAutomation() { return automationType != null; }
+        public String getName() {
+            return name;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        public DependencyInfo getDependency() {
+            return dependency;
+        }
+
+        public String getAutomationType() {
+            return automationType;
+        }
+
+        public boolean isCompleted() {
+            return completed;
+        }
+
+        public boolean isInProgress() {
+            return inProgress;
+        }
+
+        public void setCompleted(boolean completed) {
+            this.completed = completed;
+        }
+
+        public void setInProgress(boolean inProgress) {
+            this.inProgress = inProgress;
+        }
+
+        public boolean hasAutomation() {
+            return automationType != null;
+        }
+
         public String getDependencyName() {
             return dependency != null ? dependency.getArtifactId() : "";
         }
@@ -123,8 +150,8 @@ public class SubtaskTableComponent {
     private class SubtaskCellRenderer implements TableCellRenderer {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
-                                                       boolean isSelected, boolean hasFocus,
-                                                       int row, int column) {
+                boolean isSelected, boolean hasFocus,
+                int row, int column) {
             if (row < 0 || row >= subtasks.size()) {
                 return new JLabel("");
             }
@@ -149,7 +176,7 @@ public class SubtaskTableComponent {
                     JPanel dot = new JPanel();
                     dot.setPreferredSize(new Dimension(10, 10));
                     dot.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
-                    
+
                     if (subtask.isCompleted()) {
                         dot.setBackground(new Color(40, 167, 69)); // Green - completed
                     } else if (subtask.isInProgress()) {
@@ -175,7 +202,8 @@ public class SubtaskTableComponent {
                     depLabel.setBackground(cellPanel.getBackground());
                     if (subtask.getDependency() != null) {
                         depLabel.setToolTipText(subtask.getDependency().getGroupId() + ":" +
-                            subtask.getDependency().getArtifactId() + " v" + subtask.getDependency().getCurrentVersion());
+                                subtask.getDependency().getArtifactId() + " v"
+                                + subtask.getDependency().getCurrentVersion());
                     }
                     cellPanel.add(depLabel, BorderLayout.CENTER);
                     break;
@@ -226,7 +254,8 @@ public class SubtaskTableComponent {
     }
 
     private void handleAction(SubtaskItem subtask) {
-        if (subtask == null || !subtask.hasAutomation()) return;
+        if (subtask == null || !subtask.hasAutomation())
+            return;
 
         subtask.setInProgress(true);
         refreshTable();
@@ -286,17 +315,21 @@ public class SubtaskTableComponent {
     private void refreshTable() {
         tableModel.setRowCount(0);
         for (SubtaskItem subtask : subtasks) {
-            tableModel.addRow(new Object[]{
-                subtask,
-                subtask.getName(),
-                subtask.getDependencyName(),
-                subtask.hasAutomation() ? "Run" : "-"
+            tableModel.addRow(new Object[] {
+                    subtask,
+                    subtask.getName(),
+                    subtask.getDependencyName(),
+                    subtask.hasAutomation() ? "Run" : "-"
             });
         }
     }
 
     public JPanel getPanel() {
         return panel;
+    }
+
+    public DefaultTableModel getTableModel() {
+        return tableModel;
     }
 
     /**
@@ -316,12 +349,12 @@ public class SubtaskTableComponent {
 
         if (dependencies != null && !dependencies.isEmpty()) {
             List<DependencyInfo> matching = dependencies.stream()
-                .filter(d -> d.getMigrationStatus() == targetStatus)
-                .toList();
+                    .filter(d -> d.getMigrationStatus() == targetStatus)
+                    .toList();
 
             for (DependencyInfo dep : matching.stream().limit(10).toList()) {
                 String task = String.format("Migrate %s:%s",
-                    dep.getGroupId(), dep.getArtifactId());
+                        dep.getGroupId(), dep.getArtifactId());
                 items.add(new SubtaskItem(task, "", dep, AUTOMATION_DEPENDENCY_UPDATE));
             }
         }

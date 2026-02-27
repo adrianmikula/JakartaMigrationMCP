@@ -23,6 +23,9 @@ public class MigrationStrategyComponent {
     private final Project project;
     private final List<MigrationStrategyListener> listeners = new ArrayList<>();
     private MigrationStrategy selectedStrategy;
+    private JTextArea benefitsText;
+    private JTextArea risksText;
+    private JTextArea phasesText;
 
     public interface MigrationStrategyListener {
         void onStrategySelected(MigrationStrategy strategy);
@@ -68,13 +71,16 @@ public class MigrationStrategyComponent {
         private final String description;
         private final String benefits;
         private final String risks;
+        private final String phases;
         private final Color color;
 
-        MigrationStrategy(String displayName, String description, String benefits, String risks, Color color) {
+        MigrationStrategy(String displayName, String description, String benefits, String risks, String phases,
+                Color color) {
             this.displayName = displayName;
             this.description = description;
             this.benefits = benefits;
             this.risks = risks;
+            this.phases = phases;
             this.color = color;
         }
 
@@ -92,6 +98,10 @@ public class MigrationStrategyComponent {
 
         public String getRisks() {
             return risks;
+        }
+
+        public String getPhases() {
+            return phases;
         }
 
         public Color getColor() {
@@ -115,7 +125,7 @@ public class MigrationStrategyComponent {
         titlePanel.add(titleLabel);
 
         // Strategy cards panel
-        JPanel cardsPanel = new JPanel(new GridLayout(1, 4, 10, 10));
+        JPanel cardsPanel = new JPanel(new GridLayout(2, 3, 10, 10));
         cardsPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         for (MigrationStrategy strategy : MigrationStrategy.values()) {
@@ -123,17 +133,17 @@ public class MigrationStrategyComponent {
             cardsPanel.add(card);
         }
 
-        // Info panel for selected strategy - now with Benefits and Risks
-        JPanel infoPanel = new JPanel(new GridLayout(1, 2, 10, 0));
+        // Info panel for selected strategy
+        JPanel infoPanel = new JPanel(new GridLayout(1, 3, 10, 0));
         infoPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        infoPanel.setPreferredSize(new Dimension(0, 180));
+        infoPanel.setPreferredSize(new Dimension(0, 220));
 
         // Benefits section
         JPanel benefitsPanel = new JPanel(new BorderLayout());
         benefitsPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         JLabel benefitsTitle = new JLabel("✓ Benefits");
-        benefitsTitle.setFont(benefitsTitle.getFont().deriveFont(Font.BOLD, 12f));
-        JTextArea benefitsText = new JTextArea("Click on a strategy card to see details here.");
+        benefitsTitle.setFont(benefitsTitle.getFont().deriveFont(Font.BOLD, 13f));
+        this.benefitsText = new JTextArea("Click on a strategy card to see details here.");
         benefitsText.setEditable(false);
         benefitsText.setWrapStyleWord(true);
         benefitsText.setLineWrap(true);
@@ -146,7 +156,7 @@ public class MigrationStrategyComponent {
         risksPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         JLabel risksTitle = new JLabel("⚠ Risks");
         risksTitle.setFont(risksTitle.getFont().deriveFont(Font.BOLD, 12f));
-        JTextArea risksText = new JTextArea("");
+        this.risksText = new JTextArea("");
         risksText.setEditable(false);
         risksText.setWrapStyleWord(true);
         risksText.setLineWrap(true);
@@ -154,9 +164,23 @@ public class MigrationStrategyComponent {
         risksPanel.add(risksTitle, BorderLayout.NORTH);
         risksPanel.add(risksText, BorderLayout.CENTER);
 
-        // Add benefits and risks to info panel (50% each)
-        infoPanel.add(benefitsPanel, 0);
-        infoPanel.add(risksPanel, 1);
+        // Phases section
+        JPanel phasesPanel = new JPanel(new BorderLayout());
+        phasesPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        JLabel phasesTitle = new JLabel("⚑ Migration Phases");
+        phasesTitle.setFont(phasesTitle.getFont().deriveFont(Font.BOLD, 12f));
+        this.phasesText = new JTextArea("");
+        phasesText.setEditable(false);
+        phasesText.setWrapStyleWord(true);
+        phasesText.setLineWrap(true);
+        phasesText.setFont(phasesText.getFont().deriveFont(Font.PLAIN, 11f));
+        phasesPanel.add(phasesTitle, BorderLayout.NORTH);
+        phasesPanel.add(phasesText, BorderLayout.CENTER);
+
+        // Add sections to info panel (33% each)
+        infoPanel.add(benefitsPanel);
+        infoPanel.add(risksPanel);
+        infoPanel.add(phasesPanel);
 
         // Add components
         panel.add(titlePanel, BorderLayout.NORTH);
@@ -168,9 +192,8 @@ public class MigrationStrategyComponent {
         JPanel card = new JBPanel<>(new BorderLayout(5, 5));
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.GRAY, 1),
-                BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-        card.setPreferredSize(new Dimension(180, 160));
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)));
+        card.setPreferredSize(new Dimension(150, 120));
 
         // Header with color indicator
         JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
@@ -183,14 +206,16 @@ public class MigrationStrategyComponent {
         headerPanel.add(colorIndicator);
 
         JLabel nameLabel = new JLabel(strategy.getDisplayName());
-        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 13f));
+        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 14f));
         headerPanel.add(nameLabel);
 
         // Description
         JTextArea descArea = new JTextArea(strategy.getDescription());
         descArea.setEditable(false);
         descArea.setOpaque(false);
-        descArea.setFont(descArea.getFont().deriveFont(Font.PLAIN, 11f));
+        descArea.setLineWrap(true);
+        descArea.setWrapStyleWord(true);
+        descArea.setFont(descArea.getFont().deriveFont(Font.PLAIN, 12f));
 
         // Make the card clickable
         card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -205,8 +230,7 @@ public class MigrationStrategyComponent {
             public void mouseEntered(MouseEvent e) {
                 card.setBorder(BorderFactory.createCompoundBorder(
                         BorderFactory.createLineBorder(strategy.getColor(), 2),
-                        BorderFactory.createEmptyBorder(9, 9, 9, 9)
-                ));
+                        BorderFactory.createEmptyBorder(9, 9, 9, 9)));
             }
 
             @Override
@@ -214,8 +238,7 @@ public class MigrationStrategyComponent {
                 if (selectedStrategy != strategy) {
                     card.setBorder(BorderFactory.createCompoundBorder(
                             BorderFactory.createLineBorder(Color.GRAY, 1),
-                            BorderFactory.createEmptyBorder(10, 10, 10, 10)
-                    ));
+                            BorderFactory.createEmptyBorder(10, 10, 10, 10)));
                 }
             }
         });
@@ -224,6 +247,10 @@ public class MigrationStrategyComponent {
         card.add(descArea, BorderLayout.CENTER);
 
         return card;
+    }
+
+    public void setSelectedStrategy(MigrationStrategy strategy) {
+        selectStrategy(strategy);
     }
 
     private void selectStrategy(MigrationStrategy strategy) {
@@ -252,14 +279,12 @@ public class MigrationStrategyComponent {
                     if (cardStrategy == selectedStrategy) {
                         card.setBorder(BorderFactory.createCompoundBorder(
                                 BorderFactory.createLineBorder(cardStrategy.getColor(), 3),
-                                BorderFactory.createEmptyBorder(8, 8, 8, 8)
-                        ));
+                                BorderFactory.createEmptyBorder(8, 8, 8, 8)));
                         card.setBackground(new Color(245, 245, 245));
                     } else {
                         card.setBorder(BorderFactory.createCompoundBorder(
                                 BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1),
-                                BorderFactory.createEmptyBorder(10, 10, 10, 10)
-                        ));
+                                BorderFactory.createEmptyBorder(10, 10, 10, 10)));
                         card.setBackground(null);
                     }
                 }
@@ -268,13 +293,15 @@ public class MigrationStrategyComponent {
     }
 
     private MigrationStrategy findStrategyForCard(JPanel card) {
-        // Find the strategy by checking the border color of the inner panel
-        for (Component comp : card.getComponents()) {
-            if (comp instanceof JPanel) {
-                JPanel innerPanel = (JPanel) comp;
-                for (MigrationStrategy strategy : MigrationStrategy.values()) {
-                    if (innerPanel.getBackground().equals(strategy.getColor())) {
-                        return strategy;
+        // Find the strategy by checking the color indicator inside the header
+        Component headerComp = card.getComponent(0);
+        if (headerComp instanceof JPanel headerPanel) {
+            for (Component subComp : headerPanel.getComponents()) {
+                if (subComp instanceof JPanel colorIndicator) {
+                    for (MigrationStrategy strategy : MigrationStrategy.values()) {
+                        if (colorIndicator.getBackground().equals(strategy.getColor())) {
+                            return strategy;
+                        }
                     }
                 }
             }
@@ -283,17 +310,9 @@ public class MigrationStrategyComponent {
     }
 
     private void updateInfoPanel(MigrationStrategy strategy) {
-        JPanel infoPanel = (JPanel) panel.getComponent(2);
-
-        // Benefits panel
-        JPanel benefitsPanel = (JPanel) infoPanel.getComponent(0);
-        JTextArea benefitsText = (JTextArea) benefitsPanel.getComponent(1);
         benefitsText.setText(strategy.getBenefits());
-
-        // Risks panel
-        JPanel risksPanel = (JPanel) infoPanel.getComponent(1);
-        JTextArea risksText = (JTextArea) risksPanel.getComponent(1);
         risksText.setText(strategy.getRisks());
+        phasesText.setText(strategy.getPhases());
     }
 
     public void addMigrationStrategyListener(MigrationStrategyListener listener) {
@@ -306,5 +325,13 @@ public class MigrationStrategyComponent {
 
     public JPanel getPanel() {
         return panel;
+    }
+
+    public JTextArea getBenefitsText() {
+        return benefitsText;
+    }
+
+    public JTextArea getRisksText() {
+        return risksText;
     }
 }

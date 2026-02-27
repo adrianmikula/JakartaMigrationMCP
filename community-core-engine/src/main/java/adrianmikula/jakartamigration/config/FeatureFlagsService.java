@@ -110,7 +110,7 @@ public class FeatureFlagsService {
 
     public String getUpgradeMessage(FeatureFlag flag) {
         return String.format(
-                "The '%s' feature requires a Premium subscription. %s",
+                "The '%s' feature requires a PREMIUM subscription. %s",
                 flag.getName(),
                 getPricingInfo());
     }
@@ -132,10 +132,10 @@ public class FeatureFlagsService {
         int savings = FeatureFlagsProperties.getYearlySavingsPercent();
         return String.format(
                 "Upgrade to Premium for:\n" +
-                "• %s (billed monthly)\n" +
-                "• %s (billed yearly - save %d%%)\n" +
-                "• 7-day free trial available\n\n" +
-                "Visit JetBrains Marketplace to subscribe.",
+                        "• %s (billed monthly)\n" +
+                        "• %s (billed yearly - save %d%%)\n" +
+                        "• 7-day free trial available\n\n" +
+                        "Visit JetBrains Marketplace to subscribe.",
                 FeatureFlagsProperties.getMonthlyPriceFormatted(),
                 FeatureFlagsProperties.getYearlyPriceFormatted(),
                 savings);

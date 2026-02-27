@@ -13,8 +13,6 @@ import adrianmikula.jakartamigration.dependencyanalysis.service.impl.DependencyA
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.JakartaMappingServiceImpl;
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.MavenDependencyGraphBuilder;
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.SimpleNamespaceClassifier;
-import adrianmikula.jakartamigration.runtimeverification.service.RuntimeVerificationModule;
-import adrianmikula.jakartamigration.runtimeverification.service.impl.RuntimeVerificationModuleImpl;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -65,10 +63,7 @@ public class JakartaMigrationConfig {
         return new RecipeLibrary();
     }
     
-    @Bean
-    public RuntimeVerificationModule runtimeVerificationModule() {
-        return new RuntimeVerificationModuleImpl();
-    }
+    // NOTE: RuntimeVerificationModule is a PREMIUM feature and not available in community edition
     
     @Bean
     public RefactoringEngine refactoringEngine() {

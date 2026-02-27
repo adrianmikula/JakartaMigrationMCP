@@ -159,3 +159,49 @@ run = "cd frontend && npm run storybook"
 [tasks.storybook-build]
 description = "Build Storybook for static hosting"
 run = "cd frontend && npm run build-storybook"
+
+# Premium Modules Build Tasks (Proprietary)
+
+[tasks.build-premium]
+description = "Build premium modules (without tests). Linux/macOS: Mill; Windows: Gradle"
+run_windows = "gradlew.bat :premium-core-engine:compileJava :premium-mcp-server:compileJava :premium-intellij-plugin:compileJava"
+run = "mill premium_core_engine.compile premium_mcp_server.compile premium_intellij_plugin.compile"
+
+[tasks.build-premium-all]
+description = "Build premium modules with tests. Linux/macOS: Mill; Windows: Gradle"
+run_windows = "gradlew.bat :premium-core-engine:build :premium-mcp-server:build :premium-intellij-plugin:build"
+run = "mill premium_core_engine.compile premium_core_engine.test premium_mcp_server.compile premium_mcp_server.test premium_intellij_plugin.compile premium_intellij_plugin.test"
+
+[tasks.test-premium]
+description = "Run tests for all premium modules. Linux/macOS: Mill; Windows: Gradle"
+run_windows = "gradlew.bat :premium-core-engine:test :premium-mcp-server:test :premium-intellij-plugin:test"
+run = "mill premium_core_engine.test premium_mcp_server.test premium_intellij_plugin.test"
+
+[tasks.build-premium-plugin]
+description = "Build premium IntelliJ plugin"
+run_windows = "gradlew.bat :premium-intellij-plugin:buildPlugin"
+run = "mill premium_intellij_plugin.compile"
+
+# Community Modules Build Tasks (Apache 2.0)
+
+[tasks.build-community]
+description = "Build community modules (without tests). Linux/macOS: Mill; Windows: Gradle"
+run_windows = "gradlew.bat :community-core-engine:compileJava :community-mcp-server:compileJava"
+run = "mill community_core_engine.compile community_mcp_server.compile"
+
+[tasks.test-community]
+description = "Run tests for all community modules. Linux/macOS: Mill; Windows: Gradle"
+run_windows = "gradlew.bat :community-core-engine:test :community-mcp-server:test"
+run = "mill community_core_engine.test community_mcp_server.test"
+
+# Fast Test Tasks (for quick feedback during development)
+
+[tasks.fast-test]
+description = "Run fast tests only - no compilation, just execute pre-built tests"
+run_windows = "gradlew.bat :community-core-engine:test :premium-core-engine:test --continue"
+run = "mill community_core_engine.test premium_core_engine.test"
+
+[tasks.fast-compile]
+description = "Quick compile check - no tests, just syntax verification"
+run_windows = "gradlew.bat compileJava --parallel"
+run = "mill __.compile"
