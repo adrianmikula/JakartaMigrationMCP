@@ -54,6 +54,9 @@ intellij {
     tasks {
     patchPluginXml {
         sinceBuild.set(providers.gradleProperty("intellij.sinceBuild").orElse("233"))
+        // Use empty string to get open-ended compatibility (no until-build in generated XML)
+        // This allows plugin to work with all future IntelliJ versions
+        untilBuild.set(providers.gradleProperty("intellij.untilBuild").orElse(""))
         changeNotes.set("""
             <h>${project.version}</h>
             <ul>

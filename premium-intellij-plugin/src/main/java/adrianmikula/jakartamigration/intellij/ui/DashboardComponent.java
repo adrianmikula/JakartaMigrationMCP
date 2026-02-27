@@ -50,7 +50,7 @@ public class DashboardComponent {
     private JBLabel mcpToolsValue;
     private JBLabel mcpServerVersionValue;
 
-    // Advanced Scan Counts components (Premium)
+// Advanced Scan Counts components (Premium)
     private JBLabel jpaScanCountValue;
     private JBLabel beanValidationScanCountValue;
     private JBLabel servletJspScanCountValue;
@@ -63,6 +63,9 @@ public class DashboardComponent {
     private JBLabel transitiveDependencyScanCountValue;
     private JBLabel configFileScanCountValue;
     private JBLabel classloaderModuleScanCountValue;
+    private JBLabel loggingMetricsScanCountValue;
+    private JBLabel serializationCacheScanCountValue;
+    private JBLabel thirdPartyLibScanCountValue;
     private JBLabel totalAdvancedScanCountValue;
 
     // Status indicator panel
@@ -120,7 +123,7 @@ public class DashboardComponent {
             return;
         }
 
-        SwingUtilities.invokeLater(() -> {
+SwingUtilities.invokeLater(() -> {
             jpaScanCountValue.setText(String.valueOf(summary.getJpaCount()));
             beanValidationScanCountValue.setText(String.valueOf(summary.getBeanValidationCount()));
             servletJspScanCountValue.setText(String.valueOf(summary.getServletJspCount()));
@@ -133,6 +136,9 @@ public class DashboardComponent {
             transitiveDependencyScanCountValue.setText(String.valueOf(summary.getTransitiveDependencyCount()));
             configFileScanCountValue.setText(String.valueOf(summary.getConfigFileCount()));
             classloaderModuleScanCountValue.setText(String.valueOf(summary.getClassloaderModuleCount()));
+            loggingMetricsScanCountValue.setText(String.valueOf(summary.getLoggingMetricsCount()));
+            serializationCacheScanCountValue.setText(String.valueOf(summary.getSerializationCacheCount()));
+            thirdPartyLibScanCountValue.setText(String.valueOf(summary.getThirdPartyLibCount()));
             totalAdvancedScanCountValue.setText(String.valueOf(summary.getTotalIssuesFound()));
         });
     }
@@ -140,7 +146,7 @@ public class DashboardComponent {
     /**
      * Resets all advanced scan counts to zero.
      */
-    private void resetAdvancedScanCounts() {
+private void resetAdvancedScanCounts() {
         SwingUtilities.invokeLater(() -> {
             jpaScanCountValue.setText("0");
             beanValidationScanCountValue.setText("0");
@@ -154,6 +160,9 @@ public class DashboardComponent {
             transitiveDependencyScanCountValue.setText("0");
             configFileScanCountValue.setText("0");
             classloaderModuleScanCountValue.setText("0");
+            loggingMetricsScanCountValue.setText("0");
+            serializationCacheScanCountValue.setText("0");
+            thirdPartyLibScanCountValue.setText("0");
             totalAdvancedScanCountValue.setText("0");
         });
     }
@@ -394,14 +403,68 @@ public class DashboardComponent {
         deprecatedApiScanCountValue = createValueLabel("0");
         tablePanel.add(deprecatedApiScanCountValue, gbc);
 
-        gbc.gridx = 2;
+gbc.gridx = 2;
         gbc.gridy = 6;
         tablePanel.add(createKeyLabel("Security API:"), gbc);
         gbc.gridx = 3;
         securityApiScanCountValue = createValueLabel("0");
         tablePanel.add(securityApiScanCountValue, gbc);
 
-        // Row 8: Total Advanced Issues (Spans width)
+        // Row 8: JMS Messaging, Transitive Dependency
+        gbc.gridx = 0;
+        gbc.gridy = 8;
+        gbc.gridwidth = 1;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.insets = new Insets(4, 8, 4, 8);
+        tablePanel.add(createKeyLabel("JMS Messaging:"), gbc);
+        gbc.gridx = 1;
+        jmsMessagingScanCountValue = createValueLabel("0");
+        tablePanel.add(jmsMessagingScanCountValue, gbc);
+
+        gbc.gridx = 2;
+        tablePanel.add(createKeyLabel("Transitive Deps:"), gbc);
+        gbc.gridx = 3;
+        transitiveDependencyScanCountValue = createValueLabel("0");
+        tablePanel.add(transitiveDependencyScanCountValue, gbc);
+
+        // Row 9: Config Files, Classloader/Module
+        gbc.gridx = 0;
+        gbc.gridy = 9;
+        tablePanel.add(createKeyLabel("Config Files:"), gbc);
+        gbc.gridx = 1;
+        configFileScanCountValue = createValueLabel("0");
+        tablePanel.add(configFileScanCountValue, gbc);
+
+        gbc.gridx = 2;
+        tablePanel.add(createKeyLabel("Classloader/Module:"), gbc);
+        gbc.gridx = 3;
+        classloaderModuleScanCountValue = createValueLabel("0");
+        tablePanel.add(classloaderModuleScanCountValue, gbc);
+
+        // Row 10: Logging Metrics, Serialization Cache
+        gbc.gridx = 0;
+        gbc.gridy = 10;
+        tablePanel.add(createKeyLabel("Logging/Metrics:"), gbc);
+        gbc.gridx = 1;
+        loggingMetricsScanCountValue = createValueLabel("0");
+        tablePanel.add(loggingMetricsScanCountValue, gbc);
+
+        gbc.gridx = 2;
+        tablePanel.add(createKeyLabel("Serialization/Cache:"), gbc);
+        gbc.gridx = 3;
+        serializationCacheScanCountValue = createValueLabel("0");
+        tablePanel.add(serializationCacheScanCountValue, gbc);
+
+        // Row 11: Third-Party Libs (spans width), Total Advanced Issues
+        gbc.gridx = 0;
+        gbc.gridy = 11;
+        gbc.gridwidth = 2;
+        tablePanel.add(createKeyLabel("Third-Party Libs:"), gbc);
+        gbc.gridx = 2;
+        thirdPartyLibScanCountValue = createValueLabel("0");
+        tablePanel.add(thirdPartyLibScanCountValue, gbc);
+
+        // Row 12: Total Advanced Issues (Spans width)
         gbc.gridx = 0;
         gbc.gridy = 7;
         gbc.gridwidth = 2;
@@ -628,8 +691,36 @@ public class DashboardComponent {
         return deprecatedApiScanCountValue;
     }
 
-    public JBLabel getSecurityApiScanCountValue() {
+public JBLabel getSecurityApiScanCountValue() {
         return securityApiScanCountValue;
+    }
+
+    public JBLabel getJmsMessagingScanCountValue() {
+        return jmsMessagingScanCountValue;
+    }
+
+    public JBLabel getTransitiveDependencyScanCountValue() {
+        return transitiveDependencyScanCountValue;
+    }
+
+    public JBLabel getConfigFileScanCountValue() {
+        return configFileScanCountValue;
+    }
+
+    public JBLabel getClassloaderModuleScanCountValue() {
+        return classloaderModuleScanCountValue;
+    }
+
+    public JBLabel getLoggingMetricsScanCountValue() {
+        return loggingMetricsScanCountValue;
+    }
+
+    public JBLabel getSerializationCacheScanCountValue() {
+        return serializationCacheScanCountValue;
+    }
+
+    public JBLabel getThirdPartyLibScanCountValue() {
+        return thirdPartyLibScanCountValue;
     }
 
     public JBLabel getTotalAdvancedScanCountValue() {
