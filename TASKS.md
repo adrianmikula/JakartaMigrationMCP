@@ -30,5 +30,4 @@ Lets complete the following tasks in order using SDD and TDD principles (as docu
 
 
 
-After completing the task list, ensure all new features have test coverage, all tests pass, and the plugin changelog (and feature list if new features were added) has been updated to mention the recent changes.
-
+After completing the task list, ensure all new features have test coverage, all tests pass, and the plugin changelog (and feature list if new features were added) has been updated to mention the recent changes. fix all compile errors, even unrelated ones.

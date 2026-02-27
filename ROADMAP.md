@@ -44,11 +44,19 @@ When I try manually setting the build number to 253.* online, I get the error
 
 # code health checks
 
-1. Add/update typespec documents to the spec folder for all source code in this repo so we can follow SDD principles for 100% of code changes going forward. Put comments in code and tests to reference the related spec for each module.
+1. check our available MCP tools. Check to see if there are any MCP tools which are highly-relevant to our development of this plugin and could speed up our coding agents?  Docuemnt recommended MCPS
 
-2. Check the whole codebase for any hardcoded artifact names, version numbers, etc. Replace them with dynamic lookups where possible, or if not possible, move them all into YAML config files.
+2. check our choice of JVM and gradle settings. Are there any fast-start improvements or a super-fast test loop we can set up to improve our agent's fast-feedback loop to get in down to seconds?  Look into fast-start JVMs like crack and graal.
 
-3. check the whole codebase for code quality, duplication, best practices, etc. 
+3. add a requirements folder under docs/community and docs/premium, where we will document all existing feature descriptions/requirements
+
+4. Add/update typespec documents to the spec folder for all source code in this repo so we can follow SDD principles for 100% of code changes going forward. Put comments in code and tests to reference the related spec for each module.
+
+5. Check the whole codebase for any hardcoded artifact names, version numbers, etc. Replace them with dynamic lookups where possible, or if not possible, move them all into YAML config files.
+
+6. check the whole codebase for code quality, duplication, best practices, etc. 
+
+
 
 
 

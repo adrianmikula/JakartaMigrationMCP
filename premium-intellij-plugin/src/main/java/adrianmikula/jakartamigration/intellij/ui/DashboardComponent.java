@@ -133,23 +133,32 @@ public class DashboardComponent {
         }
 
 SwingUtilities.invokeLater(() -> {
-            jpaScanCountValue.setText(String.valueOf(summary.getJpaCount()));
-            beanValidationScanCountValue.setText(String.valueOf(summary.getBeanValidationCount()));
-            servletJspScanCountValue.setText(String.valueOf(summary.getServletJspCount()));
-            cdiInjectionScanCountValue.setText(String.valueOf(summary.getCdiInjectionCount()));
-            buildConfigScanCountValue.setText(String.valueOf(summary.getBuildConfigCount()));
-            restSoapScanCountValue.setText(String.valueOf(summary.getRestSoapCount()));
-            deprecatedApiScanCountValue.setText(String.valueOf(summary.getDeprecatedApiCount()));
-            securityApiScanCountValue.setText(String.valueOf(summary.getSecurityApiCount()));
-            jmsMessagingScanCountValue.setText(String.valueOf(summary.getJmsMessagingCount()));
-            transitiveDependencyScanCountValue.setText(String.valueOf(summary.getTransitiveDependencyCount()));
-            configFileScanCountValue.setText(String.valueOf(summary.getConfigFileCount()));
-            classloaderModuleScanCountValue.setText(String.valueOf(summary.getClassloaderModuleCount()));
-            loggingMetricsScanCountValue.setText(String.valueOf(summary.getLoggingMetricsCount()));
-            serializationCacheScanCountValue.setText(String.valueOf(summary.getSerializationCacheCount()));
-            thirdPartyLibScanCountValue.setText(String.valueOf(summary.getThirdPartyLibCount()));
-            totalAdvancedScanCountValue.setText(String.valueOf(summary.getTotalIssuesFound()));
+            updateScanCountWithColor(jpaScanCountValue, summary.getJpaCount());
+            updateScanCountWithColor(beanValidationScanCountValue, summary.getBeanValidationCount());
+            updateScanCountWithColor(servletJspScanCountValue, summary.getServletJspCount());
+            updateScanCountWithColor(cdiInjectionScanCountValue, summary.getCdiInjectionCount());
+            updateScanCountWithColor(buildConfigScanCountValue, summary.getBuildConfigCount());
+            updateScanCountWithColor(restSoapScanCountValue, summary.getRestSoapCount());
+            updateScanCountWithColor(deprecatedApiScanCountValue, summary.getDeprecatedApiCount());
+            updateScanCountWithColor(securityApiScanCountValue, summary.getSecurityApiCount());
+            updateScanCountWithColor(jmsMessagingScanCountValue, summary.getJmsMessagingCount());
+            updateScanCountWithColor(transitiveDependencyScanCountValue, summary.getTransitiveDependencyCount());
+            updateScanCountWithColor(configFileScanCountValue, summary.getConfigFileCount());
+            updateScanCountWithColor(classloaderModuleScanCountValue, summary.getClassloaderModuleCount());
+            updateScanCountWithColor(loggingMetricsScanCountValue, summary.getLoggingMetricsCount());
+            updateScanCountWithColor(serializationCacheScanCountValue, summary.getSerializationCacheCount());
+            updateScanCountWithColor(thirdPartyLibScanCountValue, summary.getThirdPartyLibCount());
+            updateScanCountWithColor(totalAdvancedScanCountValue, summary.getTotalIssuesFound());
         });
+    }
+
+    private void updateScanCountWithColor(JBLabel label, int count) {
+        label.setText(String.valueOf(count));
+        if (count > 0) {
+            label.setForeground(new Color(220, 53, 69)); // Red for issues
+        } else {
+            label.setForeground(new Color(40, 167, 69)); // Green for no issues
+        }
     }
 
     /**
@@ -157,23 +166,28 @@ SwingUtilities.invokeLater(() -> {
      */
 private void resetAdvancedScanCounts() {
         SwingUtilities.invokeLater(() -> {
-            jpaScanCountValue.setText("0");
-            beanValidationScanCountValue.setText("0");
-            servletJspScanCountValue.setText("0");
-            cdiInjectionScanCountValue.setText("0");
-            buildConfigScanCountValue.setText("0");
-            restSoapScanCountValue.setText("0");
-            deprecatedApiScanCountValue.setText("0");
-            securityApiScanCountValue.setText("0");
-            jmsMessagingScanCountValue.setText("0");
-            transitiveDependencyScanCountValue.setText("0");
-            configFileScanCountValue.setText("0");
-            classloaderModuleScanCountValue.setText("0");
-            loggingMetricsScanCountValue.setText("0");
-            serializationCacheScanCountValue.setText("0");
-            thirdPartyLibScanCountValue.setText("0");
-            totalAdvancedScanCountValue.setText("0");
+            resetScanCountToZero(jpaScanCountValue);
+            resetScanCountToZero(beanValidationScanCountValue);
+            resetScanCountToZero(servletJspScanCountValue);
+            resetScanCountToZero(cdiInjectionScanCountValue);
+            resetScanCountToZero(buildConfigScanCountValue);
+            resetScanCountToZero(restSoapScanCountValue);
+            resetScanCountToZero(deprecatedApiScanCountValue);
+            resetScanCountToZero(securityApiScanCountValue);
+            resetScanCountToZero(jmsMessagingScanCountValue);
+            resetScanCountToZero(transitiveDependencyScanCountValue);
+            resetScanCountToZero(configFileScanCountValue);
+            resetScanCountToZero(classloaderModuleScanCountValue);
+            resetScanCountToZero(loggingMetricsScanCountValue);
+            resetScanCountToZero(serializationCacheScanCountValue);
+            resetScanCountToZero(thirdPartyLibScanCountValue);
+            resetScanCountToZero(totalAdvancedScanCountValue);
         });
+    }
+
+    private void resetScanCountToZero(JBLabel label) {
+        label.setText("0");
+        label.setForeground(new Color(40, 167, 69)); // Green for zero
     }
 
     private JPanel createMcpStatusPanel() {
@@ -419,6 +433,22 @@ gbc.gridx = 2;
         securityApiScanCountValue = createValueLabel("0");
         tablePanel.add(securityApiScanCountValue, gbc);
 
+        // Row 7: Total Advanced Issues (Spans width)
+        gbc.gridx = 0;
+        gbc.gridy = 7;
+        gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(8, 8, 4, 8);
+        JLabel totalAdvancedLabel = createKeyLabel("Total Advanced Issues:");
+        totalAdvancedLabel.setFont(totalAdvancedLabel.getFont().deriveFont(Font.BOLD));
+        tablePanel.add(totalAdvancedLabel, gbc);
+
+        gbc.gridx = 2;
+        gbc.gridwidth = 2;
+        totalAdvancedScanCountValue = createValueLabel("0");
+        totalAdvancedScanCountValue.setForeground(new Color(0, 100, 180));
+        tablePanel.add(totalAdvancedScanCountValue, gbc);
+
         // Row 8: JMS Messaging, Transitive Dependency
         gbc.gridx = 0;
         gbc.gridy = 8;
@@ -473,31 +503,9 @@ gbc.gridx = 2;
         thirdPartyLibScanCountValue = createValueLabel("0");
         tablePanel.add(thirdPartyLibScanCountValue, gbc);
 
-        // Row 12: Total Advanced Issues (Spans width)
+        // Row 12 - Status indicator spans full width
         gbc.gridx = 0;
-        gbc.gridy = 7;
-        gbc.gridwidth = 2;
-        JLabel totalAdvancedLabel = createKeyLabel("Total Advanced Issues:");
-        totalAdvancedLabel.setFont(totalAdvancedLabel.getFont().deriveFont(Font.BOLD));
-        tablePanel.add(totalAdvancedLabel, gbc);
-
-        gbc.gridx = 2;
-        gbc.gridwidth = 2;
-        totalAdvancedScanCountValue = createValueLabel("0");
-        totalAdvancedScanCountValue.setForeground(new Color(0, 100, 180));
-        tablePanel.add(totalAdvancedScanCountValue, gbc);
-
-        // Row 10: JMS Messaging, Transitive Dependency (Hidden/Extra)
-        // Note: These are initialized and updated even if not currently in the main 2x4
-        // grid
-        jmsMessagingScanCountValue = createValueLabel("0");
-        transitiveDependencyScanCountValue = createValueLabel("0");
-        configFileScanCountValue = createValueLabel("0");
-        classloaderModuleScanCountValue = createValueLabel("0");
-
-        // Row 9 - Status indicator spans full width
-        gbc.gridx = 0;
-        gbc.gridy = 8;
+        gbc.gridy = 12;
         gbc.gridwidth = 4;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(12, 8, 4, 8);
@@ -508,8 +516,8 @@ gbc.gridx = 2;
         statusPanel.add(new JBLabel("Jakarta Status Indicator"));
         tablePanel.add(statusPanel, gbc);
 
-        // Row 10 - Last Analyzed spans full width
-        gbc.gridy = 9;
+        // Row 13 - Last Analyzed spans full width
+        gbc.gridy = 13;
         gbc.insets = new Insets(4, 8, 4, 8);
         JPanel lastAnalyzedPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 10, 0));
         lastAnalyzedPanel.add(new JBLabel("Last Analyzed:"));

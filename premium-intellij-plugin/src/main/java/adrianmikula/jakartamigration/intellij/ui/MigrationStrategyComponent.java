@@ -37,6 +37,7 @@ public class MigrationStrategyComponent {
                     "• Migrate all javax dependencies to Jakarta EE at once\n• Single comprehensive change\n• Best for small, self-contained projects"),
                 UiTextLoader.getWithNewlines("strategy.big_bang.risks",
                     "• Higher risk - issues affect entire codebase\n• Longer rollback time if problems occur\n• Requires comprehensive test suite"),
+                "Phase 1: Migrate dependencies\nPhase 2: Update code\nPhase 3: Test",
                 new Color(220, 53, 69)), // Red
 
         INCREMENTAL("Incremental", "One dependency at a time",
@@ -44,6 +45,7 @@ public class MigrationStrategyComponent {
                     "• Migrate dependencies incrementally\n• Update one dependency, test, then proceed\n• Lower risk per change\n• Best for large, complex projects"),
                 UiTextLoader.getWithNewlines("strategy.incremental.risks",
                     "• Longer overall migration timeline\n• Must maintain compatibility during transition\n• May require temporary dual dependencies"),
+                "Phase 1: Identify dependencies\nPhase 2: Prioritize\nPhase 3: Migrate one by one\nPhase 4: Test each",
                 new Color(255, 193, 7)), // Yellow
 
         TRANSFORM("Transform", "Combined build and runtime transformation",
@@ -51,6 +53,7 @@ public class MigrationStrategyComponent {
                     "• Combine build-time and runtime transformation approaches\n• Use OpenRewrite for automated code changes\n• Deploy runtime adapters for edge cases"),
                 UiTextLoader.getWithNewlines("strategy.transform.risks",
                     "• Most complex implementation\n• Requires both build and runtime configuration\n• Higher resource overhead"),
+                "Phase 1: Setup transformation\nPhase 2: Run OpenRewrite\nPhase 3: Deploy adapters",
                 new Color(23, 162, 184)), // Blue
 
         MICROSERVICES("Microservices", "Migrate each service independently",
@@ -58,6 +61,7 @@ public class MigrationStrategyComponent {
                     "• Migrate microservices one at a time\n• Each service can use different strategy\n• Independent deployment and testing"),
                 UiTextLoader.getWithNewlines("strategy.microservices.risks",
                     "• Requires coordination across services\n• Inter-service dependencies must be handled\n• May need service mesh updates"),
+                "Phase 1: Identify services\nPhase 2: Migrate service by service\nPhase 3: Update dependencies",
                 new Color(108, 117, 125)), // Gray
 
         ADAPTER("Adapter Pattern", "Use adapter classes for javax/jakarta compatibility",
@@ -65,6 +69,7 @@ public class MigrationStrategyComponent {
                     "• Maintain backward compatibility during migration\n• Gradual replacement of javax with jakarta\n• Lower risk changes\n• Easy to rollback individual adapters"),
                 UiTextLoader.getWithNewlines("strategy.adapter.risks",
                     "• Additional code maintenance\n• Runtime overhead for adapter layer\n• More complex classpath management"),
+                "Phase 1: Create adapters\nPhase 2: Add adapter dependencies\nPhase 3: Replace javax with adapters",
                 new Color(111, 66, 193)); // Purple
 
         private final String displayName;
@@ -193,7 +198,7 @@ public class MigrationStrategyComponent {
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.GRAY, 1),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)));
-        card.setPreferredSize(new Dimension(150, 120));
+        card.setPreferredSize(new Dimension(150, 90));
 
         // Header with color indicator
         JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
