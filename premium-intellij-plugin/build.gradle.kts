@@ -1,8 +1,15 @@
 plugins {
     id("org.jetbrains.intellij")
+    `java-library`
     java
     jacoco
 }
+
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
+// Force version override for development - ensures plugin is always reloaded
+version = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
 
 jacoco {
     toolVersion = "0.8.11"
@@ -32,14 +39,21 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     
     // Community Core Engine - local project dependency (Apache 2.0)
-    implementation(project(":community-core-engine"))
+    // Using 'api' to include classes in the final plugin JAR
+    api(project(":community-core-engine"))
+
+    // Premium Core Engine - local project dependency (Proprietary)
+    // Contains premium features: refactoring, runtime verification, etc.
+    implementation(project(":premium-core-engine"))
 
     // Premium Core Engine - runtime verification and premium features (Proprietary)
     implementation(project(":premium-core-engine"))
 
     // UI Testing dependencies
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.0")
     testImplementation("org.junit.platform:junit-platform-suite:1.10.0")
+    testImplementation("org.junit.platform:junit-platform-launcher:1.10.0")
     testImplementation("org.assertj:assertj-core:3.24.2")
     testImplementation("org.mockito:mockito-core:5.5.0")
     testImplementation("org.mockito:mockito-junit-jupiter:5.5.0")
@@ -72,12 +86,30 @@ intellij {
     buildSearchableOptions {
         onlyIf { false }
     }
+
+    // Configure JUnit Jupiter for testing
+    test {
+        useJUnitPlatform()
+    }
 }
 
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
     }
+}
+
+// Include community-core-engine classes in the plugin JAR
+tasks.named<Jar>("jar") {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    
+    // Include community-core-engine classes
+    val communityCoreEngine = project(":community-core-engine")
+    from(communityCoreEngine.sourceSets.main.get().output)
+    
+    // Also include premium-core-engine classes
+    val premiumCoreEngine = project(":premium-core-engine")
+    from(premiumCoreEngine.sourceSets.main.get().output)
 }
 
 // Create a task to generate MCP tool definitions JSON
@@ -260,5 +292,26 @@ tasks.register("generateMcpToolsJson") {
             |  ]
             |}
         """.trimMargin())
+    }
+}
+
+/**
+ * Build development plugin: clean, rebuild all modules, and run IDE.
+ * Force rebuilds community-core-engine and premium-core-engine to ensure fresh code.
+ * 
+ * Usage: ./gradlew :premium-intellij-plugin:buildDevPlugin
+ */
+tasks.register("buildDevPlugin") {
+    group = "build"
+    description = "Clean, rebuild all modules, and run IDE for development"
+    
+    // Clean all modules to ensure fresh rebuild
+    dependsOn(":community-core-engine:clean", ":premium-core-engine:clean", "clean")
+    // Build and run
+    dependsOn("jar", "runIde")
+    
+    doLast {
+        println("\n=== Distribution Build Complete ===")
+        println("Distribution files in build/distributions:")
     }
 }

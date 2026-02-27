@@ -1,29 +1,34 @@
-<idea-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/schemas/plugin/2/plugin.xsd" icon="/icons/colour_bird-icon.png">
+<idea-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/schemas/plugin/2/plugin.xsd" icon="/icons/pluginIcon.svg">
     <id>com.adrianmikula.jakarta-migration</id>
-    <name>Jakarta Migration</name>
-    <vendor email="adrian.m@tuta.io" url="https://github.com/adrianmikula/jakarta-migration" name="Adrian Mikula">Adrian Mikula</vendor>
+    <name>Jakarta Migration (javax → jakarta)</name>
+    <vendor email="adrian.m@tuta.io" name="Adrian Mikula" url="https://github.com/adrianmikula/JakartaMigrationMCP">Adrian Mikula</vendor>
+    <category>Framework Integration</category>
 
     <description><![CDATA[
-    Analyze and automate migration of Java EE (javax.*) code to Jakarta EE (jakarta.*) within the IDE.
+    <h2>Automate Your Java EE to Jakarta EE Migration</h2>
 
-    <h3>Key Features:</h3>
+    <p>Migrate from Java EE 8 (javax.*) to Jakarta EE 9+ seamlessly. This plugin analyzes dependencies, detects migration blockers, and automates refactoring with OpenRewrite.</p>
+
+    <h3>Why Jakarta EE?</h3>
+    <p>After Oracle donated Java EE to the Eclipse Foundation, the javax.* namespace became jakarta.*. If you're on Java 11+ with Spring Boot 3+ or Jakarta EE, you need this migration.</p>
+
+    <h3>Key Features</h3>
     <ul>
-        <li>Detect all javax references in your codebase</li>
-        <li>Analyze dependency compatibility with Jakarta EE</li>
-        <li>Visualize module dependency graphs</li>
-        <li>Get automated refactoring suggestions</li>
-        <li>Plan your migration with phased strategies</li>
+    <li>🔍 <b>Migration Analysis</b> - Detect blockers before you start</li>
+    <li>📦 <b>Dependency Recommendations</b> - Find Jakarta-compatible versions</li>
+    <li>🤖 <b>AI-Powered</b> - MCP server for Claude, Cursor, and AI Assistants</li>
+    <li>📊 <b>Dependency Graphs</b> - Visualize your module dependencies</li>
+    <li>⚡ <b>Auto-Refactoring</b> - OpenRewrite-powered fixes</li>
     </ul>
 
-    <h3>Supported Technologies:</h3>
-    <ul>
-        <li>Maven and Gradle dependencies</li>
-        <li>Spring Boot applications</li>
-        <li>Servlet/JSP, JPA, Bean Validation</li>
-        <li>Custom namespace transformations</li>
-    </ul>
+    <h3>Supported Technologies</h3>
+    <p>Spring Boot 3+, Jakarta EE 9+, Java 11+, Maven, Gradle</p>
 
-    If you find this useful, please leave a rating on the JetBrains Marketplace. Report bugs on GitHub.
+    <h3>Free vs Premium</h3>
+    <ul>
+    <li><b>Free:</b> Analysis, blockers detection, version recommendations</li>
+    <li><b>Premium:</b> Auto-fixes, one-click refactoring, binary fixes</li>
+    </ul>
     ]]></description>
 
     <!-- IntelliJ Platform Version Requirements -->

@@ -24,6 +24,12 @@ See [Local Setup (STDIO)](#local-setup-stdio) below for client configuration.
 
 A native IntelliJ IDEA plugin is also available for users who prefer an IDE-integrated experience:
 
+[![Plugin Version](https://img.shields.io/plugin/v/jakarta-migration)](https://plugins.jetbrains.com/plugin/30093-jakarta-migration)
+
+### Download
+
+**[Get it from JetBrains Marketplace →](https://plugins.jetbrains.com/plugin/30093-jakarta-migration)**
+
 ### Features
 
 - **Migration Analysis** - Analyze Java projects for Jakarta EE migration readiness
@@ -31,16 +37,17 @@ A native IntelliJ IDEA plugin is also available for users who prefer an IDE-inte
 - **MCP Server Integration** - Automatically connects to Jakarta Migration MCP server
 - **AI Assistant Tools** - AI Assistant integration for intelligent migration suggestions
 - **Tool Window** - Dedicated Jakarta Migration tool window for easy access
+- **Refactor Tab** - Apply and manage OpenRewrite refactorings
+- **Runtime Verification** - Test migrated applications at runtime
 
 ### Installation
 
-1. **Download** the plugin from [JetBrains Marketplace](https://plugins.jetbrains.com/)
-2. **Install** via IntelliJ IDEA:
+1. **Install** via IntelliJ IDEA:
    - Open **Settings** (`Ctrl+Alt+S` or `Cmd+,`)
    - Go to **Plugins**
-   - Click **⚙️** → **Install Plugin from Disk...**
-   - Select the downloaded ZIP file
-3. **Restart** IntelliJ IDEA
+   - Search for **Jakarta Migration**
+   - Click **Install**
+2. **Restart** IntelliJ IDEA
 
 ### Usage
 

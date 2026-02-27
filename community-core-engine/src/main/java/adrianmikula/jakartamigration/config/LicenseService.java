@@ -17,8 +17,8 @@ public class LicenseService {
 
     private final FeatureFlagsProperties properties;
 
-    // JetBrains Marketplace plugin ID - replace with actual ID
-    private static final String PLUGIN_ID = "jakarta-migration";
+    // JetBrains Marketplace plugin ID (numeric ID from marketplace URL)
+    private static final String PLUGIN_ID = "30093";
 
     public LicenseService(FeatureFlagsProperties properties) {
         this.properties = properties;

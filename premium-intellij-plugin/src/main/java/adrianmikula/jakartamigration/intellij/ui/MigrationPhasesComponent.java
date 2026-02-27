@@ -3,7 +3,6 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.intellij.ui.MigrationStrategyComponent.MigrationStrategy;
-import adrianmikula.jakartamigration.intellij.ui.SubtaskTableComponent.SubtaskItem;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBPanel;
 
@@ -14,384 +13,192 @@ import java.util.*;
 import java.util.List;
 
 /**
- * Migration phases component with expandable accordion UI.
- * Each phase displays a subtask table with action buttons for automatable
- * tasks.
- * 
- * @deprecated This component is no longer used in the main UI and will be
- *             removed in a future version.
+ * Migration phases component showing detailed phase descriptions.
+ * Each phase displays a longer text description without subtask tables.
+ * Phase data is loaded from property files via UiTextLoader.
  */
 @Deprecated
 public class MigrationPhasesComponent {
-        private final JPanel panel;
-        private final Project project;
-        private final MigrationStrategyComponent strategyComponent;
-        private final JTabbedPane phaseTabs;
-        private final Map<String, SubtaskTableComponent> phaseSubtaskTables = new HashMap<>();
-        private MigrationStrategy selectedStrategy;
-        private List<DependencyInfo> dependencies;
-        private final List<PhaseListener> phaseListeners = new ArrayList<>();
+    private final JPanel panel;
+    private final Project project;
+    private final MigrationStrategyComponent strategyComponent;
+    private final JTabbedPane phaseTabs;
+    private MigrationStrategy selectedStrategy;
+    private List<DependencyInfo> dependencies;
+    private final List<PhaseListener> phaseListeners = new ArrayList<>();
 
-        // Phase definitions with detailed descriptions
-        private static final Map<MigrationStrategy, PhaseDefinition[]> PHASE_DEFINITIONS = new HashMap<>();
+    // Phase definitions - loaded dynamically from property files
+    private static final Map<MigrationStrategy, PhaseDefinition[]> PHASE_DEFINITIONS = loadPhaseDefinitions();
 
-        static {
-                PHASE_DEFINITIONS.put(MigrationStrategy.BIG_BANG, new PhaseDefinition[] {
-                                new PhaseDefinition("phase-1", "Complete Migration",
-                                                """
-                                                                Migrate all javax dependencies to Jakarta EE in a single pass.
-                                                                This approach requires comprehensive planning and testing.
-                                                                """,
-                                                new String[] {
-                                                                "Update dependency declarations in pom.xml/build.gradle",
-                                                                "Replace javax imports in Java files",
-                                                                "Update XML configuration files",
-                                                                "Update property files and resource bundles",
-                                                                "Run unit and integration tests"
-                                                })
-                });
+    /**
+     * Load phase definitions from property files.
+     */
+    private static Map<MigrationStrategy, PhaseDefinition[]> loadPhaseDefinitions() {
+        Map<MigrationStrategy, PhaseDefinition[]> definitions = new HashMap<>();
+        
+        for (MigrationStrategy strategy : MigrationStrategy.values()) {
+            String strategyKey = strategy.name().toLowerCase();
+            int phaseCount = UiTextLoader.getPhaseCount(strategyKey);
+            
+            if (phaseCount > 0) {
+                PhaseDefinition[] phases = new PhaseDefinition[phaseCount];
+                for (int i = 0; i < phaseCount; i++) {
+                    int phaseNum = i + 1;
+                    String title = UiTextLoader.getPhaseTitle(strategyKey, phaseNum);
+                    String description = UiTextLoader.getPhaseDescription(strategyKey, phaseNum);
+                    String[] steps = UiTextLoader.getPhaseStepsArray(strategyKey, phaseNum);
+                    phases[i] = new PhaseDefinition("phase-" + phaseNum, title, description, steps);
+                }
+                definitions.put(strategy, phases);
+            }
+        }
+        
+        // If no phases loaded from properties, use defaults
+        if (definitions.isEmpty()) {
+            definitions.put(MigrationStrategy.INCREMENTAL, new PhaseDefinition[]{
+                new PhaseDefinition("phase-1", "Dependency Updates", "Run analysis to identify dependencies that need migration."),
+                new PhaseDefinition("phase-2", "Import Replacement", "Replace javax.* imports with jakarta.* imports."),
+                new PhaseDefinition("phase-3", "Testing & Verification", "Run tests to verify the migration."),
+                new PhaseDefinition("phase-4", "Production Rollout", "Deploy the migrated application to production.")
+            });
+        }
+        
+        return definitions;
+    }
 
-                PHASE_DEFINITIONS.put(MigrationStrategy.INCREMENTAL, new PhaseDefinition[] {
-                                new PhaseDefinition("phase-1", "Dependency Updates",
-                                                """
-                                                                Update dependencies incrementally, starting with the lowest-risk ones.
-                                                                Focus on transitive dependencies first, then direct dependencies.
-                                                                """,
-                                                new String[] {
-                                                                "Analyze current dependencies",
-                                                                "Check for Jakarta equivalents",
-                                                                "Update lowest-risk dependencies first",
-                                                                "Verify no breaking changes",
-                                                                "Repeat for remaining dependencies"
-                                                }),
-                                new PhaseDefinition("phase-2", "Import Replacement",
-                                                """
-                                                                Systematically replace javax.* imports with jakarta.* across the codebase.
-                                                                Use IDE refactoring tools for safe replacement.
-                                                                """,
-                                                new String[] {
-                                                                "Replace imports in transitive dependencies",
-                                                                "Replace imports in direct dependencies",
-                                                                "Replace imports in application code",
-                                                                "Update any reflection ConfigFiles"
-                                                }),
-                                new PhaseDefinition("phase-3", "Testing & Verification",
-                                                """
-                                                                Comprehensive testing after import replacements.
-                                                                Ensure no compilation errors and all tests pass.
-                                                                """,
-                                                new String[] {
-                                                                "Run unit tests",
-                                                                "Run integration tests",
-                                                                "Verify interactions",
-                                                                "Test error handling"
-                                                }),
-                                new PhaseDefinition("phase-4", "Production Rollout",
-                                                """
-                                                                Deploy the runtime transformation solution.
-                                                                Monitor for issues in production environment.
-                                                                """,
-                                                new String[] {
-                                                                "Deploy to staging",
-                                                                "Monitor performance",
-                                                                "Deploy to production"
-                                                })
-                });
+    public interface PhaseListener {
+        void onStrategySelected(MigrationStrategy strategy);
+        void onPhaseSelected(int phaseIndex);
+    }
 
-                PHASE_DEFINITIONS.put(MigrationStrategy.TRANSFORM, new PhaseDefinition[] {
-                                new PhaseDefinition("phase-1", "Build Tool Updates",
-                                                """
-                                                                Update build configuration to use Jakarta EE dependencies.
-                                                                This involves modifying pom.xml or build.gradle files.
-                                                                """,
-                                                new String[] {
-                                                                "Add Jakarta EE BOM to dependencyManagement",
-                                                                "Update artifact coordinates",
-                                                                "Configure Jakarta EE version",
-                                                                "Verify build compiles"
-                                                }),
-                                new PhaseDefinition("phase-2", "Runtime Transformation Setup",
-                                                """
-                                                                Configure runtime transformation for javax to jakarta conversion.
-                                                                Options include Eclipse Transformer or custom class loading.
-                                                                """,
-                                                new String[] {
-                                                                "Install Eclipse Transformer",
-                                                                "Configure transformation rules",
-                                                                "Test transformation pipeline",
-                                                                "Verify runtime behavior"
-                                                }),
-                                new PhaseDefinition("phase-3", "Gradual Migration",
-                                                """
-                                                                Migrate code gradually while maintaining backward compatibility.
-                                                                Migrate one module at a time.
-                                                                """,
-                                                new String[] {
-                                                                "Migrate lowest-risk module first",
-                                                                "Test module in isolation",
-                                                                "Repeat for each module",
-                                                                "Verify cross-module compatibility"
-                                                }),
-                                new PhaseDefinition("phase-4", "Complete Migration",
-                                                """
-                                                                Complete the migration by removing runtime transformation.
-                                                                All code now uses Jakarta EE directly.
-                                                                """,
-                                                new String[] {
-                                                                "Remove transformation configuration",
-                                                                "Verify all tests pass",
-                                                                "Deploy fully migrated application"
-                                                })
-                });
+    /**
+     * Phase definition with detailed description.
+     */
+    public static class PhaseDefinition {
+        private final String id;
+        private final String name;
+        private final String description;
+        private final String[] steps;
 
-                PHASE_DEFINITIONS.put(MigrationStrategy.ADAPTER, new PhaseDefinition[] {
-                                new PhaseDefinition("phase-1", "Adapter Pattern Setup",
-                                                """
-                                                                Create adapter classes for javax to jakarta compatibility.
-                                                                """,
-                                                new String[] {
-                                                                "Identify classes needing adapters",
-                                                                "Create adapter classes",
-                                                                "Configure class loading",
-                                                                "Test adapter functionality"
-                                                }),
-                                new PhaseDefinition("phase-2", "Runtime Configuration",
-                                                """
-                                                                Configure runtime behavior for mixed javax/jakarta environment.
-                                                                """,
-                                                new String[] {
-                                                                "Configure class loaders",
-                                                                "Set transformation rules",
-                                                                "Manage dependency conflicts",
-                                                                "Test runtime behavior"
-                                                }),
-                                new PhaseDefinition("phase-3", "Incremental Migration",
-                                                """
-                                                                Gradually migrate code while maintaining runtime compatibility.
-                                                                """,
-                                                new String[] {
-                                                                "Migrate lowest-risk component",
-                                                                "Test with existing adapters",
-                                                                "Repeat for remaining components",
-                                                                "Verify end-to-end functionality"
-                                                }),
-                                new PhaseDefinition("phase-4", "Remove Adapters",
-                                                """
-                                                                Complete migration by removing all adapters.
-                                                                """,
-                                                new String[] {
-                                                                "Remove adapter classes",
-                                                                "Update build configuration",
-                                                                "Final testing",
-                                                                "Deploy to production"
-                                                })
-                });
+        public PhaseDefinition(String id, String name, String description, String[] steps) {
+            this.id = id;
+            this.name = name;
+            this.description = description;
+            this.steps = steps;
         }
 
-        public interface PhaseListener {
-                void onStrategySelected(MigrationStrategy strategy);
-
-                void onPhaseSelected(int phaseIndex);
+        // Overloaded constructor for backward compatibility
+        public PhaseDefinition(String id, String name, String description) {
+            this(id, name, description, new String[0]);
         }
 
-        /**
-         * Phase definition with detailed description and subtasks.
-         */
-        public static class PhaseDefinition {
-                private final String id;
-                private final String name;
-                private final String description;
-                private final String[] subtasks;
+        public String getId() { return id; }
+        public String getName() { return name; }
+        public String getDescription() { return description; }
+        public String[] getSteps() { return steps; }
+    }
 
-                public PhaseDefinition(String id, String name, String description, String[] subtasks) {
-                        this.id = id;
-                        this.name = name;
-                        this.description = description;
-                        this.subtasks = subtasks;
-                }
+    public MigrationPhasesComponent(Project project) {
+        this.project = project;
+        this.dependencies = new ArrayList<>();
+        this.panel = new JBPanel(new BorderLayout());
+        this.strategyComponent = new MigrationStrategyComponent(project);
+        this.phaseTabs = new JTabbedPane();
 
-                public String getId() {
-                        return id;
-                }
+        initializeComponent();
+        setupStrategyListener();
 
-                public String getName() {
-                        return name;
-                }
+        // Set default strategy and update phases
+        this.selectedStrategy = MigrationStrategy.INCREMENTAL;
+        updatePhasesForStrategy(selectedStrategy);
+    }
 
-                public String getDescription() {
-                        return description;
-                }
+    private void setupStrategyListener() {
+        strategyComponent.addMigrationStrategyListener(strategy -> {
+            this.selectedStrategy = strategy;
+            for (PhaseListener listener : phaseListeners) {
+                listener.onStrategySelected(strategy);
+            }
+            updatePhasesForStrategy(strategy);
+        });
+    }
 
-                public String[] getSubtasks() {
-                        return subtasks;
-                }
+    public void setDependencies(List<DependencyInfo> dependencies) {
+        this.dependencies = dependencies != null ? dependencies : new ArrayList<>();
+        if (selectedStrategy != null) {
+            updatePhasesForStrategy(selectedStrategy);
         }
 
-        public MigrationPhasesComponent(Project project) {
-                this.project = project;
-                this.dependencies = new ArrayList<>();
-                this.panel = new JBPanel(new BorderLayout());
-                this.strategyComponent = new MigrationStrategyComponent(project);
-                this.phaseTabs = new JTabbedPane();
-
-                initializeComponent();
-                setupStrategyListener();
-
-                // Set default strategy and update phases
-                this.selectedStrategy = MigrationStrategy.INCREMENTAL;
-                updatePhasesForStrategy(selectedStrategy);
-        }
-
-        private void setupStrategyListener() {
-                strategyComponent.addMigrationStrategyListener(strategy -> {
-                        this.selectedStrategy = strategy;
-                        for (PhaseListener listener : phaseListeners) {
-                                listener.onStrategySelected(strategy);
-                        }
-                        updatePhasesForStrategy(strategy);
-                });
-        }
-
-        public void setDependencies(List<DependencyInfo> dependencies) {
-                this.dependencies = dependencies != null ? dependencies : new ArrayList<>();
-                if (selectedStrategy != null) {
-                        updatePhasesForStrategy(selectedStrategy);
-                }
-        }
-
-        private void updatePhasesForStrategy(MigrationStrategy strategy) {
-                phaseTabs.removeAll();
-                phaseSubtaskTables.clear();
-
-                PhaseDefinition[] phases = PHASE_DEFINITIONS.getOrDefault(strategy,
-                                PHASE_DEFINITIONS.get(MigrationStrategy.INCREMENTAL));
-
-                for (int i = 0; i < phases.length; i++) {
-                        PhaseDefinition phase = phases[i];
-                        SubtaskTableComponent subtaskTable = new SubtaskTableComponent(project);
-                        phaseSubtaskTables.put(phase.getId(), subtaskTable);
-
-                        // Create subtasks for this phase
-                        List<SubtaskItem> subtasks = createSubtasksForPhase(phase, dependencies);
-
-                        subtaskTable.setSubtasks(subtasks);
-
-                        // Create the tab content panel
-                        JPanel tabContent = createPhaseTabContent(phase, subtaskTable);
-                        phaseTabs.addTab(phase.getName(), tabContent);
-                }
-        }
-
-        private List<SubtaskItem> createSubtasksForPhase(PhaseDefinition phase, List<DependencyInfo> deps) {
-                List<SubtaskItem> items = new ArrayList<>();
-
-                // Add phase subtasks with automation detection
-                for (String task : phase.getSubtasks()) {
-                        String automationType = determineAutomationType(task);
-                        items.add(new SubtaskItem(task, "", null, automationType));
-                }
-
-                // Add dependency-specific subtasks
-                if (deps != null && !deps.isEmpty()) {
-                        // Add a separator subtask
-                        items.add(new SubtaskItem("---", "", null, null));
-
-                        List<DependencyInfo> needsUpgrade = deps.stream()
-                                        .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.NEEDS_UPGRADE)
-                                        .toList();
-
-                        for (DependencyInfo dep : needsUpgrade.stream().limit(5).toList()) {
-                                String task = String.format("Migrate %s", dep.getArtifactId());
-                                items.add(new SubtaskItem(task, "", dep, "dependency-update"));
-                        }
-
-                        if (needsUpgrade.size() > 5) {
-                                items.add(new SubtaskItem(
-                                                String.format("... and %d more dependencies", needsUpgrade.size() - 5),
-                                                "", null, null));
-                        }
-                }
-
-                return items;
-        }
-
-        private String determineAutomationType(String task) {
-                String lower = task.toLowerCase();
-                if (lower.contains("import") || lower.contains("refactor") || lower.contains("rewrite")) {
-                        return "open-rewrite";
-                } else if (lower.contains("binary") || lower.contains("scan") || lower.contains("analyze")) {
-                        return "binary-scan";
-                } else if (lower.contains("update") || lower.contains("upgrade") || lower.contains("dependency")) {
-                        return "dependency-update";
-                }
-                return null;
-        }
+    private void updatePhasesForStrategy(MigrationStrategy strategy) {
+        phaseTabs.removeAll();
 
         private JPanel createPhaseTabContent(PhaseDefinition phase, SubtaskTableComponent subtaskTable) {
                 JPanel content = new JBPanel(new BorderLayout(10, 10));
                 content.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-                // Phase description
-                JTextArea descriptionArea = new JTextArea(phase.getDescription());
-                descriptionArea.setEditable(false);
-                descriptionArea.setLineWrap(true);
-                descriptionArea.setWrapStyleWord(true);
-                descriptionArea.setFont(descriptionArea.getFont().deriveFont(Font.ITALIC));
-                descriptionArea.setBackground(UIManager.getColor("Panel.background"));
-                JScrollPane descScroll = new JScrollPane(descriptionArea);
-                descScroll.setBorder(BorderFactory.createEmptyBorder(5, 0, 10, 0));
-                descScroll.setPreferredSize(new Dimension(0, 80));
-
-                // Subtask table
-                JPanel subtaskPanel = subtaskTable.getPanel();
-
-                content.add(descScroll, BorderLayout.NORTH);
-                content.add(subtaskPanel, BorderLayout.CENTER);
-
-                return content;
+        for (int i = 0; i < phases.length; i++) {
+            PhaseDefinition phase = phases[i];
+            
+            // Create the tab content panel with just the description
+            JPanel tabContent = createPhaseTabContent(phase);
+            phaseTabs.addTab(phase.getName(), tabContent);
         }
 
-        private void initializeComponent() {
-                // Strategy header
-                JPanel strategyHeaderPanel = new JBPanel(new BorderLayout());
-                strategyHeaderPanel.add(new JLabel("Migration Strategy:"), BorderLayout.WEST);
-                strategyHeaderPanel.add(strategyComponent.getPanel(), BorderLayout.CENTER);
-                strategyHeaderPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
+    private JPanel createPhaseTabContent(PhaseDefinition phase) {
+        JPanel content = new JBPanel(new BorderLayout(10, 10));
+        content.setBorder(new EmptyBorder(15, 15, 15, 15));
 
-                // Main content
-                JPanel mainContent = new JBPanel(new BorderLayout());
-                mainContent.add(strategyHeaderPanel, BorderLayout.NORTH);
+        // Phase title
+        JLabel titleLabel = new JLabel(phase.getName());
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
+        titleLabel.setBorder(new EmptyBorder(0, 0, 10, 0));
 
-                // Phase tabs
-                phaseTabs.setTabLayoutPolicy(JTabbedPane.TOP);
-                JScrollPane tabsScroll = new JScrollPane(phaseTabs);
-                tabsScroll.setBorder(BorderFactory.createTitledBorder("Migration Phases"));
-                mainContent.add(tabsScroll, BorderLayout.CENTER);
+        // Phase description - longer text
+        JTextArea descriptionArea = new JTextArea(phase.getDescription());
+        descriptionArea.setEditable(false);
+        descriptionArea.setLineWrap(true);
+        descriptionArea.setWrapStyleWord(true);
+        descriptionArea.setFont(descriptionArea.getFont().deriveFont(Font.PLAIN, 13f));
+        descriptionArea.setBackground(UIManager.getColor("Panel.background"));
+        
+        JScrollPane descScroll = new JScrollPane(descriptionArea);
+        descScroll.setBorder(BorderFactory.createEmptyBorder(5, 0, 10, 0));
 
-                panel.add(mainContent, BorderLayout.CENTER);
-        }
+        content.add(titleLabel, BorderLayout.NORTH);
+        content.add(descScroll, BorderLayout.CENTER);
 
-        public void addPhaseListener(PhaseListener listener) {
-                phaseListeners.add(listener);
-        }
+        return content;
+    }
 
-        public MigrationStrategy getSelectedStrategy() {
-                return selectedStrategy;
-        }
+    private void initializeComponent() {
+        // Strategy header
+        JPanel strategyHeaderPanel = new JBPanel(new BorderLayout());
+        strategyHeaderPanel.add(new JLabel("Migration Strategy:"), BorderLayout.WEST);
+        strategyHeaderPanel.add(strategyComponent.getPanel(), BorderLayout.CENTER);
+        strategyHeaderPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
 
-        public JPanel getPanel() {
-                return panel;
-        }
+        // Main content
+        JPanel mainContent = new JBPanel(new BorderLayout());
+        mainContent.add(strategyHeaderPanel, BorderLayout.NORTH);
 
-        public JTabbedPane getPhaseTabs() {
-                return phaseTabs;
-        }
+        // Phase tabs
+        phaseTabs.setTabLayoutPolicy(JTabbedPane.TOP);
+        JScrollPane tabsScroll = new JScrollPane(phaseTabs);
+        tabsScroll.setBorder(BorderFactory.createTitledBorder("Migration Phases"));
+        mainContent.add(tabsScroll, BorderLayout.CENTER);
 
-        public Map<String, SubtaskTableComponent> getPhaseSubtaskTables() {
-                return phaseSubtaskTables;
-        }
+        panel.add(mainContent, BorderLayout.CENTER);
+    }
 
-        public MigrationStrategyComponent getStrategyComponent() {
-                return strategyComponent;
-        }
+    public void addPhaseListener(PhaseListener listener) {
+        phaseListeners.add(listener);
+    }
+
+    public MigrationStrategy getSelectedStrategy() {
+        return selectedStrategy;
+    }
+
+    public JPanel getPanel() {
+        return panel;
+    }
 }

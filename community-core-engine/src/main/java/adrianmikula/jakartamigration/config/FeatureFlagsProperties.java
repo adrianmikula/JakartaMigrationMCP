@@ -129,7 +129,7 @@ public class FeatureFlagsProperties {
      * Get JetBrains Marketplace purchase URL.
      */
     public static String getMarketplaceUrl() {
-        return "https://plugins.jetbrains.com/plugin/";
+        return "https://plugins.jetbrains.com/plugin/30093-jakarta-migration";
     }
 
     /**

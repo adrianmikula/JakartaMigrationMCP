@@ -10,9 +10,6 @@ import java.util.List;
  * Main interface for the Runtime Verification Module.
  * Supports both bytecode analysis (fast) and process execution (comprehensive)
  * for detecting Jakarta migration issues.
- * 
- * NOTE: This is the premium interface. The community module has a separate
- * RuntimeVerificationModule interface in the community-core-engine module.
  */
 public interface RuntimeVerificationModule {
     

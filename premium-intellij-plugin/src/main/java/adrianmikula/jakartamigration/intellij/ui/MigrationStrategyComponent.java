@@ -14,8 +14,9 @@ import java.util.List;
  * Displays clickable cards for different migration strategies:
  * - Big Bang (all at once)
  * - Incremental/One by One
- * - Build Transformation
- * - Runtime Transformation
+ * - Transform (build + runtime transformation)
+ * - Microservices (migrate each service independently)
+ * - Adapter Pattern (use adapter classes for javax/jakarta compatibility)
  */
 public class MigrationStrategyComponent {
     private final JPanel panel;
@@ -32,125 +33,39 @@ public class MigrationStrategyComponent {
 
     public enum MigrationStrategy {
         BIG_BANG("Big Bang", "Migrate everything at once",
-                """
-                        • Migrate all javax dependencies to Jakarta EE at once
-                        • Single comprehensive change
-                        • Best for small, self-contained projects
-                        • Requires thorough testing before starting
-                        """,
-                """
-                        • Higher risk - issues affect entire codebase
-                        • Longer rollback time if problems occur
-                        • Requires comprehensive test suite
-                        • May cause extended downtime during migration
-                        """,
-                """
-                        1. Dependency Upgrade: Update all pom.xml/build.gradle files
-                        2. Code Refactor: Replace all javax.* imports with jakarta.*
-                        3. XML/Config Update: Update persistence.xml, web.xml, etc.
-                        4. Global Testing: Comprehensive unit and integration testing
-                        """,
+                UiTextLoader.getWithNewlines("strategy.big_bang.benefits",
+                    "• Migrate all javax dependencies to Jakarta EE at once\n• Single comprehensive change\n• Best for small, self-contained projects"),
+                UiTextLoader.getWithNewlines("strategy.big_bang.risks",
+                    "• Higher risk - issues affect entire codebase\n• Longer rollback time if problems occur\n• Requires comprehensive test suite"),
                 new Color(220, 53, 69)), // Red
 
         INCREMENTAL("Incremental", "One dependency at a time",
-                """
-                        • Migrate dependencies incrementally
-                        • Update one dependency, test, then proceed
-                        • Lower risk per change
-                        • Best for large, complex projects
-                        """,
-                """
-                        • Longer overall migration timeline
-                        • Must maintain compatibility during transition
-                        • May require temporary dual dependencies
-                        • Need careful dependency ordering
-                        """,
-                """
-                        1. Dependency Scan: Identify all javax dependencies
-                        2. Priority Ranking: Order by risk and dependency level
-                        3. Step-by-Step Upgrade: One artifact at a time
-                        4. Continuous Integration: Test after every single change
-                        """,
+                UiTextLoader.getWithNewlines("strategy.incremental.benefits",
+                    "• Migrate dependencies incrementally\n• Update one dependency, test, then proceed\n• Lower risk per change\n• Best for large, complex projects"),
+                UiTextLoader.getWithNewlines("strategy.incremental.risks",
+                    "• Longer overall migration timeline\n• Must maintain compatibility during transition\n• May require temporary dual dependencies"),
                 new Color(255, 193, 7)), // Yellow
 
-        STRANGLER("Strangler", "Migrate module by module",
-                """
-                        • Migrate one functional module or service at a time
-                        • New features built in Jakarta EE
-                        • Existing features gradually migrated
-                        • Good for monolithic applications
-                        """,
-                """
-                        • Requires inter-module compatibility layers
-                        • Can create duplicate logic during transition
-                        • Managing two different EE environments simultaneously
-                        """,
-                """
-                        1. Interface Definition: Define boundaries between modules
-                        2. Bridge Setup: Create compatibility layer for cross-module calls
-                        3. Vertical Slices: Migrate one full functional slice at a time
-                        4. Decommission: Remove legacy modules once fully replaced
-                        """,
-                new Color(111, 66, 193)), // Purple
-
-        DUAL_BUILDS("Dual Builds", "Support both javax and jakarta simultaneously",
-                """
-                        • Build two versions of the app from one codebase
-                        • Use build-time shading or source transformation
-                        • High flexibility for library developers
-                        """,
-                """
-                        • Increased CI/CD complexity
-                        • Harder to debug build-time transformations
-                        • Source code remains in one format (usually javax)
-                        """,
-                """
-                        1. Multi-Release Setup: Configure build tool for shadow JARs
-                        2. Transformer Integration: Setup Eclipse Transformer in build
-                        3. Automated CI: Running two sets of tests (javax/jakarta)
-                        4. Deployment Choice: Select version based on target runtime
-                        """,
-                new Color(253, 126, 20)), // Orange
-
-        TRANSFORM("Transform", "Automatic bytecode/source transformation",
-                """
-                        • Use OpenRewrite/Eclipse Transformer automatically
-                        • Large scale changes handled by machine
-                        • Consistent application of rules
-                        """,
-                """
-                        • Hard to handle complex custom logic
-                        • Machine changes still require human review
-                        • Risk of unexpected transformation errors
-                        """,
-                """
-                        1. Recipe Selection: Choose standard and custom Rewrite recipes
-                        2. Batch Execution: Run transformation across the whole codebase
-                        3. Diff Review: Manual inspection of critical logic changes
-                        4. Final Validation: Automated test suite verification
-                        """,
+        TRANSFORM("Transform", "Combined build and runtime transformation",
+                UiTextLoader.getWithNewlines("strategy.transform.benefits",
+                    "• Combine build-time and runtime transformation approaches\n• Use OpenRewrite for automated code changes\n• Deploy runtime adapters for edge cases"),
+                UiTextLoader.getWithNewlines("strategy.transform.risks",
+                    "• Most complex implementation\n• Requires both build and runtime configuration\n• Higher resource overhead"),
                 new Color(23, 162, 184)), // Blue
 
-        ADAPTER("Adapter", "Runtime compatibility layer",
-                """
-                        • Use adapter pattern for runtime compatibility
-                        • No code changes required
-                        • Quick to implement
-                        • Good for legacy systems
-                        """,
-                """
-                        • Performance overhead at runtime
-                        • Limited to supported patterns
-                        • Not a permanent solution
-                        • May have edge case issues
-                        """,
-                """
-                        1. Adapter Config: Setup runtime bytecode instrumentation
-                        2. Runtime Proxy: Intercept javax calls and redirect to jakarta
-                        3. Legacy Support: Link old libraries to new EE runtime
-                        4. Monitor: Aggressive monitoring of performance/errors
-                        """,
-                new Color(40, 167, 69)); // Green
+        MICROSERVICES("Microservices", "Migrate each service independently",
+                UiTextLoader.getWithNewlines("strategy.microservices.benefits",
+                    "• Migrate microservices one at a time\n• Each service can use different strategy\n• Independent deployment and testing"),
+                UiTextLoader.getWithNewlines("strategy.microservices.risks",
+                    "• Requires coordination across services\n• Inter-service dependencies must be handled\n• May need service mesh updates"),
+                new Color(108, 117, 125)), // Gray
+
+        ADAPTER("Adapter Pattern", "Use adapter classes for javax/jakarta compatibility",
+                UiTextLoader.getWithNewlines("strategy.adapter.benefits",
+                    "• Maintain backward compatibility during migration\n• Gradual replacement of javax with jakarta\n• Lower risk changes\n• Easy to rollback individual adapters"),
+                UiTextLoader.getWithNewlines("strategy.adapter.risks",
+                    "• Additional code maintenance\n• Runtime overhead for adapter layer\n• More complex classpath management"),
+                new Color(111, 66, 193)); // Purple
 
         private final String displayName;
         private final String description;

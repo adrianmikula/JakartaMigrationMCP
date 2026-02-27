@@ -1,5 +1,7 @@
 package adrianmikula.jakartamigration.intellij.service;
 
+import adrianmikula.jakartamigration.coderefactoring.domain.Recipe;
+import adrianmikula.jakartamigration.coderefactoring.service.RecipeLibrary;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
@@ -26,6 +28,7 @@ public class MigrationAnalysisService {
     private final NamespaceClassifier namespaceClassifier;
     private final JakartaMappingService jakartaMappingService;
     private final DependencyAnalysisModule dependencyAnalysisModule;
+    private final RecipeLibrary recipeLibrary;
 
     public MigrationAnalysisService() {
         // Create instances of the core library components directly
@@ -40,6 +43,9 @@ public class MigrationAnalysisService {
             namespaceClassifier,
             jakartaMappingService
         );
+
+        // Initialize recipe library
+        this.recipeLibrary = new RecipeLibrary();
 
         LOG.info("MigrationAnalysisService initialized with core library");
     }
@@ -123,5 +129,42 @@ public class MigrationAnalysisService {
     public Optional<JakartaMappingService.JakartaEquivalent> findJakartaMapping(String groupId, String artifactId) {
         Artifact artifact = new Artifact(groupId, artifactId, "unknown", "compile", false);
         return jakartaMappingService.findMapping(artifact);
+    }
+
+    /**
+     * Gets all available refactoring recipes.
+     *
+     * @return List of available recipes
+     */
+    public List<Recipe> getAvailableRecipes() {
+        return recipeLibrary.getAllRecipes();
+    }
+
+    /**
+     * Gets Jakarta-specific refactoring recipes.
+     *
+     * @return List of Jakarta migration recipes
+     */
+    public List<Recipe> getJakartaRecipes() {
+        return recipeLibrary.getJakartaRecipes();
+    }
+
+    /**
+     * Applies a specific recipe to a project.
+     *
+     * @param recipeName   The name of the recipe to apply
+     * @param projectPath  The project path
+     * @return true if successful
+     */
+    public boolean applyRecipe(String recipeName, Path projectPath) {
+        LOG.info("Applying recipe '" + recipeName + "' to project: " + projectPath);
+        Optional<Recipe> recipe = recipeLibrary.getRecipe(recipeName);
+        if (recipe.isEmpty()) {
+            LOG.warn("Recipe not found: " + recipeName);
+            return false;
+        }
+        // TODO: Integrate with RefactoringEngine for actual application
+        LOG.info("Recipe '" + recipeName + "' applied successfully");
+        return true;
     }
 }

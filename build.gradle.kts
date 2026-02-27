@@ -1,3 +1,6 @@
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
 plugins {
     java
     id("org.springframework.boot") version "3.2.0" apply false
@@ -5,9 +8,16 @@ plugins {
     id("org.jetbrains.intellij") version "1.17.2" apply false
 }
 
+// Generate automatic version based on timestamp for all builds (dev and release)
+// This ensures IntelliJ always reloads the plugin with a fresh version
+val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+val autoVersion = "1.0.1.$timestamp"
+
 allprojects {
     group = "adrianmikula"
-    version = project.findProperty("version") ?: "1.0.0"
+    version = autoVersion
+    
+    println(">>> Project: $name, Version: $version")
 
     repositories {
         mavenCentral()

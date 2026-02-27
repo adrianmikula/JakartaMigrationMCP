@@ -1,39 +1,22 @@
 plugins {
     `java-library`
+    id("io.freefair.lombok") version "8.1.0"
 }
 
 dependencies {
-    // Community Core Engine (Apache 2.0) - base functionality
+    // Community Core Engine - local project dependency (Apache 2.0)
+    // Contains base domain models and interfaces needed by premium features
     implementation(project(":community-core-engine"))
 
     // External dependencies
     implementation("org.slf4j:slf4j-api:2.0.9")
-    implementation("org.ow2.asm:asm:9.6")
-    implementation("org.ow2.asm:asm-commons:9.6")
-    
-    // OpenRewrite for advanced source code scanning
-    implementation("org.openrewrite:rewrite-java:8.10.0")
-    implementation("org.openrewrite:rewrite-xml:8.10.0")
-    
-    // Lombok for logging
-    compileOnly("org.projectlombok:lombok:1.18.30")
-    annotationProcessor("org.projectlombok:lombok:1.18.30")
-
-    // Test dependencies
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
-    testImplementation("org.assertj:assertj-core:3.24.2")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    
-    // Lombok for tests
-    testCompileOnly("org.projectlombok:lombok:1.18.30")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.30")
-}
-
-tasks.test {
-    useJUnitPlatform()
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
+    implementation("org.ow2.asm:asm:9.6") // For bytecode analysis
+    implementation("com.google.guava:guava:32.1.3-jre") // Common utilities
 }
 
 // NOTE: This module is PROPRIETARY and not covered by Apache License 2.0
+// Contains premium features: refactoring, runtime verification, etc.
 
 java {
     toolchain {
