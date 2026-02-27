@@ -74,6 +74,7 @@ When I try manually setting the build number to 253.* online, I get the error
 
 10. Display the overall risk score on the dashboard UI, and give it a risk category (Again controlled by the yaml configuration, no hardocidng value).  The risk categories can range from 'trivial', to 'low', 'medium',  'high' and 'extreme'
 
+11. Review all existing scans for accuracy. Do they accurately detect real javax.* to jakarta.* incompatibilities?  Do any of them detect something irrelevant, or give false positives/false negatives?  Do any of them incorrectly flag uses of the packages in the "javax" namespace which were not given to the eclipse foundation and therefore don't need to be changed at all?
 
 -------------------
 
@@ -99,3 +100,12 @@ When I try manually setting the build number to 253.* online, I get the error
 9. Add a Platforms tab, which shows major J2EE/appserver frameworks/platforms (e.g Spring, Spring Boot, Wildlfy, Tomcat etc) and indicates your current version, and which versions support jakarta, along with other requirements for the upgrade (e.g. minimum Java version). Avoid hardcoding version numbers and platform names - instead, create a YAML file which controls the info in this tab. The platform logic should go in the premium-core module.
 
 10. Add a new premium UI tab for the MCP Server, with a description of the tools available, and the MCP Server status.  Remove the MCP status indicator from the Dashboard tab.
+
+----------------------
+
+# public MCP tool
+
+1. Create an npm package which can install our community MCP server
+
+2. create a private npm package which installs our premium MCP server locally - not published.
+

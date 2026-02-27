@@ -26,6 +26,7 @@ public class MigrationPhasesComponent {
     private MigrationStrategy selectedStrategy;
     private List<DependencyInfo> dependencies;
     private final List<PhaseListener> phaseListeners = new ArrayList<>();
+    private final Map<String, SubtaskTableComponent> phaseSubtaskTables = new HashMap<>();
 
     // Phase definitions - loaded dynamically from property files
     private static final Map<MigrationStrategy, PhaseDefinition[]> PHASE_DEFINITIONS = loadPhaseDefinitions();
@@ -231,6 +232,18 @@ public class MigrationPhasesComponent {
 
     public MigrationStrategy getSelectedStrategy() {
         return selectedStrategy;
+    }
+
+    public JTabbedPane getPhaseTabs() {
+        return phaseTabs;
+    }
+
+    public MigrationStrategyComponent getStrategyComponent() {
+        return strategyComponent;
+    }
+
+    public Map<String, SubtaskTableComponent> getPhaseSubtaskTables() {
+        return phaseSubtaskTables;
     }
 
     public JPanel getPanel() {

@@ -14,6 +14,7 @@ import java.util.List;
  */
 @Getter
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE)
+@AllArgsConstructor
 public class SerializationCacheScanResult {
     private final String filePath;
     private final List<SerializationCacheUsage> usages;

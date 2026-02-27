@@ -66,6 +66,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private DependenciesTableComponent dependenciesComponent;
         private DependencyGraphComponent dependencyGraphComponent;
         private MigrationPhasesComponent migrationPhasesComponent;
+        private AdvancedScansComponent advancedScansComponent;
+        private SupportComponent supportComponent;
         private RefactorTabComponent refactorTabComponent;
         private RuntimeTabComponent runtimeTabComponent;
         private JTabbedPane tabbedPane;
@@ -134,6 +136,19 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Migration Strategy tab - strategy cards with benefits/risks and migration steps
             migrationPhasesComponent = new MigrationPhasesComponent(project);
             tabbedPane.addTab("Migration Strategy", migrationPhasesComponent.getPanel());
+
+            // Advanced Scans tab (Premium) - JPA, Bean Validation, Servlet/JSP
+            advancedScansComponent = new AdvancedScansComponent(project, advancedScanningService);
+            advancedScansComponent.addScanCompletionListener(() -> {
+                if (dashboardComponent != null) {
+                    dashboardComponent.updateAdvancedScanCounts();
+                }
+            });
+            tabbedPane.addTab("Advanced Scans ⭐", advancedScansComponent.getPanel());
+
+            // Support tab - links to GitHub, LinkedIn, sponsor pages
+            supportComponent = new SupportComponent(project);
+            tabbedPane.addTab("Support", supportComponent.getPanel());
 
             // Premium tabs - only available for premium users
             LOG.info("initializeContent: Creating tabs, isPremium=" + isPremium);

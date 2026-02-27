@@ -29,5 +29,12 @@ Lets complete the following tasks in order using SDD and TDD principles (as docu
 9. The refactor tab never shows any files changed. The 'refactoring results' box always shows 'No execution history found for this recipe' after a recipe has run. Check that the file changes and refactor status are being detected and displayed correctly in the UI.
 
 
+10. We've regressed with the Runtime UI tab - it should be hidden. did i resolve the merge conflicts incorrectly recently when i merged in the 'add-refactor-runtime-tabs' (git hash 952137a7ae50b4cb9341615af4d8812d243c12b9)
+
+11. We've regressed with the strategy tab - we used to have 6 strategies. did i resolve the merge conflicts incorrectly recently when i merged in the 'add-refactor-runtime-tabs' (git hash 952137a7ae50b4cb9341615af4d8812d243c12b9)
+
+12. We've regressed with the refactor tab - we used to show the full recipe description, along with ...  did i resolve the merge conflicts incorrectly recently when i merged in the 'add-refactor-runtime-tabs' (git hash 952137a7ae50b4cb9341615af4d8812d243c12b9).
+
+
 
 After completing the task list, ensure all new features have test coverage, all tests pass, and the plugin changelog (and feature list if new features were added) has been updated to mention the recent changes. fix all compile errors, even unrelated ones.

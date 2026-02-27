@@ -1,12 +1,17 @@
 package adrianmikula.jakartamigration.advancedscanning.domain;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 
 @Getter
+@NoArgsConstructor(force = true, access = AccessLevel.PRIVATE)
+@AllArgsConstructor
 public class ConfigFileScanResult {
     private final Path filePath;
     private final List<ConfigFileUsage> usages;

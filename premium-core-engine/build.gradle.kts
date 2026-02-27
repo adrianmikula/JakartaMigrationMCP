@@ -13,6 +13,11 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     implementation("org.ow2.asm:asm:9.6") // For bytecode analysis
     implementation("com.google.guava:guava:32.1.3-jre") // Common utilities
+
+    // Test dependencies
+    testImplementation(platform("org.junit:junit-bom:5.10.1"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.assertj:assertj-core:3.24.2")
 }
 
 // NOTE: This module is PROPRIETARY and not covered by Apache License 2.0
