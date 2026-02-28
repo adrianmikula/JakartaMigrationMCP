@@ -61,4 +61,19 @@ public class DependencyGraph {
     public int edgeCount() {
         return edges.size();
     }
+
+    public String getJakartaCompatibilityColor(Artifact artifact) {
+        if (artifact.isJakartaCompatible()) {
+            return "green";
+        } else if (hasJakartaVersion(artifact)) {
+            return "yellow";
+        } else {
+            return "red";
+        }
+    }
+
+    private boolean hasJakartaVersion(Artifact artifact) {
+        // This would be implemented to check if the artifact has a jakarta version available
+        return artifact.groupId().startsWith("javax.");
+    }
 }

@@ -44,6 +44,9 @@ public class RuntimeTabComponent {
         this.statusLabel = createStatusLabel();
         // Now create the panel that uses these components
         this.panel = createPanel();
+        
+        // Hide RuntimeTabComponent by default
+        this.panel.setVisible(false);
     }
     
     private JPanel createPanel() {

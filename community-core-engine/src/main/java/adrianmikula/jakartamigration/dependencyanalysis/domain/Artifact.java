@@ -33,6 +33,19 @@ public record Artifact(
     }
 
     /**
+     * Checks if this artifact is Jakarta EE compatible based on its groupId.
+     * Returns true if the artifact is already using Jakarta namespace.
+     */
+    public boolean isJakartaCompatible() {
+        return groupId != null && (
+            groupId.startsWith("jakarta.") ||
+            groupId.startsWith("jakartaee.") ||
+            groupId.equals("jakarta.xml.bind") ||
+            groupId.equals("jakarta.annotation")
+        );
+    }
+
+    /**
      * Creates an Artifact from a Maven coordinate string
      * (groupId:artifactId:version).
      *

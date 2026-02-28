@@ -1,7 +1,6 @@
 package adrianmikula.jakartamigration.advancedscanning.domain;
 
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -11,7 +10,6 @@ import java.util.List;
 
 @Getter
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE)
-@AllArgsConstructor
 public class ClassloaderModuleScanResult {
     private final Path filePath;
     private final List<ClassloaderModuleUsage> usages;

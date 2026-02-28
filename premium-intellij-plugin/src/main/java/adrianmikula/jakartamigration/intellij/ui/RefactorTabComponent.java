@@ -29,6 +29,8 @@ public class RefactorTabComponent {
     private final JPanel panel;
     private final RecipeTableModel tableModel;
     private final JTable table;
+    private final JTextArea resultsArea;
+    private Recipe selectedRecipe;
     
     public RefactorTabComponent(Project project) {
         LOG.info("RefactorTabComponent: Constructor called for project: " + project.getName());
@@ -38,11 +40,21 @@ public class RefactorTabComponent {
         // Create table model and table BEFORE creating the panel (so scroll pane has a valid table)
         this.tableModel = new RecipeTableModel();
         this.table = createTable();
+        this.resultsArea = createResultsArea();
         LOG.info("RefactorTabComponent: Table created");
         this.panel = createPanel();
         LOG.info("RefactorTabComponent: About to load recipes...");
         loadRecipes();
         LOG.info("RefactorTabComponent: Constructor complete");
+    }
+    
+    private JTextArea createResultsArea() {
+        JTextArea area = new JTextArea(10, 50);
+        area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        area.setEditable(false);
+        area.setText("No execution history found for this recipe.\n\nSelect a recipe and click Apply to see results here.");
+        area.setBackground(new Color(245, 245, 245));
+        return area;
     }
     
     private JPanel createPanel() {
@@ -77,14 +89,25 @@ public class RefactorTabComponent {
         JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         infoPanel.add(infoLabel);
         
-        // Add components
+// Add components
         JPanel topPanel = new JPanel();
         topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
         topPanel.add(titlePanel);
         topPanel.add(descPanel);
         
+        // Results panel
+        JPanel resultsPanel = new JPanel(new BorderLayout());
+        resultsPanel.setBorder(BorderFactory.createTitledBorder("Refactoring Results"));
+        resultsPanel.add(new JScrollPane(resultsArea), BorderLayout.CENTER);
+        
+        // Split pane for table and results
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        splitPane.setTopComponent(tableScrollPane);
+        splitPane.setBottomComponent(resultsPanel);
+        splitPane.setDividerLocation(300);
+        
         mainPanel.add(topPanel, BorderLayout.NORTH);
-        mainPanel.add(tableScrollPane, BorderLayout.CENTER);
+        mainPanel.add(splitPane, BorderLayout.CENTER);
         
         JPanel bottomPanel = new JPanel();
         bottomPanel.setLayout(new BoxLayout(bottomPanel, BoxLayout.Y_AXIS));
@@ -128,9 +151,11 @@ public class RefactorTabComponent {
         Messages.showInfoMessage(project, "Recipes refreshed.", "Refresh Complete");
     }
     
-    private void handleApplyRecipe(int row) {
+private void handleApplyRecipe(int row) {
         Recipe recipe = tableModel.getRecipeAt(row);
         if (recipe == null) return;
+        
+        this.selectedRecipe = recipe;
         
         String message = String.format("Apply recipe '%s'?\n\n%s\n\nThis will modify source files in your project.", 
             recipe.name(), recipe.description());
@@ -150,10 +175,36 @@ public class RefactorTabComponent {
             boolean success = analysisService.applyRecipe(recipe.name(), projectPath);
             
             if (success) {
+                // Update results area with recipe details
+                StringBuilder sb = new StringBuilder();
+                sb.append("═══════════════════════════════════════════════════════════\n");
+                sb.append("REFACTORING RESULTS\n");
+                sb.append("═══════════════════════════════════════════════════════════\n\n");
+                sb.append("Recipe: ").append(recipe.name()).append("\n");
+                sb.append("Description: ").append(recipe.description()).append("\n");
+                sb.append("Safety Level: ").append(recipe.safety()).append("\n\n");
+                sb.append("Status: SUCCESS\n\n");
+                sb.append("Files have been modified. Please review the changes.\n");
+                sb.append("═══════════════════════════════════════════════════════════\n");
+                resultsArea.setText(sb.toString());
+                
                 Messages.showInfoMessage(project, 
                     "Recipe '" + recipe.name() + "' applied successfully!\n\nFiles have been modified.", 
                     "Refactor Complete");
             } else {
+                // Update results area with error
+                StringBuilder sb = new StringBuilder();
+                sb.append("═══════════════════════════════════════════════════════════\n");
+                sb.append("REFACTORING RESULTS\n");
+                sb.append("═══════════════════════════════════════════════════════════\n\n");
+                sb.append("Recipe: ").append(recipe.name()).append("\n");
+                sb.append("Description: ").append(recipe.description()).append("\n");
+                sb.append("Safety Level: ").append(recipe.safety()).append("\n\n");
+                sb.append("Status: FAILED\n\n");
+                sb.append("Failed to apply recipe. Please check the logs for details.\n");
+                sb.append("═══════════════════════════════════════════════════════════\n");
+                resultsArea.setText(sb.toString());
+                
                 Messages.showErrorDialog(project, 
                     "Failed to apply recipe '" + recipe.name() + "'.\n\nPlease check the logs for details.", 
                     "Refactor Failed");

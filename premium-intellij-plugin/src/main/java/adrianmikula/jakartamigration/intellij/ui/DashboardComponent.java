@@ -68,8 +68,12 @@ public class DashboardComponent {
     private JBLabel thirdPartyLibScanCountValue;
     private JBLabel totalAdvancedScanCountValue;
 
-    // Status indicator panel
+// Status indicator panel
     private JPanel statusPanel;
+    
+    // Progress bar for advanced scans
+    private JProgressBar advancedScanProgressBar;
+    private JLabel advancedScanProgressLabel;
 
     public DashboardComponent(@NotNull Project project, AdvancedScanningService advancedScanningService,
             Consumer<ActionEvent> onAnalyze) {
@@ -149,6 +153,21 @@ SwingUtilities.invokeLater(() -> {
             updateScanCountWithColor(serializationCacheScanCountValue, summary.getSerializationCacheCount());
             updateScanCountWithColor(thirdPartyLibScanCountValue, summary.getThirdPartyLibCount());
             updateScanCountWithColor(totalAdvancedScanCountValue, summary.getTotalIssuesFound());
+        });
+    }
+    
+    /**
+     * Updates the progress bar for advanced scans.
+     * @param completed Number of scans completed
+     * @param total Total number of scans
+     */
+    public void updateAdvancedScanProgress(int completed, int total) {
+        SwingUtilities.invokeLater(() -> {
+            if (advancedScanProgressBar != null && total > 0) {
+                int percentage = (completed * 100) / total;
+                advancedScanProgressBar.setValue(percentage);
+                advancedScanProgressBar.setString(completed + " / " + total + " scans");
+            }
         });
     }
 
@@ -494,7 +513,7 @@ gbc.gridx = 2;
         serializationCacheScanCountValue = createValueLabel("0");
         tablePanel.add(serializationCacheScanCountValue, gbc);
 
-        // Row 11: Third-Party Libs (spans width), Total Advanced Issues
+// Row 11: Third-Party Libs (spans width), Total Advanced Issues
         gbc.gridx = 0;
         gbc.gridy = 11;
         gbc.gridwidth = 2;
@@ -503,9 +522,31 @@ gbc.gridx = 2;
         thirdPartyLibScanCountValue = createValueLabel("0");
         tablePanel.add(thirdPartyLibScanCountValue, gbc);
 
-        // Row 12 - Status indicator spans full width
+        // Row 12 - Advanced Scan Progress Bar (spans full width)
         gbc.gridx = 0;
         gbc.gridy = 12;
+        gbc.gridwidth = 4;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(12, 8, 4, 8);
+        
+        JPanel progressPanel = new JBPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        progressPanel.setOpaque(false);
+        
+        advancedScanProgressLabel = new JBLabel("Advanced Scans:");
+        advancedScanProgressLabel.setFont(advancedScanProgressLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        progressPanel.add(advancedScanProgressLabel);
+        
+        advancedScanProgressBar = new JProgressBar(0, 100);
+        advancedScanProgressBar.setStringPainted(true);
+        advancedScanProgressBar.setValue(0);
+        advancedScanProgressBar.setPreferredSize(new Dimension(200, 20));
+        progressPanel.add(advancedScanProgressBar);
+        
+        tablePanel.add(progressPanel, gbc);
+
+        // Row 13 - Status indicator spans full width
+        gbc.gridx = 0;
+        gbc.gridy = 13;
         gbc.gridwidth = 4;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(12, 8, 4, 8);
@@ -516,8 +557,8 @@ gbc.gridx = 2;
         statusPanel.add(new JBLabel("Jakarta Status Indicator"));
         tablePanel.add(statusPanel, gbc);
 
-        // Row 13 - Last Analyzed spans full width
-        gbc.gridy = 13;
+        // Row 14 - Last Analyzed spans full width
+        gbc.gridy = 14;
         gbc.insets = new Insets(4, 8, 4, 8);
         JPanel lastAnalyzedPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 10, 0));
         lastAnalyzedPanel.add(new JBLabel("Last Analyzed:"));

@@ -70,7 +70,15 @@ public class MigrationStrategyComponent {
                 UiTextLoader.getWithNewlines("strategy.adapter.risks",
                     "• Additional code maintenance\n• Runtime overhead for adapter layer\n• More complex classpath management"),
                 "Phase 1: Create adapters\nPhase 2: Add adapter dependencies\nPhase 3: Replace javax with adapters",
-                new Color(111, 66, 193)); // Purple
+                new Color(111, 66, 193)), // Purple
+
+        STRANGLER("Strangler", "Migrate module by module",
+                UiTextLoader.getWithNewlines("strategy.strangler.benefits",
+                    "• Migrate one functional module or service at a time\n• New features built in Jakarta EE\n• Existing features gradually migrated\n• Good for monolithic applications"),
+                UiTextLoader.getWithNewlines("strategy.strangler.risks",
+                    "• Requires inter-module compatibility layers\n• Can create duplicate logic during transition\n• Managing two different EE environments simultaneously"),
+                "Phase 1: Interface Definition - Define boundaries between modules\nPhase 2: Bridge Setup - Create compatibility layer for cross-module calls\nPhase 3: Vertical Slices - Migrate one full functional slice at a time\nPhase 4: Decommission - Remove legacy modules once fully replaced",
+                new Color(23, 162, 184)); // Teal
 
         private final String displayName;
         private final String description;
@@ -130,7 +138,7 @@ public class MigrationStrategyComponent {
         titlePanel.add(titleLabel);
 
         // Strategy cards panel
-        JPanel cardsPanel = new JPanel(new GridLayout(2, 3, 10, 10));
+        JPanel cardsPanel = new JPanel(new GridLayout(2, 3, 10, 10)); // Strategy boxes now 70px height (reduced from 90px)
         cardsPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         for (MigrationStrategy strategy : MigrationStrategy.values()) {
@@ -198,7 +206,7 @@ public class MigrationStrategyComponent {
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.GRAY, 1),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)));
-        card.setPreferredSize(new Dimension(150, 90));
+        card.setPreferredSize(new Dimension(150, 70));
 
         // Header with color indicator
         JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
