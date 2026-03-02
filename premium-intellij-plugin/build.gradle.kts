@@ -60,9 +60,9 @@ dependencies {
 }
 
 intellij {
-    version.set("2023.3.4")
-    type.set("IC")
-    plugins.set(listOf("com.intellij.java"))
+    version = "2023.3.4"
+    type = "IC"
+    plugins = listOf("com.intellij.java")
 }
 
     tasks {

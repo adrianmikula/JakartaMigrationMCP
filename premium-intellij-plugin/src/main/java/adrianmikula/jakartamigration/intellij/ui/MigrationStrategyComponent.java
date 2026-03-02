@@ -37,7 +37,7 @@ public class MigrationStrategyComponent {
                     "• Migrate all javax dependencies to Jakarta EE at once\n• Single comprehensive change\n• Best for small, self-contained projects"),
                 UiTextLoader.getWithNewlines("strategy.big_bang.risks",
                     "• Higher risk - issues affect entire codebase\n• Longer rollback time if problems occur\n• Requires comprehensive test suite"),
-                "Phase 1: Migrate dependencies\nPhase 2: Update code\nPhase 3: Test",
+                "1. Dependency Upgrade: Update all pom.xml/build.gradle files\n2. Code Refactor: Replace all javax.* imports with jakarta.*\n3. XML/Config Update: Update persistence.xml, web.xml, etc.\n4. Global Testing: Comprehensive unit and integration testing",
                 new Color(220, 53, 69)), // Red
 
         INCREMENTAL("Incremental", "One dependency at a time",
@@ -45,7 +45,7 @@ public class MigrationStrategyComponent {
                     "• Migrate dependencies incrementally\n• Update one dependency, test, then proceed\n• Lower risk per change\n• Best for large, complex projects"),
                 UiTextLoader.getWithNewlines("strategy.incremental.risks",
                     "• Longer overall migration timeline\n• Must maintain compatibility during transition\n• May require temporary dual dependencies"),
-                "Phase 1: Identify dependencies\nPhase 2: Prioritize\nPhase 3: Migrate one by one\nPhase 4: Test each",
+                "1. Dependency Scan: Identify all javax dependencies\n2. Priority Ranking: Order by risk and dependency level\n3. Step-by-Step Upgrade: One artifact at a time\n4. Continuous Integration: Test after every single change",
                 new Color(255, 193, 7)), // Yellow
 
         TRANSFORM("Transform", "Combined build and runtime transformation",
@@ -53,7 +53,7 @@ public class MigrationStrategyComponent {
                     "• Combine build-time and runtime transformation approaches\n• Use OpenRewrite for automated code changes\n• Deploy runtime adapters for edge cases"),
                 UiTextLoader.getWithNewlines("strategy.transform.risks",
                     "• Most complex implementation\n• Requires both build and runtime configuration\n• Higher resource overhead"),
-                "Phase 1: Setup transformation\nPhase 2: Run OpenRewrite\nPhase 3: Deploy adapters",
+                "1. Recipe Selection: Choose standard and custom Rewrite recipes\n2. Batch Execution: Run transformation across the whole codebase\n3. Diff Review: Manual inspection of critical logic changes\n4. Final Validation: Automated test suite verification",
                 new Color(23, 162, 184)), // Blue
 
         MICROSERVICES("Microservices", "Migrate each service independently",
@@ -61,7 +61,7 @@ public class MigrationStrategyComponent {
                     "• Migrate microservices one at a time\n• Each service can use different strategy\n• Independent deployment and testing"),
                 UiTextLoader.getWithNewlines("strategy.microservices.risks",
                     "• Requires coordination across services\n• Inter-service dependencies must be handled\n• May need service mesh updates"),
-                "Phase 1: Identify services\nPhase 2: Migrate service by service\nPhase 3: Update dependencies",
+                "1. Service Inventory: Map all microservices and dependencies\n2. Dependency Analysis: Identify shared libraries and APIs\n3. Migration Planning: Order services by dependency complexity\n4. Incremental Rollout: Deploy migrated services alongside legacy",
                 new Color(108, 117, 125)), // Gray
 
         ADAPTER("Adapter Pattern", "Use adapter classes for javax/jakarta compatibility",
@@ -69,7 +69,7 @@ public class MigrationStrategyComponent {
                     "• Maintain backward compatibility during migration\n• Gradual replacement of javax with jakarta\n• Lower risk changes\n• Easy to rollback individual adapters"),
                 UiTextLoader.getWithNewlines("strategy.adapter.risks",
                     "• Additional code maintenance\n• Runtime overhead for adapter layer\n• More complex classpath management"),
-                "Phase 1: Create adapters\nPhase 2: Add adapter dependencies\nPhase 3: Replace javax with adapters",
+                "1. Adapter Config: Setup runtime bytecode instrumentation\n2. Runtime Proxy: Intercept javax calls and redirect to jakarta\n3. Legacy Support: Link old libraries to new EE runtime\n4. Monitor: Aggressive monitoring of performance/errors",
                 new Color(111, 66, 193)), // Purple
 
         STRANGLER("Strangler", "Migrate module by module",
@@ -77,8 +77,8 @@ public class MigrationStrategyComponent {
                     "• Migrate one functional module or service at a time\n• New features built in Jakarta EE\n• Existing features gradually migrated\n• Good for monolithic applications"),
                 UiTextLoader.getWithNewlines("strategy.strangler.risks",
                     "• Requires inter-module compatibility layers\n• Can create duplicate logic during transition\n• Managing two different EE environments simultaneously"),
-                "Phase 1: Interface Definition - Define boundaries between modules\nPhase 2: Bridge Setup - Create compatibility layer for cross-module calls\nPhase 3: Vertical Slices - Migrate one full functional slice at a time\nPhase 4: Decommission - Remove legacy modules once fully replaced",
-                new Color(23, 162, 184)); // Teal
+                "1. Interface Definition: Define boundaries between modules\n2. Bridge Setup: Create compatibility layer for cross-module calls\n3. Vertical Slices: Migrate one full functional slice at a time\n4. Decommission: Remove legacy modules once fully replaced",
+                new Color(40, 167, 69)); // Teal
 
         private final String displayName;
         private final String description;
@@ -137,8 +137,8 @@ public class MigrationStrategyComponent {
         JPanel titlePanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT));
         titlePanel.add(titleLabel);
 
-        // Strategy cards panel
-        JPanel cardsPanel = new JPanel(new GridLayout(2, 3, 10, 10)); // Strategy boxes now 70px height (reduced from 90px)
+        // Strategy cards panel - 2 rows, 3 cards per row
+        JPanel cardsPanel = new JPanel(new GridLayout(2, 3, 10, 10));
         cardsPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         for (MigrationStrategy strategy : MigrationStrategy.values()) {
@@ -149,7 +149,7 @@ public class MigrationStrategyComponent {
         // Info panel for selected strategy
         JPanel infoPanel = new JPanel(new GridLayout(1, 3, 10, 0));
         infoPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        infoPanel.setPreferredSize(new Dimension(0, 220));
+        infoPanel.setPreferredSize(new Dimension(0, 180));
 
         // Benefits section
         JPanel benefitsPanel = new JPanel(new BorderLayout());
@@ -206,7 +206,7 @@ public class MigrationStrategyComponent {
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.GRAY, 1),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)));
-        card.setPreferredSize(new Dimension(150, 70));
+        card.setPreferredSize(new Dimension(220, 110));
 
         // Header with color indicator
         JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));

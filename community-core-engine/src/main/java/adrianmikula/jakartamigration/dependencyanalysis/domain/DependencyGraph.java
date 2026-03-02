@@ -3,12 +3,14 @@ package adrianmikula.jakartamigration.dependencyanalysis.domain;
 import java.util.HashSet;
 import java.util.Set;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Represents a dependency graph with nodes (artifacts) and edges
  * (dependencies).
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class DependencyGraph {
     private final Set<Artifact> nodes;
     private final Set<Dependency> edges;

@@ -1193,7 +1193,7 @@ public class AdvancedScansComponent {
         if (projectPathStr == null) {
             projectPathStr = project.getProjectFilePath();
         }
-        if (projectPathStr != null) {
+if (projectPathStr != null) {
             Path projectPath = Path.of(projectPathStr);
             String stateJson = store.getPluginState(projectPath, "advancedScansSummary");
             if (stateJson != null && !stateJson.isEmpty()) {
@@ -1204,7 +1204,7 @@ public class AdvancedScansComponent {
                         displayResults(summary);
                     }
                 } catch (Exception e) {
-                    LOG.error("Failed to load initial state for AdvancedScansComponent", e);
+                    LOG.warn("Failed to load initial state for AdvancedScansComponent (may be due to schema changes): " + e.getMessage());
                 }
             }
         }

@@ -1,10 +1,12 @@
 package adrianmikula.jakartamigration.dependencyanalysis.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.Objects;
 
 /**
  * Represents a Maven/Gradle artifact with coordinates and metadata.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record Artifact(
         String groupId,
         String artifactId,

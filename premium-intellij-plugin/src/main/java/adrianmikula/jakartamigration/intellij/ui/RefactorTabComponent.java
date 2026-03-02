@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.coderefactoring.domain.Recipe;
 import adrianmikula.jakartamigration.coderefactoring.domain.SafetyLevel;
+import adrianmikula.jakartamigration.coderefactoring.domain.RollbackResult;
 import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -13,9 +14,13 @@ import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -30,13 +35,24 @@ public class RefactorTabComponent {
     private final RecipeTableModel tableModel;
     private final JTable table;
     private final JTextArea resultsArea;
+    private final JButton undoButton;
     private Recipe selectedRecipe;
+    
+    // Track undo info per recipe (for future history tab)
+    private final Map<String, List<String>> recipeToChangedFiles = new HashMap<>();
+    private String lastAppliedRecipeName;
+    private List<String> lastChangedFiles;
     
     public RefactorTabComponent(Project project) {
         LOG.info("RefactorTabComponent: Constructor called for project: " + project.getName());
         this.project = project;
         this.analysisService = new MigrationAnalysisService();
         LOG.info("RefactorTabComponent: MigrationAnalysisService created");
+        this.lastAppliedRecipeName = null;
+        this.lastChangedFiles = new ArrayList<>();
+        this.undoButton = new JButton("↩ Undo Last");
+        this.undoButton.setEnabled(false);
+        this.undoButton.addActionListener(this::handleUndo);
         // Create table model and table BEFORE creating the panel (so scroll pane has a valid table)
         this.tableModel = new RecipeTableModel();
         this.table = createTable();
@@ -81,6 +97,7 @@ public class RefactorTabComponent {
         JButton refreshButton = new JButton("↻ Refresh Recipes");
         refreshButton.addActionListener(this::handleRefresh);
         buttonPanel.add(refreshButton);
+        buttonPanel.add(undoButton);
         
         // Info label
         JLabel infoLabel = new JLabel("💡 Tip: Recipes with HIGH safety level are recommended for automated migration.");
@@ -124,15 +141,21 @@ public class RefactorTabComponent {
         table.getColumnModel().getColumn(0).setHeaderValue("Recipe Name");
         table.getColumnModel().getColumn(0).setPreferredWidth(150);
         table.getColumnModel().getColumn(1).setHeaderValue("Description");
-        table.getColumnModel().getColumn(1).setPreferredWidth(300);
+        table.getColumnModel().getColumn(1).setPreferredWidth(250);
         table.getColumnModel().getColumn(2).setHeaderValue("Safety");
         table.getColumnModel().getColumn(2).setPreferredWidth(80);
-        table.getColumnModel().getColumn(3).setHeaderValue("Action");
-        table.getColumnModel().getColumn(3).setPreferredWidth(100);
+        table.getColumnModel().getColumn(3).setHeaderValue("Apply");
+        table.getColumnModel().getColumn(3).setPreferredWidth(80);
+        table.getColumnModel().getColumn(4).setHeaderValue("Undo");
+        table.getColumnModel().getColumn(4).setPreferredWidth(80);
         
-        // Set up button column renderer
-        table.getColumnModel().getColumn(3).setCellRenderer(new ButtonRenderer());
-        table.getColumnModel().getColumn(3).setCellEditor(new ButtonEditor(new JCheckBox(), this::handleApplyRecipe));
+        // Set up Apply button column
+        table.getColumnModel().getColumn(3).setCellRenderer(new ButtonRenderer("Apply", true));
+        table.getColumnModel().getColumn(3).setCellEditor(new ButtonEditor(new JCheckBox(), this::handleApplyRecipe, true));
+        
+        // Set up Undo button column
+        table.getColumnModel().getColumn(4).setCellRenderer(new ButtonRenderer("Undo", false));
+        table.getColumnModel().getColumn(4).setCellEditor(new ButtonEditor(new JCheckBox(), this::handleRowUndo, false));
         
         return table;
     }
@@ -146,9 +169,126 @@ public class RefactorTabComponent {
         tableModel.setRecipes(recipes);
     }
     
+    private boolean hasUndoForRecipe(String recipeName) {
+        List<String> files = recipeToChangedFiles.get(recipeName);
+        return files != null && !files.isEmpty();
+    }
+    
+    private void handleRowUndo(int row) {
+        Recipe recipe = tableModel.getRecipeAt(row);
+        if (recipe == null) return;
+        
+        List<String> changedFiles = recipeToChangedFiles.get(recipe.name());
+        if (changedFiles == null || changedFiles.isEmpty()) {
+            Messages.showWarningDialog(project, "No changes to undo for recipe '" + recipe.name() + "'.", "Undo");
+            return;
+        }
+        
+        String message = String.format("Undo recipe '%s'?\n\nThis will revert %d file(s) to their previous state.",
+            recipe.name(), changedFiles.size());
+        
+        int confirmResult = Messages.showYesNoDialog(project, message, "Confirm Undo", Messages.getQuestionIcon());
+        
+        if (confirmResult == Messages.YES) {
+            handleUndoForRecipe(recipe.name(), changedFiles);
+        }
+    }
+    
+    private void handleUndoForRecipe(String recipeName, List<String> filesToUndo) {
+        int undoneCount = 0;
+        StringBuilder sb = new StringBuilder();
+        
+        for (String filePath : filesToUndo) {
+            try {
+                Path path = Path.of(filePath);
+                if (Files.exists(path)) {
+                    Path backupPath = path.resolveSibling(path.getFileName() + ".bak");
+                    if (Files.exists(backupPath)) {
+                        Files.copy(backupPath, path, StandardCopyOption.REPLACE_EXISTING);
+                        Files.delete(backupPath);
+                        undoneCount++;
+                        sb.append("Reverted: ").append(filePath).append("\n");
+                    }
+                }
+            } catch (Exception e) {
+                sb.append("Failed to revert: ").append(filePath).append(" - ").append(e.getMessage()).append("\n");
+            }
+        }
+        
+        recipeToChangedFiles.remove(recipeName);
+        
+        if (recipeToChangedFiles.isEmpty()) {
+            undoButton.setEnabled(false);
+            lastAppliedRecipeName = null;
+            lastChangedFiles.clear();
+        }
+        
+        tableModel.fireTableDataChanged();
+        
+        sb.insert(0, "Undo completed for recipe '" + recipeName + "'.\n\nReverted " + undoneCount + " file(s).\n\n");
+        resultsArea.setText(sb.toString());
+        
+        Messages.showInfoMessage(project, sb.toString(), "Undo Complete");
+    }
+    
     private void handleRefresh(ActionEvent e) {
         loadRecipes();
         Messages.showInfoMessage(project, "Recipes refreshed.", "Refresh Complete");
+    }
+    
+    private void handleUndo(ActionEvent e) {
+        if (lastAppliedRecipeName == null || lastChangedFiles == null || lastChangedFiles.isEmpty()) {
+            Messages.showWarningDialog(project, "No changes to undo.", "Undo");
+            return;
+        }
+        
+        String message = String.format("Undo recipe '%s'?\n\nThis will revert %d file(s) to their previous state.",
+            lastAppliedRecipeName, lastChangedFiles.size());
+        
+        int confirmResult = Messages.showYesNoDialog(project, message, "Confirm Undo", Messages.getQuestionIcon());
+        
+        if (confirmResult == Messages.YES) {
+            int undoneCount = 0;
+            StringBuilder sb = new StringBuilder();
+            
+            for (String filePath : lastChangedFiles) {
+                try {
+                    Path path = Path.of(filePath);
+                    Path backupPath = Path.of(filePath + ".bak");
+                    
+                    if (Files.exists(backupPath)) {
+                        Files.copy(backupPath, path, StandardCopyOption.REPLACE_EXISTING);
+                        Files.delete(backupPath);
+                        undoneCount++;
+                        sb.append("Restored: ").append(filePath).append("\n");
+                    } else {
+                        sb.append("Warning: No backup found for: ").append(filePath).append("\n");
+                    }
+                } catch (Exception ex) {
+                    LOG.error("Failed to undo file: " + filePath, ex);
+                    sb.append("Error: ").append(filePath).append(" - ").append(ex.getMessage()).append("\n");
+                }
+            }
+            
+            // Clear the undo state
+            undoButton.setEnabled(false);
+            lastAppliedRecipeName = null;
+            lastChangedFiles.clear();
+            
+            // Update results area
+            StringBuilder results = new StringBuilder();
+            results.append("═══════════════════════════════════════════════════════════\n");
+            results.append("UNDO RESULTS\n");
+            results.append("═══════════════════════════════════════════════════════════\n\n");
+            results.append("Recipe: ").append(lastAppliedRecipeName != null ? lastAppliedRecipeName : "Unknown").append("\n");
+            results.append("Files Undone: ").append(undoneCount).append("\n\n");
+            results.append(sb);
+            results.append("\n═══════════════════════════════════════════════════════════\n");
+            resultsArea.setText(results.toString());
+            
+            Messages.showInfoMessage(project, 
+                "Undo complete. " + undoneCount + " file(s) restored.", "Undo Complete");
+        }
     }
     
 private void handleApplyRecipe(int row) {
@@ -160,9 +300,9 @@ private void handleApplyRecipe(int row) {
         String message = String.format("Apply recipe '%s'?\n\n%s\n\nThis will modify source files in your project.", 
             recipe.name(), recipe.description());
         
-        int result = Messages.showYesNoDialog(project, message, "Confirm Refactor", Messages.getQuestionIcon());
+        int dialogResult = Messages.showYesNoDialog(project, message, "Confirm Refactor", Messages.getQuestionIcon());
         
-        if (result == Messages.YES) {
+        if (dialogResult == Messages.YES) {
             // Get project base path
             Path projectPath = project.getBasePath() != null ? Path.of(project.getBasePath()) : null;
             
@@ -172,10 +312,23 @@ private void handleApplyRecipe(int row) {
             }
             
             // Apply the recipe via the analysis service
-            boolean success = analysisService.applyRecipe(recipe.name(), projectPath);
+            MigrationAnalysisService.RecipeApplicationResult result = analysisService.applyRecipe(recipe.name(), projectPath);
             
-            if (success) {
-                // Update results area with recipe details
+            if (result.success()) {
+                // Track the applied recipe for undo functionality
+                this.lastAppliedRecipeName = recipe.name();
+                this.lastChangedFiles = result.changedFilePaths() != null ? new ArrayList<>(result.changedFilePaths()) : new ArrayList<>();
+                this.undoButton.setEnabled(!this.lastChangedFiles.isEmpty());
+                
+                // Track per-recipe for undo buttons in table
+                if (result.changedFilePaths() != null && !result.changedFilePaths().isEmpty()) {
+                    recipeToChangedFiles.put(recipe.name(), new ArrayList<>(result.changedFilePaths()));
+                }
+                
+                // Refresh table to update undo button states
+                tableModel.fireTableDataChanged();
+                
+                // Update results area with recipe details and file changes
                 StringBuilder sb = new StringBuilder();
                 sb.append("═══════════════════════════════════════════════════════════\n");
                 sb.append("REFACTORING RESULTS\n");
@@ -184,12 +337,25 @@ private void handleApplyRecipe(int row) {
                 sb.append("Description: ").append(recipe.description()).append("\n");
                 sb.append("Safety Level: ").append(recipe.safety()).append("\n\n");
                 sb.append("Status: SUCCESS\n\n");
-                sb.append("Files have been modified. Please review the changes.\n");
+                sb.append("Files Processed: ").append(result.filesProcessed()).append("\n");
+                sb.append("Files Changed: ").append(result.filesChanged()).append("\n\n");
+                
+                if (result.filesChanged() > 0) {
+                    sb.append("Changed Files:\n");
+                    for (String filePath : result.changedFilePaths()) {
+                        sb.append("  - ").append(filePath).append("\n");
+                    }
+                    sb.append("\nUse the 'Undo Last' button to revert these changes.\n");
+                } else {
+                    sb.append("No files required changes.\n");
+                }
+                
+                sb.append("\nPlease review the changes.\n");
                 sb.append("═══════════════════════════════════════════════════════════\n");
                 resultsArea.setText(sb.toString());
                 
                 Messages.showInfoMessage(project, 
-                    "Recipe '" + recipe.name() + "' applied successfully!\n\nFiles have been modified.", 
+                    "Recipe '" + recipe.name() + "' applied successfully!\n\nFiles processed: " + result.filesProcessed() + "\nFiles changed: " + result.filesChanged(), 
                     "Refactor Complete");
             } else {
                 // Update results area with error
@@ -201,12 +367,12 @@ private void handleApplyRecipe(int row) {
                 sb.append("Description: ").append(recipe.description()).append("\n");
                 sb.append("Safety Level: ").append(recipe.safety()).append("\n\n");
                 sb.append("Status: FAILED\n\n");
-                sb.append("Failed to apply recipe. Please check the logs for details.\n");
+                sb.append("Error: ").append(result.errorMessage()).append("\n");
                 sb.append("═══════════════════════════════════════════════════════════\n");
                 resultsArea.setText(sb.toString());
                 
                 Messages.showErrorDialog(project, 
-                    "Failed to apply recipe '" + recipe.name() + "'.\n\nPlease check the logs for details.", 
+                    "Failed to apply recipe '" + recipe.name() + "'.\n\nError: " + result.errorMessage(), 
                     "Refactor Failed");
             }
         }
@@ -237,7 +403,7 @@ private void handleApplyRecipe(int row) {
         
         @Override
         public int getColumnCount() {
-            return 4;
+            return 5;
         }
         
         @Override
@@ -248,27 +414,42 @@ private void handleApplyRecipe(int row) {
                 case 1 -> recipe.description();
                 case 2 -> recipe.safety().toString();
                 case 3 -> "Apply";
+                case 4 -> "Undo";
                 default -> "";
             };
         }
         
         @Override
         public boolean isCellEditable(int row, int column) {
-            return column == 3; // Only button column is editable
+            return column >= 3; // Button columns are editable
         }
     }
     
-    // Button Renderer
-    private static class ButtonRenderer extends JButton implements TableCellRenderer {
-        public ButtonRenderer() {
+    // Button Renderer - now takes button text and enabled state
+    private class ButtonRenderer extends JButton implements TableCellRenderer {
+        private final String buttonText;
+        private final boolean checkUndoState;
+        
+        public ButtonRenderer(String text, boolean checkUndo) {
+            this.buttonText = text;
+            this.checkUndoState = checkUndo;
             setOpaque(true);
         }
         
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
                 boolean isSelected, boolean hasFocus, int row, int column) {
-            setText("Apply");
-            setEnabled(true);
+            setText(buttonText);
+            
+            // For undo column, check if there's undo state for this recipe
+            if (checkUndoState && buttonText.equals("Undo")) {
+                Recipe recipe = tableModel.getRecipeAt(row);
+                boolean hasUndo = recipe != null && hasUndoForRecipe(recipe.name());
+                setEnabled(hasUndo);
+            } else {
+                setEnabled(true);
+            }
+            
             return this;
         }
     }
@@ -277,31 +458,45 @@ private void handleApplyRecipe(int row) {
     private class ButtonEditor extends DefaultCellEditor {
         private final JButton button;
         private int selectedRow;
-        private final Consumer<Integer> applyCallback;
+        private final Consumer<Integer> callback;
+        private final String buttonText;
+        private final boolean isUndoColumn;
         
-        public ButtonEditor(JCheckBox checkBox, Consumer<Integer> onApply) {
+        public ButtonEditor(JCheckBox checkBox, Consumer<Integer> callback, boolean isUndo) {
             super(checkBox);
-            this.applyCallback = onApply;
-            button = new JButton("Apply");
+            this.callback = callback;
+            this.isUndoColumn = isUndo;
+            this.buttonText = isUndo ? "Undo" : "Apply";
+            button = new JButton(buttonText);
             button.setOpaque(true);
             button.addActionListener(e -> {
                 fireEditingStopped();
-                if (applyCallback != null) {
-                    applyCallback.accept(selectedRow);
+                if (callback != null) {
+                    callback.accept(selectedRow);
                 }
             });
         }
         
         @Override
         public Component getTableCellEditorComponent(JTable table, Object value,
-                boolean isSelected, int row, int column) {
-            selectedRow = row;
+                boolean isSelected, int row, int selectedRow) {
+            this.selectedRow = selectedRow;
+            
+            // For undo column, check if there's undo state for this recipe
+            if (isUndoColumn) {
+                Recipe recipe = tableModel.getRecipeAt(selectedRow);
+                boolean hasUndo = recipe != null && hasUndoForRecipe(recipe.name());
+                button.setEnabled(hasUndo);
+            } else {
+                button.setEnabled(true);
+            }
+            
             return button;
         }
         
         @Override
         public Object getCellEditorValue() {
-            return "Apply";
+            return buttonText;
         }
     }
 }

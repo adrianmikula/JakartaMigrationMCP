@@ -25,13 +25,26 @@ public class SupportComponent {
     private static final String LINKEDIN_URL = "https://linkedin.com/in/adrianmikula";
     private static final String PLUGIN_PAGE_URL = "https://plugins.jetbrains.com/plugin/25558-jakarta-migration";
     private static final String UPDATE_URL = "https://plugins.jetbrains.com/plugin/25558-jakarta-migration/versions";
+    private static final String MARKETPLACE_URL = "https://plugins.jetbrains.com/plugin/30093-jakarta-migration";
 
     private final JPanel panel;
     private final Project project;
-
-    public SupportComponent(Project project) {
+    private final boolean isPremium;
+    
+    private static boolean premiumActive = false;
+    
+    public SupportComponent(Project project, boolean isPremium) {
         this.project = project;
+        this.isPremium = isPremium;
         this.panel = createPanel();
+    }
+    
+    public static void setPremiumActive(boolean active) {
+        premiumActive = active;
+    }
+    
+    public static boolean isPremiumActive() {
+        return premiumActive || "true".equals(System.getProperty("jakarta.migration.premium"));
     }
 
     public JPanel getPanel() {
@@ -52,6 +65,14 @@ public class SupportComponent {
         // Content panel
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+
+        // Premium upgrade banner (always visible at top)
+        contentPanel.add(createPremiumUpgradeBanner());
+        contentPanel.add(Box.createVerticalStrut(20));
+
+        // Experimental Features section
+        contentPanel.add(createExperimentalFeaturesSection());
+        contentPanel.add(Box.createVerticalStrut(20));
 
         // About section
         contentPanel.add(createSectionHeader("About"));
@@ -134,6 +155,158 @@ public class SupportComponent {
         label.setFont(new Font(label.getFont().getName(), Font.BOLD, 14));
         label.setBorder(BorderFactory.createEmptyBorder(10, 0, 5, 0));
         return label;
+    }
+
+    private JPanel createPremiumUpgradeBanner() {
+        boolean alreadyPremium = isPremium || isPremiumActive();
+        
+        JPanel bannerPanel = new JPanel(new BorderLayout(15, 10));
+        bannerPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(255, 215, 0), 2),
+                BorderFactory.createEmptyBorder(15, 15, 15, 15)));
+        bannerPanel.setBackground(new Color(255, 253, 208));
+        bannerPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+
+        // Left side - star icon and text
+        JPanel leftPanel = new JPanel();
+        leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
+        leftPanel.setBackground(new Color(255, 253, 208));
+
+        JLabel starLabel = new JLabel(alreadyPremium ? "✅" : "⭐");
+        starLabel.setFont(new Font(starLabel.getFont().getName(), Font.PLAIN, 32));
+        starLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        leftPanel.add(starLabel);
+
+        JLabel titleLabel = new JLabel(alreadyPremium ? "Premium Active" : "Upgrade to Premium");
+        titleLabel.setFont(new Font(titleLabel.getFont().getName(), Font.BOLD, 16));
+        titleLabel.setForeground(new Color(80, 60, 0));
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        leftPanel.add(titleLabel);
+
+        JLabel descLabel = new JLabel(alreadyPremium 
+            ? "<html>Thank you for using Premium! Enjoy auto-fixes and one-click refactoring.</html>"
+            : "<html>Get auto-fixes, one-click refactoring, and binary fixes</html>");
+        descLabel.setFont(new Font(descLabel.getFont().getName(), Font.PLAIN, 12));
+        descLabel.setForeground(new Color(100, 90, 60));
+        descLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        leftPanel.add(descLabel);
+
+        // Right side - buttons (only show if not premium)
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
+        buttonPanel.setBackground(new Color(255, 253, 208));
+        buttonPanel.setAlignmentY(Component.CENTER_ALIGNMENT);
+
+        if (!alreadyPremium) {
+            JButton upgradeButton = new JButton("⬆ Upgrade to Premium");
+            upgradeButton.setFont(new Font(upgradeButton.getFont().getName(), Font.BOLD, 13));
+            upgradeButton.setBackground(new Color(255, 215, 0));
+            upgradeButton.setForeground(new Color(80, 60, 0));
+            upgradeButton.setFocusPainted(false);
+            upgradeButton.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+            upgradeButton.setAlignmentX(Component.RIGHT_ALIGNMENT);
+            upgradeButton.addActionListener(e -> openUrl(MARKETPLACE_URL));
+            buttonPanel.add(upgradeButton);
+
+            buttonPanel.add(Box.createVerticalStrut(8));
+
+            JButton trialButton = new JButton("Start Free Trial");
+            trialButton.setFont(new Font(trialButton.getFont().getName(), Font.PLAIN, 12));
+            trialButton.setForeground(new Color(100, 90, 60));
+            trialButton.setFocusPainted(false);
+            trialButton.setContentAreaFilled(false);
+            trialButton.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+            trialButton.setAlignmentX(Component.RIGHT_ALIGNMENT);
+            trialButton.addActionListener(e -> startTrial());
+            buttonPanel.add(trialButton);
+        }
+
+        bannerPanel.add(leftPanel, BorderLayout.CENTER);
+        bannerPanel.add(buttonPanel, BorderLayout.EAST);
+
+        return bannerPanel;
+    }
+
+    private JPanel createExperimentalFeaturesSection() {
+        JPanel sectionPanel = new JPanel(new BorderLayout(10, 10));
+        sectionPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)));
+        sectionPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
+
+        JPanel leftPanel = new JPanel();
+        leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
+        leftPanel.setBackground(null);
+
+        JLabel titleLabel = new JLabel("Experimental Features");
+        titleLabel.setFont(new Font(titleLabel.getFont().getName(), Font.BOLD, 13));
+        titleLabel.setForeground(new Color(80, 60, 0));
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        leftPanel.add(titleLabel);
+
+        JLabel descLabel = new JLabel("Enable beta features like Runtime Error Diagnosis");
+        descLabel.setFont(new Font(descLabel.getFont().getName(), Font.PLAIN, 11));
+        descLabel.setForeground(Color.GRAY);
+        descLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        leftPanel.add(descLabel);
+
+        JCheckBox betaCheckbox = new JCheckBox("Enable Experimental Features");
+        betaCheckbox.setFont(betaCheckbox.getFont().deriveFont(Font.PLAIN, 12));
+        betaCheckbox.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
+        boolean betaEnabled = "true".equals(System.getProperty("jakarta.migration.beta_features", "false"));
+        betaCheckbox.setSelected(betaEnabled);
+        
+        betaCheckbox.addActionListener(e -> {
+            boolean selected = betaCheckbox.isSelected();
+            System.setProperty("jakarta.migration.beta_features", String.valueOf(selected));
+            adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().setBetaFeaturesEnabled(selected);
+            
+            LOG.info("SupportComponent: Beta features " + (selected ? "enabled" : "disabled"));
+            
+            Messages.showInfoMessage(project,
+                    selected 
+                        ? "Experimental features enabled!\n\nThe Runtime tab will now be available."
+                        : "Experimental features disabled.\n\nRestart the tool window to see changes.",
+                    "Experimental Features");
+        });
+
+        leftPanel.add(Box.createVerticalStrut(5));
+        leftPanel.add(betaCheckbox);
+
+        sectionPanel.add(leftPanel, BorderLayout.CENTER);
+
+        return sectionPanel;
+    }
+
+    private void startTrial() {
+        LOG.info("SupportComponent: User clicked Start Free Trial button");
+
+        int result = Messages.showYesNoDialog(project,
+                "Start a 7-day free trial of Premium features?\n\n" +
+                        "Premium features include:\n" +
+                        "• Auto-fixes for migration issues\n" +
+                        "• One-click refactoring\n" +
+                        "• Binary fixes for JAR files\n" +
+                        "• Advanced dependency analysis",
+                "Start Free Trial",
+                Messages.getQuestionIcon());
+
+        if (result == Messages.YES) {
+            System.setProperty("jakarta.migration.premium", "true");
+            System.setProperty("jakarta.migration.trial.end",
+                    String.valueOf(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000));
+
+            // Clear license cache to force fresh check
+            adrianmikula.jakartamigration.intellij.license.CheckLicense.clearCache();
+
+            LOG.info("SupportComponent: Trial started - premium=true");
+
+            Messages.showInfoMessage(project,
+                    "Trial started! You now have 7 days of Premium access.\n\n" +
+                            "Premium features are now available!",
+                    "Trial Activated");
+        }
     }
 
     private JPanel createLinkButton(String title, String description, String url) {

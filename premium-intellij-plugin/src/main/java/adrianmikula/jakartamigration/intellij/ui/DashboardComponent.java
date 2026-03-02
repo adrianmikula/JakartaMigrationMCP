@@ -4,8 +4,8 @@ import adrianmikula.jakartamigration.intellij.JakartaMcpRegistrationActivity;
 import adrianmikula.jakartamigration.intellij.mcp.JakartaMcpServerProvider;
 import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
-import adrianmikula.jakartamigration.intellij.model.MigrationStatus;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
+import adrianmikula.jakartamigration.intellij.service.RiskScoringService;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -17,6 +17,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -41,7 +43,8 @@ public class DashboardComponent {
     private JBLabel transitiveDepsValue;
     private JBLabel migrableValue;
     private JBLabel lastAnalyzedValue;
-    private JBLabel statusIndicator;
+    private JBLabel riskScoreValue;
+    private JBLabel riskCategoryValue;
 
     // MCP Server Status components
     private JPanel mcpStatusPanel;
@@ -108,15 +111,8 @@ public class DashboardComponent {
         // Actions panel
         JPanel actionsPanel = createActionsPanel();
 
-        // MCP Server Status Panel (at the bottom)
-        JPanel mcpStatusFooter = createMcpStatusPanel();
-
         panel.add(contentPanel, BorderLayout.CENTER);
         panel.add(actionsPanel, BorderLayout.NORTH);
-        panel.add(mcpStatusFooter, BorderLayout.SOUTH);
-
-        // Update MCP status after initialization
-        updateMcpServerStatus();
     }
 
     /**
@@ -445,28 +441,12 @@ private void resetAdvancedScanCounts() {
         deprecatedApiScanCountValue = createValueLabel("0");
         tablePanel.add(deprecatedApiScanCountValue, gbc);
 
-gbc.gridx = 2;
+        gbc.gridx = 2;
         gbc.gridy = 6;
         tablePanel.add(createKeyLabel("Security API:"), gbc);
         gbc.gridx = 3;
         securityApiScanCountValue = createValueLabel("0");
         tablePanel.add(securityApiScanCountValue, gbc);
-
-        // Row 7: Total Advanced Issues (Spans width)
-        gbc.gridx = 0;
-        gbc.gridy = 7;
-        gbc.gridwidth = 2;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(8, 8, 4, 8);
-        JLabel totalAdvancedLabel = createKeyLabel("Total Advanced Issues:");
-        totalAdvancedLabel.setFont(totalAdvancedLabel.getFont().deriveFont(Font.BOLD));
-        tablePanel.add(totalAdvancedLabel, gbc);
-
-        gbc.gridx = 2;
-        gbc.gridwidth = 2;
-        totalAdvancedScanCountValue = createValueLabel("0");
-        totalAdvancedScanCountValue.setForeground(new Color(0, 100, 180));
-        tablePanel.add(totalAdvancedScanCountValue, gbc);
 
         // Row 8: JMS Messaging, Transitive Dependency
         gbc.gridx = 0;
@@ -513,7 +493,7 @@ gbc.gridx = 2;
         serializationCacheScanCountValue = createValueLabel("0");
         tablePanel.add(serializationCacheScanCountValue, gbc);
 
-// Row 11: Third-Party Libs (spans width), Total Advanced Issues
+// Row 11: Third-Party Libs (spans width)
         gbc.gridx = 0;
         gbc.gridy = 11;
         gbc.gridwidth = 2;
@@ -522,9 +502,25 @@ gbc.gridx = 2;
         thirdPartyLibScanCountValue = createValueLabel("0");
         tablePanel.add(thirdPartyLibScanCountValue, gbc);
 
-        // Row 12 - Advanced Scan Progress Bar (spans full width)
+        // Row 12: Total Advanced Issues (at bottom of scan counts, spans full width)
         gbc.gridx = 0;
         gbc.gridy = 12;
+        gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(8, 8, 4, 8);
+        JLabel totalAdvancedLabel = createKeyLabel("Total Advanced Issues:");
+        totalAdvancedLabel.setFont(totalAdvancedLabel.getFont().deriveFont(Font.BOLD));
+        tablePanel.add(totalAdvancedLabel, gbc);
+
+        gbc.gridx = 2;
+        gbc.gridwidth = 2;
+        totalAdvancedScanCountValue = createValueLabel("0");
+        totalAdvancedScanCountValue.setForeground(new Color(0, 100, 180));
+        tablePanel.add(totalAdvancedScanCountValue, gbc);
+
+        // Row 14 - Advanced Scan Progress Bar (spans full width)
+        gbc.gridx = 0;
+        gbc.gridy = 14;
         gbc.gridwidth = 4;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(12, 8, 4, 8);
@@ -544,27 +540,40 @@ gbc.gridx = 2;
         
         tablePanel.add(progressPanel, gbc);
 
-        // Row 13 - Status indicator spans full width
+        // Row 16 - Last Analyzed spans full width
         gbc.gridx = 0;
-        gbc.gridy = 13;
-        gbc.gridwidth = 4;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(12, 8, 4, 8);
-        statusPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        statusIndicator = new JBLabel("●");
-        statusIndicator.setFont(statusIndicator.getFont().deriveFont(Font.BOLD, 14f));
-        statusPanel.add(statusIndicator);
-        statusPanel.add(new JBLabel("Jakarta Status Indicator"));
-        tablePanel.add(statusPanel, gbc);
-
-        // Row 14 - Last Analyzed spans full width
-        gbc.gridy = 14;
+        gbc.gridy = 16;
         gbc.insets = new Insets(4, 8, 4, 8);
         JPanel lastAnalyzedPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 10, 0));
         lastAnalyzedPanel.add(new JBLabel("Last Analyzed:"));
         lastAnalyzedValue = createValueLabel("Never");
         lastAnalyzedPanel.add(lastAnalyzedValue);
         tablePanel.add(lastAnalyzedPanel, gbc);
+
+        // Row 17 - Risk Score spans full width
+        gbc.gridy = 17;
+        gbc.insets = new Insets(8, 8, 4, 8);
+        JPanel riskPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        
+        JLabel riskLabel = new JBLabel("Risk Score:");
+        riskLabel.setFont(riskLabel.getFont().deriveFont(Font.BOLD, 12f));
+        riskPanel.add(riskLabel);
+        
+        riskScoreValue = new JBLabel("--");
+        riskScoreValue.setFont(riskScoreValue.getFont().deriveFont(Font.BOLD, 14f));
+        riskPanel.add(riskScoreValue);
+        
+        riskPanel.add(Box.createHorizontalStrut(20));
+        
+        JLabel categoryLabel = new JBLabel("Category:");
+        categoryLabel.setFont(categoryLabel.getFont().deriveFont(Font.PLAIN, 12f));
+        riskPanel.add(categoryLabel);
+        
+        riskCategoryValue = new JBLabel("--");
+        riskCategoryValue.setFont(riskCategoryValue.getFont().deriveFont(Font.BOLD, 14f));
+        riskPanel.add(riskCategoryValue);
+        
+        tablePanel.add(riskPanel, gbc);
 
         return tablePanel;
     }
@@ -585,7 +594,47 @@ gbc.gridx = 2;
         JPanel actionsPanel = new JBPanel<>(new FlowLayout(FlowLayout.RIGHT, 10, 5));
         actionsPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
-        JButton refreshButton = new JButton("Refresh");
+        // Check if premium is already active
+        boolean isPremium = SupportComponent.isPremiumActive();
+        
+        if (!isPremium) {
+            // Add trial button
+            JButton trialButton = new JButton("Start Free Trial");
+            trialButton.setToolTipText("Start a 7-day free trial of Premium features");
+            trialButton.addActionListener(e -> {
+                // Trigger trial start via project action
+                com.intellij.openapi.actionSystem.AnActionEvent event = null;
+                // Use a simple approach - set system property and refresh
+                System.setProperty("jakarta.migration.premium", "true");
+                SupportComponent.setPremiumActive(true);
+                Messages.showInfoMessage(project, 
+                    "Free trial started! Premium features are now available.\n\nPlease restart the tool window to see all premium features.",
+                    "Trial Started");
+            });
+            actionsPanel.add(trialButton);
+            
+            // Add upgrade button
+            JButton upgradeButton = new JButton("⬆ Upgrade to Premium");
+            upgradeButton.setToolTipText("Get Premium features: Auto-fixes, one-click refactoring, binary fixes");
+            upgradeButton.setBackground(new Color(255, 215, 0));
+            upgradeButton.setForeground(new Color(80, 60, 0));
+            upgradeButton.addActionListener(e -> {
+                try {
+                    java.awt.Desktop.getDesktop().browse(new java.net.URI("https://plugins.jetbrains.com/plugin/30093-jakarta-migration"));
+                } catch (Exception ex) {
+                    Messages.showErrorDialog(project, "Could not open URL", "Error");
+                }
+            });
+            actionsPanel.add(upgradeButton);
+        } else {
+            // Show premium badge
+            JLabel premiumBadge = new JLabel("⭐ Premium Active");
+            premiumBadge.setForeground(new Color(255, 215, 0));
+            premiumBadge.setToolTipText("Premium license active");
+            actionsPanel.add(premiumBadge);
+        }
+
+        JButton refreshButton = new JButton("↻ Refresh");
         refreshButton.setToolTipText("Refresh analysis results");
         refreshButton.addActionListener(this::handleRefresh);
         actionsPanel.add(refreshButton);
@@ -600,21 +649,27 @@ gbc.gridx = 2;
     public void setDependencySummary(DependencySummary summary) {
         totalDepsValue.setText(String.valueOf(summary.getTotalDependencies()));
         affectedDepsValue.setText(String.valueOf(summary.getAffectedDependencies()));
-        migrableValue.setText(String.valueOf(summary.getMigrableDependencies()));
+        
+        // Highlight migrable dependencies in green if > 0
+        int migrable = summary.getMigrableDependencies();
+        migrableValue.setText(String.valueOf(migrable));
+        migrableValue.setForeground(migrable > 0 ? new Color(0, 140, 0) : Color.GRAY);
 
-        // Task 6 Fixes: correctly populate remaining fields
-        String noSupport = summary.getNoJakartaSupportCount() != null
-                ? String.valueOf(summary.getNoJakartaSupportCount())
-                : "0";
-        noJakartaSupportValue.setText(noSupport);
+        // Highlight "No Jakarta Support" in red if > 0 (indicates issues)
+        int noSupport = summary.getNoJakartaSupportCount() != null ? summary.getNoJakartaSupportCount() : 0;
+        noJakartaSupportValue.setText(String.valueOf(noSupport));
+        noJakartaSupportValue.setForeground(noSupport > 0 ? Color.RED : Color.GRAY);
 
         String xmlFiles = summary.getXmlFilesCount() != null ? String.valueOf(summary.getXmlFilesCount()) : "0";
         xmlFilesValue.setText(xmlFiles);
 
-        String transitive = summary.getTransitiveDependencies() != null
-                ? String.valueOf(summary.getTransitiveDependencies())
-                : "0";
-        transitiveDepsValue.setText(transitive);
+        // Highlight transitive dependencies in red if > 0 (indicates potential issues)
+        int transitive = summary.getTransitiveDependencies() != null ? summary.getTransitiveDependencies() : 0;
+        transitiveDepsValue.setText(String.valueOf(transitive));
+        transitiveDepsValue.setForeground(transitive > 0 ? Color.RED : Color.GRAY);
+
+        // Update risk score based on dependency summary
+        updateRiskScore(summary);
     }
 
     public void setLastAnalyzed(Instant lastAnalyzed) {
@@ -625,48 +680,72 @@ gbc.gridx = 2;
         }
     }
 
-    public void setStatusAndColor(MigrationStatus status, Color color) {
-        statusIndicator.setForeground(color);
-        dashboard = new MigrationDashboard();
-        dashboard.setStatus(status);
+    /**
+     * Updates the risk score display based on dependency analysis.
+     */
+    public void updateRiskScore(DependencySummary summary) {
+        if (summary == null) {
+            riskScoreValue.setText("--");
+            riskCategoryValue.setText("--");
+            return;
+        }
+
+        try {
+            RiskScoringService riskService = RiskScoringService.getInstance();
+            
+            // Build dependency issues map
+            Map<String, Integer> depIssues = new HashMap<>();
+            
+            int noSupport = summary.getNoJakartaSupportCount() != null ? summary.getNoJakartaSupportCount() : 0;
+            int affected = summary.getAffectedDependencies() != null ? summary.getAffectedDependencies() : 0;
+            int blockers = summary.getBlockerDependencies() != null ? summary.getBlockerDependencies() : 0;
+            
+            if (noSupport > 0) {
+                depIssues.put("noJakartaVersion", noSupport * 25);
+            }
+            if (blockers > 0) {
+                depIssues.put("blockedDependency", blockers * 40);
+            }
+            if (affected > 0) {
+                depIssues.put("directDependency", affected * 10);
+            }
+            
+            // Calculate risk score (empty scan findings, just dependency issues for now)
+            RiskScoringService.RiskScore riskScore = riskService.calculateRiskScore(
+                new HashMap<>(),  // No scan findings yet
+                depIssues
+            );
+            
+            riskScoreValue.setText(String.valueOf(riskScore.totalScore()));
+            riskCategoryValue.setText(riskScore.categoryLabel());
+            
+            // Set color based on category
+            try {
+                Color categoryColor = Color.decode(riskScore.categoryColor());
+                riskCategoryValue.setForeground(categoryColor);
+                riskScoreValue.setForeground(categoryColor);
+            } catch (Exception e) {
+                // Use default color if parsing fails
+            }
+            
+        } catch (Exception e) {
+            LOG.warn("Failed to calculate risk score", e);
+            riskScoreValue.setText("--");
+            riskCategoryValue.setText("--");
+        }
     }
 
     public void clearMetrics() {
         totalDepsValue.setText("-");
         affectedDepsValue.setText("-");
         noJakartaSupportValue.setText("-");
+        noJakartaSupportValue.setForeground(Color.GRAY);
         xmlFilesValue.setText("-");
         transitiveDepsValue.setText("-");
+        transitiveDepsValue.setForeground(Color.GRAY);
         migrableValue.setText("-");
+        migrableValue.setForeground(Color.GRAY);
         lastAnalyzedValue.setText("Never");
-        statusIndicator.setForeground(Color.GRAY);
-    }
-
-    /**
-     * Set the migration status (called by MigrationToolWindow).
-     * 
-     * @param status The new status
-     */
-    public void setStatus(MigrationStatus status) {
-        if (status != null) {
-            Color color = getStatusColor(status);
-            statusIndicator.setForeground(color);
-            dashboard = new MigrationDashboard();
-            dashboard.setStatus(status);
-        }
-    }
-
-    /**
-     * Get the color for a given status.
-     */
-    private Color getStatusColor(MigrationStatus status) {
-        return switch (status) {
-            case READY -> new Color(0, 140, 0);
-            case IN_PROGRESS -> Color.BLUE;
-            case HAS_BLOCKERS -> new Color(200, 140, 0);
-            case FAILED -> Color.RED;
-            default -> Color.GRAY;
-        };
     }
 
     /**
@@ -685,11 +764,6 @@ gbc.gridx = 2;
         // Update dependency summary
         if (dashboard.getDependencySummary() != null) {
             setDependencySummary(dashboard.getDependencySummary());
-        }
-
-        // Update status
-        if (dashboard.getStatus() != null) {
-            setStatus(dashboard.getStatus());
         }
 
         // Update last analyzed
@@ -711,10 +785,6 @@ gbc.gridx = 2;
 
     public JPanel getPanel() {
         return panel;
-    }
-
-    public JBLabel getStatusIndicator() {
-        return statusIndicator;
     }
 
     public JBLabel getJpaScanCountValue() {

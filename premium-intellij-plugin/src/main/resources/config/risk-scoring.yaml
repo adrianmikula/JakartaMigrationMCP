@@ -1,0 +1,148 @@
+# Risk Scoring Configuration for Jakarta Migration Plugin
+# Defines risk levels and weights for different scan types and findings
+
+# Risk categories and their score thresholds
+# Adjusted to make small projects (1 org module, 5 deps) rate as "Low" or "Trivial"
+riskCategories:
+  trivial:
+    minScore: 0
+    maxScore: 15
+    label: "Trivial"
+    color: "#28a745"  # Green
+    
+  low:
+    minScore: 16
+    maxScore: 40
+    label: "Low"
+    color: "#17a2b8"  # Blue
+    
+  medium:
+    minScore: 41
+    maxScore: 65
+    label: "Medium"
+    color: "#ffc107"  # Yellow
+    
+  high:
+    minScore: 66
+    maxScore: 85
+    label: "High"
+    color: "#fd7e14"  # Orange
+    
+  extreme:
+    minScore: 86
+    maxScore: 100
+    label: "Extreme"
+    color: "#dc3545"  # Red
+
+# Scan type risk weights and findings
+scanRisks:
+  jpa:
+    displayName: "JPA/Entity"
+    baseWeight: 15
+    findings:
+      entityWithJakartaId:
+        riskLevel: "low"
+        description: "Jakarta ID annotation usage"
+      missingVersion:
+        riskLevel: "high"
+        description: "Missing version in persistence.xml"
+      entityWithDeprecatedApi:
+        riskLevel: "medium"
+        description: "Deprecated JPA API usage"
+        
+  beanValidation:
+    displayName: "Bean Validation"
+    baseWeight: 12
+    findings:
+      constraintAnnotation:
+        riskLevel: "low"
+        description: "Validation constraint annotation"
+      customValidator:
+        riskLevel: "medium"
+        description: "Custom validator implementation"
+        
+  servlet:
+    displayName: "Servlet/JSP"
+    baseWeight: 20
+    findings:
+      javaxServletImport:
+        riskLevel: "high"
+        description: "javax.servlet import - needs migration"
+      webXmlConfig:
+        riskLevel: "medium"
+        description: "web.xml configuration"
+        
+  cdi:
+    displayName: "CDI"
+    baseWeight: 15
+    findings:
+      cdiBean:
+        riskLevel: "low"
+        description: "CDI managed bean"
+      interceptorBinding:
+        riskLevel: "medium"
+        description: "Custom interceptor binding"
+        
+  jms:
+    displayName: "JMS"
+    baseWeight: 18
+    findings:
+      jmsQueueConnection:
+        riskLevel: "high"
+        description: "JMS QueueConnection - needs migration"
+      messageListener:
+        riskLevel: "medium"
+        description: "Message listener configuration"
+        
+  webservice:
+    displayName: "Web Services"
+    baseWeight: 15
+    findings:
+      jaxWsEndpoint:
+        riskLevel: "high"
+        description: "JAX-WS endpoint - needs migration"
+      soapBinding:
+        riskLevel: "medium"
+        description: "SOAP binding configuration"
+
+# Dependency risk scoring
+dependencyRisks:
+  # Risk factors for Maven/Gradle dependencies
+  noJakartaVersion:
+    riskLevel: "high"
+    score: 25
+    description: "No Jakarta EE version available"
+    
+  hasMigrationPath:
+    riskLevel: "low"
+    score: 5
+    description: "Has clear migration path"
+    
+  blockedDependency:
+    riskLevel: "extreme"
+    score: 40
+    description: "Migration blocker - no path available"
+    
+  directDependency:
+    riskLevel: "medium"
+    score: 10
+    description: "Direct dependency (higher priority)"
+    
+  transitiveDependency:
+    riskLevel: "low"
+    score: 3
+    description: "Transitive dependency"
+
+# Overall risk calculation
+riskCalculation:
+  # Weights for different components in overall score
+  componentWeights:
+    scanFindings: 0.4      # 40% from scan findings
+    dependencyIssues: 0.4   # 40% from dependency issues
+    codeComplexity: 0.2     # 20% from code complexity
+    
+  # Minimum scan threshold to include in scoring
+  minScanThreshold: 3
+  
+  # Maximum findings to score per scan type
+  maxFindingsPerScan: 10
