@@ -958,6 +958,35 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
         }
         return results;
     }
+    
+    /**
+     * Gets all recipe executions for a repository, ordered by most recent first.
+     */
+    public List<Map<String, Object>> getAllRecipeExecutions(String repositoryPath) {
+        List<Map<String, Object>> results = new ArrayList<>();
+        String sql = "SELECT * FROM recipe_executions WHERE repository_path = ? ORDER BY executed_at DESC LIMIT 100";
+        
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, repositoryPath);
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", rs.getInt("id"));
+                    map.put("recipe_name", rs.getString("recipe_name"));
+                    map.put("executed_at", rs.getString("executed_at"));
+                    map.put("success", rs.getBoolean("success"));
+                    map.put("message", rs.getString("message"));
+                    map.put("affected_files", rs.getString("affected_files"));
+                    results.add(map);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Failed to get all recipe executions", e);
+        }
+        return results;
+    }
 
     // ==================== Inner Classes ====================
 

@@ -1,39 +1,28 @@
-Lets complete the following tasks in order using SDD and TDD principles (as documented under the Agentrules folder): 
+Lets complete the following tasks in order using SDD (spec driven development), TDD (test driven development), and the principles documented under the E:\Source\JakartaMigrationMCP\AgentRules folder: 
 
 
+# minor UI fixes
+
+1. The risk score on the dashboard appears to always be hardcoded to 45 and medium.  Ensure it is dynamically re-calculated from the scan results when the dashboard is loaded.
+
+2. After you click Apply next to a Recipe, the button name changes to Undo.  I don't want the button names to change, just disable it.
+
+3. Add an SQLite table which tracks recipes which have been run via the refactor tab.
+
+4. The bullet list characters used on the migration strategy tab are displaying incorrectly 
+
+5. the Runtime tab should be marked as experimental.
 
 
+# new major features
 
-# minor UI issues
-
-1. The dependencies graph should highlight dependencies which are jakarta-compatible in green, dependencies which need an upgrade in yellow, and dependencies which have no jakarta version in red. (same as the dependency list tab)
-
-
-2. Add a colour legend to the bottom of the dependencies graph tab so it's clear what each colour represents in the graph.
-
-3. Adjust the vertical size of each strategy box in the migration strategy tab, to be shorter vertically. We want more space for the text description boxes at the bottom.  
+10. Add a History tab, which tracks every code change we have ever made to the codebase via the plugin, along with undo button for reversible changes like openrewirte recipes. (Premium)
+ 
 
 
-4. The dashboard elements vertical positioning is off. The scan counts overlap with the status/last analysed timestamp. Move the status/timestamp to be below the scan counts.
+# cicd
 
-5. Add a progress bar to the advanced scans, so we can see how many of the scans have been completed so far.
-
-6. highlight the scan counts which are >0 on the dashboard in red, and counts which =0 in green
-
-
-7. In the dependencies graph tab, Instead of making organisational dependencies a different colour, give them a thicker border and a larger font, but use the same colours as all the other dependencies.
-
-8. In the dependencies graph tab, display a popup info box when the user hovers over a dependency in the graph, with details of the maven coordinates, and the jakarta compatibility status of the dependency the mouse is over.
-
-
-9. The refactor tab never shows any files changed. The 'refactoring results' box always shows 'No execution history found for this recipe' after a recipe has run. Check that the file changes and refactor status are being detected and displayed correctly in the UI.
-
-
-10. We've regressed with the Runtime UI tab - it should be hidden. did i resolve the merge conflicts incorrectly recently when i merged in the 'add-refactor-runtime-tabs' (git hash 952137a7ae50b4cb9341615af4d8812d243c12b9)
-
-11. We've regressed with the strategy tab - we used to have 6 strategies. did i resolve the merge conflicts incorrectly recently when i merged in the 'add-refactor-runtime-tabs' (git hash 952137a7ae50b4cb9341615af4d8812d243c12b9)
-
-12. We've regressed with the refactor tab - we used to show the full recipe description, along with ...  did i resolve the merge conflicts incorrectly recently when i merged in the 'add-refactor-runtime-tabs' (git hash 952137a7ae50b4cb9341615af4d8812d243c12b9).
+1. Set up a new cicd (github actions) job for commits that get pushed to the main branch (e.g. when a PR is merged).  Use the intellij plugin to auto-publish the new version of the plugin. Follow the guidelines at https://intellij-support.jetbrains.com/hc/en-us/community/posts/115000373070-Is-there-any-API-to-upload-plugin-to-repository- 
 
 
 

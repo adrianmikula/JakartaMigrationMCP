@@ -684,9 +684,11 @@ private void resetAdvancedScanCounts() {
      * Updates the risk score display based on dependency analysis.
      */
     public void updateRiskScore(DependencySummary summary) {
-        if (summary == null) {
+        if (summary == null || summary.getTotalDependencies() == null || summary.getTotalDependencies() == 0) {
             riskScoreValue.setText("--");
             riskCategoryValue.setText("--");
+            riskScoreValue.setForeground(Color.GRAY);
+            riskCategoryValue.setForeground(Color.GRAY);
             return;
         }
 
@@ -708,6 +710,16 @@ private void resetAdvancedScanCounts() {
             }
             if (affected > 0) {
                 depIssues.put("directDependency", affected * 10);
+            }
+            
+            // Calculate risk score only if there are actual dependency issues
+            if (depIssues.isEmpty()) {
+                // No issues found - very low risk
+                riskScoreValue.setText("0");
+                riskCategoryValue.setText("Trivial");
+                riskScoreValue.setForeground(new Color(40, 167, 69));
+                riskCategoryValue.setForeground(new Color(40, 167, 69));
+                return;
             }
             
             // Calculate risk score (empty scan findings, just dependency issues for now)

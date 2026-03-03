@@ -71,6 +71,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private McpServerTabComponent mcpServerTabComponent;
         private RefactorTabComponent refactorTabComponent;
         private RuntimeTabComponent runtimeTabComponent;
+        private HistoryTabComponent historyTabComponent;
         private JTabbedPane tabbedPane;
         private JPanel toolbarPanel;
         private boolean isPremium;
@@ -187,7 +188,11 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     ));
                     LOG.info("initializeContent: Added LOCKED Runtime placeholder tab (beta not enabled)");
                 }
-            } else {
+                
+                // History tab (Premium) - shows recipe execution history
+                historyTabComponent = new HistoryTabComponent(project);
+                tabbedPane.addTab("History ⭐", historyTabComponent.getPanel());
+                LOG.info("initializeContent: Added PREMIUM History tab");
                 // Add premium placeholder tabs
                 tabbedPane.addTab("Refactor 🔒", createPremiumPlaceholderPanel(
                     "Refactor Tab",
@@ -459,6 +464,12 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 });
                 tabbedPane.addTab("Advanced Scans ⭐", advancedScansComponent.getPanel());
                 LOG.info("refreshPremiumUI: Added Advanced Scans tab, tab count now = " + tabbedPane.getTabCount());
+                
+                // History tab (Premium)
+                LOG.info("refreshPremiumUI: Creating and adding History tab...");
+                historyTabComponent = new HistoryTabComponent(project);
+                tabbedPane.addTab("History ⭐", historyTabComponent.getPanel());
+                LOG.info("refreshPremiumUI: Added History tab, tab count now = " + tabbedPane.getTabCount());
                 
                 // List final tabs
                 for (int i = 0; i < tabbedPane.getTabCount(); i++) {

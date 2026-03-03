@@ -150,12 +150,12 @@ public class RefactorTabComponent {
         table.getColumnModel().getColumn(4).setPreferredWidth(80);
         
         // Set up Apply button column
-        table.getColumnModel().getColumn(3).setCellRenderer(new ButtonRenderer("Apply", true));
-        table.getColumnModel().getColumn(3).setCellEditor(new ButtonEditor(new JCheckBox(), this::handleApplyRecipe, true));
+        table.getColumnModel().getColumn(3).setCellRenderer(new ButtonRenderer("Apply", false));
+        table.getColumnModel().getColumn(3).setCellEditor(new ButtonEditor(new JCheckBox(), this::handleApplyRecipe, false));
         
         // Set up Undo button column
-        table.getColumnModel().getColumn(4).setCellRenderer(new ButtonRenderer("Undo", false));
-        table.getColumnModel().getColumn(4).setCellEditor(new ButtonEditor(new JCheckBox(), this::handleRowUndo, false));
+        table.getColumnModel().getColumn(4).setCellRenderer(new ButtonRenderer("Undo", true));
+        table.getColumnModel().getColumn(4).setCellEditor(new ButtonEditor(new JCheckBox(), this::handleRowUndo, true));
         
         return table;
     }

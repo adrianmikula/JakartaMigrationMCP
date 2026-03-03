@@ -34,49 +34,49 @@ public class MigrationStrategyComponent {
     public enum MigrationStrategy {
         BIG_BANG("Big Bang", "Migrate everything at once",
                 UiTextLoader.getWithNewlines("strategy.big_bang.benefits",
-                    "• Migrate all javax dependencies to Jakarta EE at once\n• Single comprehensive change\n• Best for small, self-contained projects"),
+                    "- Migrate all javax dependencies to Jakarta EE at once\n- Single comprehensive change\n- Best for small, self-contained projects"),
                 UiTextLoader.getWithNewlines("strategy.big_bang.risks",
-                    "• Higher risk - issues affect entire codebase\n• Longer rollback time if problems occur\n• Requires comprehensive test suite"),
+                    "- Higher risk - issues affect entire codebase\n- Longer rollback time if problems occur\n- Requires comprehensive test suite"),
                 "1. Dependency Upgrade: Update all pom.xml/build.gradle files\n2. Code Refactor: Replace all javax.* imports with jakarta.*\n3. XML/Config Update: Update persistence.xml, web.xml, etc.\n4. Global Testing: Comprehensive unit and integration testing",
                 new Color(220, 53, 69)), // Red
 
         INCREMENTAL("Incremental", "One dependency at a time",
                 UiTextLoader.getWithNewlines("strategy.incremental.benefits",
-                    "• Migrate dependencies incrementally\n• Update one dependency, test, then proceed\n• Lower risk per change\n• Best for large, complex projects"),
+                    "- Migrate dependencies incrementally\n- Update one dependency, test, then proceed\n- Lower risk per change\n- Best for large, complex projects"),
                 UiTextLoader.getWithNewlines("strategy.incremental.risks",
-                    "• Longer overall migration timeline\n• Must maintain compatibility during transition\n• May require temporary dual dependencies"),
+                    "- Longer overall migration timeline\n- Must maintain compatibility during transition\n- May require temporary dual dependencies"),
                 "1. Dependency Scan: Identify all javax dependencies\n2. Priority Ranking: Order by risk and dependency level\n3. Step-by-Step Upgrade: One artifact at a time\n4. Continuous Integration: Test after every single change",
                 new Color(255, 193, 7)), // Yellow
 
         TRANSFORM("Transform", "Combined build and runtime transformation",
                 UiTextLoader.getWithNewlines("strategy.transform.benefits",
-                    "• Combine build-time and runtime transformation approaches\n• Use OpenRewrite for automated code changes\n• Deploy runtime adapters for edge cases"),
+                    "- Combine build-time and runtime transformation approaches\n- Use OpenRewrite for automated code changes\n- Deploy runtime adapters for edge cases"),
                 UiTextLoader.getWithNewlines("strategy.transform.risks",
-                    "• Most complex implementation\n• Requires both build and runtime configuration\n• Higher resource overhead"),
+                    "- Most complex implementation\n- Requires both build and runtime configuration\n- Higher resource overhead"),
                 "1. Recipe Selection: Choose standard and custom Rewrite recipes\n2. Batch Execution: Run transformation across the whole codebase\n3. Diff Review: Manual inspection of critical logic changes\n4. Final Validation: Automated test suite verification",
                 new Color(23, 162, 184)), // Blue
 
         MICROSERVICES("Microservices", "Migrate each service independently",
                 UiTextLoader.getWithNewlines("strategy.microservices.benefits",
-                    "• Migrate microservices one at a time\n• Each service can use different strategy\n• Independent deployment and testing"),
+                    "- Migrate microservices one at a time\n- Each service can use different strategy\n- Independent deployment and testing"),
                 UiTextLoader.getWithNewlines("strategy.microservices.risks",
-                    "• Requires coordination across services\n• Inter-service dependencies must be handled\n• May need service mesh updates"),
+                    "- Requires coordination across services\n- Inter-service dependencies must be handled\n- May need service mesh updates"),
                 "1. Service Inventory: Map all microservices and dependencies\n2. Dependency Analysis: Identify shared libraries and APIs\n3. Migration Planning: Order services by dependency complexity\n4. Incremental Rollout: Deploy migrated services alongside legacy",
                 new Color(108, 117, 125)), // Gray
 
         ADAPTER("Adapter Pattern", "Use adapter classes for javax/jakarta compatibility",
                 UiTextLoader.getWithNewlines("strategy.adapter.benefits",
-                    "• Maintain backward compatibility during migration\n• Gradual replacement of javax with jakarta\n• Lower risk changes\n• Easy to rollback individual adapters"),
+                    "- Maintain backward compatibility during migration\n- Gradual replacement of javax with jakarta\n- Lower risk changes\n- Easy to rollback individual adapters"),
                 UiTextLoader.getWithNewlines("strategy.adapter.risks",
-                    "• Additional code maintenance\n• Runtime overhead for adapter layer\n• More complex classpath management"),
+                    "- Additional code maintenance\n- Runtime overhead for adapter layer\n- More complex classpath management"),
                 "1. Adapter Config: Setup runtime bytecode instrumentation\n2. Runtime Proxy: Intercept javax calls and redirect to jakarta\n3. Legacy Support: Link old libraries to new EE runtime\n4. Monitor: Aggressive monitoring of performance/errors",
                 new Color(111, 66, 193)), // Purple
 
         STRANGLER("Strangler", "Migrate module by module",
                 UiTextLoader.getWithNewlines("strategy.strangler.benefits",
-                    "• Migrate one functional module or service at a time\n• New features built in Jakarta EE\n• Existing features gradually migrated\n• Good for monolithic applications"),
+                    "- Migrate one functional module or service at a time\n- New features built in Jakarta EE\n- Existing features gradually migrated\n- Good for monolithic applications"),
                 UiTextLoader.getWithNewlines("strategy.strangler.risks",
-                    "• Requires inter-module compatibility layers\n• Can create duplicate logic during transition\n• Managing two different EE environments simultaneously"),
+                    "- Requires inter-module compatibility layers\n- Can create duplicate logic during transition\n- Managing two different EE environments simultaneously"),
                 "1. Interface Definition: Define boundaries between modules\n2. Bridge Setup: Create compatibility layer for cross-module calls\n3. Vertical Slices: Migrate one full functional slice at a time\n4. Decommission: Remove legacy modules once fully replaced",
                 new Color(40, 167, 69)); // Teal
 

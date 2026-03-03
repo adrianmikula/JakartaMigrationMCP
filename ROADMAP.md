@@ -1,16 +1,5 @@
 
 
-# compatibility
-
-3. Increase the version compatibility range in plugins.xml to support IntelliJ 2024, 2025 and 2026. lets set these values as configurable properties in gradle.properties instead of hardocidng them.  On the IntelliJ marketplace, it's listed as "Compatibility Range 233.0 — 233.*"  Refer to https://plugins.jetbrains.com/docs/intellij/build-number-ranges.html#build-number-format
-
-
-double-check that our version compatibility fix is correct.  our compatibility actually got worse - in the original v 1.0.0, we were listed as compatible with 233.0 — 243.*
-
-When I try manually setting the build number to 253.* online, I get the error
-"You cannot set an until-build value greater than 243.*"  So we should just have no untilversion set so we match all future versions, rather than setting a specific untilversion.
-
-
 
 
 # minor UI issues
@@ -38,6 +27,30 @@ When I try manually setting the build number to 253.* online, I get the error
 7. The refactor tab never shows any files changed. The 'refactoring results' box always shows 'No execution history found for this recipe' after a recipe has run. Check that the file changes and refactor status are being detected and displayed correctly in the UI.
 
 
+8. the words 'total advanced issues' is in the middle of the scan counts. It should be at the bottom of them.
+
+9. Remove the 'jakarta status indicator' from the main UI dashboard.
+
+
+9. Adjust the vertical size of each strategy box in the migration strategy tab, to be slightly bigger vertically. 
+
+9. Adjust the text descriptions of the strategy phases to be have longer explanations, while still maintainign clarity. I want them to be concise but informative.
+
+
+-----------
+
+
+# licensing
+
+1. Advanced scans should be hidden until the user upgrades to premium or starts the free trial.
+
+
+2. I can't see the button to upgrade to premium on the main plugin toolbar when I install the plugin directly from the IntelliJ marketplace. 
+
+
+3. Let's check that our plugin implements all of the requirements for Freemium licensing outlined at https://plugins.jetbrains.com/plugin/30093-jakarta-migration/edit/monetization and https://plugins.jetbrains.com/docs/marketplace/freemium.html#how-to-make-your-plugin-freemium and https://plugins.jetbrains.com/docs/marketplace/add-marketplace-license-verification-calls-to-the-plugin-code.html
+
+
 
 ------------
 
@@ -54,9 +67,17 @@ When I try manually setting the build number to 253.* online, I get the error
 
 5. Check the whole codebase for any hardcoded artifact names, version numbers, etc. Replace them with dynamic lookups where possible, or if not possible, move them all into YAML config files.
 
-6. check the whole codebase for code quality, duplication, best practices, etc. 
+6. check the whole codebase for code quality, duplication, best practices, coverage, etc. 
 
+7. Lets move all of the strategy types, benefits, risks, and phase descriptions out of the code and into a YAML config file. 
 
+8. Let's move the list of openrewrite recipes out of the code and into a YAML config file.
+
+9. Check for TODO and FIXME in the codebase, and resolve/fix them.
+
+10. Let's split any super-large source files (>500 lines) into smaller source files where possible, for better LLM context understanding.
+
+11. Lets add an AGENTS.md file at the root level, which centralises all of our most important AI agent coding rules and standards, e.g. SDD, TDD, 50% test coverage, mise-en-place commands, and a list of installed MCP tools.  Also mention a concise list of common issues with links to the full documentation under the docs/standards folder.
 
 
 
@@ -75,6 +96,29 @@ When I try manually setting the build number to 253.* online, I get the error
 10. Display the overall risk score on the dashboard UI, and give it a risk category (Again controlled by the yaml configuration, no hardocidng value).  The risk categories can range from 'trivial', to 'low', 'medium',  'high' and 'extreme'
 
 11. Review all existing scans for accuracy. Do they accurately detect real javax.* to jakarta.* incompatibilities?  Do any of them detect something irrelevant, or give false positives/false negatives?  Do any of them incorrectly flag uses of the packages in the "javax" namespace which were not given to the eclipse foundation and therefore don't need to be changed at all?
+
+
+10. Add a new premium UI tab for the MCP Server, with a description of the tools available, and the MCP Server status.  Remove the MCP status indicator from the Dashboard tab.
+
+
+
+1. Advanced scans tab disappears as soon as the user starts a free trial. It should be feature flagged, not hidden.
+
+2. "no jakarta support" on dashboard tab is not highlighted in red if >0. And same for 'migratable' and 'transitive deps'.
+
+3. 'mcp server' tab shows link for mcp documentation to a site which doesn't exist. For now lets just link to the github repo.
+
+
+
+--------------------
+
+# plugin page imporvements
+
+1. Add details in plugin.xml for "Getting Started" section
+
+2. Add details in plugin.xml for "Technical Information" section
+
+3. Add more details in plugin.xml under "Supported Technologies", e.g. mention more appservers (tomcat, wildfly etc), and more supported frameworks/platforms/libraries.
 
 -------------------
 
@@ -99,7 +143,9 @@ When I try manually setting the build number to 253.* online, I get the error
 
 9. Add a Platforms tab, which shows major J2EE/appserver frameworks/platforms (e.g Spring, Spring Boot, Wildlfy, Tomcat etc) and indicates your current version, and which versions support jakarta, along with other requirements for the upgrade (e.g. minimum Java version). Avoid hardcoding version numbers and platform names - instead, create a YAML file which controls the info in this tab. The platform logic should go in the premium-core module.
 
-10. Add a new premium UI tab for the MCP Server, with a description of the tools available, and the MCP Server status.  Remove the MCP status indicator from the Dashboard tab.
+
+
+
 
 ----------------------
 
