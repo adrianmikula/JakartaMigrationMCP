@@ -13,17 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Regression: Refactor tab now displays recipe description and execution results
 - Dashboard positioning fixed - scan counts no longer overlap with status/timestamp
 - Scan count highlighting: >0 shown in red, =0 shown in green
+- Fixed: History and Refactor tabs now visible as premium feature (previously missing locked placeholders)
 
 ### Added
 - Color legend to dependencies graph tab showing Jakarta compatibility status
 - Progress bar to advanced scans showing completion status
 - Hover info popup in dependencies graph showing maven coordinates and jakarta compatibility status
 - Strategy boxes now shorter vertically to provide more space for description boxes
+- History tab (Premium) - tracks all code changes made via the plugin with undo support
+- Recipe execution logging to SQLite database for history tracking
+- Database-backed undo state for Refactor tab recipes
+- CI/CD workflow for IntelliJ plugin build and publish
 
 ### Changed
 - Dependencies graph now colors dependencies by jakarta compatibility (green=compatible, yellow=needs upgrade, red=no jakarta version)
 - Organisational dependencies now have thicker border and larger font instead of different color
 - Dependencies graph tooltips now show maven coordinates and jakarta compatibility status
+- Publish to JetBrains Marketplace only on main branch commits (not PRs)
 
 ## [1.0.0] - 2026-02-05
 

@@ -167,7 +167,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 // Refactor tab (Premium)
                 refactorTabComponent = new RefactorTabComponent(project);
                 tabbedPane.addTab("Refactor ⭐", refactorTabComponent.getPanel());
-                LOG.info("initializeContent: Added PREMIUM Refactor Runtime Error Diagnosis tab tab");
+                LOG.info("initializeContent: Added PREMIUM Refactor tab");
 
                 // (Premium + Beta)
                 var featureFlags = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance();
@@ -193,7 +193,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 historyTabComponent = new HistoryTabComponent(project);
                 tabbedPane.addTab("History ⭐", historyTabComponent.getPanel());
                 LOG.info("initializeContent: Added PREMIUM History tab");
-                // Add premium placeholder tabs
+            } else {
+                // Non-premium: show locked placeholders for Refactor and History
                 tabbedPane.addTab("Refactor 🔒", createPremiumPlaceholderPanel(
                     "Refactor Tab",
                     "Apply OpenRewrite recipes with one-click refactoring",
@@ -201,13 +202,22 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     "Automatic migration fixes"
                 ));
                 LOG.info("initializeContent: Added LOCKED Refactor placeholder tab");
+                
                 tabbedPane.addTab("Runtime 🔒", createPremiumPlaceholderPanel(
-                    "Runtime Tab",
+                    "Runtime Tab (Beta)",
                     "Diagnose runtime errors with AI-powered analysis",
                     "Error pattern recognition",
                     "Automated remediation suggestions"
                 ));
                 LOG.info("initializeContent: Added LOCKED Runtime placeholder tab");
+                
+                tabbedPane.addTab("History 🔒", createPremiumPlaceholderPanel(
+                    "History Tab",
+                    "View history of all code changes made via the plugin",
+                    "Track migration progress",
+                    "Undo reversible changes"
+                ));
+                LOG.info("initializeContent: Added LOCKED History placeholder tab");
             }
 
             // Load initial state (empty - wait for user to analyze)

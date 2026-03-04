@@ -65,7 +65,7 @@ intellij {
     plugins = listOf("com.intellij.java")
 }
 
-    tasks {
+tasks {
     patchPluginXml {
         sinceBuild.set(providers.gradleProperty("intellij.sinceBuild").orElse("233"))
         // Use empty string to get open-ended compatibility (no until-build in generated XML)

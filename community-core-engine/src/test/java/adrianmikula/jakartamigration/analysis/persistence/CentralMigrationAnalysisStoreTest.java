@@ -219,6 +219,69 @@ class CentralMigrationAnalysisStoreTest {
         assertThat(dep.migrationStatus()).isEqualTo("READY_FOR_JAKARTA");
     }
 
+    @Test
+    @DisplayName("Should save and retrieve recipe execution")
+    void shouldSaveAndRetrieveRecipeExecution() {
+        // Given
+        String repoPath = tempDir.resolve("test-repo").toString();
+        List<String> affectedFiles = List.of("src/main/java/Test.java", "pom.xml");
+
+        // When
+        store.saveRecipeExecution(repoPath, "AddJakartaNamespace", true, "Successfully applied", affectedFiles);
+
+        // Then
+        var executions = store.getRecipeExecutions(repoPath, "AddJakartaNamespace");
+        assertThat(executions).hasSize(1);
+        assertThat(executions.get(0).get("recipe_name")).isEqualTo("AddJakartaNamespace");
+        assertThat(executions.get(0).get("success")).isEqualTo(true);
+        assertThat(executions.get(0).get("affected_files")).contains("src/main/java/Test.java");
+    }
+
+    @Test
+    @DisplayName("Should save failed recipe execution")
+    void shouldSaveFailedRecipeExecution() {
+        // Given
+        String repoPath = tempDir.resolve("test-repo").toString();
+
+        // When
+        store.saveRecipeExecution(repoPath, "MigrateServletApi", false, "Build failed", null);
+
+        // Then
+        var executions = store.getRecipeExecutions(repoPath, "MigrateServletApi");
+        assertThat(executions).hasSize(1);
+        assertThat(executions.get(0).get("success")).isEqualTo(false);
+        assertThat(executions.get(0).get("message")).isEqualTo("Build failed");
+    }
+
+    @Test
+    @DisplayName("Should get all recipe executions for a repository")
+    void shouldGetAllRecipeExecutions() {
+        // Given
+        String repoPath = tempDir.resolve("test-repo").toString();
+        store.saveRecipeExecution(repoPath, "AddJakartaNamespace", true, "Success 1", List.of("file1.java"));
+        store.saveRecipeExecution(repoPath, "MigrateJpa", true, "Success 2", List.of("file2.java"));
+        store.saveRecipeExecution(repoPath, "MigrateCdi", false, "Failed", null);
+
+        // When
+        var allExecutions = store.getAllRecipeExecutions(repoPath);
+
+        // Then
+        assertThat(allExecutions).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("Should return empty list for non-existent recipe executions")
+    void shouldReturnEmptyForNonExistent() {
+        // Given
+        String repoPath = tempDir.resolve("test-repo").toString();
+
+        // When
+        var executions = store.getRecipeExecutions(repoPath, "NonExistentRecipe");
+
+        // Then
+        assertThat(executions).isEmpty();
+    }
+
     // Helper methods
 
     private DependencyAnalysisReport createSampleReport() {

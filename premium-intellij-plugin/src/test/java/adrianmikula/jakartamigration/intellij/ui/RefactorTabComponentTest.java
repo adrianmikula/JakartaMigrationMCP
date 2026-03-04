@@ -1,11 +1,15 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.coderefactoring.domain.Recipe;
 import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -17,9 +21,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 2. At least 21 recipes are available for the Refactor tab
  * 3. Key OpenRewrite recipes are present (AddJakartaNamespace, UpdateWebXml, etc.)
  * 4. The UI can display all expected recipes
+ * 5. Recipe execution history is saved to database
+ * 6. Undo state can be checked from database
  */
 @DisplayName("RefactorTabComponent UI Tests")
 class RefactorTabComponentTest {
+
+    @TempDir
+    Path tempDir;
 
     @Test
     @DisplayName("MigrationAnalysisService should be initialized and load recipes")
@@ -196,5 +205,98 @@ class RefactorTabComponentTest {
         assertThat(totalCount)
             .as("Total recipe count should be at least 21")
             .isGreaterThanOrEqualTo(21);
+    }
+
+    @Test
+    @DisplayName("Recipe execution should be saved to database after successful apply")
+    void shouldSaveRecipeExecutionToDatabase() {
+        // Given
+        CentralMigrationAnalysisStore store = new CentralMigrationAnalysisStore(tempDir.resolve("test.db"));
+        String repoPath = tempDir.resolve("my-project").toString();
+        List<String> affectedFiles = List.of("src/main/java/com/example/MyServlet.java", "pom.xml");
+
+        // When - simulate what happens when a recipe is applied
+        store.saveRecipeExecution(repoPath, "AddJakartaNamespace", true, "Applied successfully - 2 file(s) changed", affectedFiles);
+
+        // Then - verify execution was saved
+        var executions = store.getRecipeExecutions(repoPath, "AddJakartaNamespace");
+        assertThat(executions).hasSize(1);
+        assertThat(executions.get(0).get("success")).isEqualTo(true);
+        assertThat((String) executions.get(0).get("message")).contains("Applied successfully");
+    }
+
+    @Test
+    @DisplayName("Undo state should be available when recipe has affected files in database")
+    void shouldCheckUndoStateFromDatabase() {
+        // Given
+        CentralMigrationAnalysisStore store = new CentralMigrationAnalysisStore(tempDir.resolve("test.db"));
+        String repoPath = tempDir.resolve("my-project").toString();
+        
+        // First, save a recipe execution with affected files
+        store.saveRecipeExecution(repoPath, "MigrateServletApi", true, "Success", List.of("file1.java", "file2.java"));
+        
+        // When - query for undo state
+        var executions = store.getRecipeExecutions(repoPath, "MigrateServletApi");
+        
+        // Then - verify we can determine undo is available
+        boolean hasUndo = false;
+        for (Map<String, Object> exec : executions) {
+            Boolean success = (Boolean) exec.get("success");
+            String files = (String) exec.get("affected_files");
+            if (Boolean.TRUE.equals(success) && files != null && !files.isEmpty()) {
+                hasUndo = true;
+                break;
+            }
+        }
+        assertThat(hasUndo).isTrue();
+    }
+
+    @Test
+    @DisplayName("Undo state should not be available when recipe failed")
+    void shouldNotHaveUndoStateForFailedRecipe() {
+        // Given
+        CentralMigrationAnalysisStore store = new CentralMigrationAnalysisStore(tempDir.resolve("test.db"));
+        String repoPath = tempDir.resolve("my-project").toString();
+        
+        // Save a failed recipe execution
+        store.saveRecipeExecution(repoPath, "MigrateJpa", false, "Build failed", null);
+        
+        // When
+        var executions = store.getRecipeExecutions(repoPath, "MigrateJpa");
+        
+        // Then - verify undo is NOT available for failed recipes
+        boolean hasUndo = false;
+        for (Map<String, Object> exec : executions) {
+            Boolean success = (Boolean) exec.get("success");
+            String files = (String) exec.get("affected_files");
+            if (Boolean.TRUE.equals(success) && files != null && !files.isEmpty()) {
+                hasUndo = true;
+                break;
+            }
+        }
+        assertThat(hasUndo).isFalse();
+    }
+
+    @Test
+    @DisplayName("Should retrieve all recipe executions for history tab")
+    void shouldGetAllRecipeExecutionsForHistory() {
+        // Given
+        CentralMigrationAnalysisStore store = new CentralMigrationAnalysisStore(tempDir.resolve("test.db"));
+        String repoPath = tempDir.resolve("my-project").toString();
+        
+        // Save multiple executions
+        store.saveRecipeExecution(repoPath, "AddJakartaNamespace", true, "Success 1", List.of("file1.java"));
+        store.saveRecipeExecution(repoPath, "MigrateJpa", true, "Success 2", List.of("file2.java"));
+        store.saveRecipeExecution(repoPath, "MigrateCdi", false, "Failed", null);
+        
+        // When
+        var allExecutions = store.getAllRecipeExecutions(repoPath);
+        
+        // Then
+        assertThat(allExecutions).hasSize(3);
+        
+        // Verify all expected recipes are present
+        var recipeNames = allExecutions.stream().map(e -> (String) e.get("recipe_name")).toList();
+        assertThat(recipeNames).contains("AddJakartaNamespace", "MigrateJpa", "MigrateCdi");
     }
 }

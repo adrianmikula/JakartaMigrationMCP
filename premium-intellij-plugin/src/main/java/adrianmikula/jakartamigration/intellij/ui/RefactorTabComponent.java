@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.coderefactoring.domain.Recipe;
 import adrianmikula.jakartamigration.coderefactoring.domain.SafetyLevel;
 import adrianmikula.jakartamigration.coderefactoring.domain.RollbackResult;
@@ -18,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +33,7 @@ public class RefactorTabComponent {
     
     private final Project project;
     private final MigrationAnalysisService analysisService;
+    private final CentralMigrationAnalysisStore store;
     private final JPanel panel;
     private final RecipeTableModel tableModel;
     private final JTable table;
@@ -47,6 +50,7 @@ public class RefactorTabComponent {
         LOG.info("RefactorTabComponent: Constructor called for project: " + project.getName());
         this.project = project;
         this.analysisService = new MigrationAnalysisService();
+        this.store = new CentralMigrationAnalysisStore();
         LOG.info("RefactorTabComponent: MigrationAnalysisService created");
         this.lastAppliedRecipeName = null;
         this.lastChangedFiles = new ArrayList<>();
@@ -170,8 +174,37 @@ public class RefactorTabComponent {
     }
     
     private boolean hasUndoForRecipe(String recipeName) {
+        // First check in-memory map
         List<String> files = recipeToChangedFiles.get(recipeName);
-        return files != null && !files.isEmpty();
+        if (files != null && !files.isEmpty()) {
+            return true;
+        }
+        
+        // Also check database for any successful executions with affected files
+        String projectPath = project.getBasePath() != null ? project.getBasePath() : "";
+        List<Map<String, Object>> executions = store.getRecipeExecutions(projectPath, recipeName);
+        for (Map<String, Object> exec : executions) {
+            Boolean success = (Boolean) exec.get("success");
+            String affectedFiles = (String) exec.get("affected_files");
+            if (Boolean.TRUE.equals(success) && affectedFiles != null && !affectedFiles.isEmpty()) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    private List<String> getChangedFilesFromDb(String recipeName) {
+        String projectPath = project.getBasePath() != null ? project.getBasePath() : "";
+        List<Map<String, Object>> executions = store.getRecipeExecutions(projectPath, recipeName);
+        for (Map<String, Object> exec : executions) {
+            Boolean success = (Boolean) exec.get("success");
+            String affectedFiles = (String) exec.get("affected_files");
+            if (Boolean.TRUE.equals(success) && affectedFiles != null && !affectedFiles.isEmpty()) {
+                return Arrays.asList(affectedFiles.split(","));
+            }
+        }
+        return null;
     }
     
     private void handleRowUndo(int row) {
@@ -315,6 +348,16 @@ private void handleApplyRecipe(int row) {
             MigrationAnalysisService.RecipeApplicationResult result = analysisService.applyRecipe(recipe.name(), projectPath);
             
             if (result.success()) {
+                // Save to database for history tracking
+                String projectPathStr = project.getBasePath() != null ? project.getBasePath() : "";
+                store.saveRecipeExecution(
+                    projectPathStr,
+                    recipe.name(),
+                    true,
+                    "Applied successfully - " + result.filesChanged() + " file(s) changed",
+                    result.changedFilePaths()
+                );
+                
                 // Track the applied recipe for undo functionality
                 this.lastAppliedRecipeName = recipe.name();
                 this.lastChangedFiles = result.changedFilePaths() != null ? new ArrayList<>(result.changedFilePaths()) : new ArrayList<>();
@@ -374,6 +417,16 @@ private void handleApplyRecipe(int row) {
                 Messages.showErrorDialog(project, 
                     "Failed to apply recipe '" + recipe.name() + "'.\n\nError: " + result.errorMessage(), 
                     "Refactor Failed");
+                
+                // Save failed execution to database
+                String projectPathStr = project.getBasePath() != null ? project.getBasePath() : "";
+                store.saveRecipeExecution(
+                    projectPathStr,
+                    recipe.name(),
+                    false,
+                    "Failed: " + result.errorMessage(),
+                    null
+                );
             }
         }
     }
@@ -500,3 +553,4 @@ private void handleApplyRecipe(int row) {
         }
     }
 }
+
