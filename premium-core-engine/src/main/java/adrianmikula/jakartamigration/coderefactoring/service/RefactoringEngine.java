@@ -208,42 +208,38 @@ public class RefactoringEngine {
     
     /**
      * Applies a single recipe using string replacement.
+     * Loads replacements from YAML configuration.
      */
     private String applyRecipe(String content, String fileName, Recipe recipe) {
         String result = content;
+        String recipeName = recipe.name();
         
-        switch (recipe.name()) {
-            case "AddJakartaNamespace":
-                // Simple string replacement for javax -> jakarta
-                result = result.replace("javax.servlet", "jakarta.servlet");
-                result = result.replace("javax.persistence", "jakarta.persistence");
-                result = result.replace("javax.validation", "jakarta.validation");
-                result = result.replace("javax.annotation", "jakarta.annotation");
-                result = result.replace("javax.inject", "jakarta.inject");
-                result = result.replace("javax.ejb", "jakarta.ejb");
-                result = result.replace("javax.transaction", "jakarta.transaction");
-                result = result.replace("javax.enterprise", "jakarta.enterprise");
-                result = result.replace("javax.ws.rs", "jakarta.ws.rs");
-                result = result.replace("javax.json", "jakarta.json");
-                result = result.replace("javax.xml.bind", "jakarta.xml.bind");
-                result = result.replace("javax.xml.ws", "jakarta.xml.ws");
-                break;
-            case "UpdatePersistenceXml":
-                if (fileName.contains("persistence.xml")) {
-                    result = result.replace(
-                        "http://java.sun.com/xml/ns/persistence",
-                        "https://jakarta.ee/xml/ns/persistence"
-                    );
-                }
-                break;
-            case "UpdateWebXml":
-                if (fileName.contains("web.xml")) {
-                    result = result.replace(
-                        "http://java.sun.com/xml/ns/javaee",
-                        "https://jakarta.ee/xml/ns/jakartaee"
-                    );
-                }
-                break;
+        RecipeConfigLoader.RecipeConfig config = RecipeConfigLoader.getInstance().getRecipeConfig(recipeName);
+        
+        if (config == null) {
+            log.warn("No configuration found for recipe: {} - no replacements applied", recipeName);
+            return result;
+        }
+        
+        if (config.getReplacements() == null || config.getReplacements().isEmpty()) {
+            log.warn("No replacements defined for recipe: {}", recipeName);
+            return result;
+        }
+        
+        String fileFilter = config.getFileFilter();
+        if (fileFilter != null && !fileFilter.isEmpty()) {
+            if (!fileName.contains(fileFilter)) {
+                log.debug("Recipe {} skipped for file {} (fileFilter={})", recipeName, fileName, fileFilter);
+                return result;
+            }
+        }
+        
+        for (RecipeConfigLoader.Replacement replacement : config.getReplacements()) {
+            String from = replacement.getFrom();
+            String to = replacement.getTo();
+            if (from != null && to != null) {
+                result = result.replace(from, to);
+            }
         }
         
         return result;

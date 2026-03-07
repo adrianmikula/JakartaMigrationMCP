@@ -1,0 +1,318 @@
+recipes:
+  - name: AddJakartaNamespace
+    description: Converts javax.* imports and references to jakarta.*
+    pattern: "javax.* → jakarta.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.servlet"
+        to: "jakarta.servlet"
+      - from: "javax.persistence"
+        to: "jakarta.persistence"
+      - from: "javax.validation"
+        to: "jakarta.validation"
+      - from: "javax.annotation"
+        to: "jakarta.annotation"
+      - from: "javax.inject"
+        to: "jakarta.inject"
+      - from: "javax.ejb"
+        to: "jakarta.ejb"
+      - from: "javax.transaction"
+        to: "jakarta.transaction"
+      - from: "javax.enterprise"
+        to: "jakarta.enterprise"
+      - from: "javax.ws.rs"
+        to: "jakarta.ws.rs"
+      - from: "javax.json"
+        to: "jakarta.json"
+      - from: "javax.xml.bind"
+        to: "jakarta.xml.bind"
+      - from: "javax.xml.ws"
+        to: "jakarta.xml.ws"
+
+  - name: UpdatePersistenceXml
+    description: Updates persistence.xml namespace to Jakarta
+    pattern: "xmlns:persistence='http://java.sun.com/xml/ns/persistence' → xmlns:persistence='https://jakarta.ee/xml/ns/persistence'"
+    safety: HIGH
+    reversible: true
+    fileFilter: "persistence.xml"
+    replacements:
+      - from: "http://java.sun.com/xml/ns/persistence"
+        to: "https://jakarta.ee/xml/ns/persistence"
+
+  - name: UpdateWebXml
+    description: Updates web.xml namespace to Jakarta
+    pattern: "http://java.sun.com/xml/ns/javaee → https://jakarta.ee/xml/ns/jakartaee"
+    safety: MEDIUM
+    reversible: true
+    fileFilter: "web.xml"
+    replacements:
+      - from: "http://java.sun.com/xml/ns/javaee"
+        to: "https://jakarta.ee/xml/ns/jakartaee"
+
+  - name: MigrateJPA
+    description: Converts javax.persistence.* to jakarta.persistence.*
+    pattern: "javax.persistence.* → jakarta.persistence.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.persistence"
+        to: "jakarta.persistence"
+
+  - name: MigrateBeanValidation
+    description: Converts javax.validation.* to jakarta.validation.*
+    pattern: "javax.validation.* → jakarta.validation.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.validation"
+        to: "jakarta.validation"
+      - from: "javax.validation.constraints"
+        to: "jakarta.validation.constraints"
+
+  - name: MigrateServlet
+    description: Converts javax.servlet.* to jakarta.servlet.*
+    pattern: "javax.servlet.* → jakarta.servlet.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.servlet"
+        to: "jakarta.servlet"
+
+  - name: MigrateCDI
+    description: Converts javax.enterprise.* and javax.inject.* to jakarta equivalents
+    pattern: "javax.enterprise.* → jakarta.enterprise.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.enterprise"
+        to: "jakarta.enterprise"
+      - from: "javax.inject"
+        to: "jakarta.inject"
+
+  - name: MigrateREST
+    description: Converts javax.ws.rs.* to jakarta.ws.rs.*
+    pattern: "javax.ws.rs.* → jakarta.ws.rs.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.ws.rs"
+        to: "jakarta.ws.rs"
+
+  - name: MigrateSOAP
+    description: Converts javax.xml.ws.* to jakarta.xml.ws.*
+    pattern: "javax.xml.ws.* → jakarta.xml.ws.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.xml.ws"
+        to: "jakarta.xml.ws"
+
+  - name: MigrateJMS
+    description: Converts javax.jms.* to jakarta.jms.*
+    pattern: "javax.jms.* → jakarta.jms.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.jms"
+        to: "jakarta.jms"
+
+  - name: MigrateBatch
+    description: Converts javax.batch.* to jakarta.batch.*
+    pattern: "javax.batch.* → jakarta.batch.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.batch"
+        to: "jakarta.batch"
+
+  - name: MigrateMail
+    description: Converts javax.mail.* to jakarta.mail.*
+    pattern: "javax.mail.* → jakarta.mail.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.mail"
+        to: "jakarta.mail"
+
+  - name: MigrateJTA
+    description: Converts javax.transaction.* to jakarta.transaction.*
+    pattern: "javax.transaction.* → jakarta.transaction.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.transaction"
+        to: "jakarta.transaction"
+
+  - name: MigrateEJB
+    description: Converts javax.ejb.* to jakarta.ejb.*
+    pattern: "javax.ejb.* → jakarta.ejb.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.ejb"
+        to: "jakarta.ejb"
+
+  - name: MigrateJSF
+    description: Converts javax.faces.* to jakarta.faces.*
+    pattern: "javax.faces.* → jakarta.faces.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.faces"
+        to: "jakarta.faces"
+
+  - name: MigrateWebSocket
+    description: Converts javax.websocket.* to jakarta.websocket.*
+    pattern: "javax.websocket.* → jakarta.websocket.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.websocket"
+        to: "jakarta.websocket"
+
+  - name: MigrateJSONP
+    description: Converts javax.json.* to jakarta.json.*
+    pattern: "javax.json.* → jakarta.json.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.json"
+        to: "jakarta.json"
+
+  - name: MigrateJSONB
+    description: Converts javax.json.bind.* to jakarta.json.bind.*
+    pattern: "javax.json.bind.* → jakarta.json.bind.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.json.bind"
+        to: "jakarta.json.bind"
+
+  - name: MigrateSecurity
+    description: Converts javax.security.enterprise.* to jakarta.security.enterprise.*
+    pattern: "javax.security.enterprise.* → jakarta.security.enterprise.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.security.enterprise"
+        to: "jakarta.security.enterprise"
+
+  - name: MigrateConcurrency
+    description: Converts javax.enterprise.concurrent.* to jakarta.enterprise.concurrent.*
+    pattern: "javax.enterprise.concurrent.* → jakarta.enterprise.concurrent.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.enterprise.concurrent"
+        to: "jakarta.enterprise.concurrent"
+
+  - name: MigrateJCA
+    description: Converts javax.resource.* to jakarta.resource.*
+    pattern: "javax.resource.* → jakarta.resource.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.resource"
+        to: "jakarta.resource"
+
+  - name: MigrateJAXB
+    description: Converts javax.xml.bind.* to jakarta.xml.bind.*
+    pattern: "javax.xml.bind.* → jakarta.xml.bind.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.xml.bind"
+        to: "jakarta.xml.bind"
+
+  - name: MigrateJAXRPC
+    description: Converts javax.xml.rpc.* to jakarta.xml.rpc.*
+    pattern: "javax.xml.rpc.* → jakarta.xml.rpc.*"
+    safety: MEDIUM
+    reversible: true
+    replacements:
+      - from: "javax.xml.rpc"
+        to: "jakarta.xml.rpc"
+
+  - name: MigrateJASPIC
+    description: Converts javax.security.auth.message.* to jakarta.security.auth.message.*
+    pattern: "javax.security.auth.message.* → jakarta.security.auth.message.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.security.auth.message"
+        to: "jakarta.security.auth.message"
+
+  - name: MigrateAnnotation
+    description: Converts javax.annotation.* to jakarta.annotation.*
+    pattern: "javax.annotation.* → jakarta.annotation.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.annotation"
+        to: "jakarta.annotation"
+
+  - name: MigrateActivation
+    description: Converts javax.activation.* to jakarta.activation.*
+    pattern: "javax.activation.* → jakarta.activation.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.activation"
+        to: "jakarta.activation"
+
+  - name: MigrateEL
+    description: Converts javax.el.* to jakarta.el.*
+    pattern: "javax.el.* → jakarta.el.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.el"
+        to: "jakarta.el"
+
+  - name: MigrateInterceptor
+    description: Converts javax.interceptor.* to jakarta.interceptor.*
+    pattern: "javax.interceptor.* → jakarta.interceptor.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.interceptor"
+        to: "jakarta.interceptor"
+
+  - name: MigrateResource
+    description: Converts @Resource javax.annotation to jakarta.annotation
+    pattern: "@Resource → jakarta.annotation.Resource"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.annotation.Resource"
+        to: "jakarta.annotation.Resource"
+      - from: "@Resource"
+        to: "@jakarta.annotation.Resource"
+
+  - name: MigrateServletApi
+    description: Migrates javax.servlet.* packages to jakarta.servlet.*
+    pattern: "javax.servlet → jakarta.servlet"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.servlet"
+        to: "jakarta.servlet"
+
+  - name: MigrateSaaj
+    description: Migrates javax.xml.soap.SAAJ to jakarta.xml.soap.SAAJ
+    pattern: "javax.xml.soap.SAAJ → jakarta.xml.soap.SAAJ"
+    safety: MEDIUM
+    reversible: true
+    replacements:
+      - from: "javax.xml.soap"
+        to: "jakarta.xml.soap"
+
+  - name: MigrateAuthorization
+    description: Migrates javax.security.* to jakarta.security.*
+    pattern: "javax.security → jakarta.security"
+    safety: MEDIUM
+    reversible: true
+    replacements:
+      - from: "javax.security"
+        to: "jakarta.security"

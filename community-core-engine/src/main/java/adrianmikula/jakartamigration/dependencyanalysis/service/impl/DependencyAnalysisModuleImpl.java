@@ -126,50 +126,25 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
         List<VersionRecommendation> recommendations = new ArrayList<>();
 
         for (Artifact artifact : artifacts) {
-            // Check if this is a javax artifact by groupId
-            if (artifact.groupId().startsWith("javax.")) {
-                Optional<JakartaMappingService.JakartaEquivalent> mapping = jakartaMappingService.findMapping(artifact);
+            // Check for mapping for any artifact, not just javax.*
+            Optional<JakartaMappingService.JakartaEquivalent> mapping = jakartaMappingService.findMapping(artifact);
 
-                if (mapping.isPresent()) {
-                    JakartaMappingService.JakartaEquivalent equivalent = mapping.get();
-                    Artifact jakartaArtifact = new Artifact(
-                            equivalent.jakartaGroupId(),
-                            equivalent.jakartaArtifactId(),
-                            equivalent.jakartaVersion(),
-                            artifact.scope(),
-                            artifact.transitive());
+            if (mapping.isPresent()) {
+                JakartaMappingService.JakartaEquivalent equivalent = mapping.get();
+                Artifact jakartaArtifact = new Artifact(
+                        equivalent.jakartaGroupId(),
+                        equivalent.jakartaArtifactId(),
+                        equivalent.jakartaVersion(),
+                        artifact.scope(),
+                        artifact.transitive());
 
-                    recommendations.add(new VersionRecommendation(
-                            artifact,
-                            jakartaArtifact,
-                            "Migrate to Jakarta namespace: " + equivalent.jakartaGroupId() + ":"
-                                    + equivalent.jakartaArtifactId(),
-                            List.of("Update imports from javax.* to jakarta.*", "Update dependency coordinates"),
-                            0.95));
-                }
-            } else if (artifact.artifactId().startsWith("javax-") ||
-                    artifact.artifactId().equals("javax.mail") ||
-                    artifact.artifactId().equals("validation-api")) {
-                // Check by artifactId as well
-                Optional<JakartaMappingService.JakartaEquivalent> mapping = jakartaMappingService.findMapping(artifact);
-
-                if (mapping.isPresent()) {
-                    JakartaMappingService.JakartaEquivalent equivalent = mapping.get();
-                    Artifact jakartaArtifact = new Artifact(
-                            equivalent.jakartaGroupId(),
-                            equivalent.jakartaArtifactId(),
-                            equivalent.jakartaVersion(),
-                            artifact.scope(),
-                            artifact.transitive());
-
-                    recommendations.add(new VersionRecommendation(
-                            artifact,
-                            jakartaArtifact,
-                            "Migrate to Jakarta namespace: " + equivalent.jakartaGroupId() + ":"
-                                    + equivalent.jakartaArtifactId(),
-                            List.of("Update imports from javax.* to jakarta.*", "Update dependency coordinates"),
-                            0.95));
-                }
+                recommendations.add(new VersionRecommendation(
+                        artifact,
+                        jakartaArtifact,
+                        "Migrate to Jakarta namespace: " + equivalent.jakartaGroupId() + ":"
+                                + equivalent.jakartaArtifactId(),
+                        List.of("Update imports from javax.* to jakarta.*", "Update dependency coordinates"),
+                        0.95));
             }
         }
 

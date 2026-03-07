@@ -140,9 +140,15 @@ public class RefactorComponent {
         if (store == null)
             return;
 
-        List<Map<String, Object>> history = store.getRecipeExecutions(project.getBasePath(), recipe.name());
+        String repoPath = getRepositoryPath();
+        if (repoPath == null) {
+            resultsArea.setText("Cannot determine project path. Please ensure a project is open.");
+            return;
+        }
+
+        List<Map<String, Object>> history = store.getRecipeExecutions(repoPath, recipe.name());
         if (history.isEmpty()) {
-            resultsArea.setText("No execution history found for this recipe.");
+            resultsArea.setText("No execution history found for this recipe.\n\nClick 'Run Recipe' to execute a migration recipe.");
             return;
         }
 
@@ -160,12 +166,25 @@ public class RefactorComponent {
                 for (String file : affectedFiles.split(",")) {
                     results.append("  - ").append(file).append("\n");
                 }
+            } else {
+                results.append("Files modified: None\n");
             }
             results.append("--------------------------------------------------\n\n");
         }
 
         resultsArea.setText(results.toString());
         resultsArea.setCaretPosition(0);
+    }
+
+    private String getRepositoryPath() {
+        String path = project.getBasePath();
+        if (path == null || path.isEmpty()) {
+            path = project.getProjectFilePath();
+        }
+        if (path == null || path.isEmpty()) {
+            path = project.getName();
+        }
+        return path;
     }
 
     private void handleRunRecipe(ActionEvent e) {
@@ -191,6 +210,8 @@ public class RefactorComponent {
         statusLabel.setText("Executing " + recipe.name() + "...");
         statusLabel.setForeground(Color.BLUE);
 
+        String repoPath = getRepositoryPath();
+
         actionHandler.handleRecipeExecution(recipe, (success, message) -> {
             SwingUtilities.invokeLater(() -> {
                 if (success) {
@@ -200,7 +221,7 @@ public class RefactorComponent {
 
                     // Save execution to DB
                     if (store != null) {
-                        store.saveRecipeExecution(project.getBasePath(), recipe.name(), true, message,
+                        store.saveRecipeExecution(repoPath, recipe.name(), true, message,
                                 Collections.emptyList());
                         loadRecipeHistory(recipe);
                     }
@@ -210,7 +231,7 @@ public class RefactorComponent {
                     Messages.showErrorDialog(project, message, "Error");
 
                     if (store != null) {
-                        store.saveRecipeExecution(project.getBasePath(), recipe.name(), false, message,
+                        store.saveRecipeExecution(repoPath, recipe.name(), false, message,
                                 Collections.emptyList());
                         loadRecipeHistory(recipe);
                     }

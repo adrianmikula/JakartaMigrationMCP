@@ -110,8 +110,8 @@ public class DependencyGraphComponent {
         JPanel legendItem3 = createLegendItem(new Color(220, 53, 69), "No Jakarta Version");
         legendPanel.add(legendItem3);
 
-        // Organisational (Purple)
-        JPanel legendItem4 = createLegendItem(new Color(156, 39, 176), "Organisational");
+        // Organisational - Thicker border indicator
+        JPanel legendItem4 = createLegendItemWithBorder(new Color(108, 117, 125), "Organisational (thicker border)");
         legendPanel.add(legendItem4);
 
         // Combine controls and legend in a wrapper panel
@@ -132,6 +132,24 @@ public class DependencyGraphComponent {
         colorBox.setBackground(color);
         colorBox.setPreferredSize(new Dimension(16, 16));
         colorBox.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
+
+        JLabel labelText = new JLabel(label);
+        labelText.setFont(labelText.getFont().deriveFont(Font.PLAIN, 11f));
+
+        itemPanel.add(colorBox);
+        itemPanel.add(labelText);
+
+        return itemPanel;
+    }
+
+    private JPanel createLegendItemWithBorder(Color color, String label) {
+        JPanel itemPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        itemPanel.setOpaque(false);
+
+        JPanel colorBox = new JPanel();
+        colorBox.setBackground(color);
+        colorBox.setPreferredSize(new Dimension(16, 16));
+        colorBox.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 3));
 
         JLabel labelText = new JLabel(label);
         labelText.setFont(labelText.getFont().deriveFont(Font.PLAIN, 11f));

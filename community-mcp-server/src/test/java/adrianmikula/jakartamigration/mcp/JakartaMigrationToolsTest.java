@@ -7,7 +7,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphException;
-import adrianmikula.jakartamigration.mcp.JakartaMigrationTools;
+
 // NOTE: RuntimeVerificationModule is a PREMIUM feature - removed from community tests
 import adrianmikula.jakartamigration.config.FeatureFlagsService;
 import adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner;
@@ -23,7 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+
 import java.time.Duration;
 import java.util.List;
 

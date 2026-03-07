@@ -9,11 +9,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * Library of refactoring recipes.
  */
 public class RecipeLibrary {
-    
-    private static final java.util.logging.Logger LOG = java.util.logging.Logger.getLogger(RecipeLibrary.class.getName());
-    
+
+    private static final java.util.logging.Logger LOG = java.util.logging.Logger
+            .getLogger(RecipeLibrary.class.getName());
+
     private final Map<String, Recipe> recipes = new ConcurrentHashMap<>();
-    
+
     public RecipeLibrary() {
         LOG.info("RecipeLibrary: Initializing with 20 recipes...");
         // Register default Jakarta migration recipes
@@ -41,32 +42,28 @@ public class RecipeLibrary {
         registerRecipeInternal(Recipe.authorizationRecipe());
         LOG.info("RecipeLibrary: Registered " + recipes.size() + " recipes");
     }
-    
+
     /**
      * Gets a recipe by name.
      */
     public Optional<Recipe> getRecipe(String name) {
         return Optional.ofNullable(recipes.get(name));
     }
-    
+
     /**
      * Gets all Jakarta migration recipes.
      */
     public List<Recipe> getJakartaRecipes() {
-        return recipes.values().stream()
-            .filter(recipe -> recipe.name().contains("Jakarta") || 
-                             recipe.name().contains("Persistence") ||
-                             recipe.name().contains("Web"))
-            .toList();
+        return new ArrayList<>(recipes.values());
     }
-    
+
     /**
      * Registers a new recipe.
      */
     public final void registerRecipe(Recipe recipe) {
         registerRecipeInternal(recipe);
     }
-    
+
     /**
      * Internal method to register a recipe (not overridable).
      */
@@ -76,7 +73,7 @@ public class RecipeLibrary {
         }
         recipes.put(recipe.name(), recipe);
     }
-    
+
     /**
      * Returns all registered recipes.
      */
@@ -84,7 +81,7 @@ public class RecipeLibrary {
         LOG.info("RecipeLibrary.getAllRecipes: Returning " + recipes.size() + " recipes");
         return new ArrayList<>(recipes.values());
     }
-    
+
     /**
      * Checks if a recipe exists.
      */
@@ -92,4 +89,3 @@ public class RecipeLibrary {
         return recipes.containsKey(name);
     }
 }
-

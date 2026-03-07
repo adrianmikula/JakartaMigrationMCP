@@ -1,4 +1,4 @@
-package unit.jakartamigration.coderefactoring.domain;
+package adrianmikula.jakartamigration.unit.jakartamigration.coderefactoring.domain;
 
 import adrianmikula.jakartamigration.coderefactoring.domain.MigrationImpactSummary;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;

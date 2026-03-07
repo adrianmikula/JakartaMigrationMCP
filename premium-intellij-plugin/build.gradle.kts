@@ -4,17 +4,6 @@ plugins {
     java
     jacoco
 }
-
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-
-// Force version override for development - ensures plugin is always reloaded
-version = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
-
-jacoco {
-    toolVersion = "0.8.11"
-}
-
 tasks.withType<JacocoReport> {
     dependsOn("test")
     
@@ -60,12 +49,12 @@ dependencies {
 }
 
 intellij {
-    version.set("2023.3.4")
-    type.set("IC")
-    plugins.set(listOf("com.intellij.java"))
+    version = "2023.3.4"
+    type = "IC"
+    plugins = listOf("com.intellij.java")
 }
 
-    tasks {
+tasks {
     patchPluginXml {
         sinceBuild.set(providers.gradleProperty("intellij.sinceBuild").orElse("233"))
         // Use empty string to get open-ended compatibility (no until-build in generated XML)
