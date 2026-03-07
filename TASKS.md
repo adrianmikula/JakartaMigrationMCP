@@ -28,3 +28,21 @@ Lets complete the following tasks in order using SDD (spec driven development), 
 
 
 After completing the task list, ensure all new features have test coverage, all tests pass, and the plugin changelog (and feature list if new features were added) has been updated to mention the recent changes. fix all compile errors, even unrelated ones.
+
+
+
+# OpenRewrite execution fixes
+
+Root cause investigation: `docs/community/investigations/openrewrite-not-modifying-files-2026-03-07.md`
+
+6. **Fix `RefactoringEngine` tool selection** — `MigrationAnalysisService` initialises `RefactoringEngine` with the no-arg constructor which defaults to `SIMPLE_STRING_REPLACEMENT`. Change the initialisation to `new RefactoringEngine(MigrationTool.OPENREWRITE)` so that the OpenRewrite code path is actually exercised.
+
+7. **Fix OpenRewrite file parsing — use paths, not raw strings** — `RefactoringEngine.refactorWithOpenRewrite()` currently calls `javaParser.parse(originalContent)` (raw string, no path). Change it to `javaParser.parse(List.of(filePath), baseDir, ctx)` so that OpenRewrite knows the real source path and can perform type resolution correctly.
+
+8. **Rewrite `MigrationAnalysisService.applyRecipe` for project-level batch execution** — OpenRewrite must parse all source files at once, not one-by-one. The current per-file loop breaks cross-file type resolution and prevents many recipes from matching. The fix:
+   - Collect all `.java` source file `Path` objects.
+   - Parse all of them in a single `javaParser.parse(allPaths, baseDir, ctx)` call.
+   - Run the activated OpenRewrite `Recipe` on the full `SourceSet`.
+   - For each `Result` where `getAfter() != null`, write the modified content back to the original file path.
+   - XML files that don't benefit from OpenRewrite can continue using the existing simple replacement fallback.
+

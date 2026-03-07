@@ -175,7 +175,9 @@ public class RefactoringEngine {
     }
 
     /**
-     * Refactors using OpenRewrite (placeholder for future implementation).
+     * Refactors using OpenRewrite.
+     * Files are parsed with their actual source path so that OpenRewrite can
+     * perform correct type resolution.
      */
     private RefactoringChanges refactorWithOpenRewrite(Path filePath, List<Recipe> recipes) throws IOException {
         String fileName = filePath.getFileName().toString();
@@ -196,9 +198,16 @@ public class RefactoringEngine {
         }
 
         try {
-            // Parse the Java file
+            InMemoryExecutionContext ctx = new InMemoryExecutionContext(
+                    t -> log.warn("OpenRewrite warning: {}", t.getMessage()));
+
+            // Parse using the real file path so OpenRewrite gets proper source context.
+            // Use the parent directory as the base dir so relative paths are meaningful.
             javaParser.reset();
-            List<SourceFile> sourceFiles = javaParser.parse(originalContent).collect(Collectors.toList());
+            Path baseDir = filePath.getParent() != null ? filePath.getParent() : filePath;
+            List<SourceFile> sourceFiles = javaParser
+                    .parse(List.of(filePath), baseDir, ctx)
+                    .collect(Collectors.toList());
 
             if (sourceFiles.isEmpty()) {
                 log.warn("OpenRewrite could not parse file: {}", filePath);
@@ -206,7 +215,7 @@ public class RefactoringEngine {
             }
 
             // Run the recipe
-            List<Result> results = orRecipe.run(new InMemoryLargeSourceSet(sourceFiles), new InMemoryExecutionContext())
+            List<Result> results = orRecipe.run(new InMemoryLargeSourceSet(sourceFiles), ctx)
                     .getChangeset().getAllResults();
 
             String refactoredContent = originalContent;

@@ -6,6 +6,7 @@ import adrianmikula.jakartamigration.coderefactoring.domain.SafetyLevel;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeConfigLoader;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeLibrary;
 import adrianmikula.jakartamigration.coderefactoring.service.RefactoringEngine;
+import adrianmikula.jakartamigration.coderefactoring.util.RecipeMapper;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
@@ -15,6 +16,11 @@ import adrianmikula.jakartamigration.dependencyanalysis.service.impl.JakartaMapp
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.MavenDependencyGraphBuilder;
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.SimpleNamespaceClassifier;
 import com.intellij.openapi.diagnostic.Logger;
+import org.openrewrite.InMemoryExecutionContext;
+import org.openrewrite.Result;
+import org.openrewrite.SourceFile;
+import org.openrewrite.internal.InMemoryLargeSourceSet;
+import org.openrewrite.java.JavaParser;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -24,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -39,7 +46,8 @@ public class MigrationAnalysisService {
     private final JakartaMappingService jakartaMappingService;
     private final DependencyAnalysisModule dependencyAnalysisModule;
     private final RecipeLibrary recipeLibrary;
-    private final RefactoringEngine refactoringEngine;
+    private final RecipeMapper recipeMapper;
+    private final RefactoringEngine xmlRefactoringEngine;
 
     public MigrationAnalysisService() {
         // Create instances of the core library components directly
@@ -58,8 +66,11 @@ public class MigrationAnalysisService {
         this.recipeLibrary = new RecipeLibrary();
         loadRecipesFromYaml();
 
-        // Initialize refactoring engine
-        this.refactoringEngine = new RefactoringEngine();
+        // RecipeMapper handles Java files via OpenRewrite directly
+        this.recipeMapper = new RecipeMapper();
+
+        // Simple replacement engine used only for XML files
+        this.xmlRefactoringEngine = new RefactoringEngine();
 
         LOG.info("MigrationAnalysisService initialized with core library");
     }
@@ -207,7 +218,11 @@ public class MigrationAnalysisService {
     }
 
     /**
-     * Applies a specific recipe to a project.
+     * Applies a specific recipe to a project using OpenRewrite for Java files and
+     * simple string replacement for XML/other files.
+     *
+     * OpenRewrite requires all Java source files to be parsed as a full project
+     * (not file-by-file) so that type resolution across files works correctly.
      *
      * @param recipeName  The name of the recipe to apply
      * @param projectPath The project path
@@ -223,27 +238,108 @@ public class MigrationAnalysisService {
         }
 
         Recipe recipe = recipeOpt.get();
-        List<Recipe> recipes = List.of(recipe);
         List<String> changedFiles = new ArrayList<>();
         int filesProcessed = 0;
 
         try {
-            List<Path> sourceFiles = findSourceFiles(projectPath);
-            LOG.info("Found " + sourceFiles.size() + " source files to process");
+            List<Path> allSourceFiles = findSourceFiles(projectPath);
+            LOG.info("Found " + allSourceFiles.size() + " source files to process");
 
-            for (Path filePath : sourceFiles) {
+            // --- OpenRewrite batch execution for Java source files ---
+            List<Path> javaFiles = allSourceFiles.stream()
+                    .filter(p -> p.toString().endsWith(".java"))
+                    .collect(Collectors.toList());
+
+            org.openrewrite.Recipe orRecipe = recipeMapper.mapToOpenRewriteRecipe(List.of(recipe));
+            if (orRecipe != null && !javaFiles.isEmpty()) {
+                LOG.info("Running OpenRewrite recipe '" + orRecipe.getDisplayName() + "' on " + javaFiles.size()
+                        + " Java files");
+                filesProcessed += javaFiles.size();
                 try {
-                    RefactoringChanges changes = refactoringEngine.refactorFile(filePath, recipes);
+                    InMemoryExecutionContext ctx = new InMemoryExecutionContext(
+                            t -> LOG.warn("OpenRewrite execution warning: " + t.getMessage()));
 
+                    // Parse all Java files together (project-level) for correct type resolution
+                    JavaParser javaParser = JavaParser.fromJavaVersion()
+                            .logCompilationWarningsAndErrors(false)
+                            .build();
+
+                    List<SourceFile> parsedFiles = javaParser
+                            .parse(javaFiles, projectPath, ctx)
+                            .collect(Collectors.toList());
+
+                    LOG.info("OpenRewrite parsed " + parsedFiles.size() + " of " + javaFiles.size() + " Java files");
+
+                    if (!parsedFiles.isEmpty()) {
+                        List<Result> results = orRecipe
+                                .run(new InMemoryLargeSourceSet(parsedFiles), ctx)
+                                .getChangeset().getAllResults();
+
+                        LOG.info("OpenRewrite produced " + results.size() + " changed file(s)");
+
+                        for (Result result : results) {
+                            if (result.getAfter() == null)
+                                continue;
+
+                            // Resolve the real path for this result
+                            Path resultPath = result.getAfter().getSourcePath();
+                            // getSourcePath() is relative to the parser's base dir (projectPath)
+                            Path absolutePath = projectPath.resolve(resultPath);
+                            if (!Files.exists(absolutePath)) {
+                                // Try to find matching entry in javaFiles by filename
+                                String resultName = resultPath.getFileName().toString();
+                                absolutePath = javaFiles.stream()
+                                        .filter(p -> p.getFileName().toString().equals(resultName))
+                                        .findFirst()
+                                        .orElse(null);
+                            }
+
+                            if (absolutePath != null && Files.exists(absolutePath)) {
+                                String modifiedContent = result.getAfter().printAll();
+                                Path backupPath = Path.of(absolutePath + ".bak");
+                                Files.copy(absolutePath, backupPath, StandardCopyOption.REPLACE_EXISTING);
+                                Files.writeString(absolutePath, modifiedContent);
+                                changedFiles.add(absolutePath.toString());
+                                LOG.info("OpenRewrite modified: " + absolutePath);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    LOG.error("OpenRewrite execution failed, falling back to simple replacement for Java files: "
+                            + e.getMessage(), e);
+                    // Fall through to simple replacement below for the Java files
+                    filesProcessed -= javaFiles.size(); // recount below
+                    for (Path filePath : javaFiles) {
+                        try {
+                            RefactoringChanges changes = xmlRefactoringEngine.refactorFile(filePath, List.of(recipe));
+                            if (changes.hasChanges()) {
+                                Path backupPath = Path.of(filePath + ".bak");
+                                Files.copy(filePath, backupPath, StandardCopyOption.REPLACE_EXISTING);
+                                Files.writeString(filePath, changes.refactoredContent());
+                                changedFiles.add(filePath.toString());
+                            }
+                            filesProcessed++;
+                        } catch (IOException ioEx) {
+                            LOG.warn("Fallback replacement failed for " + filePath + ": " + ioEx.getMessage());
+                        }
+                    }
+                }
+            }
+
+            // --- Simple string replacement for XML and other non-Java files ---
+            List<Path> nonJavaFiles = allSourceFiles.stream()
+                    .filter(p -> !p.toString().endsWith(".java"))
+                    .collect(Collectors.toList());
+
+            for (Path filePath : nonJavaFiles) {
+                try {
+                    RefactoringChanges changes = xmlRefactoringEngine.refactorFile(filePath, List.of(recipe));
                     if (changes.hasChanges()) {
-                        // Create backup before modifying
-                        Path backupPath = Path.of(filePath.toString() + ".bak");
+                        Path backupPath = Path.of(filePath + ".bak");
                         Files.copy(filePath, backupPath, StandardCopyOption.REPLACE_EXISTING);
-
-                        // Write the refactored content
                         Files.writeString(filePath, changes.refactoredContent());
                         changedFiles.add(filePath.toString());
-                        LOG.info("Applied recipe to: " + filePath);
+                        LOG.info("Simple replacement modified: " + filePath);
                     }
                     filesProcessed++;
                 } catch (IOException e) {
@@ -251,7 +347,8 @@ public class MigrationAnalysisService {
                 }
             }
 
-            LOG.info("Recipe '" + recipeName + "' applied successfully. Files changed: " + changedFiles.size());
+            LOG.info("Recipe '" + recipeName + "' applied. Files processed: " + filesProcessed + ", changed: "
+                    + changedFiles.size());
             return RecipeApplicationResult.success(filesProcessed, changedFiles.size(), changedFiles);
 
         } catch (Exception e) {
