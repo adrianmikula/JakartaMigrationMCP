@@ -2,30 +2,28 @@ package adrianmikula.jakartamigration.coderefactoring.util;
 
 import adrianmikula.jakartamigration.coderefactoring.domain.Recipe;
 import lombok.extern.slf4j.Slf4j;
-import org.openrewrite.config.Environment;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Maps domain-specific recipes to OpenRewrite recipes.
+ *
+ * <p>
+ * Recipes are instantiated directly by class name rather than through
+ * {@code Environment.builder().scanRuntimeClasspath()}, which causes a
+ * {@link ClassCastException} in IntelliJ plugin environments due to classloader
+ * isolation between the IDE's parent classloader and the plugin's classloader.
  */
 @Slf4j
 public class RecipeMapper {
-
-    private final Environment environment;
-
-    public RecipeMapper() {
-        this.environment = Environment.builder()
-                .scanRuntimeClasspath()
-                .build();
-    }
 
     /**
      * Maps a list of domain recipes to a single composite OpenRewrite recipe.
      *
      * @param domainRecipes List of domain recipes
-     * @return A composite OpenRewrite recipe
+     * @return A composite OpenRewrite recipe, or {@code null} if none could be
+     *         mapped
      */
     public org.openrewrite.Recipe mapToOpenRewriteRecipe(List<Recipe> domainRecipes) {
         List<org.openrewrite.Recipe> openRewriteRecipes = new ArrayList<>();
@@ -41,7 +39,7 @@ public class RecipeMapper {
             return null;
         }
 
-        // Return a composite recipe
+        // Return a composite recipe that delegates to all mapped recipes
         return new org.openrewrite.Recipe() {
             @Override
             public String getDisplayName() {
@@ -64,95 +62,123 @@ public class RecipeMapper {
         String recipeName = domainRecipe.name();
         String normalizedName = recipeName.toLowerCase();
 
-        // Map common recipes to standardized OpenRewrite migration sets
         switch (normalizedName) {
             case "addjakartanamespace":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta");
             case "migratejpa":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxPersistenceToJakartaPersistence");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxPersistenceToJakartaPersistence");
             case "migratejaxrs":
             case "migraterest":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta");
             case "migrateejb":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb");
             case "migratejms":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxJmsToJakartaJms");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxJmsToJakartaJms");
             case "migratejta":
-                return activateRecipe(
+                return instantiateRecipe(
                         "org.openrewrite.java.migrate.jakarta.JavaxTransactionMigrationToJakartaTransaction");
             case "migratevalidator":
             case "migratebeanvalidation":
-                return activateRecipe(
+                return instantiateRecipe(
                         "org.openrewrite.java.migrate.jakarta.JavaxValidationMigrationToJakartaValidation");
             case "migratejaxb":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxXmlBindMigrationToJakartaXmlBind");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxXmlBindMigrationToJakartaXmlBind");
             case "migrateservlet":
             case "migrateservletapi":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxServletToJakartaServlet");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxServletToJakartaServlet");
             case "migratecdi":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxInjectMigrationToJakartaInject");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxInjectMigrationToJakartaInject");
             case "migratejavamail":
             case "migratemail":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxMailToJakartaMail");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxMailToJakartaMail");
             case "migratebatch":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxBatchMigrationToJakartaBatch");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxBatchMigrationToJakartaBatch");
             case "migratejsf":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxFacesToJakartaFaces");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxFacesToJakartaFaces");
             case "migratewebsocket":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxWebsocketToJakartaWebsocket");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxWebsocketToJakartaWebsocket");
             case "migratejsonp":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxJsonToJakartaJson");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxJsonToJakartaJson");
             case "migratejsonb":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta");
             case "migrateactivation":
-                return activateRecipe(
+                return instantiateRecipe(
                         "org.openrewrite.java.migrate.jakarta.JavaxActivationMigrationToJakartaActivation");
             case "migrateel":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxElToJakartaEl");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxElToJakartaEl");
             case "migratejaxws":
             case "migratesoap":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxXmlWsMigrationToJakartaXmlWs");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxXmlWsMigrationToJakartaXmlWs");
             case "migratesecurity":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxSecurityToJakartaSecurity");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxSecurityToJakartaSecurity");
             case "migrateconcurrency":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta");
             case "migratejca":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxResourceToJakartaResource");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxResourceToJakartaResource");
             case "migratejaspic":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta");
             case "migratejaxrpc":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta");
             case "migrateinterceptor":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxInterceptorToJakartaInterceptor");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxInterceptorToJakartaInterceptor");
             case "migrateresource":
-                return activateRecipe(
+                return instantiateRecipe(
                         "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation");
             case "migratesaaj":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxXmlSoapToJakartaXmlSoap");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxXmlSoapToJakartaXmlSoap");
             case "migrateauthorization":
-                return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxSecurityToJakartaSecurity");
+                return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxSecurityToJakartaSecurity");
             case "migrateannotation":
-                return activateRecipe(
+                return instantiateRecipe(
                         "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation");
             default:
                 log.warn(
-                        "No specific OpenRewrite mapping found for recipe: {}. Using generic AddJakartaNamespace if appropriate.",
+                        "No specific OpenRewrite mapping found for recipe: '{}'. Using generic JavaxMigrationToJakarta.",
                         recipeName);
-                if (recipeName.startsWith("Migrate"))
-                    return activateRecipe("org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta");
+                if (recipeName.startsWith("Migrate")) {
+                    return instantiateRecipe("org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta");
+                }
                 return null;
         }
     }
 
-    private org.openrewrite.Recipe activateRecipe(String recipeName) {
+    /**
+     * Instantiates an OpenRewrite recipe class by its fully-qualified class name.
+     *
+     * <p>
+     * This method uses the current thread's context classloader (the plugin
+     * classloader
+     * inside IntelliJ) to resolve the class, avoiding the classloader mismatch that
+     * would
+     * occur with {@code Environment.builder().scanRuntimeClasspath()}.
+     *
+     * @param className Fully qualified name of the OpenRewrite recipe class
+     * @return The instantiated recipe, or {@code null} if instantiation fails
+     */
+    private org.openrewrite.Recipe instantiateRecipe(String className) {
         try {
-            org.openrewrite.Recipe recipe = environment.activateRecipes(recipeName);
-            if (recipe == null) {
-                log.error("Could not activate OpenRewrite recipe: {}", recipeName);
+            // Use thread context classloader to respect IntelliJ's plugin classloader
+            // isolation.
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            if (cl == null) {
+                cl = RecipeMapper.class.getClassLoader();
             }
-            return recipe;
+            Class<?> clazz = Class.forName(className, true, cl);
+            Object instance = clazz.getDeclaredConstructor().newInstance();
+            if (instance instanceof org.openrewrite.Recipe) {
+                log.debug("Instantiated OpenRewrite recipe: {}", className);
+                return (org.openrewrite.Recipe) instance;
+            } else {
+                log.error("Class '{}' is not an OpenRewrite Recipe", className);
+                return null;
+            }
+        } catch (ClassNotFoundException e) {
+            log.warn(
+                    "OpenRewrite recipe class not found on classpath: {}. Check that rewrite-migrate-java is a dependency.",
+                    className);
+            return null;
         } catch (Exception e) {
-            log.error("Error activating OpenRewrite recipe: {}", recipeName, e);
+            log.error("Failed to instantiate OpenRewrite recipe '{}': {}", className, e.getMessage(), e);
             return null;
         }
     }
