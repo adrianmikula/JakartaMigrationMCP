@@ -234,7 +234,10 @@ class CentralMigrationAnalysisStoreTest {
         assertThat(executions).hasSize(1);
         assertThat(executions.get(0).get("recipe_name")).isEqualTo("AddJakartaNamespace");
         assertThat(executions.get(0).get("success")).isEqualTo(true);
-        assertThat(executions.get(0).get("affected_files")).contains("src/main/java/Test.java");
+        @SuppressWarnings("unchecked")
+        List<String> affectedFilesResult = (List<String>) executions.get(0).get("affected_files");
+        assertThat(affectedFilesResult).contains("src/main/java/Test.java");
+
     }
 
     @Test

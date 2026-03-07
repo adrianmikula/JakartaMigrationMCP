@@ -11,6 +11,7 @@ dependencies {
     // External dependencies
     implementation("org.slf4j:slf4j-api:2.0.9")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.15.2")
     implementation("org.ow2.asm:asm:9.6") // For bytecode analysis
     implementation("com.google.guava:guava:32.1.3-jre") // Common utilities
 

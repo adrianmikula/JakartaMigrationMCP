@@ -8,12 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Bug: Status text now updates when clicking different openrewrite recipes in Refactor tab
+- Bug: OpenRewrite recipes now correctly apply changes to files (expanded recipe coverage)
+- Bug: RefactoringEngine now loads recipe replacements from YAML configuration (no hardcoded recipe names)
 - Regression: Runtime UI tab now hidden by default
 - Regression: Strategy tab now shows all 6 strategies (added Hybrid strategy)
 - Regression: Refactor tab now displays recipe description and execution results
 - Dashboard positioning fixed - scan counts no longer overlap with status/timestamp
 - Scan count highlighting: >0 shown in red, =0 shown in green
 - Fixed: History and Refactor tabs now visible as premium feature (previously missing locked placeholders)
+- Plugin version now uses semver format from gradle.properties (removed timestamp generation)
+- Fixed gradle build errors with version loading from properties
+
+### Added
+- Comprehensive test coverage for RefactoringEngine covering all Jakarta migration recipes
 
 ### Added
 - Color legend to dependencies graph tab showing Jakarta compatibility status

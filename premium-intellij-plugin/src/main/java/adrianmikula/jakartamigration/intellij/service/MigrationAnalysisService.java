@@ -2,6 +2,8 @@ package adrianmikula.jakartamigration.intellij.service;
 
 import adrianmikula.jakartamigration.coderefactoring.domain.Recipe;
 import adrianmikula.jakartamigration.coderefactoring.domain.RefactoringChanges;
+import adrianmikula.jakartamigration.coderefactoring.domain.SafetyLevel;
+import adrianmikula.jakartamigration.coderefactoring.service.RecipeConfigLoader;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeLibrary;
 import adrianmikula.jakartamigration.coderefactoring.service.RefactoringEngine;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
@@ -20,6 +22,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -47,18 +50,43 @@ public class MigrationAnalysisService {
 
         // Create the analysis module with its dependencies
         this.dependencyAnalysisModule = new adrianmikula.jakartamigration.dependencyanalysis.service.impl.DependencyAnalysisModuleImpl(
-            dependencyGraphBuilder,
-            namespaceClassifier,
-            jakartaMappingService
-        );
+                dependencyGraphBuilder,
+                namespaceClassifier,
+                jakartaMappingService);
 
         // Initialize recipe library
         this.recipeLibrary = new RecipeLibrary();
+        loadRecipesFromYaml();
 
         // Initialize refactoring engine
         this.refactoringEngine = new RefactoringEngine();
 
         LOG.info("MigrationAnalysisService initialized with core library");
+    }
+
+    private void loadRecipesFromYaml() {
+        try {
+            RecipeConfigLoader loader = RecipeConfigLoader.getInstance();
+            Map<String, RecipeConfigLoader.RecipeConfig> configs = loader.getAllRecipeConfigs();
+
+            if (configs.isEmpty()) {
+                LOG.warn("MigrationAnalysisService: No recipes loaded from YAML");
+                return;
+            }
+
+            for (RecipeConfigLoader.RecipeConfig config : configs.values()) {
+                Recipe recipe = new Recipe(
+                        config.getName(),
+                        config.getDescription(),
+                        config.getPattern(),
+                        SafetyLevel.valueOf(config.getSafety() != null ? config.getSafety() : "MEDIUM"),
+                        config.getReversible() != null ? config.getReversible() : true);
+                recipeLibrary.registerRecipe(recipe);
+            }
+            LOG.info("MigrationAnalysisService: Successfully loaded " + configs.size() + " recipes from YAML");
+        } catch (Exception e) {
+            LOG.error("MigrationAnalysisService: Error loading recipes from YAML", e);
+        }
     }
 
     /**
@@ -164,12 +192,11 @@ public class MigrationAnalysisService {
      * Result of applying a recipe to a project.
      */
     public record RecipeApplicationResult(
-        boolean success,
-        int filesProcessed,
-        int filesChanged,
-        List<String> changedFilePaths,
-        String errorMessage
-    ) {
+            boolean success,
+            int filesProcessed,
+            int filesChanged,
+            List<String> changedFilePaths,
+            String errorMessage) {
         public static RecipeApplicationResult success(int processed, int changed, List<String> paths) {
             return new RecipeApplicationResult(true, processed, changed, paths, null);
         }
@@ -182,8 +209,8 @@ public class MigrationAnalysisService {
     /**
      * Applies a specific recipe to a project.
      *
-     * @param recipeName   The name of the recipe to apply
-     * @param projectPath  The project path
+     * @param recipeName  The name of the recipe to apply
+     * @param projectPath The project path
      * @return RecipeApplicationResult containing details about the application
      */
     public RecipeApplicationResult applyRecipe(String recipeName, Path projectPath) {
@@ -212,7 +239,7 @@ public class MigrationAnalysisService {
                         // Create backup before modifying
                         Path backupPath = Path.of(filePath.toString() + ".bak");
                         Files.copy(filePath, backupPath, StandardCopyOption.REPLACE_EXISTING);
-                        
+
                         // Write the refactored content
                         Files.writeString(filePath, changes.refactoredContent());
                         changedFiles.add(filePath.toString());
@@ -239,16 +266,16 @@ public class MigrationAnalysisService {
     private List<Path> findSourceFiles(Path projectPath) throws IOException {
         List<Path> sourceFiles = new ArrayList<>();
 
-        String[] sourceDirs = {"src/main/java", "src/test/java", "src", "src/main/resources"};
+        String[] sourceDirs = { "src/main/java", "src/test/java", "src", "src/main/resources" };
 
         for (String sourceDir : sourceDirs) {
             Path sourcePath = projectPath.resolve(sourceDir);
             if (Files.exists(sourcePath)) {
                 try (Stream<Path> paths = Files.walk(sourcePath)) {
                     paths.filter(Files::isRegularFile)
-                        .filter(p -> p.toString().endsWith(".java") ||
-                                     p.toString().endsWith(".xml"))
-                        .forEach(sourceFiles::add);
+                            .filter(p -> p.toString().endsWith(".java") ||
+                                    p.toString().endsWith(".xml"))
+                            .forEach(sourceFiles::add);
                 }
             }
         }

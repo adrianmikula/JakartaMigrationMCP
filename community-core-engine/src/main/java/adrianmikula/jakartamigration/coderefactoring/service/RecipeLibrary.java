@@ -9,71 +9,47 @@ import java.util.concurrent.ConcurrentHashMap;
  * Library of refactoring recipes.
  */
 public class RecipeLibrary {
-    
-    private static final java.util.logging.Logger LOG = java.util.logging.Logger.getLogger(RecipeLibrary.class.getName());
-    
+
+    private static final java.util.logging.Logger LOG = java.util.logging.Logger
+            .getLogger(RecipeLibrary.class.getName());
+
     private final Map<String, Recipe> recipes = new ConcurrentHashMap<>();
-    
+
     public RecipeLibrary() {
-        LOG.info("RecipeLibrary: Initializing with 20 recipes...");
-        // Register default Jakarta migration recipes
-        // Use private method to avoid calling overridable method in constructor
-        registerRecipeInternal(Recipe.jpaRecipe());
-        registerRecipeInternal(Recipe.beanValidationRecipe());
-        registerRecipeInternal(Recipe.cdiRecipe());
-        registerRecipeInternal(Recipe.servletRecipe());
-        registerRecipeInternal(Recipe.restRecipe());
-        registerRecipeInternal(Recipe.soapRecipe());
-        registerRecipeInternal(Recipe.jmsRecipe());
-        registerRecipeInternal(Recipe.mailRecipe());
-        registerRecipeInternal(Recipe.jtaRecipe());
-        registerRecipeInternal(Recipe.ejbRecipe());
-        registerRecipeInternal(Recipe.jsfRecipe());
-        registerRecipeInternal(Recipe.websocketRecipe());
-        registerRecipeInternal(Recipe.jsonbRecipe());
-        registerRecipeInternal(Recipe.jsonpRecipe());
-        registerRecipeInternal(Recipe.securityRecipe());
-        registerRecipeInternal(Recipe.concurrencyRecipe());
-        registerRecipeInternal(Recipe.jcaRecipe());
-        registerRecipeInternal(Recipe.jaxbRecipe());
-        registerRecipeInternal(Recipe.jaxrpcRecipe());
-        registerRecipeInternal(Recipe.jaspicRecipe());
-        registerRecipeInternal(Recipe.annotationRecipe());
-        registerRecipeInternal(Recipe.activationRecipe());
-        registerRecipeInternal(Recipe.elRecipe());
-        registerRecipeInternal(Recipe.interceptorRecipe());
-        registerRecipeInternal(Recipe.resourceRecipe());
-        registerRecipeInternal(Recipe.servletApiRecipe());
-        registerRecipeInternal(Recipe.saajRecipe());
-        registerRecipeInternal(Recipe.authorizationRecipe());
-        LOG.info("RecipeLibrary: Registered " + recipes.size() + " recipes");
+        // By default, do not hardcode recipes.
+        // They will be loaded dynamically from YAML by the service.
+        LOG.info("RecipeLibrary: Initialized (empty)");
     }
-    
+
     /**
      * Gets a recipe by name.
      */
     public Optional<Recipe> getRecipe(String name) {
         return Optional.ofNullable(recipes.get(name));
     }
-    
+
     /**
      * Gets all Jakarta migration recipes.
      */
     public List<Recipe> getJakartaRecipes() {
-        return recipes.values().stream()
-            .filter(recipe -> recipe.name().contains("Jakarta") || 
-                             recipe.name().contains("Persistence") ||
-                             recipe.name().contains("Web"))
-            .toList();
+        return new ArrayList<>(recipes.values());
     }
-    
+
     /**
      * Registers a new recipe.
      */
     public final void registerRecipe(Recipe recipe) {
         registerRecipeInternal(recipe);
     }
-    
+
+    /**
+     * Clears all registered recipes.
+     */
+    public void clearRecipes() {
+        recipes.clear();
+        LOG.info("RecipeLibrary: All recipes cleared");
+    }
+
     /**
      * Internal method to register a recipe (not overridable).
      */
@@ -83,7 +59,7 @@ public class RecipeLibrary {
         }
         recipes.put(recipe.name(), recipe);
     }
-    
+
     /**
      * Returns all registered recipes.
      */
@@ -91,7 +67,7 @@ public class RecipeLibrary {
         LOG.info("RecipeLibrary.getAllRecipes: Returning " + recipes.size() + " recipes");
         return new ArrayList<>(recipes.values());
     }
-    
+
     /**
      * Checks if a recipe exists.
      */
@@ -99,4 +75,3 @@ public class RecipeLibrary {
         return recipes.containsKey(name);
     }
 }
-

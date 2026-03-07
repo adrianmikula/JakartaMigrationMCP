@@ -6,31 +6,31 @@
 riskCategories:
   trivial:
     minScore: 0
-    maxScore: 15
+    maxScore: 24
     label: "Trivial"
     color: "#28a745"  # Green
     
   low:
-    minScore: 16
-    maxScore: 40
+    minScore: 25
+    maxScore: 49
     label: "Low"
     color: "#17a2b8"  # Blue
     
   medium:
-    minScore: 41
-    maxScore: 65
+    minScore: 50
+    maxScore: 99
     label: "Medium"
     color: "#ffc107"  # Yellow
     
   high:
-    minScore: 66
-    maxScore: 85
+    minScore: 100
+    maxScore: 199
     label: "High"
     color: "#fd7e14"  # Orange
     
   extreme:
-    minScore: 86
-    maxScore: 100
+    minScore: 200
+    maxScore: 9999999
     label: "Extreme"
     color: "#dc3545"  # Red
 
@@ -104,6 +104,29 @@ scanRisks:
       soapBinding:
         riskLevel: "medium"
         description: "SOAP binding configuration"
+        
+  serializationCache:
+    displayName: "Serialization/Cache"
+    baseWeight: 2
+    findings:
+      Serializable:
+        riskLevel: "low"
+        description: "Java Serialization usage"
+      ObjectInputStream:
+        riskLevel: "low"
+        description: "Deserialization usage"
+      ObjectOutputStream:
+        riskLevel: "low"
+        description: "Serialization usage"
+      SessionSerialization:
+        riskLevel: "low"
+        description: "HttpSession serialization"
+      CacheEntry:
+        riskLevel: "low"
+        description: "Cache entry usage"
+      CacheLibrary:
+        riskLevel: "low"
+        description: "Third-party cache library"
 
 # Dependency risk scoring
 dependencyRisks:

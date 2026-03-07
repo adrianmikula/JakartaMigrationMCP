@@ -13,9 +13,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for FeatureFlagsService.
@@ -140,7 +138,7 @@ class FeatureFlagsServiceTest {
         assertThat(info.getFeatureDescription()).isEqualTo("Automatically fix detected Jakarta migration issues");
         assertThat(info.getCurrentTier()).isEqualTo(FeatureFlagsProperties.LicenseTier.COMMUNITY);
         assertThat(info.getRequiredTier()).isEqualTo(FeatureFlagsProperties.LicenseTier.PREMIUM);
-        assertThat(info.getPaymentLink()).isEqualTo("https://plugins.jetbrains.com/plugin/");
+        assertThat(info.getPaymentLink()).isEqualTo("https://plugins.jetbrains.com/plugin/30093-jakarta-migration");
         assertThat(info.getMessage()).isNotEmpty();
     }
 }

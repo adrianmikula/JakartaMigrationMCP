@@ -1,5 +1,4 @@
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
+import java.util.Properties
 
 plugins {
     java
@@ -8,14 +7,12 @@ plugins {
     id("org.jetbrains.intellij") version "1.17.2" apply false
 }
 
-// Generate automatic version based on timestamp for all builds (dev and release)
-// This ensures IntelliJ always reloads the plugin with a fresh version
-val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
-val autoVersion = "1.0.1.$timestamp"
-
 allprojects {
     group = "adrianmikula"
-    version = autoVersion
+    
+    val props = Properties()
+    rootProject.file("gradle.properties").inputStream().use { props.load(it) }
+    version = props.getProperty("version", "1.0.0")
     
     println(">>> Project: $name, Version: $version")
 

@@ -1,7 +1,5 @@
 package adrianmikula.jakartamigration.intellij.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.File;
@@ -11,35 +9,37 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Service for calculating risk scores based on scan findings and dependency analysis.
+ * Service for calculating risk scores based on scan findings and dependency
+ * analysis.
  * Uses YAML configuration for risk levels and weights.
  */
 public class RiskScoringService {
-    
+
     private static RiskScoringService instance;
     private final Map<String, RiskConfig> riskConfigs;
     private final Map<String, CategoryConfig> categoryConfigs;
     private final Map<String, Object> calculationConfig;
-    
+
     public static class RiskConfig {
         public String displayName;
         public int baseWeight;
         public Map<String, FindingConfig> findings;
     }
-    
+
     public static class FindingConfig {
         public String riskLevel;
         public String description;
     }
-    
+
     public static class CategoryConfig {
         public int minScore;
         public int maxScore;
         public String label;
         public String color;
-        
-        public CategoryConfig() {}
-        
+
+        public CategoryConfig() {
+        }
+
         public CategoryConfig(int minScore, int maxScore, String label, String color) {
             this.minScore = minScore;
             this.maxScore = maxScore;
@@ -47,58 +47,57 @@ public class RiskScoringService {
             this.color = color;
         }
     }
-    
+
     public record RiskScore(
-        int totalScore,
-        String category,
-        String categoryLabel,
-        String categoryColor,
-        Map<String, Integer> componentScores,
-        List<RiskFinding> findings
-    ) {}
-    
+            int totalScore,
+            String category,
+            String categoryLabel,
+            String categoryColor,
+            Map<String, Integer> componentScores,
+            List<RiskFinding> findings) {
+    }
+
     public record RiskFinding(
-        String scanType,
-        String findingType,
-        String description,
-        String riskLevel,
-        int score
-    ) {}
-    
+            String scanType,
+            String findingType,
+            String description,
+            String riskLevel,
+            int score) {
+    }
+
     private RiskScoringService() {
         riskConfigs = new ConcurrentHashMap<>();
         categoryConfigs = new ConcurrentHashMap<>();
         calculationConfig = new HashMap<>();
         loadConfiguration();
     }
-    
+
     public static synchronized RiskScoringService getInstance() {
         if (instance == null) {
             instance = new RiskScoringService();
         }
         return instance;
     }
-    
+
     private void loadConfiguration() {
         try {
             // Try to load from classpath
             InputStream inputStream = getClass().getClassLoader()
-                .getResourceAsStream("config/risk-scoring.yaml");
-            
+                    .getResourceAsStream("config/risk-scoring.yaml");
+
             if (inputStream == null) {
                 // Try file system
                 File configFile = new File("premium-intellij-plugin/src/main/resources/config/risk-scoring.yaml");
                 if (configFile.exists()) {
                     inputStream = new FileInputStream(configFile);
                 } else {
-                    loadDefaults();
-                    return;
+                    throw new RuntimeException("CRITICAL: risk-scoring.yaml not found in classpath or filesystem.");
                 }
             }
-            
+
             Yaml yaml = new Yaml();
             Map<String, Object> config = yaml.load(inputStream);
-            
+
             // Load scan risks
             if (config.containsKey("scanRisks")) {
                 Map<String, Object> scanRisks = (Map<String, Object>) config.get("scanRisks");
@@ -108,7 +107,7 @@ public class RiskScoringService {
                     rc.displayName = (String) scanConfig.get("displayName");
                     rc.baseWeight = (Integer) scanConfig.getOrDefault("baseWeight", 10);
                     rc.findings = new HashMap<>();
-                    
+
                     if (scanConfig.containsKey("findings")) {
                         Map<String, Object> findings = (Map<String, Object>) scanConfig.get("findings");
                         for (Map.Entry<String, Object> finding : findings.entrySet()) {
@@ -122,7 +121,7 @@ public class RiskScoringService {
                     riskConfigs.put(entry.getKey(), rc);
                 }
             }
-            
+
             // Load category configs
             if (config.containsKey("riskCategories")) {
                 Map<String, Object> categories = (Map<String, Object>) config.get("riskCategories");
@@ -136,84 +135,101 @@ public class RiskScoringService {
                     categoryConfigs.put(entry.getKey(), cc);
                 }
             }
-            
+
             // Load calculation config
             if (config.containsKey("riskCalculation")) {
                 calculationConfig.putAll((Map<String, Object>) config.get("riskCalculation"));
             }
-            
+
         } catch (Exception e) {
-            loadDefaults();
+            throw new RuntimeException("CRITICAL: Failed to load risk-scoring.yaml. Risk calculation cannot proceed.",
+                    e);
         }
     }
-    
-    private void loadDefaults() {
-        // Default category configs
-        categoryConfigs.put("trivial", new CategoryConfig(0, 10, "Trivial", "#28a745"));
-        categoryConfigs.put("low", new CategoryConfig(11, 30, "Low", "#17a2b8"));
-        categoryConfigs.put("medium", new CategoryConfig(31, 50, "Medium", "#ffc107"));
-        categoryConfigs.put("high", new CategoryConfig(51, 75, "High", "#fd7e14"));
-        categoryConfigs.put("extreme", new CategoryConfig(76, 100, "Extreme", "#dc3545"));
-    }
-    
+
     /**
      * Calculates overall risk score based on scan findings and dependency issues.
      */
     public RiskScore calculateRiskScore(
             Map<String, List<RiskFinding>> scanFindings,
             Map<String, Integer> dependencyIssues) {
-        
+
         Map<String, Integer> componentScores = new HashMap<>();
         List<RiskFinding> allFindings = new ArrayList<>();
-        
+
         // Calculate scan findings score
-        int scanScore = 0;
+        int rawScanScore = 0;
         for (Map.Entry<String, List<RiskFinding>> entry : scanFindings.entrySet()) {
             int scanTypeScore = 0;
             RiskConfig config = riskConfigs.get(entry.getKey());
-            
+
+            if (config == null) {
+                throw new IllegalArgumentException("Missing risk configuration for scan type: " + entry.getKey());
+            }
+
             for (RiskFinding finding : entry.getValue()) {
                 scanTypeScore += finding.score();
                 allFindings.add(finding);
             }
-            
-            if (config != null && config.baseWeight > 0) {
-                scanTypeScore = Math.min(scanTypeScore, config.baseWeight * 10);
+
+            if (config.baseWeight <= 0) {
+                throw new IllegalArgumentException("Invalid baseWeight (<= 0) for scan type: " + entry.getKey());
             }
-            scanScore += scanTypeScore;
+
+            // Apply base weight as a multiplier for normalization
+            scanTypeScore = (scanTypeScore * config.baseWeight) / 10;
+            rawScanScore += scanTypeScore;
         }
-        componentScores.put("scanFindings", Math.min(scanScore, 40));
-        
+
         // Calculate dependency issues score
-        int depScore = 0;
+        int rawDepScore = 0;
         for (Map.Entry<String, Integer> entry : dependencyIssues.entrySet()) {
-            depScore += entry.getValue();
+            rawDepScore += entry.getValue();
         }
-        componentScores.put("dependencyIssues", Math.min(depScore, 40));
-        
-        // Code complexity (placeholder - could be enhanced)
-        componentScores.put("codeComplexity", 5);
-        
-        // Calculate total
-        int totalScore = componentScores.values().stream()
-                .mapToInt(Integer::intValue)
-                .sum();
+
+        // Code complexity (placeholder - could be enhanced with actual complexity
+        // metrics)
+        int rawComplexityScore = 15; // Base complexity for Jakarta migration projects
+
+        // Get weights from calculation config
+        @SuppressWarnings("unchecked")
+        Map<String, Double> weights = (Map<String, Double>) calculationConfig.get("componentWeights");
+        if (weights == null) {
+            throw new IllegalArgumentException("Missing 'componentWeights' in risk-scoring.yaml");
+        }
+
+        Number scanWeightNum = (Number) weights.get("scanFindings");
+        Number depWeightNum = (Number) weights.get("dependencyIssues");
+        Number complexityWeightNum = (Number) weights.get("codeComplexity");
+
+        if (scanWeightNum == null || depWeightNum == null || complexityWeightNum == null) {
+            throw new IllegalArgumentException(
+                    "Missing one or more required weights (scanFindings, dependencyIssues, codeComplexity) in risk-scoring.yaml");
+        }
+
+        double scanWeight = scanWeightNum.doubleValue();
+        double depWeight = depWeightNum.doubleValue();
+        double complexityWeight = complexityWeightNum.doubleValue();
+
+        // Weighted total (normalized to 100)
+        int totalScore = (int) ((Math.min(rawScanScore, 100) * scanWeight) +
+                (Math.min(rawDepScore, 100) * depWeight) +
+                (rawComplexityScore * complexityWeight));
         totalScore = Math.min(totalScore, 100);
-        
+
         // Get category
         String category = getCategoryForScore(totalScore);
         CategoryConfig catConfig = categoryConfigs.get(category);
-        
+
         return new RiskScore(
-            totalScore,
-            category,
-            catConfig != null ? catConfig.label : "Unknown",
-            catConfig != null ? catConfig.color : "#888888",
-            componentScores,
-            allFindings
-        );
+                totalScore,
+                category,
+                catConfig != null ? catConfig.label : "Unknown",
+                catConfig != null ? catConfig.color : "#888888",
+                componentScores,
+                allFindings);
     }
-    
+
     private String getCategoryForScore(int score) {
         for (Map.Entry<String, CategoryConfig> entry : categoryConfigs.entrySet()) {
             if (score >= entry.getValue().minScore && score <= entry.getValue().maxScore) {
@@ -222,28 +238,34 @@ public class RiskScoringService {
         }
         return "high";
     }
-    
+
     /**
      * Gets the risk level for a specific finding type.
      */
     public String getRiskLevelForFinding(String scanType, String findingType) {
         RiskConfig config = riskConfigs.get(scanType);
-        if (config != null && config.findings != null) {
-            FindingConfig fc = config.findings.get(findingType);
-            if (fc != null) {
-                return fc.riskLevel;
-            }
+        if (config == null) {
+            throw new IllegalArgumentException("No risk configuration found for scan type: " + scanType);
         }
-        return "medium";
+        if (config.findings == null) {
+            throw new IllegalArgumentException("No findings configuration for scan type: " + scanType);
+        }
+
+        FindingConfig fc = config.findings.get(findingType);
+        if (fc == null) {
+            throw new IllegalArgumentException(
+                    "No risk level defined for finding: " + findingType + " in scan type: " + scanType);
+        }
+        return fc.riskLevel;
     }
-    
+
     /**
      * Gets all risk configurations.
      */
     public Map<String, RiskConfig> getRiskConfigs() {
         return new HashMap<>(riskConfigs);
     }
-    
+
     /**
      * Gets category configuration for a specific category.
      */

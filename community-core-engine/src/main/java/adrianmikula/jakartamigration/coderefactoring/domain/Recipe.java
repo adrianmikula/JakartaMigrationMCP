@@ -1,5 +1,7 @@
 package adrianmikula.jakartamigration.coderefactoring.domain;
 
+import java.util.List;
+
 /**
  * Represents a refactoring recipe (e.g., OpenRewrite recipe).
  */
@@ -65,7 +67,7 @@ public record Recipe(
      */
     public static Recipe jpaRecipe() {
         return new Recipe(
-                "MigrateJPA",
+                "MigrateJpa",
                 "Converts javax.persistence.* to jakarta.persistence.*",
                 "javax.persistence.* → jakarta.persistence.*",
                 SafetyLevel.HIGH,
@@ -77,7 +79,7 @@ public record Recipe(
      */
     public static Recipe beanValidationRecipe() {
         return new Recipe(
-                "MigrateBeanValidation",
+                "MigrateValidator",
                 "Converts javax.validation.* to jakarta.validation.*",
                 "javax.validation.* → jakarta.validation.*",
                 SafetyLevel.HIGH,
@@ -101,7 +103,7 @@ public record Recipe(
      */
     public static Recipe cdiRecipe() {
         return new Recipe(
-                "MigrateCDI",
+                "MigrateCdi",
                 "Converts javax.enterprise.* and javax.inject.* to jakarta equivalents",
                 "javax.enterprise.* → jakarta.enterprise.*",
                 SafetyLevel.HIGH,
@@ -113,7 +115,7 @@ public record Recipe(
      */
     public static Recipe restRecipe() {
         return new Recipe(
-                "MigrateREST",
+                "MigrateJaxrs",
                 "Converts javax.ws.rs.* to jakarta.ws.rs.*",
                 "javax.ws.rs.* → jakarta.ws.rs.*",
                 SafetyLevel.HIGH,
@@ -125,7 +127,7 @@ public record Recipe(
      */
     public static Recipe soapRecipe() {
         return new Recipe(
-                "MigrateSOAP",
+                "MigrateSoap",
                 "Converts javax.xml.ws.* to jakarta.xml.ws.*",
                 "javax.xml.ws.* → jakarta.xml.ws.*",
                 SafetyLevel.HIGH,
@@ -137,7 +139,7 @@ public record Recipe(
      */
     public static Recipe jmsRecipe() {
         return new Recipe(
-                "MigrateJMS",
+                "MigrateJms",
                 "Converts javax.jms.* to jakarta.jms.*",
                 "javax.jms.* → jakarta.jms.*",
                 SafetyLevel.HIGH,
@@ -161,7 +163,7 @@ public record Recipe(
      */
     public static Recipe mailRecipe() {
         return new Recipe(
-                "MigrateMail",
+                "MigrateJavaMail",
                 "Converts javax.mail.* to jakarta.mail.*",
                 "javax.mail.* → jakarta.mail.*",
                 SafetyLevel.HIGH,
@@ -173,7 +175,7 @@ public record Recipe(
      */
     public static Recipe jtaRecipe() {
         return new Recipe(
-                "MigrateJTA",
+                "MigrateJta",
                 "Converts javax.transaction.* to jakarta.transaction.*",
                 "javax.transaction.* → jakarta.transaction.*",
                 SafetyLevel.HIGH,
@@ -185,7 +187,7 @@ public record Recipe(
      */
     public static Recipe ejbRecipe() {
         return new Recipe(
-                "MigrateEJB",
+                "MigrateEjb",
                 "Converts javax.ejb.* to jakarta.ejb.*",
                 "javax.ejb.* → jakarta.ejb.*",
                 SafetyLevel.HIGH,
@@ -197,7 +199,7 @@ public record Recipe(
      */
     public static Recipe jsfRecipe() {
         return new Recipe(
-                "MigrateJSF",
+                "MigrateJsf",
                 "Converts javax.faces.* to jakarta.faces.*",
                 "javax.faces.* → jakarta.faces.*",
                 SafetyLevel.HIGH,
@@ -209,7 +211,7 @@ public record Recipe(
      */
     public static Recipe websocketRecipe() {
         return new Recipe(
-                "MigrateWebSocket",
+                "MigrateWebsocket",
                 "Converts javax.websocket.* to jakarta.websocket.*",
                 "javax.websocket.* → jakarta.websocket.*",
                 SafetyLevel.HIGH,
@@ -221,7 +223,7 @@ public record Recipe(
      */
     public static Recipe jsonpRecipe() {
         return new Recipe(
-                "MigrateJSONP",
+                "MigrateJsonp",
                 "Converts javax.json.* to jakarta.json.*",
                 "javax.json.* → jakarta.json.*",
                 SafetyLevel.HIGH,
@@ -233,7 +235,7 @@ public record Recipe(
      */
     public static Recipe jsonbRecipe() {
         return new Recipe(
-                "MigrateJSONB",
+                "MigrateJsonb",
                 "Converts javax.json.bind.* to jakarta.json.bind.*",
                 "javax.json.bind.* → jakarta.json.bind.*",
                 SafetyLevel.HIGH,
@@ -281,7 +283,7 @@ public record Recipe(
      */
     public static Recipe jaxbRecipe() {
         return new Recipe(
-                "MigrateJAXB",
+                "MigrateJaxb",
                 "Converts javax.xml.bind.* to jakarta.xml.bind.*",
                 "javax.xml.bind.* → jakarta.xml.bind.*",
                 SafetyLevel.HIGH,
@@ -293,7 +295,7 @@ public record Recipe(
      */
     public static Recipe jaxrpcRecipe() {
         return new Recipe(
-                "MigrateJAXRPC",
+                "MigrateJaxrpc",
                 "Converts javax.xml.rpc.* to jakarta.xml.rpc.*",
                 "javax.xml.rpc.* → jakarta.xml.rpc.*",
                 SafetyLevel.MEDIUM,
@@ -305,7 +307,7 @@ public record Recipe(
      */
     public static Recipe jaspicRecipe() {
         return new Recipe(
-                "MigrateJASPIC",
+                "MigrateJaspic",
                 "Converts javax.security.auth.message.* to jakarta.security.auth.message.*",
                 "javax.security.auth.message.* → jakarta.security.auth.message.*",
                 SafetyLevel.HIGH,
@@ -341,7 +343,7 @@ public record Recipe(
      */
     public static Recipe elRecipe() {
         return new Recipe(
-                "MigrateEL",
+                "MigrateEl",
                 "Converts javax.el.* to jakarta.el.*",
                 "javax.el.* → jakarta.el.*",
                 SafetyLevel.HIGH,
@@ -375,8 +377,8 @@ public record Recipe(
     /**
      * Returns a list of all standard Jakarta migration recipes.
      */
-    public static java.util.List<Recipe> allRecipes() {
-        return java.util.List.of(
+    public static List<Recipe> allRecipes() {
+        return List.of(
                 jakartaNamespaceRecipe(),
                 persistenceXmlRecipe(),
                 webXmlRecipe(),
@@ -405,45 +407,58 @@ public record Recipe(
                 activationRecipe(),
                 elRecipe(),
                 interceptorRecipe(),
-                resourceRecipe());
+                resourceRecipe(),
+                servletApiRecipe(),
+                saajRecipe(),
+                authorizationRecipe(),
+                jaxwsRecipe());
     }
-    
+
     /**
      * Creates a recipe for migrating Servlet API from javax to jakarta.
      */
     public static Recipe servletApiRecipe() {
         return new Recipe(
-            "MigrateServletApi",
-            "Migrates javax.servlet.* packages to jakarta.servlet.*",
-            "javax.servlet → jakarta.servlet",
-            SafetyLevel.HIGH,
-            true
-        );
+                "MigrateServletApi",
+                "Migrates javax.servlet.* packages to jakarta.servlet.*",
+                "javax.servlet → jakarta.servlet",
+                SafetyLevel.HIGH,
+                true);
     }
-    
+
     /**
      * Creates a recipe for migrating SAAJ from javax to jakarta.
      */
     public static Recipe saajRecipe() {
         return new Recipe(
-            "MigrateSaaj",
-            "Migrates javax.xml.soap.SAAJ to jakarta.xml.soap.SAAJ",
-            "javax.xml.soap.SAAJ → jakarta.xml.soap.SAAJ",
-            SafetyLevel.MEDIUM,
-            true
-        );
+                "MigrateSaaj",
+                "Migrates javax.xml.soap.SAAJ to jakarta.xml.soap.SAAJ",
+                "javax.xml.soap.SAAJ → jakarta.xml.soap.SAAJ",
+                SafetyLevel.MEDIUM,
+                true);
     }
-    
+
+    /**
+     * Creates a recipe for migrating JAX-WS (SOAP) from javax to jakarta.
+     */
+    public static Recipe jaxwsRecipe() {
+        return new Recipe(
+                "MigrateJaxws",
+                "Converts javax.xml.ws.* to jakarta.xml.ws.*",
+                "javax.xml.ws.* → jakarta.xml.ws.*",
+                SafetyLevel.HIGH,
+                true);
+    }
+
     /**
      * Creates a recipe for migrating Authorization from javax to jakarta.
      */
     public static Recipe authorizationRecipe() {
         return new Recipe(
-            "MigrateAuthorization",
-            "Migrates javax.security.* to jakarta.security.*",
-            "javax.security → jakarta.security",
-            SafetyLevel.MEDIUM,
-            true
-        );
+                "MigrateAuthorization",
+                "Migrates javax.security.* to jakarta.security.*",
+                "javax.security → jakarta.security",
+                SafetyLevel.MEDIUM,
+                true);
     }
 }

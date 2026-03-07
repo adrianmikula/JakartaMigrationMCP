@@ -4,17 +4,6 @@ plugins {
     java
     jacoco
 }
-
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-
-// Force version override for development - ensures plugin is always reloaded
-version = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
-
-jacoco {
-    toolVersion = "0.8.11"
-}
-
 tasks.withType<JacocoReport> {
     dependsOn("test")
     
