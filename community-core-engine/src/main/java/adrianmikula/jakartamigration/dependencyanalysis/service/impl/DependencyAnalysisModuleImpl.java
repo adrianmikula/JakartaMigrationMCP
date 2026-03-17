@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.dependencyanalysis.service.impl;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
+import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaArtifactLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
     private final DependencyGraphBuilder dependencyGraphBuilder;
     private final NamespaceClassifier namespaceClassifier;
     private final JakartaMappingService jakartaMappingService;
+    private final JakartaArtifactLookupService jakartaArtifactLookupService;
 
     @Override
     public DependencyAnalysisReport analyzeProject(Path projectPath) {
@@ -126,7 +128,7 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
         List<VersionRecommendation> recommendations = new ArrayList<>();
 
         for (Artifact artifact : artifacts) {
-            // Check for mapping for any artifact, not just javax.*
+            // 1. Try static YAML mappings first (fast, offline)
             Optional<JakartaMappingService.JakartaEquivalent> mapping = jakartaMappingService.findMapping(artifact);
 
             if (mapping.isPresent()) {
@@ -145,6 +147,33 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
                                 + equivalent.jakartaArtifactId(),
                         List.of("Update imports from javax.* to jakarta.*", "Update dependency coordinates"),
                         0.95));
+                continue;
+            }
+
+            // 2. Fallback: dynamic Maven Central lookup for javax.* artifacts
+            if (artifact.groupId().startsWith("javax.") || artifact.artifactId().contains("javax")) {
+                JakartaArtifactLookupService.JakartaArtifactMatch match =
+                        jakartaArtifactLookupService.lookupJakartaArtifact(artifact.groupId(), artifact.artifactId());
+
+                if (match.found() && match.latestVersion() != null) {
+                    Artifact jakartaArtifact = new Artifact(
+                            match.groupId(),
+                            match.artifactId(),
+                            match.latestVersion(),
+                            artifact.scope(),
+                            artifact.transitive());
+
+                    recommendations.add(new VersionRecommendation(
+                            artifact,
+                            jakartaArtifact,
+                            "Migrate to Jakarta (from Maven Central): " + match.groupId() + ":"
+                                    + match.artifactId() + ":" + match.latestVersion(),
+                            List.of("Update imports from javax.* to jakarta.*", "Update dependency coordinates"),
+                            0.90));
+                    log.debug("Maven Central lookup found Jakarta equivalent for {}:{} -> {}:{}:{}",
+                            artifact.groupId(), artifact.artifactId(),
+                            match.groupId(), match.artifactId(), match.latestVersion());
+                }
             }
         }
 

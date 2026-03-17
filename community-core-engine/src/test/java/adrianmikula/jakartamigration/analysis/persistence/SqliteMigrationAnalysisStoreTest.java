@@ -1,6 +1,5 @@
 package adrianmikula.jakartamigration.analysis.persistence;
 
-import adrianmikula.jakartamigration.coderefactoring.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -9,7 +8,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 
@@ -63,21 +61,8 @@ class SqliteMigrationAnalysisStoreTest {
         assertThat(loaded).isEmpty();
     }
 
-    @Test
-    @DisplayName("Should save and load migration plan")
-    void shouldSaveAndLoadMigrationPlan() {
-        // Given
-        MigrationPlan plan = createSamplePlan();
-
-        // When
-        store.saveMigrationPlan(tempDir, plan);
-        Optional<MigrationPlan> loaded = store.loadLatestMigrationPlan(tempDir);
-
-        // Then
-        assertThat(loaded).isPresent();
-        assertThat(loaded.get().phases()).hasSize(plan.phases().size());
-        assertThat(loaded.get().totalFileCount()).isEqualTo(plan.totalFileCount());
-    }
+    // TODO: Migration plan test removed - MigrationPlan domain class was deleted
+    // (see REFACTOR.md)
 
     @Test
     @DisplayName("Should save dependencies with namespace information")
@@ -272,37 +257,6 @@ class SqliteMigrationAnalysisStoreTest {
         return new DependencyAnalysisReport(graph, compatMap.namespaceMap(), blockers, recommendations, risk, score);
     }
 
-    private MigrationPlan createSamplePlan() {
-        RefactoringPhase phase1 = new RefactoringPhase(
-                1,
-                "Update servlet dependencies",
-                List.of("src/main/java/com/example/MyServlet.java"),
-                List.of(new PhaseAction("src/main/java/com/example/MyServlet.java", "UPDATE_IMPORTS",
-                        List.of("javax.servlet.http.HttpServlet -> jakarta.servlet.http.HttpServlet"))),
-                List.of("jakarta-servlet-recipe"),
-                List.of("jakarta.servlet:jakarta.servlet-api:6.0.0"),
-                Duration.ofHours(1));
-
-        RefactoringPhase phase2 = new RefactoringPhase(
-                2,
-                "Update validation dependencies",
-                List.of("src/main/java/com/example/MyValidator.java"),
-                List.of(new PhaseAction("src/main/java/com/example/MyValidator.java", "UPDATE_IMPORTS",
-                        List.of("javax.validation -> jakarta.validation"))),
-                List.of("jakarta-validation-recipe"),
-                List.of("jakarta.validation:jakarta.validation-api:3.0.0"),
-                Duration.ofMinutes(30));
-
-        RiskAssessment risk = new RiskAssessment(
-                0.4,
-                List.of("Small number of files"),
-                List.of("Test after each phase"));
-
-        return new MigrationPlan(
-                List.of(phase1, phase2),
-                List.of("src/main/java/com/example/MyServlet.java", "src/main/java/com/example/MyValidator.java"),
-                Duration.ofHours(2),
-                risk,
-                List.of("Ensure all tests pass before starting"));
-    }
+    // createSamplePlan helper removed - MigrationPlan domain class was deleted (see
+    // REFACTOR.md)
 }

@@ -1,8 +1,7 @@
 package adrianmikula.jakartamigration.config;
 
-import adrianmikula.jakartamigration.coderefactoring.service.*;
-import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
+import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaArtifactLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
 import org.junit.jupiter.api.DisplayName;
@@ -49,34 +48,9 @@ class JakartaMigrationConfigTest {
         DependencyGraphBuilder graphBuilder = config.dependencyGraphBuilder();
         NamespaceClassifier classifier = config.namespaceClassifier();
         JakartaMappingService mappingService = config.jakartaMappingService();
+        JakartaArtifactLookupService lookupService = config.jakartaArtifactLookupService();
 
-        assertThat(config.dependencyAnalysisModule(graphBuilder, classifier, mappingService)).isNotNull();
-    }
-
-    @Test
-    @DisplayName("Should create RecipeLibrary bean")
-    void shouldCreateRecipeLibraryBean() {
-        assertThat(config.recipeLibrary()).isNotNull();
-    }
-    
-    // NOTE: RuntimeVerificationModule is a PREMIUM feature - not available in community
-    // This test was removed as part of open-core licensing cleanup
-
-    @Test
-    @DisplayName("Should create RefactoringEngine bean")
-    void shouldCreateRefactoringEngineBean() {
-        assertThat(config.refactoringEngine()).isNotNull();
-    }
-
-    @Test
-    @DisplayName("Should create ChangeTracker bean")
-    void shouldCreateChangeTrackerBean() {
-        assertThat(config.changeTracker()).isNotNull();
-    }
-
-    @Test
-    @DisplayName("Should create ProgressTracker bean")
-    void shouldCreateProgressTrackerBean() {
-        assertThat(config.progressTracker()).isNotNull();
+        assertThat(config.dependencyAnalysisModule(graphBuilder, classifier, mappingService, lookupService))
+                .isNotNull();
     }
 }

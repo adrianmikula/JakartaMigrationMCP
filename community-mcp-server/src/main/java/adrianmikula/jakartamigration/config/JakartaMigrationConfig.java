@@ -1,12 +1,8 @@
 package adrianmikula.jakartamigration.config;
 
-import adrianmikula.jakartamigration.coderefactoring.service.MigrationPlanner;
-import adrianmikula.jakartamigration.coderefactoring.service.RecipeLibrary;
-import adrianmikula.jakartamigration.coderefactoring.service.RefactoringEngine;
-import adrianmikula.jakartamigration.coderefactoring.service.ChangeTracker;
-import adrianmikula.jakartamigration.coderefactoring.service.ProgressTracker;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
+import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaArtifactLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.DependencyAnalysisModuleImpl;
@@ -21,8 +17,9 @@ import org.springframework.context.annotation.Configuration;
 /**
  * Configuration for Jakarta Migration modules.
  * Wires up all the service implementations.
- * 
- * Component scanning is needed for test contexts that don't use the full Spring Boot application.
+ *
+ * Note: Recipe/refactoring beans removed - refactoring functionality
+ * has been moved to premium-core-engine RecipeService (see REFACTOR.md).
  */
 @Configuration
 @ComponentScan(basePackages = "adrianmikula.jakartamigration")
@@ -33,51 +30,29 @@ public class JakartaMigrationConfig {
     public DependencyGraphBuilder dependencyGraphBuilder() {
         return new MavenDependencyGraphBuilder();
     }
-    
+
     @Bean
     public NamespaceClassifier namespaceClassifier() {
         return new SimpleNamespaceClassifier();
     }
-    
+
     @Bean
     public JakartaMappingService jakartaMappingService() {
         return new JakartaMappingServiceImpl();
     }
-    
+
+    @Bean
+    public JakartaArtifactLookupService jakartaArtifactLookupService() {
+        return new JakartaArtifactLookupService();
+    }
+
     @Bean
     public DependencyAnalysisModule dependencyAnalysisModule(
-        DependencyGraphBuilder dependencyGraphBuilder,
-        NamespaceClassifier namespaceClassifier,
-        JakartaMappingService jakartaMappingService
-    ) {
-        return new DependencyAnalysisModuleImpl(dependencyGraphBuilder, namespaceClassifier, jakartaMappingService);
-    }
-    
-    @Bean
-    public MigrationPlanner migrationPlanner(adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner sourceCodeScanner) {
-        return new MigrationPlanner(sourceCodeScanner);
-    }
-    
-    @Bean
-    public RecipeLibrary recipeLibrary() {
-        return new RecipeLibrary();
-    }
-    
-    // NOTE: RuntimeVerificationModule is a PREMIUM feature and not available in community edition
-    
-    @Bean
-    public RefactoringEngine refactoringEngine() {
-        return new RefactoringEngine();
-    }
-    
-    @Bean
-    public ChangeTracker changeTracker() {
-        return new ChangeTracker();
-    }
-    
-    @Bean
-    public ProgressTracker progressTracker() {
-        return new ProgressTracker();
+            DependencyGraphBuilder dependencyGraphBuilder,
+            NamespaceClassifier namespaceClassifier,
+            JakartaMappingService jakartaMappingService,
+            JakartaArtifactLookupService jakartaArtifactLookupService) {
+        return new DependencyAnalysisModuleImpl(dependencyGraphBuilder, namespaceClassifier, jakartaMappingService,
+                jakartaArtifactLookupService);
     }
 }
-

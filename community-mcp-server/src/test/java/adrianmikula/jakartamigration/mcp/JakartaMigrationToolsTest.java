@@ -1,8 +1,5 @@
 package adrianmikula.jakartamigration.mcp;
 
-import adrianmikula.jakartamigration.coderefactoring.domain.MigrationPlan;
-import adrianmikula.jakartamigration.coderefactoring.service.MigrationPlanner;
-import adrianmikula.jakartamigration.coderefactoring.service.RecipeLibrary;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
@@ -24,7 +21,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import java.time.Duration;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,11 +40,7 @@ class JakartaMigrationToolsTest {
     @Mock
     private DependencyGraphBuilder dependencyGraphBuilder;
 
-    @Mock
-    private MigrationPlanner migrationPlanner;
-
-    @Mock
-    private RecipeLibrary recipeLibrary;
+    // NOTE: MigrationPlanner and RecipeLibrary deleted
 
     // NOTE: RuntimeVerificationModule is a PREMIUM feature - not tested in
     // community tests
@@ -208,35 +200,18 @@ class JakartaMigrationToolsTest {
     }
 
     @Test
-    @DisplayName("Should create migration plan successfully")
-    void shouldCreateMigrationPlanSuccessfully() throws Exception {
+    @DisplayName("Should return error message for createMigrationPlan as it is being reimplemented")
+    void shouldReturnErrorForCreateMigrationPlan() throws Exception {
         // Given
-        adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase phase = new adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase(
-                1,
-                "Update build files",
-                List.of("pom.xml"),
-                List.of(), // actions
-                List.of("UpdateMavenCoordinates"),
-                List.of(),
-                Duration.ofMinutes(5));
-
-        MigrationPlan mockPlan = new MigrationPlan(
-                List.of(phase),
-                List.of("pom.xml", "src/main/java/Example.java"),
-                Duration.ofMinutes(30),
-                new RiskAssessment(0.3, List.of("Low risk"), List.of()),
-                List.of());
-
         when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);
-        when(migrationPlanner.createPlan(anyString(), any(DependencyAnalysisReport.class))).thenReturn(mockPlan);
 
         // When
         String result = tools.createMigrationPlan(testProjectPath.toString());
 
         // Then
-        assertThat(result).contains("\"status\": \"success\"");
-        assertThat(result).contains("\"estimatedDuration\": \"30 minutes\"");
-        verify(migrationPlanner, times(1)).createPlan(anyString(), any(DependencyAnalysisReport.class));
+        assertThat(result).contains("\"status\": \"error\"");
+        assertThat(result).contains("being reimplemented");
+        verify(dependencyAnalysisModule, times(1)).analyzeProject(any(Path.class));
     }
 
     @Test

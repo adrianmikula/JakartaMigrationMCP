@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Bug: Dependencies tab now shows upgrade version recommendations from Maven Central (dynamic lookup wired to DependencyAnalysisModule)
+- Bug: OpenRewrite recipe execution improved with classpath from project build output and robust path resolution for writing changes
 - Bug: Status text now updates when clicking different openrewrite recipes in Refactor tab
 - Bug: OpenRewrite recipes now correctly apply changes to files (expanded recipe coverage)
 - Bug: RefactoringEngine now loads recipe replacements from YAML configuration (no hardcoded recipe names)

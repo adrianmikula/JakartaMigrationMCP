@@ -3,6 +3,7 @@ package unit.jakartamigration.dependencyanalysis.service;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
+import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaArtifactLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.DependencyAnalysisModuleImpl;
@@ -39,7 +40,8 @@ class BinaryCompatibilityIntegrationTest {
         module = new DependencyAnalysisModuleImpl(
                 dependencyGraphBuilder,
                 namespaceClassifier,
-                jakartaMappingService);
+                jakartaMappingService,
+                new JakartaArtifactLookupService());
     }
 
     @Test

@@ -24,7 +24,7 @@ import java.util.*;
 public class CentralMigrationAnalysisStore implements AutoCloseable {
 
     private static final String DB_FILE = "central-migration-analysis.db";
-    private static final int DB_VERSION = 2; // Increment for schema changes
+    private static final int DB_VERSION = 3; // Increment for schema changes
 
     private final Path dbPath;
     private final ObjectMapperService objectMapper;
@@ -299,6 +299,23 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                     """);
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_recipe_exec_repo ON recipe_executions(repository_path)");
 
+            // Recipes catalog table
+            stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS recipes (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            name TEXT UNIQUE NOT NULL,
+                            description TEXT,
+                            category TEXT NOT NULL,
+                            recipe_type TEXT NOT NULL,
+                            openrewrite_recipe_name TEXT,
+                            pattern TEXT,
+                            replacement TEXT,
+                            file_pattern TEXT,
+                            reversible BOOLEAN DEFAULT TRUE,
+                            created_at TEXT DEFAULT (datetime('now'))
+                        )
+                    """);
+
             conn.commit();
             log.info("Central database created at {}", dbPath);
         }
@@ -309,6 +326,23 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                 ResultSet rs = stmt.executeQuery("PRAGMA user_version")) {
             int version = rs.getInt(1);
             if (version < DB_VERSION) {
+                if (version < 3) {
+                    stmt.execute("""
+                                CREATE TABLE IF NOT EXISTS recipes (
+                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    name TEXT UNIQUE NOT NULL,
+                                    description TEXT,
+                                    category TEXT NOT NULL,
+                                    recipe_type TEXT NOT NULL,
+                                    openrewrite_recipe_name TEXT,
+                                    pattern TEXT,
+                                    replacement TEXT,
+                                    file_pattern TEXT,
+                                    reversible BOOLEAN DEFAULT TRUE,
+                                    created_at TEXT DEFAULT (datetime('now'))
+                                )
+                            """);
+                }
                 stmt.execute("PRAGMA user_version = " + DB_VERSION);
                 log.info("Database schema updated to version {}", DB_VERSION);
             }
@@ -961,6 +995,97 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
             log.error("Failed to get recipe executions", e);
         }
         return results;
+    }
+
+    /**
+     * Gets all available migration recipes from the catalog.
+     */
+    public List<adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition> getRecipes() {
+        return getRecipesByQuery("SELECT * FROM recipes ORDER BY category, name");
+    }
+
+    /**
+     * Gets recipes by category.
+     */
+    public List<adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition> getRecipesByCategory(
+            String category) {
+        return getRecipesByQuery("SELECT * FROM recipes WHERE category = ? ORDER BY name", category);
+    }
+
+    private List<adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition> getRecipesByQuery(String sql,
+            String... params) {
+        List<adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition> recipes = new ArrayList<>();
+        try (Connection conn = getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
+            for (int i = 0; i < params.length; i++) {
+                stmt.setString(i + 1, params[i]);
+            }
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    recipes.add(mapRecipe(rs));
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Failed to query recipes: " + sql, e);
+        }
+        return recipes;
+    }
+
+    private adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition mapRecipe(ResultSet rs)
+            throws SQLException {
+        return adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition.builder()
+                .id(rs.getLong("id"))
+                .name(rs.getString("name"))
+                .description(rs.getString("description"))
+                .category(adrianmikula.jakartamigration.coderefactoring.domain.RecipeCategory
+                        .valueOf(rs.getString("category")))
+                .recipeType(adrianmikula.jakartamigration.coderefactoring.domain.RecipeType
+                        .valueOf(rs.getString("recipe_type")))
+                .openRewriteRecipeName(rs.getString("openrewrite_recipe_name"))
+                .pattern(rs.getString("pattern"))
+                .replacement(rs.getString("replacement"))
+                .filePattern(rs.getString("file_pattern"))
+                .reversible(rs.getBoolean("reversible"))
+                .createdAt(Instant.parse(rs.getString("created_at").replace(" ", "T") + "Z"))
+                .status(adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition.RecipeStatus.NEVER_RUN) // Default
+                .build();
+    }
+
+    /**
+     * Saves or updates a recipe in the catalog.
+     */
+    public void saveRecipe(adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition recipe) {
+        try (Connection conn = getConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement("""
+                    INSERT INTO recipes (
+                        name, description, category, recipe_type, openrewrite_recipe_name,
+                        pattern, replacement, file_pattern, reversible, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    ON CONFLICT(name) DO UPDATE SET
+                        description = excluded.description,
+                        category = excluded.category,
+                        recipe_type = excluded.recipe_type,
+                        openrewrite_recipe_name = excluded.openrewrite_recipe_name,
+                        pattern = excluded.pattern,
+                        replacement = excluded.replacement,
+                        file_pattern = excluded.file_pattern,
+                        reversible = excluded.reversible
+                    """)) {
+                stmt.setString(1, recipe.getName());
+                stmt.setString(2, recipe.getDescription());
+                stmt.setString(3, recipe.getCategory().name());
+                stmt.setString(4, recipe.getRecipeType().name());
+                stmt.setString(5, recipe.getOpenRewriteRecipeName());
+                stmt.setString(6, recipe.getPattern());
+                stmt.setString(7, recipe.getReplacement());
+                stmt.setString(8, recipe.getFilePattern());
+                stmt.setBoolean(9, recipe.isReversible());
+                stmt.executeUpdate();
+            }
+            conn.commit();
+        } catch (SQLException e) {
+            log.error("Failed to save recipe: " + recipe.getName(), e);
+        }
     }
 
     /**

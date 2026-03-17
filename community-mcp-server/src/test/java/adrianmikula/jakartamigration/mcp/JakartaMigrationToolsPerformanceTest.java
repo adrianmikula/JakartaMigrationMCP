@@ -1,7 +1,5 @@
 package adrianmikula.jakartamigration.mcp;
 
-import adrianmikula.jakartamigration.coderefactoring.service.MigrationPlanner;
-import adrianmikula.jakartamigration.coderefactoring.service.RecipeLibrary;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
@@ -22,7 +20,6 @@ import org.mockito.quality.Strictness;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.List;
 import java.util.stream.IntStream;
 
@@ -45,11 +42,7 @@ class JakartaMigrationToolsPerformanceTest {
         @Mock
         private DependencyGraphBuilder dependencyGraphBuilder;
 
-        @Mock
-        private MigrationPlanner migrationPlanner;
-
-        @Mock
-        private RecipeLibrary recipeLibrary;
+        // NOTE: MigrationPlanner and RecipeLibrary deleted
 
         // NOTE: RuntimeVerificationModule is a PREMIUM feature - not mocked in
         // community tests
@@ -177,30 +170,11 @@ class JakartaMigrationToolsPerformanceTest {
                                 new RiskAssessment(0.3, List.of(), List.of()),
                                 new MigrationReadinessScore(0.8, "Ready"));
 
-                // Create large file list
-                List<String> largeFileList = IntStream.range(0, 500)
-                                .mapToObj(i -> "src/main/java/com/example/File" + i + ".java")
-                                .toList();
-
                 // Create at least one phase to satisfy MigrationPlan validation
-                adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase phase = new adrianmikula.jakartamigration.coderefactoring.domain.RefactoringPhase(
-                                1,
-                                "Phase 1",
-                                largeFileList.subList(0, Math.min(100, largeFileList.size())),
-                                List.of(), // actions
-                                List.of("AddJakartaNamespace"),
-                                List.of(),
-                                Duration.ofMinutes(30));
-
-                adrianmikula.jakartamigration.coderefactoring.domain.MigrationPlan largePlan = new adrianmikula.jakartamigration.coderefactoring.domain.MigrationPlan(
-                                List.of(phase),
-                                largeFileList,
-                                Duration.ofHours(2),
-                                new RiskAssessment(0.3, List.of(), List.of()),
-                                List.of());
+                // NOTE: MigrationPlan validation tests removed
+                // NOTE: MigrationPlan validation tests removed
 
                 when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(report);
-                when(migrationPlanner.createPlan(any(), any(DependencyAnalysisReport.class))).thenReturn(largePlan);
 
                 // When
                 long startTime = System.currentTimeMillis();
@@ -208,7 +182,8 @@ class JakartaMigrationToolsPerformanceTest {
                 long duration = System.currentTimeMillis() - startTime;
 
                 // Then
-                assertThat(result).contains("\"status\": \"success\"");
+                assertThat(result).contains("\"status\": \"error\"");
+                assertThat(result).contains("being reimplemented");
                 assertThat(duration).isLessThan(3000); // Should complete within 3 seconds
         }
 
