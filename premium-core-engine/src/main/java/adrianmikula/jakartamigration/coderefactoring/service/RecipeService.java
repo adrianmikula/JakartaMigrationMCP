@@ -14,14 +14,14 @@ import java.util.List;
 public interface RecipeService {
 
     /**
-     * Gets all available recipes.
+     * Gets all available recipes with project-specific status.
      */
-    List<RecipeDefinition> getRecipes();
+    List<RecipeDefinition> getRecipes(Path projectPath);
 
     /**
-     * Gets recipes by category.
+     * Gets recipes by category with project-specific status.
      */
-    List<RecipeDefinition> getRecipesByCategory(RecipeCategory category);
+    List<RecipeDefinition> getRecipesByCategory(RecipeCategory category, Path projectPath);
 
     /**
      * Applies a recipe to the project.

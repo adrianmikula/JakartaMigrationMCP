@@ -16,6 +16,8 @@ public class CodeRefactoringModule {
     public CodeRefactoringModule(CentralMigrationAnalysisStore centralStore,
             SqliteMigrationAnalysisStore projectStore) {
         this.recipeService = new RecipeServiceImpl(centralStore, projectStore);
+        // Seed default recipes into central store
+        adrianmikula.jakartamigration.coderefactoring.service.util.RecipeSeeder.seedDefaultRecipes(centralStore);
     }
 
     /**

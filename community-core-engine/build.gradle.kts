@@ -29,13 +29,7 @@ dependencies {
     api("org.openrewrite:rewrite-java:8.10.0")
     api("org.openrewrite:rewrite-maven:8.10.0")
     api("org.openrewrite:rewrite-xml:8.10.0")
-    api("org.openrewrite.recipe:rewrite-migrate-java:2.5.0") {
-        // IntelliJ verification warning fix:
-        // `rewrite-migrate-java` pulls `rewrite-static-analysis` which pulls `rewrite-kotlin`
-        // which bundles `kotlin-compiler-embeddable` containing IDE package `org.jetbrains.concurrency`.
-        // We don't run Kotlin recipes, so exclude this tree to avoid bundling IDE packages.
-        exclude(group = "org.openrewrite.recipe", module = "rewrite-static-analysis")
-    }
+    api("org.openrewrite.recipe:rewrite-migrate-java:2.5.0")
     runtimeOnly("org.openrewrite:rewrite-java-17:8.10.0")
 
     testImplementation(platform("org.junit:junit-bom:5.10.1"))

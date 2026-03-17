@@ -37,7 +37,14 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
         log.info("Analyzing project at: {}", projectPath);
 
         // Build dependency graph
-        DependencyGraph graph = dependencyGraphBuilder.buildFromProject(projectPath);
+        DependencyGraph graph;
+        try {
+            graph = dependencyGraphBuilder.buildFromProject(projectPath);
+        } catch (adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphException e) {
+            log.info("Primary dependency graph builder failed, falling back to directory crawler: {}", e.getMessage());
+            DirectoryCrawlerDependencyGraphBuilder crawler = new DirectoryCrawlerDependencyGraphBuilder();
+            graph = crawler.buildFromProject(projectPath);
+        }
 
         // Identify namespaces
         NamespaceCompatibilityMap namespaceMap = identifyNamespaces(graph);
@@ -152,8 +159,8 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
 
             // 2. Fallback: dynamic Maven Central lookup for javax.* artifacts
             if (artifact.groupId().startsWith("javax.") || artifact.artifactId().contains("javax")) {
-                JakartaArtifactLookupService.JakartaArtifactMatch match =
-                        jakartaArtifactLookupService.lookupJakartaArtifact(artifact.groupId(), artifact.artifactId());
+                JakartaArtifactLookupService.JakartaArtifactMatch match = jakartaArtifactLookupService
+                        .lookupJakartaArtifact(artifact.groupId(), artifact.artifactId());
 
                 if (match.found() && match.latestVersion() != null) {
                     Artifact jakartaArtifact = new Artifact(

@@ -30,19 +30,21 @@ public class SupportComponent {
     private final JPanel panel;
     private final Project project;
     private final boolean isPremium;
-    
+    private final Runnable refreshCallback;
+
     private static boolean premiumActive = false;
-    
-    public SupportComponent(Project project, boolean isPremium) {
+
+    public SupportComponent(Project project, boolean isPremium, Runnable refreshCallback) {
         this.project = project;
         this.isPremium = isPremium;
+        this.refreshCallback = refreshCallback;
         this.panel = createPanel();
     }
-    
+
     public static void setPremiumActive(boolean active) {
         premiumActive = active;
     }
-    
+
     public static boolean isPremiumActive() {
         return premiumActive || "true".equals(System.getProperty("jakarta.migration.premium"));
     }
@@ -159,7 +161,7 @@ public class SupportComponent {
 
     private JPanel createPremiumUpgradeBanner() {
         boolean alreadyPremium = isPremium || isPremiumActive();
-        
+
         JPanel bannerPanel = new JPanel(new BorderLayout(15, 10));
         bannerPanel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(255, 215, 0), 2),
@@ -183,9 +185,9 @@ public class SupportComponent {
         titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         leftPanel.add(titleLabel);
 
-        JLabel descLabel = new JLabel(alreadyPremium 
-            ? "<html>Thank you for using Premium! Enjoy auto-fixes and one-click refactoring.</html>"
-            : "<html>Get auto-fixes, one-click refactoring, and binary fixes</html>");
+        JLabel descLabel = new JLabel(alreadyPremium
+                ? "<html>Thank you for using Premium! Enjoy auto-fixes and one-click refactoring.</html>"
+                : "<html>Get auto-fixes, one-click refactoring, and binary fixes</html>");
         descLabel.setFont(new Font(descLabel.getFont().getName(), Font.PLAIN, 12));
         descLabel.setForeground(new Color(100, 90, 60));
         descLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -253,21 +255,21 @@ public class SupportComponent {
         JCheckBox betaCheckbox = new JCheckBox("Enable Experimental Features");
         betaCheckbox.setFont(betaCheckbox.getFont().deriveFont(Font.PLAIN, 12));
         betaCheckbox.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
+
         boolean betaEnabled = "true".equals(System.getProperty("jakarta.migration.beta_features", "false"));
         betaCheckbox.setSelected(betaEnabled);
-        
+
         betaCheckbox.addActionListener(e -> {
             boolean selected = betaCheckbox.isSelected();
             System.setProperty("jakarta.migration.beta_features", String.valueOf(selected));
             adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().setBetaFeaturesEnabled(selected);
-            
+
             LOG.info("SupportComponent: Beta features " + (selected ? "enabled" : "disabled"));
-            
+
             Messages.showInfoMessage(project,
-                    selected 
-                        ? "Experimental features enabled!\n\nThe Runtime tab will now be available."
-                        : "Experimental features disabled.\n\nRestart the tool window to see changes.",
+                    selected
+                            ? "Experimental features enabled!\n\nThe Runtime tab will now be available."
+                            : "Experimental features disabled.\n\nRestart the tool window to see changes.",
                     "Experimental Features");
         });
 
@@ -306,6 +308,10 @@ public class SupportComponent {
                     "Trial started! You now have 7 days of Premium access.\n\n" +
                             "Premium features are now available!",
                     "Trial Activated");
+
+            if (refreshCallback != null) {
+                refreshCallback.run();
+            }
         }
     }
 

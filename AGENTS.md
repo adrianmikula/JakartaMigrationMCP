@@ -14,15 +14,14 @@
 - Complete all tasks in a task list in order
 - Always use SDD (spec driven development) to implement new features, with specifications located under docs/spec
 - Always use TDD (test driven development) to implement new features, with tests located in the same module as the code they test
-
+- ensure all compile errors are fixed
+- ensure all new features have tests
 
 
 ### Post-Task Steps
 
 After completing a task list, do the following:
 - ensure all requirements are implemented
-- ensure all compile errors are fixed
-- ensure all new features have tests
 - Add any missing tests for important/critical code paths
 - ensure all tests pass.  
 - Review the code implementation to ensure it meets our code quality standards.
@@ -72,10 +71,15 @@ Full testing standards are documented in AgentRules\TESTING.md
 
 - Solutions to common code issues or persistent problems should be documented in docs/COMMON_ISSUES.md
 - When debugging persistent problems/errors, always check the list of known issues in docs/COMMON_ISSUES.md
+- If a specific bug never gets fixed, even though the AI agent keeps trying different fixes and incorrectly reporting that the bug was successfully fixed, then we need to step back to look at the bigger picture. As a last resort, consider deleting and completely re-implementing the feature.
+
 
 
 
 ## Licensing
+- Community modules/classes should never reference premium modules/classes (strict open-core licensing structure).
+- All new UI features should be added to the premium-intellij and premium-core modules by default, unless otherwise specified.
+- All premium features should be feature-flagged with a premium feature flag, and all community features should have no feature flag (always enabled)
 
 
 
@@ -83,5 +87,8 @@ Full testing standards are documented in AgentRules\TESTING.md
 ## Efficiency
 
 - Agentic coding AIs should default to running the 'fast tests' subset for faster feeback while working.
+- Agents should have relevant/useful MCP servers installed to speed up coding workflows.
+- We should run build/test commands using a fast-start JVM like Graal or CRAK to improve agent feedback time.
 
+Full efficiency tweaks are documented in AgentRules\EFFICIENCy.md
 

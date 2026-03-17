@@ -70,7 +70,7 @@ class RecipeServiceImplTest {
     @Test
     @DisplayName("Should list all seeded recipes")
     void shouldListRecipes() {
-        List<RecipeDefinition> recipes = recipeService.getRecipes();
+        List<RecipeDefinition> recipes = recipeService.getRecipes(projectPath);
         assertThat(recipes).hasSize(2);
         assertThat(recipes).anyMatch(r -> r.getName().equals("ReplaceJavaxServletRegex"));
     }

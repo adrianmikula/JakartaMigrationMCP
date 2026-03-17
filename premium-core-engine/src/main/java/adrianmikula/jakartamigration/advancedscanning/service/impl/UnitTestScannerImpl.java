@@ -61,7 +61,7 @@ public class UnitTestScannerImpl implements UnitTestScanner {
     }
 
     private boolean isTestFile(Path path, Path projectPath) {
-        String relativePath = projectPath.relativize(path).toString();
+        String relativePath = projectPath.relativize(path).toString().replace("\\", "/");
         return TEST_DIRS.stream().anyMatch(d -> relativePath.startsWith(d))
                 && TEST_EXTENSIONS.stream().anyMatch(path.toString()::endsWith);
     }
