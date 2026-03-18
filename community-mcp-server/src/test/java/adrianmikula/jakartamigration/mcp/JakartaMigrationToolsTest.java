@@ -184,7 +184,8 @@ class JakartaMigrationToolsTest {
                         new Artifact("jakarta.servlet", "jakarta.servlet-api", "6.0.0", "compile", true),
                         "Migrate to Jakarta namespace",
                         List.of("Update imports"),
-                        0.95));
+                        0.95,
+                        "Migrate javax.servlet to jakarta.servlet"));
 
         when(dependencyGraphBuilder.buildFromProject(any(Path.class))).thenReturn(mockGraph);
         when(dependencyAnalysisModule.recommendVersions(any())).thenReturn(recommendations);

@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.dependencyanalysis.service.impl;
 
+import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
@@ -31,6 +32,7 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
     private final NamespaceClassifier namespaceClassifier;
     private final JakartaMappingService jakartaMappingService;
     private final JakartaArtifactLookupService jakartaArtifactLookupService;
+    private final CentralMigrationAnalysisStore analysisStore;
 
     @Override
     public DependencyAnalysisReport analyzeProject(Path projectPath) {
@@ -135,6 +137,30 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
         List<VersionRecommendation> recommendations = new ArrayList<>();
 
         for (Artifact artifact : artifacts) {
+            // 0. Check upgrade_recommendations DB table first (highest priority, from recipes)
+            var dbRecommendation = analysisStore.getUpgradeRecommendation(artifact.groupId(), artifact.artifactId());
+            if (dbRecommendation != null) {
+                Artifact jakartaArtifact = new Artifact(
+                        dbRecommendation.recommendedGroupId(),
+                        dbRecommendation.recommendedArtifactId(),
+                        dbRecommendation.recommendedVersion() != null ? dbRecommendation.recommendedVersion() : "latest",
+                        artifact.scope(),
+                        artifact.transitive());
+
+                recommendations.add(new VersionRecommendation(
+                        artifact,
+                        jakartaArtifact,
+                        "Migrate to Jakarta (from upgrade recommendations): " + dbRecommendation.recommendedGroupId() + ":"
+                                + dbRecommendation.recommendedArtifactId(),
+                        List.of("Update imports from javax.* to jakarta.*", "Update dependency coordinates"),
+                        0.95,
+                        dbRecommendation.associatedRecipeName()));
+                log.debug("DB upgrade recommendation found for {}:{} -> {}:{}",
+                        artifact.groupId(), artifact.artifactId(),
+                        dbRecommendation.recommendedGroupId(), dbRecommendation.recommendedArtifactId());
+                continue;
+            }
+
             // 1. Try static YAML mappings first (fast, offline)
             Optional<JakartaMappingService.JakartaEquivalent> mapping = jakartaMappingService.findMapping(artifact);
 
@@ -153,7 +179,8 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
                         "Migrate to Jakarta namespace: " + equivalent.jakartaGroupId() + ":"
                                 + equivalent.jakartaArtifactId(),
                         List.of("Update imports from javax.* to jakarta.*", "Update dependency coordinates"),
-                        0.95));
+                        0.95,
+                        null));
                 continue;
             }
 
@@ -176,7 +203,8 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
                             "Migrate to Jakarta (from Maven Central): " + match.groupId() + ":"
                                     + match.artifactId() + ":" + match.latestVersion(),
                             List.of("Update imports from javax.* to jakarta.*", "Update dependency coordinates"),
-                            0.90));
+                            0.90,
+                            null));
                     log.debug("Maven Central lookup found Jakarta equivalent for {}:{} -> {}:{}:{}",
                             artifact.groupId(), artifact.artifactId(),
                             match.groupId(), match.artifactId(), match.latestVersion());

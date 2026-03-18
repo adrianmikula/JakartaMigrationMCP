@@ -18,6 +18,8 @@ public class CodeRefactoringModule {
         this.recipeService = new RecipeServiceImpl(centralStore, projectStore);
         // Seed default recipes into central store
         adrianmikula.jakartamigration.coderefactoring.service.util.RecipeSeeder.seedDefaultRecipes(centralStore);
+        // Seed upgrade recommendations from recipes
+        adrianmikula.jakartamigration.coderefactoring.service.util.RecipeSeeder.seedUpgradeRecommendations(centralStore);
     }
 
     /**

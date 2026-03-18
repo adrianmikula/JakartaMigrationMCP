@@ -244,7 +244,8 @@ class SqliteMigrationAnalysisStoreTest {
                         new Artifact("jakarta.servlet", "jakarta.servlet-api", "6.0.0", "compile", false),
                         "Direct upgrade",
                         List.of("API changes in servlet methods"),
-                        0.9));
+                        0.9,
+                        "Migrate javax.servlet to jakarta.servlet"));
 
         RiskAssessment risk = new RiskAssessment(
                 0.6,

@@ -54,6 +54,7 @@ Full architectural rules are documented in AgentRules\ARCHITECTURE.md
 - KISS. Source files should be kept under 500 lines, and split up if they get too large.
 - DRY. Check for and re-use existing code wherever possible.
 - Use 2026 industry best-practices for high-quality software development.  OOP, SOLID, etc.
+- Avoid hard coding string constants in code which should be loaded from YAML configuration.
 
 Full coding standards are documented in AgentRules\CODING.md
 

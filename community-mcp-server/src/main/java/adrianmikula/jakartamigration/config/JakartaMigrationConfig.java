@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.config;
 
+import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaArtifactLookupService;
@@ -47,12 +48,18 @@ public class JakartaMigrationConfig {
     }
 
     @Bean
+    public CentralMigrationAnalysisStore centralMigrationAnalysisStore() {
+        return new CentralMigrationAnalysisStore();
+    }
+
+    @Bean
     public DependencyAnalysisModule dependencyAnalysisModule(
             DependencyGraphBuilder dependencyGraphBuilder,
             NamespaceClassifier namespaceClassifier,
             JakartaMappingService jakartaMappingService,
-            JakartaArtifactLookupService jakartaArtifactLookupService) {
+            JakartaArtifactLookupService jakartaArtifactLookupService,
+            CentralMigrationAnalysisStore analysisStore) {
         return new DependencyAnalysisModuleImpl(dependencyGraphBuilder, namespaceClassifier, jakartaMappingService,
-                jakartaArtifactLookupService);
+                jakartaArtifactLookupService, analysisStore);
     }
 }

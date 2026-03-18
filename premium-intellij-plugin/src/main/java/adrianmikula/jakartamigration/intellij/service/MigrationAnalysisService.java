@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.intellij.service;
 
+import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
@@ -31,17 +32,20 @@ public class MigrationAnalysisService {
     private final NamespaceClassifier namespaceClassifier;
     private final JakartaMappingService jakartaMappingService;
     private final DependencyAnalysisModule dependencyAnalysisModule;
+    private final CentralMigrationAnalysisStore analysisStore;
 
     public MigrationAnalysisService() {
         this.dependencyGraphBuilder = new MavenDependencyGraphBuilder();
         this.namespaceClassifier = new SimpleNamespaceClassifier();
         this.jakartaMappingService = new JakartaMappingServiceImpl();
+        this.analysisStore = new CentralMigrationAnalysisStore();
 
         this.dependencyAnalysisModule = new adrianmikula.jakartamigration.dependencyanalysis.service.impl.DependencyAnalysisModuleImpl(
                 dependencyGraphBuilder,
                 namespaceClassifier,
                 jakartaMappingService,
-                new JakartaArtifactLookupService());
+                new JakartaArtifactLookupService(),
+                analysisStore);
 
         LOG.info("MigrationAnalysisService initialized with core library");
     }

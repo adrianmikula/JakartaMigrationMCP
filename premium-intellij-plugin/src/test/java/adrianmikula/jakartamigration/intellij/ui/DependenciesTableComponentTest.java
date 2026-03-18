@@ -25,10 +25,10 @@ public class DependenciesTableComponentTest extends BasePlatformTestCase {
 
     public void testSetDependencies() {
         List<DependencyInfo> deps = new ArrayList<>();
-        deps.add(new DependencyInfo("org.hibernate", "hibernate-core", "5.6.0.Final", "6.0.0.Alpha1",
-                DependencyMigrationStatus.NEEDS_UPGRADE, false, false));
-        deps.add(new DependencyInfo("javax.servlet", "javax.servlet-api", "4.0.1", "5.0.0",
-                DependencyMigrationStatus.COMPATIBLE, false, false));
+        deps.add(new DependencyInfo("org.hibernate", "hibernate-core", "5.6.0.Final", "org.hibernate", "hibernate-core", "6.0.0.Alpha1",
+                "Compatible", null, DependencyMigrationStatus.NEEDS_UPGRADE, false, false));
+        deps.add(new DependencyInfo("javax.servlet", "javax.servlet-api", "4.0.1", "jakarta.servlet", "jakarta.servlet-api", "5.0.0",
+                "Compatible", null, DependencyMigrationStatus.COMPATIBLE, false, false));
 
         tableComponent.setDependencies(deps);
 
@@ -39,10 +39,10 @@ public class DependenciesTableComponentTest extends BasePlatformTestCase {
 
     public void testFilteringBySearch() {
         List<DependencyInfo> deps = new ArrayList<>();
-        deps.add(new DependencyInfo("org.hibernate", "hibernate-core", "5.6.0.Final", null,
-                DependencyMigrationStatus.NEEDS_UPGRADE, false, false));
-        deps.add(new DependencyInfo("javax.servlet", "javax.servlet-api", "4.0.1", null,
-                DependencyMigrationStatus.COMPATIBLE, false, false));
+        deps.add(new DependencyInfo("org.hibernate", "hibernate-core", "5.6.0.Final", null, null, null,
+                "Unknown", null, DependencyMigrationStatus.NEEDS_UPGRADE, false, false));
+        deps.add(new DependencyInfo("javax.servlet", "javax.servlet-api", "4.0.1", null, null, null,
+                "Unknown", null, DependencyMigrationStatus.COMPATIBLE, false, false));
         tableComponent.setDependencies(deps);
 
         tableComponent.getSearchField().setText("servlet");
@@ -57,10 +57,10 @@ public class DependenciesTableComponentTest extends BasePlatformTestCase {
 
     public void testFilteringByStatus() {
         List<DependencyInfo> deps = new ArrayList<>();
-        deps.add(new DependencyInfo("org.hibernate", "hibernate-core", "5.6.0.Final", null,
-                DependencyMigrationStatus.NEEDS_UPGRADE, false, false));
-        deps.add(new DependencyInfo("javax.servlet", "javax.servlet-api", "4.0.1", null,
-                DependencyMigrationStatus.COMPATIBLE, false, false));
+        deps.add(new DependencyInfo("org.hibernate", "hibernate-core", "5.6.0.Final", null, null, null,
+                "Unknown", null, DependencyMigrationStatus.NEEDS_UPGRADE, false, false));
+        deps.add(new DependencyInfo("javax.servlet", "javax.servlet-api", "4.0.1", null, null, null,
+                "Unknown", null, DependencyMigrationStatus.COMPATIBLE, false, false));
         tableComponent.setDependencies(deps);
 
         tableComponent.getStatusFilter().setSelectedItem("Compatible");
@@ -72,10 +72,10 @@ public class DependenciesTableComponentTest extends BasePlatformTestCase {
 
     public void testFilteringByTransitive() {
         List<DependencyInfo> deps = new ArrayList<>();
-        deps.add(new DependencyInfo("direct.dep", "artifact-1", "1.0", null, DependencyMigrationStatus.COMPATIBLE,
-                false, false));
-        deps.add(new DependencyInfo("transitive.dep", "artifact-2", "2.0", null, DependencyMigrationStatus.COMPATIBLE,
-                true, false));
+        deps.add(new DependencyInfo("direct.dep", "artifact-1", "1.0", null, null, null,
+                "Unknown", null, DependencyMigrationStatus.COMPATIBLE, false, false));
+        deps.add(new DependencyInfo("transitive.dep", "artifact-2", "2.0", null, null, null,
+                "Unknown", null, DependencyMigrationStatus.COMPATIBLE, true, false));
         tableComponent.setDependencies(deps);
 
         tableComponent.getTransitiveFilter().setSelected(true);

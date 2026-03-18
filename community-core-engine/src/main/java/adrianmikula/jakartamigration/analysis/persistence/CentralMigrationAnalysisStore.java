@@ -1,6 +1,7 @@
 package adrianmikula.jakartamigration.analysis.persistence;
 
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
+import adrianmikula.jakartamigration.coderefactoring.domain.*;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -24,7 +25,7 @@ import java.util.*;
 public class CentralMigrationAnalysisStore implements AutoCloseable {
 
     private static final String DB_FILE = "central-migration-analysis.db";
-    private static final int DB_VERSION = 3; // Increment for schema changes
+    private static final int DB_VERSION = 4; // Increment for schema changes
 
     private final Path dbPath;
     private final ObjectMapperService objectMapper;
@@ -316,6 +317,21 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                         )
                     """);
 
+            // Upgrade recommendations table
+            stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS upgrade_recommendations (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            current_group_id TEXT NOT NULL,
+                            current_artifact_id TEXT NOT NULL,
+                            recommended_group_id TEXT NOT NULL,
+                            recommended_artifact_id TEXT NOT NULL,
+                            recommended_version TEXT,
+                            associated_recipe_name TEXT,
+                            created_at TEXT DEFAULT (datetime('now')),
+                            UNIQUE(current_group_id, current_artifact_id)
+                        )
+                    """);
+
             conn.commit();
             log.info("Central database created at {}", dbPath);
         }
@@ -340,6 +356,21 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                                     file_pattern TEXT,
                                     reversible BOOLEAN DEFAULT TRUE,
                                     created_at TEXT DEFAULT (datetime('now'))
+                                )
+                            """);
+                }
+                if (version < 4) {
+                    stmt.execute("""
+                                CREATE TABLE IF NOT EXISTS upgrade_recommendations (
+                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    current_group_id TEXT NOT NULL,
+                                    current_artifact_id TEXT NOT NULL,
+                                    recommended_group_id TEXT NOT NULL,
+                                    recommended_artifact_id TEXT NOT NULL,
+                                    recommended_version TEXT,
+                                    associated_recipe_name TEXT,
+                                    created_at TEXT DEFAULT (datetime('now')),
+                                    UNIQUE(current_group_id, current_artifact_id)
                                 )
                             """);
                 }
@@ -1120,7 +1151,106 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
         return results;
     }
 
+    // ==================== Upgrade Recommendation Operations ====================
+
+    /**
+     * Saves an upgrade recommendation mapping javax artifact to jakarta equivalent.
+     */
+    public void saveUpgradeRecommendation(String currentGroupId, String currentArtifactId,
+            String recommendedGroupId, String recommendedArtifactId, String recommendedVersion,
+            String associatedRecipeName) {
+        try (Connection conn = getConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement("""
+                    INSERT INTO upgrade_recommendations (
+                        current_group_id, current_artifact_id, recommended_group_id,
+                        recommended_artifact_id, recommended_version, associated_recipe_name
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(current_group_id, current_artifact_id) DO UPDATE SET
+                        recommended_group_id = excluded.recommended_group_id,
+                        recommended_artifact_id = excluded.recommended_artifact_id,
+                        recommended_version = excluded.recommended_version,
+                        associated_recipe_name = excluded.associated_recipe_name
+                    """)) {
+                stmt.setString(1, currentGroupId);
+                stmt.setString(2, currentArtifactId);
+                stmt.setString(3, recommendedGroupId);
+                stmt.setString(4, recommendedArtifactId);
+                stmt.setString(5, recommendedVersion);
+                stmt.setString(6, associatedRecipeName);
+                stmt.executeUpdate();
+            }
+            conn.commit();
+        } catch (SQLException e) {
+            log.error("Failed to save upgrade recommendation for {}:{}", currentGroupId, currentArtifactId, e);
+        }
+    }
+
+    /**
+     * Gets an upgrade recommendation for a specific javax artifact.
+     */
+    public UpgradeRecommendation getUpgradeRecommendation(String groupId, String artifactId) {
+        try (Connection conn = getConnection();
+                PreparedStatement stmt = conn.prepareStatement("""
+                        SELECT * FROM upgrade_recommendations
+                        WHERE current_group_id = ? AND current_artifact_id = ?
+                        """)) {
+            stmt.setString(1, groupId);
+            stmt.setString(2, artifactId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return new UpgradeRecommendation(
+                            rs.getString("current_group_id"),
+                            rs.getString("current_artifact_id"),
+                            rs.getString("recommended_group_id"),
+                            rs.getString("recommended_artifact_id"),
+                            rs.getString("recommended_version"),
+                            rs.getString("associated_recipe_name"));
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Failed to get upgrade recommendation for {}:{}", groupId, artifactId, e);
+        }
+        return null;
+    }
+
+    /**
+     * Gets all upgrade recommendations.
+     */
+    public List<UpgradeRecommendation> getAllUpgradeRecommendations() {
+        List<UpgradeRecommendation> recommendations = new ArrayList<>();
+        try (Connection conn = getConnection();
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery("""
+                        SELECT * FROM upgrade_recommendations ORDER BY current_group_id, current_artifact_id
+                        """)) {
+            while (rs.next()) {
+                recommendations.add(new UpgradeRecommendation(
+                        rs.getString("current_group_id"),
+                        rs.getString("current_artifact_id"),
+                        rs.getString("recommended_group_id"),
+                        rs.getString("recommended_artifact_id"),
+                        rs.getString("recommended_version"),
+                        rs.getString("associated_recipe_name")));
+            }
+        } catch (SQLException e) {
+            log.error("Failed to get all upgrade recommendations", e);
+        }
+        return recommendations;
+    }
+
     // ==================== Inner Classes ====================
+
+    /**
+     * Upgrade recommendation mapping javax artifact to jakarta equivalent.
+     */
+    public record UpgradeRecommendation(
+            String currentGroupId,
+            String currentArtifactId,
+            String recommendedGroupId,
+            String recommendedArtifactId,
+            String recommendedVersion,
+            String associatedRecipeName) {
+    }
 
     /**
      * Dependency info with classification (INTERNAL/EXTERNAL).

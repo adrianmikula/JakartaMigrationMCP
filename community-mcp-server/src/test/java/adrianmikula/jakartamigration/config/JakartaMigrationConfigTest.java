@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.config;
 
+import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaArtifactLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingService;
@@ -49,8 +50,9 @@ class JakartaMigrationConfigTest {
         NamespaceClassifier classifier = config.namespaceClassifier();
         JakartaMappingService mappingService = config.jakartaMappingService();
         JakartaArtifactLookupService lookupService = config.jakartaArtifactLookupService();
+        CentralMigrationAnalysisStore analysisStore = config.centralMigrationAnalysisStore();
 
-        assertThat(config.dependencyAnalysisModule(graphBuilder, classifier, mappingService, lookupService))
+        assertThat(config.dependencyAnalysisModule(graphBuilder, classifier, mappingService, lookupService, analysisStore))
                 .isNotNull();
     }
 }

@@ -175,4 +175,109 @@ public class RecipeSeeder {
 
                 log.info("Finished seeding recipes.");
         }
+
+        public static void seedUpgradeRecommendations(CentralMigrationAnalysisStore store) {
+                log.info("Seeding upgrade recommendations from recipes...");
+
+                // Seed javax.servlet -> jakarta.servlet mapping
+                store.saveUpgradeRecommendation(
+                        "javax.servlet",
+                        "javax.servlet-api",
+                        "jakarta.servlet",
+                        "jakarta.servlet-api",
+                        "5.0.0",
+                        "Migrate javax.servlet to jakarta.servlet");
+
+                // Seed javax.faces -> jakarta.faces mapping
+                store.saveUpgradeRecommendation(
+                        "javax.faces",
+                        "javax.faces",
+                        "jakarta.faces",
+                        "jakarta.faces",
+                        "4.0.0",
+                        "Migrate JSF to Jakarta Faces");
+
+                // Seed javax.jms -> jakarta.jms mapping
+                store.saveUpgradeRecommendation(
+                        "javax.jms",
+                        "javax.jms-api",
+                        "jakarta.jms",
+                        "jakarta.jms-api",
+                        "3.1.0",
+                        "Migrate JMS to Jakarta Messaging");
+
+                // Seed javax.transaction -> jakarta.transaction mapping
+                store.saveUpgradeRecommendation(
+                        "javax.transaction",
+                        "javax.transaction-api",
+                        "jakarta.transaction",
+                        "jakarta.transaction-api",
+                        "2.0.0",
+                        "Migrate JTA to Jakarta Transactions");
+
+                // Seed javax.ws.rs -> jakarta.ws.rs mapping
+                store.saveUpgradeRecommendation(
+                        "javax.ws.rs",
+                        "javax.ws.rs-api",
+                        "jakarta.ws.rs",
+                        "jakarta.ws.rs-api",
+                        "3.1.0",
+                        "Migrate JAX-RS to Jakarta REST");
+
+                // Seed javax.ejb -> jakarta.ejb mapping
+                store.saveUpgradeRecommendation(
+                        "javax.ejb",
+                        "javax.ejb-api",
+                        "jakarta.ejb",
+                        "jakarta.ejb-api",
+                        "4.0.0",
+                        "Migrate EJB to Jakarta Enterprise Beans");
+
+                // Seed javax.xml.bind -> jakarta.xml.bind mapping
+                store.saveUpgradeRecommendation(
+                        "javax.xml.bind",
+                        "jaxb-api",
+                        "jakarta.xml.bind",
+                        "jakarta.xml.bind-api",
+                        "4.0.0",
+                        "Migrate JAXB to Jakarta XML Binding");
+
+                // Seed javax.activation -> jakarta.activation mapping
+                store.saveUpgradeRecommendation(
+                        "javax.activation",
+                        "activation",
+                        "jakarta.activation",
+                        "jakarta.activation-api",
+                        "2.1.0",
+                        "Migrate JAF to Jakarta Activation");
+
+                // Seed javax.batch -> jakarta.batch mapping
+                store.saveUpgradeRecommendation(
+                        "javax.batch",
+                        "javax.batch-api",
+                        "jakarta.batch",
+                        "jakarta.batch-api",
+                        "2.1.0",
+                        "Migrate Batch to Jakarta Batch");
+
+                // Seed javax.persistence -> jakarta.persistence mapping
+                store.saveUpgradeRecommendation(
+                        "javax.persistence",
+                        "javax.persistence-api",
+                        "jakarta.persistence",
+                        "jakarta.persistence-api",
+                        "3.1.0",
+                        "Migrate @PersistenceContext");
+
+                // Seed hibernate-core mapping
+                store.saveUpgradeRecommendation(
+                        "org.hibernate",
+                        "hibernate-core",
+                        "org.hibernate",
+                        "hibernate-core",
+                        "6.2.0.Final",
+                        "Update Hibernate to Jakarta-compatible version");
+
+                log.info("Finished seeding upgrade recommendations.");
+        }
 }

@@ -279,7 +279,8 @@ class JakartaMigrationToolsPerformanceTest {
                                                 new Artifact("jakarta.example", "dep-" + i, "2.0.0", "compile", false),
                                                 "Migrate to Jakarta namespace",
                                                 List.of("Update imports", "Update dependencies"),
-                                                0.95))
+                                                0.95,
+                                                "Migrate javax to jakarta"))
                                 .toList();
         }
 

@@ -183,6 +183,75 @@ class CentralMigrationAnalysisStoreTest {
     }
 
     @Test
+    @DisplayName("Should save and get upgrade recommendation")
+    void shouldSaveAndGetUpgradeRecommendation() {
+        // Given
+        String currentGroupId = "javax.servlet";
+        String currentArtifactId = "javax.servlet-api";
+        String recommendedGroupId = "jakarta.servlet";
+        String recommendedArtifactId = "jakarta.servlet-api";
+        String recommendedVersion = "5.0.0";
+        String associatedRecipe = "Migrate javax.servlet to jakarta.servlet";
+
+        // When
+        store.saveUpgradeRecommendation(currentGroupId, currentArtifactId,
+                recommendedGroupId, recommendedArtifactId, recommendedVersion, associatedRecipe);
+
+        // Then
+        var recommendation = store.getUpgradeRecommendation(currentGroupId, currentArtifactId);
+        assertThat(recommendation).isNotNull();
+        assertThat(recommendation.currentGroupId()).isEqualTo(currentGroupId);
+        assertThat(recommendation.currentArtifactId()).isEqualTo(currentArtifactId);
+        assertThat(recommendation.recommendedGroupId()).isEqualTo(recommendedGroupId);
+        assertThat(recommendation.recommendedArtifactId()).isEqualTo(recommendedArtifactId);
+        assertThat(recommendation.recommendedVersion()).isEqualTo(recommendedVersion);
+        assertThat(recommendation.associatedRecipeName()).isEqualTo(associatedRecipe);
+    }
+
+    @Test
+    @DisplayName("Should update existing upgrade recommendation")
+    void shouldUpdateUpgradeRecommendation() {
+        // Given
+        store.saveUpgradeRecommendation("javax.servlet", "javax.servlet-api",
+                "jakarta.servlet", "jakarta.servlet-api", "5.0.0", "Recipe 1");
+
+        // When - save again with different values
+        store.saveUpgradeRecommendation("javax.servlet", "javax.servlet-api",
+                "jakarta.servlet", "jakarta.servlet-api", "6.0.0", "Recipe 2");
+
+        // Then
+        var recommendation = store.getUpgradeRecommendation("javax.servlet", "javax.servlet-api");
+        assertThat(recommendation.recommendedVersion()).isEqualTo("6.0.0");
+        assertThat(recommendation.associatedRecipeName()).isEqualTo("Recipe 2");
+    }
+
+    @Test
+    @DisplayName("Should return null for non-existent upgrade recommendation")
+    void shouldReturnNullForNonExistentRecommendation() {
+        // When
+        var recommendation = store.getUpgradeRecommendation("non.existent", "artifact");
+
+        // Then
+        assertThat(recommendation).isNull();
+    }
+
+    @Test
+    @DisplayName("Should get all upgrade recommendations")
+    void shouldGetAllUpgradeRecommendations() {
+        // Given
+        store.saveUpgradeRecommendation("javax.servlet", "javax.servlet-api",
+                "jakarta.servlet", "jakarta.servlet-api", "5.0.0", "Recipe 1");
+        store.saveUpgradeRecommendation("javax.faces", "javax.faces",
+                "jakarta.faces", "jakarta.faces", "4.0.0", "Recipe 2");
+
+        // When
+        var recommendations = store.getAllUpgradeRecommendations();
+
+        // Then
+        assertThat(recommendations).hasSize(2);
+    }
+
+    @Test
     @DisplayName("Should handle multiple organization patterns")
     void shouldHandleMultiplePatterns() {
         // Given
@@ -325,7 +394,8 @@ class CentralMigrationAnalysisStoreTest {
                         new Artifact("jakarta.servlet", "jakarta.servlet-api", "6.0.0", "compile", false),
                         "Direct upgrade",
                         List.of("API changes in servlet methods"),
-                        0.9));
+                        0.9,
+                        null));
 
         RiskAssessment risk = new RiskAssessment(
                 0.6,
