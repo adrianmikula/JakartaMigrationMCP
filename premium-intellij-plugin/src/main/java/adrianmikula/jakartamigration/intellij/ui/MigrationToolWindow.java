@@ -189,17 +189,25 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 tabbedPane.addTab("Refactor ⭐", refactorTabComponent.getPanel());
                 LOG.info("initializeContent: Added PREMIUM Refactor tab");
 
-                // (Premium)
-                // Note: Runtime tab is in Beta but should be unlocked for all trial/premium
-                // users
-                runtimeTabComponent = new RuntimeTabComponent(project);
-                tabbedPane.addTab("Runtime ⭐ (Beta)", runtimeTabComponent.getPanel());
-                LOG.info("initializeContent: Added PREMIUM+BETA Runtime tab");
-
                 // History tab (Premium) - shows recipe execution history
                 historyTabComponent = new HistoryTabComponent(project, recipeService);
                 tabbedPane.addTab("History ⭐", historyTabComponent.getPanel());
                 LOG.info("initializeContent: Added PREMIUM History tab");
+
+                // Wire refactor tab to auto-refresh history tab after recipe runs
+                final HistoryTabComponent historyRef = historyTabComponent;
+                refactorTabComponent.setOnRecipeExecuted(() -> SwingUtilities.invokeLater(historyRef::refreshHistory));
+
+                // Runtime tab (Premium + Experimental features only)
+                boolean betaEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isBetaFeaturesEnabled();
+                if (betaEnabled) {
+                    runtimeTabComponent = new RuntimeTabComponent(project);
+                    tabbedPane.addTab("Runtime ⭐ (Beta)", runtimeTabComponent.getPanel());
+                    LOG.info("initializeContent: Added PREMIUM+BETA Runtime tab");
+                } else {
+                    runtimeTabComponent = null;
+                    LOG.info("initializeContent: Runtime tab hidden (experimental features disabled)");
+                }
             } else {
                 refactorTabComponent = null;
                 historyTabComponent = null;

@@ -30,7 +30,12 @@ public class RefactorTabComponent {
     private final JBLabel detailsStatusLabel;
     private final JButton detailsApplyButton;
     private final JButton detailsUndoButton;
+    private final JProgressBar progressBar;
+    private final JLabel progressLabel;
     private RecipeDefinition selectedRecipe;
+
+    // Callback to notify other tabs (e.g. history) after a recipe runs
+    private Runnable onRecipeExecuted;
 
     public RefactorTabComponent(@NotNull Project project, RecipeService recipeService) {
         this.project = project;
@@ -38,25 +43,28 @@ public class RefactorTabComponent {
         this.panel = new JBPanel<>(new BorderLayout());
         this.categoryTabs = new JTabbedPane();
 
-        // Initialize details components
         this.detailsPanel = new JPanel(new BorderLayout());
         this.detailsTitleLabel = new JBLabel("Select a recipe to see details");
         this.detailsDescPane = new JEditorPane("text/html", "");
         this.detailsStatusLabel = new JBLabel("");
         this.detailsApplyButton = new JButton("Apply Recipe");
         this.detailsUndoButton = new JButton("Undo Changes");
+        this.progressBar = new JProgressBar();
+        this.progressLabel = new JLabel("");
 
         initializeComponent();
     }
 
+    public void setOnRecipeExecuted(Runnable callback) {
+        this.onRecipeExecuted = callback;
+    }
+
     private void initializeComponent() {
-        // Main Container with SplitPane
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         splitPane.setDividerLocation(400);
         splitPane.setResizeWeight(0.7);
         splitPane.setBorder(null);
 
-        // Top: Categories and Grids
         JPanel topPanel = new JPanel(new BorderLayout());
 
         JPanel headerPanel = new JBPanel<>(new BorderLayout());
@@ -84,7 +92,6 @@ public class RefactorTabComponent {
         }
         topPanel.add(categoryTabs, BorderLayout.CENTER);
 
-        // Bottom: Details Panel
         setupDetailsPanel();
 
         splitPane.setTopComponent(topPanel);
@@ -92,7 +99,6 @@ public class RefactorTabComponent {
 
         panel.add(splitPane, BorderLayout.CENTER);
 
-        // Actions (Bottom Bar)
         JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton refreshButton = new JButton("↻ Refresh All");
         refreshButton.addActionListener(e -> refreshAllRecipes());
@@ -124,6 +130,21 @@ public class RefactorTabComponent {
 
         detailsStatusLabel.setFont(detailsStatusLabel.getFont().deriveFont(Font.ITALIC, 11f));
         content.add(detailsStatusLabel);
+        content.add(Box.createVerticalStrut(8));
+
+        // Progress bar (hidden until recipe runs)
+        progressBar.setIndeterminate(true);
+        progressBar.setVisible(false);
+        progressBar.setPreferredSize(new Dimension(300, 18));
+        progressLabel.setFont(progressLabel.getFont().deriveFont(Font.ITALIC, 11f));
+        progressLabel.setForeground(Color.GRAY);
+        progressLabel.setVisible(false);
+        JPanel progressPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        progressPanel.setOpaque(false);
+        progressPanel.add(progressBar);
+        progressPanel.add(Box.createHorizontalStrut(8));
+        progressPanel.add(progressLabel);
+        content.add(progressPanel);
 
         JPanel buttonBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 10));
         buttonBar.setOpaque(false);
@@ -156,18 +177,13 @@ public class RefactorTabComponent {
                 +
                 "</body></html>");
 
-        String statusText = "Status: " + formatStatus(recipe.getStatus());
-        if (recipe.getLastRunDate() != null) {
-            statusText += " (Last run: " + recipe.getLastRunDate().toString().substring(0, 16).replace('T', ' ') + ")";
-        }
-        detailsStatusLabel.setText(statusText);
+        refreshDetailsStatus(recipe);
         detailsApplyButton.setEnabled(true);
         detailsApplyButton.setText(recipe.getStatus() == RecipeStatus.NEVER_RUN ? "Apply Recipe" : "Run Again");
 
         detailsUndoButton.setEnabled(recipe.getStatus() == RecipeStatus.RUN_SUCCESS);
         detailsUndoButton.setVisible(recipe.getStatus() == RecipeStatus.RUN_SUCCESS);
 
-        // Refresh grids to show selection
         for (RecipeCategory cat : RecipeCategory.values()) {
             JPanel grid = gridMap.get(cat);
             if (grid != null) {
@@ -178,6 +194,14 @@ public class RefactorTabComponent {
                 }
             }
         }
+    }
+
+    private void refreshDetailsStatus(RecipeDefinition recipe) {
+        String statusText = "Status: " + formatStatus(recipe.getStatus());
+        if (recipe.getLastRunDate() != null) {
+            statusText += " (Last run: " + recipe.getLastRunDate().toString().substring(0, 16).replace('T', ' ') + ")";
+        }
+        detailsStatusLabel.setText(statusText);
     }
 
     private String formatStatus(RecipeStatus status) {
@@ -232,7 +256,6 @@ public class RefactorTabComponent {
             }
         }
 
-        // Add spacer at the bottom
         gbc.gridx = 0;
         gbc.gridy++;
         gbc.gridwidth = 2;
@@ -278,7 +301,6 @@ public class RefactorTabComponent {
         }
 
         card.add(infoPanel, BorderLayout.CENTER);
-
         updateCardSelectionState(card);
 
         return card;
@@ -318,6 +340,16 @@ public class RefactorTabComponent {
         };
     }
 
+    private void setRunning(boolean running) {
+        progressBar.setVisible(running);
+        progressLabel.setVisible(running);
+        if (running) {
+            progressLabel.setText("Running recipe...");
+        }
+        detailsApplyButton.setEnabled(!running);
+        detailsUndoButton.setEnabled(!running);
+    }
+
     private void handleApplyRecipe(RecipeDefinition recipe) {
         int confirm = Messages.showYesNoDialog(project,
                 "Apply recipe '" + recipe.getName() + "'?\n\nThis will modify source files.",
@@ -325,19 +357,25 @@ public class RefactorTabComponent {
 
         if (confirm == Messages.YES) {
             java.nio.file.Path projectPath = java.nio.file.Paths.get(project.getBasePath());
+            setRunning(true);
             CompletableFuture.supplyAsync(() -> recipeService.applyRecipe(recipe.getName(), projectPath))
                     .thenAccept(result -> {
                         SwingUtilities.invokeLater(() -> {
+                            setRunning(false);
                             if (result.success()) {
                                 Messages.showInfoMessage(project, "Successfully applied '" + recipe.getName() + "'.",
                                         "Success");
-                                refreshAllRecipes();
-                                // Re-select to update details
-                                recipeService.getRecipes(projectPath).stream()
-                                        .filter(r -> r.getName().equals(recipe.getName()))
-                                        .findFirst().ifPresent(this::updateDetails);
                             } else {
                                 Messages.showErrorDialog(project, "Failed: " + result.errorMessage(), "Error");
+                            }
+                            refreshAllRecipes();
+                            // Re-select to update status/date in details panel
+                            recipeService.getRecipes(projectPath).stream()
+                                    .filter(r -> r.getName().equals(recipe.getName()))
+                                    .findFirst().ifPresent(this::updateDetails);
+                            // Notify history tab to refresh
+                            if (onRecipeExecuted != null) {
+                                onRecipeExecuted.run();
                             }
                         });
                     });
@@ -345,7 +383,6 @@ public class RefactorTabComponent {
     }
 
     private void handleUndo(RecipeDefinition recipe) {
-        // Logic to find last successful execution ID and undo it
         java.nio.file.Path projectPath = java.nio.file.Paths.get(project.getBasePath());
 
         Optional<RecipeExecutionHistory> lastExec = recipeService.getHistory(projectPath).stream()
@@ -367,15 +404,20 @@ public class RefactorTabComponent {
                 Messages.getQuestionIcon());
 
         if (confirm == Messages.YES) {
+            setRunning(true);
             CompletableFuture.supplyAsync(() -> recipeService.undoRecipe(executionId, projectPath))
                     .thenAccept(result -> {
                         SwingUtilities.invokeLater(() -> {
+                            setRunning(false);
                             if (result.success()) {
                                 Messages.showInfoMessage(project, "Successfully reverted changes.", "Undo Complete");
-                                refreshAllRecipes();
                             } else {
                                 Messages.showErrorDialog(project, "Undo failed: " + result.errorMessage(),
                                         "Undo Failed");
+                            }
+                            refreshAllRecipes();
+                            if (onRecipeExecuted != null) {
+                                onRecipeExecuted.run();
                             }
                         });
                     });

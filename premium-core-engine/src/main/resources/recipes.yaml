@@ -29,6 +29,14 @@ recipes:
         to: "jakarta.xml.bind"
       - from: "javax.xml.ws"
         to: "jakarta.xml.ws"
+  - name: JavaxValidationToJakartaValidation
+    description: Converts javax.validation.* to jakarta.validation.*
+    pattern: "javax.validation.* → jakarta.validation.*"
+    safety: HIGH
+    reversible: true
+    replacements:
+      - from: "javax.validation"
+        to: "jakarta.validation"
 
   - name: UpdatePersistenceXml
     description: Updates persistence.xml namespace to Jakarta
@@ -316,3 +324,81 @@ recipes:
     replacements:
       - from: "javax.security"
         to: "jakarta.security"
+
+upgrade_recommendations:
+  - currentGroupId: "javax.servlet"
+    currentArtifactId: "javax.servlet-api"
+    recommendedGroupId: "jakarta.servlet"
+    recommendedArtifactId: "jakarta.servlet-api"
+    recommendedVersion: "5.0.0"
+    associatedRecipeName: "Migrate javax.servlet to jakarta.servlet"
+
+  - currentGroupId: "javax.faces"
+    currentArtifactId: "javax.faces"
+    recommendedGroupId: "jakarta.faces"
+    recommendedArtifactId: "jakarta.faces"
+    recommendedVersion: "4.0.0"
+    associatedRecipeName: "Migrate JSF to Jakarta Faces"
+
+  - currentGroupId: "javax.jms"
+    currentArtifactId: "javax.jms-api"
+    recommendedGroupId: "jakarta.jms"
+    recommendedArtifactId: "jakarta.jms-api"
+    recommendedVersion: "3.1.0"
+    associatedRecipeName: "Migrate JMS to Jakarta Messaging"
+
+  - currentGroupId: "javax.transaction"
+    currentArtifactId: "javax.transaction-api"
+    recommendedGroupId: "jakarta.transaction"
+    recommendedArtifactId: "jakarta.transaction-api"
+    recommendedVersion: "2.0.0"
+    associatedRecipeName: "Migrate JTA to Jakarta Transactions"
+
+  - currentGroupId: "javax.ws.rs"
+    currentArtifactId: "javax.ws.rs-api"
+    recommendedGroupId: "jakarta.ws.rs"
+    recommendedArtifactId: "jakarta.ws.rs-api"
+    recommendedVersion: "3.1.0"
+    associatedRecipeName: "Migrate JAX-RS to Jakarta REST"
+
+  - currentGroupId: "javax.ejb"
+    currentArtifactId: "javax.ejb-api"
+    recommendedGroupId: "jakarta.ejb"
+    recommendedArtifactId: "jakarta.ejb-api"
+    recommendedVersion: "4.0.0"
+    associatedRecipeName: "Migrate EJB to Jakarta Enterprise Beans"
+
+  - currentGroupId: "javax.xml.bind"
+    currentArtifactId: "jaxb-api"
+    recommendedGroupId: "jakarta.xml.bind"
+    recommendedArtifactId: "jakarta.xml.bind-api"
+    recommendedVersion: "4.0.0"
+    associatedRecipeName: "Migrate JAXB to Jakarta XML Binding"
+
+  - currentGroupId: "javax.activation"
+    currentArtifactId: "activation"
+    recommendedGroupId: "jakarta.activation"
+    recommendedArtifactId: "jakarta.activation-api"
+    recommendedVersion: "2.1.0"
+    associatedRecipeName: "Migrate JAF to Jakarta Activation"
+
+  - currentGroupId: "javax.batch"
+    currentArtifactId: "javax.batch-api"
+    recommendedGroupId: "jakarta.batch"
+    recommendedArtifactId: "jakarta.batch-api"
+    recommendedVersion: "2.1.0"
+    associatedRecipeName: "Migrate Batch to Jakarta Batch"
+
+  - currentGroupId: "javax.persistence"
+    currentArtifactId: "javax.persistence-api"
+    recommendedGroupId: "jakarta.persistence"
+    recommendedArtifactId: "jakarta.persistence-api"
+    recommendedVersion: "3.1.0"
+    associatedRecipeName: "Migrate @PersistenceContext"
+
+  - currentGroupId: "org.hibernate"
+    currentArtifactId: "hibernate-core"
+    recommendedGroupId: "org.hibernate"
+    recommendedArtifactId: "hibernate-core"
+    recommendedVersion: "6.2.0.Final"
+    associatedRecipeName: "Update Hibernate to Jakarta-compatible version"

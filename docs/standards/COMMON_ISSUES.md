@@ -126,7 +126,63 @@ See `docs/community/standards/json-deserialization-errors.md` for detailed guida
 
 ## IntelliJ Plugin Issues
 
-### [To be added]
+### Write-Unsafe Context Error When Showing Dialogs from Background Threads
+
+**Problem:**  
+IntelliJ logs `Write-unsafe context! Model changes are allowed from write-safe contexts only` when showing `Messages.showErrorDialog` from a `CompletableFuture.thenAccept` callback.
+
+**Cause:**  
+`SwingUtilities.invokeLater` uses `ModalityState.any()` which is write-unsafe. IntelliJ requires `ApplicationManager.getApplication().invokeLater()` for write-safe context.
+
+**Solution:**  
+Replace `SwingUtilities.invokeLater` with `ApplicationManager.getApplication().invokeLater()` when showing dialogs from background threads:
+
+```java
+// WRONG
+SwingUtilities.invokeLater(() -> Messages.showErrorDialog(...));
+
+// CORRECT
+ApplicationManager.getApplication().invokeLater(() -> Messages.showErrorDialog(...));
+```
+
+**Files Affected:** `HistoryTabComponent.java`
+
+---
+
+### OpenRewrite IllegalArgumentException: 'other' is different type of Path
+
+**Problem:**  
+When running OpenRewrite recipes, `projectPath.relativize(result.getAfter().getSourcePath())` throws `IllegalArgumentException: 'other' is different type of Path`.
+
+**Cause:**  
+OpenRewrite's `getSourcePath()` returns a relative `Path` (not absolute), but `Path.relativize()` requires both paths to be the same type (both absolute or both relative).
+
+**Solution:**  
+Check if the source path is absolute before calling `relativize`:
+
+```java
+Path sourcePath = result.getAfter().getSourcePath();
+Path relPath = sourcePath.isAbsolute() ? projectPath.relativize(sourcePath) : sourcePath;
+```
+
+**Files Affected:** `IsolatedRecipeRunner.java`
+
+---
+
+### Undo Fails with "No history found for execution ID"
+
+**Problem:**  
+Clicking Undo in the History tab shows "No history found for execution ID: 1" even though the execution exists.
+
+**Cause:**  
+The original code checked `getChangedFiles()` first and returned the error if empty, but the error message was misleading - the execution exists but has no changed files (e.g. recipe ran but matched no files).
+
+**Solution:**  
+Look up the history record first to confirm it exists, then check for changed files separately with a more accurate error message.
+
+**Files Affected:** `RecipeServiceImpl.java`
+
+---
 
 ---
 

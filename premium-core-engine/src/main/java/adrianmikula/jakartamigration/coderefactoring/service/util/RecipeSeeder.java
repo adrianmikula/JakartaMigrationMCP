@@ -5,279 +5,258 @@ import adrianmikula.jakartamigration.coderefactoring.domain.RecipeCategory;
 import adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition;
 import adrianmikula.jakartamigration.coderefactoring.domain.RecipeType;
 import lombok.extern.slf4j.Slf4j;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.LoaderOptions;
+import org.yaml.snakeyaml.constructor.Constructor;
+
+import java.io.InputStream;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Utility to seed default recipes into the central store.
+ * Utility to seed default recipes and upgrade recommendations into the central store.
+ * All recipes are loaded from recipes.yaml to keep configuration centralized.
  */
 @Slf4j
 public class RecipeSeeder {
 
+        // Mapping from YAML recipe names to OpenRewrite recipe class names
+        // Only includes recipes that actually exist in OpenRewrite
+        private static final Map<String, String> RECIPE_NAME_TO_OPENREWRITE = new HashMap<>();
+        static {
+                // Jakarta EE namespace migrations - verified to exist in OpenRewrite
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateServlet", "org.openrewrite.java.migrate.jakarta.JavaxServletToJakartaServlet");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateServletApi", "org.openrewrite.java.migrate.jakarta.JavaxServletToJakartaServlet");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateJPA", "org.openrewrite.java.migrate.jakarta.JavaxPersistenceToJakartaPersistence");
+                // NOTE: JavaxValidationToJakartaValidation doesn't exist - using JavaxValidationMigrationToJakartaValidation
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateBeanValidation", "org.openrewrite.java.migrate.jakarta.JavaxValidationMigrationToJakartaValidation");
+                RECIPE_NAME_TO_OPENREWRITE.put("JavaxValidationToJakartaValidation", "org.openrewrite.java.migrate.jakarta.JavaxValidationMigrationToJakartaValidation");
+                // CDI - use JavaxEnterpriseToJakartaEnterprise which exists
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateCDI", "org.openrewrite.java.migrate.jakarta.JavaxEnterpriseToJakartaEnterprise");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateREST", "org.openrewrite.java.migrate.jakarta.JavaxWsToJakartaWs");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateSOAP", "org.openrewrite.java.migrate.jakarta.JavaxXmlSoapToJakartaXmlSoap");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateJMS", "org.openrewrite.java.migrate.jakarta.JavaxJmsToJakartaJms");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateBatch", "org.openrewrite.java.migrate.jakarta.JavaxBatchMigrationToJakartaBatch");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateMail", "org.openrewrite.java.migrate.jakarta.JavaxMailToJakartaMail");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateJTA", "org.openrewrite.java.migrate.jakarta.JavaxTransactionMigrationToJakartaTransaction");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateEJB", "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateJSF", "org.openrewrite.java.migrate.jakarta.JavaxFacesToJakartaFaces");
+                // WebSocket - use JavaxWebsocketToJakartaWebsocket (correct spelling)
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateWebSocket", "org.openrewrite.java.migrate.jakarta.JavaxWebsocketToJakartaWebsocket");
+                // JSONP - use JavaxJsonToJakartaJson
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateJSONP", "org.openrewrite.java.migrate.jakarta.JavaxJsonToJakartaJson");
+                // JSONB - doesn't exist as separate recipe, use JavaxJsonToJakartaJson
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateJSONB", "org.openrewrite.java.migrate.jakarta.JavaxJsonToJakartaJson");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateSecurity", "org.openrewrite.java.migrate.jakarta.JavaxSecurityToJakartaSecurity");
+                // Concurrency - doesn't exist, skip
+                // JCA - doesn't exist, skip
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateJAXB", "org.openrewrite.java.migrate.jakarta.JavaxXmlBindMigrationToJakartaXmlBind");
+                // JAXRPC - use JavaxXmlWsMigrationToJakartaXmlWs
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateJAXRPC", "org.openrewrite.java.migrate.jakarta.JavaxXmlWsMigrationToJakartaXmlWs");
+                // JASPIC - doesn't exist, skip
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateAnnotation", "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateActivation", "org.openrewrite.java.migrate.jakarta.JavaxActivationMigrationToJakartaActivation");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateEL", "org.openrewrite.java.migrate.jakarta.JavaxElToJakartaEl");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateInterceptor", "org.openrewrite.java.migrate.jakarta.JavaxInterceptorToJakartaInterceptor");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateResource", "org.openrewrite.java.migrate.jakarta.JavaxResourceToJakartaResource");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateSaaj", "org.openrewrite.java.migrate.jakarta.JavaxXmlSoapToJakartaXmlSoap");
+                RECIPE_NAME_TO_OPENREWRITE.put("MigrateAuthorization", "org.openrewrite.java.migrate.jakarta.JavaxAuthorizationMigrationToJakartaAuthorization");
+        }
+
         public static void seedDefaultRecipes(CentralMigrationAnalysisStore store) {
-                log.info("Seeding default migration recipes...");
+                log.info("Seeding default migration recipes from recipes.yaml...");
 
-                // 1. Java Source // JAVA Recipes
+                // Load recipes from YAML
+                List<Map<String, Object>> yamlRecipes = loadRecipesFromYaml();
+                log.info("Loaded {} recipes from YAML", yamlRecipes != null ? yamlRecipes.size() : 0);
+                
+                if (yamlRecipes == null || yamlRecipes.isEmpty()) {
+                        log.error("CRITICAL: No recipes found in recipes.yaml! Falling back to legacy seeding.");
+                        seedLegacyRecipes(store);
+                        return;
+                }
+
+                // Delete all existing recipes to ensure DB matches YAML exactly
+                // This handles cases where recipes are removed from YAML
+                store.deleteAllRecipes();
+                log.info("Cleared existing recipes from database");
+
+                // Seed each recipe from YAML
+                int seededCount = 0;
+                for (Map<String, Object> yamlRecipe : yamlRecipes) {
+                        String name = (String) yamlRecipe.get("name");
+                        log.info("Seeding recipe from YAML: name={}", name);
+                        String description = (String) yamlRecipe.get("description");
+                        String pattern = (String) yamlRecipe.get("pattern");
+                        String safety = (String) yamlRecipe.get("safety");
+                        Boolean reversible = (Boolean) yamlRecipe.get("reversible");
+                        String fileFilter = (String) yamlRecipe.get("fileFilter");
+                        @SuppressWarnings("unchecked")
+                        List<Map<String, String>> replacements = (List<Map<String, String>>) yamlRecipe.get("replacements");
+
+                        RecipeDefinition recipe = RecipeDefinition.builder()
+                                .name(name)
+                                .description(description)
+                                .category(determineCategory(name, fileFilter))
+                                .reversible(reversible != null ? reversible : true)
+                                .build();
+
+                        // Check if this recipe has an OpenRewrite mapping
+                        String openRewriteRecipeName = RECIPE_NAME_TO_OPENREWRITE.get(name);
+                        log.info("Recipe '{}' - OpenRewrite mapping: {}", name, openRewriteRecipeName);
+                        if (openRewriteRecipeName != null) {
+                                recipe.setRecipeType(RecipeType.OPENREWRITE);
+                                recipe.setOpenRewriteRecipeName(openRewriteRecipeName);
+                                log.info("Recipe '{}' - Set to OPENREWRITE with class: {}", name, openRewriteRecipeName);
+                        } else if (fileFilter != null && !fileFilter.isEmpty()) {
+                                // XML recipes with file filters use REGEX
+                                recipe.setRecipeType(RecipeType.REGEX);
+                                recipe.setFilePattern(fileFilter);
+                                if (replacements != null && !replacements.isEmpty()) {
+                                        // Use first replacement as pattern/replacement
+                                        recipe.setPattern(replacements.get(0).get("from"));
+                                        recipe.setReplacement(replacements.get(0).get("to"));
+                                }
+                        } else if (replacements != null && !replacements.isEmpty()) {
+                                // Default to REGEX if has replacements
+                                recipe.setRecipeType(RecipeType.REGEX);
+                                recipe.setPattern(replacements.get(0).get("from"));
+                                recipe.setReplacement(replacements.get(0).get("to"));
+                        } else {
+                                // Default to OPENREWRITE if no other info
+                                recipe.setRecipeType(RecipeType.OPENREWRITE);
+                        }
+
+                        store.saveRecipe(recipe);
+                        seededCount++;
+                }
+
+                log.info("Finished seeding {} recipes from recipes.yaml.", seededCount);
+        }
+
+        /**
+         * Determines the category based on recipe name and file filter.
+         */
+        private static RecipeCategory determineCategory(String name, String fileFilter) {
+                if (fileFilter != null) {
+                        if (fileFilter.contains("web.xml") || fileFilter.contains("persistence.xml")) {
+                                return RecipeCategory.XML;
+                        }
+                        if (fileFilter.contains("pom.xml") || fileFilter.contains("build.gradle")) {
+                                return RecipeCategory.BUILD_DEPENDENCIES;
+                        }
+                }
+
+                String lowerName = name.toLowerCase();
+                if (lowerName.contains("annotation") || lowerName.contains("@")) {
+                        return RecipeCategory.ANNOTATIONS;
+                }
+                if (lowerName.contains("xml") || lowerName.contains("web.xml") || lowerName.contains("persistence")) {
+                        return RecipeCategory.XML;
+                }
+                if (lowerName.contains("dependency") || lowerName.contains("maven") || lowerName.contains("hibernate") || lowerName.contains("gradle")) {
+                        return RecipeCategory.BUILD_DEPENDENCIES;
+                }
+                
+                return RecipeCategory.JAVA;
+        }
+
+        /**
+         * Fallback method for legacy hardcoded recipes if YAML loading fails.
+         */
+        private static void seedLegacyRecipes(CentralMigrationAnalysisStore store) {
+                log.info("Seeding legacy recipes (fallback)...");
+
+                // Java Source Recipes
                 store.saveRecipe(RecipeDefinition.builder()
-                                .name("Migrate javax.servlet to jakarta.servlet")
-                                .description("Replaces javax.servlet imports with jakarta.servlet equivalents.")
-                                .category(RecipeCategory.JAVA)
-                                .recipeType(RecipeType.OPENREWRITE)
-                                .openRewriteRecipeName(
-                                                "org.openrewrite.java.migrate.jakarta.JavaxServletToJakartaServlet")
-                                .reversible(true)
-                                .build());
+                        .name("Migrate javax.servlet to jakarta.servlet")
+                        .description("Replaces javax.servlet imports with jakarta.servlet equivalents.")
+                        .category(RecipeCategory.JAVA)
+                        .recipeType(RecipeType.OPENREWRITE)
+                        .openRewriteRecipeName("org.openrewrite.java.migrate.jakarta.JavaxServletToJakartaServlet")
+                        .reversible(true)
+                        .build());
 
                 store.saveRecipe(RecipeDefinition.builder()
-                                .name("Migrate JSF to Jakarta Faces")
-                                .description("Replaces javax.faces imports with jakarta.faces equivalents.")
-                                .category(RecipeCategory.JAVA)
-                                .recipeType(RecipeType.OPENREWRITE)
-                                .openRewriteRecipeName("org.openrewrite.java.migrate.jakarta.JavaxFacesToJakartaFaces")
-                                .reversible(true)
-                                .build());
-
-                store.saveRecipe(RecipeDefinition.builder()
-                                .name("Migrate JMS to Jakarta Messaging")
-                                .description("Replaces javax.jms imports with jakarta.jms equivalents.")
-                                .category(RecipeCategory.JAVA)
-                                .recipeType(RecipeType.OPENREWRITE)
-                                .openRewriteRecipeName("org.openrewrite.java.migrate.jakarta.JavaxJmsToJakartaJms")
-                                .reversible(true)
-                                .build());
-
-                store.saveRecipe(RecipeDefinition.builder()
-                                .name("Migrate JTA to Jakarta Transactions")
-                                .description("Replaces javax.transaction imports with jakarta.transaction equivalents.")
-                                .category(RecipeCategory.JAVA)
-                                .recipeType(RecipeType.OPENREWRITE)
-                                .openRewriteRecipeName(
-                                                "org.openrewrite.java.migrate.jakarta.JavaxTransactionMigrationToJakartaTransaction")
-                                .reversible(true)
-                                .build());
-
-                store.saveRecipe(RecipeDefinition.builder()
-                                .name("Migrate JAX-RS to Jakarta REST")
-                                .description("Replaces javax.ws.rs imports with jakarta.ws.rs equivalents.")
-                                .category(RecipeCategory.JAVA)
-                                .recipeType(RecipeType.OPENREWRITE)
-                                .openRewriteRecipeName("org.openrewrite.java.migrate.jakarta.JavaxWsToJakartaWs")
-                                .reversible(true)
-                                .build());
-
-                store.saveRecipe(RecipeDefinition.builder()
-                                .name("Migrate EJB to Jakarta Enterprise Beans")
-                                .description("Replaces javax.ejb imports with jakarta.ejb equivalents.")
-                                .category(RecipeCategory.JAVA)
-                                .recipeType(RecipeType.OPENREWRITE)
-                                .openRewriteRecipeName("org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb")
-                                .reversible(true)
-                                .build());
-
-                store.saveRecipe(RecipeDefinition.builder()
-                                .name("Migrate JAXB to Jakarta XML Binding")
-                                .description("Replaces javax.xml.bind imports with jakarta.xml.bind equivalents.")
-                                .category(RecipeCategory.JAVA)
-                                .recipeType(RecipeType.OPENREWRITE)
-                                .openRewriteRecipeName(
-                                                "org.openrewrite.java.migrate.jakarta.JavaxXmlBindMigrationToJakartaXmlBind")
-                                .reversible(true)
-                                .build());
-
-                store.saveRecipe(RecipeDefinition.builder()
-                                .name("Migrate JAF to Jakarta Activation")
-                                .description("Replaces javax.activation imports with jakarta.activation equivalents.")
-                                .category(RecipeCategory.JAVA)
-                                .recipeType(RecipeType.OPENREWRITE)
-                                .openRewriteRecipeName(
-                                                "org.openrewrite.java.migrate.jakarta.JavaxActivationMigrationToJakartaActivation")
-                                .reversible(true)
-                                .build());
-
-                store.saveRecipe(RecipeDefinition.builder()
-                                .name("Migrate Batch to Jakarta Batch")
-                                .description("Replaces javax.batch imports with jakarta.batch equivalents.")
-                                .category(RecipeCategory.JAVA)
-                                .recipeType(RecipeType.OPENREWRITE)
-                                .openRewriteRecipeName(
-                                                "org.openrewrite.java.migrate.jakarta.JavaxBatchMigrationToJakartaBatch")
-                                .reversible(true)
-                                .build());
+                        .name("Migrate JSF to Jakarta Faces")
+                        .description("Replaces javax.faces imports with jakarta.faces equivalents.")
+                        .category(RecipeCategory.JAVA)
+                        .recipeType(RecipeType.OPENREWRITE)
+                        .openRewriteRecipeName("org.openrewrite.java.migrate.jakarta.JavaxFacesToJakartaFaces")
+                        .reversible(true)
+                        .build());
 
                 // XML Recipes
                 store.saveRecipe(RecipeDefinition.builder()
-                                .name("Update web.xml to Jakarta EE 9+")
-                                .description("Updates web.xml namespaces and version to Jakarta EE equivalents.")
-                                .category(RecipeCategory.XML)
-                                .recipeType(RecipeType.REGEX)
-                                .pattern("xmlns=\"http://xmlns\\.jcp\\.org/xml/ns/javaee\"")
-                                .replacement("xmlns=\"https://jakarta.ee/xml/ns/jakartaee\"")
-                                .filePattern("**/web.xml")
-                                .reversible(true)
-                                .build());
+                        .name("Update web.xml to Jakarta EE 9+")
+                        .description("Updates web.xml namespaces and version to Jakarta EE equivalents.")
+                        .category(RecipeCategory.XML)
+                        .recipeType(RecipeType.REGEX)
+                        .pattern("xmlns=\"http://xmlns\\.jcp\\.org/xml/ns/javaee\"")
+                        .replacement("xmlns=\"https://jakarta.ee/xml/ns/jakartaee\"")
+                        .filePattern("**/web.xml")
+                        .reversible(true)
+                        .build());
 
-                store.saveRecipe(RecipeDefinition.builder()
-                                .name("Update persistence.xml to Jakarta EE 9+")
-                                .description("Updates persistence.xml namespaces to Jakarta EE equivalents.")
-                                .category(RecipeCategory.XML)
-                                .recipeType(RecipeType.REGEX)
-                                .pattern("xmlns=\"http://xmlns\\.jcp\\.org/xml/ns/persistence\"")
-                                .replacement("xmlns=\"https://jakarta.ee/xml/ns/persistence\"")
-                                .filePattern("**/persistence.xml")
-                                .reversible(true)
-                                .build());
-
-                // ANNOTATIONS Recipes
-                store.saveRecipe(RecipeDefinition.builder()
-                                .name("Migrate @PersistenceContext")
-                                .description("Migrates javax.persistence annotations to jakarta.persistence.")
-                                .category(RecipeCategory.ANNOTATIONS)
-                                .recipeType(RecipeType.OPENREWRITE)
-                                .openRewriteRecipeName(
-                                                "org.openrewrite.java.migrate.jakarta.JavaxPersistenceToJakartaPersistence")
-                                .reversible(true)
-                                .build());
-
-                // BUILD_DEPENDENCIES Recipes
-                store.saveRecipe(RecipeDefinition.builder()
-                                .name("Update Hibernate to Jakarta-compatible version")
-                                .description("Updates Hibernate dependencies in pom.xml or build.gradle.")
-                                .category(RecipeCategory.BUILD_DEPENDENCIES)
-                                .recipeType(RecipeType.REGEX)
-                                .pattern("org\\.hibernate:hibernate-core:5\\.[0-9]+\\.[0-9]+")
-                                .replacement("org.hibernate:hibernate-core:6.2.0.Final")
-                                .filePattern("**/pom.xml,**/build.gradle*")
-                                .reversible(true)
-                                .build());
-
-                store.saveRecipe(RecipeDefinition.builder()
-                                .name("Update persistence.xml version")
-                                .description("Update persistence.xml version to 3.0 for Jakarta EE.")
-                                .category(RecipeCategory.XML)
-                                .recipeType(RecipeType.REGEX)
-                                .pattern("version=\"2.[0-2]\"")
-                                .replacement("version=\"3.0\"")
-                                .filePattern("**/persistence.xml")
-                                .reversible(true)
-                                .build());
-
-                // 3. Dependency Recipes (Regex/OpenRewrite)
-                store.saveRecipe(RecipeDefinition.builder()
-                                .name("Upgrade Maven Dependency: javax.servlet-api")
-                                .description("Replace javax.servlet-api with jakarta.servlet-api 5.0.0+")
-                                .category(RecipeCategory.BUILD_DEPENDENCIES)
-                                .recipeType(RecipeType.REGEX)
-                                .pattern(
-                                                "<groupId>javax.servlet</groupId>\\s*<artifactId>javax.servlet-api</artifactId>\\s*<version>.*?</version>")
-                                .replacement(
-                                                "<groupId>jakarta.servlet</groupId>\n    <artifactId>jakarta.servlet-api</artifactId>\n    <version>5.0.0</version>")
-                                .filePattern("**/pom.xml")
-                                .reversible(true)
-                                .build());
-
-                log.info("Finished seeding recipes.");
+                log.info("Finished seeding legacy recipes.");
         }
 
+        /**
+         * Seeds upgrade recommendations from recipes.yaml configuration.
+         */
         public static void seedUpgradeRecommendations(CentralMigrationAnalysisStore store) {
-                log.info("Seeding upgrade recommendations from recipes...");
+                log.info("Seeding upgrade recommendations from recipes.yaml...");
 
-                // Seed javax.servlet -> jakarta.servlet mapping
-                store.saveUpgradeRecommendation(
-                        "javax.servlet",
-                        "javax.servlet-api",
-                        "jakarta.servlet",
-                        "jakarta.servlet-api",
-                        "5.0.0",
-                        "Migrate javax.servlet to jakarta.servlet");
+                List<RecipesYamlConfig.UpgradeRecommendationConfig> recommendations = loadUpgradeRecommendationsFromYaml();
+                for (RecipesYamlConfig.UpgradeRecommendationConfig rec : recommendations) {
+                        store.saveUpgradeRecommendation(
+                                rec.getCurrentGroupId(),
+                                rec.getCurrentArtifactId(),
+                                rec.getRecommendedGroupId(),
+                                rec.getRecommendedArtifactId(),
+                                rec.getRecommendedVersion(),
+                                rec.getAssociatedRecipeName());
+                }
 
-                // Seed javax.faces -> jakarta.faces mapping
-                store.saveUpgradeRecommendation(
-                        "javax.faces",
-                        "javax.faces",
-                        "jakarta.faces",
-                        "jakarta.faces",
-                        "4.0.0",
-                        "Migrate JSF to Jakarta Faces");
+                log.info("Finished seeding {} upgrade recommendations.", recommendations.size());
+        }
 
-                // Seed javax.jms -> jakarta.jms mapping
-                store.saveUpgradeRecommendation(
-                        "javax.jms",
-                        "javax.jms-api",
-                        "jakarta.jms",
-                        "jakarta.jms-api",
-                        "3.1.0",
-                        "Migrate JMS to Jakarta Messaging");
+        @SuppressWarnings("unchecked")
+        private static List<Map<String, Object>> loadRecipesFromYaml() {
+                try (InputStream is = RecipeSeeder.class.getClassLoader().getResourceAsStream("recipes.yaml")) {
+                        if (is == null) {
+                                log.warn("recipes.yaml not found on classpath");
+                                return Collections.emptyList();
+                        }
+                        Yaml yaml = new Yaml(new Constructor(RecipesYamlConfig.class, new LoaderOptions()));
+                        RecipesYamlConfig config = yaml.load(is);
+                        if (config == null || config.getRecipes() == null) {
+                                return Collections.emptyList();
+                        }
+                        return config.getRecipes();
+                } catch (Exception e) {
+                        log.error("Failed to load recipes from recipes.yaml", e);
+                        return Collections.emptyList();
+                }
+        }
 
-                // Seed javax.transaction -> jakarta.transaction mapping
-                store.saveUpgradeRecommendation(
-                        "javax.transaction",
-                        "javax.transaction-api",
-                        "jakarta.transaction",
-                        "jakarta.transaction-api",
-                        "2.0.0",
-                        "Migrate JTA to Jakarta Transactions");
-
-                // Seed javax.ws.rs -> jakarta.ws.rs mapping
-                store.saveUpgradeRecommendation(
-                        "javax.ws.rs",
-                        "javax.ws.rs-api",
-                        "jakarta.ws.rs",
-                        "jakarta.ws.rs-api",
-                        "3.1.0",
-                        "Migrate JAX-RS to Jakarta REST");
-
-                // Seed javax.ejb -> jakarta.ejb mapping
-                store.saveUpgradeRecommendation(
-                        "javax.ejb",
-                        "javax.ejb-api",
-                        "jakarta.ejb",
-                        "jakarta.ejb-api",
-                        "4.0.0",
-                        "Migrate EJB to Jakarta Enterprise Beans");
-
-                // Seed javax.xml.bind -> jakarta.xml.bind mapping
-                store.saveUpgradeRecommendation(
-                        "javax.xml.bind",
-                        "jaxb-api",
-                        "jakarta.xml.bind",
-                        "jakarta.xml.bind-api",
-                        "4.0.0",
-                        "Migrate JAXB to Jakarta XML Binding");
-
-                // Seed javax.activation -> jakarta.activation mapping
-                store.saveUpgradeRecommendation(
-                        "javax.activation",
-                        "activation",
-                        "jakarta.activation",
-                        "jakarta.activation-api",
-                        "2.1.0",
-                        "Migrate JAF to Jakarta Activation");
-
-                // Seed javax.batch -> jakarta.batch mapping
-                store.saveUpgradeRecommendation(
-                        "javax.batch",
-                        "javax.batch-api",
-                        "jakarta.batch",
-                        "jakarta.batch-api",
-                        "2.1.0",
-                        "Migrate Batch to Jakarta Batch");
-
-                // Seed javax.persistence -> jakarta.persistence mapping
-                store.saveUpgradeRecommendation(
-                        "javax.persistence",
-                        "javax.persistence-api",
-                        "jakarta.persistence",
-                        "jakarta.persistence-api",
-                        "3.1.0",
-                        "Migrate @PersistenceContext");
-
-                // Seed hibernate-core mapping
-                store.saveUpgradeRecommendation(
-                        "org.hibernate",
-                        "hibernate-core",
-                        "org.hibernate",
-                        "hibernate-core",
-                        "6.2.0.Final",
-                        "Update Hibernate to Jakarta-compatible version");
-
-                log.info("Finished seeding upgrade recommendations.");
+        private static List<RecipesYamlConfig.UpgradeRecommendationConfig> loadUpgradeRecommendationsFromYaml() {
+                try (InputStream is = RecipeSeeder.class.getClassLoader().getResourceAsStream("recipes.yaml")) {
+                        if (is == null) {
+                                log.warn("recipes.yaml not found on classpath, no upgrade recommendations loaded");
+                                return Collections.emptyList();
+                        }
+                        Yaml yaml = new Yaml(new Constructor(RecipesYamlConfig.class, new LoaderOptions()));
+                        RecipesYamlConfig config = yaml.load(is);
+                        if (config == null || config.getUpgradeRecommendations() == null) {
+                                return Collections.emptyList();
+                        }
+                        return config.getUpgradeRecommendations();
+                } catch (Exception e) {
+                        log.error("Failed to load upgrade recommendations from recipes.yaml", e);
+                        return Collections.emptyList();
+                }
         }
 }

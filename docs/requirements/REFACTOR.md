@@ -68,3 +68,17 @@
 - https://github.com/openrewrite/rewrite-migrate-java/tree/main/src/main/resources/META-INF/rewrite
 - 
 
+
+
+
+
+# Testing
+
+## Unit Tests
+
+
+## Integration Tests
+- loop through all recipes in recipes.yaml and run them, to ensure they exist and are configured correctly
+- loop through all recipes in recipes.yaml to chack that they exist in openrewrite's list
+
+

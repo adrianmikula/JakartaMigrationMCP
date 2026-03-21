@@ -5,6 +5,22 @@ All notable changes to the Jakarta Migration IntelliJ plugin will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2026-03-21
+
+### Fixed
+- Bug: OpenRewrite recipe class name fix - JavaxValidationToJakartaValidation now correctly maps to JavaxValidationMigrationToJakartaValidation (missing "Migration" suffix)
+- Bug: RecipeSeeder now loads all 33 recipes from recipes.yaml (previously only seeded a subset)
+- Bug: Recipe database now uses recipe name as PRIMARY KEY for stable identity
+- Bug: Support tab now shows dynamic build timestamp instead of hardcoded old date
+
+### Added
+- Recipe validation tests: RecipeLoopValidationTest and OpenRewriteRecipeExistenceTest verify all recipes exist and are correctly configured
+- Dynamic build timestamp generation in IntelliJ plugin - shows actual build time in Support tab
+- Support URLs now loaded from support-urls.properties for easier configuration
+
+### Changed
+- RecipeSeeder now loads from recipes.yaml for centralized recipe configuration
+
 ## [Unreleased]
 
 ### Fixed

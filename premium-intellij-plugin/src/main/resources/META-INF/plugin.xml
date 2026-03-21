@@ -102,6 +102,17 @@
     </actions>
 
     <change-notes><![CDATA[
+    <h>1.0.6</h>
+    <ul>
+        <li>Fixed: OpenRewrite recipe class name fix - JavaxValidationToJakartaValidation now correctly maps to JavaxValidationMigrationToJakartaValidation</li>
+        <li>Fixed: RecipeSeeder now loads all 33 recipes from recipes.yaml</li>
+        <li>Fixed: Recipe database now uses recipe name as PRIMARY KEY for stable identity</li>
+        <li>Fixed: Support tab now shows dynamic build timestamp instead of hardcoded old date</li>
+        <li>Added: Recipe validation tests verify all recipes exist and are correctly configured</li>
+        <li>Added: Dynamic build timestamp generation in IntelliJ plugin</li>
+        <li>Added: Support URLs now loaded from support-urls.properties</li>
+        <li>Changed: RecipeSeeder now loads from recipes.yaml for centralized configuration</li>
+    </ul>
     <h>1.0.2</h>
     <ul>
         <li>Fixed: 'Total Advanced Issues' now at bottom of scan counts</li>

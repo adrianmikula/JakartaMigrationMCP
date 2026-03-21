@@ -62,7 +62,14 @@ public class IsolatedRecipeRunner {
             List<Map<String, String>> changedFiles = new ArrayList<>();
             for (Result result : results) {
                 if (result.getAfter() != null && result.getBefore() != null) {
-                    Path relPath = projectPath.relativize(result.getAfter().getSourcePath());
+                    Path sourcePath = result.getAfter().getSourcePath();
+                    // sourcePath may be relative (from OpenRewrite) or absolute - normalize to relative
+                    Path relPath;
+                    if (sourcePath.isAbsolute()) {
+                        relPath = projectPath.relativize(sourcePath);
+                    } else {
+                        relPath = sourcePath;
+                    }
 
                     Map<String, String> change = new HashMap<>();
                     change.put("path", relPath.toString());

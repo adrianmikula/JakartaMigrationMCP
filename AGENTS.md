@@ -1,6 +1,13 @@
 
 # AI Agent Rules 
 
+
+
+## Agent Setup
+- Set up any useful MCP servers which will significantly speed up agent context, simplify workflows, and speed up feedback loops.
+- Set up agent allowlist to include all common non-destructive development commands we will want to use, e.g. for build tools, test commands, etc.
+
+
 ## Tasks
 
 ### Pre-Task Steps

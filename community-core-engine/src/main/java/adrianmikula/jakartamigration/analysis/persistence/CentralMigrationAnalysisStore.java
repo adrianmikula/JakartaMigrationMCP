@@ -25,7 +25,7 @@ import java.util.*;
 public class CentralMigrationAnalysisStore implements AutoCloseable {
 
     private static final String DB_FILE = "central-migration-analysis.db";
-    private static final int DB_VERSION = 4; // Increment for schema changes
+    private static final int DB_VERSION = 5; // Increment for schema changes
 
     private final Path dbPath;
     private final ObjectMapperService objectMapper;
@@ -373,6 +373,38 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                                     UNIQUE(current_group_id, current_artifact_id)
                                 )
                             """);
+                }
+                // Migration to version 5: Use recipe name as PRIMARY KEY instead of auto-increment ID
+                // This ensures recipe identity is stable even if YAML order changes
+                if (version < 5) {
+                    // Create new table with name as PRIMARY KEY
+                    stmt.execute("""
+                                CREATE TABLE IF NOT EXISTS recipes_new (
+                                    name TEXT PRIMARY KEY,
+                                    description TEXT,
+                                    category TEXT NOT NULL,
+                                    recipe_type TEXT NOT NULL,
+                                    openrewrite_recipe_name TEXT,
+                                    pattern TEXT,
+                                    replacement TEXT,
+                                    file_pattern TEXT,
+                                    reversible BOOLEAN DEFAULT TRUE,
+                                    created_at TEXT DEFAULT (datetime('now'))
+                                )
+                            """);
+                    // Copy data from old table (if exists)
+                    stmt.execute("""
+                                INSERT OR IGNORE INTO recipes_new 
+                                (name, description, category, recipe_type, openrewrite_recipe_name, 
+                                 pattern, replacement, file_pattern, reversible, created_at)
+                                SELECT name, description, category, recipe_type, openrewrite_recipe_name,
+                                       pattern, replacement, file_pattern, reversible, created_at
+                                FROM recipes
+                            """);
+                    // Drop old table and rename new one
+                    stmt.execute("DROP TABLE IF EXISTS recipes");
+                    stmt.execute("ALTER TABLE recipes_new RENAME TO recipes");
+                    log.info("Migrated recipes table to use name as PRIMARY KEY");
                 }
                 stmt.execute("PRAGMA user_version = " + DB_VERSION);
                 log.info("Database schema updated to version {}", DB_VERSION);
@@ -1086,6 +1118,8 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
      * Saves or updates a recipe in the catalog.
      */
     public void saveRecipe(adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition recipe) {
+        log.info("saveRecipe called: name={}, type={}, openRewriteRecipeName={}", 
+                recipe.getName(), recipe.getRecipeType(), recipe.getOpenRewriteRecipeName());
         try (Connection conn = getConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement("""
                     INSERT INTO recipes (
@@ -1116,6 +1150,22 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
             conn.commit();
         } catch (SQLException e) {
             log.error("Failed to save recipe: " + recipe.getName(), e);
+        }
+    }
+
+    /**
+     * Deletes all recipes from the catalog.
+     * Used to ensure DB matches YAML configuration exactly on startup.
+     */
+    public void deleteAllRecipes() {
+        try (Connection conn = getConnection()) {
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("DELETE FROM recipes");
+            }
+            conn.commit();
+            log.info("Deleted all recipes from catalog");
+        } catch (SQLException e) {
+            log.error("Failed to delete all recipes", e);
         }
     }
 

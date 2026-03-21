@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.coderefactoring.domain.RecipeExecutionHistory;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -21,8 +22,10 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Tab component for viewing recipe execution history and performing undos
- * (Premium).
+ * Tab component for viewing recipe execution history and performing undos (Premium).
+ * Req: History rows are refreshed automatically after a recipe is run from the refactor tab.
+ * Req: Action column shows "Apply" for apply actions, not "Undo".
+ * Req: Write-safe context used for all UI updates (ApplicationManager.invokeLater).
  */
 public class HistoryTabComponent {
     private static final Logger LOG = Logger.getInstance(HistoryTabComponent.class);
@@ -43,7 +46,6 @@ public class HistoryTabComponent {
     }
 
     private void initializeComponent() {
-        // Table setup
         String[] columnNames = { "ID", "Recipe", "Status", "Date Applied", "Files Changed", "Action" };
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
@@ -59,7 +61,6 @@ public class HistoryTabComponent {
         JBScrollPane scrollPane = new JBScrollPane(historyTable);
         panel.add(scrollPane, BorderLayout.CENTER);
 
-        // Actions panel
         JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton refreshButton = new JButton("↻ Refresh History");
         refreshButton.addActionListener(e -> refreshHistory());
@@ -86,13 +87,23 @@ public class HistoryTabComponent {
 
         tableModel.setRowCount(0);
         for (RecipeExecutionHistory h : history) {
+            // Bug fix: Action column shows "Apply" for apply actions, not "Undo"
+            String action;
+            if (h.isUndo()) {
+                action = "-";
+            } else if (h.isSuccess()) {
+                action = "Undo";
+            } else {
+                action = "-";
+            }
+
             tableModel.addRow(new Object[] {
                     h.getId(),
                     h.getRecipeName(),
                     h.isSuccess() ? (h.isUndo() ? "Undone" : "Success") : "Failed",
                     DATE_FORMATTER.format(h.getExecutedAt()),
                     h.getAffectedFiles().size(),
-                    h.isUndo() ? "-" : (h.isSuccess() ? "Undo" : "-")
+                    action
             });
         }
     }
@@ -100,7 +111,9 @@ public class HistoryTabComponent {
     private void handleUndo() {
         int selectedRow = historyTable.getSelectedRow();
         if (selectedRow == -1) {
-            Messages.showWarningDialog(project, "Please select an execution to undo.", "No Selection");
+            // Use ApplicationManager.invokeLater for write-safe context
+            ApplicationManager.getApplication().invokeLater(() ->
+                Messages.showWarningDialog(project, "Please select an execution to undo.", "No Selection"));
             return;
         }
 
@@ -109,12 +122,14 @@ public class HistoryTabComponent {
         String status = (String) tableModel.getValueAt(selectedRow, 2);
 
         if ("Undone".equals(status)) {
-            Messages.showErrorDialog(project, "This action has already been undone.", "Already Undone");
+            ApplicationManager.getApplication().invokeLater(() ->
+                Messages.showErrorDialog(project, "This action has already been undone.", "Already Undone"));
             return;
         }
 
         if ("Failed".equals(status)) {
-            Messages.showErrorDialog(project, "Cannot undo a failed execution.", "Cannot Undo");
+            ApplicationManager.getApplication().invokeLater(() ->
+                Messages.showErrorDialog(project, "Cannot undo a failed execution.", "Cannot Undo"));
             return;
         }
 
@@ -130,7 +145,8 @@ public class HistoryTabComponent {
 
             CompletableFuture.supplyAsync(() -> recipeService.undoRecipe(executionId, projectPath))
                     .thenAccept(result -> {
-                        SwingUtilities.invokeLater(() -> {
+                        // Use ApplicationManager.invokeLater for write-safe context
+                        ApplicationManager.getApplication().invokeLater(() -> {
                             if (result.success()) {
                                 Messages.showInfoMessage(project,
                                         "Successfully undone '" + recipeName + "'.\n" +

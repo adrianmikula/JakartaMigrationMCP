@@ -1,3 +1,7 @@
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.io.File
+
 plugins {
     id("org.jetbrains.intellij")
     `java-library`
@@ -55,6 +59,21 @@ intellij {
 }
 
 tasks {
+    // Write build timestamp to a properties file for runtime access
+    val buildTimestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+    val projectVersion = project.version.toString()
+    val projectDir = project.projectDir
+    
+    // Create build info file using a simple file task
+    val generateBuildInfo = register<DefaultTask>("generateBuildInfo") {
+        doLast {
+            val outputDir = File(projectDir, "build/resources/main")
+            outputDir.mkdirs()
+            val outputFile = File(outputDir, "build-info.properties")
+            outputFile.writeText("build.timestamp=${buildTimestamp}\nbuild.version=${projectVersion}\n")
+        }
+    }
+    
     patchPluginXml {
         sinceBuild.set(providers.gradleProperty("intellij.sinceBuild").orElse("233"))
         // Use empty string to get open-ended compatibility (no until-build in generated XML)
@@ -92,6 +111,9 @@ java {
 tasks.named<Jar>("jar") {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     
+    // Ensure build-info.properties is generated before jar
+    dependsOn("generateBuildInfo")
+    
     // Include community-core-engine classes
     val communityCoreEngine = project(":community-core-engine")
     from(communityCoreEngine.sourceSets.main.get().output)
@@ -99,6 +121,9 @@ tasks.named<Jar>("jar") {
     // Also include premium-core-engine classes
     val premiumCoreEngine = project(":premium-core-engine")
     from(premiumCoreEngine.sourceSets.main.get().output)
+    
+    // Include build info from generateBuildInfo
+    from(File(project.projectDir, "build/resources/main"))
 }
 
 // Create a task to generate MCP tool definitions JSON

@@ -14,18 +14,38 @@ import java.awt.event.MouseEvent;
 /**
  * Support tab component for the IntelliJ plugin.
  * Provides links to GitHub, LinkedIn, and sponsor pages.
+ * URLs are loaded from support-urls.properties to avoid hardcoding.
  */
 public class SupportComponent {
     private static final Logger LOG = Logger.getInstance(SupportComponent.class);
 
-    // URLs - these can be configured or loaded from settings
-    private static final String GITHUB_URL = "https://github.com/adrianmikula/JakartaMigrationMCP";
-    private static final String GITHUB_ISSUES_URL = "https://github.com/adrianmikula/JakartaMigrationMCP/issues";
-    private static final String GITHUB_SPONSOR_URL = "https://github.com/sponsors/adrianmikula";
-    private static final String LINKEDIN_URL = "https://linkedin.com/in/adrianmikula";
-    private static final String PLUGIN_PAGE_URL = "https://plugins.jetbrains.com/plugin/25558-jakarta-migration";
-    private static final String UPDATE_URL = "https://plugins.jetbrains.com/plugin/25558-jakarta-migration/versions";
-    private static final String MARKETPLACE_URL = "https://plugins.jetbrains.com/plugin/30093-jakarta-migration";
+    private static final java.util.Properties URLS = loadUrls();
+
+    private static java.util.Properties loadUrls() {
+        java.util.Properties props = new java.util.Properties();
+        // Defaults in case properties file is missing
+        props.setProperty("github", "https://github.com/adrianmikula/JakartaMigrationMCP");
+        props.setProperty("github.issues", "https://github.com/adrianmikula/JakartaMigrationMCP/issues");
+        props.setProperty("github.sponsor", "https://github.com/sponsors/adrianmikula");
+        props.setProperty("linkedin", "https://linkedin.com/in/adrianmikula");
+        props.setProperty("plugin.page", "https://plugins.jetbrains.com/plugin/30093-jakarta-migration-javax--jakarta-");
+        props.setProperty("plugin.updates", "https://plugins.jetbrains.com/plugin/30093-jakarta-migration-javax--jakarta-/versions");
+        props.setProperty("marketplace", "https://plugins.jetbrains.com/plugin/30093-jakarta-migration-javax--jakarta-");
+        try (java.io.InputStream is = SupportComponent.class.getClassLoader().getResourceAsStream("support-urls.properties")) {
+            if (is != null) props.load(is);
+        } catch (Exception e) {
+            Logger.getInstance(SupportComponent.class).warn("Could not load support-urls.properties, using defaults", e);
+        }
+        return props;
+    }
+
+    private static final String GITHUB_URL = URLS.getProperty("github");
+    private static final String GITHUB_ISSUES_URL = URLS.getProperty("github.issues");
+    private static final String GITHUB_SPONSOR_URL = URLS.getProperty("github.sponsor");
+    private static final String LINKEDIN_URL = URLS.getProperty("linkedin");
+    private static final String PLUGIN_PAGE_URL = URLS.getProperty("plugin.page");
+    private static final String UPDATE_URL = URLS.getProperty("plugin.updates");
+    private static final String MARKETPLACE_URL = URLS.getProperty("marketplace");
 
     private final JPanel panel;
     private final Project project;
@@ -398,6 +418,37 @@ public class SupportComponent {
     }
 
     private String getBuildTimestamp() {
-        return "2026-02-26";
+        // Try to get build timestamp from build-info.properties first
+        try {
+            java.util.Properties props = new java.util.Properties();
+            try (java.io.InputStream is = SupportComponent.class.getClassLoader().getResourceAsStream("build-info.properties")) {
+                if (is != null) {
+                    props.load(is);
+                    String timestamp = props.getProperty("build.timestamp");
+                    if (timestamp != null && !timestamp.isEmpty()) {
+                        return timestamp;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOG.warn("Could not get build timestamp from build-info.properties", e);
+        }
+        
+        // Fallback: get timestamp from this class's JAR entry
+        try {
+            java.net.URL location = SupportComponent.class.getProtectionDomain().getCodeSource().getLocation();
+            java.io.File jarFile = new java.io.File(location.getPath());
+            if (jarFile.exists()) {
+                // Return the file's last modified time formatted as date
+                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                return sdf.format(new java.util.Date(jarFile.lastModified()));
+            }
+        } catch (Exception e) {
+            LOG.warn("Could not get build timestamp from JAR", e);
+        }
+        
+        // Last fallback: current date
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        return sdf.format(new java.util.Date());
     }
 }

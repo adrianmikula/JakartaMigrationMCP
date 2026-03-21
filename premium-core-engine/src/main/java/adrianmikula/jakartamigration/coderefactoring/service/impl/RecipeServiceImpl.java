@@ -315,19 +315,25 @@ public class RecipeServiceImpl implements RecipeService {
         log.info("Undoing recipe execution: {}", executionId);
 
         try {
-            List<Map<String, String>> changedFiles = projectStore.getChangedFiles(executionId);
-            if (changedFiles.isEmpty()) {
-                return new RecipeExecutionResult(false, 0, 0, Collections.emptyList(),
-                        "No history found for execution ID: " + executionId, null);
-            }
-
-            // Record undo execution
+            // Look up original history record first to get recipe name
             RecipeExecutionHistory originalHistory = projectStore.getRecipeHistory(projectPath).stream()
                     .filter(h -> h.getId().equals(executionId))
                     .findFirst().orElse(null);
 
+            if (originalHistory == null) {
+                return new RecipeExecutionResult(false, 0, 0, Collections.emptyList(),
+                        "No history found for execution ID: " + executionId, null);
+            }
+
+            List<Map<String, String>> changedFiles = projectStore.getChangedFiles(executionId);
+            if (changedFiles.isEmpty()) {
+                return new RecipeExecutionResult(false, 0, 0, Collections.emptyList(),
+                        "No changed files found for execution ID: " + executionId +
+                        ". The recipe may not have modified any files.", null);
+            }
+
             RecipeExecutionHistory undoHistory = RecipeExecutionHistory.builder()
-                    .recipeName("Undo: " + (originalHistory != null ? originalHistory.getRecipeName() : "Unknown"))
+                    .recipeName("Undo: " + originalHistory.getRecipeName())
                     .executedAt(Instant.now())
                     .success(true)
                     .isUndo(true)
