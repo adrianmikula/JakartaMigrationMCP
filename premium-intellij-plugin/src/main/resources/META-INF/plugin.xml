@@ -102,6 +102,16 @@
     </actions>
 
     <change-notes><![CDATA[
+    <h>1.0.7</h>
+    <ul>
+        <li><b>Added:</b> Dynamic Recipe Loading - Advanced Scans tab now dynamically creates UI tabs based on recipe categories from recipes.yaml, eliminating hardcoded tabs and ensuring automatic UI synchronization when new refactoring recipes are added</li>
+        <li><b>Enhanced:</b> Recipe Service Integration - Improved recipe loading mechanism with better category filtering and dynamic table management</li>
+        <li><b>Improved:</b> Premium Feature Architecture - Maintained premium license enforcement while implementing dynamic UI structure</li>
+        <li><b>Added:</b> 100+ Jakarta Migration Recipes - Comprehensive collection of javax → jakarta OpenRewrite recipes covering all major Jakarta EE APIs (Servlet, JPA, Bean Validation, CDI, EJB, JSF, JAX-RS, JAX-WS, JMS, JSON-P, JSON-B, Security, XML, Enterprise, Configuration Files, Annotations)</li>
+        <li><b>Added:</b> Risk Scoring Tests - Comprehensive test suite with 19 test cases for dashboard risk score calculation with weighted inputs from YAML configuration</li>
+        <li><b>Fixed:</b> Gradle Configuration - Resolved malformed Java home path causing build failures</li>
+        <li><b>Fixed:</b> Build System - Resolved Java 21/Gradle compatibility issues for reliable builds</li>
+    </ul>
     <h>1.0.6</h>
     <ul>
         <li>Fixed: OpenRewrite recipe class name fix - JavaxValidationToJakartaValidation now correctly maps to JavaxValidationMigrationToJakartaValidation</li>
@@ -119,7 +129,7 @@
         <li>Fixed: Removed 'Jakarta Status Indicator' from dashboard</li>
         <li>Fixed: 'No Jakarta Support' count now updates correctly after scans</li>
         <li>Fixed: Advanced scans now hidden until premium/trial activated</li>
-        <li>Added: Premium upgrade banner in Support tab</li>
+        <li>Added: Premium upgrade banner in Support tab for better visibility</li>
         <li>Note: Freemium licensing implementation pending - requires JetBrains product parameters and license verification</li>
     </ul>
     <h>1.0.1</h>

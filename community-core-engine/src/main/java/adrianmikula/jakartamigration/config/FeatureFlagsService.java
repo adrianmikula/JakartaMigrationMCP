@@ -1,10 +1,13 @@
 package adrianmikula.jakartamigration.config;
 
+import adrianmikula.jakartamigration.config.FeatureFlag;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static adrianmikula.jakartamigration.config.FeatureFlag.EXPERIMENTAL_FEATURES;
 
 /**
  * Service for checking feature flag availability.
@@ -37,6 +40,22 @@ public class FeatureFlagsService {
 
         FeatureFlagsProperties.LicenseTier currentTier = getCurrentTier();
         return flag.isAvailableFor(currentTier);
+    }
+
+    public boolean isExperimentalFeaturesEnabled() {
+        if (!properties.getEnabled()) {
+            log.debug("Feature flags disabled, allowing experimental features");
+            return true;
+        }
+
+        Boolean override = properties.getFeatures().get(EXPERIMENTAL_FEATURES.getKey());
+        if (override != null) {
+            log.debug("Experimental features override: {}", override);
+            return true;
+        }
+
+        FeatureFlagsProperties.LicenseTier currentTier = getCurrentTier();
+        return EXPERIMENTAL_FEATURES.isAvailableFor(currentTier);
     }
 
     public void requireEnabled(FeatureFlag flag) {

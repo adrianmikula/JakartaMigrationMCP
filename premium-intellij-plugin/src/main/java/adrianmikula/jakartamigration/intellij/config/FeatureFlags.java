@@ -124,6 +124,13 @@ public class FeatureFlags {
     }
     
     /**
+     * Checks if experimental features are enabled (for user preference).
+     */
+    public boolean isExperimentalFeaturesEnabled() {
+        return "true".equals(System.getProperty("jakarta.migration.experimental_features", "false"));
+    }
+    
+    /**
      * Enables or disables beta features.
      */
     public void setBetaFeaturesEnabled(boolean enabled) {

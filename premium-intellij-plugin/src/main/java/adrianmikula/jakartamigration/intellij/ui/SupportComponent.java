@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import com.intellij.ide.plugins.PluginManagerCore;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.extensions.PluginId;
@@ -151,7 +152,7 @@ public class SupportComponent {
 
         // Version info
         contentPanel.add(createSectionHeader("Version Info"));
-        JLabel versionLabel = new JLabel("Version: " + getPluginVersion() + " (Premium Edition)");
+        JLabel versionLabel = new JLabel("Version: " + getPluginVersion() + " (" + CheckLicense.getLicenseStatusString() + ")");
         versionLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
         versionLabel.setForeground(Color.GRAY);
         contentPanel.add(versionLabel);
@@ -180,16 +181,15 @@ public class SupportComponent {
     }
 
     private JPanel createPremiumUpgradeBanner() {
-        boolean alreadyPremium = isPremium || isPremiumActive();
+        String licenseStatus = CheckLicense.getLicenseStatusString();
+        boolean alreadyPremium = CheckLicense.isLicensed();
+        boolean isTrial = licenseStatus.startsWith("Trial");
 
         JPanel bannerPanel = new JPanel(new BorderLayout(15, 10));
         bannerPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(255, 215, 0), 2),
-                BorderFactory.createEmptyBorder(15, 15, 15, 15)));
-        bannerPanel.setBackground(new Color(255, 253, 208));
-        bannerPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+                BorderFactory.createLineBorder(Color.GRAY, 1),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)));
 
-        // Left side - star icon and text
         JPanel leftPanel = new JPanel();
         leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
         leftPanel.setBackground(new Color(255, 253, 208));
@@ -199,15 +199,18 @@ public class SupportComponent {
         starLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         leftPanel.add(starLabel);
 
-        JLabel titleLabel = new JLabel(alreadyPremium ? "Premium Active" : "Upgrade to Premium");
+        JLabel titleLabel = new JLabel(alreadyPremium ? "Premium Active" : 
+                (isTrial ? "Upgrade to Full Premium" : "Upgrade to Premium"));
         titleLabel.setFont(new Font(titleLabel.getFont().getName(), Font.BOLD, 16));
         titleLabel.setForeground(new Color(80, 60, 0));
         titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         leftPanel.add(titleLabel);
 
-        JLabel descLabel = new JLabel(alreadyPremium
-                ? "<html>Thank you for using Premium! Enjoy auto-fixes and one-click refactoring.</html>"
-                : "<html>Get auto-fixes, one-click refactoring, and binary fixes</html>");
+        JLabel descLabel = new JLabel(alreadyPremium ? 
+                "<html>Thank you for using Premium! Enjoy auto-fixes and one-click refactoring.</html>" :
+                (isTrial ? 
+                    "<html>Your trial is active! Upgrade to Full Premium to continue enjoying all features after your trial expires.</html>" :
+                    "<html>Get auto-fixes, one-click refactoring, and binary fixes</html>"));
         descLabel.setFont(new Font(descLabel.getFont().getName(), Font.PLAIN, 12));
         descLabel.setForeground(new Color(100, 90, 60));
         descLabel.setAlignmentX(Component.LEFT_ALIGNMENT);

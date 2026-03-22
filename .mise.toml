@@ -192,9 +192,7 @@ run = "mill community_core_engine.compile community_mcp_server.compile"
 [tasks.test-community]
 description = "Run tests for all community modules. Linux/macOS: Mill; Windows: Gradle"
 run_windows = "gradlew.bat :community-core-engine:test :community-mcp-server:test"
-run = "mill community_core_engine.test community_mcp_server.test"
-
-# Fast Test Tasks (for quick feedback during development)[tasks.fast-test]
+run = "mill community_core_engine.test community_mcp_server.test"# Fast Test Tasks (for quick feedback during development)[tasks.fast-test]
 description = "Run fast tests only - no compilation, just execute pre-built tests"
 run_windows = "gradlew.bat :community-core-engine:test :premium-core-engine:test --continue"
 run = "mill community_core_engine.test premium_core_engine.test"[tasks.fast-compile]

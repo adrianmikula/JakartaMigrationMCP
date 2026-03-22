@@ -5,6 +5,28 @@ All notable changes to the Jakarta Migration IntelliJ plugin will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2026-03-21
+
+### Added
+- **100+ Jakarta Migration Recipes**: Added comprehensive collection of javax → jakarta OpenRewrite recipes covering all major Jakarta EE APIs
+  - Core APIs: Servlet, JPA, Bean Validation, CDI, EJB, JSF
+  - Web Services: JAX-RS, JAX-WS, SAAJ, SOAP
+  - Messaging: JMS, Batch API
+  - JSON: JSON-P, JSON-B
+  - Security: Security Enterprise, JASPIC, JACC
+  - XML: JAXB, JAX-RPC, XML Stream, XML Registry
+  - Enterprise: Concurrency, Resource (JCA)
+  - Configuration Files: XML namespace migrations for persistence.xml, web.xml, beans.xml, etc.
+  - Annotations: @Resource, @PostConstruct, @PreDestroy
+- **Risk Scoring Tests**: Comprehensive test suite for dashboard risk score calculation with weighted inputs from YAML configuration
+  - 19 test cases covering all aspects of risk scoring including scan findings, dependency issues, and component weights
+  - Tests for all configured scan types (JPA, Servlet, Bean Validation, CDI, JMS, Web Services, Serialization Cache)
+  - Validation of risk level categories, base weight application, and score normalization
+
+### Fixed
+- **Gradle Configuration**: Fixed malformed Java home path in gradle.properties that was causing build failures
+- **Build System**: Resolved Java 21/Gradle compatibility issues for reliable builds
+
 ## [1.0.6] - 2026-03-21
 
 ### Fixed

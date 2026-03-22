@@ -162,11 +162,11 @@ public class MigrationToolWindow implements ToolWindowFactory {
             } else {
                 // Add a locked placeholder for non-premium users
                 advancedScansComponent = null;
-                tabbedPane.addTab("Advanced Scans ⭐", createPremiumPlaceholderPanel(
+                tabbedPane.addTab("Advanced Scans 🔒", createPremiumPlaceholderPanel(
                         "Advanced Scans",
                         "Unlock advanced scanning features including JPA, Bean Validation, Servlet/JSP, CDI, and more.",
                         "JPA entity scanning",
-                        "Bean Validation analysis",
+                        "Comprehensive annotation analysis",
                         "Servlet/JSP detection",
                         "CDI bean discovery",
                         "Transaction API scanning"));
@@ -199,11 +199,11 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 refactorTabComponent.setOnRecipeExecuted(() -> SwingUtilities.invokeLater(historyRef::refreshHistory));
 
                 // Runtime tab (Premium + Experimental features only)
-                boolean betaEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isBetaFeaturesEnabled();
-                if (betaEnabled) {
+                boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
+                if (experimentalEnabled) {
                     runtimeTabComponent = new RuntimeTabComponent(project);
-                    tabbedPane.addTab("Runtime ⭐ (Beta)", runtimeTabComponent.getPanel());
-                    LOG.info("initializeContent: Added PREMIUM+BETA Runtime tab");
+                    tabbedPane.addTab("Runtime ⚡ (Experimental)", runtimeTabComponent.getPanel());
+                    LOG.info("initializeContent: Added PREMIUM+EXPERIMENTAL Runtime tab");
                 } else {
                     runtimeTabComponent = null;
                     LOG.info("initializeContent: Runtime tab hidden (experimental features disabled)");

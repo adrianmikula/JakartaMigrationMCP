@@ -4,10 +4,14 @@ package adrianmikula.jakartamigration.coderefactoring.domain;
  * Categories of migration recipes as required by REFACTOR.md.
  */
 public enum RecipeCategory {
-    JAVA("Java"),
-    XML("XML"),
     ANNOTATIONS("Annotations"),
-    BUILD_DEPENDENCIES("Build/Dependencies");
+    CONFIGURATION("Configuration"),
+    DATABASE("Database"),
+    CDI("CDI"),
+    APIS("APIs"),
+    WEB("Web"),
+    SECURITY("Security"),
+    OTHER("Other");
 
     private final String displayName;
 

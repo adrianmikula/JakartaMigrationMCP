@@ -1,11 +1,13 @@
 package adrianmikula.jakartamigration.intellij.license;
 
+import adrianmikula.jakartamigration.intellij.ui.SupportComponent;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.extensions.PluginId;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * License verification for Jakarta Migration Premium plugin.
@@ -142,6 +144,25 @@ public class CheckLicense {
         return false;
     }
 
+    /**
+     * Starts a free trial for the user.
+     * Sets the trial end time and activates premium features.
+     * 
+     * @param project Current project
+     */
+    public static void startTrial() {
+        LOG.info("CheckLicense: Trial started via startTrial() method");
+        System.setProperty("jakarta.migration.premium", "true");
+        System.setProperty("jakarta.migration.trial.end", 
+                String.valueOf(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000));
+        
+        // Clear license cache to force fresh check
+        clearCache();
+        
+        // Notify SupportComponent to refresh
+        SupportComponent.setPremiumActive(true);
+    }
+    
     /**
      * Gets the license status as a user-friendly string.
      */

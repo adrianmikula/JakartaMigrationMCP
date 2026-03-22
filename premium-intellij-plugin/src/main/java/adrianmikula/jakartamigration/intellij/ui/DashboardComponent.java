@@ -6,6 +6,8 @@ import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.intellij.service.RiskScoringService;
+import adrianmikula.jakartamigration.intellij.license.CheckLicense;
+import adrianmikula.jakartamigration.intellij.ui.SupportComponent;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -17,7 +19,9 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -118,6 +122,7 @@ public class DashboardComponent {
     /**
      * Updates the advanced scan counts from cached results.
      * Should be called when the dashboard is shown or after scans complete.
+     * Now also recalculates and refreshes the risk score with advanced scan findings.
      */
     public void updateAdvancedScanCounts() {
         if (advancedScanningService == null || !advancedScanningService.hasCachedResults()) {
@@ -132,7 +137,7 @@ public class DashboardComponent {
             return;
         }
 
-SwingUtilities.invokeLater(() -> {
+        SwingUtilities.invokeLater(() -> {
             updateScanCountWithColor(jpaScanCountValue, summary.getJpaCount());
             updateScanCountWithColor(beanValidationScanCountValue, summary.getBeanValidationCount());
             updateScanCountWithColor(servletJspScanCountValue, summary.getServletJspCount());
@@ -149,6 +154,12 @@ SwingUtilities.invokeLater(() -> {
             updateScanCountWithColor(serializationCacheScanCountValue, summary.getSerializationCacheCount());
             updateScanCountWithColor(thirdPartyLibScanCountValue, summary.getThirdPartyLibCount());
             updateScanCountWithColor(totalAdvancedScanCountValue, summary.getTotalIssuesFound());
+            
+            // Re-calculate risk score with advanced scan findings
+            // This ensures the dashboard UI refreshes with the updated risk score
+            if (dashboard != null) {
+                updateRiskScoreWithAdvancedScans(dashboard.getDependencySummary());
+            }
         });
     }
     
@@ -595,7 +606,7 @@ private void resetAdvancedScanCounts() {
         actionsPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
         // Check if premium is already active
-        boolean isPremium = SupportComponent.isPremiumActive();
+        boolean isPremium = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
         
         if (!isPremium) {
             // Add trial button
@@ -604,8 +615,8 @@ private void resetAdvancedScanCounts() {
             trialButton.addActionListener(e -> {
                 // Trigger trial start via project action
                 com.intellij.openapi.actionSystem.AnActionEvent event = null;
-                // Use a simple approach - set system property and refresh
-                System.setProperty("jakarta.migration.premium", "true");
+                // Use CheckLicense.startTrial() method for consistency
+                adrianmikula.jakartamigration.intellij.license.CheckLicense.startTrial();
                 SupportComponent.setPremiumActive(true);
                 Messages.showInfoMessage(project, 
                     "Free trial started! Premium features are now available.\n\nPlease restart the tool window to see all premium features.",
@@ -681,7 +692,8 @@ private void resetAdvancedScanCounts() {
     }
 
     /**
-     * Updates the risk score display based on dependency analysis.
+     * Updates the risk score display based on dependency analysis and advanced scans.
+     * Now includes both basic dependency issues and advanced scan findings with YAML weights.
      */
     public void updateRiskScore(DependencySummary summary) {
         if (summary == null || summary.getTotalDependencies() == null || summary.getTotalDependencies() == 0) {
@@ -712,19 +724,12 @@ private void resetAdvancedScanCounts() {
                 depIssues.put("directDependency", affected * 10);
             }
             
-            // Calculate risk score only if there are actual dependency issues
-            if (depIssues.isEmpty()) {
-                // No issues found - very low risk
-                riskScoreValue.setText("0");
-                riskCategoryValue.setText("Trivial");
-                riskScoreValue.setForeground(new Color(40, 167, 69));
-                riskCategoryValue.setForeground(new Color(40, 167, 69));
-                return;
-            }
+            // Build scan findings from advanced scans
+            Map<String, List<RiskScoringService.RiskFinding>> scanFindings = buildScanFindingsFromAdvancedScans();
             
-            // Calculate risk score (empty scan findings, just dependency issues for now)
+            // Calculate risk score with both scan findings and dependency issues
             RiskScoringService.RiskScore riskScore = riskService.calculateRiskScore(
-                new HashMap<>(),  // No scan findings yet
+                scanFindings,
                 depIssues
             );
             
@@ -745,6 +750,98 @@ private void resetAdvancedScanCounts() {
             riskScoreValue.setText("--");
             riskCategoryValue.setText("--");
         }
+    }
+
+    /**
+     * Updates the risk score when advanced scans complete.
+     * This method recalculates the risk score including advanced scan findings.
+     */
+    public void updateRiskScoreWithAdvancedScans(DependencySummary summary) {
+        // Re-calculate risk score with advanced scan findings
+        updateRiskScore(summary);
+    }
+
+    /**
+     * Builds scan findings from advanced scanning results.
+     * Maps advanced scan counts to RiskFinding objects with appropriate risk levels.
+     */
+    private Map<String, List<RiskScoringService.RiskFinding>> buildScanFindingsFromAdvancedScans() {
+        Map<String, List<RiskScoringService.RiskFinding>> scanFindings = new HashMap<>();
+        
+        // Get advanced scan summary if available
+        if (advancedScanningService == null || !advancedScanningService.hasCachedResults()) {
+            return scanFindings; // Return empty map if no advanced scans available
+        }
+        
+        AdvancedScanningService.AdvancedScanSummary scanSummary = advancedScanningService.getCachedSummary();
+        if (scanSummary == null) {
+            return scanFindings;
+        }
+        
+        // Add JPA findings
+        if (scanSummary.getJpaCount() > 0) {
+            List<RiskScoringService.RiskFinding> jpaFindings = new ArrayList<>();
+            jpaFindings.add(new RiskScoringService.RiskFinding(
+                "jpa", "entityWithJakartaId", "Jakarta ID annotation usage", "low", scanSummary.getJpaCount()
+            ));
+            scanFindings.put("jpa", jpaFindings);
+        }
+        
+        // Add Bean Validation findings
+        if (scanSummary.getBeanValidationCount() > 0) {
+            List<RiskScoringService.RiskFinding> validationFindings = new ArrayList<>();
+            validationFindings.add(new RiskScoringService.RiskFinding(
+                "beanValidation", "constraintAnnotation", "Validation constraint annotation", "low", scanSummary.getBeanValidationCount()
+            ));
+            scanFindings.put("beanValidation", validationFindings);
+        }
+        
+        // Add Servlet/JSP findings
+        if (scanSummary.getServletJspCount() > 0) {
+            List<RiskScoringService.RiskFinding> servletFindings = new ArrayList<>();
+            servletFindings.add(new RiskScoringService.RiskFinding(
+                "servlet", "javaxServletImport", "javax.servlet import - needs migration", "high", scanSummary.getServletJspCount()
+            ));
+            scanFindings.put("servlet", servletFindings);
+        }
+        
+        // Add CDI findings
+        if (scanSummary.getCdiInjectionCount() > 0) {
+            List<RiskScoringService.RiskFinding> cdiFindings = new ArrayList<>();
+            cdiFindings.add(new RiskScoringService.RiskFinding(
+                "cdi", "cdiBean", "CDI managed bean", "low", scanSummary.getCdiInjectionCount()
+            ));
+            scanFindings.put("cdi", cdiFindings);
+        }
+        
+        // Add JMS findings
+        if (scanSummary.getJmsMessagingCount() > 0) {
+            List<RiskScoringService.RiskFinding> jmsFindings = new ArrayList<>();
+            jmsFindings.add(new RiskScoringService.RiskFinding(
+                "jms", "jmsQueueConnection", "JMS QueueConnection - needs migration", "high", scanSummary.getJmsMessagingCount()
+            ));
+            scanFindings.put("jms", jmsFindings);
+        }
+        
+        // Add Web Services findings
+        if (scanSummary.getRestSoapCount() > 0) {
+            List<RiskScoringService.RiskFinding> webserviceFindings = new ArrayList<>();
+            webserviceFindings.add(new RiskScoringService.RiskFinding(
+                "webservice", "jaxWsEndpoint", "JAX-WS endpoint - needs migration", "high", scanSummary.getRestSoapCount()
+            ));
+            scanFindings.put("webservice", webserviceFindings);
+        }
+        
+        // Add Serialization/Cache findings (lower weight)
+        if (scanSummary.getSerializationCacheCount() > 0) {
+            List<RiskScoringService.RiskFinding> serializationFindings = new ArrayList<>();
+            serializationFindings.add(new RiskScoringService.RiskFinding(
+                "serializationCache", "Serializable", "Java Serialization usage", "low", scanSummary.getSerializationCacheCount()
+            ));
+            scanFindings.put("serializationCache", serializationFindings);
+        }
+        
+        return scanFindings;
     }
 
     public void clearMetrics() {

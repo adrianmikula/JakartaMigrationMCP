@@ -18,5 +18,10 @@
 
 
 
+## Configuration
+- Scan types should be loaded from an Enum class
+- Each scan type is linked to one or more recipes
+
+
 ## Tests
 

@@ -87,12 +87,12 @@ public class HistoryTabComponent {
 
         tableModel.setRowCount(0);
         for (RecipeExecutionHistory h : history) {
-            // Bug fix: Action column shows "Apply" for apply actions, not "Undo"
+            // Bug fix: Action column shows "Applied" for apply actions, "Undo" for undo actions
             String action;
             if (h.isUndo()) {
-                action = "-";
-            } else if (h.isSuccess()) {
                 action = "Undo";
+            } else if (h.isSuccess()) {
+                action = "Applied";
             } else {
                 action = "-";
             }

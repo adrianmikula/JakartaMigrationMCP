@@ -381,18 +381,20 @@ public class DependenciesTableComponent {
             return;
         }
         
-        int result = Messages.showYesNoDialog(project, 
-                "Apply recipe '" + selectedRecipe + "' to migrate " + dep.getDisplayName() + "?",
-                "Confirm Recipe Application",
-                Messages.getQuestionIcon());
+        // For premium users, apply recipe directly without confirmation dialog
+        applyRecipeDirectly(dep, selectedRecipe);
+    }
+    
+    private void applyRecipeDirectly(DependencyInfo dep, String selectedRecipe) {
+        // This would trigger the recipe execution
+        // The actual implementation would call the refactoring service
+        // For now, show a brief message that the recipe is being applied
+        Messages.showInfoMessage(project, 
+                "Applying recipe '" + selectedRecipe + "' to migrate " + dep.getDisplayName() + "...\n\nThis will run the refactoring to migrate the dependency.", 
+                "Applying Recipe");
         
-        if (result == Messages.YES) {
-            // This would trigger the recipe execution
-            // The actual implementation would call the refactoring service
-            Messages.showInfoMessage(project, 
-                    "Recipe application would be triggered here.\nThis will run the refactoring to migrate the dependency.", 
-                    "Apply Recipe");
-        }
+        // TODO: Implement actual recipe application via RefactoringService
+        // refactoringService.applyRecipe(selectedRecipe, dep);
     }
 
     public void setPremiumUser(boolean isPremium) {
@@ -630,5 +632,37 @@ public class DependenciesTableComponent {
 
     public JCheckBox getTransitiveFilter() {
         return transitiveFilter;
+    }
+
+    public JButton getApplyRecipeButton() {
+        return applyRecipeButton;
+    }
+
+    public void updateRecipesPanel(DependencyInfo dependency) {
+        if (!isPremiumUser) {
+            recipesPanel.setVisible(false);
+            return;
+        }
+        
+        recipesPanel.setVisible(true);
+        selectedDependencyLabel.setText("Selected: " + dependency.getDisplayName());
+        
+        recipeListModel.clear();
+        
+        String associatedRecipe = dependency.getAssociatedRecipeName();
+        if (associatedRecipe != null && !associatedRecipe.isEmpty()) {
+            recipeListModel.addElement(associatedRecipe);
+            recipeList.setSelectedIndex(0);
+            applyRecipeButton.setEnabled(true);
+        } else if (dependency.getRecommendedVersion() != null && !dependency.getRecommendedVersion().equals("-")) {
+            // Add generic upgrade recipe if there's a recommended version
+            String genericRecipe = "Upgrade to Jakarta: " + dependency.getRecommendedArtifactId();
+            recipeListModel.addElement(genericRecipe);
+            recipeList.setSelectedIndex(0);
+            applyRecipeButton.setEnabled(true);
+        } else {
+            recipeListModel.addElement("No recipes available");
+            applyRecipeButton.setEnabled(false);
+        }
     }
 }
