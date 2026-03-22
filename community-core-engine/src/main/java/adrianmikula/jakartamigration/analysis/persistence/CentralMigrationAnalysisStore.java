@@ -1,6 +1,7 @@
 package adrianmikula.jakartamigration.analysis.persistence;
 
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
+import adrianmikula.jakartamigration.coderefactoring.domain.*;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -24,7 +25,7 @@ import java.util.*;
 public class CentralMigrationAnalysisStore implements AutoCloseable {
 
     private static final String DB_FILE = "central-migration-analysis.db";
-    private static final int DB_VERSION = 2; // Increment for schema changes
+    private static final int DB_VERSION = 5; // Increment for schema changes
 
     private final Path dbPath;
     private final ObjectMapperService objectMapper;
@@ -299,6 +300,38 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                     """);
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_recipe_exec_repo ON recipe_executions(repository_path)");
 
+            // Recipes catalog table
+            stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS recipes (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            name TEXT UNIQUE NOT NULL,
+                            description TEXT,
+                            category TEXT NOT NULL,
+                            recipe_type TEXT NOT NULL,
+                            openrewrite_recipe_name TEXT,
+                            pattern TEXT,
+                            replacement TEXT,
+                            file_pattern TEXT,
+                            reversible BOOLEAN DEFAULT TRUE,
+                            created_at TEXT DEFAULT (datetime('now'))
+                        )
+                    """);
+
+            // Upgrade recommendations table
+            stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS upgrade_recommendations (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            current_group_id TEXT NOT NULL,
+                            current_artifact_id TEXT NOT NULL,
+                            recommended_group_id TEXT NOT NULL,
+                            recommended_artifact_id TEXT NOT NULL,
+                            recommended_version TEXT,
+                            associated_recipe_name TEXT,
+                            created_at TEXT DEFAULT (datetime('now')),
+                            UNIQUE(current_group_id, current_artifact_id)
+                        )
+                    """);
+
             conn.commit();
             log.info("Central database created at {}", dbPath);
         }
@@ -309,6 +342,70 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                 ResultSet rs = stmt.executeQuery("PRAGMA user_version")) {
             int version = rs.getInt(1);
             if (version < DB_VERSION) {
+                if (version < 3) {
+                    stmt.execute("""
+                                CREATE TABLE IF NOT EXISTS recipes (
+                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    name TEXT UNIQUE NOT NULL,
+                                    description TEXT,
+                                    category TEXT NOT NULL,
+                                    recipe_type TEXT NOT NULL,
+                                    openrewrite_recipe_name TEXT,
+                                    pattern TEXT,
+                                    replacement TEXT,
+                                    file_pattern TEXT,
+                                    reversible BOOLEAN DEFAULT TRUE,
+                                    created_at TEXT DEFAULT (datetime('now'))
+                                )
+                            """);
+                }
+                if (version < 4) {
+                    stmt.execute("""
+                                CREATE TABLE IF NOT EXISTS upgrade_recommendations (
+                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    current_group_id TEXT NOT NULL,
+                                    current_artifact_id TEXT NOT NULL,
+                                    recommended_group_id TEXT NOT NULL,
+                                    recommended_artifact_id TEXT NOT NULL,
+                                    recommended_version TEXT,
+                                    associated_recipe_name TEXT,
+                                    created_at TEXT DEFAULT (datetime('now')),
+                                    UNIQUE(current_group_id, current_artifact_id)
+                                )
+                            """);
+                }
+                // Migration to version 5: Use recipe name as PRIMARY KEY instead of auto-increment ID
+                // This ensures recipe identity is stable even if YAML order changes
+                if (version < 5) {
+                    // Create new table with name as PRIMARY KEY
+                    stmt.execute("""
+                                CREATE TABLE IF NOT EXISTS recipes_new (
+                                    name TEXT PRIMARY KEY,
+                                    description TEXT,
+                                    category TEXT NOT NULL,
+                                    recipe_type TEXT NOT NULL,
+                                    openrewrite_recipe_name TEXT,
+                                    pattern TEXT,
+                                    replacement TEXT,
+                                    file_pattern TEXT,
+                                    reversible BOOLEAN DEFAULT TRUE,
+                                    created_at TEXT DEFAULT (datetime('now'))
+                                )
+                            """);
+                    // Copy data from old table (if exists)
+                    stmt.execute("""
+                                INSERT OR IGNORE INTO recipes_new 
+                                (name, description, category, recipe_type, openrewrite_recipe_name, 
+                                 pattern, replacement, file_pattern, reversible, created_at)
+                                SELECT name, description, category, recipe_type, openrewrite_recipe_name,
+                                       pattern, replacement, file_pattern, reversible, created_at
+                                FROM recipes
+                            """);
+                    // Drop old table and rename new one
+                    stmt.execute("DROP TABLE IF EXISTS recipes");
+                    stmt.execute("ALTER TABLE recipes_new RENAME TO recipes");
+                    log.info("Migrated recipes table to use name as PRIMARY KEY");
+                }
                 stmt.execute("PRAGMA user_version = " + DB_VERSION);
                 log.info("Database schema updated to version {}", DB_VERSION);
             }
@@ -946,10 +1043,14 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                 while (rs.next()) {
                     Map<String, Object> map = new HashMap<>();
                     map.put("id", rs.getInt("id"));
+                    map.put("recipe_name", rs.getString("recipe_name"));
                     map.put("executed_at", rs.getString("executed_at"));
                     map.put("success", rs.getBoolean("success"));
                     map.put("message", rs.getString("message"));
-                    map.put("affected_files", rs.getString("affected_files"));
+                    String affectedFiles = rs.getString("affected_files");
+                    map.put("affected_files", (affectedFiles == null || affectedFiles.isEmpty())
+                            ? Collections.emptyList()
+                            : Arrays.asList(affectedFiles.split(",")));
                     results.add(map);
                 }
             }
@@ -959,7 +1060,247 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
         return results;
     }
 
+    /**
+     * Gets all available migration recipes from the catalog.
+     */
+    public List<adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition> getRecipes() {
+        return getRecipesByQuery("SELECT * FROM recipes ORDER BY category, name");
+    }
+
+    /**
+     * Gets recipes by category.
+     */
+    public List<adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition> getRecipesByCategory(
+            String category) {
+        return getRecipesByQuery("SELECT * FROM recipes WHERE category = ? ORDER BY name", category);
+    }
+
+    private List<adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition> getRecipesByQuery(String sql,
+            String... params) {
+        List<adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition> recipes = new ArrayList<>();
+        try (Connection conn = getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
+            for (int i = 0; i < params.length; i++) {
+                stmt.setString(i + 1, params[i]);
+            }
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    recipes.add(mapRecipe(rs));
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Failed to query recipes: " + sql, e);
+        }
+        return recipes;
+    }
+
+    private adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition mapRecipe(ResultSet rs)
+            throws SQLException {
+        return adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition.builder()
+                .id(rs.getLong("id"))
+                .name(rs.getString("name"))
+                .description(rs.getString("description"))
+                .category(adrianmikula.jakartamigration.coderefactoring.domain.RecipeCategory
+                        .valueOf(rs.getString("category")))
+                .recipeType(adrianmikula.jakartamigration.coderefactoring.domain.RecipeType
+                        .valueOf(rs.getString("recipe_type")))
+                .openRewriteRecipeName(rs.getString("openrewrite_recipe_name"))
+                .pattern(rs.getString("pattern"))
+                .replacement(rs.getString("replacement"))
+                .filePattern(rs.getString("file_pattern"))
+                .reversible(rs.getBoolean("reversible"))
+                .createdAt(Instant.parse(rs.getString("created_at").replace(" ", "T") + "Z"))
+                .status(adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition.RecipeStatus.NEVER_RUN) // Default
+                .build();
+    }
+
+    /**
+     * Saves or updates a recipe in the catalog.
+     */
+    public void saveRecipe(adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition recipe) {
+        log.info("saveRecipe called: name={}, type={}, openRewriteRecipeName={}", 
+                recipe.getName(), recipe.getRecipeType(), recipe.getOpenRewriteRecipeName());
+        try (Connection conn = getConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement("""
+                    INSERT INTO recipes (
+                        name, description, category, recipe_type, openrewrite_recipe_name,
+                        pattern, replacement, file_pattern, reversible, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    ON CONFLICT(name) DO UPDATE SET
+                        description = excluded.description,
+                        category = excluded.category,
+                        recipe_type = excluded.recipe_type,
+                        openrewrite_recipe_name = excluded.openrewrite_recipe_name,
+                        pattern = excluded.pattern,
+                        replacement = excluded.replacement,
+                        file_pattern = excluded.file_pattern,
+                        reversible = excluded.reversible
+                    """)) {
+                stmt.setString(1, recipe.getName());
+                stmt.setString(2, recipe.getDescription());
+                stmt.setString(3, recipe.getCategory().name());
+                stmt.setString(4, recipe.getRecipeType().name());
+                stmt.setString(5, recipe.getOpenRewriteRecipeName());
+                stmt.setString(6, recipe.getPattern());
+                stmt.setString(7, recipe.getReplacement());
+                stmt.setString(8, recipe.getFilePattern());
+                stmt.setBoolean(9, recipe.isReversible());
+                stmt.executeUpdate();
+            }
+            conn.commit();
+        } catch (SQLException e) {
+            log.error("Failed to save recipe: " + recipe.getName(), e);
+        }
+    }
+
+    /**
+     * Deletes all recipes from the catalog.
+     * Used to ensure DB matches YAML configuration exactly on startup.
+     */
+    public void deleteAllRecipes() {
+        try (Connection conn = getConnection()) {
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("DELETE FROM recipes");
+            }
+            conn.commit();
+            log.info("Deleted all recipes from catalog");
+        } catch (SQLException e) {
+            log.error("Failed to delete all recipes", e);
+        }
+    }
+
+    /**
+     * Gets all recipe executions for a repository, ordered by most recent first.
+     */
+    public List<Map<String, Object>> getAllRecipeExecutions(String repositoryPath) {
+        List<Map<String, Object>> results = new ArrayList<>();
+        String sql = "SELECT * FROM recipe_executions WHERE repository_path = ? ORDER BY executed_at DESC LIMIT 100";
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, repositoryPath);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", rs.getInt("id"));
+                    map.put("recipe_name", rs.getString("recipe_name"));
+                    map.put("executed_at", rs.getString("executed_at"));
+                    map.put("success", rs.getBoolean("success"));
+                    map.put("message", rs.getString("message"));
+                    String affectedFiles = rs.getString("affected_files");
+                    map.put("affected_files", (affectedFiles == null || affectedFiles.isEmpty())
+                            ? Collections.emptyList()
+                            : Arrays.asList(affectedFiles.split(",")));
+                    results.add(map);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Failed to get all recipe executions", e);
+        }
+        return results;
+    }
+
+    // ==================== Upgrade Recommendation Operations ====================
+
+    /**
+     * Saves an upgrade recommendation mapping javax artifact to jakarta equivalent.
+     */
+    public void saveUpgradeRecommendation(String currentGroupId, String currentArtifactId,
+            String recommendedGroupId, String recommendedArtifactId, String recommendedVersion,
+            String associatedRecipeName) {
+        try (Connection conn = getConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement("""
+                    INSERT INTO upgrade_recommendations (
+                        current_group_id, current_artifact_id, recommended_group_id,
+                        recommended_artifact_id, recommended_version, associated_recipe_name
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(current_group_id, current_artifact_id) DO UPDATE SET
+                        recommended_group_id = excluded.recommended_group_id,
+                        recommended_artifact_id = excluded.recommended_artifact_id,
+                        recommended_version = excluded.recommended_version,
+                        associated_recipe_name = excluded.associated_recipe_name
+                    """)) {
+                stmt.setString(1, currentGroupId);
+                stmt.setString(2, currentArtifactId);
+                stmt.setString(3, recommendedGroupId);
+                stmt.setString(4, recommendedArtifactId);
+                stmt.setString(5, recommendedVersion);
+                stmt.setString(6, associatedRecipeName);
+                stmt.executeUpdate();
+            }
+            conn.commit();
+        } catch (SQLException e) {
+            log.error("Failed to save upgrade recommendation for {}:{}", currentGroupId, currentArtifactId, e);
+        }
+    }
+
+    /**
+     * Gets an upgrade recommendation for a specific javax artifact.
+     */
+    public UpgradeRecommendation getUpgradeRecommendation(String groupId, String artifactId) {
+        try (Connection conn = getConnection();
+                PreparedStatement stmt = conn.prepareStatement("""
+                        SELECT * FROM upgrade_recommendations
+                        WHERE current_group_id = ? AND current_artifact_id = ?
+                        """)) {
+            stmt.setString(1, groupId);
+            stmt.setString(2, artifactId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return new UpgradeRecommendation(
+                            rs.getString("current_group_id"),
+                            rs.getString("current_artifact_id"),
+                            rs.getString("recommended_group_id"),
+                            rs.getString("recommended_artifact_id"),
+                            rs.getString("recommended_version"),
+                            rs.getString("associated_recipe_name"));
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Failed to get upgrade recommendation for {}:{}", groupId, artifactId, e);
+        }
+        return null;
+    }
+
+    /**
+     * Gets all upgrade recommendations.
+     */
+    public List<UpgradeRecommendation> getAllUpgradeRecommendations() {
+        List<UpgradeRecommendation> recommendations = new ArrayList<>();
+        try (Connection conn = getConnection();
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery("""
+                        SELECT * FROM upgrade_recommendations ORDER BY current_group_id, current_artifact_id
+                        """)) {
+            while (rs.next()) {
+                recommendations.add(new UpgradeRecommendation(
+                        rs.getString("current_group_id"),
+                        rs.getString("current_artifact_id"),
+                        rs.getString("recommended_group_id"),
+                        rs.getString("recommended_artifact_id"),
+                        rs.getString("recommended_version"),
+                        rs.getString("associated_recipe_name")));
+            }
+        } catch (SQLException e) {
+            log.error("Failed to get all upgrade recommendations", e);
+        }
+        return recommendations;
+    }
+
     // ==================== Inner Classes ====================
+
+    /**
+     * Upgrade recommendation mapping javax artifact to jakarta equivalent.
+     */
+    public record UpgradeRecommendation(
+            String currentGroupId,
+            String currentArtifactId,
+            String recommendedGroupId,
+            String recommendedArtifactId,
+            String recommendedVersion,
+            String associatedRecipeName) {
+    }
 
     /**
      * Dependency info with classification (INTERNAL/EXTERNAL).

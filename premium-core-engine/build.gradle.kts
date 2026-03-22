@@ -11,8 +11,15 @@ dependencies {
     // External dependencies
     implementation("org.slf4j:slf4j-api:2.0.9")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.15.2")
     implementation("org.ow2.asm:asm:9.6") // For bytecode analysis
     implementation("com.google.guava:guava:32.1.3-jre") // Common utilities
+
+    // Test dependencies
+    testImplementation(platform("org.junit:junit-bom:5.10.1"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.assertj:assertj-core:3.24.2")
+    testImplementation("org.slf4j:slf4j-simple:2.0.9")
 }
 
 // NOTE: This module is PROPRIETARY and not covered by Apache License 2.0
@@ -21,5 +28,12 @@ dependencies {
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
+tasks.test {
+    useJUnitPlatform()
+    testLogging {
+        showStandardStreams = true
     }
 }

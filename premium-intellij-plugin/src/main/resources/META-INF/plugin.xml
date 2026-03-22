@@ -22,7 +22,30 @@
     </ul>
 
     <h3>Supported Technologies</h3>
-    <p>Spring Boot 3+, Jakarta EE 9+, Java 11+, Maven, Gradle</p>
+    <ul>
+    <li><b>Java Versions:</b> Java 11, 17, 21, 25</li>
+    <li><b>Build Tools:</b> Maven, Gradle</li>
+    <li><b>Frameworks:</b> Spring Boot 3+, Spring Framework 6+, Jakarta EE 9+</li>
+    <li><b>Application Servers:</b> Tomcat 10+, WildFly 27+, Jetty 12+, Open Liberty 23+, Payara 7+, JBoss EAP 8+</li>
+    <li><b>Jakarta Specifications:</b> Jakarta Servlet, JSP, JPA, CDI, Bean Validation, JAX-RS, JAX-WS, JMS, WebSocket, JSON-B, JSON-P</li>
+    </ul>
+
+    <h3>Getting Started</h3>
+    <ol>
+    <li><b>Analyze Your Project:</b> Click "Run Analysis" to scan your project for javax.* dependencies and code</li>
+    <li><b>Review Results:</b> Check the Dashboard for migration blockers and dependency recommendations</li>
+    <li><b>Plan Your Migration:</b> Use the Migration Strategy tab to choose your approach</li>
+    <li><b>Refactor Code:</b> Apply OpenRewrite recipes in the Refactor tab</li>
+    <li><b>Verify:</b> Re-run analysis to confirm successful migration</li>
+    </ol>
+
+    <h3>Technical Information</h3>
+    <ul>
+    <li><b>Architecture:</b> Built on IntelliJ Platform with OpenRewrite for code transformations</li>
+    <li><b>Analysis:</b> Static analysis of dependencies, source code, and configuration files</li>
+    <li><b>Compatibility:</b> Works with IntelliJ IDEA 2023.3+ (Community & Ultimate)</li>
+    <li><b>AI Integration:</b> MCP server for Claude, Cursor, Windsurf, and other AI assistants</li>
+    </ul>
 
     <h3>Free vs Premium</h3>
     <ul>
@@ -35,9 +58,6 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.java</depends>
 
-    <!-- Optional AI Assistant dependency (enables MCP integration) -->
-    <depends optional="true" config-file="ai-assistant.xml">com.intellij.modules.ai</depends>
-
     <!-- Extensions for MCP Integration -->
     <extensions defaultExtensionNs="com.intellij">
         <!-- Project Activity for MCP Server Auto-Registration -->
@@ -48,7 +68,6 @@
         <toolWindow id="JakartaMigration"
                     displayName="Jakarta Migration"
                     anchor="right"
-                    icon="/icons/pluginIcon.svg"
                     factoryClass="adrianmikula.jakartamigration.intellij.ui.MigrationToolWindow"/>
 
         <!-- Application Service for MCP Client -->
@@ -59,13 +78,6 @@
         <notificationGroup id="JakartaMigration.McpStatus"
                           displayType="BALLOON"
                           key="mcp.status.notification"/>
-    </extensions>
-
-    <!-- AI Assistant Extensions (loaded when AI Assistant is available) -->
-    <extensions defaultExtensionNs="com.intellij.ai">
-        <!-- MCP Server Provider for AI Assistant tool discovery -->
-        <mcpServerProvider id="jakarta-migration-mcp"
-                          implementation="adrianmikula.jakartamigration.intellij.mcp.JakartaMcpServerProvider"/>
     </extensions>
 
     <actions>
@@ -90,6 +102,47 @@
     </actions>
 
     <change-notes><![CDATA[
+    <h>1.0.7</h>
+    <ul>
+        <li><b>Added:</b> Dynamic Recipe Loading - Advanced Scans tab now dynamically creates UI tabs based on recipe categories from recipes.yaml, eliminating hardcoded tabs and ensuring automatic UI synchronization when new refactoring recipes are added</li>
+        <li><b>Enhanced:</b> Recipe Service Integration - Improved recipe loading mechanism with better category filtering and dynamic table management</li>
+        <li><b>Improved:</b> Premium Feature Architecture - Maintained premium license enforcement while implementing dynamic UI structure</li>
+        <li><b>Added:</b> 100+ Jakarta Migration Recipes - Comprehensive collection of javax → jakarta OpenRewrite recipes covering all major Jakarta EE APIs (Servlet, JPA, Bean Validation, CDI, EJB, JSF, JAX-RS, JAX-WS, JMS, JSON-P, JSON-B, Security, XML, Enterprise, Configuration Files, Annotations)</li>
+        <li><b>Added:</b> Risk Scoring Tests - Comprehensive test suite with 19 test cases for dashboard risk score calculation with weighted inputs from YAML configuration</li>
+        <li><b>Fixed:</b> Gradle Configuration - Resolved malformed Java home path causing build failures</li>
+        <li><b>Fixed:</b> Build System - Resolved Java 21/Gradle compatibility issues for reliable builds</li>
+    </ul>
+    <h>1.0.6</h>
+    <ul>
+        <li>Fixed: OpenRewrite recipe class name fix - JavaxValidationToJakartaValidation now correctly maps to JavaxValidationMigrationToJakartaValidation</li>
+        <li>Fixed: RecipeSeeder now loads all 33 recipes from recipes.yaml</li>
+        <li>Fixed: Recipe database now uses recipe name as PRIMARY KEY for stable identity</li>
+        <li>Fixed: Support tab now shows dynamic build timestamp instead of hardcoded old date</li>
+        <li>Added: Recipe validation tests verify all recipes exist and are correctly configured</li>
+        <li>Added: Dynamic build timestamp generation in IntelliJ plugin</li>
+        <li>Added: Support URLs now loaded from support-urls.properties</li>
+        <li>Changed: RecipeSeeder now loads from recipes.yaml for centralized configuration</li>
+    </ul>
+    <h>1.0.2</h>
+    <ul>
+        <li>Fixed: 'Total Advanced Issues' now at bottom of scan counts</li>
+        <li>Fixed: Removed 'Jakarta Status Indicator' from dashboard</li>
+        <li>Fixed: 'No Jakarta Support' count now updates correctly after scans</li>
+        <li>Fixed: Advanced scans now hidden until premium/trial activated</li>
+        <li>Added: Premium upgrade banner in Support tab for better visibility</li>
+        <li>Note: Freemium licensing implementation pending - requires JetBrains product parameters and license verification</li>
+    </ul>
+    <h>1.0.1</h>
+    <ul>
+        <li>Fixed: Refactor tab now shows actual files changed after applying recipes</li>
+        <li>Fixed: Refactor recipes now properly applied using RefactoringEngine</li>
+        <li>Fixed: Migration strategy phases now have longer, more descriptive text</li>
+        <li>Fixed: JSON deserialization error now shows warning instead of blocking</li>
+        <li>Fixed: Advanced scans tab no longer disappears when switching tabs</li>
+        <li>Fixed: HYBRID strategy replaced with STRANGLER/MICROSERVICES strategy</li>
+        <li>Added: Premium upgrade banner in Support tab for better visibility</li>
+        <li>Improved: Detailed refactoring results showing files processed and changed</li>
+    </ul>
     <h>1.0.0</h>
     <ul>
         <li>Initial release to IntelliJ Marketplace</li>

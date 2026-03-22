@@ -1,74 +1,31 @@
 package adrianmikula.jakartamigration.coderefactoring.service;
 
-import adrianmikula.jakartamigration.coderefactoring.domain.*;
-import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
-
-import java.nio.file.Path;
-import java.util.List;
+import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
+import adrianmikula.jakartamigration.analysis.persistence.SqliteMigrationAnalysisStore;
+import adrianmikula.jakartamigration.coderefactoring.service.impl.RecipeServiceImpl;
 
 /**
- * Main interface for the Code Refactoring Module.
- * Systematically refactors code from javax to jakarta using OpenRewrite rules,
- * with intelligent ordering, progress tracking, and incremental application.
+ * Module that provides access to all refactoring and recipe services.
+ * This is the main entry point for the refactoring features in the premium
+ * engine.
  */
-public interface CodeRefactoringModule {
-    
-    /**
-     * Creates a migration plan with optimal refactoring order.
-     *
-     * @param projectPath Path to the project root
-     * @param dependencyReport Dependency analysis report
-     * @return Migration plan with phases and execution strategy
-     */
-    MigrationPlan createMigrationPlan(
-        String projectPath,
-        DependencyAnalysisReport dependencyReport
-    );
-    
-    /**
-     * Refactors a batch of files using OpenRewrite recipes.
-     *
-     * @param files List of file paths to refactor (relative to project root)
-     * @param recipes List of recipes to apply
-     * @param options Refactoring options
-     * @return Refactoring result with success/failure information
-     */
-    RefactoringResult refactorBatch(
-        List<String> files,
-        List<Recipe> recipes,
-        RefactoringOptions options
-    );
-    
-    /**
-     * Tracks migration progress across the codebase.
-     *
-     * @param projectPath Path to the project root
-     * @return Current migration progress
-     */
-    MigrationProgress getProgress(String projectPath);
-    
-    /**
-     * Validates refactored code for correctness.
-     *
-     * @param filePath Path to the refactored file
-     * @param changes Refactoring changes that were applied
-     * @return Validation result
-     */
-    ValidationResult validateRefactoring(
-        String filePath,
-        RefactoringChanges changes
-    );
-    
-    /**
-     * Rolls back refactoring changes if needed.
-     *
-     * @param filePath Path to the file to rollback
-     * @param checkpointId Checkpoint ID to rollback to
-     * @return Rollback result
-     */
-    RollbackResult rollback(
-        String filePath,
-        String checkpointId
-    );
-}
+public class CodeRefactoringModule {
 
+    private final RecipeService recipeService;
+
+    public CodeRefactoringModule(CentralMigrationAnalysisStore centralStore,
+            SqliteMigrationAnalysisStore projectStore) {
+        this.recipeService = new RecipeServiceImpl(centralStore, projectStore);
+        // Seed default recipes into central store
+        adrianmikula.jakartamigration.coderefactoring.service.util.RecipeSeeder.seedDefaultRecipes(centralStore);
+        // Seed upgrade recommendations from recipes
+        adrianmikula.jakartamigration.coderefactoring.service.util.RecipeSeeder.seedUpgradeRecommendations(centralStore);
+    }
+
+    /**
+     * Gets the Recipe Service.
+     */
+    public RecipeService getRecipeService() {
+        return recipeService;
+    }
+}

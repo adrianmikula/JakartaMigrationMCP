@@ -94,6 +94,26 @@ public enum FeatureFlag {
             "export-reports",
             "Report export",
             "Export detailed migration reports in PDF, HTML, and other formats",
+            FeatureFlagsProperties.LicenseTier.PREMIUM),
+
+    /**
+     * Runtime diagnostics.
+     * Runtime error diagnosis and troubleshooting.
+     */
+    RUNTIME_DIAGNOSTICS(
+            "runtime-diagnostics",
+            "Runtime error diagnosis and troubleshooting",
+            "Diagnose runtime errors with AI-powered analysis",
+            FeatureFlagsProperties.LicenseTier.PREMIUM),
+
+    /**
+     * Experimental features.
+     * Cutting-edge features under development.
+     */
+    EXPERIMENTAL_FEATURES(
+            "experimental-features",
+            "Experimental features",
+            "Cutting-edge features under development",
             FeatureFlagsProperties.LicenseTier.PREMIUM);
 
     // === COMMUNITY FEATURES ===

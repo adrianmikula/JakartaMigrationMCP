@@ -406,8 +406,8 @@ public class DefaultMcpClientService implements McpClientService {
 
             boolean isTransitive = node.has("isTransitive") && node.get("isTransitive").asBoolean();
 
-            return new DependencyInfo(groupId, artifactId, currentVersion, recommendedVersion,
-                    status, isTransitive, false);
+            return new DependencyInfo(groupId, artifactId, currentVersion, null, null, recommendedVersion,
+                    null, null, status, isTransitive, false);
 
         } catch (Exception e) {
             LOG.error("Failed to parse DependencyInfo: {}", e.getMessage());

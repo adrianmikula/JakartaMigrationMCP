@@ -1,10 +1,12 @@
 package adrianmikula.jakartamigration.dependencyanalysis.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.Objects;
 
 /**
  * Represents a Maven/Gradle artifact with coordinates and metadata.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record Artifact(
         String groupId,
         String artifactId,
@@ -30,6 +32,19 @@ public record Artifact(
      */
     public String toIdentifier() {
         return String.format("%s:%s", groupId, artifactId);
+    }
+
+    /**
+     * Checks if this artifact is Jakarta EE compatible based on its groupId.
+     * Returns true if the artifact is already using Jakarta namespace.
+     */
+    public boolean isJakartaCompatible() {
+        return groupId != null && (
+            groupId.startsWith("jakarta.") ||
+            groupId.startsWith("jakartaee.") ||
+            groupId.equals("jakarta.xml.bind") ||
+            groupId.equals("jakarta.annotation")
+        );
     }
 
     /**

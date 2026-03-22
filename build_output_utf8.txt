@@ -1,0 +1,209 @@
+﻿Initialized native services in: C:\Users\adria\.gradle\native
+Initialized jansi services in: C:\Users\adria\.gradle\native
+Received JVM installation metadata from 'C:\Program Files\Java\jdk-21.0.10': {JAVA_HOME=C:\Program Files\Java\jdk-21.0.10, JAVA_VERSION=21.0.10, JAVA_VENDOR=Oracle Corporation, RUNTIME_NAME=Java(TM) SE Runtime Environment, RUNTIME_VERSION=21.0.10+8-LTS-217, VM_NAME=Java HotSpot(TM) 64-Bit Server VM, VM_VERSION=21.0.10+8-LTS-217, VM_VENDOR=Oracle Corporation, OS_ARCH=amd64}
+Found daemon DaemonInfo{pid=30468, address=[acffd723-1f55-4412-a696-0b0e3d14b7cb port:61989, addresses:[/127.0.0.1]], state=Idle, lastBusy=1772871693732, context=DefaultDaemonContext[uid=5f86e0f4-e53b-4310-a9b1-b404819a57e6,javaHome=C:\Users\adria\.antigravity\extensions\redhat.java-1.52.0-win32-x64\jre\21.0.9-win32-x86_64,daemonRegistryDir=C:\Users\adria\.gradle\daemon,pid=30468,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=-XX:MaxMetaspaceSize=512m,-XX:+HeapDumpOnOutOfMemoryError,--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=AU,-Duser.language=en,-Duser.variant]} however its context does not match the desired criteria.
+Java home is different.
+Wanted: DefaultDaemonContext[uid=null,javaHome=C:\Program Files\Java\jdk-21.0.10,daemonRegistryDir=C:\Users\adria\.gradle\daemon,pid=34720,idleTimeout=null,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=-XX:MaxMetaspaceSize=512m,-XX:+HeapDumpOnOutOfMemoryError,--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=AU,-Duser.language=en,-Duser.variant]
+Actual: DefaultDaemonContext[uid=5f86e0f4-e53b-4310-a9b1-b404819a57e6,javaHome=C:\Users\adria\.antigravity\extensions\redhat.java-1.52.0-win32-x64\jre\21.0.9-win32-x86_64,daemonRegistryDir=C:\Users\adria\.gradle\daemon,pid=30468,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=-XX:MaxMetaspaceSize=512m,-XX:+HeapDumpOnOutOfMemoryError,--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=AU,-Duser.language=en,-Duser.variant]
+
+  Looking for a different daemon...
+Found daemon DaemonInfo{pid=15428, address=[0cb188e1-85a4-4424-8b46-6384b65adc96 port:61996, addresses:[/127.0.0.1]], state=Idle, lastBusy=1772871893691, context=DefaultDaemonContext[uid=8c89e493-f68a-4ca8-97ee-7d5b400f49ec,javaHome=C:\Users\adria\AppData\Local\mise\installs\java\21.0.0,daemonRegistryDir=C:\Users\adria\.gradle\daemon,pid=15428,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=-XX:MaxMetaspaceSize=512m,-XX:+HeapDumpOnOutOfMemoryError,--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=AU,-Duser.language=en,-Duser.variant]} however its context does not match the desired criteria.
+Java home is different.
+Wanted: DefaultDaemonContext[uid=null,javaHome=C:\Program Files\Java\jdk-21.0.10,daemonRegistryDir=C:\Users\adria\.gradle\daemon,pid=34720,idleTimeout=null,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=-XX:MaxMetaspaceSize=512m,-XX:+HeapDumpOnOutOfMemoryError,--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=AU,-Duser.language=en,-Duser.variant]
+Actual: DefaultDaemonContext[uid=8c89e493-f68a-4ca8-97ee-7d5b400f49ec,javaHome=C:\Users\adria\AppData\Local\mise\installs\java\21.0.0,daemonRegistryDir=C:\Users\adria\.gradle\daemon,pid=15428,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=-XX:MaxMetaspaceSize=512m,-XX:+HeapDumpOnOutOfMemoryError,--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=AU,-Duser.language=en,-Duser.variant]
+
+  Looking for a different daemon...
+Found daemon DaemonInfo{pid=31784, address=[570785f9-ec74-4d09-91e3-0cf8ce9df62b port:61999, addresses:[/127.0.0.1]], state=Idle, lastBusy=1772871832078, context=DefaultDaemonContext[uid=ef51e174-e7d2-4765-9667-34563e4c8dfc,javaHome=C:\Runtimes\graalvm-jdk-25.0.2+10.1,daemonRegistryDir=C:\Users\adria\.gradle\daemon,pid=31784,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=-XX:MaxMetaspaceSize=512m,-XX:+HeapDumpOnOutOfMemoryError,--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=AU,-Duser.language=en,-Duser.variant]} however its context does not match the desired criteria.
+Java home is different.
+Wanted: DefaultDaemonContext[uid=null,javaHome=C:\Program Files\Java\jdk-21.0.10,daemonRegistryDir=C:\Users\adria\.gradle\daemon,pid=34720,idleTimeout=null,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=-XX:MaxMetaspaceSize=512m,-XX:+HeapDumpOnOutOfMemoryError,--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=AU,-Duser.language=en,-Duser.variant]
+Actual: DefaultDaemonContext[uid=ef51e174-e7d2-4765-9667-34563e4c8dfc,javaHome=C:\Runtimes\graalvm-jdk-25.0.2+10.1,daemonRegistryDir=C:\Users\adria\.gradle\daemon,pid=31784,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=-XX:MaxMetaspaceSize=512m,-XX:+HeapDumpOnOutOfMemoryError,--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Xmx2048m,-Dfile.encoding=UTF-8,-Duser.country=AU,-Duser.language=en,-Duser.variant]
+
+  Looking for a different daemon...
+The client will now receive all logging from the daemon (pid: 34288). The daemon log file: C:\Users\adria\.gradle\daemon\8.5\daemon-34288.out.log
+Starting 3rd build in daemon [uptime: 3 mins 24.042 secs, performance: 100%, GC rate: 0.00/s, heap usage: 0% of 2 GiB, non-heap usage: 15% of 512 MiB]
+Using 4 worker leases.
+Calculating task graph as no cached configuration is available for tasks: :community-core-engine:compileTestJava
+Not watching E:\Source\JakartaMigrationMCP since the file system is not supported
+Watching the file system is configured to be enabled if available
+File system watching is active
+Starting Build
+Skipping Kotlin DSL script compilation (Settings/TopLevel/stage2) as it is up-to-date.
+Settings evaluated using settings file 'E:\Source\JakartaMigrationMCP\settings.gradle.kts'.
+Using local directory build cache for the root build (location = C:\Users\adria\.gradle\caches\build-cache-1, removeUnusedEntriesAfter = 7 days).
+Projects loaded. Root project using build file 'E:\Source\JakartaMigrationMCP\build.gradle.kts'.
+Included projects: [root project 'jakarta-migration-parent', project ':community-core-engine', project ':community-mcp-server', project ':premium-core-engine', project ':premium-intellij-plugin']
+
+> Configure project :
+Evaluating root project 'jakarta-migration-parent' using build file 'E:\Source\JakartaMigrationMCP\build.gradle.kts'.
+Build cache key for Kotlin DSL plugin specs accessors for classpath '0936f2809026ede17486a4bc2ec34aa9' is e768055c32167828f852799553f3078d
+Skipping Kotlin DSL plugin specs accessors for classpath '0936f2809026ede17486a4bc2ec34aa9' as it is up-to-date.
+Build cache key for Kotlin DSL script compilation (Project/TopLevel/stage1) is 741f85a86e879231ca3810b91d8e8b4d
+Skipping Kotlin DSL script compilation (Project/TopLevel/stage1) as it is up-to-date.
+Build cache key for Kotlin DSL accessors for root project 'jakarta-migration-parent' is 019d0a6232529d757ccf70fbc59a6e7c
+Skipping Kotlin DSL accessors for root project 'jakarta-migration-parent' as it is up-to-date.
+Build cache key for Kotlin DSL script compilation (Project/TopLevel/stage2) is 99cc4ef7df549c450a2074d57e4e6a00
+Skipping Kotlin DSL script compilation (Project/TopLevel/stage2) as it is up-to-date.
+>>> Project: jakarta-migration-parent, Version: 1.0.3
+>>> Project: community-core-engine, Version: 1.0.3
+>>> Project: community-mcp-server, Version: 1.0.3
+>>> Project: premium-core-engine, Version: 1.0.3
+>>> Project: premium-intellij-plugin, Version: 1.0.3
+
+> Configure project :community-core-engine
+Evaluating project ':community-core-engine' using build file 'E:\Source\JakartaMigrationMCP\community-core-engine\build.gradle.kts'.
+Build cache key for Kotlin DSL script compilation (Project/TopLevel/stage1) is c743708685be019a40319e70fd393572
+Skipping Kotlin DSL script compilation (Project/TopLevel/stage1) as it is up-to-date.
+Build cache key for Kotlin DSL accessors for project ':community-core-engine' is c3d9375168b183aa5b690b6114129b91
+Skipping Kotlin DSL accessors for project ':community-core-engine' as it is up-to-date.
+Build cache key for Kotlin DSL script compilation (Project/TopLevel/stage2) is 3d1b4c76ae6214a49a1e0ec57afc6787
+Skipping Kotlin DSL script compilation (Project/TopLevel/stage2) as it is up-to-date.
+
+> Configure project :community-mcp-server
+Evaluating project ':community-mcp-server' using build file 'E:\Source\JakartaMigrationMCP\community-mcp-server\build.gradle.kts'.
+Build cache key for Kotlin DSL script compilation (Project/TopLevel/stage1) is ba6f5f0745a071dad3d6c13ab308e393
+Skipping Kotlin DSL script compilation (Project/TopLevel/stage1) as it is up-to-date.
+Applying dependency management to configuration 'bootArchives' in project 'community-mcp-server'
+Applying dependency management to configuration 'archives' in project 'community-mcp-server'
+Applying dependency management to configuration 'default' in project 'community-mcp-server'
+Applying dependency management to configuration 'implementation' in project 'community-mcp-server'
+Applying dependency management to configuration 'compileOnly' in project 'community-mcp-server'
+Applying dependency management to configuration 'compileClasspath' in project 'community-mcp-server'
+Applying dependency management to configuration 'annotationProcessor' in project 'community-mcp-server'
+Applying dependency management to configuration 'runtimeOnly' in project 'community-mcp-server'
+Applying dependency management to configuration 'runtimeClasspath' in project 'community-mcp-server'
+Applying dependency management to configuration 'apiElements' in project 'community-mcp-server'
+Applying dependency management to configuration 'runtimeElements' in project 'community-mcp-server'
+Applying dependency management to configuration 'mainSourceElements' in project 'community-mcp-server'
+Applying dependency management to configuration 'testImplementation' in project 'community-mcp-server'
+Applying dependency management to configuration 'testCompileOnly' in project 'community-mcp-server'
+Applying dependency management to configuration 'testCompileClasspath' in project 'community-mcp-server'
+Applying dependency management to configuration 'testAnnotationProcessor' in project 'community-mcp-server'
+Applying dependency management to configuration 'testRuntimeOnly' in project 'community-mcp-server'
+Applying dependency management to configuration 'testRuntimeClasspath' in project 'community-mcp-server'
+Applying dependency management to configuration 'testResultsElementsForTest' in project 'community-mcp-server'
+Applying dependency management to configuration 'productionRuntimeClasspath' in project 'community-mcp-server'
+Applying dependency management to configuration 'developmentOnly' in project 'community-mcp-server'
+Applying dependency management to configuration 'testAndDevelopmentOnly' in project 'community-mcp-server'
+Build cache key for Kotlin DSL accessors for project ':community-mcp-server' is b9f13541e408dfdca2005bcdcd81eb7f
+Skipping Kotlin DSL accessors for project ':community-mcp-server' as it is up-to-date.
+Build cache key for Kotlin DSL script compilation (Project/TopLevel/stage2) is 68cdc67eb07a357888dc363ba53be697
+Skipping Kotlin DSL script compilation (Project/TopLevel/stage2) as it is up-to-date.
+
+> Configure project :premium-core-engine
+Evaluating project ':premium-core-engine' using build file 'E:\Source\JakartaMigrationMCP\premium-core-engine\build.gradle.kts'.
+Build cache key for Kotlin DSL script compilation (Project/TopLevel/stage1) is 7b1760317fc81f05a4fcc4d9ff89f8be
+Skipping Kotlin DSL script compilation (Project/TopLevel/stage1) as it is up-to-date.
+Build cache key for Kotlin DSL accessors for project ':premium-core-engine' is 0da4b5d3b43054e8e8610307f5bbf102
+Skipping Kotlin DSL accessors for project ':premium-core-engine' as it is up-to-date.
+Build cache key for Kotlin DSL script compilation (Project/TopLevel/stage2) is 5c3c7c3776522e7f204ea59e94e0e6ff
+Skipping Kotlin DSL script compilation (Project/TopLevel/stage2) as it is up-to-date.
+
+> Configure project :premium-intellij-plugin
+Evaluating project ':premium-intellij-plugin' using build file 'E:\Source\JakartaMigrationMCP\premium-intellij-plugin\build.gradle.kts'.
+Build cache key for Kotlin DSL script compilation (Project/TopLevel/stage1) is ca9d587ecb5c0ca30b9da5d5967ec55d
+Skipping Kotlin DSL script compilation (Project/TopLevel/stage1) as it is up-to-date.
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring plugin
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Initializing Gradle IntelliJ Plugin
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring setup dependencies task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring classpath.index cleanup task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring compile tasks
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring patch plugin.xml task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring robot-server download Task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring list products task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring list bundled plugins task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring plugin verification task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring run IDE task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring run IDE performance test task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring run IDE for UI tests task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring build searchable options task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring jar searchable options task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring building plugin task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring run plugin verifier task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring sign plugin task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring publish plugin task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring resources task
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring plugin configuration verification task
+Build cache key for Kotlin DSL accessors for project ':premium-intellij-plugin' is 1cf14c807eb01155bb5b900e1ab39aac
+Skipping Kotlin DSL accessors for project ':premium-intellij-plugin' as it is up-to-date.
+Build cache key for Kotlin DSL script compilation (Project/TopLevel/stage2) is 27d709d1f1e19ff613d390e1f966810a
+Skipping Kotlin DSL script compilation (Project/TopLevel/stage2) as it is up-to-date.
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Configuring tests tasks
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Using IDE from remote repository
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] IDE dependency cache directory: C:\Users\adria\.gradle\caches\modules-2\files-2.1\com.jetbrains.intellij.idea\ideaIC\2023.3.4\135ab387b2066e14bd52d6ee5c827a7fbebe7078\ideaIC-2023.3.4
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Adding IDE sources repository
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] IC-233.14475.28 is used for building
+[gradle-intellij-plugin :premium-intellij-plugin premium-intellij-plugin] Resolved JVM Runtime directory: C:\Users\adria\.gradle\caches\modules-2\files-2.1\com.jetbrains\jbre\jbr_jcef-17.0.10-windows-x64-b1087.17\extracted\jbr_jcef-17.0.10-windows-x64-b1087.17\bin\java.exe
+All projects evaluated.
+Task path ':community-core-engine:compileTestJava' matched project ':community-core-engine'
+Task name matched 'compileTestJava'
+Selected primary task 'compileTestJava' from project :community-core-engine
+Tasks to be executed: [task ':community-core-engine:compileJava', task ':community-core-engine:processResources', task ':community-core-engine:classes', task ':community-core-engine:compileTestJava']
+Tasks that were excluded: []
+Ignoring listeners of task graph ready event, as this build (:) has already executed work.
+Resolve mutations for :community-core-engine:compileJava (Thread[#213,included builds,5,main]) started.
+Resolve mutations for :community-core-engine:processResources (Thread[#215,Execution worker Thread 2,5,main]) started.
+:community-core-engine:processResources (Thread[#215,Execution worker Thread 2,5,main]) started.
+:community-core-engine:compileJava (Thread[#213,included builds,5,main]) started.
+
+> Task :community-core-engine:processResources UP-TO-DATE
+Caching disabled for task ':community-core-engine:processResources' because:
+  Not worth caching
+Skipping task ':community-core-engine:processResources' as it is up-to-date.
+
+> Task :community-core-engine:compileJava UP-TO-DATE
+Build cache key for task ':community-core-engine:compileJava' is 4217b6b39e7938afebfde702ed725ac7
+Skipping task ':community-core-engine:compileJava' as it is up-to-date.
+Resolve mutations for :community-core-engine:classes (Thread[#213,included builds,5,main]) started.
+:community-core-engine:classes (Thread[#213,included builds,5,main]) started.
+
+> Task :community-core-engine:classes UP-TO-DATE
+Skipping task ':community-core-engine:classes' as it has no actions.
+Resolve mutations for :community-core-engine:compileTestJava (Thread[#213,included builds,5,main]) started.
+:community-core-engine:compileTestJava (Thread[#213,included builds,5,main]) started.
+
+> Task :community-core-engine:compileTestJava FAILED
+Build cache key for task ':community-core-engine:compileTestJava' is 78b3b261b9eebba3669416a823e0f861
+Task ':community-core-engine:compileTestJava' is not up-to-date because:
+  Input property 'classpath' file E:\Source\JakartaMigrationMCP\community-core-engine\build\classes\java\main\adrianmikula\jakartamigration\analysis\persistence\CentralMigrationAnalysisStore.class has changed.
+  Input property 'stableSources' file E:\Source\JakartaMigrationMCP\community-core-engine\src\test\java\adrianmikula\jakartamigration\analysis\persistence\CentralMigrationAnalysisStoreTest.java has changed.
+  Input property 'stableSources' file E:\Source\JakartaMigrationMCP\community-core-engine\src\test\java\adrianmikula\jakartamigration\unit\jakartamigration\coderefactoring\service\RefactoringEngineTest.java has been removed.
+Created classpath snapshot for incremental compilation in 0.011 secs.
+Compiling with toolchain 'C:\Program Files\Eclipse Adoptium\jdk-17.0.17.10-hotspot'.
+Compiling with JDK Java compiler API.
+./gradlew : E:\Source\JakartaMigrationMCP\community-core-engine\src\test\jav
+a\adrianmikula\jakartamigration\analysis\persistence\CentralMigrationAnalysi
+sStoreTest.java:237: error: cannot find symbol
+At line:1 char:53
++ ... k-21.0.10"; ./gradlew :community-core-engine:compileTestJava --info > 
+...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (E:\Source\Jakar...not find sym 
+   bol:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+        assertThat(executions.get(0).get("affected_files")).contains("src/ma
+in/java/Test.java");
+                                                           ^
+  symbol:   method contains(String)
+  location: class ObjectAssert<Object>
+1 error
+Incremental compilation of 8 classes completed in 1.348 secs.
+
+0 problems were found storing the configuration cache.
+
+See the complete report at file:///E:/Source/JakartaMigrationMCP/build/reports/configuration-cache/41q090wn41c7vh8annm7kwp8v/37atcg7o51w4kmo3f95lz52vz/configuration-cache-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':community-core-engine:compileTestJava'.
+> Compilation failed; see the compiler error output for details.
+
+* Try:
+> Run with --scan to get full insights.
+
+BUILD FAILED in 5s
+3 actionable tasks: 1 executed, 2 up-to-date
+Some of the file system contents retained in the virtual file system are on file systems that Gradle doesn't support watching. The relevant state was discarded to ensure changes to these locations are properly detected. You can override this by explicitly enabling file system watching.
+Watched directory hierarchies: []
+Configuration cache entry stored.

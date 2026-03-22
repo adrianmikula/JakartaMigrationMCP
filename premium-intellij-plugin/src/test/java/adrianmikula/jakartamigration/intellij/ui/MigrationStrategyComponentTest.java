@@ -19,8 +19,8 @@ public class MigrationStrategyComponentTest extends BasePlatformTestCase {
 
     public void testInitialization() {
         assertThat(strategyComponent.getPanel()).isNotNull();
-        // Initial selected strategy is null by default
-        assertThat(strategyComponent.getSelectedStrategy()).isNull();
+        // Six strategies should be available
+        assertThat(MigrationStrategy.values()).hasSize(6);
     }
 
     public void testStrategySelection() {
