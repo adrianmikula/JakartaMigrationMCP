@@ -3,7 +3,7 @@ package adrianmikula.jakartamigration.intellij.license;
 import adrianmikula.jakartamigration.intellij.ui.SupportComponent;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.extensions.PluginId;
-import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class CheckLicense {
     private static final Logger LOG = Logger.getInstance(CheckLicense.class);
     
-    private static final @NonNls String PLUGIN_ID = "com.adrianmikula.jakarta-migration";
+    private static final String PLUGIN_ID = "com.adrianmikula.jakarta-migration";
     private static final String PRODUCT_CODE = "PJAKARTAMIGRATI";
     
     private static final AtomicReference<Boolean> cachedLicenseStatus = new AtomicReference<>();

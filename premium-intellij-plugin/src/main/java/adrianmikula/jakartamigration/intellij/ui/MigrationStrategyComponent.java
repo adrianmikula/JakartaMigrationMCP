@@ -25,7 +25,6 @@ public class MigrationStrategyComponent {
     private MigrationStrategy selectedStrategy;
     private JTextArea benefitsText;
     private JTextArea risksText;
-    private JTextArea phasesText;
 
     public interface MigrationStrategyListener {
         void onStrategySelected(MigrationStrategy strategy);
@@ -34,50 +33,50 @@ public class MigrationStrategyComponent {
     public enum MigrationStrategy {
         BIG_BANG("Big Bang", "Migrate everything at once",
                 UiTextLoader.getWithNewlines("strategy.big_bang.benefits",
-                    "- Migrate all javax dependencies to Jakarta EE at once\n- Single comprehensive change\n- Best for small, self-contained projects"),
+                    "- Migrate all dependencies at once\n- Single comprehensive change\n- Best for small projects"),
                 UiTextLoader.getWithNewlines("strategy.big_bang.risks",
-                    "- Higher risk - issues affect entire codebase\n- Longer rollback time if problems occur\n- Requires comprehensive test suite"),
-                "1. Dependency Upgrade: Update all pom.xml/build.gradle files\n2. Code Refactor: Replace all javax.* imports with jakarta.*\n3. XML/Config Update: Update persistence.xml, web.xml, etc.\n4. Global Testing: Comprehensive unit and integration testing",
+                    "- Higher risk - issues affect entire codebase\n- Longer rollback time\n- Requires comprehensive testing"),
+                "1. Dependency Upgrade: Update all build files\n2. Code Refactor: Replace all javax.* imports\n3. XML/Config Update: Update configuration files\n4. Global Testing: Comprehensive testing",
                 new Color(220, 53, 69)), // Red
 
         INCREMENTAL("Incremental", "One dependency at a time",
                 UiTextLoader.getWithNewlines("strategy.incremental.benefits",
-                    "- Migrate dependencies incrementally\n- Update one dependency, test, then proceed\n- Lower risk per change\n- Best for large, complex projects"),
+                    "- Migrate dependencies incrementally\n- Update one dependency, test, proceed\n- Lower risk per change\n- Best for large projects"),
                 UiTextLoader.getWithNewlines("strategy.incremental.risks",
-                    "- Longer overall migration timeline\n- Must maintain compatibility during transition\n- May require temporary dual dependencies"),
-                "1. Dependency Scan: Identify all javax dependencies\n2. Priority Ranking: Order by risk and dependency level\n3. Step-by-Step Upgrade: One artifact at a time\n4. Continuous Integration: Test after every single change",
+                    "- Longer migration timeline\n- Must maintain compatibility\n- May require dual dependencies"),
+                "1. Dependency Scan: Identify javax dependencies\n2. Priority Ranking: Order by risk level\n3. Step-by-Step Upgrade: One artifact at a time\n4. Continuous Testing: Test after each change",
                 new Color(255, 193, 7)), // Yellow
 
         TRANSFORM("Transform", "Combined build and runtime transformation",
                 UiTextLoader.getWithNewlines("strategy.transform.benefits",
-                    "- Combine build-time and runtime transformation approaches\n- Use OpenRewrite for automated code changes\n- Deploy runtime adapters for edge cases"),
+                    "- Combine build and runtime approaches\n- Use OpenRewrite for automated changes\n- Deploy runtime adapters for edge cases"),
                 UiTextLoader.getWithNewlines("strategy.transform.risks",
-                    "- Most complex implementation\n- Requires both build and runtime configuration\n- Higher resource overhead"),
-                "1. Recipe Selection: Choose standard and custom Rewrite recipes\n2. Batch Execution: Run transformation across the whole codebase\n3. Diff Review: Manual inspection of critical logic changes\n4. Final Validation: Automated test suite verification",
+                    "- Most complex implementation\n- Requires build and runtime config\n- Higher resource overhead"),
+                "1. Recipe Selection: Choose Rewrite recipes\n2. Batch Execution: Run transformation across codebase\n3. Diff Review: Manual inspection of changes\n4. Final Validation: Automated test verification",
                 new Color(23, 162, 184)), // Blue
 
         MICROSERVICES("Microservices", "Migrate each service independently",
                 UiTextLoader.getWithNewlines("strategy.microservices.benefits",
-                    "- Migrate microservices one at a time\n- Each service can use different strategy\n- Independent deployment and testing"),
+                    "- Migrate services one at a time\n- Each service can use different strategy\n- Independent deployment and testing"),
                 UiTextLoader.getWithNewlines("strategy.microservices.risks",
-                    "- Requires coordination across services\n- Inter-service dependencies must be handled\n- May need service mesh updates"),
-                "1. Service Inventory: Map all microservices and dependencies\n2. Dependency Analysis: Identify shared libraries and APIs\n3. Migration Planning: Order services by dependency complexity\n4. Incremental Rollout: Deploy migrated services alongside legacy",
+                    "- Requires coordination across services\n- Handle inter-service dependencies\n- May need service mesh updates"),
+                "1. Service Inventory: Map microservices and dependencies\n2. Dependency Analysis: Identify shared libraries\n3. Migration Planning: Order by dependency complexity\n4. Incremental Rollout: Deploy migrated services with legacy",
                 new Color(108, 117, 125)), // Gray
 
         ADAPTER("Adapter Pattern", "Use adapter classes for javax/jakarta compatibility",
                 UiTextLoader.getWithNewlines("strategy.adapter.benefits",
-                    "- Maintain backward compatibility during migration\n- Gradual replacement of javax with jakarta\n- Lower risk changes\n- Easy to rollback individual adapters"),
+                    "- Maintain backward compatibility\n- Gradual replacement of javax with jakarta\n- Lower risk changes\n- Easy to rollback adapters"),
                 UiTextLoader.getWithNewlines("strategy.adapter.risks",
-                    "- Additional code maintenance\n- Runtime overhead for adapter layer\n- More complex classpath management"),
-                "1. Adapter Config: Setup runtime bytecode instrumentation\n2. Runtime Proxy: Intercept javax calls and redirect to jakarta\n3. Legacy Support: Link old libraries to new EE runtime\n4. Monitor: Aggressive monitoring of performance/errors",
+                    "- Additional code maintenance\n- Runtime overhead for adapters\n- More complex classpath management"),
+                "1. Adapter Config: Setup runtime bytecode instrumentation\n2. Runtime Proxy: Intercept javax calls, redirect to jakarta\n3. Legacy Support: Link old libraries to new EE runtime\n4. Monitor: Monitor performance and errors",
                 new Color(111, 66, 193)), // Purple
 
         STRANGLER("Strangler", "Migrate module by module",
                 UiTextLoader.getWithNewlines("strategy.strangler.benefits",
-                    "- Migrate one functional module or service at a time\n- New features built in Jakarta EE\n- Existing features gradually migrated\n- Good for monolithic applications"),
+                    "- Migrate one module at a time\n- New features built in Jakarta EE\n- Existing features gradually migrated\n- Good for monolithic applications"),
                 UiTextLoader.getWithNewlines("strategy.strangler.risks",
-                    "- Requires inter-module compatibility layers\n- Can create duplicate logic during transition\n- Managing two different EE environments simultaneously"),
-                "1. Interface Definition: Define boundaries between modules\n2. Bridge Setup: Create compatibility layer for cross-module calls\n3. Vertical Slices: Migrate one full functional slice at a time\n4. Decommission: Remove legacy modules once fully replaced",
+                    "- Requires inter-module compatibility layers\n- Can create duplicate logic during transition\n- Managing two EE environments simultaneously"),
+                "1. Interface Definition: Define module boundaries\n2. Bridge Setup: Create compatibility layer for cross-module calls\n3. Vertical Slices: Migrate one functional slice at a time\n4. Decommission: Remove legacy modules once replaced",
                 new Color(40, 167, 69)); // Teal
 
         private final String displayName;
@@ -129,14 +128,6 @@ public class MigrationStrategyComponent {
     }
 
     private void initializeComponent() {
-        // Title
-        JLabel titleLabel = new JLabel("Select Migration Strategy");
-        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
-        titleLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        JPanel titlePanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT));
-        titlePanel.add(titleLabel);
-
         // Strategy cards panel - 2 rows, 3 cards per row
         JPanel cardsPanel = new JPanel(new GridLayout(2, 3, 10, 10));
         cardsPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -146,8 +137,8 @@ public class MigrationStrategyComponent {
             cardsPanel.add(card);
         }
 
-        // Info panel for selected strategy
-        JPanel infoPanel = new JPanel(new GridLayout(1, 3, 10, 0));
+        // Info panel for selected strategy (2 columns: Benefits and Risks)
+        JPanel infoPanel = new JPanel(new GridLayout(1, 2, 10, 0));
         infoPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         infoPanel.setPreferredSize(new Dimension(0, 180));
 
@@ -177,26 +168,11 @@ public class MigrationStrategyComponent {
         risksPanel.add(risksTitle, BorderLayout.NORTH);
         risksPanel.add(risksText, BorderLayout.CENTER);
 
-        // Phases section
-        JPanel phasesPanel = new JPanel(new BorderLayout());
-        phasesPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        JLabel phasesTitle = new JLabel("⚑ Migration Phases");
-        phasesTitle.setFont(phasesTitle.getFont().deriveFont(Font.BOLD, 12f));
-        this.phasesText = new JTextArea("");
-        phasesText.setEditable(false);
-        phasesText.setWrapStyleWord(true);
-        phasesText.setLineWrap(true);
-        phasesText.setFont(phasesText.getFont().deriveFont(Font.PLAIN, 11f));
-        phasesPanel.add(phasesTitle, BorderLayout.NORTH);
-        phasesPanel.add(phasesText, BorderLayout.CENTER);
-
-        // Add sections to info panel (33% each)
+        // Add sections to info panel (50% each)
         infoPanel.add(benefitsPanel);
         infoPanel.add(risksPanel);
-        infoPanel.add(phasesPanel);
 
         // Add components
-        panel.add(titlePanel, BorderLayout.NORTH);
         panel.add(cardsPanel, BorderLayout.CENTER);
         panel.add(infoPanel, BorderLayout.SOUTH);
     }
@@ -325,7 +301,6 @@ public class MigrationStrategyComponent {
     private void updateInfoPanel(MigrationStrategy strategy) {
         benefitsText.setText(strategy.getBenefits());
         risksText.setText(strategy.getRisks());
-        phasesText.setText(strategy.getPhases());
     }
 
     public void addMigrationStrategyListener(MigrationStrategyListener listener) {

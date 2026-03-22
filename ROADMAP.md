@@ -2,6 +2,29 @@
 
 
 
+
+
+
+
+# improvements
+
+The history tab should show successful actions in green, failed actions in red, and 'undo' actions in yellow.  
+
+
+The migration strategy tab text content needs refinement. 
+- The 'migration strategy:' label should be removed, since it uses up a lot of horizontal space which we want to use for the migration strategy cards.
+- The risks and benefits boxes should have 50% less text so they are more readable.
+- We can remove the migration phases box to the right of the risks and benefits boxes. (but don't remove the migration phases tabs at the bottom of the page)
+- Keep the migration phases tabs at the bottom of the page, but triple the amount of text. each phase description should be descriptive without exceeding the size of the tab.
+
+
+
+
+
+
+
+
+
 ------------
 
 

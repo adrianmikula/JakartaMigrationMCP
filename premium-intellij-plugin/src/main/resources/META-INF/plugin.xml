@@ -63,6 +63,10 @@
         <!-- Project Activity for MCP Server Auto-Registration -->
         <!-- Automatically loads MCP server when plugin is enabled -->
         <projectActivity implementation="adrianmikula.jakartamigration.intellij.JakartaMcpRegistrationActivity"/>
+        
+        <!-- License Check on Plugin Startup -->
+        <!-- Ensures license status is checked and UI updated when plugin first loads -->
+        <postStartupActivity implementation="adrianmikula.jakartamigration.intellij.LicenseCheckStartupActivity"/>
 
         <!-- Tool Window -->
         <toolWindow id="JakartaMigration"

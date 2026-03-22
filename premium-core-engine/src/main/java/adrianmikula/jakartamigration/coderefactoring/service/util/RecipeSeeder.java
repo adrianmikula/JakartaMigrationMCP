@@ -57,12 +57,8 @@ public class RecipeSeeder {
                                 recipe.setRecipeType(RecipeType.OPENREWRITE);
                                 recipe.setOpenRewriteRecipeName(openRewriteClass);
                                 
-                                if (replacements != null && !replacements.isEmpty()) {
-                                        recipe.setRecipeType(RecipeType.REGEX);
-                                        recipe.setFilePattern(fileFilter);
-                                        recipe.setPattern(replacements.get(0).get("from"));
-                                        recipe.setReplacement(replacements.get(0).get("to"));
-                                }
+                                // For OpenRewrite recipes, we don't set regex pattern/replacement
+                                // The OpenRewrite recipe class handles the transformation
                                 
                                 store.saveRecipe(recipe);
                                 seededCount++;

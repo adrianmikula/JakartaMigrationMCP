@@ -10,6 +10,9 @@
 
 ## Layout 
 
+The history tab should show successful actions in green, failed actions in red, and 'undo' actions in yellow.  
+
+
 
 ## Actions 
 

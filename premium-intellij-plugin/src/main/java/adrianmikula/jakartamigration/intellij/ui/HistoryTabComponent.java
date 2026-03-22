@@ -12,6 +12,7 @@ import com.intellij.ui.table.JBTable;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.nio.file.Path;
@@ -37,6 +38,7 @@ public class HistoryTabComponent {
     private final RecipeService recipeService;
     private JBTable historyTable;
     private DefaultTableModel tableModel;
+    private JButton undoButton;
 
     public HistoryTabComponent(@NotNull Project project, RecipeService recipeService) {
         this.project = project;
@@ -57,6 +59,12 @@ public class HistoryTabComponent {
         historyTable = new JBTable(tableModel);
         historyTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         historyTable.getTableHeader().setReorderingAllowed(false);
+        
+        // Apply custom cell renderer for color coding
+        HistoryTableCellRenderer renderer = new HistoryTableCellRenderer();
+        for (int i = 0; i < historyTable.getColumnCount(); i++) {
+            historyTable.getColumnModel().getColumn(i).setCellRenderer(renderer);
+        }
 
         JBScrollPane scrollPane = new JBScrollPane(historyTable);
         panel.add(scrollPane, BorderLayout.CENTER);
@@ -68,9 +76,17 @@ public class HistoryTabComponent {
 
         JButton undoButton = new JButton("↶ Undo Selected");
         undoButton.addActionListener(e -> handleUndo());
+        this.undoButton = undoButton;
         actionsPanel.add(undoButton);
 
         panel.add(actionsPanel, BorderLayout.SOUTH);
+
+        // Add selection listener to enable/disable undo button based on selection
+        historyTable.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                updateUndoButtonState();
+            }
+        });
 
         refreshHistory();
     }
@@ -106,6 +122,32 @@ public class HistoryTabComponent {
                     action
             });
         }
+        
+        updateUndoButtonState();
+    }
+
+    /**
+     * Updates the enabled state of the undo button based on the current selection.
+     * Undo button should be disabled when:
+     * - No row is selected
+     * - Selected row is a failed execution
+     * - Selected row is already an undo action
+     * Undo button should be enabled when:
+     * - Selected row is a successful "Applied" action
+     */
+    private void updateUndoButtonState() {
+        int selectedRow = historyTable.getSelectedRow();
+        boolean canUndo = false;
+
+        if (selectedRow != -1 && tableModel.getRowCount() > 0) {
+            String status = (String) tableModel.getValueAt(selectedRow, 2);
+            String action = (String) tableModel.getValueAt(selectedRow, 5);
+            
+            // Enable undo only for successful "Applied" actions
+            canUndo = "Success".equals(status) && "Applied".equals(action);
+        }
+
+        undoButton.setEnabled(canUndo);
     }
 
     private void handleUndo() {
@@ -165,5 +207,48 @@ public class HistoryTabComponent {
 
     public JPanel getPanel() {
         return panel;
+    }
+}
+
+/**
+ * Custom cell renderer for the history table to add color coding:
+ * - Green for successful actions
+ * - Red for failed actions  
+ * - Yellow for undo actions
+ */
+class HistoryTableCellRenderer extends DefaultTableCellRenderer {
+    @Override
+    public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+        Component component = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+        
+        if (!isSelected) {
+            // Get the status from column 2 (Status column)
+            String status = (String) table.getValueAt(row, 2);
+            String action = (String) table.getValueAt(row, 5); // Action column
+            
+            if ("Failed".equals(status)) {
+                // Red for failed actions
+                component.setForeground(new Color(220, 53, 69)); // Bootstrap danger red
+                component.setBackground(new Color(248, 215, 218)); // Light red background
+            } else if ("Undo".equals(action)) {
+                // Yellow for undo actions
+                component.setForeground(new Color(255, 193, 7)); // Bootstrap warning yellow
+                component.setBackground(new Color(255, 248, 225)); // Light yellow background
+            } else if ("Success".equals(status)) {
+                // Green for successful actions
+                component.setForeground(new Color(25, 135, 84)); // Bootstrap success green
+                component.setBackground(new Color(223, 240, 216)); // Light green background
+            } else if ("Undone".equals(status)) {
+                // Light gray for undone actions
+                component.setForeground(new Color(108, 117, 125)); // Gray
+                component.setBackground(new Color(248, 249, 250)); // Light gray background
+            } else {
+                // Default colors
+                component.setForeground(table.getForeground());
+                component.setBackground(table.getBackground());
+            }
+        }
+        
+        return component;
     }
 }

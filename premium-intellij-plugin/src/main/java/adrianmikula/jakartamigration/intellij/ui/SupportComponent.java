@@ -19,6 +19,9 @@ import java.awt.event.MouseEvent;
  */
 public class SupportComponent {
     private static final Logger LOG = Logger.getInstance(SupportComponent.class);
+    
+    private static boolean premiumActive = false;
+    private static String licenseStatus = "Free";
 
     private static final java.util.Properties URLS = loadUrls();
 
@@ -53,8 +56,6 @@ public class SupportComponent {
     private final boolean isPremium;
     private final Runnable refreshCallback;
 
-    private static boolean premiumActive = false;
-
     public SupportComponent(Project project, boolean isPremium, Runnable refreshCallback) {
         this.project = project;
         this.isPremium = isPremium;
@@ -64,6 +65,10 @@ public class SupportComponent {
 
     public static void setPremiumActive(boolean active) {
         premiumActive = active;
+    }
+
+    public static void setLicenseStatus(String status) {
+        licenseStatus = status;
     }
 
     public static boolean isPremiumActive() {
