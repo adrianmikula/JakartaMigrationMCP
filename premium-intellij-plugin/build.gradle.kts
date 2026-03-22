@@ -3,7 +3,7 @@ import java.time.format.DateTimeFormatter
 import java.io.File
 
 plugins {
-    id("org.jetbrains.intellij")
+    id("org.jetbrains.intellij") version "1.17.2"
     `java-library`
     java
     jacoco
