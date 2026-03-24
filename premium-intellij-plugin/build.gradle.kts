@@ -66,28 +66,19 @@ tasks {
     
     // Create build info file using a simple file task
     val generateBuildInfo = register<DefaultTask>("generateBuildInfo") {
+        description = "Generates build info properties file"
+        group = "build"
+        
         doLast {
-            val outputDir = File(projectDir, "build/resources/main")
-            outputDir.mkdirs()
-            val outputFile = File(outputDir, "build-info.properties")
-            outputFile.writeText("build.timestamp=${buildTimestamp}\nbuild.version=${projectVersion}\n")
+            val buildInfoFile = File(projectDir, "build-info.properties")
+            buildInfoFile.writeText("""
+                build.timestamp=$buildTimestamp
+                build.version=$projectVersion
+                build.java.version=${System.getProperty("java.version", "unknown")}
+                build.java.vendor=${System.getProperty("java.vendor", "unknown")}
+                build.gradle.version=${gradle.gradleVersion}
+            """.trimIndent())
         }
-    }
-    
-    patchPluginXml {
-        sinceBuild.set(providers.gradleProperty("intellij.sinceBuild").orElse("233"))
-        // Use empty string to get open-ended compatibility (no until-build in generated XML)
-        // This allows plugin to work with all future IntelliJ versions
-        untilBuild.set(providers.gradleProperty("intellij.untilBuild").orElse(""))
-        changeNotes.set("""
-            <h>${project.version}</h>
-            <ul>
-                <li>Automated builds with unique versioning</li>
-                <li>Jakarta EE migration tools for dependencies and code</li>
-                <li>OpenRewrite refactoring integration</li>
-                <li>MCP Server for AI Assistant discovery</li>
-            </ul>
-        """.trimIndent())
     }
 
     // Disable buildSearchableOptions task to avoid JavaVersion.parse() failure with JDK 25
@@ -104,7 +95,12 @@ tasks {
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
+        vendor.set(JvmVendorSpec.ADOPTIUM)
     }
+    
+    // Set source and target compatibility to match IntelliJ 2023.3.4 requirements
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 // Include community-core-engine classes in the plugin JAR
