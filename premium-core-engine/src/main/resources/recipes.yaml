@@ -84,45 +84,6 @@ recipes:
       - from: "javax.validation.constraints"
         to: "jakarta.validation.constraints"
 
-  - name: MigrateServlet
-    description: Converts javax.servlet.* to jakarta.servlet.*
-    pattern: "javax.servlet.* → jakarta.servlet.*"
-    safety: HIGH
-    reversible: true
-    replacements:
-      - from: "javax.servlet"
-        to: "jakarta.servlet"
-
-  - name: MigrateCDI
-    description: Converts javax.enterprise.* and javax.inject.* to jakarta equivalents
-    pattern: "javax.enterprise.* → jakarta.enterprise.*"
-    safety: HIGH
-    reversible: true
-    category: CDI
-    replacements:
-      - from: "javax.enterprise"
-        to: "jakarta.enterprise"
-      - from: "javax.inject"
-        to: "jakarta.inject"
-
-  - name: MigrateREST
-    description: Converts javax.ws.rs.* to jakarta.ws.rs.*
-    pattern: "javax.ws.rs.* → jakarta.ws.rs.*"
-    safety: HIGH
-    reversible: true
-    replacements:
-      - from: "javax.ws.rs"
-        to: "jakarta.ws.rs"
-
-  - name: MigrateSOAP
-    description: Converts javax.xml.ws.* to jakarta.xml.ws.*
-    pattern: "javax.xml.ws.* → jakarta.xml.ws.*"
-    safety: HIGH
-    reversible: true
-    replacements:
-      - from: "javax.xml.ws"
-        to: "jakarta.xml.ws"
-
   - name: MigrateJMS
     description: Converts javax.jms.* to jakarta.jms.*
     pattern: "javax.jms.* → jakarta.jms.*"
@@ -305,15 +266,6 @@ recipes:
       - from: "@Resource"
         to: "@jakarta.annotation.Resource"
 
-  - name: MigrateServletApi
-    description: Migrates javax.servlet.* packages to jakarta.servlet.*
-    pattern: "javax.servlet → jakarta.servlet"
-    safety: HIGH
-    reversible: true
-    replacements:
-      - from: "javax.servlet"
-        to: "jakarta.servlet"
-
   - name: MigrateSaaj
     description: Migrates javax.xml.soap.SAAJ to jakarta.xml.soap.SAAJ
     pattern: "javax.xml.soap.SAAJ → jakarta.xml.soap.SAAJ"
@@ -477,21 +429,6 @@ recipes:
         to: "jakarta.persistence.metamodel"
       - from: "javax.persistence.spi"
         to: "jakarta.persistence.spi"
-
-  - name: MigrateBeanValidation
-    description: Converts javax.validation.* to jakarta.validation.*
-    pattern: "javax.validation.* → jakarta.validation.*"
-    safety: HIGH
-    reversible: true
-    replacements:
-      - from: "javax.validation"
-        to: "jakarta.validation"
-      - from: "javax.validation.constraints"
-        to: "jakarta.validation.constraints"
-      - from: "javax.validation.executable"
-        to: "jakarta.validation.executable"
-      - from: "javax.validation.spi"
-        to: "jakarta.validation.spi"
 
   - name: MigrateServlet
     description: Converts javax.servlet.* to jakarta.servlet.*

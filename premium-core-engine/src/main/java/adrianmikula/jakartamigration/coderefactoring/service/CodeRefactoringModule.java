@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.coderefactoring.service;
 import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.analysis.persistence.SqliteMigrationAnalysisStore;
 import adrianmikula.jakartamigration.coderefactoring.service.impl.RecipeServiceImpl;
+import adrianmikula.jakartamigration.advancedscanning.service.AdvancedScanningModule;
 
 /**
  * Module that provides access to all refactoring and recipe services.
@@ -12,6 +13,7 @@ import adrianmikula.jakartamigration.coderefactoring.service.impl.RecipeServiceI
 public class CodeRefactoringModule {
 
     private final RecipeService recipeService;
+    private final AdvancedScanningModule advancedScanningModule;
 
     public CodeRefactoringModule(CentralMigrationAnalysisStore centralStore,
             SqliteMigrationAnalysisStore projectStore) {
@@ -20,6 +22,9 @@ public class CodeRefactoringModule {
         adrianmikula.jakartamigration.coderefactoring.service.util.RecipeSeeder.seedDefaultRecipes(centralStore);
         // Seed upgrade recommendations from recipes
         adrianmikula.jakartamigration.coderefactoring.service.util.RecipeSeeder.seedUpgradeRecommendations(centralStore);
+        
+        // Initialize advanced scanning module with recipe service
+        this.advancedScanningModule = new AdvancedScanningModule(recipeService);
     }
 
     /**
@@ -27,5 +32,12 @@ public class CodeRefactoringModule {
      */
     public RecipeService getRecipeService() {
         return recipeService;
+    }
+
+    /**
+     * Gets the Advanced Scanning Module.
+     */
+    public AdvancedScanningModule getAdvancedScanningModule() {
+        return advancedScanningModule;
     }
 }

@@ -387,14 +387,36 @@ public class DependenciesTableComponent {
     
     private void applyRecipeDirectly(DependencyInfo dep, String selectedRecipe) {
         // This would trigger the recipe execution
-        // The actual implementation would call the refactoring service
-        // For now, show a brief message that the recipe is being applied
-        Messages.showInfoMessage(project, 
-                "Applying recipe '" + selectedRecipe + "' to migrate " + dep.getDisplayName() + "...\n\nThis will run the refactoring to migrate the dependency.", 
-                "Applying Recipe");
-        
-        // TODO: Implement actual recipe application via RefactoringService
-        // refactoringService.applyRecipe(selectedRecipe, dep);
+        // Get the refactoring service and apply the recipe
+        try {
+            adrianmikula.jakartamigration.coderefactoring.service.RecipeService recipeService = 
+                project.getService(adrianmikula.jakartamigration.coderefactoring.service.RecipeService.class);
+            
+            if (recipeService != null) {
+                // Apply the recipe to migrate the dependency
+                java.nio.file.Path projectPath = java.nio.file.Paths.get(project.getBasePath());
+                adrianmikula.jakartamigration.coderefactoring.domain.RecipeExecutionResult result = recipeService.applyRecipe(selectedRecipe, projectPath);
+                
+                if (result != null && result.success()) {
+                    Messages.showInfoMessage(project, 
+                            "Successfully applied recipe '" + selectedRecipe + "' to migrate " + dep.getDisplayName() + ".\n\nThe refactoring has been completed. Please review the changes and run tests.", 
+                            "Recipe Applied Successfully");
+                } else {
+                    String errorMessage = result != null ? result.errorMessage() : "Unknown error";
+                    Messages.showErrorDialog(project, 
+                            "Failed to apply recipe '" + selectedRecipe + "' to migrate " + dep.getDisplayName() + ".\n\nError: " + errorMessage, 
+                            "Recipe Application Failed");
+                }
+            } else {
+                Messages.showErrorDialog(project, 
+                        "Recipe service not available. Please ensure the Jakarta Migration plugin is properly configured.", 
+                        "Service Unavailable");
+            }
+        } catch (Exception e) {
+            Messages.showErrorDialog(project, 
+                    "Error applying recipe '" + selectedRecipe + "': " + e.getMessage(), 
+                    "Recipe Application Error");
+        }
     }
 
     public void setPremiumUser(boolean isPremium) {

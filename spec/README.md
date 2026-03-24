@@ -10,6 +10,8 @@ spec/
 ├── intellij-plugin-ui.tsp     # Core UI data models and enums
 ├── mcp-integration.tsp         # MCP server integration interfaces
 ├── plugin-components.tsp       # IntelliJ plugin UI components
+├── advanced-scanning.tsp       # Advanced scanning and recipe recommendation services
+├── pdf-reporting.tsp           # PDF reporting and analysis services
 ├── tspconfig.yaml             # TypeSpec compiler configuration
 └── README.md                  # This file
 ```
@@ -56,9 +58,43 @@ Defines IntelliJ plugin UI components and interactions:
 - **`PluginSettings`** - Configuration and preferences
 - **User Interaction Models** - Events, actions, state management
 
+### 5. `advanced-scanning.tsp` - Advanced Scanning Services
+Defines advanced scanning and recipe recommendation services:
+
+- **Advanced Scanning Service**:
+  - JPA annotation scanning
+  - Bean validation scanning
+  - Servlet/JSP scanning
+  - 18+ specialized scanner types
+- **Recipe Recommendation Service**:
+  - Confidence-based recipe recommendations
+  - Scan-to-recipe mapping
+  - File-specific recommendations
+- **Data Models**:
+  - Scan result types for all scanners
+  - Recipe definitions and categories
+  - Recommendation confidence scoring
+
+### 6. `pdf-reporting.tsp` - PDF Reporting Services
+Defines PDF generation and reporting services:
+
+- **PDF Report Service**:
+  - Configurable PDF generation
+  - Template-based reporting
+  - Validation and error handling
+- **Report Content Models**:
+  - Dependency tree visualization
+  - Maven dependency lists and trees
+  - Advanced scan results summaries
+  - Support links and metadata
+- **Configuration Models**:
+  - Report templates and sections
+  - Generation options
+  - Validation rules
+
 ## 🎯 Requirements Mapping
 
-These TypeSpec files directly address the requirements from `docs/requirements/intellij-plugin-ui.md`:
+These TypeSpec files directly address the requirements from `docs/requirements/intellij-plugin-ui.md` and `TASKS.md`:
 
 ### ✅ **Side Panel UI Components**
 1. **📊 Table of affected dependencies** → `DependenciesTableComponent`
@@ -69,6 +105,16 @@ These TypeSpec files directly address the requirements from `docs/requirements/i
 - Complete interface definitions in `mcp-integration.tsp`
 - All MCP tools mapped to TypeScript interfaces
 - Request/response models for all operations
+
+### ✅ **Advanced Scanning & Recipe Recommendations**
+- 18+ specialized scanner types in `advanced-scanning.tsp`
+- Recipe recommendation service with confidence scoring
+- Scan-to-recipe mapping and file-specific recommendations
+
+### ✅ **PDF Reporting**
+- Complete PDF generation service in `pdf-reporting.tsp`
+- Configurable report templates and sections
+- Integration with scan results and dependency analysis
 
 ### ✅ **Data Models**
 - Rich data models for all UI components
@@ -111,11 +157,21 @@ TypeSpec Specifications
 │   ├── Analysis Operations
 │   ├── Migration Operations
 │   └── Request/Response Models
-└── UI Components (plugin-components.tsp)
-    ├── Tool Window Management
-    ├── Component Definitions
-    ├── User Interactions
-    └── Settings Management
+├── UI Components (plugin-components.tsp)
+│   ├── Tool Window Management
+│   ├── Component Definitions
+│   ├── User Interactions
+│   └── Settings Management
+├── Advanced Scanning (advanced-scanning.tsp)
+│   ├── Scanner Service Interfaces
+│   ├── Recipe Recommendation Service
+│   ├── Scan Result Data Models
+│   └── Recipe Definition Models
+└── PDF Reporting (pdf-reporting.tsp)
+    ├── PDF Generation Service
+    ├── Report Content Models
+    ├── Template Definitions
+    └── Configuration Models
 ```
 
 ## 🔄 Development Workflow
@@ -132,6 +188,7 @@ TypeSpec Specifications
 - **MCP Tools**: `docs/mcp/MCP_TOOLS_IMPLEMENTATION.md`
 - **Architecture**: `docs/architecture/core-modules-design.md`
 - **IntelliJ Plugin**: `intellij-plugin/` directory
+- **Tasks**: `TASKS.md` - Complete task implementation tracking
 
 ## 🚀 Next Steps
 
@@ -140,5 +197,7 @@ TypeSpec Specifications
 3. **Plugin Implementation**: Use specifications as implementation guide
 4. **UI Development**: Build components based on defined models
 5. **MCP Integration**: Implement client service using defined interfaces
+6. **Advanced Scanning**: Implement scanner and recommendation services
+7. **PDF Reporting**: Implement PDF generation with templates
 
-These TypeSpec specifications provide a complete, type-safe foundation for implementing the Jakarta Migration IntelliJ Plugin with all required UI components and MCP server integration.
+These TypeSpec specifications provide a complete, type-safe foundation for implementing the Jakarta Migration IntelliJ Plugin with all required UI components, MCP server integration, advanced scanning capabilities, and PDF reporting functionality.

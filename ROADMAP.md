@@ -4,6 +4,12 @@
 
 
 
+# data model
+
+1. Review our existing advanced scans to see how many of them overlap with refactor recipes.  Do they all overlap, or only some of them?  For ones which don't overlap, is this just because we should add more recipes?
+2. Review our scan and recipe data models, to see how we could re-structure our DB and config files to link scans to recipes.
+3. After restructuring, we want to be able to list/recommend refactor recipes which can be used to migrate files that were found by our advanced scans.
+
 
 
 # improvements
@@ -23,18 +29,10 @@ The migration strategy tab text content needs refinement.
 
 
 
-
-
 ------------
 
 
 # code health checks
-
-1. check our available MCP tools. Check to see if there are any MCP tools which are highly-relevant to our development of this plugin and could speed up our coding agents?  Docuemnt recommended MCPS
-
-2. check our choice of JVM and gradle settings. Are there any fast-start improvements or a super-fast test loop we can set up to improve our agent's fast-feedback loop to get in down to seconds?  Look into fast-start JVMs like crack and graal.
-
-3. add a requirements folder under docs/community and docs/premium, where we will document all existing feature descriptions/requirements
 
 4. Add/update typespec documents to the spec folder for all source code in this repo so we can follow SDD principles for 100% of code changes going forward. Put comments in code and tests to reference the related spec for each module.
 
@@ -42,13 +40,21 @@ The migration strategy tab text content needs refinement.
 
 6. check the whole codebase for code quality, duplication, best practices, coverage, etc. 
 
-7. Lets move all of the strategy types, benefits, risks, and phase descriptions out of the code and into a YAML config file. 
-
-8. Let's move the list of openrewrite recipes out of the code and into a YAML config file.
+7. Lets move all of the strategy types, benefits, risks, and phase descriptions out of the code and into YAML, JSON, or properties config files. 
 
 9. Check for TODO and FIXME in the codebase, and resolve/fix them.
 
 10. Let's split any super-large source files (>500 lines) into smaller source files where possible, for better LLM context understanding.
+
+11. Lets check every source class to ensure important code paths are covered by meaningful tests.  As a minimum, each class should have 50% unit test coverage.
+
+
+-----------------------------
+
+
+
+# efficiency & requirements
+
 
 
 

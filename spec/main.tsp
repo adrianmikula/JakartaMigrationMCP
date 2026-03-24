@@ -4,6 +4,8 @@ import "@typespec/openapi3";
 import "./intellij-plugin-ui.tsp";
 import "./mcp-integration.tsp";
 import "./plugin-components.tsp";
+import "./advanced-scanning.tsp";
+import "./pdf-reporting.tsp";
 
 using TypeSpec.Http;
 using TypeSpec.Rest;
@@ -107,3 +109,16 @@ alias DependenciesTable = JakartaMigrationPluginComponents.DependenciesTableComp
 alias DependencyGraphComponent = JakartaMigrationPluginComponents.DependencyGraphComponent;
 alias MigrationPhasesComponent = JakartaMigrationPluginComponents.MigrationPhasesComponent;
 alias PluginSettings = JakartaMigrationPluginComponents.PluginSettings;
+
+// Advanced Scanning aliases
+alias AdvancedScanning = JakartaMigrationAdvancedScanning.AdvancedScanningService;
+alias RecipeRecommendations = JakartaMigrationAdvancedScanning.RecipeRecommendationService;
+alias JpaScanResult = JakartaMigrationAdvancedScanning.JpaProjectScanResult;
+alias RecipeDefinition = JakartaMigrationAdvancedScanning.RecipeDefinition;
+alias RecipeRecommendation = JakartaMigrationAdvancedScanning.RecipeRecommendation;
+
+// PDF Reporting aliases
+alias PdfReportService = JakartaMigrationReporting.PdfReportService;
+alias PdfReportConfig = JakartaMigrationReporting.PdfReportConfig;
+alias GeneratePdfReportRequest = JakartaMigrationReporting.GeneratePdfReportRequest;
+alias GeneratePdfReportResponse = JakartaMigrationReporting.GeneratePdfReportResponse;

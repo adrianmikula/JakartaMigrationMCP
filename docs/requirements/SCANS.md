@@ -19,8 +19,13 @@
 
 
 ## Configuration
-- Scan types should be loaded from an Enum class
-- Each scan type is linked to one or more recipes
+- Advanced scan types are configured via scans.json comfiguration file
+- Each scan type is linked to one or more refactor recipes
+
+
+
+
+
 
 
 ## Tests

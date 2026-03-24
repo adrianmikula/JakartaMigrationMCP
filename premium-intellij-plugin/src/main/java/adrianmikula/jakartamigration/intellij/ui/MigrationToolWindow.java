@@ -84,7 +84,6 @@ public class MigrationToolWindow implements ToolWindowFactory {
         public MigrationToolWindowContent(Project project) {
             this.project = project;
             this.analysisService = new MigrationAnalysisService();
-            this.advancedScanningService = new AdvancedScanningService();
             this.store = new CentralMigrationAnalysisStore();
 
             // Initialize project-specific store
@@ -92,6 +91,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             this.projectStore = new SqliteMigrationAnalysisStore(projectPath);
             this.refactorModule = new CodeRefactoringModule(this.store, this.projectStore);
             this.recipeService = this.refactorModule.getRecipeService();
+            
+            // Initialize advanced scanning service with recipe service
+            this.advancedScanningService = new AdvancedScanningService(this.recipeService);
 
             this.contentPanel = new JPanel(new BorderLayout());
 

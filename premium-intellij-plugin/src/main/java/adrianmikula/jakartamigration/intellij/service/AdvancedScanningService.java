@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.intellij.service;
 import adrianmikula.jakartamigration.advancedscanning.domain.*;
 import adrianmikula.jakartamigration.advancedscanning.service.AdvancedScanningModule;
 import adrianmikula.jakartamigration.advancedscanning.service.*;
+import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import com.intellij.openapi.diagnostic.Logger;
 
 import java.nio.file.Path;
@@ -27,9 +28,9 @@ public class AdvancedScanningService {
     private final java.util.concurrent.ExecutorService scanExecutor = java.util.concurrent.Executors
             .newWorkStealingPool();
 
-    public AdvancedScanningService() {
-        // Initialize the scanning module
-        this.scanningModule = new AdvancedScanningModule();
+    public AdvancedScanningService(RecipeService recipeService) {
+        // Initialize scanning module
+        this.scanningModule = new AdvancedScanningModule(recipeService);
         this.thirdPartyLibScanner = scanningModule.getThirdPartyLibScanner();
 
         LOG.info("AdvancedScanningService initialized with parallel scanning and memory optimizations");
