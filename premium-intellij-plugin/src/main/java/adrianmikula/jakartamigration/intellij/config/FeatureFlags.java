@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 
 import org.yaml.snakeyaml.Yaml;
 
@@ -53,6 +54,7 @@ public class FeatureFlags {
         flags.put("runtimeTab", false);
         flags.put("mcpServerTab", true);
         flags.put("advancedScans", false);
+        flags.put("experimental_features", false); // Add experimental features flag
         
         // Feature configurations
         FeatureConfig runtimeConfig = new FeatureConfig();
@@ -75,10 +77,22 @@ public class FeatureFlags {
         advancedScansConfig.description = "Deep scanning for JPA, CDI, Servlet and other frameworks";
         advancedScansConfig.beta = false;
         featureConfigs.put("advancedScans", advancedScansConfig);
+        
+        // Experimental features configuration
+        FeatureConfig experimentalConfig = new FeatureConfig();
+        experimentalConfig.enabled = false;
+        experimentalConfig.name = "Experimental Features";
+        experimentalConfig.description = "Cutting-edge features under development";
+        experimentalConfig.beta = true;
+        featureConfigs.put("experimental_features", experimentalConfig);
     }
     
     private void loadFromConfig() {
         try {
+            // First try to load from gradle.properties
+            loadFromGradleProperties();
+            
+            // Then try to load from feature-flags.yaml
             InputStream inputStream = getClass().getClassLoader()
                 .getResourceAsStream("feature-flags.yaml");
             
@@ -109,6 +123,47 @@ public class FeatureFlags {
         }
     }
     
+    private void loadFromGradleProperties() {
+        try {
+            // Try multiple possible locations for gradle.properties
+            String[] possiblePaths = {
+                "gradle.properties",                    // Current directory
+                "../gradle.properties",                 // Parent directory
+                "../../gradle.properties",              // Two levels up
+                "../../../gradle.properties",           // Three levels up
+                System.getProperty("user.dir") + "/gradle.properties" // User working directory
+            };
+            
+            for (String path : possiblePaths) {
+                File gradlePropsFile = new File(path);
+                System.err.println("DEBUG: Looking for gradle.properties at: " + gradlePropsFile.getAbsolutePath());
+                System.err.println("DEBUG: gradle.properties exists: " + gradlePropsFile.exists());
+                
+                if (gradlePropsFile.exists()) {
+                    Properties props = new Properties();
+                    try (FileInputStream fis = new FileInputStream(gradlePropsFile)) {
+                        props.load(fis);
+                        
+                        // Check for experimental features flag
+                        String experimentalFlag = props.getProperty("jakarta.migration.experimental_features");
+                        System.err.println("DEBUG: Found experimental flag in gradle.properties: " + experimentalFlag);
+                        if (experimentalFlag != null) {
+                            boolean enabled = "true".equalsIgnoreCase(experimentalFlag.trim());
+                            flags.put("experimental_features", enabled);
+                            System.err.println("DEBUG: Set experimental_features flag to: " + enabled);
+                            return; // Found it, no need to check other paths
+                        }
+                    }
+                }
+            }
+            
+            System.err.println("DEBUG: No gradle.properties found with experimental flag");
+        } catch (Exception e) {
+            System.err.println("DEBUG: Error loading gradle.properties: " + e.getMessage());
+            // Use defaults if gradle.properties loading fails
+        }
+    }
+    
     /**
      * Checks if a feature is enabled.
      */
@@ -125,9 +180,29 @@ public class FeatureFlags {
     
     /**
      * Checks if experimental features are enabled (for user preference).
+     * Checks multiple sources: system property, environment variable, and internal flags.
      */
     public boolean isExperimentalFeaturesEnabled() {
-        return "true".equals(System.getProperty("jakarta.migration.experimental_features", "false"));
+        // First check system property
+        String systemProperty = System.getProperty("jakarta.migration.experimental_features");
+        if (systemProperty != null) {
+            boolean result = "true".equalsIgnoreCase(systemProperty);
+            System.err.println("DEBUG: Experimental features from system property: " + result);
+            return result;
+        }
+        
+        // Then check environment variable
+        String envVar = System.getenv("JAKARTA_MIGRATION_EXPERIMENTAL_FEATURES");
+        if (envVar != null) {
+            boolean result = "true".equalsIgnoreCase(envVar);
+            System.err.println("DEBUG: Experimental features from environment variable: " + result);
+            return result;
+        }
+        
+        // Finally check internal flags (loaded from config files)
+        boolean result = flags.getOrDefault("experimental_features", false);
+        System.err.println("DEBUG: Experimental features from internal flags: " + result);
+        return result;
     }
     
     /**
