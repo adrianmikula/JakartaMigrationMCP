@@ -62,21 +62,24 @@ tasks {
     // Write build timestamp to a properties file for runtime access
     val buildTimestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
     val projectVersion = project.version.toString()
-    val projectDir = project.projectDir
     
     // Create build info file using a simple file task
     val generateBuildInfo = register<DefaultTask>("generateBuildInfo") {
         description = "Generates build info properties file"
         group = "build"
         
+        // Use inputs to make it compatible with configuration cache
+        inputs.property("buildTimestamp", buildTimestamp)
+        inputs.property("projectVersion", projectVersion)
+        outputs.file(layout.buildDirectory.file("build-info.properties"))
+        
         doLast {
-            val buildInfoFile = File(projectDir, "build-info.properties")
+            val buildInfoFile = outputs.files.singleFile
             buildInfoFile.writeText("""
                 build.timestamp=$buildTimestamp
                 build.version=$projectVersion
                 build.java.version=${System.getProperty("java.version", "unknown")}
                 build.java.vendor=${System.getProperty("java.vendor", "unknown")}
-                build.gradle.version=${gradle.gradleVersion}
             """.trimIndent())
         }
     }
@@ -118,8 +121,15 @@ tasks.named<Jar>("jar") {
     val premiumCoreEngine = project(":premium-core-engine")
     from(premiumCoreEngine.sourceSets.main.get().output)
     
-    // Include build info from generateBuildInfo
-    from(File(project.projectDir, "build/resources/main"))
+    // Include build info from generateBuildInfo (now in build directory)
+    from(layout.buildDirectory.file("build-info.properties"))
+}
+
+// Ensure instrumentedJar task depends on generateBuildInfo
+tasks.withType<Jar> {
+    if (name == "instrumentedJar") {
+        dependsOn("generateBuildInfo")
+    }
 }
 
 // Create a task to generate MCP tool definitions JSON
