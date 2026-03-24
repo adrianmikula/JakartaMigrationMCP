@@ -74,6 +74,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private RefactorTabComponent refactorTabComponent;
         private HistoryTabComponent historyTabComponent;
         private RuntimeTabComponent runtimeTabComponent;
+        private ReportsTabComponent reportsTabComponent;
         private CodeRefactoringModule refactorModule;
         private RecipeService recipeService;
         private SqliteMigrationAnalysisStore projectStore;
@@ -206,9 +207,15 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     runtimeTabComponent = new RuntimeTabComponent(project);
                     tabbedPane.addTab("Runtime ⚡ (Experimental)", runtimeTabComponent.getPanel());
                     LOG.info("initializeContent: Added PREMIUM+EXPERIMENTAL Runtime tab");
+                    
+                    // Reports tab (Premium + Experimental features only)
+                    reportsTabComponent = new ReportsTabComponent(project);
+                    tabbedPane.addTab("Reports 📊 (Experimental)", reportsTabComponent.getPanel());
+                    LOG.info("initializeContent: Added PREMIUM+EXPERIMENTAL Reports tab");
                 } else {
                     runtimeTabComponent = null;
-                    LOG.info("initializeContent: Runtime tab hidden (experimental features disabled)");
+                    reportsTabComponent = null;
+                    LOG.info("initializeContent: Runtime and Reports tabs hidden (experimental features disabled)");
                 }
             } else {
                 refactorTabComponent = null;
@@ -222,12 +229,31 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         "Automatic migration fixes"));
                 LOG.info("initializeContent: Added LOCKED Refactor placeholder tab");
 
-                tabbedPane.addTab("Runtime 🔒", createPremiumPlaceholderPanel(
-                        "Runtime Tab (Beta)",
-                        "Diagnose runtime errors with AI-powered analysis",
-                        "Error pattern recognition",
-                        "Automated remediation suggestions"));
-                LOG.info("initializeContent: Added LOCKED Runtime placeholder tab");
+                // Runtime tab (Beta) - only show if experimental features are enabled
+                boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
+                if (experimentalEnabled) {
+                    tabbedPane.addTab("Runtime 🔒", createPremiumPlaceholderPanel(
+                            "Runtime Tab (Beta)",
+                            "Diagnose runtime errors with AI-powered analysis",
+                            "Error pattern recognition",
+                            "Automated remediation suggestions"));
+                    LOG.info("initializeContent: Added LOCKED Runtime placeholder tab (experimental features enabled)");
+                } else {
+                    LOG.info("initializeContent: Runtime tab hidden (experimental features disabled)");
+                }
+
+                // Reports tab (Experimental) - only show if experimental features are enabled
+                if (experimentalEnabled) {
+                    tabbedPane.addTab("Reports 📊 🔒", createPremiumPlaceholderPanel(
+                            "Reports Tab (Experimental)",
+                            "Generate comprehensive PDF reports based on scan data",
+                            "Dependency analysis reports",
+                            "Advanced scan results",
+                            "Migration recommendations"));
+                    LOG.info("initializeContent: Added LOCKED Reports placeholder tab (experimental features enabled)");
+                } else {
+                    LOG.info("initializeContent: Reports tab hidden (experimental features disabled)");
+                }
 
                 tabbedPane.addTab("History 🔒", createPremiumPlaceholderPanel(
                         "History Tab",
