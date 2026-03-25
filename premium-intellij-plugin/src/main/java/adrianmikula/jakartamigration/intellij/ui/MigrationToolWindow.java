@@ -118,11 +118,13 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private boolean checkPremiumStatus() {
             // Use the CheckLicense class which handles both JetBrains licensing
             // and our own trial/premium system
-            boolean licensed = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
+            Boolean licensed = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
             LOG.info("MigrationToolWindowContent: CheckLicense.isLicensed() = " + licensed);
             LOG.info("MigrationToolWindowContent: License status: " +
                     adrianmikula.jakartamigration.intellij.license.CheckLicense.getLicenseStatusString());
-            return licensed;
+            
+            // Handle null case (LicensingFacade not initialized) - default to trial check
+            return licensed != null && licensed;
         }
 
         private void initializeContent() {
