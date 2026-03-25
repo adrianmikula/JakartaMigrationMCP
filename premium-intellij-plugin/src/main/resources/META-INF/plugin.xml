@@ -110,6 +110,27 @@
     </actions>
 
     <change-notes><![CDATA[
+    <h>1.0.8</h>
+    <ul>
+        <li><b>Major Feature:</b> Complete JetBrains Marketplace License Verification - Implemented full freemium monetization with JetBrains-approved license verification system based on official marketplace-makemecoffee-plugin example</li>
+        <li><b>Added:</b> JetBrains LicensingFacade Integration - Direct API usage with proper getConfirmationStamp() method for license validation</li>
+        <li><b>Added:</b> Official JetBrains Root Certificates - Complete certificate chain validation for license security and authenticity verification</li>
+        <li><b>Added:</b> License Key Validation - Full validation of JetBrains Account licenses and activation codes with SHA1withRSA signature verification</li>
+        <li><b>Added:</b> License Server Stamp Validation - Support for JetBrains Floating License Server tickets with machine ID and timestamp validation</li>
+        <li><b>Added:</b> Registration Dialog Integration - Seamless license purchase flow with JetBrains registration actions and data context</li>
+        <li><b>Added:</b> Product Descriptor - Marketplace-compliant product code (PJAKARTAMIGRATI) with release date and version parameters</li>
+        <li><b>Added:</b> Trial System - 7-day free trial with automatic expiration and property-based activation for free IDEs</li>
+        <li><b>Added:</b> License Caching - 24-hour license check caching to prevent excessive API calls and improve performance</li>
+        <li><b>Added:</b> Comprehensive Test Suite - 100+ test methods covering all license verification aspects including security, performance, and edge cases</li>
+        <li><b>Enhanced:</b> Premium Feature Gating - Robust license-based feature access with fallback to trial system for free IDEs</li>
+        <li><b>Enhanced:</b> UI License Status - User-friendly license status display with days remaining for active trials</li>
+        <li><b>Enhanced:</b> Error Handling - Graceful degradation when LicensingFacade unavailable with automatic trial fallback</li>
+        <li><b>Enhanced:</b> Security - License data integrity validation and trial manipulation prevention</li>
+        <li><b>Fixed:</b> Boolean Return Type - Updated isLicensed() to return Boolean (true/false/null) per JetBrains specification</li>
+        <li><b>Fixed:</b> License Check Performance - Optimized to under 100ms for 100 consecutive checks with caching</li>
+        <li><b>Fixed:</b> IntelliJ 2023.3+ Compatibility - Updated registration dialog APIs for older IDE versions</li>
+        <li><b>Documentation:</b> Complete license verification documentation with security best practices</li>
+    </ul>
     <h>1.0.7</h>
     <ul>
         <li><b>Added:</b> Dynamic Recipe Loading - Advanced Scans tab now dynamically creates UI tabs based on recipe categories from recipes.yaml, eliminating hardcoded tabs and ensuring automatic UI synchronization when new refactoring recipes are added</li>
