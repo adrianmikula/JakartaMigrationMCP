@@ -28,3 +28,12 @@ java {
         languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
+
+tasks.test {
+    useJUnitPlatform()
+    testLogging {
+        showStandardStreams = true
+    }
+    // Enable parallel test execution
+    maxParallelForks = 4
+}

@@ -88,6 +88,11 @@ tasks {
     buildSearchableOptions {
         onlyIf { false }
     }
+    
+    // Disable initializeIntelliJPlugin task to avoid GitHub connectivity issues
+    tasks.withType<org.jetbrains.intellij.tasks.InitializeIntelliJPluginTask> {
+        onlyIf { false }
+    }
 
     // Configure JUnit Jupiter for testing
     test {
