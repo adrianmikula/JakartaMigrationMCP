@@ -202,7 +202,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 refactorTabComponent.setOnRecipeExecuted(() -> SwingUtilities.invokeLater(historyRef::refreshHistory));
 
                 // Runtime tab (Premium + Experimental features only)
+                System.out.println("DEBUG: MigrationToolWindow - About to check experimental features");
                 boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
+                System.out.println("DEBUG: MigrationToolWindow - experimentalEnabled = " + experimentalEnabled);
                 if (experimentalEnabled) {
                     runtimeTabComponent = new RuntimeTabComponent(project);
                     tabbedPane.addTab("Runtime ⚡ (Experimental)", runtimeTabComponent.getPanel());
@@ -230,13 +232,15 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 LOG.info("initializeContent: Added LOCKED Refactor placeholder tab");
 
                 // Runtime tab (Beta) - only show if experimental features are enabled
+                System.out.println("DEBUG: MigrationToolWindow (Community) - About to check experimental features");
                 boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
+                System.out.println("DEBUG: MigrationToolWindow (Community) - experimentalEnabled = " + experimentalEnabled);
                 if (experimentalEnabled) {
                     tabbedPane.addTab("Runtime 🔒", createPremiumPlaceholderPanel(
                             "Runtime Tab (Beta)",
-                            "Diagnose runtime errors with AI-powered analysis",
-                            "Error pattern recognition",
-                            "Automated remediation suggestions"));
+                            "Monitor migration progress in real-time",
+                            "Real-time progress tracking",
+                            "Live migration status"));
                     LOG.info("initializeContent: Added LOCKED Runtime placeholder tab (experimental features enabled)");
                 } else {
                     LOG.info("initializeContent: Runtime tab hidden (experimental features disabled)");
