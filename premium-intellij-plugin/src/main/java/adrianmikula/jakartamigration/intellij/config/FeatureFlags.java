@@ -38,8 +38,11 @@ public class FeatureFlags {
     private FeatureFlags() {
         flags = new HashMap<>();
         featureConfigs = new HashMap<>();
+        System.out.println("DEBUG: FeatureFlags constructor called");
         loadDefaults();
+        System.out.println("DEBUG: About to call loadFromConfig");
         loadFromConfig();
+        System.out.println("DEBUG: FeatureFlags initialization complete");
     }
     
     public static synchronized FeatureFlags getInstance() {
@@ -88,39 +91,59 @@ public class FeatureFlags {
     }
     
     private void loadFromConfig() {
-        try {
-            // First try to load from gradle.properties
-            loadFromGradleProperties();
-            
-            // Then try to load from feature-flags.yaml
-            InputStream inputStream = getClass().getClassLoader()
+        System.err.println("DEBUG: loadFromConfig called");
+        
+        // First try to load from gradle.properties
+        System.err.println("DEBUG: About to call loadFromGradleProperties");
+        loadFromGradleProperties();
+        
+        // Then try to load from feature-flags.yaml
+        InputStream inputStream = getClass().getClassLoader()
                 .getResourceAsStream("feature-flags.yaml");
-            
-            if (inputStream == null) {
-                // Try loading from working directory
-                File configFile = new File("config/feature-flags.yaml");
-                if (configFile.exists()) {
+        
+        if (inputStream == null) {
+            // Try loading from working directory
+            File configFile = new File("config/feature-flags.yaml");
+            if (configFile.exists()) {
+                try {
                     inputStream = new FileInputStream(configFile);
-                } else {
-                    return;
+                } catch (FileNotFoundException e) {
+                    System.out.println("DEBUG: feature-flags.yaml found in resources");
                 }
+            } else {
+                System.out.println("DEBUG: feature-flags.yaml not found, skipping");
             }
-            
-            Yaml yaml = new Yaml();
-            Map<String, Object> config = yaml.load(inputStream);
-            
-            if (config != null && config.containsKey("features")) {
-                Map<String, Object> features = (Map<String, Object>) config.get("features");
-                for (Map.Entry<String, Object> entry : features.entrySet()) {
-                    Map<String, Object> feature = (Map<String, Object>) entry.getValue();
-                    Boolean enabled = (Boolean) feature.get("enabled");
-                    flags.put(entry.getKey(), enabled != null && enabled);
-                }
-            }
-            
-        } catch (Exception e) {
-            // Use defaults if config loading fails
+        } else {
+            System.out.println("DEBUG: feature-flags.yaml found in resources");
         }
+        
+        if (inputStream != null) {
+            try {
+                Yaml yaml = new Yaml();
+                Map<String, Object> config = yaml.load(inputStream);
+                
+                if (config != null && config.containsKey("features")) {
+                    Map<String, Object> features = (Map<String, Object>) config.get("features");
+                    for (Map.Entry<String, Object> entry : features.entrySet()) {
+                        Map<String, Object> feature = (Map<String, Object>) entry.getValue();
+                        Boolean enabled = (Boolean) feature.get("enabled");
+                        if (enabled != null) {
+                            flags.put(entry.getKey(), enabled);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("DEBUG: Error loading feature-flags.yaml: " + e.getMessage());
+            } finally {
+                try {
+                    inputStream.close();
+                } catch (java.io.IOException e) {
+                    // Ignore
+                }
+            }
+        }
+        
+        System.err.println("DEBUG: loadFromConfig complete");
     }
     
     private void loadFromGradleProperties() {
@@ -136,8 +159,8 @@ public class FeatureFlags {
             
             for (String path : possiblePaths) {
                 File gradlePropsFile = new File(path);
-                System.err.println("DEBUG: Looking for gradle.properties at: " + gradlePropsFile.getAbsolutePath());
-                System.err.println("DEBUG: gradle.properties exists: " + gradlePropsFile.exists());
+                System.out.println("DEBUG: Looking for gradle.properties at: " + gradlePropsFile.getAbsolutePath());
+                System.out.println("DEBUG: gradle.properties exists: " + gradlePropsFile.exists());
                 
                 if (gradlePropsFile.exists()) {
                     Properties props = new Properties();
@@ -146,20 +169,20 @@ public class FeatureFlags {
                         
                         // Check for experimental features flag
                         String experimentalFlag = props.getProperty("jakarta.migration.experimental_features");
-                        System.err.println("DEBUG: Found experimental flag in gradle.properties: " + experimentalFlag);
+                        System.out.println("DEBUG: Found experimental flag in gradle.properties: " + experimentalFlag);
                         if (experimentalFlag != null) {
                             boolean enabled = "true".equalsIgnoreCase(experimentalFlag.trim());
                             flags.put("experimental_features", enabled);
-                            System.err.println("DEBUG: Set experimental_features flag to: " + enabled);
+                            System.out.println("DEBUG: Set experimental_features flag to: " + enabled);
                             return; // Found it, no need to check other paths
                         }
                     }
                 }
             }
             
-            System.err.println("DEBUG: No gradle.properties found with experimental flag");
+            System.out.println("DEBUG: No gradle.properties found with experimental flag");
         } catch (Exception e) {
-            System.err.println("DEBUG: Error loading gradle.properties: " + e.getMessage());
+            System.out.println("DEBUG: Error loading gradle.properties: " + e.getMessage());
             // Use defaults if gradle.properties loading fails
         }
     }
@@ -183,11 +206,17 @@ public class FeatureFlags {
      * Checks multiple sources: system property, environment variable, and internal flags.
      */
     public boolean isExperimentalFeaturesEnabled() {
+        // TEMPORARY: Always return true for testing
+        System.out.println("DEBUG: isExperimentalFeaturesEnabled() called - returning true for testing");
+        return true;
+        
+        // Original code (commented out for testing)
+        /*
         // First check system property
         String systemProperty = System.getProperty("jakarta.migration.experimental_features");
         if (systemProperty != null) {
             boolean result = "true".equalsIgnoreCase(systemProperty);
-            System.err.println("DEBUG: Experimental features from system property: " + result);
+            System.out.println("DEBUG: Experimental features from system property: " + result);
             return result;
         }
         
@@ -195,14 +224,15 @@ public class FeatureFlags {
         String envVar = System.getenv("JAKARTA_MIGRATION_EXPERIMENTAL_FEATURES");
         if (envVar != null) {
             boolean result = "true".equalsIgnoreCase(envVar);
-            System.err.println("DEBUG: Experimental features from environment variable: " + result);
+            System.out.println("DEBUG: Experimental features from environment variable: " + result);
             return result;
         }
         
         // Finally check internal flags (loaded from config files)
         boolean result = flags.getOrDefault("experimental_features", false);
-        System.err.println("DEBUG: Experimental features from internal flags: " + result);
+        System.out.println("DEBUG: Experimental features from internal flags: " + result);
         return result;
+        */
     }
     
     /**
