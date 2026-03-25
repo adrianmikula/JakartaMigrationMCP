@@ -136,6 +136,8 @@ public class FeatureFlags {
             
             for (String path : possiblePaths) {
                 File gradlePropsFile = new File(path);
+                System.err.println("DEBUG: Looking for gradle.properties at: " + gradlePropsFile.getAbsolutePath());
+                System.err.println("DEBUG: gradle.properties exists: " + gradlePropsFile.exists());
                 
                 if (gradlePropsFile.exists()) {
                     Properties props = new Properties();
@@ -144,15 +146,20 @@ public class FeatureFlags {
                         
                         // Check for experimental features flag
                         String experimentalFlag = props.getProperty("jakarta.migration.experimental_features");
+                        System.err.println("DEBUG: Found experimental flag in gradle.properties: " + experimentalFlag);
                         if (experimentalFlag != null) {
                             boolean enabled = "true".equalsIgnoreCase(experimentalFlag.trim());
                             flags.put("experimental_features", enabled);
+                            System.err.println("DEBUG: Set experimental_features flag to: " + enabled);
                             return; // Found it, no need to check other paths
                         }
                     }
                 }
             }
+            
+            System.err.println("DEBUG: No gradle.properties found with experimental flag");
         } catch (Exception e) {
+            System.err.println("DEBUG: Error loading gradle.properties: " + e.getMessage());
             // Use defaults if gradle.properties loading fails
         }
     }
@@ -180,6 +187,7 @@ public class FeatureFlags {
         String systemProperty = System.getProperty("jakarta.migration.experimental_features");
         if (systemProperty != null) {
             boolean result = "true".equalsIgnoreCase(systemProperty);
+            System.err.println("DEBUG: Experimental features from system property: " + result);
             return result;
         }
         
@@ -187,11 +195,13 @@ public class FeatureFlags {
         String envVar = System.getenv("JAKARTA_MIGRATION_EXPERIMENTAL_FEATURES");
         if (envVar != null) {
             boolean result = "true".equalsIgnoreCase(envVar);
+            System.err.println("DEBUG: Experimental features from environment variable: " + result);
             return result;
         }
         
         // Finally check internal flags (loaded from config files)
         boolean result = flags.getOrDefault("experimental_features", false);
+        System.err.println("DEBUG: Experimental features from internal flags: " + result);
         return result;
     }
     
