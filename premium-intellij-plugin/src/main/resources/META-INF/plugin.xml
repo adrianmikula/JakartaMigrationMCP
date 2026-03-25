@@ -1,6 +1,6 @@
 <idea-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/schemas/plugin/2/plugin.xsd" icon="/icons/pluginIcon.svg">
     <!-- Freemium Monetization Parameters -->
-    <product-descriptor code="PJAKARTAMIGRATI" release-date="20250325" release-version="20251"/>
+    <product-descriptor code="PJAKARTAMIGRATI" release-date="20250325" release-version="20218"/>
     
     <id>com.adrianmikula.jakarta-migration</id>
     <version>1.0.8</version>
@@ -112,24 +112,21 @@
     <change-notes><![CDATA[
     <h>1.0.8</h>
     <ul>
-        <li><b>Major Feature:</b> Complete JetBrains Marketplace License Verification - Implemented full freemium monetization with JetBrains-approved license verification system based on official marketplace-makemecoffee-plugin example</li>
-        <li><b>Added:</b> JetBrains LicensingFacade Integration - Direct API usage with proper getConfirmationStamp() method for license validation</li>
-        <li><b>Added:</b> Official JetBrains Root Certificates - Complete certificate chain validation for license security and authenticity verification</li>
-        <li><b>Added:</b> License Key Validation - Full validation of JetBrains Account licenses and activation codes with SHA1withRSA signature verification</li>
-        <li><b>Added:</b> License Server Stamp Validation - Support for JetBrains Floating License Server tickets with machine ID and timestamp validation</li>
-        <li><b>Added:</b> Registration Dialog Integration - Seamless license purchase flow with JetBrains registration actions and data context</li>
-        <li><b>Added:</b> Product Descriptor - Marketplace-compliant product code (PJAKARTAMIGRATI) with release date and version parameters</li>
-        <li><b>Added:</b> Trial System - 7-day free trial with automatic expiration and property-based activation for free IDEs</li>
-        <li><b>Added:</b> License Caching - 24-hour license check caching to prevent excessive API calls and improve performance</li>
-        <li><b>Added:</b> Comprehensive Test Suite - 100+ test methods covering all license verification aspects including security, performance, and edge cases</li>
-        <li><b>Enhanced:</b> Premium Feature Gating - Robust license-based feature access with fallback to trial system for free IDEs</li>
-        <li><b>Enhanced:</b> UI License Status - User-friendly license status display with days remaining for active trials</li>
-        <li><b>Enhanced:</b> Error Handling - Graceful degradation when LicensingFacade unavailable with automatic trial fallback</li>
-        <li><b>Enhanced:</b> Security - License data integrity validation and trial manipulation prevention</li>
-        <li><b>Fixed:</b> Boolean Return Type - Updated isLicensed() to return Boolean (true/false/null) per JetBrains specification</li>
-        <li><b>Fixed:</b> License Check Performance - Optimized to under 100ms for 100 consecutive checks with caching</li>
-        <li><b>Fixed:</b> IntelliJ 2023.3+ Compatibility - Updated registration dialog APIs for older IDE versions</li>
-        <li><b>Documentation:</b> Complete license verification documentation with security best practices</li>
+        <li><b>Major Feature:</b> PDF Reports - Generate comprehensive migration analysis reports in PDF format with detailed findings, recommendations, and visual charts for stakeholder presentations</li>
+        <li><b>Added:</b> Reports Tab - New dedicated tab in the migration tool window for generating and managing PDF reports with customizable options</li>
+        <li><b>Added:</b> Report Templates - Multiple report templates including Executive Summary, Technical Analysis, and Migration Roadmap with different detail levels</li>
+        <li><b>Added:</b> Visual Charts - Interactive charts and graphs showing migration complexity, risk assessment, and dependency analysis in PDF reports</li>
+        <li><b>Added:</b> Export Options - Save reports to custom locations with automatic timestamping and version control integration</li>
+        <li><b>Added:</b> Report Preview - Live preview of PDF reports before generation with real-time updates as analysis data changes</li>
+        <li><b>Enhanced:</b> Dashboard UI - Improved dashboard layout with better visual hierarchy and enhanced data presentation</li>
+        <li><b>Enhanced:</b> Migration Phases - More detailed phase descriptions with clear action items and timeline estimates</li>
+        <li><b>Enhanced:</b> Dependency Visualization - Improved dependency graph rendering with better layout algorithms and interactive features</li>
+        <li><b>Enhanced:</b> Advanced Scans UI - Refined advanced scanning interface with better categorization and filtering options</li>
+        <li><b>Improved:</b> Tool Window Layout - Reorganized tool window tabs for better workflow and navigation</li>
+        <li><b>Improved:</b> Status Indicators - Clear visual indicators for analysis progress and completion status</li>
+        <li><b>Fixed:</b> UI Responsiveness - Resolved performance issues with large project analysis and UI updates</li>
+        <li><b>Fixed:</b> Tab Switching - Improved tab switching performance and state management</li>
+        <li><b>Documentation:</b> Updated user guide with PDF reporting workflow and best practices</li>
     </ul>
     <h>1.0.7</h>
     <ul>
