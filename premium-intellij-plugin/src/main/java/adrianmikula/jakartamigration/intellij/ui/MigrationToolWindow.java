@@ -559,7 +559,10 @@ public class MigrationToolWindow implements ToolWindowFactory {
             summary.setTransitiveDependencies(0);
             dashboard.setDependencySummary(summary);
 
-            dashboardComponent.updateDashboard(dashboard);
+            // Update dashboard components with new data
+            dashboardComponent.updateGauges();
+            dashboardComponent.updateSummary();
+            dashboardComponent.updateScanResultsTable();
             dependenciesComponent.setDependencies(new ArrayList<>());
             migrationPhasesComponent.setDependencies(new ArrayList<>());
 
@@ -720,7 +723,10 @@ public class MigrationToolWindow implements ToolWindowFactory {
             summary.setTransitiveDependencies((int) transitive);
             dashboard.setDependencySummary(summary);
 
-            dashboardComponent.updateDashboard(dashboard);
+            // Update dashboard components with new data
+            dashboardComponent.updateGauges();
+            dashboardComponent.updateSummary();
+            dashboardComponent.updateScanResultsTable();
             dependenciesComponent.setDependencies(deps);
             migrationPhasesComponent.setDependencies(deps);
         }
@@ -766,7 +772,10 @@ public class MigrationToolWindow implements ToolWindowFactory {
             summary.setMigrableDependencies(0);
             dashboard.setDependencySummary(summary);
 
-            dashboardComponent.updateDashboard(dashboard);
+            // Update dashboard components with new data
+            dashboardComponent.updateGauges();
+            dashboardComponent.updateSummary();
+            dashboardComponent.updateScanResultsTable();
             dependenciesComponent.setDependencies(new ArrayList<>());
             migrationPhasesComponent.setDependencies(new ArrayList<>());
         }

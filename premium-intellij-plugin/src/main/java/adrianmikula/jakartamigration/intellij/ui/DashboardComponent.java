@@ -182,8 +182,9 @@ public class DashboardComponent {
             
             // Re-calculate risk score with advanced scan findings
             // This ensures the dashboard UI refreshes with the updated risk score
+            // Note: updateGauges() already handles risk score calculation
             if (dashboard != null) {
-                updateRiskScoreWithAdvancedScans(dashboard.getDependencySummary());
+                // Risk score is now calculated in updateGauges() method
             }
             
             // Update new dashboard components with advanced scan data
@@ -378,247 +379,6 @@ private void resetAdvancedScanCounts() {
         return 0;
     }
 
-    private JPanel createMetricsTable() {
-        JPanel tablePanel = new JBPanel<>(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(4, 8, 4, 8);
-        gbc.anchor = GridBagConstraints.WEST;
-
-        // Row 1
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        tablePanel.add(createKeyLabel("Total Dependencies:"), gbc);
-        gbc.gridx = 1;
-        totalDepsValue = createValueLabel("-");
-        tablePanel.add(totalDepsValue, gbc);
-
-        gbc.gridx = 2;
-        gbc.gridy = 0;
-        tablePanel.add(createKeyLabel("Affected Dependencies:"), gbc);
-        gbc.gridx = 3;
-        affectedDepsValue = createValueLabel("-");
-        tablePanel.add(affectedDepsValue, gbc);
-
-        // Row 2
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        tablePanel.add(createKeyLabel("No Jakarta Support:"), gbc);
-        gbc.gridx = 1;
-        noJakartaSupportValue = createValueLabel("-");
-        tablePanel.add(noJakartaSupportValue, gbc);
-
-        gbc.gridx = 2;
-        gbc.gridy = 1;
-        tablePanel.add(createKeyLabel("Transitive Deps:"), gbc);
-        gbc.gridx = 3;
-        transitiveDepsValue = createValueLabel("-");
-        tablePanel.add(transitiveDepsValue, gbc);
-
-        // Row 3
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        tablePanel.add(createKeyLabel("XML Files Affected:"), gbc);
-        gbc.gridx = 1;
-        xmlFilesValue = createValueLabel("-");
-        tablePanel.add(xmlFilesValue, gbc);
-
-        gbc.gridx = 2;
-        gbc.gridy = 2;
-        tablePanel.add(createKeyLabel("Migrable:"), gbc);
-        gbc.gridx = 3;
-        migrableValue = createValueLabel("-");
-        tablePanel.add(migrableValue, gbc);
-
-        // Row 4: JPA, Bean Validation
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        tablePanel.add(createKeyLabel("JPA Issues:"), gbc);
-        gbc.gridx = 1;
-        jpaScanCountValue = createValueLabel("0");
-        tablePanel.add(jpaScanCountValue, gbc);
-
-        gbc.gridx = 2;
-        gbc.gridy = 3;
-        tablePanel.add(createKeyLabel("Bean Validation:"), gbc);
-        gbc.gridx = 3;
-        beanValidationScanCountValue = createValueLabel("0");
-        tablePanel.add(beanValidationScanCountValue, gbc);
-
-        // Row 5: Servlet/JSP, CDI
-        gbc.gridx = 0;
-        gbc.gridy = 4;
-        tablePanel.add(createKeyLabel("Servlet/JSP:"), gbc);
-        gbc.gridx = 1;
-        servletJspScanCountValue = createValueLabel("0");
-        tablePanel.add(servletJspScanCountValue, gbc);
-
-        gbc.gridx = 2;
-        gbc.gridy = 4;
-        tablePanel.add(createKeyLabel("CDI Injection:"), gbc);
-        gbc.gridx = 3;
-        cdiInjectionScanCountValue = createValueLabel("0");
-        tablePanel.add(cdiInjectionScanCountValue, gbc);
-
-        // Row 6: Build, REST/SOAP
-        gbc.gridx = 0;
-        gbc.gridy = 5;
-        tablePanel.add(createKeyLabel("Build Config:"), gbc);
-        gbc.gridx = 1;
-        buildConfigScanCountValue = createValueLabel("0");
-        tablePanel.add(buildConfigScanCountValue, gbc);
-
-        gbc.gridx = 2;
-        gbc.gridy = 5;
-        tablePanel.add(createKeyLabel("REST/SOAP:"), gbc);
-        gbc.gridx = 3;
-        restSoapScanCountValue = createValueLabel("0");
-        tablePanel.add(restSoapScanCountValue, gbc);
-
-        // Row 7: Deprecated, Security
-        gbc.gridx = 0;
-        gbc.gridy = 6;
-        tablePanel.add(createKeyLabel("Deprecated API:"), gbc);
-        gbc.gridx = 1;
-        deprecatedApiScanCountValue = createValueLabel("0");
-        tablePanel.add(deprecatedApiScanCountValue, gbc);
-
-        gbc.gridx = 2;
-        gbc.gridy = 6;
-        tablePanel.add(createKeyLabel("Security API:"), gbc);
-        gbc.gridx = 3;
-        securityApiScanCountValue = createValueLabel("0");
-        tablePanel.add(securityApiScanCountValue, gbc);
-
-        // Row 8: JMS Messaging, Transitive Dependency
-        gbc.gridx = 0;
-        gbc.gridy = 8;
-        gbc.gridwidth = 1;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.insets = new Insets(4, 8, 4, 8);
-        tablePanel.add(createKeyLabel("JMS Messaging:"), gbc);
-        gbc.gridx = 1;
-        jmsMessagingScanCountValue = createValueLabel("0");
-        tablePanel.add(jmsMessagingScanCountValue, gbc);
-
-        gbc.gridx = 2;
-        tablePanel.add(createKeyLabel("Transitive Deps:"), gbc);
-        gbc.gridx = 3;
-        transitiveDependencyScanCountValue = createValueLabel("0");
-        tablePanel.add(transitiveDependencyScanCountValue, gbc);
-
-        // Row 9: Config Files, Classloader/Module
-        gbc.gridx = 0;
-        gbc.gridy = 9;
-        tablePanel.add(createKeyLabel("Config Files:"), gbc);
-        gbc.gridx = 1;
-        configFileScanCountValue = createValueLabel("0");
-        tablePanel.add(configFileScanCountValue, gbc);
-
-        gbc.gridx = 2;
-        tablePanel.add(createKeyLabel("Classloader/Module:"), gbc);
-        gbc.gridx = 3;
-        classloaderModuleScanCountValue = createValueLabel("0");
-        tablePanel.add(classloaderModuleScanCountValue, gbc);
-
-        // Row 10: Logging Metrics, Serialization Cache
-        gbc.gridx = 0;
-        gbc.gridy = 10;
-        tablePanel.add(createKeyLabel("Logging/Metrics:"), gbc);
-        gbc.gridx = 1;
-        loggingMetricsScanCountValue = createValueLabel("0");
-        tablePanel.add(loggingMetricsScanCountValue, gbc);
-
-        gbc.gridx = 2;
-        tablePanel.add(createKeyLabel("Serialization/Cache:"), gbc);
-        gbc.gridx = 3;
-        serializationCacheScanCountValue = createValueLabel("0");
-        tablePanel.add(serializationCacheScanCountValue, gbc);
-
-// Row 11: Third-Party Libs (spans width)
-        gbc.gridx = 0;
-        gbc.gridy = 11;
-        gbc.gridwidth = 2;
-        tablePanel.add(createKeyLabel("Third-Party Libs:"), gbc);
-        gbc.gridx = 2;
-        thirdPartyLibScanCountValue = createValueLabel("0");
-        tablePanel.add(thirdPartyLibScanCountValue, gbc);
-
-        // Row 12: Total Advanced Issues (at bottom of scan counts, spans full width)
-        gbc.gridx = 0;
-        gbc.gridy = 12;
-        gbc.gridwidth = 2;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(8, 8, 4, 8);
-        JLabel totalAdvancedLabel = createKeyLabel("Total Advanced Issues:");
-        totalAdvancedLabel.setFont(totalAdvancedLabel.getFont().deriveFont(Font.BOLD));
-        tablePanel.add(totalAdvancedLabel, gbc);
-
-        gbc.gridx = 2;
-        gbc.gridwidth = 2;
-        totalAdvancedScanCountValue = createValueLabel("0");
-        totalAdvancedScanCountValue.setForeground(new Color(0, 100, 180));
-        tablePanel.add(totalAdvancedScanCountValue, gbc);
-
-        // Row 14 - Advanced Scan Progress Bar (spans full width)
-        gbc.gridx = 0;
-        gbc.gridy = 14;
-        gbc.gridwidth = 4;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(12, 8, 4, 8);
-        
-        JPanel progressPanel = new JBPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        progressPanel.setOpaque(false);
-        
-        advancedScanProgressLabel = new JBLabel("Advanced Scans:");
-        advancedScanProgressLabel.setFont(advancedScanProgressLabel.getFont().deriveFont(Font.PLAIN, 11f));
-        progressPanel.add(advancedScanProgressLabel);
-        
-        advancedScanProgressBar = new JProgressBar(0, 100);
-        advancedScanProgressBar.setStringPainted(true);
-        advancedScanProgressBar.setValue(0);
-        advancedScanProgressBar.setPreferredSize(new Dimension(200, 20));
-        progressPanel.add(advancedScanProgressBar);
-        
-        tablePanel.add(progressPanel, gbc);
-
-        // Row 16 - Last Analyzed spans full width
-        gbc.gridx = 0;
-        gbc.gridy = 16;
-        gbc.insets = new Insets(4, 8, 4, 8);
-        JPanel lastAnalyzedPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        lastAnalyzedPanel.add(new JBLabel("Last Analyzed:"));
-        lastAnalyzedValue = createValueLabel("Never");
-        lastAnalyzedPanel.add(lastAnalyzedValue);
-        tablePanel.add(lastAnalyzedPanel, gbc);
-
-        // Row 17 - Risk Score spans full width
-        gbc.gridy = 17;
-        gbc.insets = new Insets(8, 8, 4, 8);
-        JPanel riskPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        
-        JLabel riskLabel = new JBLabel("Risk Score:");
-        riskLabel.setFont(riskLabel.getFont().deriveFont(Font.BOLD, 12f));
-        riskPanel.add(riskLabel);
-        
-        riskScoreValue = new JBLabel("--");
-        riskScoreValue.setFont(riskScoreValue.getFont().deriveFont(Font.BOLD, 14f));
-        riskPanel.add(riskScoreValue);
-        
-        riskPanel.add(Box.createHorizontalStrut(20));
-        
-        JLabel categoryLabel = new JBLabel("Category:");
-        categoryLabel.setFont(categoryLabel.getFont().deriveFont(Font.PLAIN, 12f));
-        riskPanel.add(categoryLabel);
-        
-        riskCategoryValue = new JBLabel("--");
-        riskCategoryValue.setFont(riskCategoryValue.getFont().deriveFont(Font.BOLD, 14f));
-        riskPanel.add(riskCategoryValue);
-        
-        tablePanel.add(riskPanel, gbc);
-
-        return tablePanel;
-    }
-
     private JBLabel createKeyLabel(String text) {
         JBLabel label = new JBLabel(text, SwingConstants.LEFT);
         label.setFont(label.getFont().deriveFont(Font.PLAIN, 12f));
@@ -681,241 +441,6 @@ private void resetAdvancedScanCounts() {
         actionsPanel.add(refreshButton);
 
         return actionsPanel;
-    }
-
-    private void handleRefresh(ActionEvent e) {
-        Messages.showInfoMessage(project, "Refreshing analysis results...", "Refresh");
-    }
-
-    public void setDependencySummary(DependencySummary summary) {
-        totalDepsValue.setText(String.valueOf(summary.getTotalDependencies()));
-        affectedDepsValue.setText(String.valueOf(summary.getAffectedDependencies()));
-        
-        // Highlight migrable dependencies in green if > 0
-        int migrable = summary.getMigrableDependencies();
-        migrableValue.setText(String.valueOf(migrable));
-        migrableValue.setForeground(migrable > 0 ? new Color(0, 140, 0) : Color.GRAY);
-
-        // Highlight "No Jakarta Support" in red if > 0 (indicates issues)
-        int noSupport = summary.getNoJakartaSupportCount() != null ? summary.getNoJakartaSupportCount() : 0;
-        noJakartaSupportValue.setText(String.valueOf(noSupport));
-        noJakartaSupportValue.setForeground(noSupport > 0 ? Color.RED : Color.GRAY);
-
-        String xmlFiles = summary.getXmlFilesCount() != null ? String.valueOf(summary.getXmlFilesCount()) : "0";
-        xmlFilesValue.setText(xmlFiles);
-
-        // Highlight transitive dependencies in red if > 0 (indicates potential issues)
-        int transitive = summary.getTransitiveDependencies() != null ? summary.getTransitiveDependencies() : 0;
-        transitiveDepsValue.setText(String.valueOf(transitive));
-        transitiveDepsValue.setForeground(transitive > 0 ? Color.RED : Color.GRAY);
-
-        // Update risk score based on dependency summary
-        updateRiskScore(summary);
-    }
-
-    public void setLastAnalyzed(Instant lastAnalyzed) {
-        if (lastAnalyzed != null) {
-            lastAnalyzedValue.setText(lastAnalyzed.toString());
-        } else {
-            lastAnalyzedValue.setText("Never");
-        }
-    }
-
-    /**
-     * Updates the risk score display based on dependency analysis and advanced scans.
-     * Now includes both basic dependency issues and advanced scan findings with YAML weights.
-     */
-    public void updateRiskScore(DependencySummary summary) {
-        if (summary == null || summary.getTotalDependencies() == null || summary.getTotalDependencies() == 0) {
-            riskScoreValue.setText("--");
-            riskCategoryValue.setText("--");
-            riskScoreValue.setForeground(Color.GRAY);
-            riskCategoryValue.setForeground(Color.GRAY);
-            return;
-        }
-
-        try {
-            RiskScoringService riskService = RiskScoringService.getInstance();
-            
-            // Build dependency issues map
-            Map<String, Integer> depIssues = new HashMap<>();
-            
-            int noSupport = summary.getNoJakartaSupportCount() != null ? summary.getNoJakartaSupportCount() : 0;
-            int affected = summary.getAffectedDependencies() != null ? summary.getAffectedDependencies() : 0;
-            int blockers = summary.getBlockerDependencies() != null ? summary.getBlockerDependencies() : 0;
-            
-            if (noSupport > 0) {
-                depIssues.put("noJakartaVersion", noSupport * 25);
-            }
-            if (blockers > 0) {
-                depIssues.put("blockedDependency", blockers * 40);
-            }
-            if (affected > 0) {
-                depIssues.put("directDependency", affected * 10);
-            }
-            
-            // Build scan findings from advanced scans
-            Map<String, List<RiskScoringService.RiskFinding>> scanFindings = buildScanFindingsFromAdvancedScans();
-            
-            // Calculate risk score with both scan findings and dependency issues
-            RiskScoringService.RiskScore riskScore = riskService.calculateRiskScore(
-                scanFindings,
-                depIssues
-            );
-            
-            riskScoreValue.setText(String.valueOf(riskScore.totalScore()));
-            riskCategoryValue.setText(riskScore.categoryLabel());
-            
-            // Set color based on category
-            try {
-                Color categoryColor = Color.decode(riskScore.categoryColor());
-                riskCategoryValue.setForeground(categoryColor);
-                riskScoreValue.setForeground(categoryColor);
-            } catch (Exception e) {
-                // Use default color if parsing fails
-            }
-            
-        } catch (Exception e) {
-            LOG.warn("Failed to calculate risk score", e);
-            riskScoreValue.setText("--");
-            riskCategoryValue.setText("--");
-        }
-    }
-
-    /**
-     * Updates the risk score when advanced scans complete.
-     * This method recalculates the risk score including advanced scan findings.
-     */
-    public void updateRiskScoreWithAdvancedScans(DependencySummary summary) {
-        // Re-calculate risk score with advanced scan findings
-        updateRiskScore(summary);
-    }
-
-    /**
-     * Builds scan findings from advanced scanning results.
-     * Maps advanced scan counts to RiskFinding objects with appropriate risk levels.
-     */
-    private Map<String, List<RiskScoringService.RiskFinding>> buildScanFindingsFromAdvancedScans() {
-        Map<String, List<RiskScoringService.RiskFinding>> scanFindings = new HashMap<>();
-        
-        // Get advanced scan summary if available
-        if (advancedScanningService == null || !advancedScanningService.hasCachedResults()) {
-            return scanFindings; // Return empty map if no advanced scans available
-        }
-        
-        AdvancedScanningService.AdvancedScanSummary scanSummary = advancedScanningService.getCachedSummary();
-        if (scanSummary == null) {
-            return scanFindings;
-        }
-        
-        // Add JPA findings
-        if (scanSummary.getJpaCount() > 0) {
-            List<RiskScoringService.RiskFinding> jpaFindings = new ArrayList<>();
-            jpaFindings.add(new RiskScoringService.RiskFinding(
-                "jpa", "entityWithJakartaId", "Jakarta ID annotation usage", "low", scanSummary.getJpaCount()
-            ));
-            scanFindings.put("jpa", jpaFindings);
-        }
-        
-        // Add Bean Validation findings
-        if (scanSummary.getBeanValidationCount() > 0) {
-            List<RiskScoringService.RiskFinding> validationFindings = new ArrayList<>();
-            validationFindings.add(new RiskScoringService.RiskFinding(
-                "beanValidation", "constraintAnnotation", "Validation constraint annotation", "low", scanSummary.getBeanValidationCount()
-            ));
-            scanFindings.put("beanValidation", validationFindings);
-        }
-        
-        // Add Servlet/JSP findings
-        if (scanSummary.getServletJspCount() > 0) {
-            List<RiskScoringService.RiskFinding> servletFindings = new ArrayList<>();
-            servletFindings.add(new RiskScoringService.RiskFinding(
-                "servlet", "javaxServletImport", "javax.servlet import - needs migration", "high", scanSummary.getServletJspCount()
-            ));
-            scanFindings.put("servlet", servletFindings);
-        }
-        
-        // Add CDI findings
-        if (scanSummary.getCdiInjectionCount() > 0) {
-            List<RiskScoringService.RiskFinding> cdiFindings = new ArrayList<>();
-            cdiFindings.add(new RiskScoringService.RiskFinding(
-                "cdi", "cdiBean", "CDI managed bean", "low", scanSummary.getCdiInjectionCount()
-            ));
-            scanFindings.put("cdi", cdiFindings);
-        }
-        
-        // Add JMS findings
-        if (scanSummary.getJmsMessagingCount() > 0) {
-            List<RiskScoringService.RiskFinding> jmsFindings = new ArrayList<>();
-            jmsFindings.add(new RiskScoringService.RiskFinding(
-                "jms", "jmsQueueConnection", "JMS QueueConnection - needs migration", "high", scanSummary.getJmsMessagingCount()
-            ));
-            scanFindings.put("jms", jmsFindings);
-        }
-        
-        // Add Web Services findings
-        if (scanSummary.getRestSoapCount() > 0) {
-            List<RiskScoringService.RiskFinding> webserviceFindings = new ArrayList<>();
-            webserviceFindings.add(new RiskScoringService.RiskFinding(
-                "webservice", "jaxWsEndpoint", "JAX-WS endpoint - needs migration", "high", scanSummary.getRestSoapCount()
-            ));
-            scanFindings.put("webservice", webserviceFindings);
-        }
-        
-        // Add Serialization/Cache findings (lower weight)
-        if (scanSummary.getSerializationCacheCount() > 0) {
-            List<RiskScoringService.RiskFinding> serializationFindings = new ArrayList<>();
-            serializationFindings.add(new RiskScoringService.RiskFinding(
-                "serializationCache", "Serializable", "Java Serialization usage", "low", scanSummary.getSerializationCacheCount()
-            ));
-            scanFindings.put("serializationCache", serializationFindings);
-        }
-        
-        return scanFindings;
-    }
-
-    public void clearMetrics() {
-        totalDepsValue.setText("-");
-        affectedDepsValue.setText("-");
-        noJakartaSupportValue.setText("-");
-        noJakartaSupportValue.setForeground(Color.GRAY);
-        xmlFilesValue.setText("-");
-        transitiveDepsValue.setText("-");
-        transitiveDepsValue.setForeground(Color.GRAY);
-        migrableValue.setText("-");
-        migrableValue.setForeground(Color.GRAY);
-        lastAnalyzedValue.setText("Never");
-    }
-
-    /**
-     * Update the dashboard from a MigrationDashboard object (called by
-     * MigrationToolWindow).
-     * 
-     * @param dashboard The dashboard with data to display
-     */
-    public void updateDashboard(MigrationDashboard dashboard) {
-        if (dashboard == null) {
-            return;
-        }
-
-        this.dashboard = dashboard;
-
-        // Update dependency summary
-        if (dashboard.getDependencySummary() != null) {
-            setDependencySummary(dashboard.getDependencySummary());
-        }
-
-        // Update last analyzed
-        if (dashboard.getLastAnalyzed() != null) {
-            setLastAnalyzed(dashboard.getLastAnalyzed());
-        } else {
-            setLastAnalyzed(null);
-        }
-
-        // Update new dashboard components
-        updateGauges();
-        updateSummary();
-        updateScanResultsTable();
     }
 
     /**
@@ -1072,8 +597,59 @@ private void resetAdvancedScanCounts() {
 
         // Calculate migration risk score (using RiskScoringService)
         RiskScoringService riskScoringService = RiskScoringService.getInstance();
-        int riskScore = riskScoringService.calculateRiskScore(dashboard);
-        migrationRiskGauge.setScore(riskScore);
+        Map<String, List<RiskScoringService.RiskFinding>> scanFindings = new HashMap<>();
+        Map<String, Integer> depIssues = new HashMap<>();
+        
+        // Build dependency issues map
+        DependencySummary depSummary = dashboard.getDependencySummary();
+        if (depSummary != null) {
+            int noSupport = depSummary.getNoJakartaSupportCount() != null ? depSummary.getNoJakartaSupportCount() : 0;
+            int affected = depSummary.getAffectedDependencies() != null ? depSummary.getAffectedDependencies() : 0;
+            int blockers = depSummary.getBlockerDependencies() != null ? depSummary.getBlockerDependencies() : 0;
+            
+            if (noSupport > 0) {
+                depIssues.put("noJakartaVersion", noSupport * 25);
+            }
+            if (blockers > 0) {
+                depIssues.put("blockedDependency", blockers * 40);
+            }
+            if (affected > 0) {
+                depIssues.put("directDependency", affected * 10);
+            }
+        }
+        
+        // Build scan findings from advanced scans
+        if (advancedScanningService != null && advancedScanningService.hasCachedResults()) {
+            AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
+            if (summary != null) {
+                // Create RiskFinding objects for each scan type
+                List<RiskScoringService.RiskFinding> jpaFindings = createRiskFindings(summary.getJpaCount(), "jpa");
+                List<RiskScoringService.RiskFinding> bvFindings = createRiskFindings(summary.getBeanValidationCount(), "beanValidation");
+                List<RiskScoringService.RiskFinding> sjFindings = createRiskFindings(summary.getServletJspCount(), "servletJsp");
+                List<RiskScoringService.RiskFinding> cdiFindings = createRiskFindings(summary.getCdiInjectionCount(), "cdiInjection");
+                List<RiskScoringService.RiskFinding> bcFindings = createRiskFindings(summary.getBuildConfigCount(), "buildConfig");
+                List<RiskScoringService.RiskFinding> rsFindings = createRiskFindings(summary.getRestSoapCount(), "restSoap");
+                List<RiskScoringService.RiskFinding> daFindings = createRiskFindings(summary.getDeprecatedApiCount(), "deprecatedApi");
+                List<RiskScoringService.RiskFinding> saFindings = createRiskFindings(summary.getSecurityApiCount(), "securityApi");
+                List<RiskScoringService.RiskFinding> jmFindings = createRiskFindings(summary.getJmsMessagingCount(), "jmsMessaging");
+                List<RiskScoringService.RiskFinding> cfFindings = createRiskFindings(summary.getConfigFileCount(), "configFiles");
+                
+                scanFindings.put("jpaIssues", jpaFindings);
+                scanFindings.put("beanValidation", bvFindings);
+                scanFindings.put("servletJsp", sjFindings);
+                scanFindings.put("cdiInjection", cdiFindings);
+                scanFindings.put("buildConfig", bcFindings);
+                scanFindings.put("restSoap", rsFindings);
+                scanFindings.put("deprecatedApi", daFindings);
+                scanFindings.put("securityApi", saFindings);
+                scanFindings.put("jmsMessaging", jmFindings);
+                scanFindings.put("configFiles", cfFindings);
+            }
+        }
+        
+        // Calculate risk score
+        RiskScoringService.RiskScore riskScore = riskScoringService.calculateRiskScore(scanFindings, depIssues);
+        migrationRiskGauge.setScore(riskScore.totalScore());
     }
 
     /**
@@ -1131,7 +707,7 @@ private void resetAdvancedScanCounts() {
                     addScanResultRow("Security API", summary.getSecurityApiCount(), getRiskLevelForCount(summary.getSecurityApiCount()));
                     addScanResultRow("JMS Messaging", summary.getJmsMessagingCount(), getRiskLevelForCount(summary.getJmsMessagingCount()));
                     addScanResultRow("Config Files", summary.getConfigFileCount(), getRiskLevelForCount(summary.getConfigFileCount()));
-                    addScanResultRow("Total Advanced", summary.getTotalCount(), getRiskLevelForCount(summary.getTotalCount()));
+                    addScanResultRow("Total Advanced", summary.getTotalIssuesFound(), getRiskLevelForCount(summary.getTotalIssuesFound()));
                 }
             }
         });
@@ -1163,7 +739,7 @@ private void resetAdvancedScanCounts() {
         if (advancedScanningService != null && advancedScanningService.hasCachedResults()) {
             AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
             if (summary != null) {
-                advancedCount = summary.getTotalCount();
+                advancedCount = summary.getTotalIssuesFound();
             }
         }
         
@@ -1171,6 +747,22 @@ private void resetAdvancedScanCounts() {
         
         // Map to 0-100 scale (more items = higher effort)
         return Math.min(100, totalItems * 2); // Rough scaling
+    }
+
+    private List<RiskScoringService.RiskFinding> createRiskFindings(int count, String scanType) {
+        List<RiskScoringService.RiskFinding> findings = new ArrayList<>();
+        if (count > 0) {
+            // Create a simple finding with appropriate risk level
+            String riskLevel = count > 10 ? "high" : count > 5 ? "medium" : "low";
+            findings.add(new RiskScoringService.RiskFinding(
+                scanType,
+                scanType + "_issues",
+                scanType + " issues found: " + count,
+                riskLevel,
+                count
+            ));
+        }
+        return findings;
     }
 
     private int calculateScanProgress() {
@@ -1190,6 +782,10 @@ private void resetAdvancedScanCounts() {
         if (progress >= 100) return new Color(40, 167, 69); // Green
         if (progress >= 50) return new Color(255, 193, 7); // Yellow
         return new Color(220, 53, 69); // Red
+    }
+
+    private void handleRefresh(ActionEvent e) {
+        Messages.showInfoMessage(project, "Refreshing analysis results...", "Refresh");
     }
 
     public JBLabel getDeprecatedApiScanCountValue() {
