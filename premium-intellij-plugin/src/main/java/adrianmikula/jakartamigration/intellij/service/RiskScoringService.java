@@ -240,6 +240,15 @@ public class RiskScoringService {
     }
 
     /**
+     * Gets the CategoryConfig for a specific score.
+     * Used by UI components to display risk categories.
+     */
+    public CategoryConfig getCategoryForScore(int score) {
+        String categoryKey = getCategoryForScore(score);
+        return categoryConfigs.get(categoryKey);
+    }
+
+    /**
      * Gets the risk level for a specific finding type.
      */
     public String getRiskLevelForFinding(String scanType, String findingType) {

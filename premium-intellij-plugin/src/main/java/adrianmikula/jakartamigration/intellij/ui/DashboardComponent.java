@@ -8,14 +8,18 @@ import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.intellij.service.RiskScoringService;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.intellij.ui.SupportComponent;
+import adrianmikula.jakartamigration.intellij.ui.components.RiskGauge;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBPanel;
+import com.intellij.ui.components.JBScrollPane;
+import com.intellij.ui.table.JBTable;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.time.Instant;
@@ -38,17 +42,24 @@ public class DashboardComponent {
     private final Consumer<ActionEvent> onAnalyze;
     private final AdvancedScanningService advancedScanningService;
 
-    // UI Components for key:value table
+    // UI Components for gauges (top section)
+    private JPanel gaugesPanel;
+    private RiskGauge migrationEffortGauge;
+    private RiskGauge migrationRiskGauge;
+    
+    // UI Components for middle section
+    private JPanel summaryPanel;
+    private JBLabel scanProgressValue;
+    private JBLabel dependenciesFoundValue;
+    private JBLabel refactorRecipesValue;
+    
+    // UI Components for scan results table (bottom section)
+    private JPanel scanResultsPanel;
+    private JBTable scanResultsTable;
+    private DefaultTableModel scanResultsModel;
+    
+    // Legacy components for backward compatibility
     private JPanel metricsTablePanel;
-    private JBLabel totalDepsValue;
-    private JBLabel affectedDepsValue;
-    private JBLabel noJakartaSupportValue;
-    private JBLabel xmlFilesValue;
-    private JBLabel transitiveDepsValue;
-    private JBLabel migrableValue;
-    private JBLabel lastAnalyzedValue;
-    private JBLabel riskScoreValue;
-    private JBLabel riskCategoryValue;
 
     // MCP Server Status components
     private JPanel mcpStatusPanel;
@@ -92,13 +103,13 @@ public class DashboardComponent {
     }
 
     private void initializeComponent() {
-        // Content - Key:Value Table
+        // Main content panel with vertical layout
         JPanel contentPanel = new JBPanel<>(new BorderLayout());
         contentPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         // Title with version
         JPanel titlePanel = new JBPanel(new FlowLayout(FlowLayout.LEFT));
-        JLabel titleLabel = new JLabel("Migration Summary", SwingConstants.LEFT);
+        JLabel titleLabel = new JLabel("Migration Dashboard", SwingConstants.LEFT);
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 14f));
         titlePanel.add(titleLabel);
         
@@ -109,8 +120,22 @@ public class DashboardComponent {
         titlePanel.add(versionLabel);
         contentPanel.add(titlePanel, BorderLayout.NORTH);
 
-        metricsTablePanel = createMetricsTable();
-        contentPanel.add(metricsTablePanel, BorderLayout.CENTER);
+        // Main dashboard content with three sections
+        JPanel mainPanel = new JBPanel<>(new BorderLayout());
+        
+        // Top: Gauges
+        gaugesPanel = createGaugesPanel();
+        mainPanel.add(gaugesPanel, BorderLayout.NORTH);
+        
+        // Middle: Summary information
+        summaryPanel = createSummaryPanel();
+        mainPanel.add(summaryPanel, BorderLayout.CENTER);
+        
+        // Bottom: Scan results table
+        scanResultsPanel = createScanResultsPanel();
+        mainPanel.add(scanResultsPanel, BorderLayout.SOUTH);
+        
+        contentPanel.add(mainPanel, BorderLayout.CENTER);
 
         // Actions panel
         JPanel actionsPanel = createActionsPanel();
@@ -160,6 +185,11 @@ public class DashboardComponent {
             if (dashboard != null) {
                 updateRiskScoreWithAdvancedScans(dashboard.getDependencySummary());
             }
+            
+            // Update new dashboard components with advanced scan data
+            updateGauges();
+            updateSummary();
+            updateScanResultsTable();
         });
     }
     
@@ -881,6 +911,11 @@ private void resetAdvancedScanCounts() {
         } else {
             setLastAnalyzed(null);
         }
+
+        // Update new dashboard components
+        updateGauges();
+        updateSummary();
+        updateScanResultsTable();
     }
 
     /**
@@ -922,6 +957,239 @@ private void resetAdvancedScanCounts() {
 
     public JBLabel getRestSoapScanCountValue() {
         return restSoapScanCountValue;
+    }
+
+    // ==================== New Dashboard Layout Methods ====================
+
+    /**
+     * Creates the top section with two speedometer-style gauges.
+     * Indicator 1: Migration Effort
+     * Indicator 2: Migration Risk
+     */
+    private JPanel createGaugesPanel() {
+        JPanel panel = new JBPanel<>(new BorderLayout());
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder("Risk Assessment"),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+
+        JPanel gaugesContainer = new JBPanel<>(new FlowLayout(FlowLayout.CENTER, 20, 10));
+        
+        // Migration Effort Gauge (Indicator 1)
+        migrationEffortGauge = new RiskGauge("Migration Effort");
+        gaugesContainer.add(migrationEffortGauge);
+        
+        // Migration Risk Gauge (Indicator 2)  
+        migrationRiskGauge = new RiskGauge("Migration Risk");
+        gaugesContainer.add(migrationRiskGauge);
+        
+        panel.add(gaugesContainer, BorderLayout.CENTER);
+        return panel;
+    }
+
+    /**
+     * Creates the middle section showing scan progress and summary information.
+     * Shows percentage of scans run, dependencies found, and refactor recipes.
+     */
+    private JPanel createSummaryPanel() {
+        JPanel panel = new JBPanel<>(new BorderLayout());
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder("Migration Summary"),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+
+        JPanel summaryGrid = new JBPanel<>(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // Scan Progress
+        gbc.gridx = 0; gbc.gridy = 0;
+        summaryGrid.add(createKeyLabel("Scan Progress:"), gbc);
+        gbc.gridx = 1;
+        scanProgressValue = createValueLabel("0%");
+        summaryGrid.add(scanProgressValue, gbc);
+
+        // Dependencies Found
+        gbc.gridx = 0; gbc.gridy = 1;
+        summaryGrid.add(createKeyLabel("Dependencies Found:"), gbc);
+        gbc.gridx = 1;
+        dependenciesFoundValue = createValueLabel("-");
+        summaryGrid.add(dependenciesFoundValue, gbc);
+
+        // Refactor Recipes Available
+        gbc.gridx = 0; gbc.gridy = 2;
+        summaryGrid.add(createKeyLabel("Refactor Recipes:"), gbc);
+        gbc.gridx = 1;
+        refactorRecipesValue = createValueLabel("-");
+        summaryGrid.add(refactorRecipesValue, gbc);
+
+        panel.add(summaryGrid, BorderLayout.CENTER);
+        return panel;
+    }
+
+    /**
+     * Creates the bottom section with a table of scan results.
+     * Shows scan name, number of items found, and risk level.
+     */
+    private JPanel createScanResultsPanel() {
+        JPanel panel = new JBPanel<>(new BorderLayout());
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder("Scan Results"),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+
+        // Create table model
+        scanResultsModel = new DefaultTableModel();
+        scanResultsModel.addColumn("Scan Name");
+        scanResultsModel.addColumn("Items Found");
+        scanResultsModel.addColumn("Risk Level");
+
+        // Create table
+        scanResultsTable = new JBTable(scanResultsModel);
+        scanResultsTable.setRowHeight(25);
+        scanResultsTable.getColumnModel().getColumn(0).setPreferredWidth(200);
+        scanResultsTable.getColumnModel().getColumn(1).setPreferredWidth(100);
+        scanResultsTable.getColumnModel().getColumn(2).setPreferredWidth(100);
+
+        // Add scroll pane
+        JBScrollPane scrollPane = new JBScrollPane(scanResultsTable);
+        scrollPane.setPreferredSize(new Dimension(450, 200));
+
+        panel.add(scrollPane, BorderLayout.CENTER);
+        return panel;
+    }
+
+    /**
+     * Updates the gauges with current risk scores.
+     */
+    public void updateGauges() {
+        if (dashboard == null) return;
+
+        // Calculate migration effort score (based on number of items to migrate)
+        int effortScore = calculateEffortScore();
+        migrationEffortGauge.setScore(effortScore);
+
+        // Calculate migration risk score (using RiskScoringService)
+        RiskScoringService riskScoringService = RiskScoringService.getInstance();
+        int riskScore = riskScoringService.calculateRiskScore(dashboard);
+        migrationRiskGauge.setScore(riskScore);
+    }
+
+    /**
+     * Updates the summary section with current scan data.
+     */
+    public void updateSummary() {
+        if (dashboard == null) return;
+
+        SwingUtilities.invokeLater(() -> {
+            // Update scan progress
+            int scanProgress = calculateScanProgress();
+            scanProgressValue.setText(scanProgress + "%");
+            scanProgressValue.setForeground(getProgressColor(scanProgress));
+
+            // Update dependencies found
+            DependencySummary depSummary = dashboard.getDependencySummary();
+            if (depSummary != null) {
+                int totalDeps = depSummary.getTotalDependencies();
+                int affectedDeps = depSummary.getAffectedDependencies();
+                dependenciesFoundValue.setText(affectedDeps + " / " + totalDeps);
+                dependenciesFoundValue.setForeground(affectedDeps > 0 ? Color.ORANGE : Color.GREEN);
+            } else {
+                dependenciesFoundValue.setText("-");
+            }
+
+            // Update refactor recipes (this would need integration with recipe service)
+            refactorRecipesValue.setText("Calculating...");
+        });
+    }
+
+    /**
+     * Updates the scan results table with current scan data.
+     */
+    public void updateScanResultsTable() {
+        if (dashboard == null) return;
+
+        SwingUtilities.invokeLater(() -> {
+            // Clear existing data
+            scanResultsModel.setRowCount(0);
+
+            // Add basic scan results
+            addScanResultRow("Basic Analysis", getBasicScanCount(), getRiskLevelForCount(getBasicScanCount()));
+            
+            // Add advanced scan results if available
+            if (advancedScanningService != null && advancedScanningService.hasCachedResults()) {
+                AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
+                if (summary != null) {
+                    addScanResultRow("JPA Issues", summary.getJpaCount(), getRiskLevelForCount(summary.getJpaCount()));
+                    addScanResultRow("Bean Validation", summary.getBeanValidationCount(), getRiskLevelForCount(summary.getBeanValidationCount()));
+                    addScanResultRow("Servlet/JSP", summary.getServletJspCount(), getRiskLevelForCount(summary.getServletJspCount()));
+                    addScanResultRow("CDI Injection", summary.getCdiInjectionCount(), getRiskLevelForCount(summary.getCdiInjectionCount()));
+                    addScanResultRow("Build Config", summary.getBuildConfigCount(), getRiskLevelForCount(summary.getBuildConfigCount()));
+                    addScanResultRow("REST/SOAP", summary.getRestSoapCount(), getRiskLevelForCount(summary.getRestSoapCount()));
+                    addScanResultRow("Deprecated API", summary.getDeprecatedApiCount(), getRiskLevelForCount(summary.getDeprecatedApiCount()));
+                    addScanResultRow("Security API", summary.getSecurityApiCount(), getRiskLevelForCount(summary.getSecurityApiCount()));
+                    addScanResultRow("JMS Messaging", summary.getJmsMessagingCount(), getRiskLevelForCount(summary.getJmsMessagingCount()));
+                    addScanResultRow("Config Files", summary.getConfigFileCount(), getRiskLevelForCount(summary.getConfigFileCount()));
+                    addScanResultRow("Total Advanced", summary.getTotalCount(), getRiskLevelForCount(summary.getTotalCount()));
+                }
+            }
+        });
+    }
+
+    // ==================== Helper Methods ====================
+
+    private void addScanResultRow(String scanName, int count, String riskLevel) {
+        Object[] row = {scanName, count, riskLevel};
+        scanResultsModel.addRow(row);
+    }
+
+    private int getBasicScanCount() {
+        if (dashboard == null || dashboard.getDependencySummary() == null) return 0;
+        return dashboard.getDependencySummary().getAffectedDependencies();
+    }
+
+    private String getRiskLevelForCount(int count) {
+        if (count == 0) return "Low";
+        if (count < 10) return "Medium";
+        return "High";
+    }
+
+    private int calculateEffortScore() {
+        // Simple calculation based on number of items to migrate
+        int basicCount = getBasicScanCount();
+        int advancedCount = 0;
+        
+        if (advancedScanningService != null && advancedScanningService.hasCachedResults()) {
+            AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
+            if (summary != null) {
+                advancedCount = summary.getTotalCount();
+            }
+        }
+        
+        int totalItems = basicCount + advancedCount;
+        
+        // Map to 0-100 scale (more items = higher effort)
+        return Math.min(100, totalItems * 2); // Rough scaling
+    }
+
+    private int calculateScanProgress() {
+        // Calculate percentage of available scans that have been run
+        int totalScans = 1; // Basic scan always available
+        int completedScans = 1; // Basic scan always completed if dashboard exists
+        
+        if (advancedScanningService != null && advancedScanningService.hasCachedResults()) {
+            totalScans += 11; // 11 advanced scan types
+            completedScans += 11; // All advanced scans completed
+        }
+        
+        return (completedScans * 100) / totalScans;
+    }
+
+    private Color getProgressColor(int progress) {
+        if (progress >= 100) return new Color(40, 167, 69); // Green
+        if (progress >= 50) return new Color(255, 193, 7); // Yellow
+        return new Color(220, 53, 69); // Red
     }
 
     public JBLabel getDeprecatedApiScanCountValue() {
