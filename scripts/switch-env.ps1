@@ -63,21 +63,26 @@ if ($Environment -eq "Demo") {
         $ideaContent = $ideaContent -replace '# Production Configuration \(default\)', '# JetBrains Marketplace Demo Configuration'
         $newConfigLine = "jb.service.configuration.url=$demoServiceUrl"
         $ideaContent = $ideaContent + "`n$newConfigLine`n"
+        Set-Content $configPath $ideaContent
         
         # Update VM options
         $vmOptionsPath = "$env:USERPROFILE\.IntelliJIdea2018.2\idea64.vmoptions"
-        $vmContent = Get-Content $vmOptionsPath
-        if ($vmContent -notmatch '-Didea.plugins.host=https://master.demo.marketplace.intellij.net/') {
-            $vmContent = $vmContent + "-Didea.plugins.host=https://master.demo.marketplace.intellij.net/"
-            Set-Content $vmOptionsPath $vmContent
+        if (Test-Path $vmOptionsPath) {
+            $vmContent = Get-Content $vmOptionsPath
+            if ($vmContent -notmatch '-Didea.plugins.host=https://master.demo.marketplace.intellij.net/') {
+                $vmContent = $vmContent + "-Didea.plugins.host=https://master.demo.marketplace.intellij.net/"
+                Set-Content $vmOptionsPath $vmContent
+            }
         }
         
-        Write-Host " Demo environment configured!" -ForegroundColor Green
-        Write-Host " IDE will connect to JetBrains Marketplace Demo" -ForegroundColor Yellow
-        Write-Host " Demo Username: $demoUsername" -ForegroundColor Cyan
+        Write-Host "✅ Demo environment configured!" -ForegroundColor Green
+        Write-Host "🔗 IDE will connect to JetBrains Marketplace Demo" -ForegroundColor Yellow
+        Write-Host "👤 Demo Username: $demoUsername" -ForegroundColor Cyan
     } else {
-        Write-Host " Failed to read configuration file" -ForegroundColor Red
-        exit 1
+        Write-Host "⚠️ IntelliJ configuration file not found" -ForegroundColor Yellow
+        Write-Host "📁 Expected path: $configPath" -ForegroundColor Yellow
+        Write-Host "💡 Please run IntelliJ IDEA at least once to create the configuration" -ForegroundColor Yellow
+        Write-Host "🔧 Or manually create the configuration directory and file" -ForegroundColor Yellow
     }
 } elseif ($Environment -eq "Production") {
     Write-Host "Switching IntelliJ to Production environment..." -ForegroundColor Green
