@@ -2,7 +2,36 @@
 
 This guide helps you switch between JetBrains Marketplace Demo environment and production environment for plugin testing.
 
-## Environment Setup
+## Environment Configuration
+
+### `.env` File Setup
+Create a `.env` file in your project root directory based on `.env.example`:
+
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit with your actual demo credentials
+# Windows: notepad .env
+# macOS/Linux: nano .env
+```
+
+### Required Environment Variables
+```properties
+# JetBrains Marketplace Demo Environment Credentials
+DEMO_USERNAME=your_actual_demo_username
+DEMO_PASSWORD=your_actual_demo_password
+
+# Demo Server Configuration  
+DEMO_SERVER_URL=https://master.demo.marketplace.intellij.net/
+DEMO_PLUGIN_HOST=https://master.demo.marketplace.intellij.net/
+
+# Environment Settings
+ENVIRONMENT=demo
+LOG_LEVEL=INFO
+```
+
+## Environment Switching
 
 ### Option 1: Demo Environment (JetBrains Marketplace Demo)
 For testing your plugin on JetBrains Marketplace Demo server:
@@ -57,12 +86,42 @@ param(
     $Environment
 )
 
+# Load environment variables from .env file
+$envFile = ".env"
+if (Test-Path $envFile) {
+    Write-Host "Loading environment from .env file..." -ForegroundColor Yellow
+    
+    # Source the .env file
+    foreach ($line in Get-Content $envFile) {
+        if ($line -match '^([^=]+)=(.*)$') {
+            [Environment]::SetVariable($matches[1], $matches[2])
+        }
+    }
+    
+    Write-Host "Environment loaded successfully!" -ForegroundColor Green
+} else {
+    Write-Host " .env file not found. Please create it from .env.example" -ForegroundColor Red
+    exit 1
+}
+
 Write-Host "Switching IntelliJ to $Environment environment..." -ForegroundColor Green
 
 $configPath = "$env:USERPROFILE\.IntelliJIdea2018.2\config\idea.properties"
 
 if ($Environment -eq "Demo") {
     # Set up demo environment
+    $demoUsername = [Environment]::GetVariable("DEMO_USERNAME")
+    $demoPassword = [Environment]::GetVariable("DEMO_PASSWORD")
+    $demoServerUrl = [Environment]::GetVariable("DEMO_SERVER_URL")
+    $demoPluginHost = [Environment]::GetVariable("DEMO_PLUGIN_HOST")
+    
+    if (-not $demoUsername -or -not $demoPassword) {
+        Write-Host " Demo credentials not found in .env file" -ForegroundColor Red
+        Write-Host "Please set DEMO_USERNAME and DEMO_PASSWORD in .env" -ForegroundColor Red
+        exit 1
+    }
+    
+    # Update idea.properties
     (Get-Content $configPath) -replace '# Production Configuration \(default\)', '# JetBrains Marketplace Demo Configuration' | Set-Content $configPath
     Add-Content -Path $configPath -Value "`njb.service.configuration.url=https://active.jetprofile-mpdm.intellij.net/testservices/JetBrainsAccount.xml`n"
     
@@ -74,26 +133,27 @@ if ($Environment -eq "Demo") {
         Set-Content $vmOptionsPath $vmContent
     }
     
-    Write-Host "✅ Demo environment configured!" -ForegroundColor Green
-    Write-Host "🔗 IDE will connect to JetBrains Marketplace Demo" -ForegroundColor Yellow
+    Write-Host " Demo environment configured!" -ForegroundColor Green
+    Write-Host " IDE will connect to JetBrains Marketplace Demo" -ForegroundColor Yellow
+    Write-Host " Demo Username: $demoUsername" -ForegroundColor Cyan
 } elseif ($Environment -eq "Production") {
     # Set up production environment
     (Get-Content $configPath) -replace '# JetBrains Marketplace Demo Configuration', '# Production Configuration (default)' | Set-Content $configPath
-    (Get-Content $configPath) -replace 'jb.service.configuration.url=https://active.jetprofile-mpdm.intellij.net/testservices/JetBrainsAccount.xml', '' | Set-Content $configPath
+    (Get-Content $configPath) -replace 'jb.service.configuration.url=https:\/\/active\.jetprofile-mpdm\.intellij\.net\/testservices\/JetBrainsAccount\.xml', '' | Set-Content $configPath
     
     # Update VM options
     $vmOptionsPath = "$env:USERPROFILE\.IntelliJIdea2018.2\idea64.vmoptions"
     $vmContent = Get-Content $vmOptionsPath
-    $vmContent = $vmContent -replace '-Didea.plugins.host=https://master.demo.marketplace.intellij.net/', '' | Set-Content $vmOptionsPath
+    $vmContent = $vmContent -replace '-Didea\.plugins\.host=https:\/\/master\.demo\.marketplace\.intellij\.net\//d', '' | Set-Content $vmOptionsPath
     
-    Write-Host "✅ Production environment configured!" -ForegroundColor Green
-    Write-Host "🏭 IDE will use real JetBrains Account" -ForegroundColor Yellow
+    Write-Host " Production environment configured!" -ForegroundColor Green
+    Write-Host " IDE will use real JetBrains Account" -ForegroundColor Yellow
 } else {
-    Write-Host "❌ Invalid environment. Use 'Demo' or 'Production'" -ForegroundColor Red
+    Write-Host " Invalid environment. Use 'Demo' or 'Production'" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "🔄 Restart IntelliJ IDEA to apply changes" -ForegroundColor Cyan
+Write-Host " Restart IntelliJ IDEA to apply changes" -ForegroundColor Cyan
 ```
 
 ### Bash (macOS/Linux)
@@ -101,57 +161,86 @@ Create `switch-env.sh`:
 ```bash
 #!/bin/bash
 
-if [ "$#" -ne 1 ]; then
-    echo "Usage: $0 [Demo|Production]"
+# Load environment variables from .env file
+if [ -f ".env" ]; then
+    echo "Loading environment from .env file..."
+    
+    # Source the .env file
+    set -a
+    while IFS='=' read -r line; do
+        if [[ "$line" =~ ^([^=]+)=(.*)$ ]]; then
+            export "${BASH_REMATCH[1]}=${BASH_REMATCH[2]}"
+        fi
+    done < .env
+    
+    echo "Environment loaded successfully!"
+else
+    echo " .env file not found. Please create it from .env.example" >&2
     exit 1
 fi
 
 ENVIRONMENT=$1
 
-IDEA_CONFIG="$HOME/.config/JetBrains/IdeaIC2018.2/idea.properties"
-VM_OPTIONS="$HOME/.config/JetBrains/IdeaIC2018.2/idea64.vmoptions"
-
-echo "Switching IntelliJ to $ENVIRONMENT environment..."
-
 if [ "$ENVIRONMENT" = "Demo" ]; then
     # Set up demo environment
-    sed -i.bak 's/# Production Configuration (default)/# JetBrains Marketplace Demo Configuration/' "$IDEA_CONFIG"
-    echo "jb.service.configuration.url=https://active.jetprofile-mpdm.intellij.net/testservices/JetBrainsAccount.xml" >> "$IDEA_CONFIG"
-    
-    # Update VM options
-    if ! grep -q "idea.plugins.host=https://master.demo.marketplace.intellij.net/" "$VM_OPTIONS"; then
-        echo "-Didea.plugins.host=https://master.demo.marketplace.intellij.net/" >> "$VM_OPTIONS"
+    if [ -z "$DEMO_USERNAME" ] || [ -z "$DEMO_PASSWORD" ]; then
+        echo " Demo credentials not found in .env file" >&2
+        echo "Please set DEMO_USERNAME and DEMO_PASSWORD in .env" >&2
+        exit 1
     fi
     
-    echo "✅ Demo environment configured!"
-    echo "🔗 IDE will connect to JetBrains Marketplace Demo"
-elif [ "$ENVIRONMENT" = "Production" ]; then
-    # Set up production environment
-    sed -i.bak 's/# JetBrains Marketplace Demo Configuration/# Production Configuration (default)/' "$IDEA_CONFIG"
-    sed -i '/jb.service.configuration.url=https:\/\/active\.jetprofile-mpdm\.intellij\.net\/testservices\/JetBrainsAccount\.xml/d' "$IDEA_CONFIG"
+    # Update idea.properties
+    sed -i.bak 's/# Production Configuration (default)/# JetBrains Marketplace Demo Configuration/' "$HOME/.config/JetBrains/IdeaIC2018.2/idea.properties"
+    echo "jb.service.configuration.url=https://active.jetprofile-mpdm.intellij.net/testservices/JetBrainsAccount.xml" >> "$HOME/.config/JetBrains/IdeaIC2018.2/idea.properties"
     
     # Update VM options
-    sed -i.bak '/-Didea\.plugins\.host=https:\/\/master\.demo\.marketplace\.intellij\.net\//d' "$VM_OPTIONS"
+    VM_OPTIONS_FILE="$HOME/.config/JetBrains/IdeaIC2018.2/idea64.vmoptions"
+    if ! grep -q "idea.plugins.host=https://master.demo.marketplace.intellij.net/" "$VM_OPTIONS_FILE"; then
+        echo "-Didea.plugins.host=https://master.demo.marketplace.intellij.net/" >> "$VM_OPTIONS_FILE"
+    fi
     
-    echo "✅ Production environment configured!"
-    echo "🏭 IDE will use real JetBrains Account"
+    echo " Demo environment configured!"
+    echo " IDE will connect to JetBrains Marketplace Demo"
+    echo " Demo Username: $DEMO_USERNAME"
+elif [ "$ENVIRONMENT" = "Production" ]; then
+    # Set up production environment
+    sed -i.bak 's/# JetBrains Marketplace Demo Configuration/# Production Configuration (default)/' "$HOME/.config/JetBrains/IdeaIC2018.2/idea.properties"
+    sed -i '/jb.service.configuration.url=https:\/\/active\.jetprofile-mpdm\.intellij\.net\/testservices\/JetBrainsAccount\.xml/d' "$HOME/.config/JetBrains/IdeaIC2018.2/idea.properties"
+    
+    # Update VM options
+    VM_OPTIONS_FILE="$HOME/.config/JetBrains/IdeaIC2018.2/idea64.vmoptions"
+    sed -i.bak '/-Didea\.plugins\.host=https:\/\/master\.demo\.marketplace\.intellij\.net\//d' "$VM_OPTIONS_FILE"
+    
+    echo " Production environment configured!"
+    echo " IDE will use real JetBrains Account"
 else
-    echo "❌ Invalid environment. Use 'Demo' or 'Production'"
+    echo " Invalid environment. Use 'Demo' or 'Production'" >&2
     exit 1
 fi
 
-echo "🔄 Restart IntelliJ IDEA to apply changes"
+echo " Restart IntelliJ IDEA to apply changes"
 ```
 
 ## Usage Instructions
 
-### Windows
+### Initial Setup
+```bash
+# Step 1: Copy the example environment file
+cp .env.example .env
+
+# Step 2: Edit with your actual demo credentials
+nano .env
+```
+
+### Environment Switching
+
+#### Windows
 ```powershell
 .\switch-env.ps1 Demo
 .\switch-env.ps1 Production
 ```
 
-### macOS/Linux
+#### macOS/Linux
 ```bash
 chmod +x switch-env.sh
 ./switch-env.sh Demo
@@ -174,15 +263,17 @@ After switching, verify your environment:
 
 ## Important Notes
 
-⚠️ **Always restart IntelliJ IDEA** after switching environments
-🔄 **Remove demo configuration** before production deployments
-📝 **Test thoroughly** in demo environment before switching to production
+ **Always restart IntelliJ IDEA** after switching environments
+ **Remove demo configuration** before production deployments
+ **Test thoroughly** in demo environment before switching to production
+ **Security**: Never commit `.env` files with real credentials to version control
 
 ## Troubleshooting
 
 ### Plugin Not Loading
-- Check `idea.properties` file location
-- Verify URL syntax is correct
+- Check `.env` file exists and is readable
+- Verify required variables are set (`DEMO_USERNAME`, `DEMO_PASSWORD`)
+- Check `idea.properties` file location and permissions
 - Ensure IntelliJ is fully restarted
 
 ### Connection Issues
@@ -194,3 +285,8 @@ After switching, verify your environment:
 - Verify VM options file path is correct
 - Check file permissions
 - Use IntelliJ's "Edit Custom VM Options" dialog as alternative
+
+### Credential Issues
+- Verify demo account credentials are correct
+- Check for typos in `.env` file
+- Ensure proper line endings in configuration files
