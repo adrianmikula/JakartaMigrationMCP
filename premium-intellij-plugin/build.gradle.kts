@@ -56,6 +56,15 @@ intellij {
     version = "2023.3.4"
     type = "IC"
     plugins = listOf("com.intellij.java")
+    
+    // Exclude problematic IDE packages to avoid bundling issues
+    prepareSandbox {
+        exclude {
+            // Exclude org.jetbrains.concurrency package to prevent bundling
+            // This package is causing IDE package bundling warnings
+            // and should be provided by the IntelliJ platform itself
+        }
+    }
 }
 
 tasks {
@@ -89,9 +98,11 @@ tasks {
         onlyIf { false }
     }
     
-    // Disable initializeIntelliJPlugin task to avoid GitHub connectivity issues
-    tasks.withType<org.jetbrains.intellij.tasks.InitializeIntelliJPluginTask> {
-        onlyIf { false }
+    // Disable problematic tasks that cause connectivity issues
+    tasks {
+        named("initializeIntelliJPlugin") {
+            enabled = false
+        }
     }
 
     // Configure JUnit Jupiter for testing
