@@ -1,4 +1,4 @@
-# Environment Switch Script for Demo Environment
+# Environment Switch Script for JetBrains Marketplace
 # Usage: .\scripts\switch-env.ps1 Demo [Production]
 
 param(
@@ -9,7 +9,7 @@ param(
 
 # Display header
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host " Jakarta Migration - Environment Switcher" -ForegroundColor Cyan
+Write-Host " JetBrains Marketplace - Environment Switcher" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -19,15 +19,16 @@ if (Test-Path $envFile) {
     Write-Host "Loading environment from .env file..." -ForegroundColor Yellow
     
     # Source: .env file
+    $envVars = @{}
     foreach ($line in Get-Content $envFile) {
         if ($line -match '^([^=]+)=(.*)$') {
-            [Environment]::SetVariable($matches[1], $matches[2])
+            $envVars[$matches[1]] = $matches[2]
         }
     }
     
     Write-Host "Environment loaded successfully!" -ForegroundColor Green
 } else {
-    Write-Host "❌ .env file not found. Please create it from .env.example" -ForegroundColor Red
+    Write-Host " .env file not found. Please create it from .env.example" -ForegroundColor Red
     Write-Host ""
     exit 1
 }
@@ -36,11 +37,11 @@ Write-Host ""
 
 if ($Environment -eq "Demo") {
     # Validate demo credentials are set
-    $demoUsername = [Environment]::GetVariable("DEMO_USERNAME")
-    $demoPassword = [Environment]::GetVariable("DEMO_PASSWORD")
+    $demoUsername = $envVars["DEMO_USERNAME"]
+    $demoPassword = $envVars["DEMO_PASSWORD"]
     
-    if (-not $demoUsername -or -not $demoPassword) {
-        Write-Host "❌ Demo credentials not found in .env file" -ForegroundColor Red
+    if (-not $envVars["DEMO_USERNAME"] -or -not $envVars["DEMO_PASSWORD"]) {
+        Write-Host " Demo credentials not found in .env file" -ForegroundColor Red
         Write-Host "Please set DEMO_USERNAME and DEMO_PASSWORD in .env" -ForegroundColor Red
         exit 1
     }
@@ -56,11 +57,10 @@ if ($Environment -eq "Demo") {
         Copy-Item $configPath $backupPath -Force
         
         # Set demo configuration
-        $demoServiceUrl = [Environment]::GetVariable("DEMO_SERVER_URL")
-        $demoPluginHost = [Environment]::GetVariable("DEMO_PLUGIN_HOST")
+        $demoServiceUrl = $envVars["DEMO_SERVER_URL"]
         
         $ideaContent = Get-Content $configPath
-        $ideaContent = $ideaContent -replace '# Production Configuration \(default\)', '# JetBrains Marketplace Demo Configuration' | Set-Content $configPath
+        $ideaContent = $ideaContent -replace '# Production Configuration \(default\)', '# JetBrains Marketplace Demo Configuration'
         $newConfigLine = "jb.service.configuration.url=$demoServiceUrl"
         $ideaContent = $ideaContent + "`n$newConfigLine`n"
         
@@ -72,11 +72,11 @@ if ($Environment -eq "Demo") {
             Set-Content $vmOptionsPath $vmContent
         }
         
-        Write-Host "✅ Demo environment configured!" -ForegroundColor Green
-        Write-Host "🔗 IDE will connect to JetBrains Marketplace Demo" -ForegroundColor Yellow
-        Write-Host "👤 Demo Username: $demoUsername" -ForegroundColor Cyan
+        Write-Host " Demo environment configured!" -ForegroundColor Green
+        Write-Host " IDE will connect to JetBrains Marketplace Demo" -ForegroundColor Yellow
+        Write-Host " Demo Username: $demoUsername" -ForegroundColor Cyan
     } else {
-        Write-Host "❌ Failed to read configuration file" -ForegroundColor Red
+        Write-Host " Failed to read configuration file" -ForegroundColor Red
         exit 1
     }
 } elseif ($Environment -eq "Production") {
@@ -92,21 +92,20 @@ if ($Environment -eq "Demo") {
         
         # Set production configuration (remove demo settings)
         $ideaContent = Get-Content $configPath
-        $ideaContent = $ideaContent -replace '# JetBrains Marketplace Demo Configuration', '# Production Configuration (default)' | Set-Content $configPath
-        $ideaContent = $ideaContent -replace 'jb.service.configuration.url=https://active.jetprofile-mpdm.intellij.net/testservices/JetBrainsAccount.xml', '' | Set-Content $configPath
-        $ideaContent = $ideaContent -replace '-Didea.plugins.host=https://master.demo.marketplace.intellij.net/', '' | Set-Content $configPath
+        $ideaContent = $ideaContent -replace '# JetBrains Marketplace Demo Configuration', '# Production Configuration (default)'
+        $ideaContent = $ideaContent -replace 'jb.service.configuration.url=https://active.jetprofile-mpdm.intellij.net/testservices/JetBrainsAccount.xml', ''
+        $ideaContent = $ideaContent -replace '-Didea.plugins.host=https://master.demo.marketplace.intellij.net/', ''
         
-        Write-Host "✅ Production environment configured!" -ForegroundColor Green
-        Write-Host "🏭 IDE will use real JetBrains Account" -ForegroundColor Yellow
+        Write-Host " Production environment configured!" -ForegroundColor Green
+        Write-Host " IDE will use real JetBrains Account" -ForegroundColor Yellow
     } else {
-        Write-Host "❌ Failed to read configuration file" -ForegroundColor Red
+        Write-Host " Failed to read configuration file" -ForegroundColor Red
         exit 1
     }
 }
-}
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "🔄 Restart IntelliJ IDEA to apply changes" -ForegroundColor Cyan
+Write-Host " Restart IntelliJ IDEA to apply changes" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
 # Instructions for IntelliJ restart

@@ -56,15 +56,6 @@ intellij {
     version = "2023.3.4"
     type = "IC"
     plugins = listOf("com.intellij.java")
-    
-    // Exclude problematic IDE packages to avoid bundling issues
-    prepareSandbox {
-        exclude {
-            // Exclude org.jetbrains.concurrency package to prevent bundling
-            // This package is causing IDE package bundling warnings
-            // and should be provided by the IntelliJ platform itself
-        }
-    }
 }
 
 tasks {
