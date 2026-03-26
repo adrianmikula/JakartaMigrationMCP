@@ -1,5 +1,5 @@
 # Environment Switch Script for Demo Environment
-# Usage: .\switch-env.ps1 Demo [Production]
+# Usage: .\scripts\switch-env.ps1 Demo [Production]
 
 param(
     [Parameter(Mandatory=$true)]
@@ -39,12 +39,46 @@ if ($Environment -eq "Demo") {
     $demoUsername = [Environment]::GetVariable("DEMO_USERNAME")
     $demoPassword = [Environment]::GetVariable("DEMO_PASSWORD")
     
-    if (-not $demoUsername -or -not $demoPassword)) {
+    if (-not $demoUsername -or -not $demoPassword) {
         Write-Host "❌ Demo credentials not found in .env file" -ForegroundColor Red
         Write-Host "Please set DEMO_USERNAME and DEMO_PASSWORD in .env" -ForegroundColor Red
         exit 1
     }
     
+    Write-Host "Switching IntelliJ to Demo environment..." -ForegroundColor Green
+    
+    # Update idea.properties for demo environment
+    $configPath = "$env:USERPROFILE\.IntelliJIdea2018.2\config\idea.properties"
+    
+    if (Test-Path $configPath) {
+        # Backup existing config
+        $backupPath = "$configPath.backup"
+        Copy-Item $configPath $backupPath -Force
+        
+        # Set demo configuration
+        $demoServiceUrl = [Environment]::GetVariable("DEMO_SERVER_URL")
+        $demoPluginHost = [Environment]::GetVariable("DEMO_PLUGIN_HOST")
+        
+        $ideaContent = Get-Content $configPath
+        $ideaContent = $ideaContent -replace '# Production Configuration \(default\)', '# JetBrains Marketplace Demo Configuration' | Set-Content $configPath
+        $ideaContent = $ideaContent + "`njb.service.configuration.url=$demoServiceUrl`n"
+        
+        # Update VM options
+        $vmOptionsPath = "$env:USERPROFILE\.IntelliJIdea2018.2\idea64.vmoptions"
+        $vmContent = Get-Content $vmOptionsPath
+        if ($vmContent -notmatch '-Didea.plugins.host=https://master.demo.marketplace.intellij.net/') {
+            $vmContent = $vmContent + "-Didea.plugins.host=https://master.demo.marketplace.intellij.net/"
+            Set-Content $vmOptionsPath $vmContent
+        }
+        
+        Write-Host "✅ Demo environment configured!" -ForegroundColor Green
+        Write-Host "🔗 IDE will connect to JetBrains Marketplace Demo" -ForegroundColor Yellow
+        Write-Host "👤 Demo Username: $demoUsername" -ForegroundColor Cyan
+    } else {
+        Write-Host "❌ Failed to read configuration file" -ForegroundColor Red
+        exit 1
+    }
+} elseif ($Environment -eq "Production") {
     Write-Host "Switching IntelliJ to Production environment..." -ForegroundColor Green
     
     # Update idea.properties for production environment
@@ -64,7 +98,7 @@ if ($Environment -eq "Demo") {
         Write-Host "✅ Production environment configured!" -ForegroundColor Green
         Write-Host "🏭 IDE will use real JetBrains Account" -ForegroundColor Yellow
     } else {
-        Write-Host "❌ Invalid environment. Use 'Demo' or 'Production'" -ForegroundColor Red
+        Write-Host "❌ Failed to read configuration file" -ForegroundColor Red
         exit 1
     }
 }
@@ -78,5 +112,5 @@ Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host "1. Close IntelliJ IDEA" -ForegroundColor Yellow
 Write-Host "2. Run your plugin to test demo environment" -ForegroundColor Yellow
-Write-Host "3. Switch back to demo when ready: .\switch-env.ps1 Demo" -ForegroundColor Yellow
+Write-Host "3. Switch back to demo when ready: .\scripts\switch-env.ps1 Demo" -ForegroundColor Yellow
 Write-Host ""
