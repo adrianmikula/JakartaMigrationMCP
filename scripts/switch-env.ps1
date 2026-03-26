@@ -102,6 +102,7 @@ if ($Environment -eq "Demo") {
         exit 1
     }
 }
+}
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "🔄 Restart IntelliJ IDEA to apply changes" -ForegroundColor Cyan
