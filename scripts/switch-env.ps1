@@ -61,7 +61,8 @@ if ($Environment -eq "Demo") {
         
         $ideaContent = Get-Content $configPath
         $ideaContent = $ideaContent -replace '# Production Configuration \(default\)', '# JetBrains Marketplace Demo Configuration' | Set-Content $configPath
-        $ideaContent = $ideaContent + "`njb.service.configuration.url=$demoServiceUrl`n"
+        $newConfigLine = "jb.service.configuration.url=$demoServiceUrl"
+        $ideaContent = $ideaContent + "`n$newConfigLine`n"
         
         # Update VM options
         $vmOptionsPath = "$env:USERPROFILE\.IntelliJIdea2018.2\idea64.vmoptions"
