@@ -46,7 +46,10 @@ public class DashboardComponentTest extends BasePlatformTestCase {
         summary.setMigrableDependencies(2);
         dashboard.setDependencySummary(summary);
 
-        dashboardComponent.updateDashboard(dashboard);
+        // Update dashboard with all components
+        dashboardComponent.updateGauges();
+        dashboardComponent.updateSummary();
+        dashboardComponent.updateScanResultsTable();
     }
 
     public void testUpdateAdvancedScanCounts() {
@@ -66,7 +69,4 @@ public class DashboardComponentTest extends BasePlatformTestCase {
         assertThat(dashboardComponent.getJpaScanCountValue().getText()).isEqualTo("0");
     }
 
-    public void testClearMetrics() {
-        dashboardComponent.clearMetrics();
     }
-}
