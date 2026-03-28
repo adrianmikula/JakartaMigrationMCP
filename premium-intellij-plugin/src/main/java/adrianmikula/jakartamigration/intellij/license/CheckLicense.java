@@ -30,11 +30,25 @@ public class CheckLicense {
     private static final Logger LOG = Logger.getInstance(CheckLicense.class);
     
     /**
-     * PRODUCT_CODE must be the same specified in plugin.xml inside the <product-descriptor> tag
+     * Environment mode for development (skips all licensing checks)
+     */
+    private static final String DEV_MODE = "dev";
+    
+    /**
+     * PRODUCT_CODE must be same specified in plugin.xml inside <product-descriptor> tag
      */
     private static final String PRODUCT_CODE = "PJAKARTAMIGRATI";
     private static final String KEY_PREFIX = "key:";
     private static final String STAMP_PREFIX = "stamp:";
+    
+    /**
+     * Check if running in development mode (skips all licensing checks)
+     */
+    private static boolean isDevMode() {
+        // Check system property or environment variable
+        String mode = System.getProperty("jakarta.migration.mode", "production");
+        return DEV_MODE.equals(mode);
+    }
 
     /**
      * Public root certificates needed to verify JetBrains-signed licenses
@@ -119,6 +133,12 @@ public class CheckLicense {
      */
     @Nullable
     public static Boolean isLicensed() {
+        // Skip all license checks in dev mode
+        if (isDevMode()) {
+            LOG.info("CheckLicense: DEV MODE detected - skipping all license checks");
+            return true; // Always licensed in dev mode
+        }
+        
         long currentTime = System.currentTimeMillis();
         
         // Check if we have a recent result
@@ -146,6 +166,12 @@ public class CheckLicense {
      */
     @Nullable
     private static Boolean performLicenseCheck() {
+        // Skip all license checks in dev mode
+        if (isDevMode()) {
+            LOG.info("CheckLicense: DEV MODE detected - skipping JetBrains license validation");
+            return true; // Always licensed in dev mode
+        }
+        
         try {
             final LicensingFacade facade = LicensingFacade.getInstance();
             if (facade == null) {

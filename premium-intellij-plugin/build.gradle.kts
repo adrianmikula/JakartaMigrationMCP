@@ -323,22 +323,81 @@ tasks.register("generateMcpToolsJson") {
 }
 
 /**
- * Build development plugin: clean, rebuild all modules, and run IDE.
- * Force rebuilds community-core-engine and premium-core-engine to ensure fresh code.
+ * Build development plugin: clean, rebuild all modules, and run IDE for development
  * 
  * Usage: ./gradlew :premium-intellij-plugin:buildDevPlugin
+ * 
+ * Environment modes:
+ * - dev: Skips all licensing checks, uses local development config
+ * - demo: Uses JetBrains Demo Marketplace licensing
+ * - production: Uses JetBrains Production Marketplace licensing (default)
  */
 tasks.register("buildDevPlugin") {
     group = "build"
-    description = "Clean, rebuild all modules, and run IDE for development"
+    description = "Clean, rebuild all modules, and run IDE for development (dev mode - skips licensing)"
     
     // Clean all modules to ensure fresh rebuild
     dependsOn(":community-core-engine:clean", ":premium-core-engine:clean", "clean")
-    // Build and run
-    dependsOn("jar", "runIde")
     
+    // Set development environment
     doLast {
-        println("\n=== Distribution Build Complete ===")
-        println("Distribution files in build/distributions:")
+        project.ext.set("environment", "dev")
+        println("\n=== Building in DEV MODE (skipping all licensing checks) ===")
+        
+        // Build and run
+        dependsOn("jar", "runIde").execute()
+        
+        println("\n=== Development Build Complete ===")
+        println("Plugin built with development configuration (no licensing checks)")
+    }
+}
+
+/**
+ * Build demo plugin: clean, rebuild all modules, and run IDE for demo marketplace
+ * 
+ * Usage: ./gradlew :premium-intellij-plugin:buildDemoPlugin
+ */
+tasks.register("buildDemoPlugin") {
+    group = "build"
+    description = "Clean, rebuild all modules, and run IDE for demo marketplace"
+    
+    // Clean all modules to ensure fresh rebuild
+    dependsOn(":community-core-engine:clean", ":premium-core-engine:clean", "clean")
+    
+    // Set demo environment
+    doLast {
+        project.ext.set("environment", "demo")
+        println("\n=== Building in DEMO MODE (JetBrains Demo Marketplace) ===")
+        
+        // Build and run
+        dependsOn("jar", "runIde").execute()
+        
+        println("\n=== Demo Build Complete ===")
+        println("Plugin built with demo marketplace configuration")
+    }
+}
+
+/**
+ * Build production plugin: clean, rebuild all modules, and run IDE for production marketplace (default)
+ * 
+ * Usage: ./gradlew :premium-intellij-plugin:buildPlugin
+ */
+tasks.register("buildPlugin") {
+    group = "build"
+    description = "Clean, rebuild all modules, and run IDE for production marketplace (default)"
+    
+    // Clean all modules to ensure fresh rebuild
+    dependsOn(":community-core-engine:clean", ":premium-core-engine:clean", "clean")
+    
+    // Set production environment
+    doLast {
+        project.ext.set("environment", "production")
+        println("\n=== Building in PRODUCTION MODE (JetBrains Production Marketplace) ===")
+        
+        // Build and run
+        dependsOn("jar", "runIde").execute()
+        
+        println("\n=== Production Build Complete ===")
+        println("Plugin built with production marketplace configuration")
     }
 }

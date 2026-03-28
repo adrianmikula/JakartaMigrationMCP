@@ -113,18 +113,24 @@ The plugin uses JetBrains licensing with product code `PJAKARTAMIGRATI`. For dev
    - Clear IntelliJ cache if license errors persist
    - Verify plugin registration in correct marketplace
 
-#### Building and Testing
+#### Development Mode
+
+For local development without licensing checks:
 
 ```bash
-# Build the plugin
+# Build in dev mode (skips all licensing)
+./gradlew :premium-intellij-plugin:buildDevPlugin
+
+# Or set environment variable
+export JAKARTA_MIGRATION_MODE=dev
 ./gradlew :premium-intellij-plugin:buildPlugin
-
-# Run tests
-./gradlew :premium-intellij-plugin:test
-
-# Compile only
-./gradlew :premium-intellij-plugin:compileJava
 ```
+
+**Benefits:**
+- No license validation delays
+- Instant plugin startup
+- Full feature access for development
+- Faster development iteration
 
 ## 📋 What It Does
 
