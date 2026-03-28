@@ -326,11 +326,6 @@ tasks.register("generateMcpToolsJson") {
  * Build development plugin: clean, rebuild all modules, and run IDE for development
  * 
  * Usage: ./gradlew :premium-intellij-plugin:buildDevPlugin
- * 
- * Environment modes:
- * - dev: Skips all licensing checks, uses local development config
- * - demo: Uses JetBrains Demo Marketplace licensing
- * - production: Uses JetBrains Production Marketplace licensing (default)
  */
 tasks.register("buildDevPlugin") {
     group = "build"
@@ -345,11 +340,30 @@ tasks.register("buildDevPlugin") {
         println("\n=== Building in DEV MODE (skipping all licensing checks) ===")
         
         // Build and run
-        dependsOn("jar", "runIde").execute()
+        dependsOn(tasks.named<Jar>("jar").get(), tasks.named("runIdeDev").get())
         
         println("\n=== Development Build Complete ===")
         println("Plugin built with development configuration (no licensing checks)")
     }
+}
+
+/**
+ * Run IDE in development mode (skips licensing)
+ * 
+ * Usage: ./gradlew :premium-intellij-plugin:runIdeDev
+ */
+tasks.register("runIdeDev") {
+    group = "build"
+    description = "Run IDE in development mode (dev - skips all licensing checks)"
+    
+    // Set development environment
+    doFirst {
+        project.ext.set("environment", "dev")
+        println("\n=== Running IDE in DEV MODE (skipping all licensing checks) ===")
+    }
+    
+    // Run IDE without building JAR (uses existing classes)
+    finalizedBy("runIde")
 }
 
 /**
@@ -370,7 +384,7 @@ tasks.register("buildDemoPlugin") {
         println("\n=== Building in DEMO MODE (JetBrains Demo Marketplace) ===")
         
         // Build and run
-        dependsOn("jar", "runIde").execute()
+        dependsOn(tasks.named<Jar>("jar").get(), tasks.named("runIdeDemo").get())
         
         println("\n=== Demo Build Complete ===")
         println("Plugin built with demo marketplace configuration")
@@ -378,11 +392,49 @@ tasks.register("buildDemoPlugin") {
 }
 
 /**
+ * Run IDE in demo marketplace mode
+ * 
+ * Usage: ./gradlew :premium-intellij-plugin:runIdeDemo
+ */
+tasks.register("runIdeDemo") {
+    group = "build"
+    description = "Run IDE in demo marketplace mode (demo - uses JetBrains Demo Marketplace)"
+    
+    // Set demo environment
+    doFirst {
+        project.ext.set("environment", "demo")
+        println("\n=== Running IDE in DEMO MODE (JetBrains Demo Marketplace) ===")
+    }
+    
+    // Run IDE without building JAR (uses existing classes)
+    finalizedBy("runIde")
+}
+
+/**
+ * Run IDE in production marketplace mode
+ * 
+ * Usage: ./gradlew :premium-intellij-plugin:runIdeProd
+ */
+tasks.register("runIdeProd") {
+    group = "build"
+    description = "Run IDE in production marketplace mode (production - uses JetBrains Production Marketplace)"
+    
+    // Set production environment
+    doFirst {
+        project.ext.set("environment", "production")
+        println("\n=== Running IDE in PRODUCTION MODE (JetBrains Production Marketplace) ===")
+    }
+    
+    // Run IDE without building JAR (uses existing classes)
+    finalizedBy("runIde")
+}
+
+/**
  * Build production plugin: clean, rebuild all modules, and run IDE for production marketplace (default)
  * 
- * Usage: ./gradlew :premium-intellij-plugin:buildPlugin
+ * Usage: ./gradlew :premium-intellij-plugin:buildProductionPlugin
  */
-tasks.register("buildPlugin") {
+tasks.register("buildProductionPlugin") {
     group = "build"
     description = "Clean, rebuild all modules, and run IDE for production marketplace (default)"
     
@@ -395,7 +447,7 @@ tasks.register("buildPlugin") {
         println("\n=== Building in PRODUCTION MODE (JetBrains Production Marketplace) ===")
         
         // Build and run
-        dependsOn("jar", "runIde").execute()
+        dependsOn("jar", "runIde")
         
         println("\n=== Production Build Complete ===")
         println("Plugin built with production marketplace configuration")
