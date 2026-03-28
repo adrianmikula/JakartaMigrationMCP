@@ -4,7 +4,9 @@
 
 
 ## Licensing
-- Feature flagged as premium. Should have a lock icon and upgrade/trial buttons for non-premium users.
+- Feature flagged as experimental.  Reports tab now appears when experimental features are enabled.
+ Reports tab is hidden when experimental features are disabled.
+ Reports tab shows locked placeholder for non-premium users when enabled
 
 ## Layout (premium intellij module)
 
@@ -24,7 +26,7 @@
 
 
 ## Logic  (premium core module)
-- Find the simplest PDF library in 2026 which can easily create basic PDFs with intiuitive formatting/layouts, ideally based on a plain-text template which is easy to maintain like JSON, YAML, or Markdown.
+- Use the modern PDFBox library which can easily create basic PDFs with intiuitive formatting/layouts, ideally based on a plain-text template which is easy to maintain like JSON, YAML, or Markdown.
 
 8. To begin with, we will just have a single PDF report, which will display the following headings with scan data under each heading: 
 - dependency tree with only organisation dependencies

@@ -48,10 +48,10 @@ public class PlatformDetectionServiceTest {
     void testDetectPlatform_TomcatFound_ReturnsDetection() {
         // Given
         Path projectPath = createMockProjectWithTomcat();
-        PlatformConfig tomcatConfig = createTomcatConfig();
+        adrianmikula.jakartamigration.platforms.model.PlatformConfig tomcatConfig = createTomcatConfig();
         
         // When
-        PlatformDetection detection = detectionService.detectPlatform(projectPath, tomcatConfig);
+        adrianmikula.jakartamigration.platforms.model.PlatformDetection detection = detectionService.detectPlatform(projectPath, tomcatConfig);
         
         // Then
         assertThat(detection).isNotNull();
@@ -149,21 +149,21 @@ public class PlatformDetectionServiceTest {
         
         // When
         boolean result = callPrivateMethod(detectionService, "isVersionGreaterOrEqual", 
-            String.class, String.class, version1, version2);
+            String.class, version1, version2);
         
         // Then
         assertThat(result).isTrue();
     }
     
     @Test
-    void testIsVersionGreaterOrEqual_HigherVersion_ReturnsTrue() {
+    void testIsVersionGreaterOrEqual_GreaterVersion_ReturnsTrue() {
         // Given
         String version1 = "10.2.0";
         String version2 = "10.1.5";
         
         // When
         boolean result = callPrivateMethod(detectionService, "isVersionGreaterOrEqual", 
-            String.class, String.class, version1, version2);
+            String.class, version1, version2);
         
         // Then
         assertThat(result).isTrue();

@@ -6,14 +6,16 @@ import adrianmikula.jakartamigration.platforms.model.PlatformScanResult;
 import adrianmikula.jakartamigration.platforms.service.PlatformDetectionService;
 
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.JBLabel;
-import com.intellij.openapi.ui.JBPanel;
-import com.intellij.openapi.ui.JBScrollPane;
+import com.intellij.ui.components.JBLabel;
+import com.intellij.ui.components.JBPanel;
+import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
 
 import javax.swing.*;
 import java.awt.*;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
 
 /**
  * UI component for the Platforms tab (premium feature)
@@ -124,7 +126,7 @@ public class PlatformsTabComponent {
         SwingWorker<PlatformScanResult, Void> worker = new SwingWorker<>() {
             @Override
             protected PlatformScanResult doInBackground() throws Exception {
-                return detectionService.scanProject(project.getBasePath());
+                return detectionService.scanProject(java.nio.file.Paths.get(project.getBasePath()));
             }
             
             @Override
@@ -174,7 +176,7 @@ public class PlatformsTabComponent {
      * Updates premium controls based on feature flag
      */
     public void updatePremiumControls() {
-        boolean isPremium = FeatureFlags.isPlatformsEnabled();
+        boolean isPremium = FeatureFlags.getInstance().isPlatformsEnabled();
         
         lockIcon.setVisible(!isPremium);
         upgradeButton.setVisible(!isPremium);

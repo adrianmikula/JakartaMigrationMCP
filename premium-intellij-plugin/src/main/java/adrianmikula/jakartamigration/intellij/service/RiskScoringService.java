@@ -240,10 +240,10 @@ public class RiskScoringService {
     }
 
     /**
-     * Gets the CategoryConfig for a specific score.
+     * Gets CategoryConfig for a specific score.
      * Used by UI components to display risk categories.
      */
-    public CategoryConfig getCategoryForScore(int score) {
+    public CategoryConfig getCategoryConfigForScore(int score) {
         String categoryKey = getCategoryForScore(score);
         return categoryConfigs.get(categoryKey);
     }

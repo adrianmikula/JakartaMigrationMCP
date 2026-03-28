@@ -339,4 +339,39 @@ class CheckLicenseRegistrationTest {
         assertThat(endTime - startTime).isLessThan(1000); // Under 1 second for 100 requests
         verify(mockRegisterAction, times(100)).actionPerformed(any());
     }
+
+    @Test
+    @DisplayName("Should handle very long message")
+    void shouldHandleVeryLongMessage() {
+        // Given
+        when(mockActionManager.getAction("RegisterPlugins")).thenReturn(mockRegisterAction);
+        StringBuilder longMessage = new StringBuilder();
+        for (int i = 0; i < 1000; i++) {
+            longMessage.append("This is a very long message. ");
+        }
+
+        // When/Then
+        assertThatCode(() -> CheckLicense.requestLicense(longMessage.toString()))
+                .doesNotThrowAnyException();
+        
+        verify(mockRegisterAction).actionPerformed(any());
+    }
+
+    @Test
+    @DisplayName("Should handle rapid license requests efficiently")
+    void shouldHandleRapidLicenseRequestsEfficiently() {
+        // Given
+        when(mockActionManager.getAction("RegisterPlugins")).thenReturn(mockRegisterAction);
+
+        // When
+        long startTime = System.currentTimeMillis();
+        for (int i = 0; i < 100; i++) {
+            CheckLicense.requestLicense("Request " + i);
+        }
+        long endTime = System.currentTimeMillis();
+
+        // Then - should be reasonably fast
+        assertThat(endTime - startTime).isLessThan(1000); // Under 1 second for 100 requests
+        verify(mockRegisterAction, times(100)).actionPerformed(any());
+    }
 }
