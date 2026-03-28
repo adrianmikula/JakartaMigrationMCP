@@ -57,6 +57,7 @@ public class FeatureFlags {
         flags.put("runtimeTab", false);
         flags.put("mcpServerTab", true);
         flags.put("advancedScans", false);
+        flags.put("platformsTab", false); // Add platforms tab flag
         flags.put("experimental_features", false); // Add experimental features flag
         
         // Feature configurations
@@ -88,6 +89,14 @@ public class FeatureFlags {
         experimentalConfig.description = "Cutting-edge features under development";
         experimentalConfig.beta = true;
         featureConfigs.put("experimental_features", experimentalConfig);
+        
+        // Platforms tab configuration
+        FeatureConfig platformsConfig = new FeatureConfig();
+        platformsConfig.enabled = false;
+        platformsConfig.name = "Platforms Detection";
+        platformsConfig.description = "Detect application servers and Jakarta EE compatibility";
+        platformsConfig.beta = false;
+        featureConfigs.put("platformsTab", platformsConfig);
     }
     
     private void loadFromConfig() {
@@ -199,6 +208,13 @@ public class FeatureFlags {
      */
     public boolean isBetaFeaturesEnabled() {
         return "true".equals(System.getProperty("jakarta.migration.beta_features", "false"));
+    }
+    
+    /**
+     * Checks if platforms tab is enabled.
+     */
+    public boolean isPlatformsEnabled() {
+        return flags.getOrDefault("platformsTab", false);
     }
     
     /**
