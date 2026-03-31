@@ -16,6 +16,8 @@ import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalys
 import adrianmikula.jakartamigration.analysis.persistence.SqliteMigrationAnalysisStore;
 import adrianmikula.jakartamigration.coderefactoring.service.CodeRefactoringModule;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
+import adrianmikula.jakartamigration.intellij.ui.PlatformsTabComponent;
+import adrianmikula.jakartamigration.intellij.ui.ComprehensiveReportsTabComponent;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -73,8 +75,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private McpServerTabComponent mcpServerTabComponent;
         private RefactorTabComponent refactorTabComponent;
         private HistoryTabComponent historyTabComponent;
+        private PlatformsTabComponent platformsTabComponent;
         private RuntimeTabComponent runtimeTabComponent;
-        private ReportsTabComponent reportsTabComponent;
+        private ComprehensiveReportsTabComponent reportsTabComponent;
         private CodeRefactoringModule refactorModule;
         private RecipeService recipeService;
         private SqliteMigrationAnalysisStore projectStore;
@@ -179,7 +182,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             }
 
             // Support tab - links to GitHub, LinkedIn, sponsor pages
-            supportComponent = new SupportComponent(project, isPremium, this::rebuildUI);
+            supportComponent = new SupportComponent(project, v -> refreshPremiumTabs());
             tabbedPane.addTab("Support", supportComponent.getPanel());
 
             // AI tab - always visible (formerly MCP Server)
@@ -203,27 +206,38 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 final HistoryTabComponent historyRef = historyTabComponent;
                 refactorTabComponent.setOnRecipeExecuted(() -> SwingUtilities.invokeLater(historyRef::refreshHistory));
 
-                // Runtime tab (Premium + Experimental features only)
+                // Platforms tab (Premium)
+                platformsTabComponent = new PlatformsTabComponent(project);
+                tabbedPane.addTab("Platforms ⭐", platformsTabComponent.getPanel());
+                LOG.info("initializeContent: Added PREMIUM Platforms tab");
+
+                // Reports tab (Premium + Experimental features only)
                 System.out.println("DEBUG: MigrationToolWindow - About to check experimental features");
                 boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
                 System.out.println("DEBUG: MigrationToolWindow - experimentalEnabled = " + experimentalEnabled);
                 if (experimentalEnabled) {
-                    runtimeTabComponent = new RuntimeTabComponent(project);
-                    tabbedPane.addTab("Runtime ⚡ (Experimental)", runtimeTabComponent.getPanel());
-                    LOG.info("initializeContent: Added PREMIUM+EXPERIMENTAL Runtime tab");
-                    
-                    // Reports tab (Premium + Experimental features only)
-                    reportsTabComponent = new ReportsTabComponent(project);
+                    reportsTabComponent = new ComprehensiveReportsTabComponent(project);
                     tabbedPane.addTab("Reports 📊 (Experimental)", reportsTabComponent.getPanel());
                     LOG.info("initializeContent: Added PREMIUM+EXPERIMENTAL Reports tab");
                 } else {
-                    runtimeTabComponent = null;
                     reportsTabComponent = null;
+                    LOG.info("initializeContent: Reports tab hidden (experimental features disabled)");
+                }
+
+                // Runtime tab (Premium + Experimental features only)
+                if (experimentalEnabled) {
+                    runtimeTabComponent = new RuntimeTabComponent(project);
+                    tabbedPane.addTab("Runtime ⚡ (Experimental)", runtimeTabComponent.getPanel());
+                    LOG.info("initializeContent: Added PREMIUM+EXPERIMENTAL Runtime tab");
+                } else {
+                    runtimeTabComponent = null;
+                    LOG.info("initializeContent: Runtime tab hidden (experimental features disabled)");
                     LOG.info("initializeContent: Runtime and Reports tabs hidden (experimental features disabled)");
                 }
             } else {
                 refactorTabComponent = null;
                 historyTabComponent = null;
+                platformsTabComponent = null;
 
                 // Non-premium: show locked placeholders for Refactor and History
                 tabbedPane.addTab("Refactor 🔒", createPremiumPlaceholderPanel(
@@ -233,33 +247,21 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         "Automatic migration fixes"));
                 LOG.info("initializeContent: Added LOCKED Refactor placeholder tab");
 
-                // Runtime tab (Beta) - only show if experimental features are enabled
-                System.out.println("DEBUG: MigrationToolWindow (Community) - About to check experimental features");
-                boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
-                System.out.println("DEBUG: MigrationToolWindow (Community) - experimentalEnabled = " + experimentalEnabled);
-                if (experimentalEnabled) {
-                    tabbedPane.addTab("Runtime 🔒", createPremiumPlaceholderPanel(
-                            "Runtime Tab (Beta)",
-                            "Monitor migration progress in real-time",
-                            "Real-time progress tracking",
-                            "Live migration status"));
-                    LOG.info("initializeContent: Added LOCKED Runtime placeholder tab (experimental features enabled)");
-                } else {
-                    LOG.info("initializeContent: Runtime tab hidden (experimental features disabled)");
-                }
+                // Platforms tab (Premium)
+                tabbedPane.addTab("Platforms 🔒", createPremiumPlaceholderPanel(
+                        "Platforms Tab",
+                        "Analyze and validate platform compatibility",
+                        "Platform detection",
+                        "Compatibility analysis"));
+                LOG.info("initializeContent: Added LOCKED Platforms placeholder tab");
 
-                // Reports tab (Experimental) - only show if experimental features are enabled
-                if (experimentalEnabled) {
-                    tabbedPane.addTab("Reports 📊 🔒", createPremiumPlaceholderPanel(
-                            "Reports Tab (Experimental)",
-                            "Generate comprehensive PDF reports based on scan data",
-                            "Dependency analysis reports",
-                            "Advanced scan results",
-                            "Migration recommendations"));
-                    LOG.info("initializeContent: Added LOCKED Reports placeholder tab (experimental features enabled)");
-                } else {
-                    LOG.info("initializeContent: Reports tab hidden (experimental features disabled)");
-                }
+                // Runtime tab (Beta) - only show for premium users with experimental features enabled
+                System.out.println("DEBUG: MigrationToolWindow (Community) - Runtime tab is premium only");
+                LOG.info("initializeContent: Runtime tab hidden (premium feature only)");
+
+                // Reports tab (Experimental) - only show for premium users with experimental features enabled
+                System.out.println("DEBUG: MigrationToolWindow (Community) - Reports tab is premium only");
+                LOG.info("initializeContent: Reports tab hidden (premium feature only)");
 
                 tabbedPane.addTab("History 🔒", createPremiumPlaceholderPanel(
                         "History Tab",
@@ -279,13 +281,49 @@ public class MigrationToolWindow implements ToolWindowFactory {
             contentPanel.repaint();
         }
 
+        /**
+         * Refreshes tabs when experimental features flag changes
+         */
+        public void refreshExperimentalTabs() {
+            System.out.println("DEBUG: MigrationToolWindow.refreshExperimentalTabs() called");
+            boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
+            System.out.println("DEBUG: MigrationToolWindow - experimentalEnabled = " + experimentalEnabled);
+            
+            // Refresh Reports tab
+            if (reportsTabComponent != null && experimentalEnabled) {
+                reportsTabComponent = new ComprehensiveReportsTabComponent(project);
+                tabbedPane.setComponentAt(1, reportsTabComponent.getPanel());
+                tabbedPane.setTitleAt(1, "Reports 📊 (Experimental)");
+                LOG.info("refreshExperimentalTabs: Reports tab added");
+            } else if (reportsTabComponent != null && !experimentalEnabled) {
+                tabbedPane.removeTabAt(1);
+                LOG.info("refreshExperimentalTabs: Reports tab removed");
+            }
+            
+            // Refresh Runtime tab  
+            if (runtimeTabComponent != null && experimentalEnabled) {
+                runtimeTabComponent = new RuntimeTabComponent(project);
+                tabbedPane.setComponentAt(2, runtimeTabComponent.getPanel());
+                tabbedPane.setTitleAt(2, "Runtime ⚡ (Experimental)");
+                LOG.info("refreshExperimentalTabs: Runtime tab added");
+            } else if (runtimeTabComponent != null && !experimentalEnabled) {
+                tabbedPane.removeTabAt(2);
+                LOG.info("refreshExperimentalTabs: Runtime tab removed");
+            }
+            
+            contentPanel.revalidate();
+            contentPanel.repaint();
+        }
+
         public void rebuildUI() {
+            System.out.println("DEBUG: rebuildUI() called");
             SwingUtilities.invokeLater(() -> {
                 int selectedIndex = tabbedPane != null ? tabbedPane.getSelectedIndex() : -1;
                 String selectedTitle = (selectedIndex != -1 && selectedIndex < tabbedPane.getTabCount())
                         ? tabbedPane.getTitleAt(selectedIndex)
                         : null;
 
+                System.out.println("DEBUG: rebuildUI() - calling initializeContent(), isPremium was: " + isPremium);
                 initializeContent();
 
                 if (selectedTitle != null) {
@@ -311,6 +349,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             JButton analyzeButton = new JButton("▶ Analyze Project");
             analyzeButton.setToolTipText("Run migration analysis on the current project");
             analyzeButton.addActionListener(this::handleAnalyzeProject);
+            System.out.println("DEBUG: Analyze button created, enabled: " + analyzeButton.isEnabled());
             toolbarPanel.add(analyzeButton);
 
             // Refresh button
@@ -470,7 +509,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         String.valueOf(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000));
 
                 // Update SupportComponent premium status
-                adrianmikula.jakartamigration.intellij.ui.SupportComponent.setPremiumActive(true);
+                SupportComponent.setPremiumActive(true);
 
                 // Clear license cache to force fresh check
                 adrianmikula.jakartamigration.intellij.license.CheckLicense.clearCache();
@@ -560,9 +599,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             dashboard.setDependencySummary(summary);
 
             // Update dashboard components with new data
-            dashboardComponent.updateGauges();
-            dashboardComponent.updateSummary();
-            dashboardComponent.updateScanResultsTable();
+            dashboardComponent.setDashboard(dashboard);
             dependenciesComponent.setDependencies(new ArrayList<>());
             migrationPhasesComponent.setDependencies(new ArrayList<>());
 
@@ -652,6 +689,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 Artifact recommended = recommendationMap.get(artifactKey);
                 if (recommended != null) {
                     info.setRecommendedVersion(recommended.version());
+                    info.setRecommendedGroupId(recommended.groupId());
+                    info.setRecommendedArtifactId(recommended.artifactId());
                 }
 
                 // Determine migration status based on namespace from the report's namespace map
@@ -724,9 +763,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             dashboard.setDependencySummary(summary);
 
             // Update dashboard components with new data
-            dashboardComponent.updateGauges();
-            dashboardComponent.updateSummary();
-            dashboardComponent.updateScanResultsTable();
+            dashboardComponent.setDashboard(dashboard);
             dependenciesComponent.setDependencies(deps);
             migrationPhasesComponent.setDependencies(deps);
         }
@@ -773,9 +810,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             dashboard.setDependencySummary(summary);
 
             // Update dashboard components with new data
-            dashboardComponent.updateGauges();
-            dashboardComponent.updateSummary();
-            dashboardComponent.updateScanResultsTable();
+            dashboardComponent.setDashboard(dashboard);
             dependenciesComponent.setDependencies(new ArrayList<>());
             migrationPhasesComponent.setDependencies(new ArrayList<>());
         }
@@ -785,6 +820,32 @@ public class MigrationToolWindow implements ToolWindowFactory {
          */
         public void refreshFromLibrary() {
             handleAnalyzeProject(null);
+        }
+        
+        /**
+         * Refresh premium tabs when trial is activated or license status changes
+         */
+        public void refreshPremiumTabs() {
+            System.out.println("DEBUG: refreshPremiumTabs() called");
+            SwingUtilities.invokeLater(() -> {
+                if (platformsTabComponent != null) {
+                    System.out.println("DEBUG: Calling platformsTabComponent.refreshUI()");
+                    platformsTabComponent.refreshUI();
+                } else {
+                    System.out.println("DEBUG: platformsTabComponent is null");
+                }
+                // Note: AdvancedScansComponent and ComprehensiveReportsTabComponent 
+                // don't have refreshUI() method, so we'll skip them for now
+            });
+        }
+        
+        /**
+         * Public method to test platforms tab refresh
+         */
+        public void testPlatformsTabRefresh() {
+            if (platformsTabComponent != null) {
+                platformsTabComponent.refreshUI();
+            }
         }
     }
 }

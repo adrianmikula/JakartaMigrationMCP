@@ -22,7 +22,7 @@ public class RiskScoringService {
 
     public static class RiskConfig {
         public String displayName;
-        public int baseWeight;
+        public double baseWeight;
         public Map<String, FindingConfig> findings;
     }
 
@@ -49,7 +49,7 @@ public class RiskScoringService {
     }
 
     public record RiskScore(
-            int totalScore,
+            double totalScore,
             String category,
             String categoryLabel,
             String categoryColor,
@@ -105,7 +105,7 @@ public class RiskScoringService {
                     Map<String, Object> scanConfig = (Map<String, Object>) entry.getValue();
                     RiskConfig rc = new RiskConfig();
                     rc.displayName = (String) scanConfig.get("displayName");
-                    rc.baseWeight = (Integer) scanConfig.getOrDefault("baseWeight", 10);
+                    rc.baseWeight = ((Number) scanConfig.getOrDefault("baseWeight", 10)).doubleValue();
                     rc.findings = new HashMap<>();
 
                     if (scanConfig.containsKey("findings")) {
@@ -158,9 +158,9 @@ public class RiskScoringService {
         List<RiskFinding> allFindings = new ArrayList<>();
 
         // Calculate scan findings score
-        int rawScanScore = 0;
+        double rawScanScore = 0;
         for (Map.Entry<String, List<RiskFinding>> entry : scanFindings.entrySet()) {
-            int scanTypeScore = 0;
+            double scanTypeScore = 0;
             RiskConfig config = riskConfigs.get(entry.getKey());
 
             if (config == null) {
@@ -177,19 +177,19 @@ public class RiskScoringService {
             }
 
             // Apply base weight as a multiplier for normalization
-            scanTypeScore = (scanTypeScore * config.baseWeight) / 10;
+            scanTypeScore = (scanTypeScore * config.baseWeight) / 10.0;
             rawScanScore += scanTypeScore;
         }
 
         // Calculate dependency issues score
-        int rawDepScore = 0;
+        double rawDepScore = 0;
         for (Map.Entry<String, Integer> entry : dependencyIssues.entrySet()) {
             rawDepScore += entry.getValue();
         }
 
         // Code complexity (placeholder - could be enhanced with actual complexity
         // metrics)
-        int rawComplexityScore = 15; // Base complexity for Jakarta migration projects
+        double rawComplexityScore = 2.0; // Reduced base complexity for 0-100 scale
 
         // Get weights from calculation config
         @SuppressWarnings("unchecked")
@@ -211,11 +211,18 @@ public class RiskScoringService {
         double depWeight = depWeightNum.doubleValue();
         double complexityWeight = complexityWeightNum.doubleValue();
 
-        // Weighted total (normalized to 100)
-        int totalScore = (int) ((Math.min(rawScanScore, 100) * scanWeight) +
-                (Math.min(rawDepScore, 100) * depWeight) +
-                (rawComplexityScore * complexityWeight));
-        totalScore = Math.min(totalScore, 100);
+        // Get max total score for normalization
+        Number maxScoreNum = (Number) calculationConfig.get("maxTotalScore");
+        double maxTotalScore = maxScoreNum != null ? maxScoreNum.doubleValue() : 100.0;
+
+        // Weighted total (normalized to 0-100 scale)
+        double totalScore = (rawScanScore * scanWeight) +
+                (rawDepScore * depWeight) +
+                (rawComplexityScore * complexityWeight);
+        
+        // Normalize to 0-100 scale
+        totalScore = Math.min(totalScore, maxTotalScore);
+        totalScore = Math.max(totalScore, 0);
 
         // Get category
         String category = getCategoryForScore(totalScore);
@@ -230,20 +237,20 @@ public class RiskScoringService {
                 allFindings);
     }
 
-    private String getCategoryForScore(int score) {
+    private String getCategoryForScore(double score) {
         for (Map.Entry<String, CategoryConfig> entry : categoryConfigs.entrySet()) {
             if (score >= entry.getValue().minScore && score <= entry.getValue().maxScore) {
                 return entry.getKey();
             }
         }
-        return "high";
+        return "trivial"; // Default category
     }
 
     /**
      * Gets CategoryConfig for a specific score.
      * Used by UI components to display risk categories.
      */
-    public CategoryConfig getCategoryConfigForScore(int score) {
+    public CategoryConfig getCategoryConfigForScore(double score) {
         String categoryKey = getCategoryForScore(score);
         return categoryConfigs.get(categoryKey);
     }

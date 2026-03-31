@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.intellij.config;
 
+import com.intellij.openapi.diagnostic.Logger;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -16,6 +17,7 @@ import org.yaml.snakeyaml.Yaml;
  */
 public class FeatureFlags {
     
+    private static final Logger LOG = Logger.getInstance(FeatureFlags.class);
     private static FeatureFlags instance;
     private final Map<String, Boolean> flags;
     private final Map<String, FeatureConfig> featureConfigs;
@@ -214,7 +216,9 @@ public class FeatureFlags {
      * Checks if platforms tab is enabled.
      */
     public boolean isPlatformsEnabled() {
-        return flags.getOrDefault("platformsTab", false);
+        boolean enabled = flags.getOrDefault("platformsTab", false);
+        System.out.println("DEBUG: FeatureFlags.isPlatformsEnabled() returning: " + enabled);
+        return enabled;
     }
     
     /**
@@ -222,12 +226,6 @@ public class FeatureFlags {
      * Checks multiple sources: system property, environment variable, and internal flags.
      */
     public boolean isExperimentalFeaturesEnabled() {
-        // TEMPORARY: Always return true for testing
-        System.out.println("DEBUG: isExperimentalFeaturesEnabled() called - returning true for testing");
-        return true;
-        
-        // Original code (commented out for testing)
-        /*
         // First check system property
         String systemProperty = System.getProperty("jakarta.migration.experimental_features");
         if (systemProperty != null) {
@@ -248,7 +246,6 @@ public class FeatureFlags {
         boolean result = flags.getOrDefault("experimental_features", false);
         System.out.println("DEBUG: Experimental features from internal flags: " + result);
         return result;
-        */
     }
     
     /**
@@ -258,6 +255,34 @@ public class FeatureFlags {
         System.setProperty("jakarta.migration.beta_features", String.valueOf(enabled));
         // Update runtime tab flag
         flags.put("runtimeTab", enabled);
+    }
+    
+    /**
+     * Enables or disables platforms tab features.
+     */
+    public void setPlatformsEnabled(boolean enabled) {
+        System.out.println("DEBUG: FeatureFlags.setPlatformsEnabled() called with: " + enabled);
+        flags.put("platformsTab", enabled);
+        LOG.info("Platforms tab feature enabled: " + enabled);
+        System.out.println("DEBUG: FeatureFlags.setPlatformsEnabled() - flags now contains: " + flags.get("platformsTab"));
+    }
+    
+    /**
+     * Enables or disables experimental features.
+     */
+    public void setExperimentalFeaturesEnabled(boolean enabled) {
+        System.out.println("DEBUG: FeatureFlags.setExperimentalFeaturesEnabled() called with: " + enabled);
+        flags.put("experimental_features", enabled);
+        LOG.info("Experimental features enabled: " + enabled);
+        System.out.println("DEBUG: FeatureFlags.setExperimentalFeaturesEnabled() - flags now contains: " + flags.get("experimental_features"));
+    }
+    
+    /**
+     * Enables or disables advanced scans features.
+     */
+    public void setAdvancedScansEnabled(boolean enabled) {
+        flags.put("advancedScans", enabled);
+        LOG.info("Advanced scans feature enabled: " + enabled);
     }
     
     /**

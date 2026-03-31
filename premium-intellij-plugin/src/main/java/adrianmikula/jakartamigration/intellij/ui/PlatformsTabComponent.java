@@ -1,6 +1,5 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
-import adrianmikula.jakartamigration.intellij.config.FeatureFlags;
 import adrianmikula.jakartamigration.platforms.model.PlatformDetection;
 import adrianmikula.jakartamigration.platforms.model.PlatformScanResult;
 import adrianmikula.jakartamigration.platforms.service.PlatformDetectionService;
@@ -173,10 +172,11 @@ public class PlatformsTabComponent {
     }
     
     /**
-     * Updates premium controls based on feature flag
+     * Updates premium controls based on premium status
      */
     public void updatePremiumControls() {
-        boolean isPremium = FeatureFlags.getInstance().isPlatformsEnabled();
+        boolean isPremium = adrianmikula.jakartamigration.intellij.ui.SupportComponent.isPremiumActive();
+        System.out.println("DEBUG: PlatformsTabComponent.updatePremiumControls() - isPremiumActive: " + isPremium);
         
         lockIcon.setVisible(!isPremium);
         upgradeButton.setVisible(!isPremium);
@@ -186,9 +186,11 @@ public class PlatformsTabComponent {
             // Disable scan functionality for non-premium users
             scanButton.setEnabled(false);
             scanButton.setToolTipText("Upgrade to Premium to enable platform scanning");
+            System.out.println("DEBUG: Platforms scan button DISABLED");
         } else {
             scanButton.setEnabled(true);
             scanButton.setToolTipText(null);
+            System.out.println("DEBUG: Platforms scan button ENABLED");
         }
     }
     
@@ -217,9 +219,19 @@ public class PlatformsTabComponent {
      */
     private void displayError(String message) {
         JOptionPane.showMessageDialog(mainPanel,
-            message,
-            "Scan Error",
-            JOptionPane.ERROR_MESSAGE);
+                message,
+                "Error",
+                JOptionPane.ERROR_MESSAGE);
+    }
+    
+    /**
+     * Refreshes the UI when trial status changes
+     */
+    public void refreshUI() {
+        System.out.println("DEBUG: PlatformsTabComponent.refreshUI() called");
+        updatePremiumControls();
+        resultsPanel.revalidate();
+        resultsPanel.repaint();
     }
     
     /**

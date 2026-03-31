@@ -15,7 +15,7 @@ import java.util.List;
 public class GraphCanvas extends JPanel {
     private final List<GraphNode> nodes = new ArrayList<>();
     private final List<GraphEdge> edges = new ArrayList<>();
-    private GraphLayoutStrategy layoutStrategy = new HierarchicalLayoutStrategy();
+    private GraphLayoutStrategy layoutStrategy = new CircularLayoutStrategy();
     private double scale = 1.0;
     private double offsetX = 0;
     private double offsetY = 0;

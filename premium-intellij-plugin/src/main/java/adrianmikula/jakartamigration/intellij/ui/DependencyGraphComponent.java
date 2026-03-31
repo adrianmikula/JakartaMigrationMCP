@@ -41,7 +41,7 @@ public class DependencyGraphComponent {
         this.panel = new JBPanel<>(new BorderLayout());
         this.graphCanvas = new GraphCanvas();
         this.layoutCombo = new JComboBox<>(new String[]{
-            "Hierarchical", "Force-Directed", "Circular", "Tree"
+            "Hierarchical", "Circular", "Tree", "Force-Directed"
         });
         this.organisationalDependenciesCheck = new JCheckBox("Organisational Dependencies", true);
         this.directDependenciesCheck = new JCheckBox("Direct Dependencies", true);

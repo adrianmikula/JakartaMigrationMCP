@@ -49,6 +49,15 @@ public class CheckLicense {
         String mode = System.getProperty("jakarta.migration.mode", "production");
         return DEV_MODE.equals(mode);
     }
+    
+    /**
+     * Check if marketplace testing override is enabled (bypasses licensing for testing)
+     */
+    private static boolean isMarketplaceTestMode() {
+        return Boolean.getBoolean("jakarta.migration.marketplace.test") ||
+               Boolean.getBoolean("dev.license.override") ||
+               "demo".equals(System.getProperty("environment"));
+    }
 
     /**
      * Public root certificates needed to verify JetBrains-signed licenses
@@ -133,10 +142,21 @@ public class CheckLicense {
      */
     @Nullable
     public static Boolean isLicensed() {
-        // Skip all license checks in dev mode
-        if (isDevMode()) {
-            LOG.info("CheckLicense: DEV MODE detected - skipping all license checks");
-            return true; // Always licensed in dev mode
+        // Check trial status first (this should work even in dev mode)
+        Boolean trialStatus = checkTrialStatus();
+        if (trialStatus != null && trialStatus) {
+            LOG.info("CheckLicense: Trial is active - returning licensed");
+            return true;
+        }
+        
+        // Skip all license checks in dev mode or marketplace testing
+        if (isDevMode() || isMarketplaceTestMode()) {
+            if (isDevMode()) {
+                LOG.info("CheckLicense: DEV MODE detected - skipping all license checks");
+            } else {
+                LOG.info("CheckLicense: MARKETPLACE TEST MODE detected - skipping all license checks");
+            }
+            return true; // Always licensed in dev/test mode
         }
         
         long currentTime = System.currentTimeMillis();
@@ -388,7 +408,7 @@ public class CheckLicense {
 
     /**
      * Starts a free trial for the user.
-     * Sets the trial end time and activates premium features.
+     * Sets trial end time and activates premium features.
      * 
      * @param project Current project
      */
@@ -401,8 +421,12 @@ public class CheckLicense {
         // Clear license cache to force fresh check
         clearCache();
         
-        // Notify SupportComponent to refresh
+        // Notify all UI components to refresh
         SupportComponent.setPremiumActive(true);
+        // Note: SupportComponent.refreshUI() is instance method, needs instance
+        
+        // Note: Other components should listen for license status changes
+        // and update their UI accordingly
     }
     
     /**
@@ -410,26 +434,42 @@ public class CheckLicense {
      */
     @NotNull
     public static String getLicenseStatusString() {
+        // Check trial status first
+        Boolean trialStatus = checkTrialStatus();
+        if (trialStatus != null && trialStatus) {
+            String trialEnd = System.getProperty("jakarta.migration.trial.end");
+            if (trialEnd != null) {
+                try {
+                    long endTime = Long.parseLong(trialEnd);
+                    long remaining = endTime - System.currentTimeMillis();
+                    if (remaining > 0) {
+                        long daysRemaining = remaining / (24 * 60 * 60 * 1000);
+                        return "Trial - " + daysRemaining + " days remaining";
+                    }
+                } catch (NumberFormatException e) {
+                    // Ignore
+                }
+            }
+            return "Trial Active";
+        }
+        
+        // Check development mode
+        if (isDevMode()) {
+            return "Development Mode";
+        }
+        
+        // Check marketplace test mode
+        if (isMarketplaceTestMode()) {
+            return "Marketplace Test Mode";
+        }
+        
+        // Check regular license status
         Boolean licensed = isLicensed();
         if (licensed == null) {
             return "Checking...";
         }
         if (licensed) {
             return "Premium Active";
-        }
-        
-        String trialEnd = System.getProperty("jakarta.migration.trial.end");
-        if (trialEnd != null) {
-            try {
-                long endTime = Long.parseLong(trialEnd);
-                long remaining = endTime - System.currentTimeMillis();
-                if (remaining > 0) {
-                    long daysRemaining = remaining / (24 * 60 * 60 * 1000);
-                    return "Trial - " + daysRemaining + " days remaining";
-                }
-            } catch (NumberFormatException e) {
-                // Ignore
-            }
         }
         
         return "Free";

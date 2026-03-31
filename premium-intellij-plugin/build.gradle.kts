@@ -348,6 +348,72 @@ tasks.register("buildDevPlugin") {
 }
 
 /**
+ * Disable product descriptor for development (prevents license dialog)
+ * 
+ * Usage: ./gradlew :premium-intellij-plugin:disableProductDescriptor --no-configuration-cache
+ */
+tasks.register<DefaultTask>("disableProductDescriptor") {
+    group = "build"
+    description = "Disable product descriptor to prevent license dialog during development"
+    
+    doLast {
+        val pluginXml = file("src/main/resources/META-INF/plugin.xml")
+        if (!pluginXml.exists()) {
+            println(" plugin.xml not found at ${pluginXml.absolutePath}")
+            return@doLast
+        }
+        
+        val content = pluginXml.readText()
+        
+        if (content.contains("<!-- <product-descriptor")) {
+            println(" Product descriptor is already disabled for development")
+        } else {
+            // Comment out the product descriptor
+            val updatedContent = content.replace(
+                "<product-descriptor code=\"PJAKARTAMIGRATI\" release-date=\"20250326\" release-version=\"108\"/>",
+                "<!-- <product-descriptor code=\"PJAKARTAMIGRATI\" release-date=\"20250326\" release-version=\"108\"/> -->"
+            )
+            
+            pluginXml.writeText(updatedContent)
+            println(" Product descriptor disabled - no license dialog during development")
+        }
+    }
+}
+
+/**
+ * Enable product descriptor for production
+ * 
+ * Usage: ./gradlew :premium-intellij-plugin:enableProductDescriptor --no-configuration-cache
+ */
+tasks.register<DefaultTask>("enableProductDescriptor") {
+    group = "build"
+    description = "Enable product descriptor for production builds"
+    
+    doLast {
+        val pluginXml = file("src/main/resources/META-INF/plugin.xml")
+        if (!pluginXml.exists()) {
+            println(" plugin.xml not found at ${pluginXml.absolutePath}")
+            return@doLast
+        }
+        
+        val content = pluginXml.readText()
+        
+        if (content.contains("<product-descriptor code=\"PJAKARTAMIGRATI\"") && !content.contains("<!-- <product-descriptor")) {
+            println(" Product descriptor is already enabled for production")
+        } else {
+            // Uncomment the product descriptor
+            val updatedContent = content.replace(
+                "<!-- <product-descriptor code=\"PJAKARTAMIGRATI\" release-date=\"20250326\" release-version=\"108\"/> -->",
+                "<product-descriptor code=\"PJAKARTAMIGRATI\" release-date=\"20250326\" release-version=\"108\"/>"
+            )
+            
+            pluginXml.writeText(updatedContent)
+            println(" Product descriptor enabled - ready for production")
+        }
+    }
+}
+
+/**
  * Run IDE in development mode (skips licensing)
  * 
  * Usage: ./gradlew :premium-intellij-plugin:runIdeDev
@@ -367,31 +433,6 @@ tasks.register("runIdeDev") {
 }
 
 /**
- * Build demo plugin: clean, rebuild all modules, and run IDE for demo marketplace
- * 
- * Usage: ./gradlew :premium-intellij-plugin:buildDemoPlugin
- */
-tasks.register("buildDemoPlugin") {
-    group = "build"
-    description = "Clean, rebuild all modules, and run IDE for demo marketplace"
-    
-    // Clean all modules to ensure fresh rebuild
-    dependsOn(":community-core-engine:clean", ":premium-core-engine:clean", "clean")
-    
-    // Set demo environment
-    doLast {
-        project.ext.set("environment", "demo")
-        println("\n=== Building in DEMO MODE (JetBrains Demo Marketplace) ===")
-        
-        // Build and run
-        dependsOn(tasks.named<Jar>("jar").get(), tasks.named("runIdeDemo").get())
-        
-        println("\n=== Demo Build Complete ===")
-        println("Plugin built with demo marketplace configuration")
-    }
-}
-
-/**
  * Run IDE in demo marketplace mode
  * 
  * Usage: ./gradlew :premium-intellij-plugin:runIdeDemo
@@ -404,6 +445,8 @@ tasks.register("runIdeDemo") {
     doFirst {
         project.ext.set("environment", "demo")
         println("\n=== Running IDE in DEMO MODE (JetBrains Demo Marketplace) ===")
+        println("NOTE: Make sure product descriptor is enabled in plugin.xml")
+        println("Run: .\\fix-license-dialog.bat enable if needed")
     }
     
     // Run IDE without building JAR (uses existing classes)
@@ -418,6 +461,9 @@ tasks.register("runIdeDemo") {
 tasks.register("runIdeProd") {
     group = "build"
     description = "Run IDE in production marketplace mode (production - uses JetBrains Production Marketplace)"
+    
+    // Enable product descriptor for production marketplace
+    dependsOn("enableProductDescriptor")
     
     // Set production environment
     doFirst {

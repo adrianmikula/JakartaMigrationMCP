@@ -1,6 +1,7 @@
 <idea-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/schemas/plugin/2/plugin.xsd" icon="/icons/pluginIcon.svg">
     <!-- Freemium Monetization Parameters -->
-    <product-descriptor code="PJAKARTAMIGRATI" release-date="20250326" release-version="108"/>
+    <!-- TEMPORARILY COMMENTED OUT FOR DEVELOPMENT TO PREVENT LICENSE DIALOG -->
+    <!-- <product-descriptor code="PJAKARTAMIGRATI" release-date="20250326" release-version="108"/> -->
     
     <id>com.adrianmikula.jakarta-migration</id>
     <version>1.0.8</version>

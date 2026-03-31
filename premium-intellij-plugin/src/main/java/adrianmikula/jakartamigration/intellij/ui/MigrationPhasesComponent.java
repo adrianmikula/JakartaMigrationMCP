@@ -48,6 +48,9 @@ public class MigrationPhasesComponent {
                     String title = UiTextLoader.getPhaseTitle(strategyKey, phaseNum);
                     String description = UiTextLoader.getPhaseDescription(strategyKey, phaseNum);
                     String[] steps = UiTextLoader.getPhaseStepsArray(strategyKey, phaseNum);
+                    
+                    // DEBUG: Print loaded content to verify expanded text is being used
+                    System.out.println("DEBUG: Phase " + phaseNum + " description loaded: " + description.substring(0, Math.min(100, description.length())) + "...");
                     phases[i] = new PhaseDefinition("phase-" + phaseNum, title, description, steps);
                 }
                 definitions.put(strategy, phases);

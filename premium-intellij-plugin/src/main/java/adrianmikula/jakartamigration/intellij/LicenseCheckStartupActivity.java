@@ -1,37 +1,34 @@
 package adrianmikula.jakartamigration.intellij;
 
-import adrianmikula.jakartamigration.intellij.license.CheckLicense;
-import adrianmikula.jakartamigration.intellij.ui.SupportComponent;
+import adrianmikula.jakartamigration.intellij.license.SafeLicenseChecker;
 import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.startup.StartupActivity;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
- * Startup activity to check license status on plugin startup.
+ * SAFE startup activity to check license status on plugin startup.
  * 
- * This ensures that the license status is checked and UI is updated
- * when the plugin first loads, not just when tool windows are opened.
+ * This implementation uses SafeLicenseChecker to ensure the IDE never gets
+ * locked due to licensing issues. The license check is performed asynchronously
+ * and will not block IDE startup.
+ * 
+ * Key safety features:
+ * - Non-blocking license checks
+ * - Timeout protection  
+ * - Graceful fallback on failures
+ * - No UI dialogs during startup
  */
 public class LicenseCheckStartupActivity implements StartupActivity {
     private static final Logger LOG = Logger.getInstance(LicenseCheckStartupActivity.class);
 
     @Override
     public void runActivity(@NotNull Project project) {
-        LOG.info("LicenseCheckStartupActivity: Checking license status on plugin startup");
+        LOG.info("LicenseCheckStartupActivity: Starting SAFE license check");
         
-        // Check license status
-        boolean isLicensed = CheckLicense.isLicensed();
-        String licenseStatus = CheckLicense.getLicenseStatusString();
+        // Use SafeLicenseChecker for non-blocking license check
+        SafeLicenseChecker.checkLicenseOnStartup(project);
         
-        LOG.info("LicenseCheckStartupActivity: License status=" + licenseStatus + ", isLicensed=" + isLicensed);
-        
-        // Update SupportComponent to reflect current license status
-        ApplicationManager.getApplication().invokeLater(() -> {
-            SupportComponent.setPremiumActive(isLicensed);
-            SupportComponent.setLicenseStatus(licenseStatus);
-        });
+        LOG.info("LicenseCheckStartupActivity: SAFE license check initiated (non-blocking)");
     }
 }
