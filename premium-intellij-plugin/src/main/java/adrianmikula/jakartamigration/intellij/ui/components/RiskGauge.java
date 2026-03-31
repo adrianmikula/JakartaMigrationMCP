@@ -6,11 +6,29 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.Arc2D;
 import java.awt.geom.Ellipse2D;
+import java.awt.BasicStroke;
 
 /**
- * A speedometer-style gauge component for displaying risk scores.
- * Shows a needle that points left/green for low risk, up/yellow for medium risk, 
- * and right/red for high risk.
+ * RiskGauge - A speedometer-style gauge component for displaying risk scores.
+ * 
+ * CORRECT ANGLE CONFIGURATION:
+ * ==========================
+ * 
+ * Needle Angles (Score to Angle Mapping):
+ * - Score 0: Angle 180° (left, green zone)
+ * - Score 25: Angle 225° (bottom-left, green-yellow boundary)
+ * - Score 50: Angle 270° (bottom, yellow-orange boundary)
+ * - Score 75: Angle 315° (bottom-right, orange-red boundary)
+ * - Score 100: Angle 360° (right, red zone)
+ * 
+ * Dial Arc Colors (Angle Ranges):
+ * - Green: 135° to 90° (upper-left to top, low risk)
+ * - Yellow: 90° to 45° (top to upper-right, medium-low risk)
+ * - Orange: 45° to 0° (upper-right to right, medium-high risk)
+ * - Red: 0° to -45° (right to lower-right, high risk)
+ * 
+ * This creates a semi-circular gauge with needle moving clockwise
+ * from left (180°) through bottom (270°) to right (360°) as risk score increases.
  */
 public class RiskGauge extends JPanel {
     private static final int GAUGE_SIZE = 150;
@@ -31,10 +49,25 @@ public class RiskGauge extends JPanel {
     }
 
     public void setScore(int score) {
+        // Prevent infinite recursion - only update if score actually changed
+        if (this.score == score) {
+            return;
+        }
+        
         this.score = Math.max(0, Math.min(100, score)); // Clamp between 0-100
         RiskScoringService riskScoringService = RiskScoringService.getInstance();
         this.category = riskScoringService.getCategoryConfigForScore(this.score);
+        
+        System.out.println("DEBUG: RiskGauge.setScore called with score: " + score + " (was: " + this.score + ")");
         repaint();
+    }
+
+    /**
+     * Gets the current score.
+     * Package-private for testing.
+     */
+    int getScore() {
+        return score;
     }
 
     @Override
@@ -69,28 +102,36 @@ public class RiskGauge extends JPanel {
     }
 
     private void drawGaugeArcs(Graphics2D g2d, int centerX, int centerY) {
-        // Draw green arc (0-60 degrees)
+        // Draw green arc (135-90 degrees) - upper-left to top for low scores (0-25)
         g2d.setColor(new Color(40, 167, 69)); // Green
         g2d.fill(new Arc2D.Double(
             centerX - GAUGE_SIZE/2, centerY - GAUGE_SIZE/2, 
             GAUGE_SIZE, GAUGE_SIZE, 
-            120, 60, Arc2D.PIE
+            135, 45, Arc2D.PIE
         ));
         
-        // Draw yellow arc (60-120 degrees)
+        // Draw yellow arc (90-45 degrees) - top to upper-right for medium-low scores (26-50)
         g2d.setColor(new Color(255, 193, 7)); // Yellow
         g2d.fill(new Arc2D.Double(
             centerX - GAUGE_SIZE/2, centerY - GAUGE_SIZE/2, 
             GAUGE_SIZE, GAUGE_SIZE, 
-            180, 60, Arc2D.PIE
+            90, 45, Arc2D.PIE
         ));
         
-        // Draw red arc (120-180 degrees)
+        // Draw orange arc (45-0 degrees) - upper-right to right for medium-high scores (51-75)
+        g2d.setColor(new Color(255, 165, 0)); // Orange
+        g2d.fill(new Arc2D.Double(
+            centerX - GAUGE_SIZE/2, centerY - GAUGE_SIZE/2, 
+            GAUGE_SIZE, GAUGE_SIZE, 
+            45, 45, Arc2D.PIE
+        ));
+        
+        // Draw red arc (0 to -45 degrees) - right to lower-right for high scores (76-100)
         g2d.setColor(new Color(220, 53, 69)); // Red
         g2d.fill(new Arc2D.Double(
             centerX - GAUGE_SIZE/2, centerY - GAUGE_SIZE/2, 
             GAUGE_SIZE, GAUGE_SIZE, 
-            240, 60, Arc2D.PIE
+            0, 45, Arc2D.PIE
         ));
         
         // Draw the inner circle to create the gauge effect
@@ -110,8 +151,8 @@ public class RiskGauge extends JPanel {
         g2d.setColor(Color.DARK_GRAY);
         g2d.setStroke(new BasicStroke(1));
         
-        // Draw tick marks for 0, 50, 100
-        int[] angles = {120, 180, 240}; // Corresponding to 0, 50, 100
+        // Draw tick marks for 0, 25, 50, 75, 100 at the specified angles
+        int[] angles = {180, 225, 270, 315, 360}; // Exact angles for each score
         
         for (int angle : angles) {
             double radians = Math.toRadians(angle);
@@ -127,25 +168,43 @@ public class RiskGauge extends JPanel {
         }
     }
 
+    /**
+     * Calculate needle angle based on score using correct angle mapping
+     * Score 0: 180°, Score 25: 225°, Score 50: 270°, Score 75: 315°, Score 100: 360°
+     * Package-private for testing.
+     */
+    int calculateNeedleAngle(int score) {
+        // Map score 0-100 to angle 180-360 (clockwise movement)
+        // Each 25 points of score = 45 degrees of needle movement
+        double angle = 180 + (score * 1.8); // 180 + (score * 180/100)
+        return (int) angle;
+    }
+
     private void drawNeedle(Graphics2D g2d, int centerX, int centerY) {
-        // Calculate needle angle based on score (0-100 maps to 120-240 degrees)
-        double angle = 120 + (score * 1.2); // 120 degrees + (score * 1.2 degrees per point)
+        // Calculate needle angle based on score using correct angle mapping
+        // Score 0: 180°, Score 25: 225°, Score 50: 270°, Score 75: 315°, Score 100: 360°
+        double angle = calculateNeedleAngle(score);
+        
+        // DEBUG: Log needle rotation
+        System.out.println("DEBUG: RiskGauge needle - Score: " + score + ", Angle: " + angle + " degrees");
+        
         double radians = Math.toRadians(angle);
+        
+        // Calculate needle endpoint
+        int needleX = centerX + (int) (NEEDLE_LENGTH * Math.cos(radians));
+        int needleY = centerY + (int) (NEEDLE_LENGTH * Math.sin(radians));
         
         // Draw needle shadow
         g2d.setColor(new Color(0, 0, 0, 50));
         int shadowOffset = 2;
-        int needleX = centerX + (int) (NEEDLE_LENGTH * Math.cos(radians)) + shadowOffset;
-        int needleY = centerY + (int) (NEEDLE_LENGTH * Math.sin(radians)) + shadowOffset;
-        g2d.fillRoundRect(centerX + shadowOffset - NEEDLE_WIDTH/2, centerY + shadowOffset - NEEDLE_WIDTH/2, 
-                          needleX - centerX, needleY - centerY, NEEDLE_WIDTH, NEEDLE_WIDTH);
+        g2d.setStroke(new BasicStroke(NEEDLE_WIDTH, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g2d.drawLine(centerX + shadowOffset, centerY + shadowOffset, 
+                    needleX + shadowOffset, needleY + shadowOffset);
         
         // Draw main needle
-        g2d.setColor(Color.BLACK);
-        needleX = centerX + (int) (NEEDLE_LENGTH * Math.cos(radians));
-        needleY = centerY + (int) (NEEDLE_LENGTH * Math.sin(radians));
-        g2d.fillRoundRect(centerX - NEEDLE_WIDTH/2, centerY - NEEDLE_WIDTH/2, 
-                          needleX - centerX, needleY - centerY, NEEDLE_WIDTH, NEEDLE_WIDTH);
+        g2d.setColor(Color.RED);
+        g2d.setStroke(new BasicStroke(NEEDLE_WIDTH, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g2d.drawLine(centerX, centerY, needleX, needleY);
     }
 
     private void drawCenterDot(Graphics2D g2d, int centerX, int centerY) {

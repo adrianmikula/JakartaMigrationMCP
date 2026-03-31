@@ -86,13 +86,24 @@ public class PlatformDetectionService {
         int totalScore = 0;
         
         for (PlatformDetection detection : detections) {
+            String platformType = detection.platformType().toLowerCase();
+            
             if (!detection.isJakartaCompatible()) {
                 // Major version change (javax to jakarta) is significant risk
-                totalScore += 100;
+                totalScore += 10;
             }
             
-            // Additional framework/runtime changes add moderate risk
-            totalScore += 25; // Runtime change base score
+            // Platform-specific risk scoring (5-10 points range)
+            if (platformType.equals("java")) {
+                // Java version changes are significant
+                totalScore += 8;
+            } else if (platformType.equals("spring")) {
+                // Framework changes are moderate risk
+                totalScore += 6;
+            } else {
+                // Runtime changes add moderate risk
+                totalScore += 5;
+            }
         }
         
         return totalScore;

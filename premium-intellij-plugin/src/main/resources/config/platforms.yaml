@@ -1,7 +1,75 @@
 # Platform Detection Configuration for Jakarta Migration
-# This file defines supported application servers and their detection patterns
+# This file defines supported application servers, frameworks, and Java versions
 
 platforms:
+  # Java Version Detection
+  java:
+    name: "Java"
+    description: "Java Development Kit version"
+    patterns:
+      - file: "gradle.properties"
+        regex: "org\\.gradle\\.java\\.home=.*jdk-([0-9]+)"
+        versionGroup: 1
+      - file: "build.gradle"
+        regex: "sourceCompatibility\\s*=\\s*['\"]([0-9]+)"
+        versionGroup: 1
+      - file: "build.gradle.kts"
+        regex: "sourceCompatibility\\s*=\\s*['\"]([0-9]+)"
+        versionGroup: 1
+      - file: "pom.xml"
+        regex: "<maven\\.compiler\\.source>([0-9]+)</maven\\.compiler\\.source>"
+        versionGroup: 1
+      - file: ".java-version"
+        regex: "([0-9]+)"
+        versionGroup: 1
+    jakartaCompatibility:
+      minVersion: "11"
+      supportedVersions:
+        - "11"
+        - "17"
+        - "21"
+        - "22"
+    javaxVersions:
+      - "8"
+    requirements:
+      java: "self"
+      jakarta: "9+"
+      spring: "any"
+
+  # Spring Framework Detection
+  spring:
+    name: "Spring Framework"
+    description: "Spring Framework version"
+    patterns:
+      - file: "build.gradle"
+        regex: "org\\.springframework\\.boot:spring-boot-starter-parent:([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "build.gradle.kts"
+        regex: "org\\.springframework\\.boot:spring-boot-starter-parent:([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "pom.xml"
+        regex: "<spring-boot\\.version>([0-9]+\\.[0-9]+\\.[0-9]+)</spring-boot\\.version>"
+        versionGroup: 1
+      - file: "gradle.properties"
+        regex: "springVersion\\s*=\\s*['\"]([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+    jakartaCompatibility:
+      minVersion: "6.0"
+      supportedVersions:
+        - "6.0"
+        - "6.1"
+        - "6.2"
+        - "7.0"
+        - "7.1"
+        - "7.2"
+    javaxVersions:
+      - "5.3"
+      - "5.4"
+    requirements:
+      java: "17+"
+      jakarta: "9+"
+      spring: "self"
+
   # Apache Tomcat
   tomcat:
     name: "Apache Tomcat"
@@ -187,6 +255,7 @@ platforms:
 
 # Risk scoring for platform changes
 riskScoring:
-  majorVersionChange: 100
-  frameworkChange: 50
-  runtimeChange: 25
+  majorVersionChange: 10
+  frameworkChange: 6
+  runtimeChange: 5
+  javaVersionChange: 8
