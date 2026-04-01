@@ -148,11 +148,28 @@ public class RiskScoringService {
     }
 
     /**
-     * Calculates overall risk score based on scan findings and dependency issues.
+     * Calculates overall risk score based on scan findings, dependency issues, and project metrics.
      */
     public RiskScore calculateRiskScore(
             Map<String, List<RiskFinding>> scanFindings,
             Map<String, Integer> dependencyIssues) {
+        
+        return calculateRiskScore(scanFindings, dependencyIssues, 0, 0.0);
+    }
+    
+    /**
+     * Calculates overall risk score based on scan findings, dependency issues, and project metrics.
+     * 
+     * @param scanFindings Map of scan type to list of risk findings
+     * @param dependencyIssues Map of dependency issue types to scores
+     * @param totalFileCount Total number of files in the project
+     * @param platformRiskScore Platform compatibility risk score (0-10)
+     */
+    public RiskScore calculateRiskScore(
+            Map<String, List<RiskFinding>> scanFindings,
+            Map<String, Integer> dependencyIssues,
+            int totalFileCount,
+            double platformRiskScore) {
 
         Map<String, Integer> componentScores = new HashMap<>();
         List<RiskFinding> allFindings = new ArrayList<>();
@@ -187,9 +204,11 @@ public class RiskScoringService {
             rawDepScore += entry.getValue();
         }
 
-        // Code complexity (placeholder - could be enhanced with actual complexity
-        // metrics)
-        double rawComplexityScore = 2.0; // Reduced base complexity for 0-100 scale
+        // Calculate code complexity based on file count
+        double rawComplexityScore = calculateComplexityScore(totalFileCount);
+        
+        // Platform risk score (already normalized 0-10)
+        double rawPlatformScore = platformRiskScore;
 
         // Get weights from calculation config
         @SuppressWarnings("unchecked")
@@ -201,15 +220,17 @@ public class RiskScoringService {
         Number scanWeightNum = (Number) weights.get("scanFindings");
         Number depWeightNum = (Number) weights.get("dependencyIssues");
         Number complexityWeightNum = (Number) weights.get("codeComplexity");
+        Number platformWeightNum = (Number) weights.get("platformRisk");
 
-        if (scanWeightNum == null || depWeightNum == null || complexityWeightNum == null) {
+        if (scanWeightNum == null || depWeightNum == null || complexityWeightNum == null || platformWeightNum == null) {
             throw new IllegalArgumentException(
-                    "Missing one or more required weights (scanFindings, dependencyIssues, codeComplexity) in risk-scoring.yaml");
+                    "Missing one or more required weights (scanFindings, dependencyIssues, codeComplexity, platformRisk) in risk-scoring.yaml");
         }
 
         double scanWeight = scanWeightNum.doubleValue();
         double depWeight = depWeightNum.doubleValue();
         double complexityWeight = complexityWeightNum.doubleValue();
+        double platformWeight = platformWeightNum.doubleValue();
 
         // Get max total score for normalization
         Number maxScoreNum = (Number) calculationConfig.get("maxTotalScore");
@@ -218,7 +239,8 @@ public class RiskScoringService {
         // Weighted total (normalized to 0-100 scale)
         double totalScore = (rawScanScore * scanWeight) +
                 (rawDepScore * depWeight) +
-                (rawComplexityScore * complexityWeight);
+                (rawComplexityScore * complexityWeight) +
+                (rawPlatformScore * platformWeight);
         
         // Normalize to 0-100 scale
         totalScore = Math.min(totalScore, maxTotalScore);
@@ -244,6 +266,32 @@ public class RiskScoringService {
             }
         }
         return "trivial"; // Default category
+    }
+    
+    /**
+     * Calculates complexity score based on the total number of files in the project.
+     * Uses a logarithmic scale to prevent very large projects from dominating the score.
+     * 
+     * @param totalFileCount Total number of files in the project
+     * @return Normalized complexity score (0-10 scale)
+     */
+    private double calculateComplexityScore(int totalFileCount) {
+        if (totalFileCount <= 0) {
+            return 0.0;
+        }
+        
+        // Use logarithmic scale: log10(fileCount) normalized to 0-10
+        // 1-10 files: 0-2 points
+        // 11-100 files: 2-4 points  
+        // 101-1000 files: 4-6 points
+        // 1001-10000 files: 6-8 points
+        // 10000+ files: 8-10 points
+        
+        double logScale = Math.log10(totalFileCount);
+        double normalizedScore = (logScale / 5.0) * 10.0; // log10(100000) = 5, so scale to 0-10
+        
+        // Cap at 10.0 maximum
+        return Math.min(normalizedScore, 10.0);
     }
 
     /**

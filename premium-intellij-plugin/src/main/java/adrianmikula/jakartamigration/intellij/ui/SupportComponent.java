@@ -31,7 +31,7 @@ public class SupportComponent {
     private JPanel mainPanel;
     private JButton startTrialButton;
     private JButton refreshButton;
-    private JCheckBox experimentalFeaturesCheckbox;
+    JCheckBox experimentalFeaturesCheckbox;
     private JBTextArea outputArea;
     private JBScrollPane scrollPane;
     private JPanel compatibilityPanel;
@@ -72,7 +72,7 @@ public class SupportComponent {
         }
     }
     
-    private void initializeUI() {
+    void initializeUI() {
         // Initialize UI components
         mainPanel = new JPanel(new BorderLayout());
         JBTextArea outputArea = new JBTextArea();

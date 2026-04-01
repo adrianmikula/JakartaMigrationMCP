@@ -199,7 +199,7 @@ public class MarketplaceLicenseService {
             return LicenseValidationResult.valid(
                     licenseKey,
                     LicenseType.DEVELOPMENT,
-                    Instant.now().plusSeconds(86400 * 7), // 7 days
+                    Instant.now().plusSeconds(86400 * FeatureFlagsProperties.getFreeTrialDays()), // configurable trial period
                     "Test license");
         }
 

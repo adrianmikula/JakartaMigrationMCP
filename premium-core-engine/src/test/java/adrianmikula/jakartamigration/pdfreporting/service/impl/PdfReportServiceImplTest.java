@@ -215,4 +215,243 @@ class PdfReportServiceImplTest {
         assertTrue(template.metadata().containsKey("engine"));
         assertEquals("Apache PDFBox 3.0.2", template.metadata().get("engine"));
     }
+    
+    @Test
+    void testGenerateComprehensiveReportWithAllSections(@TempDir Path tempDir) throws Exception {
+        // Arrange
+        Path outputPath = tempDir.resolve("comprehensive-test-report.pdf");
+        Map<String, Object> customData = Map.of(
+                "projectName", "Comprehensive Test Project",
+                "description", "Test project with all sections"
+        );
+        
+        PdfReportService.GeneratePdfReportRequest request = new PdfReportService.GeneratePdfReportRequest(
+                outputPath,
+                dependencyGraph,
+                null,
+                null,
+                pdfReportService.getDefaultTemplate(),
+                customData
+        );
+        
+        // Act
+        Path result = pdfReportService.generateComprehensiveReport(request);
+        
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.toFile().exists());
+        assertTrue(result.toFile().length() > 5000); // Should be substantial with all sections
+        assertEquals(outputPath, result);
+    }
+    
+    @Test
+    void testGenerateComprehensiveReportWithRiskAssessment(@TempDir Path tempDir) throws Exception {
+        // Arrange
+        Path outputPath = tempDir.resolve("risk-assessment-test-report.pdf");
+        Map<String, Object> customData = Map.of(
+                "projectName", "Risk Assessment Test",
+                "riskScore", "LOW",
+                "migrationTime", "2-4 weeks"
+        );
+        
+        PdfReportService.ReportTemplate customTemplate = pdfReportService.createCustomTemplate(Arrays.asList(
+                new PdfReportService.ReportSection("title", "Jakarta Migration Risk Analysis Report", 
+                        "Main heading with project metadata", true, 
+                        Map.of("includeTimestamp", true, "includeRiskScore", true)),
+                new PdfReportService.ReportSection("riskAssessment", "Risk Score & Migration Time", 
+                        "Risk assessment and estimated migration timeline", true, 
+                        Map.of("includeChart", true, "showBreakdown", true))
+        ));
+        
+        PdfReportService.GeneratePdfReportRequest request = new PdfReportService.GeneratePdfReportRequest(
+                outputPath,
+                dependencyGraph,
+                null,
+                null,
+                customTemplate,
+                customData
+        );
+        
+        // Act
+        Path result = pdfReportService.generateComprehensiveReport(request);
+        
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.toFile().exists());
+        assertTrue(result.toFile().length() > 2000);
+    }
+    
+    @Test
+    void testGenerateComprehensiveReportWithPlatformFindings(@TempDir Path tempDir) throws Exception {
+        // Arrange
+        Path outputPath = tempDir.resolve("platform-findings-test-report.pdf");
+        
+        PdfReportService.ReportTemplate customTemplate = pdfReportService.createCustomTemplate(Arrays.asList(
+                new PdfReportService.ReportSection("platformFindings", "Platform Findings", 
+                        "List of platform-specific findings", true, 
+                        Map.of("groupByPlatform", true, "includeSeverity", true))
+        ));
+        
+        PdfReportService.GeneratePdfReportRequest request = new PdfReportService.GeneratePdfReportRequest(
+                outputPath,
+                dependencyGraph,
+                null,
+                null,
+                customTemplate,
+                Map.of("platform", "Tomcat 10+", "java", "OpenJDK 17+", "build", "Maven 3.8+")
+        );
+        
+        // Act
+        Path result = pdfReportService.generateComprehensiveReport(request);
+        
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.toFile().exists());
+        assertTrue(result.toFile().length() > 1500);
+    }
+    
+    @Test
+    void testGenerateComprehensiveReportWithDependencyAnalysis(@TempDir Path tempDir) throws Exception {
+        // Arrange
+        Path outputPath = tempDir.resolve("dependency-analysis-test-report.pdf");
+        
+        PdfReportService.ReportTemplate customTemplate = pdfReportService.createCustomTemplate(Arrays.asList(
+                new PdfReportService.ReportSection("dependencyAnalysis", "Javax Artifacts and Jakarta Replacements", 
+                        "Detailed dependency mapping and recommendations", true, 
+                        Map.of("showCompatibility", true, "includeVersions", true))
+        ));
+        
+        PdfReportService.GeneratePdfReportRequest request = new PdfReportService.GeneratePdfReportRequest(
+                outputPath,
+                dependencyGraph,
+                null,
+                null,
+                customTemplate,
+                Map.of("analysisType", "javax-to-jakarta-mapping")
+        );
+        
+        // Act
+        Path result = pdfReportService.generateComprehensiveReport(request);
+        
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.toFile().exists());
+        assertTrue(result.toFile().length() > 2000);
+    }
+    
+    @Test
+    void testGenerateComprehensiveReportWithAdvancedScanResults(@TempDir Path tempDir) throws Exception {
+        // Arrange
+        Path outputPath = tempDir.resolve("advanced-scan-test-report.pdf");
+        
+        ComprehensiveScanResults.ScanSummary summary = new ComprehensiveScanResults.ScanSummary(
+                250, 45, 12, 8, 92.5
+        );
+        
+        ComprehensiveScanResults scanResults = new ComprehensiveScanResults(
+                "/test/advanced-scan",
+                java.time.LocalDateTime.now(),
+                Map.of("jpa", "scan-results", "servlet", "scan-results"),
+                Map.of("validation", "scan-results", "thirdParty", "scan-results"),
+                Map.of("transitive", "scan-results", "build", "scan-results"),
+                List.of("Update dependencies", "Apply recipes"),
+                25,
+                summary
+        );
+        
+        PdfReportService.ReportTemplate customTemplate = pdfReportService.createCustomTemplate(Arrays.asList(
+                new PdfReportService.ReportSection("advancedScanResults", "Advanced Scan Results", 
+                        "Comprehensive scan findings with severity levels", true, 
+                        Map.of("groupByCategory", true, "includeCounts", true))
+        ));
+        
+        PdfReportService.GeneratePdfReportRequest request = new PdfReportService.GeneratePdfReportRequest(
+                outputPath,
+                null,
+                null,
+                scanResults,
+                customTemplate,
+                Map.of("scanType", "comprehensive")
+        );
+        
+        // Act
+        Path result = pdfReportService.generateComprehensiveReport(request);
+        
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.toFile().exists());
+        assertTrue(result.toFile().length() > 2000);
+    }
+    
+    @Test
+    void testGenerateComprehensiveReportWithSupportLinks(@TempDir Path tempDir) throws Exception {
+        // Arrange
+        Path outputPath = tempDir.resolve("support-links-test-report.pdf");
+        
+        PdfReportService.ReportTemplate customTemplate = pdfReportService.createCustomTemplate(Arrays.asList(
+                new PdfReportService.ReportSection("supportLinks", "Support Resources", 
+                        "Footer containing support links and resources", true, 
+                        Map.of("includeLinks", true, "showContact", true))
+        ));
+        
+        PdfReportService.GeneratePdfReportRequest request = new PdfReportService.GeneratePdfReportRequest(
+                outputPath,
+                null,
+                null,
+                null,
+                customTemplate,
+                Map.of("supportEmail", "support@example.com", "supportPhone", "+1-555-0123")
+        );
+        
+        // Act
+        Path result = pdfReportService.generateComprehensiveReport(request);
+        
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.toFile().exists());
+        assertTrue(result.toFile().length() > 1000);
+    }
+    
+    @Test
+    void testPdfReportServiceErrorHandling(@TempDir Path tempDir) {
+        // Arrange
+        Path invalidOutputPath = tempDir.resolve("non-existent-dir").resolve("test.pdf");
+        
+        PdfReportService.GeneratePdfReportRequest request = new PdfReportService.GeneratePdfReportRequest(
+                invalidOutputPath,
+                dependencyGraph,
+                null,
+                null,
+                pdfReportService.getDefaultTemplate(),
+                Map.of("projectName", "Error Test")
+        );
+        
+        // Act & Assert
+        assertThrows(RuntimeException.class, () -> {
+                pdfReportService.generateComprehensiveReport(request);
+        });
+    }
+    
+    @Test
+    void testTemplateSectionConfiguration() {
+        // Arrange
+        PdfReportService.ReportTemplate template = pdfReportService.getDefaultTemplate();
+        
+        // Act
+        Optional<PdfReportService.ReportSection> titleSection = template.sections().stream()
+                .filter(section -> "title".equals(section.id()))
+                .findFirst();
+        
+        Optional<PdfReportService.ReportSection> riskSection = template.sections().stream()
+                .filter(section -> "riskAssessment".equals(section.id()))
+                .findFirst();
+        
+        // Assert
+        assertTrue(titleSection.isPresent());
+        assertTrue(riskSection.isPresent());
+        assertTrue(titleSection.get().configuration().containsKey("includeTimestamp"));
+        assertTrue(riskSection.get().configuration().containsKey("includeChart"));
+        assertEquals("2.1", template.metadata().get("version"));
+        assertTrue(template.metadata().containsKey("supportsMarkdown"));
+    }
 }

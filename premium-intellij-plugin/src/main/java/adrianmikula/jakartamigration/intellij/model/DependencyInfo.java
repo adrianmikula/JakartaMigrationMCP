@@ -108,14 +108,6 @@ public class DependencyInfo {
         this.recommendedGroupId = recommendedGroupId;
     }
 
-    public String getRecommendedArtifactId() {
-        return recommendedArtifactId;
-    }
-
-    public void setRecommendedArtifactId(String recommendedArtifactId) {
-        this.recommendedArtifactId = recommendedArtifactId;
-    }
-
     public String getRecommendedVersion() {
         return recommendedVersion;
     }
@@ -187,6 +179,19 @@ public class DependencyInfo {
                    (recommendedVersion != null ? ":" + recommendedVersion : "");
         }
         return recommendedVersion != null ? recommendedVersion : "";
+    }
+
+    public void setRecommendedArtifactCoordinates(String coordinates) {
+        if (coordinates != null && coordinates.contains(":")) {
+            String[] parts = coordinates.split(":");
+            if (parts.length >= 2) {
+                this.recommendedGroupId = parts[0];
+                this.recommendedArtifactId = parts[1];
+                if (parts.length >= 3) {
+                    this.recommendedVersion = parts[2];
+                }
+            }
+        }
     }
 
     public DependencyType getDependencyType() {

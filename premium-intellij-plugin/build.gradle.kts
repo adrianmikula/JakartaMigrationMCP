@@ -27,6 +27,44 @@ tasks.withType<JacocoReport> {
     }
 }
 
+// Custom task to run integration tests
+tasks.register("runIntegrationTests") {
+    group = "verification"
+    description = "Runs integration tests to verify Maven Central lookup functionality"
+    
+    dependsOn("compileTestJava")
+    
+    doLast {
+        javaexec {
+            classpath = sourceSets.test.get().runtimeClasspath
+            mainClass = "org.junit.platform.console.ConsoleLauncher"
+            args = listOf(
+                "--details=verbose",
+                "--select-class=adrianmikula.jakartamigration.intellij.service.MavenCentralServiceIntegrationTest"
+            )
+        }
+    }
+}
+
+// Custom task to run fast tests only
+tasks.register("runFastTests") {
+    group = "verification"
+    description = "Runs fast subset of tests for quick feedback"
+    
+    dependsOn("compileTestJava")
+    
+    doLast {
+        javaexec {
+            classpath = sourceSets.test.get().runtimeClasspath
+            mainClass = "org.junit.platform.console.ConsoleLauncher"
+            args = listOf(
+                "--details=summary",
+                "--include-tag=fast"
+            )
+        }
+    }
+}
+
 dependencies {
     // Jackson for JSON serialization
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
@@ -34,20 +72,21 @@ dependencies {
     // Community Core Engine - local project dependency (Apache 2.0)
     // Using 'api' to include classes in the final plugin JAR
     api(project(":community-core-engine"))
-
+    
     // Premium Core Engine - local project dependency (Proprietary)
     // Contains premium features: refactoring, runtime verification, etc.
     implementation(project(":premium-core-engine"))
-
+    
     // Premium Core Engine - runtime verification and premium features (Proprietary)
     implementation(project(":premium-core-engine"))
-
+    
     // UI Testing dependencies
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.0")
     testImplementation("org.junit.platform:junit-platform-suite:1.10.0")
     testImplementation("org.junit.platform:junit-platform-launcher:1.10.0")
     testImplementation("org.assertj:assertj-core:3.24.2")
+    
     testImplementation("org.mockito:mockito-core:5.5.0")
     testImplementation("org.mockito:mockito-junit-jupiter:5.5.0")
 }
@@ -335,7 +374,7 @@ tasks.register("buildDevPlugin") {
     dependsOn(":community-core-engine:clean", ":premium-core-engine:clean", "clean")
     
     // Set development environment
-    doLast {
+    doLast {        
         project.ext.set("environment", "dev")
         println("\n=== Building in DEV MODE (skipping all licensing checks) ===")
         

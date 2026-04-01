@@ -1,12 +1,17 @@
 package adrianmikula.jakartamigration.intellij.service;
 
-import adrianmikula.jakartamigration.intellij.service.RiskScoringService.*;
+import adrianmikula.jakartamigration.intellij.service.RiskScoringService;
+import adrianmikula.jakartamigration.intellij.service.RiskScoringService.RiskScore;
+import adrianmikula.jakartamigration.intellij.service.RiskScoringService.RiskFinding;
+import adrianmikula.jakartamigration.intellij.service.RiskScoringService.RiskConfig;
+import adrianmikula.jakartamigration.intellij.service.RiskScoringService.CategoryConfig;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
@@ -22,6 +27,22 @@ public class RiskScoringServiceTest {
     void setUp() {
         // Get the singleton instance
         riskScoringService = RiskScoringService.getInstance();
+    }
+
+    @Test
+    @Tag("fast")
+    void testCalculateRiskScoreWithEmptyData() {
+        RiskScoringService service = RiskScoringService.getInstance();
+        
+        var score = service.calculateRiskScore(
+            Map.of(), 
+            Map.of(), 
+            100, // total file count
+            1.0  // platform risk score
+        );
+        
+        assertThat(score.totalScore()).isGreaterThanOrEqualTo(0);
+        assertThat(score.category()).isNotNull();
     }
 
     @Test

@@ -6,6 +6,7 @@ import org.junit.Before;
 import org.junit.After;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 /**
  * Tests for development and marketplace license bypass mechanisms.
@@ -53,7 +54,6 @@ public class LicenseBypassTest extends BasePlatformTestCase {
         Boolean result = CheckLicense.isLicensed();
         
         // Verify dev mode detection via behavior
-        Boolean result = CheckLicense.isLicensed();
         assertThat(result).isTrue();
         
         // Verify bypass is working by checking it's not going through normal license flow

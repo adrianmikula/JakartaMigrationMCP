@@ -14,7 +14,7 @@ public enum FeatureFlag {
 
     // === PREMIUM FEATURES ===
     // All features below require a JetBrains Marketplace subscription
-    // Pricing: $49/month or $399/year (with 7-day free trial)
+    // Pricing: $49/month or $399/year (with configurable free trial)
 
     /**
      * Auto-fixes / Auto-remediation.
@@ -182,8 +182,9 @@ public enum FeatureFlag {
      */
     public String getPricingInfo() {
         return String.format(
-                "Upgrade to Premium: %s or %s. Start your free 7-day trial today!",
+                "Upgrade to Premium: %s or %s. Start your free %d-day trial today!",
                 FeatureFlagsProperties.getMonthlyPriceFormatted(),
-                FeatureFlagsProperties.getYearlyPriceFormatted());
+                FeatureFlagsProperties.getYearlyPriceFormatted(),
+                FeatureFlagsProperties.getFreeTrialDays());
     }
 }

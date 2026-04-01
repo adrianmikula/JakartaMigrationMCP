@@ -70,6 +70,7 @@ public class PlatformConfigLoader {
     public record RiskScoringConfig(
         int majorVersionChange,
         int frameworkChange,
-        int runtimeChange
+        int runtimeChange,
+        int javaVersionChange
     ) {}
 }

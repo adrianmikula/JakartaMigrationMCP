@@ -1,42 +1,40 @@
 <idea-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/schemas/plugin/2/plugin.xsd" icon="/icons/pluginIcon.svg">
-    <!-- Freemium Monetization Parameters -->
-    <product-descriptor code="PJAKARTAMIGRATI" release-date="20250326" release-version="108"/>
+    <!-- Freemium Monetization Parameters in product-descriptor  element: -->
+
+    <!-- code: Your Product Code must:
+            Start with the letter P.
+            Be no shorter than 4 characters.
+            Be no longer than 15 characters.
+            NOT contain any numbers or special symbols.
+            Contain only CAPITAL LETTERS. -->
+
+    <!-- release-date: date of the major version release, written in the YYYYMMDD format (type: integer) -->
+
+    <!-- release-version: The number should contain at least 2 digits, as it will be split into 2 numbers,
+            the second of which will contain only one digit. 
+            This is different from the version of the plugin, as this is a version number of the major 
+            release (i.e. the release that happened on release-date). -->
+
+    <!-- optional: This should be set to true if you would like to add the free functionality to your plugin. -->
+
+    <product-descriptor 
+        code="PJAKARTAMIGRATI" 
+        release-date="20260101" 
+        release-version="10"
+        optional="true"/>
     
-    <id>com.adrianmikula.jakarta-migration</id>
-    <version>1.0.8</version>
+    <!-- idea-version: Exclude the until-build attribute entirely, giving open-ended compatibility with all future IntelliJ versions. -->
+    <idea-version since-build="233" />
+
+    <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
+    <version>1.0.9</version>
+
     <name>Jakarta Migration (javax → jakarta)</name>
+    <id>com.adrianmikula.jakarta-migration</id>
     <vendor email="adrian.m@tuta.io" name="Adrian Mikula" url="https://github.com/adrianmikula/JakartaMigrationMCP">Adrian Mikula</vendor>
     <category>Framework Integration</category>
-    
-    <!-- Freemium Parameters -->
-    <depends>com.intellij.modules.platform</depends>
-    <depends>com.intellij.modules.java</depends>
-    
-    <!-- Pricing and Licensing -->
-    <purchases>
-        <purchase-server>https://plugins.jetbrains.com</purchase-server>
-        <eap key="FREEMIUM" name="Freemium"/>
-    </purchases>
-    
-    <!-- Trial and Licensing -->
-    <trial-permissions>DOWNLOAD_SOURCE</trial-permissions>
-    <trial-permissions>EXECUTE_CODE</trial-permissions>
-    <licensing-server>https://plugins.jetbrains.com</licensing-server>
-    
-    <!-- Optional Freemium Parameters -->
-    <product-descriptor-details>
-        <property name="freemium" value="true"/>
-        <property name="allow-bundling" value="false"/>
-        <property name="evaluation" value="false"/>
-        <property name="commercial" value="true"/>
-        <property name="release-date" value="20250326"/>
-        <property name="release-version" value="20241"/>
-        <property name="eap" value="FREEMIUM"/>
-        <property name="purchase-url" value="https://plugins.jetbrains.com"/>
-        <property name="support-url" value="https://github.com/adrianmikula/JakartaMigrationMCP"/>
-        <property name="plugin-compat" value="233.0+"/>
-    </product-descriptor-details>
 
+    
     <description><![CDATA[
     <h2>Automate Your Java EE to Jakarta EE Migration</h2>
 
@@ -66,7 +64,8 @@
     <h3>Getting Started</h3>
     <ol>
     <li><b>Analyze Your Project:</b> Click "Run Analysis" to scan your project for javax.* dependencies and code</li>
-    <li><b>Review Results:</b> Check the Dashboard for migration blockers and dependency recommendations</li>
+    <li><b>Review Results:</b> Check the Dashboard for migration risks and estimated migration effort</li>
+    <li><b>Reports:</b> Print findings in PDF reports</li>
     <li><b>Plan Your Migration:</b> Use the Migration Strategy tab to choose your approach</li>
     <li><b>Refactor Code:</b> Apply OpenRewrite recipes in the Refactor tab</li>
     <li><b>Verify:</b> Re-run analysis to confirm successful migration</li>
@@ -77,13 +76,13 @@
     <li><b>Architecture:</b> Built on IntelliJ Platform with OpenRewrite for code transformations</li>
     <li><b>Analysis:</b> Static analysis of dependencies, source code, and configuration files</li>
     <li><b>Compatibility:</b> Works with IntelliJ IDEA 2023.3+ (Community & Ultimate)</li>
-    <li><b>AI Integration:</b> MCP server for Claude, Cursor, Windsurf, and other AI assistants</li>
+    <li><b>AI Integration:</b> MCP server for IntelliJ AI Assistant</li>
     </ul>
 
     <h3>Free vs Premium</h3>
     <ul>
-    <li><b>Free:</b> Analysis, blockers detection, version recommendations</li>
-    <li><b>Premium:</b> Auto-fixes, one-click refactoring, binary fixes</li>
+    <li><b>Free:</b>Migration risk analysis, dependency scans, version recommendations, migration strategy options</li>
+    <li><b>Premium:</b> One-click refactoring, platform detection, advanced scans, PDF reports, AI migration assistance</li>
     </ul>
     ]]></description>
 

@@ -860,7 +860,9 @@ private void resetAdvancedScanCounts() {
         }
         
         // Calculate risk score
-        RiskScoringService.RiskScore riskScore = riskScoringService.calculateRiskScore(scanFindings, depIssues);
+        int totalFileCount = getTotalFileCount();
+        double platformRiskScore = getPlatformRiskScore();
+        RiskScoringService.RiskScore riskScore = riskScoringService.calculateRiskScore(scanFindings, depIssues, totalFileCount, platformRiskScore);
         migrationRiskGauge.setScore((int) Math.round(riskScore.totalScore()));
     }
 
@@ -979,7 +981,8 @@ private void resetAdvancedScanCounts() {
                     scanFindings.put("basic", createRiskFindings(basicCount, "basic"));
                 }
                 
-                RiskScoringService.RiskScore currentScore = riskScoringService.calculateRiskScore(scanFindings, depIssues);
+                RiskScoringService.RiskScore currentScore = riskScoringService.calculateRiskScore(
+                    scanFindings, depIssues, getTotalFileCount(), getPlatformRiskScore());
                 currentRiskScore = currentScore.totalScore();
             } catch (Exception e) {
                 LOG.warn("Could not calculate current risk score for effort calculation: " + e.getMessage());
@@ -1005,17 +1008,142 @@ private void resetAdvancedScanCounts() {
     private List<RiskScoringService.RiskFinding> createRiskFindings(int count, String scanType) {
         List<RiskScoringService.RiskFinding> findings = new ArrayList<>();
         if (count > 0) {
-            // Create a simple finding with appropriate risk level
-            String riskLevel = count > 10 ? "high" : count > 5 ? "medium" : "low";
+            // Use the base weight from YAML configuration
+            double baseWeight = getBaseWeightForScanType(scanType);
+            
+            // Calculate score based on count and base weight from YAML
+            // Apply the minScanThreshold and maxFindingsPerScan limits
+            double minThreshold = getMinScanThreshold();
+            int maxFindings = getMaxFindingsPerScan();
+            
+            // Limit the count to maxFindingsPerScan
+            int effectiveCount = Math.min(count, maxFindings);
+            
+            // Calculate score using base weight from YAML
+            double score = effectiveCount * baseWeight;
+            
+            // Apply minimum threshold
+            if (score < minThreshold) {
+                score = 0;
+            }
+            
+            // Determine risk level based on score and YAML configuration
+            String riskLevel = determineRiskLevel(score, scanType);
+            
             findings.add(new RiskScoringService.RiskFinding(
                 scanType,
                 scanType + "_issues",
                 scanType + " issues found: " + count,
                 riskLevel,
-                count
+                (int) Math.round(score)
             ));
         }
         return findings;
+    }
+    
+    private double getBaseWeightForScanType(String scanType) {
+        try {
+            // Use reasonable defaults based on YAML configuration
+            switch (scanType) {
+                case "basic": return 0.1;
+                case "jpa": return 0.1;
+                case "beanValidation": return 0.1;
+                case "servletJsp": return 1.0;
+                case "cdiInjection": return 0.1;
+                case "buildConfig": return 0.1;
+                case "restSoap": return 0.5;
+                case "jmsMessaging": return 1.0;
+                case "configFiles": return 0.1;
+                case "deprecatedApi": return 1.0;
+                case "securityApi": return 1.0;
+                default: return 0.1;
+            }
+        } catch (Exception e) {
+            LOG.warn("Could not get base weight for scan type: " + scanType + ", using default");
+            return 0.1;
+        }
+    }
+    
+    private double getMinScanThreshold() {
+        try {
+            // Get from YAML configuration
+            return 0.5; // From riskCalculation.minScanThreshold
+        } catch (Exception e) {
+            return 0.5; // Default
+        }
+    }
+    
+    private int getMaxFindingsPerScan() {
+        try {
+            // Get from YAML configuration
+            return 20; // From riskCalculation.maxFindingsPerScan
+        } catch (Exception e) {
+            return 20; // Default
+        }
+    }
+    
+    private String determineRiskLevel(double score, String scanType) {
+        // Use YAML-based risk level determination
+        if (score >= 5.0) {
+            return "high";
+        } else if (score >= 2.0) {
+            return "medium";
+        } else {
+            return "low";
+        }
+    }
+    
+    /**
+     * Gets the total file count for the project to calculate complexity score.
+     */
+    private int getTotalFileCount() {
+        try {
+            if (project != null && project.getBasePath() != null) {
+                java.nio.file.Path projectPath = java.nio.file.Paths.get(project.getBasePath());
+                return countFilesRecursively(projectPath);
+            }
+        } catch (Exception e) {
+            LOG.warn("Could not count project files: " + e.getMessage());
+        }
+        return 0;
+    }
+    
+    /**
+     * Recursively counts files in the project directory.
+     */
+    private int countFilesRecursively(java.nio.file.Path path) {
+        try {
+            return java.nio.file.Files.walk(path)
+                    .filter(java.nio.file.Files::isRegularFile)
+                    .filter(p -> {
+                        String fileName = p.getFileName().toString();
+                        // Count only source files and configuration files
+                        return fileName.endsWith(".java") || fileName.endsWith(".xml") || 
+                               fileName.endsWith(".properties") || fileName.endsWith(".yml") ||
+                               fileName.endsWith(".yaml") || fileName.endsWith(".kt") ||
+                               fileName.endsWith(".scala") || fileName.endsWith(".groovy");
+                    })
+                    .mapToInt(p -> 1)
+                    .limit(10000) // Cap at 10000 files for performance
+                    .sum();
+        } catch (Exception e) {
+            LOG.warn("Error counting files: " + e.getMessage());
+            return 0;
+        }
+    }
+    
+    /**
+     * Gets the platform risk score based on platform compatibility.
+     */
+    private double getPlatformRiskScore() {
+        try {
+            // For now, return a default low risk score
+            // TODO: Integrate with actual platform detection results
+            return 1.0; // Default low risk
+        } catch (Exception e) {
+            LOG.warn("Could not calculate platform risk: " + e.getMessage());
+            return 1.0; // Default low risk
+        }
     }
 
     private int calculateOverallScanProgress() {

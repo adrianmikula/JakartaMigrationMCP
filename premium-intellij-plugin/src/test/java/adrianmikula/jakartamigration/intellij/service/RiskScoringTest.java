@@ -36,16 +36,14 @@ public class RiskScoringTest {
             dependencyIssues.put("test", 1);
             
             // This should not throw IllegalArgumentException
-            RiskScoringService.RiskScoreResult result = service.calculateRiskScore(
+            RiskScoringService.RiskScore result = service.calculateRiskScore(
                 scanFindings, 
-                dependencyIssues, 
-                1, 
-                5
+                dependencyIssues
             );
             
             System.out.println("✅ SUCCESS: All scan types have valid risk configurations!");
-            System.out.println("Risk score: " + result.score());
-            System.out.println("Risk level: " + result.level());
+            System.out.println("Risk score: " + result.totalScore());
+            System.out.println("Risk level: " + result.category());
             
         } catch (Exception e) {
             System.err.println("❌ FAILED: " + e.getMessage());

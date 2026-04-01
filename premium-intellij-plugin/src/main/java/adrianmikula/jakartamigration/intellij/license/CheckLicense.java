@@ -44,7 +44,7 @@ public class CheckLicense {
     /**
      * Check if running in development mode (skips all licensing checks)
      */
-    private static boolean isDevMode() {
+    static boolean isDevMode() {
         // Check system property or environment variable
         String mode = System.getProperty("jakarta.migration.mode", "production");
         return DEV_MODE.equals(mode);

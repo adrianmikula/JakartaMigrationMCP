@@ -13,7 +13,7 @@ import static adrianmikula.jakartamigration.config.FeatureFlag.EXPERIMENTAL_FEAT
  * Service for checking feature flag availability.
  * 
  * Integrates with JetBrains Marketplace licensing system.
- * Supports tier-based access (COMMUNITY, PREMIUM) with 7-day free trial.
+ * Supports tier-based access (COMMUNITY, PREMIUM) with configurable free trial period.
  */
 @Slf4j
 public class FeatureFlagsService {
@@ -139,9 +139,10 @@ public class FeatureFlagsService {
      */
     public String getPricingInfo() {
         return String.format(
-                "Upgrade: %s or %s. Start your free 7-day trial today!",
+                "Upgrade: %s or %s. Start your free %d-day trial today!",
                 FeatureFlagsProperties.getMonthlyPriceFormatted(),
-                FeatureFlagsProperties.getYearlyPriceFormatted());
+                FeatureFlagsProperties.getYearlyPriceFormatted(),
+                FeatureFlagsProperties.getFreeTrialDays());
     }
 
     /**
@@ -149,15 +150,17 @@ public class FeatureFlagsService {
      */
     public String getFullUpgradePrompt() {
         int savings = FeatureFlagsProperties.getYearlySavingsPercent();
+        int trialDays = FeatureFlagsProperties.getFreeTrialDays();
         return String.format(
                 "Upgrade to Premium for:\n" +
                         "• %s (billed monthly)\n" +
                         "• %s (billed yearly - save %d%%)\n" +
-                        "• 7-day free trial available\n\n" +
+                        "• %d-day free trial available\n\n" +
                         "Visit JetBrains Marketplace to subscribe.",
                 FeatureFlagsProperties.getMonthlyPriceFormatted(),
                 FeatureFlagsProperties.getYearlyPriceFormatted(),
-                savings);
+                savings,
+                trialDays);
     }
 
     public UpgradeInfo getUpgradeInfo(FeatureFlag flag) {

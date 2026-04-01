@@ -21,14 +21,14 @@
 - Complete all tasks in a task list in order
 - Always use SDD (spec driven development) to implement new features, with specifications located under docs/spec
 - Always use TDD (test driven development) to implement new features, with tests located in the same module as the code they test
-- ensure all compile errors are fixed
+- ensure all requirements are implemented
 - ensure all new features have tests
 
 
 ### Post-Task Steps
 
 After completing a task list, do the following:
-- ensure all requirements are implemented
+- ensure all compile errors are fixed
 - Add any missing tests for important/critical code paths
 - ensure all tests pass.  
 - Review the code implementation to ensure it meets our code quality standards.

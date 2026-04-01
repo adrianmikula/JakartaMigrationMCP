@@ -16,19 +16,19 @@ class FeatureFlagsPropertiesTest {
     @Test
     @DisplayName("Monthly price should be $49 USD")
     void monthlyPriceIs49() {
-        assertThat(FeatureFlagsProperties.MONTHLY_PRICE_USD).isEqualTo(49.0);
+        assertThat(FeatureFlagsProperties.getMonthlyPriceUsd()).isEqualTo(49.0);
     }
 
     @Test
     @DisplayName("Yearly price should be $399 USD")
     void yearlyPriceIs399() {
-        assertThat(FeatureFlagsProperties.YEARLY_PRICE_USD).isEqualTo(399.0);
+        assertThat(FeatureFlagsProperties.getYearlyPriceUsd()).isEqualTo(399.0);
     }
 
     @Test
     @DisplayName("Free trial should be 7 days")
     void freeTrialIs7Days() {
-        assertThat(FeatureFlagsProperties.FREE_TRIAL_DAYS).isEqualTo(7);
+        assertThat(FeatureFlagsProperties.getFreeTrialDays()).isEqualTo(7);
     }
 
     // === Pricing Formatted Tests ===
@@ -157,5 +157,14 @@ class FeatureFlagsPropertiesTest {
     void communityOrdinalLowerThanPremium() {
         assertThat(FeatureFlagsProperties.LicenseTier.COMMUNITY.ordinal())
             .isLessThan(FeatureFlagsProperties.LicenseTier.PREMIUM.ordinal());
+    }
+
+    @Test
+    @DisplayName("Should load pricing properties from resources")
+    void shouldLoadPricingPropertiesFromResources() {
+        // Test that default values are loaded correctly
+        assertThat(FeatureFlagsProperties.getMonthlyPriceUsd()).isEqualTo(49.0);
+        assertThat(FeatureFlagsProperties.getYearlyPriceUsd()).isEqualTo(399.0);
+        assertThat(FeatureFlagsProperties.getFreeTrialDays()).isEqualTo(7);
     }
 }

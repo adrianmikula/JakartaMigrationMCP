@@ -164,6 +164,12 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     if (dashboardComponent != null) {
                         dashboardComponent.updateAdvancedScanCounts();
                     }
+                    
+                    // Trigger Maven Central lookup after advanced scan completion
+                    // This ensures Jakarta version recommendations are up-to-date
+                    if (dependenciesComponent != null) {
+                        dependenciesComponent.queryMavenCentralForDependencies();
+                    }
                 });
                 tabbedPane.addTab("Advanced Scans ⭐", advancedScansComponent.getPanel());
                 LOG.info("initializeContent: Added PREMIUM Advanced Scans tab");
@@ -690,7 +696,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 if (recommended != null) {
                     info.setRecommendedVersion(recommended.version());
                     info.setRecommendedGroupId(recommended.groupId());
-                    info.setRecommendedArtifactId(recommended.artifactId());
+                    info.setRecommendedArtifactCoordinates(recommended.groupId() + ":" + recommended.artifactId());
                 }
 
                 // Determine migration status based on namespace from the report's namespace map

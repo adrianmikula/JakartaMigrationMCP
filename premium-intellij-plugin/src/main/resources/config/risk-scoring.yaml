@@ -38,7 +38,7 @@ riskCategories:
 scanRisks:
   basic:
     displayName: "Basic Migration"
-    baseWeight: 0.5
+    baseWeight: 0.1
     findings:
       basicIssue:
         riskLevel: "low"
@@ -46,7 +46,7 @@ scanRisks:
         
   jpa:
     displayName: "JPA/Entity"
-    baseWeight: 1.0
+    baseWeight: 0.1
     findings:
       entityWithJakartaId:
         riskLevel: "low"
@@ -60,7 +60,7 @@ scanRisks:
         
   beanValidation:
     displayName: "Bean Validation"
-    baseWeight: 0.8
+    baseWeight: 0.1
     findings:
       constraintAnnotation:
         riskLevel: "low"
@@ -71,7 +71,7 @@ scanRisks:
         
   servletJsp:
     displayName: "Servlet/JSP"
-    baseWeight: 1.5
+    baseWeight: 1.0
     findings:
       javaxServletImport:
         riskLevel: "high"
@@ -82,7 +82,7 @@ scanRisks:
         
   cdi:
     displayName: "CDI"
-    baseWeight: 0.8
+    baseWeight: 0.1
     findings:
       cdiBean:
         riskLevel: "low"
@@ -93,7 +93,7 @@ scanRisks:
         
   jms:
     displayName: "JMS"
-    baseWeight: 1.2
+    baseWeight: 1.0
     findings:
       jmsQueueConnection:
         riskLevel: "high"
@@ -115,7 +115,7 @@ scanRisks:
         
   serializationCache:
     displayName: "Serialization/Cache"
-    baseWeight: 0.1
+    baseWeight: 0.01
     findings:
       Serializable:
         riskLevel: "low"
@@ -139,7 +139,7 @@ scanRisks:
   # Additional scan types from advanced scanning
   deprecatedApi:
     displayName: "Deprecated APIs"
-    baseWeight: 2.0
+    baseWeight: 1
     findings:
       deprecatedMethod:
         riskLevel: "high"
@@ -153,7 +153,7 @@ scanRisks:
         
   securityApi:
     displayName: "Security APIs"
-    baseWeight: 2.5
+    baseWeight: 1
     findings:
       securityConstraint:
         riskLevel: "high"
@@ -167,7 +167,7 @@ scanRisks:
         
   cdiInjection:
     displayName: "CDI Injection"
-    baseWeight: 0.5
+    baseWeight: 0.1
     findings:
       injectAnnotation:
         riskLevel: "low"
@@ -181,7 +181,7 @@ scanRisks:
         
   buildConfig:
     displayName: "Build Configuration"
-    baseWeight: 0.3
+    baseWeight: 0.1
     findings:
       mavenConfig:
         riskLevel: "low"
@@ -195,7 +195,7 @@ scanRisks:
         
   restSoap:
     displayName: "REST/SOAP"
-    baseWeight: 1.8
+    baseWeight: 0.5
     findings:
       restEndpoint:
         riskLevel: "medium"
@@ -209,7 +209,7 @@ scanRisks:
         
   jmsMessaging:
     displayName: "JMS Messaging"
-    baseWeight: 1.2
+    baseWeight: 1
     findings:
       jmsTemplate:
         riskLevel: "medium"
@@ -250,7 +250,7 @@ dependencyRisks:
     
   blockedDependency:
     riskLevel: "extreme"
-    score: 10.0
+    score: 5.0
     description: "Migration blocker - no path available"
     
   directDependency:
@@ -260,22 +260,23 @@ dependencyRisks:
     
   transitiveDependency:
     riskLevel: "low"
-    score: 0.3
+    score: 0.1
     description: "Transitive dependency"
 
 # Overall risk calculation
 riskCalculation:
   # Weights for different components in overall score
   componentWeights:
-    scanFindings: 0.4      # 40% from scan findings
-    dependencyIssues: 0.4   # 40% from dependency issues
+    scanFindings: 0.3      # 30% from scan findings
+    dependencyIssues: 0.3   # 30% from dependency issues
     codeComplexity: 0.2     # 20% from code complexity
+    platformRisk: 0.2      # 20% from platform compatibility
     
   # Minimum scan threshold to include in scoring
   minScanThreshold: 0.5
   
   # Maximum findings to score per scan type
-  maxFindingsPerScan: 20
+  maxFindingsPerScan: 5
   
   # Score normalization to ensure 0-100 scale
   maxTotalScore: 100.0

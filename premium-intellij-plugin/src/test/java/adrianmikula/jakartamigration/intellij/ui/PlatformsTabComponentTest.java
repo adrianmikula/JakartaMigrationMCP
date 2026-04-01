@@ -15,8 +15,10 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import javax.swing.*;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for PlatformsTabComponent
@@ -27,13 +29,13 @@ public class PlatformsTabComponentTest extends BasePlatformTestCase {
     private Project mockProject;
     
     @BeforeEach
-    void setUp() throws Exception {
-        mockProject = createMockProject();
+    protected void setUp() throws Exception {
+        mockProject = getProject();
         platformsTab = new PlatformsTabComponent(mockProject);
     }
     
     @AfterEach
-    void tearDown() {
+    protected void tearDown() {
         if (platformsTab != null) {
             // Clean up any UI resources
         }
@@ -56,7 +58,9 @@ public class PlatformsTabComponentTest extends BasePlatformTestCase {
     void testUpdatePremiumControls_NonPremiumUser_ShowsLockIcon() {
         // Given
         try (MockedStatic<FeatureFlags> mockedFlags = Mockito.mockStatic(FeatureFlags.class)) {
-            mockedFlags.when(FeatureFlags::isPlatformsEnabled).thenReturn(false);
+            FeatureFlags mockInstance = Mockito.mock(FeatureFlags.class);
+            mockedFlags.when(FeatureFlags::getInstance).thenReturn(mockInstance);
+            when(mockInstance.isPlatformsEnabled()).thenReturn(false);
             
             platformsTab = new PlatformsTabComponent(mockProject);
             
@@ -77,7 +81,9 @@ public class PlatformsTabComponentTest extends BasePlatformTestCase {
     void testUpdatePremiumControls_PremiumUser_HidesLockIcon() {
         // Given
         try (MockedStatic<FeatureFlags> mockedFlags = Mockito.mockStatic(FeatureFlags.class)) {
-            mockedFlags.when(FeatureFlags::isPlatformsEnabled).thenReturn(true);
+            FeatureFlags mockInstance = Mockito.mock(FeatureFlags.class);
+            mockedFlags.when(FeatureFlags::getInstance).thenReturn(mockInstance);
+            when(mockInstance.isPlatformsEnabled()).thenReturn(true);
             
             platformsTab = new PlatformsTabComponent(mockProject);
             
@@ -179,7 +185,9 @@ public class PlatformsTabComponentTest extends BasePlatformTestCase {
     void testScanButton_InitialState_EnabledForPremiumUser() {
         // Given
         try (MockedStatic<FeatureFlags> mockedFlags = Mockito.mockStatic(FeatureFlags.class)) {
-            mockedFlags.when(FeatureFlags::isPlatformsEnabled).thenReturn(true);
+            FeatureFlags mockInstance = Mockito.mock(FeatureFlags.class);
+            mockedFlags.when(FeatureFlags::getInstance).thenReturn(mockInstance);
+            when(mockInstance.isPlatformsEnabled()).thenReturn(true);
             
             platformsTab = new PlatformsTabComponent(mockProject);
             
@@ -199,7 +207,9 @@ public class PlatformsTabComponentTest extends BasePlatformTestCase {
     void testScanButton_InitialState_DisabledForNonPremiumUser() {
         // Given
         try (MockedStatic<FeatureFlags> mockedFlags = Mockito.mockStatic(FeatureFlags.class)) {
-            mockedFlags.when(FeatureFlags::isPlatformsEnabled).thenReturn(false);
+            FeatureFlags mockInstance = Mockito.mock(FeatureFlags.class);
+            mockedFlags.when(FeatureFlags::getInstance).thenReturn(mockInstance);
+            when(mockInstance.isPlatformsEnabled()).thenReturn(false);
             
             platformsTab = new PlatformsTabComponent(mockProject);
             
@@ -258,32 +268,5 @@ public class PlatformsTabComponentTest extends BasePlatformTestCase {
             }
         }
         return null;
-    }
-    
-    private Project createMockProject() {
-        return new Project() {
-            @Override
-            public String getName() {
-                return "Test Project";
-            }
-            
-            @Override
-            public java.nio.file.Path getBasePath() {
-                return java.nio.file.Path.of("/test/project");
-            }
-            
-            // Add minimal required method implementations
-            @Override
-            public String getLocationHash() { return "test-hash"; }
-            
-            @Override
-            public String getPresentableUrl() { return "test-url"; }
-            
-            @Override
-            public void save() { }
-            
-            @Override
-            public boolean isDefault() { return false; }
-        };
     }
 }

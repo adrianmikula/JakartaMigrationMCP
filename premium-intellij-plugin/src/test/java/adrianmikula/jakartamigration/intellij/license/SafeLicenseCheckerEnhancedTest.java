@@ -10,6 +10,8 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -348,7 +350,7 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
     // ==================== Concurrent Access Tests ====================
     
     @Test
-    public void testConcurrentLicenseChecks() throws InterruptedException {
+    public void testConcurrentLicenseChecks() throws InterruptedException, ExecutionException, TimeoutException {
         // Given
         mockedFailsafeConfig.when(LicenseFailsafeConfig::isDevMode).thenReturn(false);
         mockedFailsafeConfig.when(LicenseFailsafeConfig::isSafeMode).thenReturn(false);
@@ -388,7 +390,7 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
     }
     
     @Test
-    public void testConcurrentAsyncLicenseChecks() throws InterruptedException {
+    public void testConcurrentAsyncLicenseChecks() throws InterruptedException, ExecutionException, TimeoutException {
         // Given
         mockedFailsafeConfig.when(LicenseFailsafeConfig::isDevMode).thenReturn(false);
         mockedFailsafeConfig.when(LicenseFailsafeConfig::isSafeMode).thenReturn(false);

@@ -2,26 +2,30 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
+import adrianmikula.jakartamigration.intellij.model.JakartaArtifactCoordinates;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBPanel;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.table.JBTable;
-
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import javax.swing.event.MouseInputAdapter;
-import javax.swing.event.ListSelectionListener;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.event.DocumentListener;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.MouseInputAdapter;
+import javax.swing.event.ListSelectionListener;
+import javax.swing.table.TableCellRenderer;
+import adrianmikula.jakartamigration.intellij.service.MavenCentralService;
 
 /**
  * Dependencies table component with colored status indicators and dependency
@@ -41,6 +45,9 @@ public class DependenciesTableComponent {
     private final JComboBox<String> statusFilter;
     private final JCheckBox transitiveFilter;
     private final JCheckBox organizationalFilter;
+    private JProgressBar progressBar;
+    private boolean isQueryingMaven = false;
+    private static final Logger LOGGER = Logger.getLogger(DependenciesTableComponent.class.getName());
     private List<DependencyInfo> allDependencies;
     
     // Bottom panel for recipes
@@ -277,6 +284,12 @@ public class DependenciesTableComponent {
         actionsPanel.add(refreshButton);
         actionsPanel.add(updateButton);
         actionsPanel.add(viewDetailsButton);
+        
+        // Add progress bar to actions panel
+        progressBar = new JProgressBar();
+        progressBar.setVisible(false);
+        progressBar.setStringPainted(true);
+        actionsPanel.add(progressBar);
 
         // Create center panel with table and recipes
         JPanel centerPanel = new JBPanel<>(new BorderLayout());
@@ -351,7 +364,7 @@ public class DependenciesTableComponent {
             applyRecipeButton.setEnabled(true);
         } else if (dep.getRecommendedVersion() != null && !dep.getRecommendedVersion().equals("-")) {
             // Add generic upgrade recipe if there's a recommended version
-            String genericRecipe = "Upgrade to Jakarta: " + dep.getRecommendedArtifactId();
+            String genericRecipe = "Upgrade to Jakarta: " + dep.getRecommendedArtifactCoordinates();
             recipeListModel.addElement(genericRecipe);
             recipeList.setSelectedIndex(0);
             applyRecipeButton.setEnabled(true);
@@ -434,6 +447,11 @@ public class DependenciesTableComponent {
     public void setDependencies(List<DependencyInfo> dependencies) {
         this.allDependencies = dependencies != null ? dependencies : new ArrayList<>();
         filterDependencies();
+        
+        // Automatically trigger Maven Central lookup for new dependencies
+        if (!this.allDependencies.isEmpty()) {
+            queryMavenCentralForDependencies();
+        }
     }
 
     public List<DependencyInfo> getSelectedDependencies() {
@@ -501,7 +519,7 @@ public class DependenciesTableComponent {
         String dependencyType = dep.isTransitive() ? "Transitive" : "Direct";
         
         // Jakarta Equivalent
-        String jakartaEquivalent = dep.getRecommendedArtifactId() != null 
+        String jakartaEquivalent = dep.getRecommendedArtifactCoordinates() != null 
                 ? dep.getRecommendedArtifactCoordinates() 
                 : "-";
         
@@ -528,8 +546,137 @@ public class DependenciesTableComponent {
         SwingUtilities.invokeLater(() -> {
             Messages.showInfoMessage(project, "Refreshing dependency analysis...", "Refresh");
         });
+        
+        // Query Maven Central for Jakarta equivalents
+        queryMavenCentralForDependencies();
     }
-
+    
+    /**
+     * Queries Maven Central for Jakarta equivalents of detected javax dependencies
+     * Uses async/non-blocking approach with proper error handling
+     */
+    public void queryMavenCentralForDependencies() {
+        if (allDependencies.isEmpty()) {
+            return;
+        }
+        
+        // Find all javax dependencies
+        List<DependencyInfo> javaxDependencies = allDependencies.stream()
+                .filter(dep -> dep.getGroupId() != null && dep.getArtifactId() != null &&
+                        dep.getGroupId().startsWith("javax.") && dep.getArtifactId().startsWith("javax."))
+                .collect(Collectors.toList());
+        
+        if (javaxDependencies.isEmpty()) {
+            return;
+        }
+        
+        // Show progress bar
+        isQueryingMaven = true;
+        SwingUtilities.invokeLater(() -> {
+            progressBar.setVisible(true);
+            progressBar.setIndeterminate(true);
+            progressBar.setString("Querying Maven Central for " + javaxDependencies.size() + " dependencies...");
+        });
+        
+        MavenCentralService mavenService = new MavenCentralService();
+        
+        // Create a list of CompletableFutures for each dependency lookup
+        List<CompletableFuture<Void>> lookupFutures = javaxDependencies.stream()
+                .map(javaxDep -> 
+                    mavenService.findJakartaEquivalents(javaxDep.getGroupId(), javaxDep.getArtifactId())
+                            .thenAccept(jakartaArtifacts -> {
+                                updateDependencyWithJakartaInfo(javaxDep, jakartaArtifacts);
+                            })
+                            .exceptionally(throwable -> {
+                                LOGGER.warning("Failed to query Maven Central for " + javaxDep.getGroupId() + ":" + 
+                                           javaxDep.getArtifactId() + " - " + throwable.getMessage());
+                                return null; // Continue processing other dependencies
+                            })
+                )
+                .collect(Collectors.toList());
+        
+        // Wait for all lookups to complete
+        CompletableFuture.allOf(lookupFutures.toArray(new CompletableFuture[0]))
+                .thenRun(() -> {
+                    SwingUtilities.invokeLater(() -> {
+                        isQueryingMaven = false;
+                        progressBar.setVisible(false);
+                        progressBar.setIndeterminate(false);
+                        filterDependencies(); // Re-apply filters with updated data
+                        
+                        long successfulLookups = lookupFutures.stream()
+                                .mapToLong(f -> f.isCompletedExceptionally() ? 0 : 1)
+                                .sum();
+                        
+                        LOGGER.info("Maven Central query completed. Successfully processed " + 
+                                successfulLookups + " of " + javaxDependencies.size() + " dependencies.");
+                    });
+                })
+                .exceptionally(throwable -> {
+                    LOGGER.log(java.util.logging.Level.SEVERE, "Unexpected error in Maven Central queries", throwable);
+                    SwingUtilities.invokeLater(() -> {
+                        isQueryingMaven = false;
+                        progressBar.setVisible(false);
+                        progressBar.setIndeterminate(false);
+                        Messages.showErrorDialog(project, 
+                                "An unexpected error occurred during Maven Central lookup: " + throwable.getMessage(), 
+                                "Query Error");
+                    });
+                    return null;
+                });
+    }
+    
+    /**
+     * Updates a dependency with Jakarta artifact information from Maven Central
+     * Thread-safe implementation for async updates
+     * 
+     * @param javaxDep original javax dependency
+     * @param jakartaArtifacts list of Jakarta artifacts found
+     */
+    private synchronized void updateDependencyWithJakartaInfo(DependencyInfo javaxDep, List<JakartaArtifactCoordinates> jakartaArtifacts) {
+        if (jakartaArtifacts == null || jakartaArtifacts.isEmpty()) {
+            // No Jakarta artifacts found
+            javaxDep.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
+            return;
+        }
+        
+        // Use best match (first result for now, could be enhanced with version comparison)
+        JakartaArtifactCoordinates bestMatch = jakartaArtifacts.get(0);
+        
+        // Update dependency with Jakarta information
+        javaxDep.setRecommendedArtifactCoordinates(bestMatch.getCoordinates());
+        javaxDep.setJakartaCompatibilityStatus(bestMatch.status().getValue());
+        
+        // Update migration status based on found artifacts
+        if (bestMatch.status() == DependencyMigrationStatus.COMPATIBLE) {
+            javaxDep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
+        } else {
+            javaxDep.setMigrationStatus(bestMatch.status());
+        }
+        
+        // Update dependency in master list
+        for (int i = 0; i < allDependencies.size(); i++) {
+            DependencyInfo dep = allDependencies.get(i);
+            if (dep.getGroupId().equals(javaxDep.getGroupId()) && 
+                dep.getArtifactId().equals(javaxDep.getArtifactId())) {
+                
+                // Create a new DependencyInfo object with updated information
+                DependencyInfo updatedDep = new DependencyInfo();
+                updatedDep.setGroupId(dep.getGroupId());
+                updatedDep.setArtifactId(dep.getArtifactId());
+                updatedDep.setCurrentVersion(dep.getCurrentVersion());
+                updatedDep.setRecommendedArtifactCoordinates(bestMatch.getCoordinates());
+                updatedDep.setJakartaCompatibilityStatus(bestMatch.status().getValue());
+                updatedDep.setMigrationStatus(javaxDep.getMigrationStatus());
+                updatedDep.setTransitive(dep.isTransitive());
+                updatedDep.setOrganizational(dep.isOrganizational());
+                
+                allDependencies.set(i, updatedDep);
+                break;
+            }
+        }
+    }
+    
     private void handleUpdate(ActionEvent e) {
         List<DependencyInfo> selected = getSelectedDependencies();
         if (selected.isEmpty()) {
@@ -678,7 +825,7 @@ public class DependenciesTableComponent {
             applyRecipeButton.setEnabled(true);
         } else if (dependency.getRecommendedVersion() != null && !dependency.getRecommendedVersion().equals("-")) {
             // Add generic upgrade recipe if there's a recommended version
-            String genericRecipe = "Upgrade to Jakarta: " + dependency.getRecommendedArtifactId();
+            String genericRecipe = "Upgrade to Jakarta: " + dependency.getRecommendedArtifactCoordinates();
             recipeListModel.addElement(genericRecipe);
             recipeList.setSelectedIndex(0);
             applyRecipeButton.setEnabled(true);
