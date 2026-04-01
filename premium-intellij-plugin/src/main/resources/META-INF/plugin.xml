@@ -1,13 +1,41 @@
 <idea-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/schemas/plugin/2/plugin.xsd" icon="/icons/pluginIcon.svg">
     <!-- Freemium Monetization Parameters -->
-    <!-- TEMPORARILY COMMENTED OUT FOR DEVELOPMENT TO PREVENT LICENSE DIALOG -->
-    <!-- <product-descriptor code="PJAKARTAMIGRATI" release-date="20250326" release-version="108"/> -->
+    <product-descriptor code="PJAKARTAMIGRATI" release-date="20250326" release-version="108"/>
     
     <id>com.adrianmikula.jakarta-migration</id>
     <version>1.0.8</version>
     <name>Jakarta Migration (javax → jakarta)</name>
     <vendor email="adrian.m@tuta.io" name="Adrian Mikula" url="https://github.com/adrianmikula/JakartaMigrationMCP">Adrian Mikula</vendor>
     <category>Framework Integration</category>
+    
+    <!-- Freemium Parameters -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+    
+    <!-- Pricing and Licensing -->
+    <purchases>
+        <purchase server>https://plugins.jetbrains.com</purchase-server>
+        <eap key="FREEMIUM" name="Freemium"/>
+    </purchases>
+    
+    <!-- Trial and Licensing -->
+    <trial-permissions>DOWNLOAD_SOURCE</trial-permissions>
+    <trial-permissions>EXECUTE_CODE</trial-permissions>
+    <licensing-server>https://plugins.jetbrains.com</licensing-server>
+    
+    <!-- Optional Freemium Parameters -->
+    <product-descriptor-details>
+        <property name="freemium" value="true"/>
+        <property name="allow-bundling" value="false"/>
+        <property name="evaluation" value="false"/>
+        <property name="commercial" value="true"/>
+        <property name="release-date" value="20250326"/>
+        <property name="release-version" value="20241"/>
+        <property name="eap" value="FREEMIUM"/>
+        <property name="purchase-url" value="https://plugins.jetbrains.com"/>
+        <property name="support-url" value="https://github.com/adrianmikula/JakartaMigrationMCP"/>
+        <property name="plugin-compat" value="233.0+"/>
+    </product-descriptor-details>
 
     <description><![CDATA[
     <h2>Automate Your Java EE to Jakarta EE Migration</h2>
