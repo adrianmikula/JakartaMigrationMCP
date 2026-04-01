@@ -14,7 +14,7 @@
     
     <!-- Pricing and Licensing -->
     <purchases>
-        <purchase server>https://plugins.jetbrains.com</purchase-server>
+        <purchase-server>https://plugins.jetbrains.com</purchase-server>
         <eap key="FREEMIUM" name="Freemium"/>
     </purchases>
     
