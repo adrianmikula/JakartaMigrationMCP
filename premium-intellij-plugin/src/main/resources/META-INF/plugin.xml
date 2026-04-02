@@ -138,7 +138,16 @@
     </actions>
 
     <change-notes><![CDATA[
-    <h>1.0.8</h>
+    <h>1.0.9 - 2026-04-02</h>
+    <ul>
+        <li><b>Added:</b> Advanced scan for reflection uses of javax packages - detects and analyzes dynamic class loading and reflection calls that reference javax.* packages</li>
+        <li><b>Added:</b> Much more robust testing of all scans and refactor recipes - comprehensive test coverage ensuring reliability of migration analysis and refactoring functionality</li>
+        <li>Fixed: Corrected Jetbrains marketplace monetisation properties in plugin.xml</li>
+        <li>Added: Complete JetBrains Marketplace validation test suite with JUnit 5</li>
+        <li>Added: Enhanced error handling and test coverage</li>
+        <li>Updated AI assistant MCP tools to support all scan types, risk analysis, refactor history, and PDF reports</li>
+    </ul>
+    <h>1.0.8 - 2026-03-28</h>
     <ul>
         <li><b>Major Feature:</b> PDF Reports - Generate comprehensive migration analysis reports in PDF format with detailed findings, recommendations, and visual charts for stakeholder presentations</li>
         <li><b>Added:</b> Reports Tab - New dedicated tab in the migration tool window for generating and managing PDF reports with customizable options</li>
@@ -156,7 +165,7 @@
         <li><b>Fixed:</b> Tab Switching - Improved tab switching performance and state management</li>
         <li><b>Documentation:</b> Updated user guide with PDF reporting workflow and best practices</li>
     </ul>
-    <h>1.0.7</h>
+    <h>1.0.7 - 2026-03-21</h>
     <ul>
         <li><b>Added:</b> Dynamic Recipe Loading - Advanced Scans tab now dynamically creates UI tabs based on recipe categories from recipes.yaml, eliminating hardcoded tabs and ensuring automatic UI synchronization when new refactoring recipes are added</li>
         <li><b>Enhanced:</b> Recipe Service Integration - Improved recipe loading mechanism with better category filtering and dynamic table management</li>
@@ -166,7 +175,7 @@
         <li><b>Fixed:</b> Gradle Configuration - Resolved malformed Java home path causing build failures</li>
         <li><b>Fixed:</b> Build System - Resolved Java 21/Gradle compatibility issues for reliable builds</li>
     </ul>
-    <h>1.0.6</h>
+    <h>1.0.6 - 2026-03-15</h>
     <ul>
         <li>Fixed: OpenRewrite recipe class name fix - JavaxValidationToJakartaValidation now correctly maps to JavaxValidationMigrationToJakartaValidation</li>
         <li>Fixed: RecipeSeeder now loads all 33 recipes from recipes.yaml</li>
@@ -177,7 +186,33 @@
         <li>Added: Support URLs now loaded from support-urls.properties</li>
         <li>Changed: RecipeSeeder now loads from recipes.yaml for centralized configuration</li>
     </ul>
-    <h>1.0.2</h>
+    
+    <h>1.0.5 - 2026-03-10</h>
+    <ul>
+        <li>Resolved critical Jackson ClassCastException affecting plugin stability</li>
+        <li>Implemented complete recipe isolation for reliable execution</li>
+        <li>Enhanced fallback mechanisms for non-Maven/Gradle projects</li>
+        <li>Complete OpenRewrite execution isolation</li>
+        <li>Safely isolated recipe execution environment</li>
+        <li>Reflection-based isolated recipe execution</li>
+    </ul>
+    
+    <h>1.0.4 - 2026-03-05</h>
+    <ul>
+        <li>Reimplemented core refactoring system with cross-platform fixes and SQLite persistence improvements</li>
+    </ul>
+    
+    <h>1.0.3 - 2026-03-01</h>
+    <ul>
+        <li>Fixed Strategy tab - Replaced HYBRID with STRANGLER strategy, now shows 6 strategies</li>
+        <li>Fixed dependency graph colors - Better visual consistency with dependency list</li>
+        <li>Fixed Advanced Scans tab - Proper display when trial starts</li>
+        <li>Fixed bullet list characters - Used proper dash characters in migration strategy tab</li>
+        <li>Added progress bar - Advanced scans progress indicator in dashboard</li>
+        <li>Added History tab - Premium feature for tracking recipe execution history</li>
+    </ul>
+
+    <h>1.0.2 - 2026-02-25</h>
     <ul>
         <li>Fixed: 'Total Advanced Issues' now at bottom of scan counts</li>
         <li>Fixed: Removed 'Jakarta Status Indicator' from dashboard</li>
@@ -186,7 +221,7 @@
         <li>Added: Premium upgrade banner in Support tab for better visibility</li>
         <li>Note: Freemium licensing implementation pending - requires JetBrains product parameters and license verification</li>
     </ul>
-    <h>1.0.1</h>
+    <h>1.0.1 - 2026-02-20</h>
     <ul>
         <li>Fixed: Refactor tab now shows actual files changed after applying recipes</li>
         <li>Fixed: Refactor recipes now properly applied using RefactoringEngine</li>
@@ -197,15 +232,13 @@
         <li>Added: Premium upgrade banner in Support tab for better visibility</li>
         <li>Improved: Detailed refactoring results showing files processed and changed</li>
     </ul>
-    <h>1.0.0</h>
+    <h>1.0.0 - 2026-02-05</h>
     <ul>
         <li>Initial release to IntelliJ Marketplace</li>
-        <li>Migration readiness analysis for Jakarta EE</li>
-        <li>Dependency analysis and version recommendations</li>
+        <li>Dependency analysis and compatibility detection</li>
         <li>Module dependency graph visualization</li>
-        <li>Phased migration planning</li>
+        <li>Phased migration planning and strategy comparison</li>
         <li>MCP server integration for AI Assistant</li>
-        <li>OpenRewrite refactoring support</li>
     </ul>
     ]]></change-notes>
 

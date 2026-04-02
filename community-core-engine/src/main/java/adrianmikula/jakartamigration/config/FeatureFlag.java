@@ -97,6 +97,26 @@ public enum FeatureFlag {
             FeatureFlagsProperties.LicenseTier.PREMIUM),
 
     /**
+     * Audit trail.
+     * Track and historical actions for compliance.
+     */
+    AUDIT_TRAIL(
+            "audit-trail",
+            "Audit trail and history",
+            "Track historical migration actions and maintain audit trail",
+            FeatureFlagsProperties.LicenseTier.PREMIUM),
+
+    /**
+     * Reporting.
+     * Create comprehensive migration reports.
+     */
+    REPORTING(
+            "reporting",
+            "Comprehensive reporting",
+            "Create comprehensive migration reports with analysis and recommendations",
+            FeatureFlagsProperties.LicenseTier.PREMIUM),
+
+    /**
      * Runtime diagnostics.
      * Runtime error diagnosis and troubleshooting.
      */

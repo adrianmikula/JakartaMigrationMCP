@@ -136,6 +136,32 @@ scanRisks:
         riskLevel: "low"
         description: "Third-party cache library"
 
+  reflectionUsage:
+    displayName: "Reflection Usage"
+    baseWeight: 0.05
+    findings:
+      classForName:
+        riskLevel: "high"
+        description: "Class.forName with javax class reference"
+      classLoader:
+        riskLevel: "high"
+        description: "ClassLoader loading javax classes"
+      methodInvoke:
+        riskLevel: "medium"
+        description: "Method.invoke on javax objects"
+      fieldAccess:
+        riskLevel: "medium"
+        description: "Field access on javax objects"
+      constructorNewInstance:
+        riskLevel: "medium"
+        description: "Constructor.newInstance on javax classes"
+      proxyUsage:
+        riskLevel: "high"
+        description: "Dynamic proxy with javax interfaces"
+      annotationReflection:
+        riskLevel: "medium"
+        description: "Reflection on javax annotations"
+        
   # Additional scan types from advanced scanning
   deprecatedApi:
     displayName: "Deprecated APIs"

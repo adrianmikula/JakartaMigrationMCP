@@ -5,79 +5,136 @@ All notable changes to the Jakarta Migration IntelliJ plugin will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.9] - 2026-04-02
+
+### Added
+- Advanced scan for reflection uses of javax packages - detects and analyzes dynamic class loading and reflection calls that reference javax.* packages
+- Much more robust testing of all scans and refactor recipes - comprehensive test coverage ensuring reliability of migration analysis and refactoring functionality
+
+### Fixed
+- Corrected Jetbrains marketplace monetisation properties in plugin.xml
+
+### Added
+- Complete JetBrains Marketplace validation test suite with JUnit 5
+- Enhanced error handling and test coverage
+
+### Enhanced
+- Updated AI assistant MCP tools to support all scan types, risk analysis, refactor history, and PDF reports
+
+## [1.0.8] - 2026-03-28
+
+### Added
+- **Major Feature: PDF Reports** - Generate comprehensive migration analysis reports in PDF format with detailed findings, recommendations, and visual charts for stakeholder presentations
+- **Reports Tab** - New dedicated tab in the migration tool window for generating and managing PDF reports with customizable options
+- **Report Templates** - Multiple report templates including Executive Summary, Technical Analysis, and Migration Roadmap with different detail levels
+- **Visual Charts** - Interactive charts and graphs showing migration complexity, risk assessment, and dependency analysis in PDF reports
+- **Export Options** - Save reports to custom locations with automatic timestamping and version control integration
+- **Report Preview** - Live preview of PDF reports before generation with real-time updates as analysis data changes
+
+### Enhanced
+- Dashboard UI - Improved dashboard layout with better visual hierarchy and enhanced data presentation
+- Migration Phases - More detailed phase descriptions with clear action items and timeline estimates
+- Dependency Visualization - Improved dependency graph rendering with better layout algorithms and interactive features
+- Advanced Scans UI - Refined advanced scanning interface with better categorization and filtering options
+
+### Improved
+- Tool Window Layout - Reorganized tool window tabs for better workflow and navigation
+- Status Indicators - Clear visual indicators for analysis progress and completion status
+
+### Fixed
+- UI Responsiveness - Resolved performance issues with large project analysis and UI updates
+- Tab Switching - Improved tab switching performance and state management
+
+### Documentation
+- Updated user guide with PDF reporting workflow and best practices
+
 ## [1.0.7] - 2026-03-21
 
 ### Added
-- **100+ Jakarta Migration Recipes**: Added comprehensive collection of javax → jakarta OpenRewrite recipes covering all major Jakarta EE APIs
-  - Core APIs: Servlet, JPA, Bean Validation, CDI, EJB, JSF
-  - Web Services: JAX-RS, JAX-WS, SAAJ, SOAP
-  - Messaging: JMS, Batch API
-  - JSON: JSON-P, JSON-B
-  - Security: Security Enterprise, JASPIC, JACC
-  - XML: JAXB, JAX-RPC, XML Stream, XML Registry
-  - Enterprise: Concurrency, Resource (JCA)
-  - Configuration Files: XML namespace migrations for persistence.xml, web.xml, beans.xml, etc.
-  - Annotations: @Resource, @PostConstruct, @PreDestroy
-- **Risk Scoring Tests**: Comprehensive test suite for dashboard risk score calculation with weighted inputs from YAML configuration
-  - 19 test cases covering all aspects of risk scoring including scan findings, dependency issues, and component weights
-  - Tests for all configured scan types (JPA, Servlet, Bean Validation, CDI, JMS, Web Services, Serialization Cache)
-  - Validation of risk level categories, base weight application, and score normalization
+- **Dynamic Recipe Loading** - Advanced Scans tab now dynamically creates UI tabs based on recipe categories from recipes.yaml, eliminating hardcoded tabs and ensuring automatic UI synchronization when new refactoring recipes are added
+- **100+ Jakarta Migration Recipes** - Comprehensive collection of javax → jakarta OpenRewrite recipes covering all major Jakarta EE APIs (Servlet, JPA, Bean Validation, CDI, EJB, JSF, JAX-RS, JAX-WS, JMS, JSON-P, JSON-B, Security, XML, Enterprise, Configuration Files, Annotations)
+- **Risk Scoring Tests** - Comprehensive test suite with 19 test cases for dashboard risk score calculation with weighted inputs from YAML configuration
+
+### Enhanced
+- Recipe Service Integration - Improved recipe loading mechanism with better category filtering and dynamic table management
+- Premium Feature Architecture - Maintained premium license enforcement while implementing dynamic UI structure
 
 ### Fixed
-- **Gradle Configuration**: Fixed malformed Java home path in gradle.properties that was causing build failures
-- **Build System**: Resolved Java 21/Gradle compatibility issues for reliable builds
+- Gradle Configuration - Resolved malformed Java home path causing build failures
+- Build System - Resolved Java 21/Gradle compatibility issues for reliable builds
 
-## [1.0.6] - 2026-03-21
+## [1.0.6] - 2026-03-15
 
 ### Fixed
-- Bug: OpenRewrite recipe class name fix - JavaxValidationToJakartaValidation now correctly maps to JavaxValidationMigrationToJakartaValidation (missing "Migration" suffix)
-- Bug: RecipeSeeder now loads all 33 recipes from recipes.yaml (previously only seeded a subset)
-- Bug: Recipe database now uses recipe name as PRIMARY KEY for stable identity
-- Bug: Support tab now shows dynamic build timestamp instead of hardcoded old date
+- OpenRewrite recipe class name fix - JavaxValidationToJakartaValidation now correctly maps to JavaxValidationMigrationToJakartaValidation
+- RecipeSeeder now loads all 33 recipes from recipes.yaml
+- Recipe database now uses recipe name as PRIMARY KEY for stable identity
+- Support tab now shows dynamic build timestamp instead of hardcoded old date
 
 ### Added
-- Recipe validation tests: RecipeLoopValidationTest and OpenRewriteRecipeExistenceTest verify all recipes exist and are correctly configured
-- Dynamic build timestamp generation in IntelliJ plugin - shows actual build time in Support tab
-- Support URLs now loaded from support-urls.properties for easier configuration
+- Recipe validation tests verify all recipes exist and are correctly configured
+- Dynamic build timestamp generation in IntelliJ plugin
+- Support URLs now loaded from support-urls.properties
 
 ### Changed
-- RecipeSeeder now loads from recipes.yaml for centralized recipe configuration
+- RecipeSeeder now loads from recipes.yaml for centralized configuration
 
-## [Unreleased]
+## [1.0.5] - 2026-03-10
 
 ### Fixed
-- Bug: Dependencies tab now shows upgrade version recommendations from Maven Central (dynamic lookup wired to DependencyAnalysisModule)
-- Bug: OpenRewrite recipe execution improved with classpath from project build output and robust path resolution for writing changes
-- Bug: Status text now updates when clicking different openrewrite recipes in Refactor tab
-- Bug: OpenRewrite recipes now correctly apply changes to files (expanded recipe coverage)
-- Bug: RefactoringEngine now loads recipe replacements from YAML configuration (no hardcoded recipe names)
-- Regression: Runtime UI tab now hidden by default
-- Regression: Strategy tab now shows all 6 strategies (added Hybrid strategy)
-- Regression: Refactor tab now displays recipe description and execution results
-- Dashboard positioning fixed - scan counts no longer overlap with status/timestamp
-- Scan count highlighting: >0 shown in red, =0 shown in green
-- Fixed: History and Refactor tabs now visible as premium feature (previously missing locked placeholders)
-- Plugin version now uses semver format from gradle.properties (removed timestamp generation)
-- Fixed gradle build errors with version loading from properties
+- Resolved critical Jackson ClassCastException affecting plugin stability
+- Implemented complete recipe isolation for reliable execution
+- Enhanced fallback mechanisms for non-Maven/Gradle projects
+- Complete OpenRewrite execution isolation
+- Safely isolated recipe execution environment
+- Reflection-based isolated recipe execution
+
+## [1.0.4] - 2026-03-05
+
+### Fixed
+- Reimplemented core refactoring system with cross-platform fixes and SQLite persistence improvements
+
+## [1.0.3] - 2026-03-01
+
+### Fixed
+- Strategy tab - Replaced HYBRID with STRANGLER strategy, now shows 6 strategies
+- Dependency graph colors - Better visual consistency with dependency list
+- Advanced Scans tab - Proper display when trial starts
+- Bullet list characters - Used proper dash characters in migration strategy tab
 
 ### Added
-- Comprehensive test coverage for RefactoringEngine covering all Jakarta migration recipes
+- Progress bar - Advanced scans progress indicator in dashboard
+- History tab - Premium feature for tracking recipe execution history
+
+## [1.0.2] - 2026-02-25
+
+### Fixed
+- 'Total Advanced Issues' now at bottom of scan counts
+- Removed 'Jakarta Status Indicator' from dashboard
+- 'No Jakarta Support' count now updates correctly after scans
+- Advanced scans now hidden until premium/trial activated
 
 ### Added
-- Color legend to dependencies graph tab showing Jakarta compatibility status
-- Progress bar to advanced scans showing completion status
-- Hover info popup in dependencies graph showing maven coordinates and jakarta compatibility status
-- Strategy boxes now shorter vertically to provide more space for description boxes
-- History tab (Premium) - tracks all code changes made via the plugin with undo support
-- Recipe execution logging to SQLite database for history tracking
-- Database-backed undo state for Refactor tab recipes
-- CI/CD workflow for IntelliJ plugin build and publish
+- Premium upgrade banner in Support tab for better visibility
 
-### Changed
-- Dependencies graph now colors dependencies by jakarta compatibility (green=compatible, yellow=needs upgrade, red=no jakarta version)
-- Organisational dependencies now have thicker border and larger font instead of different color
-- Dependencies graph tooltips now show maven coordinates and jakarta compatibility status
-- Publish to JetBrains Marketplace only on main branch commits (not PRs)
+### Note
+- Freemium licensing implementation pending - requires JetBrains product parameters and license verification
+
+## [1.0.1] - 2026-02-20
+
+### Fixed
+- Refactor tab now shows actual files changed after applying recipes
+- Refactor recipes now properly applied using RefactoringEngine
+- Migration strategy phases now have longer, more descriptive text
+- JSON deserialization error now shows warning instead of blocking
+- Advanced scans tab no longer disappears when switching tabs
+- HYBRID strategy replaced with STRANGLER/MICROSERVICES strategy
+
+### Added
+- Premium upgrade banner in Support tab for better visibility
+
+### Improved
+- Detailed refactoring results showing files processed and changed
 
 ## [1.0.0] - 2026-02-05
 

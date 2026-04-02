@@ -1,9 +1,10 @@
 package adrianmikula.jakartamigration.mcp;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springaicommunity.mcp.annotation.McpTool;
 import org.springaicommunity.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Sentinel Tools - Clean implementation example for MCP tools.
@@ -18,8 +19,9 @@ import org.springframework.stereotype.Component;
  * when using type: SYNC in application.yml.
  */
 @Component
-@Slf4j
 public class SentinelTools {
+
+    private static final Logger log = LoggerFactory.getLogger(SentinelTools.class);
 
     /**
      * Verifies if required environment variables are present.

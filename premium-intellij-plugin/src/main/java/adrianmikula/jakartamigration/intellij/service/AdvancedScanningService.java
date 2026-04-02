@@ -85,29 +85,50 @@ public class AdvancedScanningService {
                     .supplyAsync(() -> scanForLoggingMetrics(projectPath), scanExecutor);
             CompletableFuture<SerializationCacheProjectScanResult> scFuture = CompletableFuture
                     .supplyAsync(() -> scanForSerializationCache(projectPath), scanExecutor);
+            CompletableFuture<ReflectionUsageProjectScanResult> ruFuture = CompletableFuture
+                    .supplyAsync(() -> scanForReflectionUsage(projectPath), scanExecutor);
             CompletableFuture<ThirdPartyLibProjectScanResult> tpFuture = CompletableFuture
                     .supplyAsync(() -> scanForThirdPartyLib(projectPath), scanExecutor);
 
             // Wait for all to complete
             CompletableFuture.allOf(jpaFuture, bvFuture, sjFuture, cdiFuture, bcFuture, rsFuture, daFuture, saFuture,
-                    jmFuture, tdFuture, cfFuture, clFuture, lmFuture, scFuture, tpFuture).join();
+                    jmFuture, tdFuture, cfFuture, clFuture, lmFuture, scFuture, ruFuture, tpFuture).join();
+
+            // Get individual scan results
+            JpaProjectScanResult jpaResult = jpaFuture.join();
+            BeanValidationProjectScanResult beanValidationResult = bvFuture.join();
+            ServletJspProjectScanResult servletJspResult = sjFuture.join();
+            CdiInjectionProjectScanResult cdiInjectionResult = cdiFuture.join();
+            BuildConfigProjectScanResult buildConfigResult = bcFuture.join();
+            RestSoapProjectScanResult restSoapResult = rsFuture.join();
+            DeprecatedApiProjectScanResult deprecatedApiResult = daFuture.join();
+            SecurityApiProjectScanResult securityApiResult = saFuture.join();
+            JmsMessagingProjectScanResult jmsMessagingResult = jmFuture.join();
+            TransitiveDependencyProjectScanResult transitiveDependencyResult = tdFuture.join();
+            ConfigFileProjectScanResult configFileResult = cfFuture.join();
+            ClassloaderModuleProjectScanResult classloaderModuleResult = clFuture.join();
+            LoggingMetricsProjectScanResult loggingMetricsResult = lmFuture.join();
+            SerializationCacheProjectScanResult serializationCacheResult = scFuture.join();
+            ReflectionUsageProjectScanResult reflectionUsageResult = ruFuture.join();
+            ThirdPartyLibProjectScanResult thirdPartyLibResult = tpFuture.join();
 
             AdvancedScanSummary summary = new AdvancedScanSummary(
-                    jpaFuture.join(),
-                    bvFuture.join(),
-                    sjFuture.join(),
-                    cdiFuture.join(),
-                    bcFuture.join(),
-                    rsFuture.join(),
-                    daFuture.join(),
-                    saFuture.join(),
-                    jmFuture.join(),
-                    tdFuture.join(),
-                    cfFuture.join(),
-                    clFuture.join(),
-                    lmFuture.join(),
-                    scFuture.join(),
-                    tpFuture.join());
+                    jpaResult,
+                    beanValidationResult,
+                    servletJspResult,
+                    cdiInjectionResult,
+                    buildConfigResult,
+                    restSoapResult,
+                    deprecatedApiResult,
+                    securityApiResult,
+                    jmsMessagingResult,
+                    transitiveDependencyResult,
+                    configFileResult,
+                    classloaderModuleResult,
+                    loggingMetricsResult,
+                    serializationCacheResult,
+                    reflectionUsageResult,
+                    thirdPartyLibResult);
 
             cachedSummaryRef = new java.lang.ref.SoftReference<>(summary);
             cachedProjectPath = projectPath;
@@ -220,6 +241,11 @@ public class AdvancedScanningService {
     public SerializationCacheProjectScanResult scanForSerializationCache(Path projectPath) {
         LOG.info("Scanning for Serialization/Cache in: " + projectPath);
         return scanningModule.getSerializationCacheScanner().scanProject(projectPath);
+    }
+
+    public ReflectionUsageProjectScanResult scanForReflectionUsage(Path projectPath) {
+        LOG.info("Scanning for Reflection Usage in: " + projectPath);
+        return scanningModule.getReflectionUsageScanner().scanProject(projectPath);
     }
 
     public ThirdPartyLibProjectScanResult scanForThirdPartyLib(Path projectPath) {

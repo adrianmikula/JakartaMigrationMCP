@@ -46,6 +46,44 @@ tasks.register("runIntegrationTests") {
     }
 }
 
+// Custom task to run marketplace validation tests
+tasks.register("validateMarketplaceRequirements") {
+    group = "verification"
+    description = "Validates plugin.xml meets JetBrains Marketplace requirements for paid plugins"
+    
+    dependsOn("compileTestJava")
+    
+    doLast {
+        javaexec {
+            classpath = sourceSets.test.get().runtimeClasspath
+            mainClass = "org.junit.platform.console.ConsoleLauncher"
+            args = listOf(
+                "--details=verbose",
+                "--select-class=adrianmikula.jakartamigration.intellij.PluginMarketplaceValidationTest"
+            )
+        }
+    }
+}
+
+// Custom task to run build validation tests
+tasks.register("validateBuildConfiguration") {
+    group = "verification"
+    description = "Runs build validation tests to prevent common Gradle and configuration issues"
+    
+    dependsOn("compileTestJava")
+    
+    doLast {
+        javaexec {
+            classpath = sourceSets.test.get().runtimeClasspath
+            mainClass = "org.junit.platform.console.ConsoleLauncher"
+            args = listOf(
+                "--details=verbose",
+                "--select-class=adrianmikula.jakartamigration.build.BuildTestSuite"
+            )
+        }
+    }
+}
+
 // Custom task to run fast tests only
 tasks.register("runFastTests") {
     group = "verification"
@@ -138,6 +176,9 @@ tasks {
     // Configure JUnit Jupiter for testing
     test {
         useJUnitPlatform()
+        
+        // Run marketplace validation tests as part of test suite
+        dependsOn("validateMarketplaceRequirements")
     }
 }
 
@@ -525,6 +566,9 @@ tasks.register("buildProductionPlugin") {
     
     // Clean all modules to ensure fresh rebuild
     dependsOn(":community-core-engine:clean", ":premium-core-engine:clean", "clean")
+    
+    // Validate marketplace requirements before building
+    dependsOn("validateMarketplaceRequirements")
     
     // Set production environment
     doLast {

@@ -149,7 +149,7 @@ public class PlatformDetectionServiceTest {
         
         // When
         boolean result = callPrivateMethod(detectionService, "isVersionGreaterOrEqual", 
-            String.class, version1, version2);
+            new Class<?>[]{String.class, String.class}, version1, version2);
         
         // Then
         assertThat(result).isTrue();
@@ -163,7 +163,7 @@ public class PlatformDetectionServiceTest {
         
         // When
         boolean result = callPrivateMethod(detectionService, "isVersionGreaterOrEqual", 
-            String.class, version1, version2);
+            new Class<?>[]{String.class, String.class}, version1, version2);
         
         // Then
         assertThat(result).isTrue();
@@ -177,7 +177,7 @@ public class PlatformDetectionServiceTest {
         
         // When
         boolean result = callPrivateMethod(detectionService, "isVersionGreaterOrEqual", 
-            String.class, String.class, version1, version2);
+            new Class<?>[]{String.class, String.class}, version1, version2);
         
         // Then
         assertThat(result).isFalse();
@@ -253,11 +253,11 @@ public class PlatformDetectionServiceTest {
     }
     
     @SuppressWarnings("unchecked")
-    private <T> T callPrivateMethod(Object target, String methodName, Class<?>... paramTypes) {
+    private <T> T callPrivateMethod(Object target, String methodName, Class<?>[] paramTypes, Object... paramValues) {
         try {
             java.lang.reflect.Method method = target.getClass().getDeclaredMethod(methodName, paramTypes);
             method.setAccessible(true);
-            return (T) method.invoke(target, (Object[]) paramTypes);
+            return (T) method.invoke(target, paramValues);
         } catch (Exception e) {
             throw new RuntimeException("Failed to call private method: " + methodName, e);
         }

@@ -7,9 +7,20 @@ dependencies {
     implementation(project(":community-core-engine"))
     implementation(project(":premium-core-engine"))
     implementation(project(":community-mcp-server"))
-
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
+    
     // External dependencies (must be Apache 2.0 compatible)
     implementation("org.slf4j:slf4j-api:2.0.9")
+    
+    // Spring dependencies
+    implementation("org.springframework:spring-context:6.1.4")
+    
+    // MCP dependencies
+    implementation("org.springaicommunity:mcp-annotations:0.8.0")
+    
+    // Lombok for annotations
+    compileOnly("org.projectlombok:lombok:1.18.30")
+    annotationProcessor("org.projectlombok:lombok:1.18.30")
     
     // Test dependencies
     testImplementation(platform("org.junit:junit-bom:5.10.1"))

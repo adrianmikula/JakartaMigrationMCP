@@ -11,6 +11,7 @@ import adrianmikula.jakartamigration.advancedscanning.service.impl.IntegrationPo
 import adrianmikula.jakartamigration.advancedscanning.service.impl.JpaAnnotationScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.JmsMessagingScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.LoggingMetricsScannerImpl;
+import adrianmikula.jakartamigration.advancedscanning.service.impl.ReflectionUsageScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.RestSoapScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.SecurityApiScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.SerializationCacheScannerImpl;
@@ -42,6 +43,7 @@ public class AdvancedScanningModule {
     private final ClassloaderModuleScanner classloaderModuleScanner;
     private final LoggingMetricsScanner loggingMetricsScanner;
     private final SerializationCacheScanner serializationCacheScanner;
+    private final ReflectionUsageScanner reflectionUsageScanner;
     private final ThirdPartyLibScanner thirdPartyLibScanner;
     private final UnitTestScanner unitTestScanner;
     private final TestContainersScanner testContainersScanner;
@@ -65,6 +67,7 @@ public class AdvancedScanningModule {
         this.classloaderModuleScanner = new ClassloaderModuleScannerImpl();
         this.loggingMetricsScanner = new LoggingMetricsScannerImpl();
         this.serializationCacheScanner = new SerializationCacheScannerImpl();
+        this.reflectionUsageScanner = new ReflectionUsageScannerImpl();
         this.thirdPartyLibScanner = new ThirdPartyLibScannerImpl();
         this.unitTestScanner = new UnitTestScannerImpl();
         this.testContainersScanner = new TestContainersScannerImpl();
@@ -169,6 +172,13 @@ public class AdvancedScanningModule {
      */
     public SerializationCacheScanner getSerializationCacheScanner() {
         return serializationCacheScanner;
+    }
+
+    /**
+     * Gets the Reflection Usage Scanner.
+     */
+    public ReflectionUsageScanner getReflectionUsageScanner() {
+        return reflectionUsageScanner;
     }
 
     /**

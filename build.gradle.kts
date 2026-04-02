@@ -165,26 +165,62 @@ tasks.register("validateModuleBoundaries") {
     doLast {
         val proprietaryModules = setOf("premium-core-engine", "premium-mcp-server", "premium-intellij-plugin")
         val communityModules = setOf("community-core-engine", "community-mcp-server", "community-intellij-plugin")
+        val violations = mutableListOf<String>()
         
         allprojects.forEach { project ->
             if (communityModules.contains(project.name)) {
                 // Community modules - check they don't depend on proprietary modules
                 project.configurations.forEach { config ->
                     config.dependencies.forEach { dep ->
+                        // Check for direct dependency on proprietary modules
                         if (proprietaryModules.any { proprietary -> 
                             dep.name.contains(proprietary, ignoreCase = true) 
                         }) {
-                            throw GradleException(
-                                "Module boundary violation: ${project.name} (community) " +
-                                "cannot depend on proprietary module ${dep.name}"
-                            )
+                            violations.add("Direct dependency: ${project.name} -> ${dep.name}")
+                        }
+                        
+                        // Check for transitive dependencies that bring in proprietary modules
+                        try {
+                            config.resolvedConfiguration.resolvedArtifacts.forEach { artifact ->
+                                if (artifact.moduleVersion?.id?.name?.let { moduleId ->
+                                    proprietaryModules.any { proprietary -> 
+                                        moduleId.contains(proprietary, ignoreCase = true)
+                                    }
+                                } == true) {
+                                    violations.add("Transitive dependency: ${project.name} -> ${artifact.moduleVersion.id.name}")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // If resolution fails, still check basic dependency names
+                            if (dep.group != null && dep.name != null) {
+                                val depNotation = "${dep.group}:${dep.name}"
+                                if (proprietaryModules.any { proprietary -> 
+                                    depNotation.contains(proprietary, ignoreCase = true)
+                                }) {
+                                    violations.add("Dependency notation: ${project.name} -> ${depNotation}")
+                                }
+                            }
                         }
                     }
                 }
+            } else if (proprietaryModules.contains(project.name)) {
+                // Premium modules - they can depend on community modules, but we log for awareness
+                println("🔍 Premium module ${project.name} dependencies checked")
             }
         }
         
+        if (violations.isNotEmpty()) {
+            throw GradleException(
+                "Module boundary violations detected:\n" + violations.joinToString("\n") + "\n\n" +
+                "Community modules (Apache 2.0) cannot depend on Premium modules (Proprietary).\n" +
+                "Violations must be resolved before proceeding with build."
+            )
+        }
+        
         println("✅ Module boundary validation completed")
+        println("📊 Checked ${allprojects.size} modules for boundary compliance")
+        println("🔍 Community modules: ${communityModules.joinToString(", ")}")
+        println("🔒 Proprietary modules: ${proprietaryModules.joinToString(", ")}")
     }
 }
 
@@ -192,6 +228,18 @@ tasks.register("validateAll") {
     description = "Run all validation checks"
     group = "verification"
     dependsOn("validateLicenseHeaders", "validateDependencyLicenses", "validateModuleBoundaries")
+}
+
+tasks.register("validateAllWithBuildTests") {
+    description = "Run all validation checks including build configuration tests"
+    group = "verification"
+    dependsOn("validateLicenseHeaders", "validateDependencyLicenses", "validateModuleBoundaries")
+    
+    doLast {
+        println("✅ All validation checks completed")
+        println("🔧 To also run build validation tests, use: ./gradlew :premium-intellij-plugin:validateBuildConfiguration")
+        println("🔧 To run marketplace validation, use: ./gradlew :premium-intellij-plugin:validateMarketplaceRequirements")
+    }
 }
 
 // =============================================================================

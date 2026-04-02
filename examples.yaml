@@ -1,0 +1,150 @@
+# Example Projects for Advanced Integration Testing
+# This file contains URLs to real-world projects for testing refactor recipes, 
+# advanced scans, and platform scans
+
+# =============================================================================
+# APPLICATION SERVER EXAMPLES
+# =============================================================================
+application_servers:
+  - name: "Apache Tomcat"
+    description: "Apache Tomcat with javax packages for migration testing"
+    url: "https://github.com/?/restful_crud_v8-master"
+    type: "application_server"
+    features:
+      - servlet
+      - jsp
+      - websocket
+      - el
+      
+  - name: "WildFly"
+    description: "WildFly with javax packages for migration testing"
+    url: "https://github.com/?/wildfly-client-interoperability/tree/master"
+    type: "application_server"
+    features:
+      - ejb
+      - jpa
+      - cdi
+      - jaxrs
+      - messaging
+      
+  - name: "Glassfish"
+    description: "Glassfish with javax packages for migration testing"
+    url: "https://github.com/?/javaee-datasource-master"
+    type: "application_server"
+    features:
+      - servlet
+      - websocket
+      - jaxrs
+      
+  - name: "Spring"
+    description: "Spring with javax packages for migration testing"
+    url: "https://github.com/?/demo-spring-javax-validation-example-master"
+    type: "application_server"
+    features:
+      - servlet
+      - jpa
+      - cdi
+      - jaxrs
+      
+  - name: "Payara"
+    description: "Payara with javax packages for migration testing"
+    url: "https://github.com/?/?"
+    type: "application_server"
+    features:
+      - servlet
+      - jpa
+      - cdi
+      - jaxrs
+
+# =============================================================================
+# JAVAX PACKAGE EXAMPLES
+# =============================================================================
+javax_packages:
+  - name: "Spring Boot javax-validation"
+    description: "Spring Boot application using javax.validation package"
+    url: "https://github.com/javaee-samples/javaee7-samples/tree/main/jakartamigration/validation"
+    type: "javax_package"
+    features:
+      - validation
+      - spring_boot
+      - rest_api
+      
+  - name: "Simple Servlet javax"
+    description: "Basic servlet using javax.servlet package"
+    url: "https://github.com/javaee-samples/javaee7-samples/tree/main/jakartamigration/servlet"
+    type: "javax_package"
+    features:
+      - servlet
+      - jsp
+      
+  - name: "USB4Java javax examples"
+    description: "USB communication library using javax packages"
+    url: "https://github.com/usb4java/usb4java-javax-examples"
+    type: "javax_package"
+    features:
+      - rmi
+      - jaxws
+      - messaging
+
+  - name: "Email javax examples"
+    description: "Email library using javax packages"
+    url: "https://github.com/?/JavaxEmail-main"
+    type: "javax_package"
+    features:
+      - email
+
+# =============================================================================
+# BUILD SYSTEM EXAMPLES
+# =============================================================================
+build_systems:
+  - name: "Maven"
+    description: "Maven project using javax packages"
+    url: "https://github.com/javaee-samples/javaee7-samples/tree/main/jakartamigration/validation"
+    type: "build_system"
+    features:
+      - maven
+
+  - name: "Gradle"
+    description: "Gradle project using javax packages"
+    url: "https://github.com/javaee-samples/javaee7-samples/tree/main/jakartamigration/validation"
+    type: "build_system"
+    features:
+      - gradle
+
+  - name: "No Build System"
+    description: " Project with no build system using javax packages"
+    url: "https://github.com/?/javaee-legacy-app-example-master"
+    type: "build_system"
+    features:
+      - none
+
+# =============================================================================
+# DEPENDENCY EXAMPLES
+# =============================================================================
+dependency_types:
+  - name: "Direct Dependencies"
+    description: "Project with direct javax dependencies"
+    url: "https://github.com/javaee-samples/javaee7-samples/tree/main/jakartamigration/validation"
+    type: "dependency_pattern"
+    features:
+      - direct
+      - maven
+      - spring
+      
+  - name: "Transitive Dependencies"
+    description: "Project with deep transitive javax dependencies"
+    url: "https://github.com/javaee-samples/javaee7-samples/tree/main/jakartamigration/validation"
+    type: "dependency_pattern"
+    features:
+      - transitive
+      - spring_boot
+      - web
+      
+  - name: "Organizational Dependencies"
+    description: "Enterprise project with complex dependency structure"
+    url: "https://github.com/javaee-samples/javaee7-samples/tree/main/jakartamigration/validation"
+    type: "dependency_pattern"
+    features:
+      - organizational
+      - maven
+      - multi_module
