@@ -417,7 +417,7 @@ public class PremiumMigrationTools {
             // Add high-risk dependencies (simplified)
             report.dependencyGraph().getNodes().stream()
                 .filter(node -> !node.isJakartaCompatible())
-                .forEach(node -> json.append("          \"").append(escapeJson(node.artifactId())).append("\"\n")));
+                .forEach(node -> json.append("          \"").append(escapeJson(node.artifactId())).append("\"\n"));
             
             json.append("      ]\n");
             json.append("      \"recommendations\": ").append(report.recommendations().size()).append("\n");
@@ -501,7 +501,7 @@ public class PremiumMigrationTools {
             // Add high-risk dependencies (simplified)
             report.dependencyGraph().getNodes().stream()
                 .filter(node -> !node.isJakartaCompatible())
-                .forEach(node -> json.append("          \"").append(escapeJson(node.artifactId())).append("\"\n")));
+                .forEach(node -> json.append("          \"").append(escapeJson(node.artifactId())).append("\"\n"));
             
             json.append("      ]\n");
             json.append("      \"recommendations\": ").append(report.recommendations().size()).append("\n");
@@ -512,6 +512,7 @@ public class PremiumMigrationTools {
             return json.toString();
 
         } catch (Exception e) {
+            return createErrorResponse("Analysis failed: " + e.getMessage());
         }
 
         // Configuration file scanning results
@@ -562,21 +563,22 @@ public class PremiumMigrationTools {
     }
 }
 
-private String createErrorResponse(String message) {
-    return "{\n" +
-            "  \"status\": \"error\",\n" +
-            "  \"message\": \"" + escapeJson(message) + "\"\n" +
-            "  \"edition\": \"premium\"\n" +
-            "}";
-}
-
-private String escapeJson(String input) {
-    if (input == null) {
-        return "";
+    private String createErrorResponse(String message) {
+        return "{\n" +
+                "  \"status\": \"error\",\n" +
+                "  \"message\": \"" + escapeJson(message) + "\"\n" +
+                "  \"edition\": \"premium\"\n" +
+                "}";
     }
-    return input.replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .replace("\t", "\\t");
+
+    private String escapeJson(String input) {
+        if (input == null) {
+            return "";
+        }
+        return input.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
+    }
 }

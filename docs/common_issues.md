@@ -2,6 +2,39 @@
 
 This document tracks persistent issues encountered during development and their solutions.
 
+## IntelliJ Plugin Compatibility
+
+### Issue: untilBuild Attribute Automatically Added by Gradle Plugin
+**Problem**: The IntelliJ Gradle plugin (`org.jetbrains.intellij`) automatically adds a default `untilBuild="233.*"` attribute to the generated `plugin.xml` when the `patchPluginXml` configuration is not explicitly set. This prevents the plugin from loading in IntelliJ versions newer than 233, even when the plugin should be compatible with all future versions.
+
+**Root Cause**: The IntelliJ Gradle plugin has a default value for `untilBuild` of `233.*` when the property is not explicitly set to something other than null/empty. Simply not setting the property in `gradle.properties` does NOT result in no attribute - it results in the default `233.*`.
+
+**Symptoms**:
+- Plugin fails to load in IntelliJ versions > 233
+- Marketplace validation shows compatibility range errors
+- Users see "Plugin is incompatible with this IntelliJ version" messages
+
+**Solution**: 
+Add explicit `patchPluginXml` configuration to `build.gradle.kts`:
+```kotlin
+patchPluginXml {
+    sinceBuild.set(providers.gradleProperty("intellij.sinceBuild").orElse("233"))
+    untilBuild.set(providers.gradleProperty("intellij.untilBuild").orElse(""))
+}
+```
+
+This generates:
+```xml
+<idea-version since-build="233" />
+```
+
+Instead of the problematic:
+```xml
+<idea-version since-build="233" until-build="233.*" />
+```
+
+**Verification**: Create tests to verify the generated `plugin.xml` does not contain `until-build` attribute after building the release ZIP using the `publishPlugin` task.
+
 ## Windows Path Handling
 
 ### Issue: PathMatcher Glob Failures

@@ -118,9 +118,9 @@ public class JakartaMigrationToolsTest {
         adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph mockGraph = createMockDependencyGraph();
         adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport mockReport = 
             new adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport(
-                mockGraph, java.util.List.of(), java.util.List.of(), 
-                new adrianmikula.jakartamigration.dependencyanalysis.domain.ReadinessScore(85, "Good"), 
-                new adrianmikula.jakartamigration.dependencyanalysis.domain.RiskAssessment(25, "Medium")
+                mockGraph, java.util.Map.of(), java.util.List.of(), java.util.List.of(), 
+                new adrianmikula.jakartamigration.dependencyanalysis.domain.RiskAssessment(0.25, java.util.List.of("Medium risk"), java.util.List.of()),
+                new adrianmikula.jakartamigration.dependencyanalysis.domain.MigrationReadinessScore(0.85, "Good")
             );
         when(dependencyAnalysisModule.analyzeProject(testProjectPath)).thenReturn(mockReport);
         
@@ -510,9 +510,9 @@ public class JakartaMigrationToolsTest {
         adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph mockGraph = createMockDependencyGraph();
         adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport mockReport = 
             new adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport(
-                mockGraph, java.util.List.of(), java.util.List.of(), 
-                new adrianmikula.jakartamigration.dependencyanalysis.domain.ReadinessScore(90, "Excellent"), 
-                new adrianmikula.jakartamigration.dependencyanalysis.domain.RiskAssessment(15, "Low")
+                mockGraph, java.util.Map.of(), java.util.List.of(), java.util.List.of(), 
+                new adrianmikula.jakartamigration.dependencyanalysis.domain.RiskAssessment(0.15, java.util.List.of("Low risk"), java.util.List.of()),
+                new adrianmikula.jakartamigration.dependencyanalysis.domain.MigrationReadinessScore(0.90, "Excellent")
             );
         when(dependencyAnalysisModule.analyzeProject(testProjectPath)).thenReturn(mockReport);
         
@@ -538,9 +538,9 @@ public class JakartaMigrationToolsTest {
         adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph mockGraph = createMockDependencyGraph();
         adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport mockReport = 
             new adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport(
-                mockGraph, java.util.List.of(), java.util.List.of(), 
-                new adrianmikula.jakartamigration.dependencyanalysis.domain.ReadinessScore(75, "Good"), 
-                new adrianmikula.jakartamigration.dependencyanalysis.domain.RiskAssessment(35, "High")
+                mockGraph, java.util.Map.of(), java.util.List.of(), java.util.List.of(), 
+                new adrianmikula.jakartamigration.dependencyanalysis.domain.RiskAssessment(0.35, java.util.List.of("High risk items"), java.util.List.of()),
+                new adrianmikula.jakartamigration.dependencyanalysis.domain.MigrationReadinessScore(0.75, "Good")
             );
         when(dependencyAnalysisModule.analyzeProject(testProjectPath)).thenReturn(mockReport);
         
@@ -709,9 +709,9 @@ public class JakartaMigrationToolsTest {
         adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph mockGraph = createMockDependencyGraph();
         adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport mockReport = 
             new adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport(
-                mockGraph, java.util.List.of(), java.util.List.of(), 
-                new adrianmikula.jakartamigration.dependencyanalysis.domain.ReadinessScore(80, "Good"), 
-                new adrianmikula.jakartamigration.dependencyanalysis.domain.RiskAssessment(30, "Medium")
+                mockGraph, java.util.Map.of(), java.util.List.of(), java.util.List.of(), 
+                new adrianmikula.jakartamigration.dependencyanalysis.domain.RiskAssessment(0.30, java.util.List.of("Medium risk"), java.util.List.of()),
+                new adrianmikula.jakartamigration.dependencyanalysis.domain.MigrationReadinessScore(0.80, "Good")
             );
         when(dependencyAnalysisModule.analyzeProject(testProjectPath)).thenReturn(mockReport);
         when(sourceCodeScanner.scanProject(any())).thenThrow(new RuntimeException("Scan failed"));
@@ -732,14 +732,14 @@ public class JakartaMigrationToolsTest {
     
     private adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph createMockDependencyGraph() {
         // Create mock dependency graph with 5 nodes
-        java.util.List<adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyNode> nodes = java.util.List.of(
-            new adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyNode("javax.validation", "1.0.0", true),
-            new adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyNode("javax.servlet", "4.0.0", true),
-            new adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyNode("javax.persistence", "2.1.0", false),
-            new adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyNode("javax.ejb", "3.2.0", false),
-            new adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyNode("javax.ws.rs", "2.0.0", false)
+        java.util.Set<adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact> nodes = java.util.Set.of(
+            new adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact("javax.validation", "validation-api", "1.0.0", "compile", false),
+            new adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact("javax.servlet", "javax.servlet-api", "4.0.0", "provided", false),
+            new adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact("javax.persistence", "javax.persistence-api", "2.1.0", "compile", false),
+            new adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact("javax.ejb", "javax.ejb-api", "3.2.0", "compile", false),
+            new adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact("javax.ws.rs", "javax.ws.rs-api", "2.0.0", "compile", false)
         );
-        return new adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph(nodes, java.util.List.of());
+        return new adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph(nodes, java.util.Set.of());
     }
     
     private adrianmikula.jakartamigration.config.FeatureFlagsService.UpgradeInfo createMockUpgradeInfo() {

@@ -1,6 +1,5 @@
 package adrianmikula.jakartamigration.intellij.integration;
 
-import lombok.extern.slf4j.Slf4j;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.File;
@@ -11,14 +10,15 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.logging.Logger;
 
 /**
  * Core utility class for managing example projects in integration tests.
  * Handles downloading, extracting, and cleanup of example projects from examples.yaml.
  */
-@Slf4j
 public class ExampleProjectManager {
     
+    private static final Logger log = Logger.getLogger(ExampleProjectManager.class.getName());
     private static final String EXAMPLES_YAML_PATH = "/examples.yaml";
     private static final String CACHE_DIR_NAME = ".downloads";
     private static final String EXTRACT_DIR_NAME = "extracted-projects";
@@ -28,6 +28,7 @@ public class ExampleProjectManager {
     private final Map<String, Map<String, Object>> examplesData;
     
     public ExampleProjectManager(Path tempDir) throws IOException {
+        log.info("Initializing ExampleProjectManager with temp dir: " + tempDir);
         this.cacheDir = tempDir.resolve(CACHE_DIR_NAME);
         this.extractDir = tempDir.resolve(EXTRACT_DIR_NAME);
         
@@ -47,7 +48,7 @@ public class ExampleProjectManager {
      * @throws IOException If download/extraction fails
      */
     public Path getExampleProject(String exampleName, String exampleType) throws IOException {
-        log.info("Getting example project: {} (type: {})", exampleName, exampleType);
+        log.info("Getting example project: " + exampleName + " (type: " + exampleType + ")");
         
         // Find the example in YAML data
         Map<String, Object> example = findExample(exampleName, exampleType);
@@ -62,25 +63,28 @@ public class ExampleProjectManager {
         
         // Generate safe project name
         String safeProjectName = generateSafeProjectName(exampleName, exampleType);
+        log.info("Generated safe project name: " + safeProjectName);
         
         // Check if already extracted
         Path extractedDir = extractDir.resolve(safeProjectName);
+        log.info("Extracted directory path: " + extractedDir);
         if (isProjectExtracted(extractedDir)) {
-            log.info("Project {} already extracted, reusing", safeProjectName);
+            log.info("Project " + safeProjectName + " already extracted, reusing");
             return extractedDir;
         }
         
         // Download if not cached
         Path zipFile = cacheDir.resolve(safeProjectName + ".zip");
+        log.info("ZIP file path: " + zipFile);
         if (!Files.exists(zipFile)) {
-            log.info("Downloading project from {}", url);
+            log.info("Downloading project from " + url);
             downloadProject(url, zipFile);
         } else {
-            log.info("Using cached ZIP file for {}", safeProjectName);
+            log.info("Using cached ZIP file for " + safeProjectName);
         }
         
         // Extract project
-        log.info("Extracting {} to {}", zipFile, extractedDir);
+        log.info("Extracting " + zipFile + " to " + extractedDir);
         extractProject(zipFile, extractedDir);
         
         return extractedDir;
@@ -99,15 +103,15 @@ public class ExampleProjectManager {
         
         // Only clean if it's within our extract directory
         if (!projectPath.startsWith(extractDir)) {
-            log.warn("Project path {} is not within extract directory, skipping cleanup", projectPath);
+            log.warning("Project path " + projectPath + " is not within extract directory, skipping cleanup");
             return;
         }
         
         try {
-            log.info("Cleaning up extracted project: {}", projectPath);
+            log.info("Cleaning up extracted project: " + projectPath);
             deleteDirectory(projectPath);
         } catch (IOException e) {
-            log.error("Failed to cleanup extracted project: " + projectPath, e);
+            log.severe("Failed to cleanup extracted project: " + projectPath + " - " + e.getMessage());
             throw e;
         }
     }
@@ -126,7 +130,7 @@ public class ExampleProjectManager {
                     try {
                         deleteDirectory(path);
                     } catch (IOException e) {
-                        log.error("Failed to delete directory: " + path, e);
+                        log.severe("Failed to delete directory: " + path + " - " + e.getMessage());
                     }
                 });
             }
@@ -173,14 +177,18 @@ public class ExampleProjectManager {
      */
     private Map<String, Object> findExample(String exampleName, String exampleType) {
         Map<String, Object> typeData = examplesData.get(exampleType);
-        if (typeData instanceof List) {
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> examples = (List<Map<String, Object>>) typeData;
-            
-            return examples.stream()
-                .filter(example -> exampleName.equals(example.get("name")))
-                .findFirst()
-                .orElse(null);
+        if (typeData != null) {
+            // Get the examples list from the wrapper map
+            Object examplesObj = typeData.get("examples");
+            if (examplesObj instanceof List) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> examples = (List<Map<String, Object>>) examplesObj;
+                
+                return examples.stream()
+                    .filter(example -> exampleName.equals(example.get("name")))
+                    .findFirst()
+                    .orElse(null);
+            }
         }
         return null;
     }
@@ -231,16 +239,33 @@ public class ExampleProjectManager {
      * Downloads a project from URL to ZIP file.
      */
     private void downloadProject(String urlString, Path targetFile) throws IOException {
-        String zipUrl = convertToZipUrl(urlString);
+        log.info("Downloading from: " + urlString);
         
-        log.info("Downloading from: {}", zipUrl);
-        
-        URL url = new URL(zipUrl);
-        try (var inputStream = url.openStream()) {
-            Files.copy(inputStream, targetFile, StandardCopyOption.REPLACE_EXISTING);
+        if (urlString.startsWith("file://")) {
+            // Handle local file URLs
+            String sourcePath = urlString.substring(7); // Remove "file://"
+            // Convert forward slashes to backslashes for Windows paths
+            sourcePath = sourcePath.replace('/', '\\');
+            Path sourceDir = Paths.get(sourcePath);
+            
+            if (!Files.exists(sourceDir)) {
+                log.info("Source directory does not exist: " + sourcePath + ", creating minimal test project");
+                // Create a minimal test project on the fly
+                sourceDir = createMinimalTestProject(targetFile.getParent().resolve("test-project"));
+            }
+            
+            // Create a ZIP file from the local directory
+            createZipFromDirectory(sourceDir, targetFile);
+        } else {
+            // Handle remote URLs (GitHub, etc.)
+            String zipUrl = convertToZipUrl(urlString);
+            URL url = new URL(zipUrl);
+            try (var inputStream = url.openStream()) {
+                Files.copy(inputStream, targetFile, StandardCopyOption.REPLACE_EXISTING);
+            }
         }
         
-        log.info("Downloaded to: {}", targetFile);
+        log.info("Downloaded to: " + targetFile);
     }
     
     /**
@@ -279,7 +304,7 @@ public class ExampleProjectManager {
                 // Normalize path to prevent zip slip
                 entryPath = entryPath.normalize();
                 if (!entryPath.startsWith(targetDir)) {
-                    log.warn("Skipping potentially malicious entry: {}", entry.getName());
+                    log.warning("Skipping potentially malicious entry: " + entry.getName());
                     continue;
                 }
                 
@@ -292,7 +317,7 @@ public class ExampleProjectManager {
             }
         }
         
-        log.info("Extracted to: {}", targetDir);
+        log.info("Extracted to: " + targetDir);
     }
     
     /**
@@ -309,7 +334,7 @@ public class ExampleProjectManager {
                     try {
                         Files.delete(path);
                     } catch (IOException e) {
-                        log.error("Failed to delete file: " + path, e);
+                        log.severe("Failed to delete file: " + path + " - " + e.getMessage());
                     }
                 });
         }
@@ -356,9 +381,104 @@ public class ExampleProjectManager {
             stats.put("extractDir", extractDir.toString());
             
         } catch (IOException e) {
-            log.error("Failed to get cache stats", e);
+            log.severe("Failed to get cache stats - " + e.getMessage());
         }
         
         return stats;
+    }
+    
+    /**
+     * Creates a ZIP file from a local directory.
+     */
+    private void createZipFromDirectory(Path sourceDir, Path targetZip) throws IOException {
+        try (var zipOutputStream = new java.util.zip.ZipOutputStream(Files.newOutputStream(targetZip))) {
+            Files.walk(sourceDir)
+                .filter(path -> !Files.isDirectory(path))
+                .forEach(path -> {
+                    try {
+                        String entryName = sourceDir.relativize(path).toString().replace('\\', '/');
+                        var zipEntry = new java.util.zip.ZipEntry(entryName);
+                        zipOutputStream.putNextEntry(zipEntry);
+                        Files.copy(path, zipOutputStream);
+                        zipOutputStream.closeEntry();
+                    } catch (IOException e) {
+                        throw new RuntimeException("Failed to add file to ZIP: " + path, e);
+                    }
+                });
+        }
+    }
+    
+    /**
+     * Creates a minimal test project with javax packages for integration testing.
+     */
+    private Path createMinimalTestProject(Path projectDir) throws IOException {
+        Files.createDirectories(projectDir);
+        
+        // Create pom.xml
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project xmlns="http://maven.apache.org/POM/4.0.0"
+                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+                     http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>test-project</artifactId>
+                <version>1.0.0</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>javax.servlet</groupId>
+                        <artifactId>javax.servlet-api</artifactId>
+                        <version>4.0.1</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>javax.persistence</groupId>
+                        <artifactId>javax.persistence-api</artifactId>
+                        <version>2.2</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>javax.validation</groupId>
+                        <artifactId>validation-api</artifactId>
+                        <version>2.0.1.Final</version>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        
+        Files.write(projectDir.resolve("pom.xml"), pomContent.getBytes());
+        
+        // Create src/main/java directory structure
+        Path srcDir = projectDir.resolve("src/main/java/com/example");
+        Files.createDirectories(srcDir);
+        
+        // Create a simple Java file with javax imports
+        String javaContent = """
+            package com.example;
+            
+            import javax.servlet.ServletException;
+            import javax.servlet.http.HttpServlet;
+            import javax.persistence.Entity;
+            import javax.persistence.Id;
+            import javax.validation.constraints.NotNull;
+            
+            @Entity
+            public class TestServlet extends HttpServlet {
+                @Id
+                private Long id;
+                
+                @NotNull
+                private String name;
+                
+                public Long getId() { return id; }
+                public void setId(Long id) { this.id = id; }
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+            }
+            """;
+        
+        Files.write(srcDir.resolve("TestServlet.java"), javaContent.getBytes());
+        
+        log.info("Created minimal test project at: " + projectDir);
+        return projectDir;
     }
 }

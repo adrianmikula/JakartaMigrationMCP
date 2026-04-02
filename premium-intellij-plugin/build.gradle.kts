@@ -125,6 +125,11 @@ dependencies {
     testImplementation("org.junit.platform:junit-platform-launcher:1.10.0")
     testImplementation("org.assertj:assertj-core:3.24.2")
     
+    // Kotest for property testing
+    testImplementation("io.kotest:kotest-runner-junit5:5.8.0")
+    testImplementation("io.kotest:kotest-assertions-core:5.8.0")
+    testImplementation("io.kotest:kotest-property:5.8.0")
+    
     testImplementation("org.mockito:mockito-core:5.5.0")
     testImplementation("org.mockito:mockito-junit-jupiter:5.5.0")
 }
@@ -136,6 +141,11 @@ intellij {
 }
 
 tasks {
+    patchPluginXml {
+        sinceBuild.set(providers.gradleProperty("intellij.sinceBuild").orElse("233"))
+        untilBuild.set(providers.gradleProperty("intellij.untilBuild").orElse(""))
+    }
+    
     // Write build timestamp to a properties file for runtime access
     val buildTimestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
     val projectVersion = project.version.toString()

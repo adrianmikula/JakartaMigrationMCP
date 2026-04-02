@@ -1,10 +1,7 @@
 package adrianmikula.jakartamigration.intellij.integration;
 
-import adrianmikula.jakartamigration.advancedscanning.service.AdvancedScanningService;
-import adrianmikula.jakartamigration.platforms.service.PlatformDetectionService;
-import adrianmikula.jakartamigration.refactor.service.RecipeExecutionService;
-import adrianmikula.jakartamigration.scanning.service.DependencyAnalysisService;
-import lombok.extern.slf4j.Slf4j;
+import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
+import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
@@ -17,7 +14,6 @@ import java.util.List;
 /**
  * Base class for integration tests that handles downloading and extracting example projects.
  */
-@Slf4j
 public abstract class IntegrationTestBase {
     
     @TempDir
@@ -25,20 +21,15 @@ public abstract class IntegrationTestBase {
     
     protected ExampleProjectManager projectManager;
     protected AdvancedScanningService advancedScanningService;
-    protected PlatformDetectionService platformDetectionService;
-    protected RecipeExecutionService recipeExecutionService;
-    protected DependencyAnalysisService dependencyAnalysisService;
+    protected MigrationAnalysisService migrationAnalysisService;
     
     @BeforeEach
     void setUp() throws IOException {
         // Initialize project manager
         projectManager = new ExampleProjectManager(tempDir);
         
-        // Initialize services
-        advancedScanningService = new AdvancedScanningService();
-        platformDetectionService = new PlatformDetectionService();
-        recipeExecutionService = new RecipeExecutionService();
-        dependencyAnalysisService = new DependencyAnalysisService();
+        // Note: Services will be initialized by individual test classes
+        // as they have different constructor requirements
     }
     
     @AfterEach
@@ -90,7 +81,7 @@ public abstract class IntegrationTestBase {
      */
     protected void logCacheStats() {
         var stats = projectManager.getCacheStats();
-        log.info("Cache stats: {}", stats);
+        System.out.println("Cache stats: " + stats);
     }
     
     /**

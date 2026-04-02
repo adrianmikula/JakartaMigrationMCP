@@ -1,22 +1,26 @@
 package adrianmikula.jakartamigration.intellij.integration;
 
-import adrianmikula.jakartamigration.refactor.domain.RecipeExecutionResult;
-import adrianmikula.jakartamigration.refactor.domain.AppliedRecipe;
-import adrianmikula.jakartamigration.refactor.service.RecipeExecutionService;
-import lombok.extern.slf4j.Slf4j;
+import adrianmikula.jakartamigration.coderefactoring.domain.RecipeExecutionResult;
+import adrianmikula.jakartamigration.coderefactoring.domain.AppliedRecipe;
+import adrianmikula.jakartamigration.coderefactoring.service.RecipeExecutionService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Integration tests for refactor recipes against projects that contain javax packages.
+ * Integration tests for refactor recipe execution against real GitHub projects.
+ * Uses ExampleProjectManager to fetch and test actual projects from examples.yaml.
  */
-@Slf4j
 public class RefactorRecipeIntegrationTest extends IntegrationTestBase {
+    
+    private static final Logger log = Logger.getLogger(RefactorRecipeIntegrationTest.class.getName());
+    
+    private RecipeExecutionService recipeExecutionService;
     
     @Test
     @DisplayName("Refactor recipe should migrate javax.validation to jakarta.validation")
@@ -47,8 +51,8 @@ public class RefactorRecipeIntegrationTest extends IntegrationTestBase {
         
         assertTrue(foundValidationMigration, "Should apply validation migration recipe");
         
-        log.info("Refactor execution completed in {} ms", result.getExecutionDuration().toMillis());
-        log.info("Applied {} recipes", appliedRecipes.size());
+        log.info("Refactor execution completed in " + result.getExecutionDuration().toMillis() + " ms");
+        log.info("Applied " + appliedRecipes.size() + " recipes");
     }
     
     @Test
@@ -79,8 +83,8 @@ public class RefactorRecipeIntegrationTest extends IntegrationTestBase {
         
         assertTrue(foundServletMigration, "Should apply servlet migration recipe");
         
-        log.info("Refactor execution completed in {} ms", result.getExecutionDuration().toMillis());
-        log.info("Applied {} recipes", appliedRecipes.size());
+        log.info("Refactor execution completed in " + result.getExecutionDuration().toMillis() + " ms");
+        log.info("Applied " + appliedRecipes.size() + " recipes");
     }
     
     @Test
@@ -110,8 +114,8 @@ public class RefactorRecipeIntegrationTest extends IntegrationTestBase {
             log.info("No JPA packages found, no persistence migration applied");
         }
         
-        log.info("Refactor execution completed in {} ms", result.getExecutionDuration().toMillis());
-        log.info("Applied {} recipes", appliedRecipes.size());
+        log.info("Refactor execution completed in " + result.getExecutionDuration().toMillis() + " ms");
+        log.info("Applied " + appliedRecipes.size() + " recipes");
     }
     
     @Test
@@ -141,8 +145,8 @@ public class RefactorRecipeIntegrationTest extends IntegrationTestBase {
             log.info("No EJB packages found, no EJB migration applied");
         }
         
-        log.info("Refactor execution completed in {} ms", result.getExecutionDuration().toMillis());
-        log.info("Applied {} recipes", appliedRecipes.size());
+        log.info("Refactor execution completed in " + result.getExecutionDuration().toMillis() + " ms");
+        log.info("Applied " + appliedRecipes.size() + " recipes");
     }
     
     @Test
@@ -172,8 +176,8 @@ public class RefactorRecipeIntegrationTest extends IntegrationTestBase {
             log.info("No JAX-RS packages found, no JAX-RS migration applied");
         }
         
-        log.info("Refactor execution completed in {} ms", result.getExecutionDuration().toMillis());
-        log.info("Applied {} recipes", appliedRecipes.size());
+        log.info("Refactor execution completed in " + result.getExecutionDuration().toMillis() + " ms");
+        log.info("Applied " + appliedRecipes.size() + " recipes");
     }
     
     @Test
@@ -194,13 +198,12 @@ public class RefactorRecipeIntegrationTest extends IntegrationTestBase {
         List<AppliedRecipe> appliedRecipes = result.getAppliedRecipes();
         assertTrue(appliedRecipes.size() > 0, "Should have applied recipes");
         
-        log.info("Multiple packages refactor completed in {} ms", result.getExecutionDuration().toMillis());
-        log.info("Applied {} recipes", appliedRecipes.size());
+        log.info("Multiple packages refactor completed in " + result.getExecutionDuration().toMillis() + " ms");
+        log.info("Applied " + appliedRecipes.size() + " recipes");
         
         // Log all applied recipes
         appliedRecipes.forEach(recipe -> {
-            log.info("Applied recipe: {} ({} files changed)", 
-                recipe.getRecipeName(), recipe.getChangedFiles().size());
+            log.info("Applied recipe: " + recipe.getRecipeName() + " (" + recipe.getChangedFiles().size() + " files changed)");
         });
     }
     
@@ -222,7 +225,7 @@ public class RefactorRecipeIntegrationTest extends IntegrationTestBase {
         assertTrue(result.getExecutionSuccess());
         
         log.info("Maven project refactor completed successfully");
-        log.info("Applied {} recipes", result.getAppliedRecipes().size());
+        log.info("Applied " + result.getAppliedRecipes().size() + " recipes");
     }
     
     @Test
@@ -240,7 +243,7 @@ public class RefactorRecipeIntegrationTest extends IntegrationTestBase {
         assertTrue(result.getExecutionSuccess());
         
         log.info("Gradle project refactor completed successfully");
-        log.info("Applied {} recipes", result.getAppliedRecipes().size());
+        log.info("Applied " + result.getAppliedRecipes().size() + " recipes");
     }
     
     @Test
@@ -264,12 +267,12 @@ public class RefactorRecipeIntegrationTest extends IntegrationTestBase {
             assertTrue(recipe.getExecutionDuration().toMillis() >= 0, "Recipe should have execution duration");
         });
         
-        log.info("Detailed refactor applied {} recipes", result.getAppliedRecipes().size());
+        log.info("Detailed refactor applied " + result.getAppliedRecipes().size() + " recipes");
         
         // Log file changes
         result.getAppliedRecipes().forEach(recipe -> {
             recipe.getChangedFiles().forEach(file -> {
-                log.info("Changed file: {} ({} changes)", file.getFilePath(), file.getChangeCount());
+                log.info("Changed file: " + file.getFilePath() + " (" + file.getChangeCount() + " changes)");
             });
         });
     }

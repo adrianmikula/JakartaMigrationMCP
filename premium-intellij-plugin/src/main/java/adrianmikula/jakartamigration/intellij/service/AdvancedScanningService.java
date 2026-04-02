@@ -127,7 +127,6 @@ public class AdvancedScanningService {
                     classloaderModuleResult,
                     loggingMetricsResult,
                     serializationCacheResult,
-                    reflectionUsageResult,
                     thirdPartyLibResult);
 
             cachedSummaryRef = new java.lang.ref.SoftReference<>(summary);

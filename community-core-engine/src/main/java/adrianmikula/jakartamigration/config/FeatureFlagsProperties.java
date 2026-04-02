@@ -50,15 +50,15 @@ public class FeatureFlagsProperties {
                 props.load(input);
             } else {
                 // Fallback to default values if file not found
-                props.setProperty("jakarta.migration.pricing.monthly.usd", "49.0");
-                props.setProperty("jakarta.migration.pricing.yearly.usd", "399.0");
-                props.setProperty("jakarta.migration.trial.days", "7");
+                props.setProperty("jakarta.migration.pricing.monthly.usd", "?");
+                props.setProperty("jakarta.migration.pricing.yearly.usd", "?");
+                props.setProperty("jakarta.migration.trial.days", "?");
             }
         } catch (Exception e) {
             // Fallback to default values on error
-            props.setProperty("jakarta.migration.pricing.monthly.usd", "49.0");
-            props.setProperty("jakarta.migration.pricing.yearly.usd", "399.0");
-            props.setProperty("jakarta.migration.trial.days", "7");
+            props.setProperty("jakarta.migration.pricing.monthly.usd", "?");
+            props.setProperty("jakarta.migration.pricing.yearly.usd", "?");
+            props.setProperty("jakarta.migration.trial.days", "?");
         }
         return props;
     }
@@ -67,21 +67,21 @@ public class FeatureFlagsProperties {
      * Get monthly subscription price in USD from pricing.properties
      */
     public static double getMonthlyPriceUsd() {
-        return Double.parseDouble(PRICING_PROPERTIES.getProperty("jakarta.migration.pricing.monthly.usd", "49.0"));
+        return Double.parseDouble(PRICING_PROPERTIES.getProperty("jakarta.migration.pricing.monthly.usd", "?"));
     }
     
     /**
      * Get yearly subscription price in USD from pricing.properties
      */
     public static double getYearlyPriceUsd() {
-        return Double.parseDouble(PRICING_PROPERTIES.getProperty("jakarta.migration.pricing.yearly.usd", "399.0"));
+        return Double.parseDouble(PRICING_PROPERTIES.getProperty("jakarta.migration.pricing.yearly.usd", "?"));
     }
     
     /**
      * Get free trial duration in days from pricing.properties
      */
     public static int getFreeTrialDays() {
-        return Integer.parseInt(PRICING_PROPERTIES.getProperty("jakarta.migration.trial.days", "7"));
+        return Integer.parseInt(PRICING_PROPERTIES.getProperty("jakarta.migration.trial.days", "?"));
     }
 
     /**
