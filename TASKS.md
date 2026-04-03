@@ -3,49 +3,48 @@ Lets complete the following tasks in order. While implementing the tasks, always
 
 
 
-# improvements
 
-lets check if we can find more javax to jakarta migration recipes using the approaches documented in docs\research\scraping-all-jakarta-migration-recipes.md
+# bug fixes
 
+the reports tab has disappeared. restore it.
 
+plugin UI tabs often disappear after making UI code changes. investigate if our code for UI tabs is messy, flawed, inconsistent, or duplicated in some way which is exasberating these mistakes. Fix this.
 
-
-# monetisation
-
-Apply the intellij discoverability ideas outlined in docs\premium\INTELLIJ_MARKETPLACE_DISCOVERABILITY.md
+the experimental feature tabs are not dynamically displayed after enabling experimental features from the support UI tab. Fix this.
 
 
 
-Fix this IntelliJ compatibility error.
-The plugin distribution bundles IDE package 'org.jetbrains.concurrency'. Bundling IDE packages is considered bad practice and may lead to sophisticated compatibility problems. Consider excluding these IDE packages from the plugin distribution. If your plugin depends on classes of an IDE bundled plugin, explicitly specify dependency on that plugin instead of bundling it.
 
 
-we keep regressing and causing the org.jetbrains.concurrency issue, so lets add a kotest to ensure that this package is not bundled. Lets also document the issue in common_issues.md 
+# performance
+
+lets load the example repo for the performance tests from the 'project_complexity' section in examples.yaml. project_complexity is already present in examples.yaml, and it's spelt correctly. for some reason the AI agent keeps thinking it's not there or misspelt. Look into other reasons why its not loading
+
+it's bad practice to manually force GC calls inside our code. Instead of this, optimise any loops to use try/catch with resources, and also optimise any large datasets being loaded to use streaming rather than loading everything into memory at once.
+
 
 
 
 # testing
 
-lets disable the MCP performance tests for now
+lets review our existing integration tests, and ensure that wherever possible, they are loading real repos as examples from examples.yaml (via the ExampleProjectManager) instead of hardcoding fake mocked input data.
 
-lets finish implementing our integration tests which use real github example projects to test the scans and refactor recipes. don't worry aobut the ? urls in the YAML for now - we will replace them with real Github URLs later
+lets review test coverage of all the major tabs in the intellij plugin UI, and ensure all critical paths of our main features have test coverage.  
 
-lets fix all premium test failures. ignore community test failures for now
-
-
-
-
-# final checks
-
-fix all compilation issues
-fix all test compile errors
-fix all test failures
+lets ensure all tests compile and pass
 
 
 
 # cicd
 
-Lets check that our Github actions pipeline will run all the tests for commits pushed to a branch which has an open pull request
+lets fix the github actions - they aren't running the tests when i push to a branch with an open PR
+
+
+# discoverability
+
+Lets research how we could use the IntelliJ plugin API to auto-suggest our plugin to users who open source files containing javax imports etc.  We tried using the old v1 API but it's not working in the newer versions of IntelliJ.  What's the 2026 way of doing it?   It's possible we need to upgrade our stack to use the v2 intellij gradle plugin.
+
+
 
 
 

@@ -1,9 +1,10 @@
 name: CI
 
 on:
-  pull_request:
+  push:
     branches: [ main, develop ]
-    types: [opened, synchronize, reopened]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 jobs:
@@ -212,4 +213,4 @@ jobs:
             **/build/reports/spotbugs/
             **/build/reports/pmd/
           retention-days: 7
-          if-no-files-found: ignoreif-no-files-found: ignore
+          if-no-files-found: ignore

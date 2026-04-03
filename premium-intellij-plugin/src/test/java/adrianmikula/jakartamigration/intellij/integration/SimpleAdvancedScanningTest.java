@@ -7,13 +7,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Simple integration test for advanced scanning without external dependencies.
+ * Simple integration test for advanced scanning using real repositories from examples.yaml.
  */
 public class SimpleAdvancedScanningTest {
     
@@ -21,13 +20,27 @@ public class SimpleAdvancedScanningTest {
     Path tempDir;
     
     private AdvancedScanningService advancedScanningService;
+    private ExampleProjectManager projectManager;
     
     @BeforeEach
-    void setUp() {
+    void setUp() throws IOException {
         advancedScanningService = new AdvancedScanningService(null);
+        projectManager = new ExampleProjectManager(tempDir);
     }
     
     @Test
+    @DisplayName("Advanced scan should work with simple javax project")
+    void testAdvancedScanSimpleJavaxProject() throws IOException {
+        // Get simple validation project from examples
+        Path projectDir = projectManager.getExampleProject("javax-validation", "javax_packages");
+        
+        // Run advanced scan
+        var result = advancedScanningService.scanAll(projectDir);
+        
+        // Verify scan completed successfully
+        assertNotNull(result);
+        System.out.println("Simple javax project scan completed successfully");
+    }
     @DisplayName("Advanced scanning should handle empty project gracefully")
     void testAdvancedScanningEmptyProject() throws IOException {
         // Create a minimal project

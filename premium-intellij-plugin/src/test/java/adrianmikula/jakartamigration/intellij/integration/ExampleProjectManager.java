@@ -147,10 +147,19 @@ public class ExampleProjectManager {
             String type = entry.getKey();
             Object value = entry.getValue();
             
+            // Check if the value is a List (project_complexity, etc.) or a Map with "examples" key
             if (value instanceof List) {
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> examples = (List<Map<String, Object>>) value;
                 available.put(type, examples);
+            } else if (value instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> valueMap = (Map<String, Object>) value;
+                if (valueMap.containsKey("examples")) {
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> examples = (List<Map<String, Object>>) valueMap.get("examples");
+                    available.put(type, examples);
+                }
             }
         }
         
@@ -219,13 +228,17 @@ public class ExampleProjectManager {
             @SuppressWarnings("unchecked")
             Map<String, Object> data = yaml.load(inputStream);
             
-            // Convert to the expected structure
+            // Convert to the expected structure - keep lists as they are for getAvailableExamples()
             Map<String, Map<String, Object>> result = new LinkedHashMap<>();
             for (Map.Entry<String, Object> entry : data.entrySet()) {
                 if (entry.getValue() instanceof List) {
                     @SuppressWarnings("unchecked")
                     List<Map<String, Object>> list = (List<Map<String, Object>>) entry.getValue();
+                    // Store the list in a wrapper Map to maintain the Map<String, Map<String, Object>> structure
                     result.put(entry.getKey(), Map.of("examples", list));
+                } else {
+                    // Handle non-list entries if any
+                    result.put(entry.getKey(), Map.of("data", entry.getValue()));
                 }
             }
             

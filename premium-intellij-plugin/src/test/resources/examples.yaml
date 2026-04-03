@@ -159,3 +159,19 @@ dependency_types:
       - organizational
       - maven
       - multi_module
+
+# =============================================================================
+# COMPLEXITY EXAMPLES
+# =============================================================================
+project_complexity:
+  - name: "Simple Project"
+    description: "Small simple project with javax dependencies"
+    url: "https://github.com/javaee-samples/javaee7-samples/tree/main/jakartamigration/validation"
+      
+  - name: "Medium Project"
+    description: "Medium complexity project with javax dependencies"
+    url: "https://github.com/colinbut/monolith-enterprise-application"
+
+  - name: "Complex Project"
+    description: "Large complex project with javax dependencies"
+    url: "https://github.com/javaee-samples/javaee7-samples"

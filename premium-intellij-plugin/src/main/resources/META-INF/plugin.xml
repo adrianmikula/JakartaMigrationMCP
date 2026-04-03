@@ -27,7 +27,7 @@
     <idea-version since-build="233" />
 
     <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
-    <version>1.0.9</version>
+    <version>1.0.10</version>
 
     <name>Jakarta Migration (javax → jakarta)</name>
     <id>com.adrianmikula.jakarta-migration</id>
@@ -90,36 +90,21 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.java</depends>
 
-    <!-- Plugin Discoverability Features for IntelliJ Marketplace -->
-    <!-- These features help IntelliJ recommend the plugin when users work with javax.* dependencies -->
-    
-    <!-- Dependency Support: Recommend plugin when javax.* dependencies are detected -->
-    <dependencySupport kind="java" coordinate="javax.*" displayName="Java EE / Jakarta Migration"/>
-    <dependencySupport kind="java" coordinate="javax.servlet.*" displayName="Servlet API Migration"/>
-    <dependencySupport kind="java" coordinate="javax.persistence.*" displayName="JPA Migration"/>
-    <dependencySupport kind="java" coordinate="javax.ejb.*" displayName="EJB Migration"/>
-    <dependencySupport kind="java" coordinate="javax.ws.rs.*" displayName="JAX-RS Migration"/>
-    <dependencySupport kind="java" coordinate="javax.validation.*" displayName="Bean Validation Migration"/>
-    <dependencySupport kind="java" coordinate="javax.enterprise.*" displayName="CDI Migration"/>
-    <dependencySupport kind="java" coordinate="javax.faces.*" displayName="JSF Migration"/>
-    <dependencySupport kind="java" coordinate="javax.jms.*" displayName="JMS Migration"/>
-    <dependencySupport kind="java" coordinate="javax.websocket.*" displayName="WebSocket Migration"/>
-
-    <!-- Extensions for MCP Integration -->
+    <!-- Extensions for MCP Integration and Plugin Discoverability -->
     <extensions defaultExtensionNs="com.intellij">
         <!-- Project Activity for MCP Server Auto-Registration -->
         <!-- Automatically loads MCP server when plugin is enabled -->
         <projectActivity implementation="adrianmikula.jakartamigration.intellij.JakartaMcpRegistrationActivity"/>
         
+        <!-- Plugin Discoverability Service -->
+        <!-- Automatically detects javax usage and suggests plugin installation -->
+        <postStartupActivity implementation="adrianmikula.jakartamigration.intellij.discovery.JakartaMigrationDiscoverabilityService"/>
+        
         <!-- License Check on Plugin Startup -->
         <!-- Ensures license status is checked and UI updated when plugin first loads -->
         <postStartupActivity implementation="adrianmikula.jakartamigration.intellij.LicenseCheckStartupActivity"/>
 
-        <!-- Tool Window -->
-        <toolWindow id="JakartaMigration"
-                    displayName="Jakarta Migration"
-                    anchor="right"
-                    factoryClass="adrianmikula.jakartamigration.intellij.ui.MigrationToolWindow"/>
+        <!-- Notification Groups -->
 
         <!-- Application Service for MCP Client -->
         <service serviceImplementation="adrianmikula.jakartamigration.intellij.mcp.DefaultMcpClientService"

@@ -70,9 +70,18 @@ Full coding standards are documented in AgentRules\CODING.md
 - Always use TDD (test driven development) to implement new features
 - Set up code coverage tracking for all modules
 - Minimum 50% code coverage, with unit tests as a minimum requirement for all features.
+- Add a small number of integration and performance tests
 - Projects should configure a subset of unit tests as 'fast tests' for fast agentic AI feeback.
 
 Full testing standards are documented in AgentRules\TESTING.md
+
+
+### Performance
+
+- Use try/catch with resources, especially inside loops.
+- Use streaming rather than loading everything into memory at once when possible.
+- Avoid manually forcing GC calls inside our code. 
+
 
 
 ## Debugging
@@ -92,7 +101,7 @@ Full testing standards are documented in AgentRules\TESTING.md
 
 
 
-## Efficiency
+## Velocity
 
 - Agentic coding AIs should default to running the 'fast tests' subset for faster feeback while working.
 - Agents should have relevant/useful MCP servers installed to speed up coding workflows.

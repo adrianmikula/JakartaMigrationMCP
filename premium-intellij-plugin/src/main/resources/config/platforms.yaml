@@ -75,6 +75,7 @@ platforms:
     name: "Apache Tomcat"
     description: "Apache Tomcat application server"
     patterns:
+      # Installed server patterns (existing)
       - file: "bin/catalina.bat"
         regex: "Apache Tomcat/([0-9]+\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
@@ -84,6 +85,35 @@ platforms:
       - file: "conf/server.xml"
         regex: "<Connector[^>]*port=\"([0-9]+)\""
         versionGroup: 1
+      # Project configuration patterns - prioritize deployment descriptors
+      - file: "src/main/webapp/WEB-INF/web.xml"
+        regex: "<web-app"
+        versionGroup: 0
+      - file: "src/main/webapp/WEB-INF/tomcat-web.xml"
+        regex: "<Context>"
+        versionGroup: 0
+      - file: "src/main/webapp/META-INF/context.xml"
+        regex: "<Context>"
+        versionGroup: 0
+      - file: "src/main/resources/META-INF/context.xml"
+        regex: "<Context>"
+        versionGroup: 0
+      # Fallback patterns for dependencies and build configuration
+      - file: "pom.xml"
+        regex: "<artifactId>tomcat.*</artifactId>"
+        versionGroup: 0
+      - file: "pom.xml"
+        regex: "<groupId>org\\.apache\\.tomcat</groupId>"
+        versionGroup: 0
+      - file: "pom.xml"
+        regex: "<scope>provided</scope>.*javax\\.servlet"
+        versionGroup: 0
+      - file: "build.gradle"
+        regex: "providedCompile.*'org\\.apache\\.tomcat'"
+        versionGroup: 0
+      - file: "build.gradle"
+        regex: "providedCompile.*\"org\\.apache\\.tomcat\""
+        versionGroup: 0
     jakartaCompatibility:
       minVersion: "10.0"
       supportedVersions:
@@ -104,12 +134,39 @@ platforms:
     name: "WildFly"
     description: "Red Hat WildFly application server"
     patterns:
+      # Installed server patterns (existing)
       - file: "bin/standalone.sh"
         regex: "WildFly Full Platform ([0-9]+\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
       - file: "modules/system/layers/base/org/jboss/as/server/main/module.xml"
         regex: "version=\"([0-9]+\\.[0-9]+\\.[0-9]+)\""
         versionGroup: 1
+      # Project configuration patterns - prioritize deployment descriptors
+      - file: "src/main/webapp/WEB-INF/jboss-web.xml"
+        regex: "<jboss-web>"
+        versionGroup: 0
+      - file: "src/main/webapp/WEB-INF/jboss.xml"
+        regex: "<jboss>"
+        versionGroup: 0
+      - file: "src/main/resources/META-INF/jboss-web.xml"
+        regex: "<jboss-web>"
+        versionGroup: 0
+      - file: "src/main/resources/META-INF/jboss.xml"
+        regex: "<jboss>"
+        versionGroup: 0
+      # Fallback patterns for dependencies and build configuration
+      - file: "pom.xml"
+        regex: "<groupId>org\\.wildfly</groupId>"
+        versionGroup: 0
+      - file: "pom.xml"
+        regex: "<scope>provided</scope>.*javax\\.ejb"
+        versionGroup: 0
+      - file: "build.gradle"
+        regex: "providedCompile.*'org\\.wildfly'"
+        versionGroup: 0
+      - file: "build.gradle"
+        regex: "providedCompile.*\"org\\.wildfly\""
+        versionGroup: 0
     jakartaCompatibility:
       minVersion: "27.0"
       supportedVersions:
@@ -131,12 +188,45 @@ platforms:
     name: "Eclipse Jetty"
     description: "Eclipse Jetty application server"
     patterns:
+      # Installed server patterns (existing)
       - file: "start.ini"
         regex: "jetty-([0-9]+\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
       - file: "lib/jetty-server-([0-9]+)\\.[0-9]+\\.[0-9]+).jar"
         regex: "jetty-server-([0-9]+)\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
+      # Project configuration patterns - prioritize deployment descriptors
+      - file: "src/main/webapp/WEB-INF/web.xml"
+        regex: "<web-app"
+        versionGroup: 0
+      - file: "src/main/webapp/WEB-INF/jetty-web.xml"
+        regex: "<Configure"
+        versionGroup: 0
+      - file: "src/main/resources/META-INF/jetty-web.xml"
+        regex: "<Configure"
+        versionGroup: 0
+      - file: "jetty-web.xml"
+        regex: "<Configure"
+        versionGroup: 0
+      - file: "etc/jetty-web.xml"
+        regex: "<Configure"
+        versionGroup: 0
+      # Fallback patterns for dependencies and build configuration
+      - file: "pom.xml"
+        regex: "<artifactId>jetty.*</artifactId>"
+        versionGroup: 0
+      - file: "pom.xml"
+        regex: "<groupId>org\\.eclipse\\.jetty</groupId>"
+        versionGroup: 0
+      - file: "pom.xml"
+        regex: "<scope>provided</scope>.*javax\\.servlet"
+        versionGroup: 0
+      - file: "build.gradle"
+        regex: "providedCompile.*'org\\.eclipse\\.jetty'"
+        versionGroup: 0
+      - file: "build.gradle"
+        regex: "providedCompile.*\"org\\.eclipse\\.jetty\""
+        versionGroup: 0
     jakartaCompatibility:
       minVersion: "12.0"
       supportedVersions:
@@ -208,12 +298,48 @@ platforms:
     name: "Payara Server"
     description: "Payara application server"
     patterns:
+      # Installed server patterns (existing)
       - file: "bin/asadmin"
         regex: "Payara Server ([0-9]+\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
       - file: "lib/payara-([0-9]+)\\.[0-9]+\\.[0-9]+).jar"
         regex: "payara-([0-9]+)\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
+      # Project configuration patterns - prioritize deployment descriptors
+      - file: "src/main/webapp/WEB-INF/glassfish-web.xml"
+        regex: "<glassfish-web>"
+        versionGroup: 0
+      - file: "src/main/webapp/WEB-INF/payara-web.xml"
+        regex: "<payara-web>"
+        versionGroup: 0
+      - file: "src/main/resources/META-INF/glassfish-web.xml"
+        regex: "<glassfish-web>"
+        versionGroup: 0
+      - file: "src/main/resources/META-INF/payara-web.xml"
+        regex: "<payara-web>"
+        versionGroup: 0
+      - file: "src/main/webapp/WEB-INF/sun-web.xml"
+        regex: "<sun-web>"
+        versionGroup: 0
+      # Fallback patterns for dependencies and build configuration
+      - file: "pom.xml"
+        regex: "<artifactId>payara.*</artifactId>"
+        versionGroup: 0
+      - file: "pom.xml"
+        regex: "<groupId>fish\\.payara</groupId>"
+        versionGroup: 0
+      - file: "pom.xml"
+        regex: "<scope>provided</scope>.*javax\\.servlet"
+        versionGroup: 0
+      - file: "pom.xml"
+        regex: "<scope>provided</scope>.*jakarta\\.servlet"
+        versionGroup: 0
+      - file: "build.gradle"
+        regex: "providedCompile.*'fish\\.payara'"
+        versionGroup: 0
+      - file: "build.gradle"
+        regex: "providedCompile.*\"fish\\.payara\""
+        versionGroup: 0
     jakartaCompatibility:
       minVersion: "7.0"
       supportedVersions:

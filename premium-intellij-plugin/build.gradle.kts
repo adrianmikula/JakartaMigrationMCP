@@ -68,7 +68,7 @@ tasks.register("validateMarketplaceRequirements") {
 // Custom task to run build validation tests
 tasks.register("validateBuildConfiguration") {
     group = "verification"
-    description = "Runs build validation tests to prevent common Gradle and configuration issues"
+    description = "Validates build configuration and dependencies"
     
     dependsOn("compileTestJava")
     
@@ -78,10 +78,15 @@ tasks.register("validateBuildConfiguration") {
             mainClass = "org.junit.platform.console.ConsoleLauncher"
             args = listOf(
                 "--details=verbose",
-                "--select-class=adrianmikula.jakartamigration.build.BuildTestSuite"
+                "--select-class=adrianmikula.jakartamigration.intellij.BuildConfigurationValidationTest"
             )
         }
     }
+}
+
+// Fix task dependency issue with classpathIndexCleanup
+tasks.named("classpathIndexCleanup") {
+    mustRunAfter("compileTestJava")
 }
 
 // Custom task to run fast tests only

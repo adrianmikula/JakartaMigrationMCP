@@ -24,6 +24,7 @@ import java.util.regex.Pattern;
  * Service for detecting application servers in a project
  */
 public class PlatformDetectionService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PlatformDetectionService.class);
     private final PlatformConfigLoader configLoader;
     
     public PlatformDetectionService() {
@@ -34,20 +35,33 @@ public class PlatformDetectionService {
      * Scans the entire project for application servers
      */
     public PlatformScanResult scanProject(Path projectPath) {
+        log.info("Starting platform detection for project: {}", projectPath);
+        
         List<PlatformDetection> detections = scanForPlatforms(projectPath);
+        log.info("Found {} platform detections", detections.size());
+        
         int totalRiskScore = calculateRiskScore(detections);
         List<String> recommendations = generateRecommendations(detections);
         
-        return new PlatformScanResult(detections, totalRiskScore, recommendations);
+        PlatformScanResult result = new PlatformScanResult(detections, totalRiskScore, recommendations);
+        log.info("Platform detection completed. Risk score: {}, Recommendations: {}", 
+                 totalRiskScore, recommendations.size());
+        
+        return result;
     }
     
     /**
      * Detects a specific platform in the project
      */
     public PlatformDetection detectPlatform(Path projectPath, PlatformConfig config) {
+        log.debug("Checking for platform: {} with {} patterns", config.name(), config.patterns().size());
+        
         for (DetectionPattern pattern : config.patterns()) {
             String version = detectVersion(projectPath, pattern);
             if (version != null) {
+                log.info("Detected platform: {} version: {} using pattern: {} in file: {}", 
+                         config.name(), version, pattern.regex(), pattern.file());
+                
                 boolean isJakartaCompatible = isVersionCompatible(version, config.jakartaCompatibility().supportedVersions());
                 return new PlatformDetection(
                     config.name(),
@@ -59,6 +73,8 @@ public class PlatformDetectionService {
                 );
             }
         }
+        
+        log.debug("No detection found for platform: {}", config.name());
         return null;
     }
     
@@ -115,7 +131,10 @@ public class PlatformDetectionService {
     private String detectVersion(Path projectPath, DetectionPattern pattern) {
         try {
             Path targetFile = projectPath.resolve(pattern.file());
+            log.debug("Checking file: {} for pattern: {}", targetFile, pattern.regex());
+            
             if (!Files.exists(targetFile)) {
+                log.debug("File does not exist: {}", targetFile);
                 return null;
             }
             
@@ -124,11 +143,26 @@ public class PlatformDetectionService {
             Matcher matcher = regex.matcher(content);
             
             if (matcher.find()) {
-                return matcher.group(pattern.versionGroup());
+                String version = matcher.group(pattern.versionGroup());
+                
+                // If versionGroup is 0, this is a presence detection pattern
+                // Return a generic version instead of the entire matched pattern
+                if (pattern.versionGroup() == 0) {
+                    version = "detected";
+                    log.debug("Presence detection pattern matched. File: {}, Pattern: {}", 
+                             pattern.file(), pattern.regex());
+                } else {
+                    log.debug("Version pattern matched! File: {}, Pattern: {}, Group: {}, Version: {}", 
+                             pattern.file(), pattern.regex(), pattern.versionGroup(), version);
+                }
+                
+                return version;
+            } else {
+                log.debug("Pattern not matched. File: {}, Pattern: {}", pattern.file(), pattern.regex());
+                return null;
             }
-            
-            return null;
         } catch (IOException e) {
+            log.error("Error reading file for pattern detection: {}", pattern.file(), e);
             return null;
         }
     }
