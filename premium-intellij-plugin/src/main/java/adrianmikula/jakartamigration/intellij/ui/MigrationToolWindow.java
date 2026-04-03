@@ -16,7 +16,7 @@ import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalys
 import adrianmikula.jakartamigration.analysis.persistence.SqliteMigrationAnalysisStore;
 import adrianmikula.jakartamigration.coderefactoring.service.CodeRefactoringModule;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
-import adrianmikula.jakartamigration.intellij.ui.PlatformsTabComponent;
+import adrianmikula.jakartamigration.intellij.ui.SimplePlatformsTabComponent;
 import adrianmikula.jakartamigration.intellij.ui.ComprehensiveReportsTabComponent;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -75,7 +75,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private McpServerTabComponent mcpServerTabComponent;
         private RefactorTabComponent refactorTabComponent;
         private HistoryTabComponent historyTabComponent;
-        private PlatformsTabComponent platformsTabComponent;
+        private SimplePlatformsTabComponent platformsTabComponent;
         private RuntimeTabComponent runtimeTabComponent;
         private ComprehensiveReportsTabComponent reportsTabComponent;
         private CodeRefactoringModule refactorModule;
@@ -213,7 +213,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 refactorTabComponent.setOnRecipeExecuted(() -> SwingUtilities.invokeLater(historyRef::refreshHistory));
 
                 // Platforms tab (Premium)
-                platformsTabComponent = new PlatformsTabComponent(project);
+                platformsTabComponent = new SimplePlatformsTabComponent(project);
                 tabbedPane.addTab("Platforms ⭐", platformsTabComponent.getPanel());
                 LOG.info("initializeContent: Added PREMIUM Platforms tab");
 
@@ -834,12 +834,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
         public void refreshPremiumTabs() {
             System.out.println("DEBUG: refreshPremiumTabs() called");
             SwingUtilities.invokeLater(() -> {
-                if (platformsTabComponent != null) {
-                    System.out.println("DEBUG: Calling platformsTabComponent.refreshUI()");
-                    platformsTabComponent.refreshUI();
-                } else {
-                    System.out.println("DEBUG: platformsTabComponent is null");
-                }
+                // Note: SimplePlatformsTabComponent doesn't need manual refresh
+                // It handles state internally
+                System.out.println("DEBUG: Platforms tab uses simplified component - no manual refresh needed");
                 // Note: AdvancedScansComponent and ComprehensiveReportsTabComponent 
                 // don't have refreshUI() method, so we'll skip them for now
             });
@@ -847,11 +844,11 @@ public class MigrationToolWindow implements ToolWindowFactory {
         
         /**
          * Public method to test platforms tab refresh
+         * Note: Simplified version doesn't need manual refresh
          */
         public void testPlatformsTabRefresh() {
-            if (platformsTabComponent != null) {
-                platformsTabComponent.refreshUI();
-            }
+            System.out.println("DEBUG: testPlatformsTabRefresh() called - simplified component handles refresh internally");
+            // SimplePlatformsTabComponent handles state internally
         }
     }
 }

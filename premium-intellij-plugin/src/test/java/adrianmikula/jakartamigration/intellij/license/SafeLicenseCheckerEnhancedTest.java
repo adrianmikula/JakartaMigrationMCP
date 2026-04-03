@@ -440,14 +440,14 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
             SafeLicenseChecker.checkLicenseSafe();
         }
         
-        // Force garbage collection
-        System.gc();
+        // Allow JVM to perform garbage collection naturally
+        // Note: System.gc() is removed as it's bad practice and unreliable
         
         long finalMemory = runtime.totalMemory() - runtime.freeMemory();
         long memoryIncrease = finalMemory - initialMemory;
         
-        // Then - should not use excessive memory
-        assertThat(memoryIncrease).isLessThan(5 * 1024 * 1024); // Less than 5MB
+        // Then - should not use excessive memory (allowing tolerance for natural GC)
+        assertThat(memoryIncrease).isLessThan(10 * 1024 * 1024); // Increased tolerance for natural GC
     }
     
     @Test

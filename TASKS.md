@@ -8,9 +8,9 @@ Lets complete the following tasks in order. While implementing the tasks, always
 
 the reports tab has disappeared. restore it.
 
-plugin UI tabs often disappear after making UI code changes. investigate if our code for UI tabs is messy, flawed, inconsistent, or duplicated in some way which is exasberating these mistakes. Fix this.
-
 the experimental feature tabs are not dynamically displayed after enabling experimental features from the support UI tab. Fix this.
+
+after clicking 'analyse project' in the  platforms tab, it always reports "No application servers detected" even when I've opened an example repo which I know contains an appserver. Soemthing is wrong with how we are scanning for appservers. Start by checking that our platform integration tests testing with real github projects from examples.yaml, and that the tests are passing  
 
 
 
@@ -29,20 +29,40 @@ it's bad practice to manually force GC calls inside our code. Instead of this, o
 
 lets review our existing integration tests, and ensure that wherever possible, they are loading real repos as examples from examples.yaml (via the ExampleProjectManager) instead of hardcoding fake mocked input data.
 
-lets review test coverage of all the major tabs in the intellij plugin UI, and ensure all critical paths of our main features have test coverage.  
-
-lets ensure all tests compile and pass
+lets write some realistic integration tests for the maven artifact lookup service, which pass in common javax artifact coordinates, and verify that the service found matching jakarta maven artifact coordinates
 
 
 
-# cicd
+# configuration
 
-lets fix the github actions - they aren't running the tests when i push to a branch with an open PR
+lets remove feature-flags.yaml and keep all of the feature flags defined in code.
 
 
-# discoverability
 
-Lets research how we could use the IntelliJ plugin API to auto-suggest our plugin to users who open source files containing javax imports etc.  We tried using the old v1 API but it's not working in the newer versions of IntelliJ.  What's the 2026 way of doing it?   It's possible we need to upgrade our stack to use the v2 intellij gradle plugin.
+
+# quality
+
+now lets review the rest of our codebase and apply the same simplicity and consistency optimisations across our entire codebase, ensuring we don't break our tests while doing so
+
+let's fix any compilation issues, ensure all the tests still pass, and fix any test failures
+
+
+implement deduplication checks as a gradle task using:
+- PMD CPD (copy-paste detector)
+- Semgrep patterns
+
+
+
+# user help
+
+lets update the MCP tool list on the AI tab to reflect the current set of available tools
+lets optimise the AI prompt suggestions on the AI tab, and keep them simple and concise 
+
+
+
+
+
+
 
 
 

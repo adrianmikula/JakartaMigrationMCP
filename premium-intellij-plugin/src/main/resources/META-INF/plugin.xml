@@ -104,6 +104,12 @@
         <!-- Ensures license status is checked and UI updated when plugin first loads -->
         <postStartupActivity implementation="adrianmikula.jakartamigration.intellij.LicenseCheckStartupActivity"/>
 
+        <!-- Tool Window -->
+        <toolWindow id="JakartaMigration"
+                    displayName="Jakarta Migration"
+                    anchor="right"
+                    factoryClass="adrianmikula.jakartamigration.intellij.ui.MigrationToolWindow"/>
+                    
         <!-- Notification Groups -->
 
         <!-- Application Service for MCP Client -->

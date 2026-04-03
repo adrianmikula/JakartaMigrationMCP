@@ -106,7 +106,10 @@ platforms:
         regex: "<groupId>org\\.apache\\.tomcat</groupId>"
         versionGroup: 0
       - file: "pom.xml"
-        regex: "<scope>provided</scope>.*javax\\.servlet"
+        regex: "<scope>provided</scope>[\\s\\S]*javax\\.servlet"
+        versionGroup: 0
+      - file: "pom.xml"
+        regex: "<packaging>war</packaging>"
         versionGroup: 0
       - file: "build.gradle"
         regex: "providedCompile.*'org\\.apache\\.tomcat'"
@@ -159,7 +162,10 @@ platforms:
         regex: "<groupId>org\\.wildfly</groupId>"
         versionGroup: 0
       - file: "pom.xml"
-        regex: "<scope>provided</scope>.*javax\\.ejb"
+        regex: "<scope>provided</scope>[\\s\\S]*javax\\.ejb"
+        versionGroup: 0
+      - file: "pom.xml"
+        regex: "<packaging>ejb</packaging>"
         versionGroup: 0
       - file: "build.gradle"
         regex: "providedCompile.*'org\\.wildfly'"
@@ -192,7 +198,7 @@ platforms:
       - file: "start.ini"
         regex: "jetty-([0-9]+\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
-      - file: "lib/jetty-server-([0-9]+)\\.[0-9]+\\.[0-9]+).jar"
+      - file: "lib/jetty-server-([0-9]+)\\.[0-9]+\\.[0-9]+)\\.jar"
         regex: "jetty-server-([0-9]+)\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
       # Project configuration patterns - prioritize deployment descriptors
@@ -219,7 +225,7 @@ platforms:
         regex: "<groupId>org\\.eclipse\\.jetty</groupId>"
         versionGroup: 0
       - file: "pom.xml"
-        regex: "<scope>provided</scope>.*javax\\.servlet"
+        regex: "<scope>provided</scope>[\\s\\S]*javax\\.servlet"
         versionGroup: 0
       - file: "build.gradle"
         regex: "providedCompile.*'org\\.eclipse\\.jetty'"
@@ -276,7 +282,7 @@ platforms:
       - file: "bin/tomee.sh"
         regex: "Apache TomEE ([0-9]+\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
-      - file: "lib/tomee-catalina-([0-9]+)\\.[0-9]+\\.[0-9]+).jar"
+      - file: "lib/tomee-catalina-([0-9]+)\\.[0-9]+\\.[0-9]+)\\.jar"
         regex: "tomee-catalina-([0-9]+)\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
     jakartaCompatibility:
@@ -302,7 +308,7 @@ platforms:
       - file: "bin/asadmin"
         regex: "Payara Server ([0-9]+\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
-      - file: "lib/payara-([0-9]+)\\.[0-9]+\\.[0-9]+).jar"
+      - file: "lib/payara-([0-9]+)\\.[0-9]+\\.[0-9]+)\\.jar"
         regex: "payara-([0-9]+)\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
       # Project configuration patterns - prioritize deployment descriptors
@@ -329,10 +335,10 @@ platforms:
         regex: "<groupId>fish\\.payara</groupId>"
         versionGroup: 0
       - file: "pom.xml"
-        regex: "<scope>provided</scope>.*javax\\.servlet"
+        regex: "<scope>provided</scope>[\\s\\S]*javax\\.servlet"
         versionGroup: 0
       - file: "pom.xml"
-        regex: "<scope>provided</scope>.*jakarta\\.servlet"
+        regex: "<scope>provided</scope>[\\s\\S]*jakarta\\.servlet"
         versionGroup: 0
       - file: "build.gradle"
         regex: "providedCompile.*'fish\\.payara'"

@@ -104,7 +104,19 @@ public class SourceCodeScannerImpl implements SourceCodeScanner {
         }
 
         try {
-            String content = Files.readString(filePath);
+            // Use streaming for memory efficiency with large files
+            long fileSize = Files.size(filePath);
+            String content;
+            
+            // For files larger than 10MB, use streaming approach
+            if (fileSize > 10 * 1024 * 1024) {
+                log.debug("Large file detected ({} bytes), using streaming for: {}", fileSize, filePath);
+                content = Files.lines(filePath).collect(java.util.stream.Collectors.joining("\n"));
+            } else {
+                // For smaller files, regular readString is more efficient
+                content = Files.readString(filePath);
+            }
+            
             int lineCount = countLines(content);
 
             // Use ThreadLocal parser to avoid reset() issues when parsing files
@@ -116,8 +128,11 @@ public class SourceCodeScannerImpl implements SourceCodeScanner {
             // parsing files with duplicate fully qualified names
             parser.reset();
 
-            // Parse with OpenRewrite
-            List<SourceFile> sourceFiles = parser.parse(content).collect(java.util.stream.Collectors.toList());
+            // Parse with OpenRewrite - using try-with-resources pattern
+            List<SourceFile> sourceFiles;
+            try (var stream = parser.parse(content)) {
+                sourceFiles = stream.collect(java.util.stream.Collectors.toList());
+            }
 
             if (sourceFiles.isEmpty()) {
                 log.debug("No source files found in file: {}", filePath);

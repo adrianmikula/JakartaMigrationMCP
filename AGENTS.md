@@ -12,6 +12,7 @@
 
 ### Pre-Task Steps
 - Check the codebase for existing implementations to avoid duplicating the same functionality (DRY principle) 
+- review specifications under root level spec folder to understand existing implementation
 - Check the codebase for existing tests to avoid duplicating the same tests (DRY principle)
 - Check the licensing structure so we know the correct code module to put the new code in.
 
@@ -33,6 +34,7 @@ After completing a task list, do the following:
 - ensure all tests pass.  
 - Review the code implementation to ensure it meets our code quality standards.
 - Update documentation under the docs folder to provide details of features and architecture.  
+- update specifications under root level spec folder to reflect changes
 - Add code comments to mention the requirements and specifications in the source code and the test code.
 
 
@@ -61,9 +63,20 @@ Full architectural rules are documented in AgentRules\ARCHITECTURE.md
 - KISS. Source files should be kept under 500 lines, and split up if they get too large.
 - DRY. Check for and re-use existing code wherever possible.
 - Use 2026 industry best-practices for high-quality software development.  OOP, SOLID, etc.
-- Avoid hard coding string constants in code which should be loaded from YAML configuration.
+- Avoid hard coding string constants in code which should be loaded from configuration (YAML, JSON, properties, or env vars).
 
 Full coding standards are documented in AgentRules\CODING.md
+
+
+### Simplicity and Consistency
+- remove duplication and unused files, methods or abstractions
+- make the code 50% shorter/simpler if possible
+- don't over-complicate or over-engineer something simple.
+- Use pre-existing conventions/patterns 
+- Don't add fallback logic if it's not part of the requirements.
+
+Full simplicity guidelines are documented in docs\standards\simplicity_and_consistency.md
+
 
 ### Automated Testing
 
@@ -81,6 +94,7 @@ Full testing standards are documented in AgentRules\TESTING.md
 - Use try/catch with resources, especially inside loops.
 - Use streaming rather than loading everything into memory at once when possible.
 - Avoid manually forcing GC calls inside our code. 
+- if loading large DB datasets into memory, use cursors or paging where possible
 
 
 
@@ -88,7 +102,11 @@ Full testing standards are documented in AgentRules\TESTING.md
 
 - Solutions to common code issues or persistent problems should be documented in docs/COMMON_ISSUES.md
 - When debugging persistent problems/errors, always check the list of known issues in docs/COMMON_ISSUES.md
-- If a specific bug never gets fixed, even though the AI agent keeps trying different fixes and incorrectly reporting that the bug was successfully fixed, then we need to step back to look at the bigger picture. As a last resort, consider deleting and completely re-implementing the feature.
+- Don't report that a bug is fixed based on a guess, assumption, or hunch. Always prove/test/verify that your solution actually fixed the problem. 
+- If a specific bug never gets fixed, even though the AI agent keeps trying different fixes and incorrectly reporting that the bug was successfully fixed, then we need to change our approach. Try the following:
+1. step back to look at the bigger picture
+2. Optimise the problematic part of the code for Simplicity and Consistency, following the guidelines in docs\standards\simplicity_and_consistency.md 
+3. As a last resort, consider deleting and completely re-implementing the feature.
 
 
 

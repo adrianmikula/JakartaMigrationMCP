@@ -14,15 +14,15 @@ class FeatureFlagsPropertiesTest {
     // === Pricing Constants Tests ===
 
     @Test
-    @DisplayName("Monthly price should be $49 USD")
-    void monthlyPriceIs49() {
-        assertThat(FeatureFlagsProperties.getMonthlyPriceUsd()).isEqualTo(49.0);
+    @DisplayName("Monthly price should be $5 USD")
+    void monthlyPriceIs5() {
+        assertThat(FeatureFlagsProperties.getMonthlyPriceUsd()).isEqualTo(5.0);
     }
 
     @Test
-    @DisplayName("Yearly price should be $399 USD")
-    void yearlyPriceIs399() {
-        assertThat(FeatureFlagsProperties.getYearlyPriceUsd()).isEqualTo(399.0);
+    @DisplayName("Yearly price should be $50 USD")
+    void yearlyPriceIs50() {
+        assertThat(FeatureFlagsProperties.getYearlyPriceUsd()).isEqualTo(50.0);
     }
 
     @Test
@@ -34,15 +34,15 @@ class FeatureFlagsPropertiesTest {
     // === Pricing Formatted Tests ===
 
     @Test
-    @DisplayName("Monthly price formatted should show $49/month")
+    @DisplayName("Monthly price formatted should show $5/month")
     void monthlyPriceFormatted() {
-        assertThat(FeatureFlagsProperties.getMonthlyPriceFormatted()).isEqualTo("$49/month");
+        assertThat(FeatureFlagsProperties.getMonthlyPriceFormatted()).isEqualTo("$5/month");
     }
 
     @Test
-    @DisplayName("Yearly price formatted should show $399/year")
+    @DisplayName("Yearly price formatted should show $50/year")
     void yearlyPriceFormatted() {
-        assertThat(FeatureFlagsProperties.getYearlyPriceFormatted()).isEqualTo("$399/year");
+        assertThat(FeatureFlagsProperties.getYearlyPriceFormatted()).isEqualTo("$50/year");
     }
 
     // === Yearly Savings Tests ===
@@ -51,9 +51,9 @@ class FeatureFlagsPropertiesTest {
     @DisplayName("Yearly savings should be calculated correctly")
     void yearlySavingsCalculated() {
         int savings = FeatureFlagsProperties.getYearlySavingsPercent();
-        // 12 * $49 = $588, yearly is $399, savings = ($588 - $399) / $588 = 32%
+        // 12 * $5 = $60, yearly is $50, savings = ($60 - $50) / $60 = 17%
         assertThat(savings).isGreaterThan(0);
-        assertThat(savings).isLessThanOrEqualTo(40); // Should be around 32%
+        assertThat(savings).isLessThanOrEqualTo(20); // Should be around 17%
     }
 
     // === Marketplace URL Tests ===
@@ -163,8 +163,8 @@ class FeatureFlagsPropertiesTest {
     @DisplayName("Should load pricing properties from resources")
     void shouldLoadPricingPropertiesFromResources() {
         // Test that default values are loaded correctly
-        assertThat(FeatureFlagsProperties.getMonthlyPriceUsd()).isEqualTo(49.0);
-        assertThat(FeatureFlagsProperties.getYearlyPriceUsd()).isEqualTo(399.0);
+        assertThat(FeatureFlagsProperties.getMonthlyPriceUsd()).isEqualTo(5.0);
+        assertThat(FeatureFlagsProperties.getYearlyPriceUsd()).isEqualTo(50.0);
         assertThat(FeatureFlagsProperties.getFreeTrialDays()).isEqualTo(7);
     }
 }

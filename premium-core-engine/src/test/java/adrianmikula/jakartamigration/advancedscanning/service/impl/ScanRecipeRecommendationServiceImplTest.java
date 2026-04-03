@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -48,17 +49,18 @@ class ScanRecipeRecommendationServiceImplTest {
 
     @Test
     void testGetRecipeRecommendations_NullScanResults() {
-        // Given
-        Map<String, Object> scanResults = Map.of(
-            "JPA_ANNOTATION_SCANNER", null
-        );
+        // Given - scan results with null values should be handled gracefully
+        Map<String, Object> scanResults = new HashMap<>();
+        scanResults.put("JPA_ANNOTATION_SCANNER", "No javax issues found");
+        scanResults.put("BEAN_VALIDATION_SCANNER", null);
 
         // When
         List<ScanRecipeRecommendationService.RecipeRecommendation> recommendations = 
             recommendationService.getRecipeRecommendations(testProjectPath, scanResults);
 
-        // Then
-        assertTrue(recommendations.isEmpty());
+        // Then - should handle null values gracefully
+        assertNotNull(recommendations);
+        assertTrue(recommendations.isEmpty()); // No issues found in the test data
     }
 
     @Test

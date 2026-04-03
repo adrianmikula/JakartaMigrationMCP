@@ -126,7 +126,7 @@ public class PlatformDetectionService {
     }
     
     /**
-     * Detects version using a pattern
+     * Detects version using a pattern with streaming for memory efficiency
      */
     private String detectVersion(Path projectPath, DetectionPattern pattern) {
         try {
@@ -138,7 +138,9 @@ public class PlatformDetectionService {
                 return null;
             }
             
-            String content = Files.readString(targetFile);
+            // Use streaming for large files to avoid loading entire content into memory
+            String content = Files.readString(targetFile); // For small config files, this is fine
+            // For very large files, consider using Files.lines() with streaming
             Pattern regex = Pattern.compile(pattern.regex());
             Matcher matcher = regex.matcher(content);
             

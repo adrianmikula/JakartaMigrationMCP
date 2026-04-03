@@ -32,7 +32,7 @@ public class JsonResponseBuilder {
     }
     
     public JsonResponseBuilder error(String message) {
-        return status("error").message(message);
+        return status("error", message);
     }
     
     public JsonResponseBuilder upgradeRequired(String featureName, String featureDescription, 

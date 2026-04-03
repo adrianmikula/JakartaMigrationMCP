@@ -356,8 +356,7 @@ public class PremiumMigrationTools {
      */
     @McpTool(name = "createReport", description = "Creates a comprehensive migration report with analysis, recommendations, and statistics. Returns JSON with report data and file path. Requires PREMIUM license.")
     public String createReport(
-            @McpToolParam(description = "Path to project root directory", required = true) String projectPath,
-            @McpToolParam(description = "Report format (pdf, html, json)", required = false) String format) {
+            @McpToolParam(description = "Path to project root directory", required = true) String projectPath) {
         try {
             log.info("Creating migration report for project: {}", projectPath);
 
@@ -369,9 +368,9 @@ public class PremiumMigrationTools {
             // Run dependency analysis for report data
             DependencyAnalysisReport report = dependencyAnalysisModule.analyzeProject(project);
 
-            // Generate report file path
+            // Generate report file path (PDF only)
             String timestamp = java.time.LocalDateTime.now().toString().replace(":", "-");
-            String fileName = "jakarta-migration-report-" + timestamp + "." + format.toLowerCase();
+            String fileName = "jakarta-migration-report-" + timestamp + ".pdf";
             Path reportPath = project.resolve("reports").resolve(fileName);
 
             // Ensure reports directory exists
@@ -382,7 +381,6 @@ public class PremiumMigrationTools {
             json.append("{\n");
             json.append("  \"status\": \"success\",\n");
             json.append("  \"edition\": \"premium\",\n");
-            json.append("  \"format\": \"").append(escapeJson(format.toLowerCase())).append("\",\n");
             json.append("  \"projectPath\": \"").append(escapeJson(projectPath)).append("\",\n");
             json.append("  \"reportPath\": \"").append(escapeJson(reportPath.toString())).append("\",\n");
             json.append("  \"readinessScore\": ").append(report.readinessScore().score()).append(",\n");
@@ -420,7 +418,26 @@ public class PremiumMigrationTools {
                 .forEach(node -> json.append("          \"").append(escapeJson(node.artifactId())).append("\"\n"));
             
             json.append("      ]\n");
-            json.append("      \"recommendations\": ").append(report.recommendations().size()).append("\n");
+            json.append("      \"recommendations\": ").append(report.recommendations().size()).append(",\n");
+            json.append("      \"riskAssessment\": {\n");
+            json.append("        \"riskScore\": ").append(report.riskAssessment().riskScore()).append(",\n");
+            json.append("        \"riskFactors\": [");
+            for (int i = 0; i < report.riskAssessment().riskFactors().size(); i++) {
+                json.append("\"").append(escapeJson(report.riskAssessment().riskFactors().get(i))).append("\"");
+                if (i < report.riskAssessment().riskFactors().size() - 1) {
+                    json.append(", ");
+                }
+            }
+            json.append("],\n");
+            json.append("        \"mitigationStrategies\": [");
+            for (int i = 0; i < report.riskAssessment().mitigationSuggestions().size(); i++) {
+                json.append("\"").append(escapeJson(report.riskAssessment().mitigationSuggestions().get(i))).append("\"");
+                if (i < report.riskAssessment().mitigationSuggestions().size() - 1) {
+                    json.append(", ");
+                }
+            }
+            json.append("]\n");
+            json.append("      }\n");
             json.append("    }\n");
             json.append("  }\n");
             json.append("}");
@@ -432,136 +449,6 @@ public class PremiumMigrationTools {
             return createErrorResponse("Unexpected error: " + e.getMessage());
         }
     }
-
-    
-    /**
-     * Creates a comprehensive migration report with analysis, recommendations, and statistics.
-     * PREMIUM TOOL - Requires JetBrains Marketplace subscription
-     */
-    @McpTool(name = "createReport", description = "Creates a comprehensive migration report with analysis, recommendations, and statistics. Returns JSON with report data and file path. Requires PREMIUM license.")
-    public String createReport(
-            @McpToolParam(description = "Path to project root directory", required = true) String projectPath,
-            @McpToolParam(description = "Report format (pdf, html, json)", required = false) String format) {
-        try {
-            log.info("Creating migration report for project: {}", projectPath);
-
-            Path project = Paths.get(projectPath);
-            if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
-            }
-
-            // Run dependency analysis for report data
-            DependencyAnalysisReport report = dependencyAnalysisModule.analyzeProject(project);
-
-            // Generate report file path
-            String timestamp = java.time.LocalDateTime.now().toString().replace(":", "-");
-            String fileName = "jakarta-migration-report-" + timestamp + "." + format.toLowerCase();
-            Path reportPath = project.resolve("reports").resolve(fileName);
-
-            // Ensure reports directory exists
-            Files.createDirectories(reportPath.getParent());
-
-            // Build response
-            StringBuilder json = new StringBuilder();
-            json.append("{\n");
-            json.append("  \"status\": \"success\",\n");
-            json.append("  \"edition\": \"premium\",\n");
-            json.append("  \"format\": \"").append(escapeJson(format.toLowerCase())).append("\",\n");
-            json.append("  \"projectPath\": \"").append(escapeJson(projectPath)).append("\",\n");
-            json.append("  \"reportPath\": \"").append(escapeJson(reportPath.toString())).append("\",\n");
-            json.append("  \"readinessScore\": ").append(report.readinessScore().score()).append(",\n");
-            json.append("  \"readinessMessage\": \"").append(escapeJson(report.readinessScore().explanation())).append("\",\n");
-            json.append("  \"totalDependencies\": ").append(report.dependencyGraph().nodeCount()).append(",\n");
-            json.append("  \"totalBlockers\": ").append(report.blockers().size()).append(",\n");
-            json.append("  \"totalRecommendations\": ").append(report.recommendations().size()).append(",\n");
-            json.append("  \"riskScore\": ").append(report.riskAssessment().riskScore()).append(",\n");
-            json.append("  \"generatedAt\": \"").append(java.time.LocalDateTime.now().toString()).append("\",\n");
-            json.append("  \"reportData\": {\n");
-            json.append("    \"summary\": \"Jakarta Migration Analysis Report\",\n");
-            json.append("    \"projectName\": \"").append(escapeJson(project.getFileName().toString())).append("\",\n");
-            json.append("    \"analysisDate\": \"").append(java.time.LocalDate.now().toString()).append("\",\n");
-            json.append("    \"findings\": {\n");
-            json.append("      \"javaxPackages\": [\n");
-            
-            // Add detected javax packages (simplified)
-            json.append("        \"javax.persistence\",\n");
-            json.append("        \"javax.servlet\",\n");
-            json.append("        \"javax.validation\",\n");
-            json.append("        \"javax.inject\"\n");
-            
-            json.append("      ],\n");
-            json.append("      \"dependencies\": {\n");
-            json.append("        \"total\": ").append(report.dependencyGraph().nodeCount()).append(",\n");
-            json.append("        \"jakartaCompatible\": ").append(report.dependencyGraph().getNodes().stream()
-                .mapToInt(node -> node.isJakartaCompatible() ? 1 : 0).sum()).append(",\n");
-            json.append("        \"incompatible\": ").append(report.dependencyGraph().getNodes().stream()
-                .mapToInt(node -> node.isJakartaCompatible() ? 0 : 1).sum()).append("\n");
-            json.append("      \"highRisk\": [\n");
-            
-            // Add high-risk dependencies (simplified)
-            report.dependencyGraph().getNodes().stream()
-                .filter(node -> !node.isJakartaCompatible())
-                .forEach(node -> json.append("          \"").append(escapeJson(node.artifactId())).append("\"\n"));
-            
-            json.append("      ]\n");
-            json.append("      \"recommendations\": ").append(report.recommendations().size()).append("\n");
-            json.append("    }\n");
-            json.append("  }\n");
-            json.append("}");
-
-            return json.toString();
-
-        } catch (Exception e) {
-            return createErrorResponse("Analysis failed: " + e.getMessage());
-        }
-
-        // Configuration file scanning results
-        if (scanConfig) {
-            json.append("    \"configuration\": {\n");
-            json.append("      \"webXmlFound\": ").append(Files.exists(project.resolve("WEB-INF/web.xml"))).append(",\n");
-            json.append("      \"persistenceXmlFound\": ").append(Files.exists(project.resolve("META-INF/persistence.xml"))).append(",\n");
-            json.append("      \"applicationPropertiesFound\": ").append(Files.exists(project.resolve("application.properties"))).append(",\n");
-            json.append("      \"applicationYmlFound\": ").append(Files.exists(project.resolve("application.yml"))).append(",\n");
-            json.append("      \"estimatedConfigMigrationComplexity\": \"low\"\n");
-            json.append("    }\n");
-        }
-
-        // Runtime scanning results
-        if (scanRuntime) {
-            json.append("    \"runtime\": {\n");
-            json.append("      \"serverType\": \"").append(escapeJson("Jakarta EE")).append("\",\n");
-            json.append("      \"frameworksDetected\": [\n");
-            json.append("        \"Spring\",\n");
-            json.append("        \"Jakarta Faces\",\n");
-            json.append("        \"JAX-RS\"\n");
-            json.append("      ],\n");
-            json.append("      \"estimatedRuntimeMigrationComplexity\": \"medium\"\n");
-            json.append("    }\n");
-        }
-
-        json.append("  },\n");
-        json.append("  \"recommendations\": [\n");
-        json.append("    {\n");
-        json.append("      \"type\": \"migration\",\n");
-        json.append("      \"priority\": \"high\",\n");
-        json.append("      \"description\": \"Update javax dependencies to Jakarta equivalents\"\n");
-        json.append("    },\n");
-        json.append("    {\n");
-        json.append("      \"type\": \"refactoring\",\n");
-        json.append("      \"priority\": \"medium\",\n");
-        json.append("      \"description\": \"Apply automated refactor recipes for code migration\"\n");
-        json.append("    }\n");
-        json.append("  ]\n");
-        json.append("  \"generatedAt\": \"").append(java.time.LocalDateTime.now().toString()).append("\"\n");
-        json.append("}");
-
-        return json.toString();
-
-    } catch (Exception e) {
-        log.error("Unexpected error during advanced Jakarta EE scanning", e);
-        return createErrorResponse("Unexpected error: " + e.getMessage());
-    }
-}
 
     private String createErrorResponse(String message) {
         return "{\n" +
