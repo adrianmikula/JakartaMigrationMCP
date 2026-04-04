@@ -12,5 +12,6 @@ public record PlatformConfig(
     List<DetectionPattern> patterns,
     JakartaCompatibility jakartaCompatibility,
     List<String> javaxVersions,
-    Map<String, String> requirements
+    Map<String, String> requirements,
+    List<String> commonArtifacts
 ) {}

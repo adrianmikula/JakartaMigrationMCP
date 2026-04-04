@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.platforms.service.SimplifiedPlatformDetectionService;
 
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBPanel;
@@ -69,7 +70,7 @@ public class SimplePlatformsTabComponent {
         resultsLabel.setText("Scanning project for application servers...");
         
         // Run scan in background thread
-        SwingUtilities.invokeLater(() -> {
+        ApplicationManager.getApplication().invokeLater(() -> {
             try {
                 Path projectPath = Paths.get(project.getBasePath());
                 List<String> detectedServers = detectionService.scanProject(projectPath);

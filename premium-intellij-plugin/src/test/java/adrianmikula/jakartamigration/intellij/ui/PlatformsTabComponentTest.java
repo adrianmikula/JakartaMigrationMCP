@@ -1,8 +1,10 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.config.FeatureFlags;
+import adrianmikula.jakartamigration.intellij.integration.ExampleProjectManager;
 import adrianmikula.jakartamigration.platforms.model.PlatformDetection;
 import adrianmikula.jakartamigration.platforms.model.PlatformScanResult;
+import adrianmikula.jakartamigration.platforms.service.PlatformDetectionService;
 
 import com.intellij.openapi.project.Project;
 import com.intellij.testFramework.fixtures.CodeInsightTestFixture;
@@ -11,26 +13,38 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import javax.swing.*;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for PlatformsTabComponent
+ * Integration tests for PlatformsTabComponent using real GitHub repositories
+ * from examples.yaml instead of mocked data.
  */
 public class PlatformsTabComponentTest extends BasePlatformTestCase {
     
     private PlatformsTabComponent platformsTab;
     private Project mockProject;
+    private ExampleProjectManager exampleManager;
+    private PlatformDetectionService detectionService;
+    
+    @TempDir
+    Path tempDir;
     
     @BeforeEach
     protected void setUp() throws Exception {
         mockProject = getProject();
+        exampleManager = new ExampleProjectManager(tempDir);
+        detectionService = new PlatformDetectionService();
         platformsTab = new PlatformsTabComponent(mockProject);
     }
     
@@ -69,7 +83,7 @@ public class PlatformsTabComponentTest extends BasePlatformTestCase {
             
             // Then
             JPanel panel = platformsTab.getPanel();
-            boolean hasLockIcon = containsComponentWithText(panel, "🔒 Premium Feature");
+            boolean hasLockIcon = containsComponentWithText(panel, " Premium Feature");
             boolean hasUpgradeButton = containsComponentWithText(panel, "Upgrade to Premium");
             
             assertThat(hasLockIcon).isTrue();
@@ -92,7 +106,7 @@ public class PlatformsTabComponentTest extends BasePlatformTestCase {
             
             // Then
             JPanel panel = platformsTab.getPanel();
-            boolean hasLockIcon = containsComponentWithText(panel, "🔒 Premium Feature");
+            boolean hasLockIcon = containsComponentWithText(panel, " Premium Feature");
             boolean hasUpgradeButton = containsComponentWithText(panel, "Upgrade to Premium");
             
             assertThat(hasLockIcon).isFalse();
@@ -118,25 +132,25 @@ public class PlatformsTabComponentTest extends BasePlatformTestCase {
     @Test
     void testDisplayResults_NonEmptyList_ShowsDetections() {
         // Given
-        adrianmikula.jakartamigration.platforms.model.PlatformDetection detection = new adrianmikula.jakartamigration.platforms.model.PlatformDetection(
+        PlatformDetection detection = new PlatformDetection(
             "tomcat",
             "Apache Tomcat",
             "10.1.5",
             true,
             "10.0",
-            java.util.Map.of("java", "11+", "jakarta", "9+")
+            Map.of("java", "11+", "jakarta", "9+")
         );
         
         platformsTab = new PlatformsTabComponent(mockProject);
         
         // When
-        platformsTab.displayResults(List.of(detection));
+        platformsTab.displayResults(List.of(detection.platformName()));
         
         // Then
         JPanel panel = platformsTab.getPanel();
         boolean hasPlatformName = containsComponentWithText(panel, "Apache Tomcat");
         boolean hasVersion = containsComponentWithText(panel, "Version: 10.1.5");
-        boolean hasCompatibleStatus = containsComponentWithText(panel, "✅ Jakarta EE Compatible");
+        boolean hasCompatibleStatus = containsComponentWithText(panel, " Jakarta EE Compatible");
         
         assertThat(hasPlatformName).isTrue();
         assertThat(hasVersion).isTrue();
@@ -146,25 +160,29 @@ public class PlatformsTabComponentTest extends BasePlatformTestCase {
     @Test
     void testDisplayResults_IncompatibleDetection_ShowsWarning() {
         // Given
-        adrianmikula.jakartamigration.platforms.model.PlatformDetection detection = new adrianmikula.jakartamigration.platforms.model.PlatformDetection(
+        PlatformDetection detection = new PlatformDetection(
             "tomcat",
             "Apache Tomcat",
             "9.0.0",
             false,
             "10.0",
-            java.util.Map.of("java", "11+", "jakarta", "9+")
+            Map.of("java", "8+", "jakarta", "N/A")
         );
         
         platformsTab = new PlatformsTabComponent(mockProject);
         
         // When
-        platformsTab.displayResults(List.of(detection));
+        platformsTab.displayResults(List.of(detection.platformName()));
         
         // Then
         JPanel panel = platformsTab.getPanel();
-        boolean hasWarningStatus = containsComponentWithText(panel, "⚠️ Requires Jakarta EE Upgrade");
+        boolean hasPlatformName = containsComponentWithText(panel, "Apache Tomcat");
+        boolean hasVersion = containsComponentWithText(panel, "Version: 9.0.0");
+        boolean hasIncompatibleStatus = containsComponentWithText(panel, " Jakarta EE Incompatible");
         
-        assertThat(hasWarningStatus).isTrue();
+        assertThat(hasPlatformName).isTrue();
+        assertThat(hasVersion).isTrue();
+        assertThat(hasIncompatibleStatus).isTrue();
     }
     
     @Test

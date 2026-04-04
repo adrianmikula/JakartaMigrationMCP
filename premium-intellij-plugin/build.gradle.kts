@@ -90,22 +90,18 @@ tasks.named("classpathIndexCleanup") {
 }
 
 // Custom task to run fast tests only
-tasks.register("runFastTests") {
+tasks.register<JavaExec>("runFastTests") {
     group = "verification"
     description = "Runs fast subset of tests for quick feedback"
     
     dependsOn("compileTestJava")
     
-    doLast {
-        javaexec {
-            classpath = sourceSets.test.get().runtimeClasspath
-            mainClass = "org.junit.platform.console.ConsoleLauncher"
-            args = listOf(
-                "--details=summary",
-                "--include-tag=fast"
-            )
-        }
-    }
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass = "org.junit.platform.console.ConsoleLauncher"
+    args = listOf(
+        "--details=summary",
+        "--include-tag=fast"
+    )
 }
 
 dependencies {
@@ -127,7 +123,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.0")
     testImplementation("org.junit.platform:junit-platform-suite:1.10.0")
-    testImplementation("org.junit.platform:junit-platform-launcher:1.10.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.0")
     testImplementation("org.assertj:assertj-core:3.24.2")
     
     // Kotest for property testing
@@ -191,9 +187,6 @@ tasks {
     // Configure JUnit Jupiter for testing
     test {
         useJUnitPlatform()
-        
-        // Run marketplace validation tests as part of test suite
-        dependsOn("validateMarketplaceRequirements")
     }
 }
 

@@ -82,13 +82,13 @@ platforms:
     name: "Apache Tomcat"
     description: "Apache Tomcat application server"
     patterns:
-      - file: "bin/catalina.bat"
+      - file: "catalina.bat"
         regex: "Apache Tomcat/([0-9]+\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
-      - file: "lib/catalina.jar"
+      - file: "catalina.jar"
         regex: "catalina-([0-9]+\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
-      - file: "conf/server.xml"
+      - file: "server.xml"
         regex: "<Connector[^>]*port=\"([0-9]+)\""
         versionGroup: 1
     commonArtifacts:
@@ -167,7 +167,7 @@ platforms:
       - file: "start.ini"
         regex: "jetty-([0-9]+\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
-      - file: "lib/jetty-server-([0-9]+)\\.[0-9]+\\.[0-9]+)\\.jar"
+      - file: "jetty-server"
         regex: "jetty-server-([0-9]+)\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
     commonArtifacts:
@@ -189,6 +189,7 @@ platforms:
       - "org.eclipse.jetty.server"
       - "org.eclipse.jetty.servlet"
       - "org.eclipse.jetty.client"
+      - "org.eclipse.jetty.websocket"
     jakartaCompatibility:
       minVersion: "12.0"
       supportedVersions:
@@ -480,6 +481,126 @@ platforms:
       java: "17+"
       jakarta: "9+"
       spring: "6+"
+
+  # GlassFish Server
+  glassfish:
+    name: "GlassFish Server"
+    description: "Eclipse GlassFish application server"
+    patterns:
+      - file: "glassfish-rt.jar"
+        regex: "glassfish-([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "domain.xml"
+        regex: "version=\"([0-9]+\\.[0-9]+\\.[0-9]+)\""
+        versionGroup: 1
+    commonArtifacts:
+      - "glassfish"
+      - "javax.servlet"
+      - "javax.persistence"
+      - "javax.transaction"
+      - "javax.annotation"
+      - "javax.ejb"
+      - "javax.faces"
+      - "javax.jms"
+      - "javax.validation"
+      - "org.glassfish"
+      - "org.glassfish.main"
+      - "org.glassfish.jersey"
+      - "org.glassfish.javax"
+    jakartaCompatibility:
+      minVersion: "7.0"
+      supportedVersions:
+        - "7.0"
+        - "6.2"
+        - "6.1"
+        - "6.0"
+    javaxVersions:
+      - "4.1"
+      - "4.0"
+      - "3.1"
+    requirements:
+      java: "11+"
+      jakarta: "9+"
+      spring: "5+"
+
+  # NetBeans
+  netbeans:
+    name: "NetBeans"
+    description: "Apache NetBeans IDE platform"
+    patterns:
+      - file: "netbeans-platform.jar"
+        regex: "netbeans-platform-([0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "cluster.json"
+        regex: "version\":\"([0-9]+\\.[0-9]+)\""
+        versionGroup: 1
+    commonArtifacts:
+      - "org.netbeans.modules"
+      - "org.netbeans.api"
+      - "org.openide.modules"
+      - "org.openide.util"
+      - "org.openide.windows"
+      - "org.netbeans.swing"
+      - "org.openide.awt"
+      - "org.openide.filesystems"
+      - "org.netbeans.bootstrap"
+      - "org.netbeans.core"
+    jakartaCompatibility:
+      minVersion: "22.0"
+      supportedVersions:
+        - "22.0"
+        - "21.0"
+        - "20.0"
+    javaxVersions:
+      - "12.6"
+      - "12.5"
+      - "12.4"
+    requirements:
+      java: "17+"
+      jakarta: "9+"
+      spring: "6+"
+
+  # Spring Boot (as application server)
+  springboot:
+    name: "Spring Boot"
+    description: "Spring Boot embedded server"
+    patterns:
+      - file: "spring-boot.jar"
+        regex: "Spring Boot ([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "application.properties"
+        regex: "spring.boot.version=([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+    commonArtifacts:
+      - "spring-boot-starter"
+      - "spring-boot-starter-web"
+      - "spring-boot-starter-data-jpa"
+      - "spring-boot-starter-actuator"
+      - "spring-boot-starter-security"
+      - "spring-boot-starter-test"
+      - "spring-boot-starter-validation"
+      - "spring-boot-autoconfigure"
+      - "spring-boot-loader"
+      - "spring-boot"
+      - "org.springframework.boot"
+      - "org.springframework.web"
+      - "org.springframework.data"
+      - "org.springframework.security"
+    jakartaCompatibility:
+      minVersion: "3.0"
+      supportedVersions:
+        - "3.0"
+        - "3.1"
+        - "3.2"
+        - "3.3"
+    javaxVersions:
+      - "2.7"
+      - "2.6"
+      - "2.5"
+    requirements:
+      java: "17+"
+      jakarta: "9+"
+      spring: "self"
 
 # Risk scoring for platform changes
 riskScoring:

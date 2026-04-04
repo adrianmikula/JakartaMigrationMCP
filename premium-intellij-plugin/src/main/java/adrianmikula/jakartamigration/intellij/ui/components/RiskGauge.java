@@ -58,7 +58,6 @@ public class RiskGauge extends JPanel {
         RiskScoringService riskScoringService = RiskScoringService.getInstance();
         this.category = riskScoringService.getCategoryConfigForScore(this.score);
         
-        System.out.println("DEBUG: RiskGauge.setScore called with score: " + score + " (was: " + this.score + ")");
         repaint();
     }
 
@@ -184,9 +183,6 @@ public class RiskGauge extends JPanel {
         // Calculate needle angle based on score using correct angle mapping
         // Score 0: 180°, Score 25: 225°, Score 50: 270°, Score 75: 315°, Score 100: 360°
         double angle = calculateNeedleAngle(score);
-        
-        // DEBUG: Log needle rotation
-        System.out.println("DEBUG: RiskGauge needle - Score: " + score + ", Angle: " + angle + " degrees");
         
         double radians = Math.toRadians(angle);
         

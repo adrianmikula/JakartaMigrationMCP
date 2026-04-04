@@ -3,7 +3,7 @@ package adrianmikula.jakartamigration.config;
 import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
-import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaArtifactLookupService;
+import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.DependencyAnalysisModuleImpl;
@@ -43,8 +43,8 @@ public class JakartaMigrationConfig {
     }
 
     @Bean
-    public JakartaArtifactLookupService jakartaArtifactLookupService() {
-        return new JakartaArtifactLookupService();
+    public ImprovedMavenCentralLookupService jakartaArtifactLookupService() {
+        return new ImprovedMavenCentralLookupService();
     }
 
     @Bean
@@ -57,7 +57,7 @@ public class JakartaMigrationConfig {
             DependencyGraphBuilder dependencyGraphBuilder,
             NamespaceClassifier namespaceClassifier,
             JakartaMappingService jakartaMappingService,
-            JakartaArtifactLookupService jakartaArtifactLookupService,
+            ImprovedMavenCentralLookupService jakartaArtifactLookupService,
             CentralMigrationAnalysisStore analysisStore) {
         return new DependencyAnalysisModuleImpl(dependencyGraphBuilder, namespaceClassifier, jakartaMappingService,
                 jakartaArtifactLookupService, analysisStore);

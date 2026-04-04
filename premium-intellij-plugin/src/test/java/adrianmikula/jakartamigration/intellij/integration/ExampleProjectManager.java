@@ -5,6 +5,7 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.*;
 import java.util.*;
@@ -29,11 +30,19 @@ public class ExampleProjectManager {
     
     public ExampleProjectManager(Path tempDir) throws IOException {
         log.info("Initializing ExampleProjectManager with temp dir: " + tempDir);
-        this.cacheDir = tempDir.resolve(CACHE_DIR_NAME);
-        this.extractDir = tempDir.resolve(EXTRACT_DIR_NAME);
+        
+        // Use consistent cache directory name for easier access
+        Path cacheDir = tempDir.resolve("jakarta-migration/.downloads");
+        Path extractDir = tempDir.resolve("jakarta-migration/extracted-projects");
         
         Files.createDirectories(cacheDir);
         Files.createDirectories(extractDir);
+        
+        this.cacheDir = cacheDir;
+        this.extractDir = extractDir;
+        
+        log.info("Cache directory: " + this.cacheDir);
+        log.info("Extract directory: " + this.extractDir);
         
         // Load examples.yaml
         this.examplesData = loadExamplesYaml();
@@ -283,6 +292,7 @@ public class ExampleProjectManager {
     
     /**
      * Converts GitHub repository URL to ZIP download URL.
+     * Tries both 'main' and 'master' branches to handle different repository configurations.
      */
     private String convertToZipUrl(String repoUrl) {
         if (repoUrl.contains("github.com")) {
@@ -293,7 +303,26 @@ public class ExampleProjectManager {
                 String repo = parts[4];
                 // Remove .git if present
                 repo = repo.replace(".git", "");
-                return "https://github.com/" + owner + "/" + repo + "/archive/refs/heads/main.zip";
+                
+                // Try main branch first, then master as fallback
+                String mainUrl = "https://github.com/" + owner + "/" + repo + "/archive/refs/heads/main.zip";
+                String masterUrl = "https://github.com/" + owner + "/" + repo + "/archive/refs/heads/master.zip";
+                
+                // Check which branch exists by trying to access the URL
+                try {
+                    HttpURLConnection connection = (HttpURLConnection) new URL(mainUrl).openConnection();
+                    connection.setRequestMethod("HEAD");
+                    connection.setConnectTimeout(5000);
+                    connection.connect();
+                    int responseCode = connection.getResponseCode();
+                    if (responseCode == 200) {
+                        return mainUrl;
+                    }
+                } catch (Exception e) {
+                    // Main branch doesn't exist, try master
+                }
+                
+                return masterUrl;
             }
         }
         throw new IllegalArgumentException("Unsupported repository URL: " + repoUrl);
@@ -301,6 +330,7 @@ public class ExampleProjectManager {
     
     /**
      * Extracts ZIP file to target directory.
+     * If ZIP contains a single top-level directory, extracts its contents directly.
      */
     private void extractProject(Path zipFile, Path targetDir) throws IOException {
         // Clean target directory first
@@ -309,10 +339,45 @@ public class ExampleProjectManager {
         }
         Files.createDirectories(targetDir);
         
+        // First pass: check if ZIP has a single top-level directory
+        String topLevelDir = null;
         try (var zipInputStream = new ZipInputStream(Files.newInputStream(zipFile))) {
             ZipEntry entry;
             while ((entry = zipInputStream.getNextEntry()) != null) {
-                Path entryPath = targetDir.resolve(entry.getName());
+                if (!entry.isDirectory()) {
+                    String[] parts = entry.getName().split("/");
+                    if (parts.length > 1) {
+                        if (topLevelDir == null) {
+                            topLevelDir = parts[0];
+                        } else if (!topLevelDir.equals(parts[0])) {
+                            // Multiple top-level directories found, don't flatten
+                            topLevelDir = null;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        log.info("ZIP extraction mode: " + (topLevelDir != null ? "flatten single top-level directory" : "preserve structure"));
+        
+        // Second pass: extract with optional flattening
+        try (var zipInputStream = new ZipInputStream(Files.newInputStream(zipFile))) {
+            ZipEntry entry;
+            while ((entry = zipInputStream.getNextEntry()) != null) {
+                String entryName = entry.getName();
+                
+                // If we have a single top-level directory, remove it from the path
+                if (topLevelDir != null && entryName.startsWith(topLevelDir + "/")) {
+                    entryName = entryName.substring(topLevelDir.length() + 1);
+                }
+                
+                // Skip empty entries
+                if (entryName.isEmpty()) {
+                    continue;
+                }
+                
+                Path entryPath = targetDir.resolve(entryName);
                 
                 // Normalize path to prevent zip slip
                 entryPath = entryPath.normalize();

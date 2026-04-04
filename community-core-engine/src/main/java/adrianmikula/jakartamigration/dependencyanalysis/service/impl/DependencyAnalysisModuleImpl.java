@@ -4,7 +4,7 @@ import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalys
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
-import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaArtifactLookupService;
+import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -31,7 +32,7 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
     private final DependencyGraphBuilder dependencyGraphBuilder;
     private final NamespaceClassifier namespaceClassifier;
     private final JakartaMappingService jakartaMappingService;
-    private final JakartaArtifactLookupService jakartaArtifactLookupService;
+    private final ImprovedMavenCentralLookupService mavenCentralLookupService;
     private final CentralMigrationAnalysisStore analysisStore;
 
     @Override
@@ -184,30 +185,39 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
                 continue;
             }
 
-            // 2. Fallback: dynamic Maven Central lookup for javax.* artifacts
+            // 2. Fallback: dynamic Maven Central lookup for javax.* artifacts using improved fuzzy matching
             if (artifact.groupId().startsWith("javax.") || artifact.artifactId().contains("javax")) {
-                JakartaArtifactLookupService.JakartaArtifactMatch match = jakartaArtifactLookupService
-                        .lookupJakartaArtifact(artifact.groupId(), artifact.artifactId());
+                try {
+                    CompletableFuture<List<ImprovedMavenCentralLookupService.JakartaArtifactMatch>> future = mavenCentralLookupService.findJakartaEquivalents(
+                            artifact.groupId(), artifact.artifactId());
+                    
+                    List<ImprovedMavenCentralLookupService.JakartaArtifactMatch> matches = future.get(); // Wait for async result
+                    
+                    if (!matches.isEmpty()) {
+                        // Use the first (best) match from fuzzy matching
+                        ImprovedMavenCentralLookupService.JakartaArtifactMatch bestMatch = matches.get(0);
+                        Artifact jakartaArtifact = new Artifact(
+                                bestMatch.groupId(),
+                                bestMatch.artifactId(),
+                                bestMatch.version(),
+                                artifact.scope(),
+                                artifact.transitive());
 
-                if (match.found() && match.latestVersion() != null) {
-                    Artifact jakartaArtifact = new Artifact(
-                            match.groupId(),
-                            match.artifactId(),
-                            match.latestVersion(),
-                            artifact.scope(),
-                            artifact.transitive());
-
-                    recommendations.add(new VersionRecommendation(
-                            artifact,
-                            jakartaArtifact,
-                            "Migrate to Jakarta (from Maven Central): " + match.groupId() + ":"
-                                    + match.artifactId() + ":" + match.latestVersion(),
-                            List.of("Update imports from javax.* to jakarta.*", "Update dependency coordinates"),
-                            0.90,
-                            null));
-                    log.debug("Maven Central lookup found Jakarta equivalent for {}:{} -> {}:{}:{}",
-                            artifact.groupId(), artifact.artifactId(),
-                            match.groupId(), match.artifactId(), match.latestVersion());
+                        recommendations.add(new VersionRecommendation(
+                                artifact,
+                                jakartaArtifact,
+                                "Migrate to Jakarta (fuzzy match): " + bestMatch.groupId() + ":"
+                                        + bestMatch.artifactId() + ":" + bestMatch.version(),
+                                List.of("Update imports from javax.* to jakarta.*", "Update dependency coordinates"),
+                                0.90,
+                                null));
+                        log.debug("Improved Maven Central fuzzy lookup found Jakarta equivalent for {}:{} -> {}:{}:{}",
+                                artifact.groupId(), artifact.artifactId(),
+                                bestMatch.groupId(), bestMatch.artifactId(), bestMatch.version());
+                    }
+                } catch (Exception e) {
+                    log.warn("Error in improved Maven Central lookup for {}:{}: {}", 
+                            artifact.groupId(), artifact.artifactId(), e.getMessage());
                 }
             }
         }
@@ -338,14 +348,42 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
 
         // Check if there's a mapping for this javax artifact
         if (artifact.groupId().startsWith("javax.")) {
-            return jakartaMappingService.hasMapping(artifact.groupId(), artifact.artifactId());
+            if (jakartaMappingService.hasMapping(artifact.groupId(), artifact.artifactId())) {
+                return true;
+            }
+            
+            // Use improved Maven Central service to check for Jakarta equivalents
+            try {
+                CompletableFuture<List<ImprovedMavenCentralLookupService.JakartaArtifactMatch>> future = mavenCentralLookupService.findJakartaEquivalents(
+                        artifact.groupId(), artifact.artifactId());
+                List<ImprovedMavenCentralLookupService.JakartaArtifactMatch> matches = future.get();
+                return !matches.isEmpty();
+            } catch (Exception e) {
+                log.debug("Error checking Jakarta equivalent for {}:{}: {}", 
+                        artifact.groupId(), artifact.artifactId(), e.getMessage());
+                return false;
+            }
         }
 
         // Check by artifactId as well
         if (artifact.artifactId().startsWith("javax-") ||
                 artifact.artifactId().equals("javax.mail") ||
                 artifact.artifactId().equals("validation-api")) {
-            return jakartaMappingService.hasMapping(artifact.groupId(), artifact.artifactId());
+            if (jakartaMappingService.hasMapping(artifact.groupId(), artifact.artifactId())) {
+                return true;
+            }
+            
+            // Use improved Maven Central service to check for Jakarta equivalents
+            try {
+                CompletableFuture<List<ImprovedMavenCentralLookupService.JakartaArtifactMatch>> future = mavenCentralLookupService.findJakartaEquivalents(
+                        artifact.groupId(), artifact.artifactId());
+                List<ImprovedMavenCentralLookupService.JakartaArtifactMatch> matches = future.get();
+                return !matches.isEmpty();
+            } catch (Exception e) {
+                log.debug("Error checking Jakarta equivalent for {}:{}: {}", 
+                        artifact.groupId(), artifact.artifactId(), e.getMessage());
+                return false;
+            }
         }
 
         return false;

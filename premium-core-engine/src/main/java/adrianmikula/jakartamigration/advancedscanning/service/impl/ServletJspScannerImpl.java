@@ -126,8 +126,11 @@ public class ServletJspScannerImpl implements ServletJspScanner {
 
     private final ThreadLocal<JavaParser> javaParserThreadLocal = ThreadLocal
             .withInitial(() -> JavaParser.fromJavaVersion().build());
-
+    
     private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
+
+    // Memory optimization: Limit parallel scanning to prevent OOM
+            private static final int MAX_PARALLEL_SCANS = 4; // Limit parallel scans to prevent memory issues
 
     @Override
     public ServletJspProjectScanResult scanProject(Path projectPath) {
@@ -153,8 +156,8 @@ public class ServletJspScannerImpl implements ServletJspScanner {
             AtomicInteger totalScanned = new AtomicInteger(0);
             List<ServletJspScanResult> results = new ArrayList<>();
 
-            // Scan Java files in parallel
-            javaFiles.parallelStream().forEach(file -> {
+            // Scan Java files with limited parallelism
+            javaFiles.stream().parallel().limit(MAX_PARALLEL_SCANS).forEach(file -> {
                 totalScanned.incrementAndGet();
                 ServletJspScanResult result = scanJavaFile(file);
                 if (result.hasJavaxUsage()) {
@@ -164,8 +167,8 @@ public class ServletJspScannerImpl implements ServletJspScanner {
                 }
             });
 
-            // Scan JSP files in parallel
-            jspFiles.parallelStream().forEach(file -> {
+            // Scan JSP files with limited parallelism
+            jspFiles.stream().parallel().limit(MAX_PARALLEL_SCANS).forEach(file -> {
                 totalScanned.incrementAndGet();
                 ServletJspScanResult result = scanJspFile(file);
                 if (result.hasJavaxUsage()) {
@@ -201,6 +204,13 @@ public class ServletJspScannerImpl implements ServletJspScanner {
         }
         if (!Files.exists(filePath)) {
             log.warn("File does not exist: {}", filePath);
+            return ServletJspScanResult.empty(filePath);
+        }
+
+        // Skip files in temporary or system directories
+        String fullPath = filePath.toString().toLowerCase();
+        if (fullPath.contains("tmp") || fullPath.contains("temp") || 
+            fullPath.contains("idea-sandbox") || fullPath.contains("system/")) {
             return ServletJspScanResult.empty(filePath);
         }
 

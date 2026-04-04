@@ -18,6 +18,8 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.table.JBTable;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Objects;
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
@@ -42,6 +44,9 @@ public class DashboardComponent {
     private MigrationDashboard dashboard;
     private final Consumer<ActionEvent> onAnalyze;
     private final AdvancedScanningService advancedScanningService;
+    
+    // Cache for preventing unnecessary updates
+    private Integer lastCalculatedRiskScore = null;
 
     // UI Components for gauges (top section)
     private JPanel gaugesPanel;
@@ -111,6 +116,14 @@ public class DashboardComponent {
      * Sets the migration dashboard data for this component.
      */
     public void setDashboard(MigrationDashboard dashboard) {
+        // Only update if dashboard data actually changed
+        if (this.dashboard != null && dashboard != null && 
+            this.dashboard.getReadinessScore() == dashboard.getReadinessScore() &&
+            this.dashboard.getStatus() == dashboard.getStatus() &&
+            Objects.equals(this.dashboard.getLastAnalyzed(), dashboard.getLastAnalyzed())) {
+            return; // No actual change, skip update
+        }
+        
         this.dashboard = dashboard;
         
         // Update all components with new data
@@ -786,16 +799,12 @@ private void resetAdvancedScanCounts() {
      * Updates the gauges with current risk scores.
      */
     public void updateGauges() {
-        System.out.println("DEBUG: updateGauges() called");
-        
         if (dashboard == null) {
-            System.out.println("DEBUG: updateGauges() - dashboard is null, returning");
             return;
         }
 
         // Calculate migration effort score (based on number of items to migrate)
         int effortWeeks = calculateEffortWeeks();
-        System.out.println("DEBUG: Setting effort label: " + effortWeeks + " weeks");
         migrationEffortLabel.setText(effortWeeks + " weeks");
         
         // Color code the effort text
@@ -859,11 +868,17 @@ private void resetAdvancedScanCounts() {
             }
         }
         
-        // Calculate risk score
+        // Calculate risk score (with caching to prevent unnecessary recalculations)
         int totalFileCount = getTotalFileCount();
         double platformRiskScore = getPlatformRiskScore();
         RiskScoringService.RiskScore riskScore = riskScoringService.calculateRiskScore(scanFindings, depIssues, totalFileCount, platformRiskScore);
-        migrationRiskGauge.setScore((int) Math.round(riskScore.totalScore()));
+        int newScore = (int) Math.round(riskScore.totalScore());
+        
+        // Only update gauge if score actually changed
+        if (lastCalculatedRiskScore == null || !lastCalculatedRiskScore.equals(newScore)) {
+            lastCalculatedRiskScore = newScore;
+            migrationRiskGauge.setScore(newScore);
+        }
     }
 
     /**

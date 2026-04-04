@@ -4,7 +4,7 @@ import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalys
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
-import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaArtifactLookupService;
+import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.JakartaMappingServiceImpl;
@@ -44,7 +44,7 @@ public class MigrationAnalysisService {
                 dependencyGraphBuilder,
                 namespaceClassifier,
                 jakartaMappingService,
-                new JakartaArtifactLookupService(),
+                new ImprovedMavenCentralLookupService(),
                 analysisStore);
 
         LOG.info("MigrationAnalysisService initialized with core library");

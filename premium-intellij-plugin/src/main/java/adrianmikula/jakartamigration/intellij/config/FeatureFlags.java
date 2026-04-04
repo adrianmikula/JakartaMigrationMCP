@@ -60,7 +60,7 @@ public class FeatureFlags {
         flags.put("mcpServerTab", true);
         flags.put("advancedScans", false);
         flags.put("platformsTab", false); // Add platforms tab flag
-        flags.put("experimental_features", false); // Add experimental features flag
+        flags.put("experimental_features", true); // Enable experimental features by default for testing
         
         // Feature configurations
         FeatureConfig runtimeConfig = new FeatureConfig();

@@ -1,4 +1,18 @@
 recipes:
+  - name: JavaxAnnotationToJakartaAnnotation
+    description: Converts javax.annotation.* to jakarta.annotation.* (OpenRewrite compatibility)
+    pattern: "javax.annotation.* → jakarta.annotation.*"
+    safety: HIGH
+    reversible: true
+    category: ANNOTATION_MIGRATION
+    replacements:
+      - from: "javax.annotation"
+        to: "jakarta.annotation"
+      - from: "javax.annotation.security"
+        to: "jakarta.annotation.security"
+      - from: "javax.annotation.processing"
+        to: "jakarta.annotation.processing"
+
   - name: AddJakartaNamespace
     description: Converts javax.* imports and references to jakarta.*
     pattern: "javax.* → jakarta.*"

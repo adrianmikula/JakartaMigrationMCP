@@ -1,4 +1,6 @@
 import java.util.Properties
+import java.io.File
+import org.gradle.api.Task
 
 plugins {
     java
@@ -7,6 +9,105 @@ plugins {
     id("org.jetbrains.intellij") version "1.17.2" apply false
 }
 
+// =============================================================================
+// CROSS-PLATFORM JAVA HOME DETECTION
+// =============================================================================
+// Auto-detect Java home based on operating system
+val os = System.getProperty("os.name").lowercase()
+val javaHome = when {
+    os.contains("windows") -> {
+        // Try common Windows Java installation paths
+        val possiblePaths = listOf(
+            "C:\\Program Files\\Java\\jdk-21.0.10",
+            "C:\\Program Files\\Java\\jdk-21.0.9",
+            "C:\\Program Files\\Java\\jdk-21.0.8",
+            "C:\\Program Files\\Java\\jdk-21",
+            "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.10-hotspot",
+            "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.9-hotspot",
+            "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.8-hotspot",
+            "C:\\Program Files\\Eclipse Adoptium\\jdk-21-hotspot",
+            "C:\\Program Files\\Microsoft\\jdk-21.0.10-hotspot",
+            "C:\\Program Files\\Microsoft\\jdk-21.0.9-hotspot",
+            "C:\\Program Files\\Microsoft\\jdk-21.0.8-hotspot",
+            "C:\\Program Files\\Microsoft\\jdk-21-hotspot"
+        )
+        possiblePaths.find { path -> File(path).exists() } ?: run {
+            println("⚠️  No Java 21 found in common Windows locations, using system default")
+            null
+        }
+    }
+    os.contains("linux") -> {
+        // Try common Linux Java installation paths
+        val possiblePaths = listOf(
+            "/usr/lib/jvm/java-21-openjdk-amd64",
+            "/usr/lib/jvm/java-21-openjdk",
+            "/usr/lib/jvm/java-21-temurin",
+            "/usr/lib/jvm/java-21",
+            "/usr/lib/jvm/temurin-21-jdk-amd64",
+            "/usr/lib/jvm/temurin-21-jdk",
+            "/usr/lib/jvm/jdk-21",
+            "/opt/java/jdk-21",
+            "/usr/java/jdk-21",
+            System.getenv("JAVA_HOME") ?: "",
+            System.getProperty("java.home")
+        )
+        possiblePaths.find { path -> 
+            path.isNotEmpty() && File(path).exists()
+        } ?: run {
+            println("⚠️  No Java 21 found in common Linux locations, using system default")
+            null
+        }
+    }
+    os.contains("mac") -> {
+        // Try common macOS Java installation paths
+        val possiblePaths = listOf(
+            "/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home",
+            "/Library/Java/JavaVirtualMachines/openjdk-21.jdk/Contents/Home",
+            "/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home",
+            "/usr/local/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home",
+            System.getenv("JAVA_HOME") ?: "",
+            System.getProperty("java.home")
+        )
+        possiblePaths.find { path -> 
+            path.isNotEmpty() && File(path).exists()
+        } ?: run {
+            println("⚠️  No Java 21 found in common macOS locations, using system default")
+            null
+        }
+    }
+    else -> {
+        println("⚠️  Unknown OS: $os, using system default Java")
+        null
+    }
+}
+
+// Set Java home if found
+if (javaHome != null) {
+    println("🔧 Using Java home: $javaHome")
+    ext.set("javaHome", javaHome)
+} else {
+    println("🔧 Using system default Java")
+    ext.set("javaHome", System.getProperty("java.home"))
+}
+
+// =============================================================================
+// CROSS-PLATFORM GRADLE USER HOME CONFIGURATION
+// =============================================================================
+// Set Gradle user home dynamically based on OS for better caching
+val gradleUserHome = when {
+    os.contains("windows") -> System.getenv("USERPROFILE") + "\\.gradle"
+    os.contains("linux") -> System.getProperty("user.home") + "/.gradle"
+    os.contains("mac") -> System.getProperty("user.home") + "/.gradle"
+    else -> System.getProperty("user.home") + "/.gradle"
+}
+
+println("🔧 Using Gradle user home: $gradleUserHome")
+ext.set("gradleUserHome", gradleUserHome)
+
+// =============================================================================
+// PROJECT CONFIGURATION
+// =============================================================================
+
 allprojects {
     group = "adrianmikula"
     
@@ -14,7 +115,11 @@ allprojects {
     rootProject.file("gradle.properties").inputStream().use { props.load(it) }
     version = props.getProperty("version", "1.0.0")
     
+    // Apply cross-platform Java home to this project
+    extra.set("javaHome", javaHome)
+    
     println(">>> Project: $name, Version: $version")
+    println(">>> OS: $os, Java Home: ${extra.get("javaHome")}")
 
     repositories {
         mavenCentral()
@@ -247,6 +352,26 @@ tasks.register("validateAllWithBuildTests") {
 // =============================================================================
 
 gradle.projectsEvaluated {
+    // Apply cross-platform configuration to all projects
+    allprojects {
+        // Apply Java home configuration
+        if (javaHome != null) {
+            println("🔧 Applying Java home: $javaHome to project: $name")
+        }
+        
+        // Apply Gradle user home configuration for better caching
+        println("🔧 Applying Gradle user home: $gradleUserHome to project: $name")
+        
+        // Configure build cache directory
+        tasks.withType<Task>().configureEach {
+            if (name.contains("build") || name.contains("compile") || name.contains("test")) {
+                doFirst {
+                    println("🔧 Configuring caching for task: $name in project: $project.name")
+                }
+            }
+        }
+    }
+    
     // Validation tasks are available but not automatically run during build
     // Run explicitly with: ./gradlew validateAll
 }

@@ -8,19 +8,27 @@
 application_servers:
   - name: "Apache Tomcat"
     description: "Apache Tomcat with javax packages for migration testing"
-    url: "https://github.com/EAG-es/restful_crud_v8"
+    url: "https://github.com/apache/tomcat"
       
   - name: "WildFly"
     description: "WildFly with javax packages for migration testing"
-    url: "https://github.com/wildfly/wildfly-client-interoperability"
+    url: "https://github.com/fharms/java-examples"
       
   - name: "Spring Boot"
     description: "Spring with javax packages for migration testing"
-    url: "https://github.com/sbur4/demo-spring-javax-validation-example"
+    url: "https://github.com/joshlong-attic/boot-examples"
       
   - name: "Payara"
-    description: "Payara with javax packages for migration testing"
-    url: "https://github.com/manouti/javaee-datasource"
+    description: "Payara Micro with javax packages for migration testing"
+    url: "https://github.com/OndroMih/Payara-Micro-Reactive-Example/"
+    
+  - name: "GlassFish"
+    description: "GlassFish Server with javax packages for migration testing"
+    url: "https://github.com/javaee/glassfish"
+    
+  - name: "NetBeans"
+    description: "NetBeans Platform with javax packages for migration testing"
+    url: "https://github.com/apache/netbeans"
 
   - name: "Jetty"
     description: "Jetty with javax packages for migration testing"
@@ -29,7 +37,18 @@ application_servers:
   - name: "Spring"
     description: "Spring2 with javax dependency"
     url: "https://github.com/EAG-es/spring2_oauth2_example"
-  
+
+  - name: "JBoss EAP"
+    description: "JBoss EAP with javax dependency"
+    url: "https://github.com/techatspree/jbosscc-as7-examples"
+
+  - name: "WebSphere"
+    description: "IBM WebSphere with javax dependency"
+    url: "https://github.com/craigstjean/WebSphere-JPA-Spring-Hibernate"
+
+  - name: "SpringBoot on WildFly"
+    description: "SpringBoot on WildFly with javax dependency"
+    url: "https://github.com/JakMar17/SpringBoot-WildFly"  
 
 # =============================================================================
 # JAVAX PACKAGE EXAMPLES
@@ -111,6 +130,10 @@ project_complexity:
     description: "Medium complexity project with javax dependencies"
     url: "https://github.com/colinbut/monolith-enterprise-application"
 
-  - name: "Complex Project"
+  - name: "Complex Project A"
     description: "Large complex project with javax dependencies"
     url: "https://github.com/javaee-samples/javaee7-samples"
+
+  - name: "Complex Project B"
+    description: "Large complex project with javax dependencies"
+    url: "https://github.com/daggerok/java-ee-examples"

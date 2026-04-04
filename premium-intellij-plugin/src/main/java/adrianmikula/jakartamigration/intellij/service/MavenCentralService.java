@@ -33,6 +33,7 @@ public class MavenCentralService {
     private static final Logger LOGGER = Logger.getLogger(MavenCentralService.class.getName());
     
     private static final String MAVEN_CENTRAL_URL = "https://search.maven.org/solrsearch/select";
+    private static final String MAVEN_CENTRAL_API_URL = "https://api.sonatype.org/service/local/lucene/search";
     
     /**
      * Finds Jakarta equivalent artifacts for given javax dependency with fuzzy matching
@@ -136,20 +137,41 @@ public class MavenCentralService {
     }
     
     /**
-     * Performs the actual Maven Central search
+     * Performs the actual Maven Central search with fallback endpoints
      */
     private List<JakartaArtifactCoordinates> performMavenCentralSearch(String groupId, String artifactId) {
+        List<JakartaArtifactCoordinates> results = new ArrayList<>();
+        
+        // Try the primary endpoint first
+        results.addAll(performSearchWithEndpoint(MAVEN_CENTRAL_URL, groupId, artifactId));
+        
+        // If no results, try alternative endpoint
+        if (results.isEmpty()) {
+            LOGGER.info("No results from primary endpoint, trying alternative...");
+            results.addAll(performSearchWithEndpoint(MAVEN_CENTRAL_API_URL, groupId, artifactId));
+        }
+        
+        return results;
+    }
+    
+    /**
+     * Performs search with a specific endpoint
+     */
+    private List<JakartaArtifactCoordinates> performSearchWithEndpoint(String endpoint, String groupId, String artifactId) {
         try {
             HttpClient client = HttpClient.newHttpClient();
             
             // Search for Jakarta artifacts
             String searchQuery = "g:" + groupId + " AND a:" + artifactId;
-            String url = MAVEN_CENTRAL_URL + "?q=" + URLEncoder.encode(searchQuery, "UTF-8") + "&rows=20&wt=json";
+            String url = endpoint + "?q=" + URLEncoder.encode(searchQuery, "UTF-8") + "&rows=20&wt=json";
+            
+            LOGGER.info("Searching Maven Central: " + url);
             
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(10))
+                    .timeout(Duration.ofSeconds(15)) // Increased timeout
                     .GET()
+                    .header("User-Agent", "Jakarta-Migration-MCP/1.0") // Add user agent
                     .build();
             
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
@@ -158,11 +180,17 @@ public class MavenCentralService {
                 String responseBody = response.body();
                 return parseMavenCentralResponse(responseBody, groupId, artifactId);
             } else {
-                LOGGER.warning("Failed to query Maven Central: HTTP " + response.statusCode());
+                LOGGER.warning("Failed to query Maven Central endpoint " + endpoint + ": HTTP " + response.statusCode());
                 return new ArrayList<>();
             }
+        } catch (java.net.ConnectException e) {
+            LOGGER.warning("Connection failed to Maven Central endpoint " + endpoint + ": " + e.getMessage());
+            return new ArrayList<>();
+        } catch (java.net.SocketTimeoutException e) {
+            LOGGER.warning("Timeout connecting to Maven Central endpoint " + endpoint + ": " + e.getMessage());
+            return new ArrayList<>();
         } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Error querying Maven Central for " + groupId + ":" + artifactId, e);
+            LOGGER.log(Level.WARNING, "Error querying Maven Central endpoint " + endpoint + " for " + groupId + ":" + artifactId, e);
             return new ArrayList<>();
         }
     }

@@ -18,6 +18,7 @@ import adrianmikula.jakartamigration.coderefactoring.service.CodeRefactoringModu
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import adrianmikula.jakartamigration.intellij.ui.SimplePlatformsTabComponent;
 import adrianmikula.jakartamigration.intellij.ui.ComprehensiveReportsTabComponent;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -205,16 +206,16 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
                 // History tab (Premium) - shows recipe execution history
                 historyTabComponent = new HistoryTabComponent(project, recipeService);
-                tabbedPane.addTab("History ⭐", historyTabComponent.getPanel());
+                tabbedPane.addTab("History ", historyTabComponent.getPanel());
                 LOG.info("initializeContent: Added PREMIUM History tab");
 
                 // Wire refactor tab to auto-refresh history tab after recipe runs
                 final HistoryTabComponent historyRef = historyTabComponent;
-                refactorTabComponent.setOnRecipeExecuted(() -> SwingUtilities.invokeLater(historyRef::refreshHistory));
+                refactorTabComponent.setOnRecipeExecuted(() -> ApplicationManager.getApplication().invokeLater(() -> historyRef.refreshHistory()));
 
                 // Platforms tab (Premium)
                 platformsTabComponent = new SimplePlatformsTabComponent(project);
-                tabbedPane.addTab("Platforms ⭐", platformsTabComponent.getPanel());
+                tabbedPane.addTab("Platforms ", platformsTabComponent.getPanel());
                 LOG.info("initializeContent: Added PREMIUM Platforms tab");
 
                 // Reports tab (Premium + Experimental features only)
@@ -323,7 +324,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
         public void rebuildUI() {
             System.out.println("DEBUG: rebuildUI() called");
-            SwingUtilities.invokeLater(() -> {
+            ApplicationManager.getApplication().invokeLater(() -> {
                 int selectedIndex = tabbedPane != null ? tabbedPane.getSelectedIndex() : -1;
                 String selectedTitle = (selectedIndex != -1 && selectedIndex < tabbedPane.getTabCount())
                         ? tabbedPane.getTitleAt(selectedIndex)
@@ -557,7 +558,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Run analysis directly using the migration-core library
             CompletableFuture.supplyAsync(() -> analysisService.analyzeProject(projectPath))
                     .thenAccept(report -> {
-                        SwingUtilities.invokeLater(() -> {
+                        ApplicationManager.getApplication().invokeLater(() -> {
                             if (report != null && report.dependencyGraph() != null &&
                                     !report.dependencyGraph().getNodes().isEmpty()) {
                                 // Save to database
@@ -578,7 +579,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         });
                     })
                     .exceptionally(ex -> {
-                        SwingUtilities.invokeLater(() -> {
+                        ApplicationManager.getApplication().invokeLater(() -> {
                             Messages.showWarningDialog(project,
                                     "Analysis failed: " + ex.getMessage(),
                                     "Analysis Failed");
@@ -833,7 +834,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
          */
         public void refreshPremiumTabs() {
             System.out.println("DEBUG: refreshPremiumTabs() called");
-            SwingUtilities.invokeLater(() -> {
+            ApplicationManager.getApplication().invokeLater(() -> {
                 // Note: SimplePlatformsTabComponent doesn't need manual refresh
                 // It handles state internally
                 System.out.println("DEBUG: Platforms tab uses simplified component - no manual refresh needed");

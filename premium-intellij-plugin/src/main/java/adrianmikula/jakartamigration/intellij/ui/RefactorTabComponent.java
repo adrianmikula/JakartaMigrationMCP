@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.coderefactoring.domain.*;
 import adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition.RecipeStatus;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBLabel;
@@ -360,7 +361,7 @@ public class RefactorTabComponent {
             setRunning(true);
             CompletableFuture.supplyAsync(() -> recipeService.applyRecipe(recipe.getName(), projectPath))
                     .thenAccept(result -> {
-                        SwingUtilities.invokeLater(() -> {
+                        ApplicationManager.getApplication().invokeLater(() -> {
                             setRunning(false);
                             if (result.success()) {
                                 Messages.showInfoMessage(project, "Successfully applied '" + recipe.getName() + "'.",
@@ -407,7 +408,7 @@ public class RefactorTabComponent {
             setRunning(true);
             CompletableFuture.supplyAsync(() -> recipeService.undoRecipe(executionId, projectPath))
                     .thenAccept(result -> {
-                        SwingUtilities.invokeLater(() -> {
+                        ApplicationManager.getApplication().invokeLater(() -> {
                             setRunning(false);
                             if (result.success()) {
                                 Messages.showInfoMessage(project, "Successfully reverted changes.", "Undo Complete");

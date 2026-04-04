@@ -3,15 +3,20 @@ package adrianmikula.jakartamigration.intellij.service;
 import adrianmikula.jakartamigration.intellij.model.JakartaArtifactCoordinates;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import static org.assertj.core.api.Assertions.*;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 /**
  * Integration tests for Maven Central lookup functionality.
  * Tests real Maven Central API calls to verify fuzzy matching works correctly.
+ * 
+ * Note: These tests require internet connectivity and may be flaky due to external API availability.
+ * They are designed to be resilient and provide meaningful failure information.
  */
 public class MavenCentralServiceIntegrationTest {
     
@@ -32,7 +37,8 @@ public class MavenCentralServiceIntegrationTest {
         CompletableFuture<List<JakartaArtifactCoordinates>> future = 
             mavenCentralService.findJakartaEquivalents("javax.servlet", "javax.servlet-api");
         
-        List<JakartaArtifactCoordinates> results = future.get();
+        // Add timeout to prevent hanging
+        List<JakartaArtifactCoordinates> results = future.get(30, TimeUnit.SECONDS);
         
         LOGGER.info("Found " + results.size() + " results for javax.servlet-api");
         for (JakartaArtifactCoordinates result : results) {
@@ -57,7 +63,7 @@ public class MavenCentralServiceIntegrationTest {
         CompletableFuture<List<JakartaArtifactCoordinates>> future = 
             mavenCentralService.findJakartaEquivalents("javax.persistence", "javax.persistence-api");
         
-        List<JakartaArtifactCoordinates> results = future.get();
+        List<JakartaArtifactCoordinates> results = future.get(30, TimeUnit.SECONDS);
         
         LOGGER.info("Found " + results.size() + " results for javax.persistence-api");
         for (JakartaArtifactCoordinates result : results) {
@@ -82,7 +88,7 @@ public class MavenCentralServiceIntegrationTest {
         CompletableFuture<List<JakartaArtifactCoordinates>> future = 
             mavenCentralService.findJakartaEquivalents("javax.validation", "javax.validation-api");
         
-        List<JakartaArtifactCoordinates> results = future.get();
+        List<JakartaArtifactCoordinates> results = future.get(30, TimeUnit.SECONDS);
         
         LOGGER.info("Found " + results.size() + " results for javax.validation-api");
         for (JakartaArtifactCoordinates result : results) {
@@ -107,7 +113,7 @@ public class MavenCentralServiceIntegrationTest {
         CompletableFuture<List<JakartaArtifactCoordinates>> future = 
             mavenCentralService.findJakartaEquivalents("javax.inject", "javax.inject");
         
-        List<JakartaArtifactCoordinates> results = future.get();
+        List<JakartaArtifactCoordinates> results = future.get(30, TimeUnit.SECONDS);
         
         LOGGER.info("Found " + results.size() + " results for javax.inject");
         for (JakartaArtifactCoordinates result : results) {
@@ -132,7 +138,7 @@ public class MavenCentralServiceIntegrationTest {
         CompletableFuture<List<JakartaArtifactCoordinates>> future = 
             mavenCentralService.findJakartaEquivalents("javax.annotation", "javax.annotation-api");
         
-        List<JakartaArtifactCoordinates> results = future.get();
+        List<JakartaArtifactCoordinates> results = future.get(30, TimeUnit.SECONDS);
         
         LOGGER.info("Found " + results.size() + " results for javax.annotation-api");
         for (JakartaArtifactCoordinates result : results) {
@@ -157,7 +163,7 @@ public class MavenCentralServiceIntegrationTest {
         CompletableFuture<List<JakartaArtifactCoordinates>> future = 
             mavenCentralService.findJakartaEquivalents("org.hibernate", "hibernate-validator");
         
-        List<JakartaArtifactCoordinates> results = future.get();
+        List<JakartaArtifactCoordinates> results = future.get(30, TimeUnit.SECONDS);
         
         LOGGER.info("Found " + results.size() + " results for hibernate-validator");
         for (JakartaArtifactCoordinates result : results) {
@@ -176,11 +182,34 @@ public class MavenCentralServiceIntegrationTest {
         CompletableFuture<List<JakartaArtifactCoordinates>> future = 
             mavenCentralService.findJakartaEquivalents("com.example", "non-existent-artifact");
         
-        List<JakartaArtifactCoordinates> results = future.get();
+        List<JakartaArtifactCoordinates> results = future.get(30, TimeUnit.SECONDS);
         
         LOGGER.info("Found " + results.size() + " results for non-existent artifact");
         
         // Should return empty list, not throw exception
         assertThat(results).isEmpty();
+    }
+    
+    @Test
+    @Disabled("This test is for manual verification of API connectivity issues")
+    void testConnectivityDiagnostic() throws Exception {
+        // Diagnostic test to check Maven Central API connectivity
+        LOGGER.info("Testing Maven Central API connectivity...");
+        
+        // Test a simple known Jakarta artifact
+        CompletableFuture<List<JakartaArtifactCoordinates>> future = 
+            mavenCentralService.findJakartaEquivalents("jakarta.servlet", "jakarta.servlet-api");
+        
+        try {
+            List<JakartaArtifactCoordinates> results = future.get(15, TimeUnit.SECONDS);
+            LOGGER.info("Connectivity test successful: Found " + results.size() + " results");
+            
+            if (!results.isEmpty()) {
+                LOGGER.info("Sample result: " + results.get(0).groupId() + ":" + results.get(0).artifactId() + ":" + results.get(0).version());
+            }
+        } catch (Exception e) {
+            LOGGER.warning("Connectivity test failed: " + e.getMessage());
+            throw e;
+        }
     }
 }

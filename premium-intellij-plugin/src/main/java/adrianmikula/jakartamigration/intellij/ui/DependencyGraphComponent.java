@@ -363,6 +363,26 @@ public class DependencyGraphComponent {
 
         graphCanvas.setNodes(nodes);
         graphCanvas.setEdges(edges);
+        
+        // Auto-select optimal layout based on dependency count
+        selectOptimalLayout(nodes.size());
+    }
+    
+    /**
+     * Auto-select the best layout based on the number of dependencies
+     */
+    private void selectOptimalLayout(int nodeCount) {
+        String optimalLayout;
+        if (nodeCount <= 5) {
+            optimalLayout = "Tree";
+        } else if (nodeCount <= 25) {
+            optimalLayout = "Circular";
+        } else {
+            optimalLayout = "Force-Directed";
+        }
+        
+        layoutCombo.setSelectedItem(optimalLayout);
+        handleLayoutChange(null); // Apply the selected layout
     }
 
     /**

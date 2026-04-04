@@ -2,7 +2,8 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.platforms.model.PlatformDetection;
 import adrianmikula.jakartamigration.platforms.model.PlatformScanResult;
-import adrianmikula.jakartamigration.platforms.service.PlatformDetectionService;
+import adrianmikula.jakartamigration.platforms.service.SimplifiedPlatformDetectionService;
+import adrianmikula.jakartamigration.intellij.util.DevModeLogger;
 
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBLabel;
@@ -15,13 +16,16 @@ import java.awt.*;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * UI component for the Platforms tab (premium feature)
  */
 public class PlatformsTabComponent {
+    private static final Logger log = LoggerFactory.getLogger(PlatformsTabComponent.class);
     private final Project project;
-    private final PlatformDetectionService detectionService;
+    private final SimplifiedPlatformDetectionService detectionService;
     
     // Main UI components
     private JPanel mainPanel;
@@ -36,11 +40,11 @@ public class PlatformsTabComponent {
     private JButton trialButton;
     
     // Results display
-    private List<PlatformDetectionPanel> platformPanels;
+    private List<JPanel> platformPanels;
     
     public PlatformsTabComponent(Project project) {
         this.project = project;
-        this.detectionService = new PlatformDetectionService();
+        this.detectionService = new SimplifiedPlatformDetectionService();
         this.platformPanels = new ArrayList<>();
         initializeUI();
     }
@@ -118,24 +122,27 @@ public class PlatformsTabComponent {
      * Scans the project for application servers
      */
     public void scanProject() {
+        log.debug("Starting platform scan for project: {}", project.getBasePath());
         scanButton.setEnabled(false);
         scanButton.setText("Scanning...");
         
         // Run scan in background thread
-        SwingWorker<PlatformScanResult, Void> worker = new SwingWorker<>() {
+        SwingWorker<List<String>, Void> worker = new SwingWorker<>() {
             @Override
-            protected PlatformScanResult doInBackground() throws Exception {
+            protected List<String> doInBackground() throws Exception {
                 return detectionService.scanProject(java.nio.file.Paths.get(project.getBasePath()));
             }
             
             @Override
             protected void done() {
                 try {
-                    PlatformScanResult result = get();
-                    displayResults(result.detectedPlatforms());
+                    List<String> detectedPlatforms = get();
+                    log.debug("Platform scan completed. Found {} platforms: {}", detectedPlatforms.size(), detectedPlatforms);
+                    displayResults(detectedPlatforms);
                     scanButton.setEnabled(true);
                     scanButton.setText("Analyse Project");
                 } catch (Exception e) {
+                    log.error("Platform scan failed: {}", e.getMessage(), e);
                     displayError("Failed to scan project: " + e.getMessage());
                     scanButton.setEnabled(true);
                     scanButton.setText("Analyse Project");
@@ -149,26 +156,43 @@ public class PlatformsTabComponent {
     /**
      * Displays scan results in the UI
      */
-    public void displayResults(List<PlatformDetection> detections) {
+    public void displayResults(List<String> detectedPlatforms) {
         // Clear previous results
         resultsPanel.removeAll();
         platformPanels.clear();
         
-        if (detections.isEmpty()) {
+        if (detectedPlatforms.isEmpty()) {
             JLabel noResultsLabel = new JBLabel("No application servers detected in this project.");
             noResultsLabel.setBorder(JBUI.Borders.empty(10));
             resultsPanel.add(noResultsLabel);
         } else {
-            for (PlatformDetection detection : detections) {
-                PlatformDetectionPanel panel = new PlatformDetectionPanel(detection);
-                platformPanels.add(panel);
-                resultsPanel.add(panel);
+            for (String platformName : detectedPlatforms) {
+                JPanel platformPanel = createSimplePlatformPanel(platformName);
+                platformPanels.add(platformPanel);
+                resultsPanel.add(platformPanel);
                 resultsPanel.add(Box.createVerticalStrut(10));
             }
         }
         
         resultsPanel.revalidate();
         resultsPanel.repaint();
+    }
+    
+    /**
+     * Creates a simple platform panel for display
+     */
+    private JPanel createSimplePlatformPanel(String platformName) {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1),
+            BorderFactory.createEmptyBorder()
+        ));
+        
+        JLabel nameLabel = new JBLabel(platformName);
+        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 12f));
+        panel.add(nameLabel, BorderLayout.CENTER);
+        
+        return panel;
     }
     
     /**

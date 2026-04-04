@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.intellij;
 
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
+import adrianmikula.jakartamigration.intellij.util.DevModeLogger;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
@@ -21,6 +22,8 @@ public class JakartaMigrationAction extends AnAction {
     private final MigrationAnalysisService analysisService;
 
     public JakartaMigrationAction() {
+        // Initialize dev mode logging if running in development
+        DevModeLogger.configureDevModeLogging();
         this.analysisService = new MigrationAnalysisService();
     }
 

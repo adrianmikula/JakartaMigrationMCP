@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -129,8 +130,80 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
         try (Connection conn = getConnection()) {
             createTables(conn);
             updateSchema(conn);
+            populateRecipesFromYaml(conn);
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
+        }
+    }
+
+    /**
+     * Populates recipes table from YAML file if empty.
+     */
+    private void populateRecipesFromYaml(Connection conn) throws SQLException {
+        // Check if recipes table is empty
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM recipes")) {
+            if (rs.next() && rs.getInt(1) > 0) {
+                log.info("Recipes table already populated, skipping YAML import");
+                return;
+            }
+        }
+
+        log.info("Populating recipes table from YAML file");
+        
+        try {
+            // Load recipes from YAML file
+            InputStream yamlStream = getClass().getClassLoader()
+                    .getResourceAsStream("recipes.yaml");
+            if (yamlStream == null) {
+                log.warn("recipes.yaml file not found in classpath");
+                return;
+            }
+
+            org.yaml.snakeyaml.Yaml yaml = new org.yaml.snakeyaml.Yaml();
+            Map<String, Object> yamlData = yaml.load(yamlStream);
+            
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> recipes = (List<Map<String, Object>>) yamlData.get("recipes");
+            
+            if (recipes == null || recipes.isEmpty()) {
+                log.warn("No recipes found in YAML file");
+                return;
+            }
+
+            // Insert recipes into database
+            String insertSql = """
+                    INSERT OR REPLACE INTO recipes (
+                        name, description, pattern, safety, reversible, category
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """;
+            
+            try (PreparedStatement pstmt = conn.prepareStatement(insertSql)) {
+                for (Map<String, Object> recipe : recipes) {
+                    String name = (String) recipe.get("name");
+                    String description = (String) recipe.get("description");
+                    String pattern = (String) recipe.get("pattern");
+                    String safety = (String) recipe.get("safety");
+                    Boolean reversible = (Boolean) recipe.get("reversible");
+                    String category = (String) recipe.get("category");
+                    
+                    pstmt.setString(1, name);
+                    pstmt.setString(2, description);
+                    pstmt.setString(3, pattern);
+                    pstmt.setString(4, safety);
+                    pstmt.setBoolean(5, reversible != null ? reversible : false);
+                    pstmt.setString(6, category);
+                    pstmt.addBatch();
+                }
+                pstmt.executeBatch();
+            }
+            
+            conn.commit();
+            log.info("Successfully populated {} recipes from YAML file", recipes.size());
+            
+        } catch (Exception e) {
+            log.error("Failed to populate recipes from YAML file", e);
+            conn.rollback();
         }
     }
 
@@ -838,7 +911,7 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
             boolean isOrg = isOrgDependency(artifact.groupId());
 
             try (PreparedStatement stmt = conn.prepareStatement("""
-                    INSERT INTO dependencies (
+                    INSERT OR REPLACE INTO dependencies (
                         repository_path, group_id, artifact_id, version, scope,
                         is_direct, is_org_dependency, namespace, is_jakarta_compatible, risk_level, migration_status
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

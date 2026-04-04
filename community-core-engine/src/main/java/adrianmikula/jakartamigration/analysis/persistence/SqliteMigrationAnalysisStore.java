@@ -63,9 +63,244 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
         try (Connection conn = getConnection()) {
             createTables(conn);
             updateSchema(conn);
+            populateMigrationIssuesRegistry(conn);
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
         }
+    }
+
+    /**
+     * Populates migration_issues_registry table with default scanner types.
+     */
+    private void populateMigrationIssuesRegistry(Connection conn) throws SQLException {
+        // Check if registry table is already populated
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM migration_issues_registry")) {
+            if (rs.next() && rs.getInt(1) > 0) {
+                log.info("Migration issues registry already populated, skipping default entries");
+                return;
+            }
+        }
+
+        log.info("Populating migration issues registry with default scanner types");
+        
+        try {
+            // Default migration issues registry entries
+            String[] scannerTypes = {
+                "JPA_ANNOTATION_SCANNER",
+                "BEAN_VALIDATION_SCANNER", 
+                "SERVLET_JSP_SCANNER",
+                "CDI_INJECTION_SCANNER",
+                "BUILD_CONFIG_SCANNER",
+                "REST_SOAP_SCANNER",
+                "DEPRECATED_API_SCANNER",
+                "SECURITY_API_SCANNER",
+                "JMS_MESSAGING_SCANNER",
+                "TRANSITIVE_DEPENDENCY_SCANNER",
+                "CONFIG_FILE_SCANNER",
+                "CLASSLOADER_MODULE_SCANNER",
+                "LOGGING_METRICS_SCANNER",
+                "SERIALIZATION_CACHE_SCANNER",
+                "REFLECTION_USAGE_SCANNER",
+                "THIRD_PARTY_LIB_SCANNER"
+            };
+
+            String insertSql = """
+                    INSERT OR REPLACE INTO migration_issues_registry
+                    (scanner_type, ui_tab_name, legacy_namespace, target_namespace, refactor_recipe, description, anticipated_error_messages, solution_hint, is_premium)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """;
+            
+            try (PreparedStatement pstmt = conn.prepareStatement(insertSql)) {
+                for (String scannerType : scannerTypes) {
+                    String uiTabName = mapScannerTypeToUITab(scannerType);
+                    String legacyNamespace = mapScannerTypeToLegacyNamespace(scannerType);
+                    String targetNamespace = mapScannerTypeToTargetNamespace(scannerType);
+                    String refactorRecipe = mapScannerTypeToRecipe(scannerType);
+                    String description = mapScannerTypeToDescription(scannerType);
+                    String anticipatedErrors = mapScannerTypeToAnticipatedErrors(scannerType);
+                    String solutionHint = mapScannerTypeToSolutionHint(scannerType);
+                    boolean isPremium = mapScannerTypeToPremium(scannerType);
+                    
+                    pstmt.setString(1, scannerType);
+                    pstmt.setString(2, uiTabName);
+                    pstmt.setString(3, legacyNamespace);
+                    pstmt.setString(4, targetNamespace);
+                    pstmt.setString(5, refactorRecipe);
+                    pstmt.setString(6, description);
+                    pstmt.setString(7, anticipatedErrors);
+                    pstmt.setString(8, solutionHint);
+                    pstmt.setBoolean(9, isPremium);
+                    pstmt.addBatch();
+                }
+                pstmt.executeBatch();
+            }
+            
+            conn.commit();
+            log.info("Successfully populated {} scanner types in migration issues registry", scannerTypes.length);
+            
+        } catch (Exception e) {
+            log.error("Failed to populate migration issues registry", e);
+            conn.rollback();
+        }
+    }
+
+    private String mapScannerTypeToUITab(String scannerType) {
+        return switch (scannerType) {
+            case "JPA_ANNOTATION_SCANNER" -> "Advanced Scans";
+            case "BEAN_VALIDATION_SCANNER" -> "Advanced Scans";
+            case "SERVLET_JSP_SCANNER" -> "Advanced Scans";
+            case "CDI_INJECTION_SCANNER" -> "Advanced Scans";
+            case "BUILD_CONFIG_SCANNER" -> "Advanced Scans";
+            case "REST_SOAP_SCANNER" -> "Advanced Scans";
+            case "DEPRECATED_API_SCANNER" -> "Advanced Scans";
+            case "SECURITY_API_SCANNER" -> "Advanced Scans";
+            case "JMS_MESSAGING_SCANNER" -> "Advanced Scans";
+            case "TRANSITIVE_DEPENDENCY_SCANNER" -> "Advanced Scans";
+            case "CONFIG_FILE_SCANNER" -> "Advanced Scans";
+            case "CLASSLOADER_MODULE_SCANNER" -> "Advanced Scans";
+            case "LOGGING_METRICS_SCANNER" -> "Advanced Scans";
+            case "SERIALIZATION_CACHE_SCANNER" -> "Advanced Scans";
+            case "REFLECTION_USAGE_SCANNER" -> "Advanced Scans";
+            case "THIRD_PARTY_LIB_SCANNER" -> "Advanced Scans";
+            default -> "Unknown";
+        };
+    }
+
+    private String mapScannerTypeToLegacyNamespace(String scannerType) {
+        return switch (scannerType) {
+            case "JPA_ANNOTATION_SCANNER" -> "javax.persistence";
+            case "BEAN_VALIDATION_SCANNER" -> "javax.validation";
+            case "SERVLET_JSP_SCANNER" -> "javax.servlet";
+            case "CDI_INJECTION_SCANNER" -> "javax.enterprise";
+            case "BUILD_CONFIG_SCANNER" -> "javax.tools";
+            case "REST_SOAP_SCANNER" -> "javax.ws.rs";
+            case "DEPRECATED_API_SCANNER" -> "javax";
+            case "SECURITY_API_SCANNER" -> "javax.security";
+            case "JMS_MESSAGING_SCANNER" -> "javax.jms";
+            case "TRANSITIVE_DEPENDENCY_SCANNER" -> "javax";
+            case "CONFIG_FILE_SCANNER" -> "javax";
+            case "CLASSLOADER_MODULE_SCANNER" -> "javax";
+            case "LOGGING_METRICS_SCANNER" -> "javax";
+            case "SERIALIZATION_CACHE_SCANNER" -> "javax";
+            case "REFLECTION_USAGE_SCANNER" -> "javax";
+            case "THIRD_PARTY_LIB_SCANNER" -> "javax";
+            default -> "javax";
+        };
+    }
+
+    private String mapScannerTypeToTargetNamespace(String scannerType) {
+        return switch (scannerType) {
+            case "JPA_ANNOTATION_SCANNER" -> "jakarta.persistence";
+            case "BEAN_VALIDATION_SCANNER" -> "jakarta.validation";
+            case "SERVLET_JSP_SCANNER" -> "jakarta.servlet";
+            case "CDI_INJECTION_SCANNER" -> "jakarta.enterprise";
+            case "BUILD_CONFIG_SCANNER" -> "jakarta.tools";
+            case "REST_SOAP_SCANNER" -> "jakarta.ws.rs";
+            case "DEPRECATED_API_SCANNER" -> "jakarta";
+            case "SECURITY_API_SCANNER" -> "jakarta.security";
+            case "JMS_MESSAGING_SCANNER" -> "jakarta.jms";
+            case "TRANSITIVE_DEPENDENCY_SCANNER" -> "jakarta";
+            case "CONFIG_FILE_SCANNER" -> "jakarta";
+            case "CLASSLOADER_MODULE_SCANNER" -> "jakarta";
+            case "LOGGING_METRICS_SCANNER" -> "jakarta";
+            case "SERIALIZATION_CACHE_SCANNER" -> "jakarta";
+            case "REFLECTION_USAGE_SCANNER" -> "jakarta";
+            case "THIRD_PARTY_LIB_SCANNER" -> "jakarta";
+            default -> "jakarta";
+        };
+    }
+
+    private String mapScannerTypeToRecipe(String scannerType) {
+        return switch (scannerType) {
+            case "JPA_ANNOTATION_SCANNER" -> "JavaxPersistenceToJakartaPersistence";
+            case "BEAN_VALIDATION_SCANNER" -> "JavaxValidationToJakartaValidation";
+            case "SERVLET_JSP_SCANNER" -> "JavaxServletToJakartaServlet";
+            case "CDI_INJECTION_SCANNER" -> "JavaxEnterpriseToJakartaEnterprise";
+            case "BUILD_CONFIG_SCANNER" -> "JavaxToolsToJakartaTools";
+            case "REST_SOAP_SCANNER" -> "JavaxWsRsToJakartaWsRs";
+            case "DEPRECATED_API_SCANNER" -> "JavaxToJakarta";
+            case "SECURITY_API_SCANNER" -> "JavaxSecurityToJakartaSecurity";
+            case "JMS_MESSAGING_SCANNER" -> "JavaxJmsToJakartaJms";
+            case "TRANSITIVE_DEPENDENCY_SCANNER" -> "JavaxToJakarta";
+            case "CONFIG_FILE_SCANNER" -> "JavaxToJakarta";
+            case "CLASSLOADER_MODULE_SCANNER" -> "JavaxToJakarta";
+            case "LOGGING_METRICS_SCANNER" -> "JavaxToJakarta";
+            case "SERIALIZATION_CACHE_SCANNER" -> "JavaxToJakarta";
+            case "REFLECTION_USAGE_SCANNER" -> "JavaxToJakarta";
+            case "THIRD_PARTY_LIB_SCANNER" -> "JavaxToJakarta";
+            default -> "JavaxToJakarta";
+        };
+    }
+
+    private String mapScannerTypeToDescription(String scannerType) {
+        return switch (scannerType) {
+            case "JPA_ANNOTATION_SCANNER" -> "Detects JPA annotations that need migration";
+            case "BEAN_VALIDATION_SCANNER" -> "Detects Bean Validation annotations that need migration";
+            case "SERVLET_JSP_SCANNER" -> "Detects Servlet/JSP APIs that need migration";
+            case "CDI_INJECTION_SCANNER" -> "Detects CDI annotations that need migration";
+            case "BUILD_CONFIG_SCANNER" -> "Detects build configuration issues";
+            case "REST_SOAP_SCANNER" -> "Detects REST/SOAP APIs that need migration";
+            case "DEPRECATED_API_SCANNER" -> "Detects deprecated javax APIs";
+            case "SECURITY_API_SCANNER" -> "Detects security APIs that need migration";
+            case "JMS_MESSAGING_SCANNER" -> "Detects JMS APIs that need migration";
+            case "TRANSITIVE_DEPENDENCY_SCANNER" -> "Detects transitive dependencies that need migration";
+            case "CONFIG_FILE_SCANNER" -> "Detects configuration files that need migration";
+            case "CLASSLOADER_MODULE_SCANNER" -> "Detects classloader/module issues";
+            case "LOGGING_METRICS_SCANNER" -> "Detects logging/metrics APIs that need migration";
+            case "SERIALIZATION_CACHE_SCANNER" -> "Detects serialization/cache APIs that need migration";
+            case "REFLECTION_USAGE_SCANNER" -> "Detects reflection usage that may be affected";
+            case "THIRD_PARTY_LIB_SCANNER" -> "Detects third-party libraries that need Jakarta compatibility";
+            default -> "Unknown scanner type";
+        };
+    }
+
+    private String mapScannerTypeToAnticipatedErrors(String scannerType) {
+        return switch (scannerType) {
+            case "JPA_ANNOTATION_SCANNER" -> "ClassNotFoundException: javax.persistence.Entity";
+            case "BEAN_VALIDATION_SCANNER" -> "ClassNotFoundException: javax.validation.Constraint";
+            case "SERVLET_JSP_SCANNER" -> "ClassNotFoundException: javax.servlet.HttpServlet";
+            case "CDI_INJECTION_SCANNER" -> "ClassNotFoundException: javax.enterprise.inject.Inject";
+            case "BUILD_CONFIG_SCANNER" -> "Build configuration issues";
+            case "REST_SOAP_SCANNER" -> "ClassNotFoundException: javax.ws.rs.Path";
+            case "DEPRECATED_API_SCANNER" -> "Deprecated API usage warnings";
+            case "SECURITY_API_SCANNER" -> "ClassNotFoundException: javax.security.auth";
+            case "JMS_MESSAGING_SCANNER" -> "ClassNotFoundException: javax.jms.Message";
+            case "TRANSITIVE_DEPENDENCY_SCANNER" -> "Dependency resolution issues";
+            case "CONFIG_FILE_SCANNER" -> "Configuration file parsing errors";
+            case "CLASSLOADER_MODULE_SCANNER" -> "Class loading issues";
+            case "LOGGING_METRICS_SCANNER" -> "Logging framework issues";
+            case "SERIALIZATION_CACHE_SCANNER" -> "Serialization compatibility issues";
+            case "REFLECTION_USAGE_SCANNER" -> "Reflection access issues";
+            case "THIRD_PARTY_LIB_SCANNER" -> "Third-party library compatibility issues";
+            default -> "Unknown error patterns";
+        };
+    }
+
+    private String mapScannerTypeToSolutionHint(String scannerType) {
+        return switch (scannerType) {
+            case "JPA_ANNOTATION_SCANNER" -> "Use JPA migration recipe to update annotations";
+            case "BEAN_VALIDATION_SCANNER" -> "Use Bean Validation migration recipe";
+            case "SERVLET_JSP_SCANNER" -> "Use Servlet migration recipe";
+            case "CDI_INJECTION_SCANNER" -> "Use CDI migration recipe";
+            case "BUILD_CONFIG_SCANNER" -> "Update build configuration for Jakarta EE";
+            case "REST_SOAP_SCANNER" -> "Use JAX-RS migration recipe";
+            case "DEPRECATED_API_SCANNER" -> "Replace deprecated APIs with Jakarta equivalents";
+            case "SECURITY_API_SCANNER" -> "Use security API migration recipe";
+            case "JMS_MESSAGING_SCANNER" -> "Use JMS migration recipe";
+            case "TRANSITIVE_DEPENDENCY_SCANNER" -> "Update dependencies to Jakarta versions";
+            case "CONFIG_FILE_SCANNER" -> "Update configuration files for Jakarta EE";
+            case "CLASSLOADER_MODULE_SCANNER" -> "Update classloader/module configuration";
+            case "LOGGING_METRICS_SCANNER" -> "Update logging/metrics configuration";
+            case "SERIALIZATION_CACHE_SCANNER" -> "Update serialization/cache configuration";
+            case "REFLECTION_USAGE_SCANNER" -> "Update reflection calls for Jakarta compatibility";
+            case "THIRD_PARTY_LIB_SCANNER" -> "Update third-party libraries to Jakarta-compatible versions";
+            default -> "Contact support for migration assistance";
+        };
+    }
+
+    private boolean mapScannerTypeToPremium(String scannerType) {
+        return true; // All advanced scanners are premium features
     }
 
     private void createTables(Connection conn) throws SQLException {
