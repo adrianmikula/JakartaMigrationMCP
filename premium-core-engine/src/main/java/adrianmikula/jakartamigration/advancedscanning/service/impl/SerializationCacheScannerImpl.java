@@ -27,34 +27,18 @@ public class SerializationCacheScannerImpl implements SerializationCacheScanner 
     private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
 
     // Patterns for Java serialization
-    private static final Pattern SERIALIZABLE_PATTERN = Pattern.compile(
-            "implements\\s+(?:public\\s+)?Serializable|" +
-                    "extends\\s+\\w+\\s+implements\\s+Serializable");
-
-    private static final Pattern OBJECT_INPUT_STREAM = Pattern.compile(
-            "new\\s+ObjectInputStream\\(|" +
-                    "ObjectInputStream\\s+\\w+\\s*=");
-
-    private static final Pattern OBJECT_OUTPUT_STREAM = Pattern.compile(
-            "new\\s+ObjectOutputStream\\(|" +
-                    "ObjectOutputStream\\s+\\w+\\s*=");
-
-    // Patterns for session serialization (HttpSession)
-    private static final Pattern HTTP_SESSION_PATTERN = Pattern.compile(
-            "HttpSession|getSession\\(|setAttribute\\(|getAttribute\\(|removeAttribute\\(");
-
-    // Patterns for cache implementations
-    private static final Pattern CACHE_PATTERN = Pattern.compile(
-            "Cache\\s*\\{|" +
-                    "@Cache(?:able|Evict|Put)?|" +
-                    "CacheManager|");
-
+    private static final Pattern SERIALIZATION_PATTERN = Pattern.compile(
+            "(implements\\s+Serializable|new\\s+(?:Object(?:Input|Output)Stream|HttpSession)|@Cache)");
+    
     // Third-party cache libraries that may serialize javax objects
     private static final Pattern CACHE_LIB_PATTERN = Pattern.compile(
             "ehcache|hazelcast|infinispan|redis|caffeine|memcached|jboss\\.cache");
 
     // File extensions to scan
     private static final Set<String> SCAN_EXTENSIONS = Set.of(".java", ".xml", ".properties");
+    
+    // Deduplication tracking
+    private final Set<String> processedLines = new HashSet<>();
 
     @Override
     public SerializationCacheProjectScanResult scanProject(Path projectPath) {
@@ -90,6 +74,7 @@ public class SerializationCacheScannerImpl implements SerializationCacheScanner 
 
     private SerializationCacheScanResult scanFile(Path filePath) {
         List<SerializationCacheUsage> usages = new ArrayList<>();
+        String fileKey = filePath.toString();
 
         try {
             String content = Files.readString(filePath);
@@ -98,60 +83,26 @@ public class SerializationCacheScannerImpl implements SerializationCacheScanner 
             for (int i = 0; i < lines.length; i++) {
                 String line = lines[i];
                 int lineNumber = i + 1;
-
-                // Check for Serializable implementation
-                Matcher serializableMatcher = SERIALIZABLE_PATTERN.matcher(line);
-                if (serializableMatcher.find()) {
-                    usages.add(new SerializationCacheUsage(
-                            filePath.toString(),
-                            lineNumber,
-                            "Serializable",
-                            extractClassName(line),
-                            "class definition"));
+                String lineKey = fileKey + ":" + lineNumber;
+                
+                // Skip if already processed this line (deduplication)
+                if (processedLines.contains(lineKey)) {
+                    continue;
                 }
+                processedLines.add(lineKey);
 
-                // Check for ObjectInputStream (deserialization)
-                Matcher oisMatcher = OBJECT_INPUT_STREAM.matcher(line);
-                if (oisMatcher.find()) {
-                    usages.add(new SerializationCacheUsage(
-                            filePath.toString(),
-                            lineNumber,
-                            "ObjectInputStream",
-                            extractClassName(line),
-                            extractMethodName(line)));
-                }
-
-                // Check for ObjectOutputStream (serialization)
-                Matcher oosMatcher = OBJECT_OUTPUT_STREAM.matcher(line);
-                if (oosMatcher.find()) {
-                    usages.add(new SerializationCacheUsage(
-                            filePath.toString(),
-                            lineNumber,
-                            "ObjectOutputStream",
-                            extractClassName(line),
-                            extractMethodName(line)));
-                }
-
-                // Check for HttpSession usage
-                Matcher sessionMatcher = HTTP_SESSION_PATTERN.matcher(line);
-                if (sessionMatcher.find() && line.contains("javax.")) {
-                    usages.add(new SerializationCacheUsage(
-                            filePath.toString(),
-                            lineNumber,
-                            "SessionSerialization",
-                            extractClassName(line),
-                            extractMethodName(line)));
-                }
-
-                // Check for cache annotations/usage
-                Matcher cacheMatcher = CACHE_PATTERN.matcher(line);
-                if (cacheMatcher.find()) {
-                    usages.add(new SerializationCacheUsage(
-                            filePath.toString(),
-                            lineNumber,
-                            "CacheEntry",
-                            extractClassName(line),
-                            extractMethodName(line)));
+                // Check for any serialization-related pattern
+                Matcher serializationMatcher = SERIALIZATION_PATTERN.matcher(line);
+                if (serializationMatcher.find()) {
+                    String usageType = determineUsageType(line);
+                    if (usageType != null) {
+                        usages.add(new SerializationCacheUsage(
+                                filePath.toString(),
+                                lineNumber,
+                                usageType,
+                                extractClassName(line),
+                                extractMethodName(line)));
+                    }
                 }
             }
 
@@ -173,6 +124,22 @@ public class SerializationCacheScannerImpl implements SerializationCacheScanner 
         }
 
         return new SerializationCacheScanResult(filePath.toString(), usages);
+    }
+    
+    private String determineUsageType(String line) {
+        // Determine the specific type of serialization usage
+        if (line.contains("implements Serializable")) {
+            return "Serializable";
+        } else if (line.contains("ObjectInputStream")) {
+            return "ObjectInputStream";
+        } else if (line.contains("ObjectOutputStream")) {
+            return "ObjectOutputStream";
+        } else if (line.contains("HttpSession") && line.contains("javax.")) {
+            return "SessionSerialization";
+        } else if (line.contains("@Cache")) {
+            return "CacheEntry";
+        }
+        return null;
     }
 
     private String extractClassName(String line) {

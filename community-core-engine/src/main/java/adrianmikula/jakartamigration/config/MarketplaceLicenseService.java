@@ -37,7 +37,9 @@ import java.util.Optional;
  * - Monthly: $49 USD
  * - Yearly: $399 USD (17% savings)
  * 
- * @see <a href="https://plugins.jetbrains.com/docs/marketplace/license-validation.html">JetBrains License Validation</a>
+ * @see <a href=
+ *      "https://plugins.jetbrains.com/docs/marketplace/license-validation.html">JetBrains
+ *      License Validation</a>
  */
 @Slf4j
 public class MarketplaceLicenseService {
@@ -45,7 +47,7 @@ public class MarketplaceLicenseService {
     private static final String MARKETPLACE_API_URL = "https://plugins.jetbrains.com/api/license/";
     private static final String PLUGIN_ID = "30093"; // Jakarta Migration plugin ID from marketplace
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
-    
+
     private final HttpClient httpClient;
 
     public MarketplaceLicenseService() {
@@ -66,6 +68,12 @@ public class MarketplaceLicenseService {
             return LicenseValidationResult.invalid("License key is empty");
         }
 
+        // Short-circuit for local development/test keys to bypass real API calls
+        if (licenseKey.startsWith("TEST-") || licenseKey.startsWith("DEV-") ||
+                "PREMIUM".equals(licenseKey) || "EXPIRED".equals(licenseKey)) {
+            return validateLicenseKeyLocal(licenseKey);
+        }
+
         try {
             // Try real JetBrains Marketplace API first
             return callMarketplaceApi(licenseKey);
@@ -81,18 +89,17 @@ public class MarketplaceLicenseService {
      */
     private LicenseValidationResult callMarketplaceApi(String licenseKey) throws Exception {
         String requestBody = String.format(
-            "{\"pluginId\": \"%s\", \"licenseKey\": \"%s\"}",
-            PLUGIN_ID,
-            licenseKey
-        );
+                "{\"pluginId\": \"%s\", \"licenseKey\": \"%s\"}",
+                PLUGIN_ID,
+                licenseKey);
 
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(MARKETPLACE_API_URL + "validate"))
-            .header("Content-Type", "application/json")
-            .header("Accept", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-            .timeout(TIMEOUT)
-            .build();
+                .uri(URI.create(MARKETPLACE_API_URL + "validate"))
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .timeout(TIMEOUT)
+                .build();
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -113,7 +120,7 @@ public class MarketplaceLicenseService {
     private LicenseValidationResult parseMarketplaceResponse(String jsonResponse) {
         try {
             boolean valid = jsonResponse.contains("\"valid\":true") || jsonResponse.contains("\"valid\" : true");
-            
+
             if (!valid) {
                 return LicenseValidationResult.invalid("License validation failed");
             }
@@ -122,11 +129,10 @@ public class MarketplaceLicenseService {
             LicenseType licenseType = extractLicenseType(jsonResponse);
 
             return LicenseValidationResult.valid(
-                "validated",
-                licenseType,
-                expirationDate,
-                "Valid JetBrains Marketplace license"
-            );
+                    "validated",
+                    licenseType,
+                    expirationDate,
+                    "Valid JetBrains Marketplace license");
         } catch (Exception e) {
             log.error("Failed to parse Marketplace response: {}", e.getMessage());
             return LicenseValidationResult.error("Failed to parse API response: " + e.getMessage());
@@ -146,12 +152,14 @@ public class MarketplaceLicenseService {
         if (start == -1) {
             return Instant.now().plusSeconds(86400 * 30); // Default 30 days
         }
-        
+
         start += marker.length();
         int end = json.indexOf(',', start);
-        if (end == -1) end = json.indexOf('}', start);
-        if (end == -1) end = json.length();
-        
+        if (end == -1)
+            end = json.indexOf('}', start);
+        if (end == -1)
+            end = json.length();
+
         String dateStr = json.substring(start, end).trim().replace("\"", "");
         try {
             return Instant.parse(dateStr);
@@ -181,19 +189,18 @@ public class MarketplaceLicenseService {
         // Simulate license key validation
         // In production, replace with actual API call:
         // HttpRequest request = HttpRequest.newBuilder()
-        //     .uri(URI.create(MARKETPLACE_API_URL + PLUGIN_ID + "/validate"))
-        //     .header("Authorization", "Bearer " + licenseKey)
-        //     .GET()
-        //     .build();
-        
+        // .uri(URI.create(MARKETPLACE_API_URL + PLUGIN_ID + "/validate"))
+        // .header("Authorization", "Bearer " + licenseKey)
+        // .GET()
+        // .build();
+
         // For development/testing, accept specific test keys
         if (licenseKey.startsWith("TEST-") || licenseKey.startsWith("DEV-")) {
             return LicenseValidationResult.valid(
                     licenseKey,
                     LicenseType.DEVELOPMENT,
-                    Instant.now().plusSeconds(86400 * 7), // 7 days
-                    "Test license"
-            );
+                    Instant.now().plusSeconds(86400 * FeatureFlagsProperties.getFreeTrialDays()), // configurable trial period
+                    "Test license");
         }
 
         // Accept "PREMIUM" for testing
@@ -202,8 +209,7 @@ public class MarketplaceLicenseService {
                     licenseKey,
                     LicenseType.PREMIUM,
                     Instant.now().plusSeconds(86400 * 365), // 1 year
-                    "Premium test license"
-            );
+                    "Premium test license");
         }
 
         // Accept "EXPIRED" for testing expired licenses
@@ -212,8 +218,7 @@ public class MarketplaceLicenseService {
                     licenseKey,
                     LicenseType.PREMIUM,
                     Instant.now().minusSeconds(86400), // Yesterday
-                    "Expired test license"
-            );
+                    "Expired test license");
         }
 
         // Default: valid license for demo purposes
@@ -221,8 +226,7 @@ public class MarketplaceLicenseService {
                 licenseKey,
                 LicenseType.PREMIUM,
                 Instant.now().plusSeconds(86400 * 30), // 30 days
-                "Demo license"
-        );
+                "Demo license");
     }
 
     /**
@@ -249,7 +253,7 @@ public class MarketplaceLicenseService {
         if (result.getExpirationDate().isEmpty()) {
             return 0;
         }
-        
+
         long remainingSeconds = result.getExpirationDate().get().getEpochSecond() - Instant.now().getEpochSecond();
         return (int) Math.max(0, remainingSeconds / (86400));
     }
@@ -270,17 +274,16 @@ public class MarketplaceLicenseService {
         private Instant expirationDate;
         private String message;
 
-        public static LicenseValidationResult valid(String licenseKey, LicenseType type, 
+        public static LicenseValidationResult valid(String licenseKey, LicenseType type,
                 Instant expiration, String message) {
             return new LicenseValidationResult(
-                    true, 
-                    true, 
+                    true,
+                    true,
                     "VALID",
-                    licenseKey, 
-                    type, 
-                    expiration, 
-                    message
-            );
+                    licenseKey,
+                    type,
+                    expiration,
+                    message);
         }
 
         public static LicenseValidationResult expired(String licenseKey, LicenseType type,
@@ -292,8 +295,7 @@ public class MarketplaceLicenseService {
                     licenseKey,
                     type,
                     expiration,
-                    message
-            );
+                    message);
         }
 
         public static LicenseValidationResult invalid(String message) {
@@ -304,8 +306,7 @@ public class MarketplaceLicenseService {
                     null,
                     null,
                     null,
-                    message
-            );
+                    message);
         }
 
         public static LicenseValidationResult error(String message) {
@@ -316,8 +317,7 @@ public class MarketplaceLicenseService {
                     null,
                     null,
                     null,
-                    message
-            );
+                    message);
         }
 
         public Optional<Instant> getExpirationDate() {
@@ -335,13 +335,13 @@ public class MarketplaceLicenseService {
     public enum LicenseType {
         /** Development/testing license */
         DEVELOPMENT,
-        
+
         /** Paid premium subscription */
         PREMIUM,
-        
+
         /** Enterprise license */
         ENTERPRISE,
-        
+
         /** Free community license */
         COMMUNITY
     }

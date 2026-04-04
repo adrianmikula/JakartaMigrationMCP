@@ -10,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
  * Supports:
  * - JetBrains LicensingFacade (for IDE-installed plugins)
  * - License key validation
- * - 7-day free trial tracking
+ * - Trial period (configurable free trial)
  */
 @Slf4j
 public class LicenseService {
@@ -111,9 +111,9 @@ public class LicenseService {
      */
     public void startTrial() {
         long trialEnd = System.currentTimeMillis() + 
-            (FeatureFlagsProperties.FREE_TRIAL_DAYS * 24L * 60 * 60 * 1000);
+            (FeatureFlagsProperties.getFreeTrialDays() * 24L * 60 * 60 * 1000);
         properties.setTrialEndTimestamp(trialEnd);
-        log.info("Started 7-day free trial. Expires at: {}", new java.util.Date(trialEnd));
+        log.info("Started {}-day free trial. Expires at: {}", FeatureFlagsProperties.getFreeTrialDays(), new java.util.Date(trialEnd));
     }
 
     /**

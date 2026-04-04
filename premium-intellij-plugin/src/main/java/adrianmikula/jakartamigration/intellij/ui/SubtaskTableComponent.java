@@ -10,14 +10,11 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.table.JBTable;
 
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
 
 /**
  * Subtask table component for migration phases.
@@ -262,7 +259,11 @@ public class SubtaskTableComponent {
 
         switch (subtask.getAutomationType()) {
             case AUTOMATION_OPEN_REWRITE:
-                actionHandler.handleOpenRewriteAction(subtask, this::handleActionComplete);
+                // Recipe execution has moved to the Refactor tab (see REFACTOR.md)
+                subtask.setInProgress(false);
+                Messages.showInfoMessage(project,
+                        "OpenRewrite refactoring is now available in the Refactor tab.",
+                        "Refactoring Moved");
                 break;
             case AUTOMATION_BINARY_SCAN:
                 actionHandler.handleBinaryScanAction(subtask, this::handleActionComplete);

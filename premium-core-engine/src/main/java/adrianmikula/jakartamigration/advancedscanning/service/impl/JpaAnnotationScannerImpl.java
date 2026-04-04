@@ -149,20 +149,39 @@ public class JpaAnnotationScannerImpl implements JpaAnnotationScanner {
 
             log.info("Scanning {} Java files for JPA annotations in project: {}", javaFiles.size(), projectPath);
 
-            // Scan files in parallel
+            // Scan files sequentially for large projects to prevent OOM
             AtomicInteger totalScanned = new AtomicInteger(0);
-            List<JpaScanResult> results = javaFiles.parallelStream()
-                    .map(file -> {
-                        totalScanned.incrementAndGet();
-                        JpaScanResult result = scanFile(file);
-                        if (result.hasJavaxUsage()) {
-                            log.debug("Found JPA annotations in: {}", file);
-                            return result;
-                        }
-                        return null;
-                    })
-                    .filter(java.util.Objects::nonNull)
-                    .collect(Collectors.toList());
+            List<JpaScanResult> results = new ArrayList<>();
+
+            // Use sequential stream for large projects to prevent memory issues
+            if (javaFiles.size() > 1000) {
+                log.info("Large project detected ({} files), using sequential scanning", javaFiles.size());
+                for (Path file : javaFiles) {
+                    totalScanned.incrementAndGet();
+                    JpaScanResult result = scanFile(file);
+                    if (result != null && !result.annotations().isEmpty()) {
+                        results.add(result);
+                    }
+                    // Clear memory periodically by cleaning up thread local
+                    if (totalScanned.get() % 100 == 0) {
+                        javaParserThreadLocal.remove(); // Clear thread local to prevent memory leaks
+                        javaParserThreadLocal.remove(); // Double clear to ensure cleanup
+                    }
+                }
+            } else {
+                // Use parallel stream for smaller projects
+                results = javaFiles.parallelStream()
+                        .map(file -> {
+                            totalScanned.incrementAndGet();
+                            JpaScanResult result = scanFile(file);
+                            if (result != null && !result.annotations().isEmpty()) {
+                                return result;
+                            }
+                            return null;
+                        })
+                        .filter(java.util.Objects::nonNull)
+                        .collect(Collectors.toList());
+            }
 
             int totalAnnotations = results.stream()
                     .mapToInt(r -> r.annotations().size())

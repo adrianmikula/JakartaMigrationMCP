@@ -26,6 +26,7 @@ public class MigrationPhasesComponent {
     private MigrationStrategy selectedStrategy;
     private List<DependencyInfo> dependencies;
     private final List<PhaseListener> phaseListeners = new ArrayList<>();
+    private final Map<String, SubtaskTableComponent> phaseSubtaskTables = new HashMap<>();
 
     // Phase definitions - loaded dynamically from property files
     private static final Map<MigrationStrategy, PhaseDefinition[]> PHASE_DEFINITIONS = loadPhaseDefinitions();
@@ -47,6 +48,9 @@ public class MigrationPhasesComponent {
                     String title = UiTextLoader.getPhaseTitle(strategyKey, phaseNum);
                     String description = UiTextLoader.getPhaseDescription(strategyKey, phaseNum);
                     String[] steps = UiTextLoader.getPhaseStepsArray(strategyKey, phaseNum);
+                    
+                    // DEBUG: Print loaded content to verify expanded text is being used
+                    System.out.println("DEBUG: Phase " + phaseNum + " description loaded: " + description.substring(0, Math.min(100, description.length())) + "...");
                     phases[i] = new PhaseDefinition("phase-" + phaseNum, title, description, steps);
                 }
                 definitions.put(strategy, phases);
@@ -128,24 +132,59 @@ public class MigrationPhasesComponent {
         if (selectedStrategy != null) {
             updatePhasesForStrategy(selectedStrategy);
         }
+    }
 
     private void updatePhasesForStrategy(MigrationStrategy strategy) {
         phaseTabs.removeAll();
-
-        private JPanel createPhaseTabContent(PhaseDefinition phase, SubtaskTableComponent subtaskTable) {
-                JPanel content = new JBPanel(new BorderLayout(10, 10));
-                content.setBorder(new EmptyBorder(10, 10, 10, 10));
-
-        for (int i = 0; i < phases.length; i++) {
-            PhaseDefinition phase = phases[i];
-            
-            // Create the tab content panel with just the description
-            JPanel tabContent = createPhaseTabContent(phase);
-            phaseTabs.addTab(phase.getName(), tabContent);
+        
+        // MigrationStrategy has phases as a String, create tabs based on strategy
+        String strategyPhases = strategy.getPhases();
+        if (strategyPhases != null && !strategyPhases.isEmpty()) {
+            // Split phases by newlines or use single tab for the strategy's phases
+            String[] phaseLines = strategyPhases.split("\n");
+            if (phaseLines.length > 1) {
+                // Multiple phases - create tabs for each
+                for (int i = 0; i < phaseLines.length; i++) {
+                    String phaseLine = phaseLines[i].trim();
+                    if (!phaseLine.isEmpty()) {
+                        JPanel tabContent = createSimplePhaseTabContent("Phase " + (i + 1), phaseLine);
+                        phaseTabs.addTab("Phase " + (i + 1), tabContent);
+                    }
+                }
+            } else {
+                // Single phase - just show it
+                JPanel tabContent = createSimplePhaseTabContent(strategy.getDisplayName(), strategyPhases);
+                phaseTabs.addTab("Migration Plan", tabContent);
+            }
         }
+    }
+
+    private JPanel createSimplePhaseTabContent(String title, String description) {
+        JPanel content = new JPanel(new BorderLayout(10, 10));
+        content.setBorder(new EmptyBorder(15, 15, 15, 15));
+
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
+        titleLabel.setBorder(new EmptyBorder(0, 0, 10, 0));
+
+        JTextArea descriptionArea = new JTextArea(description);
+        descriptionArea.setEditable(false);
+        descriptionArea.setLineWrap(true);
+        descriptionArea.setWrapStyleWord(true);
+        descriptionArea.setFont(descriptionArea.getFont().deriveFont(Font.PLAIN, 13f));
+        descriptionArea.setBackground(UIManager.getColor("Panel.background"));
+        
+        JScrollPane descScroll = new JScrollPane(descriptionArea);
+        descScroll.setBorder(BorderFactory.createEmptyBorder(5, 0, 10, 0));
+
+        content.add(titleLabel, BorderLayout.NORTH);
+        content.add(descScroll, BorderLayout.CENTER);
+
+        return content;
+    }
 
     private JPanel createPhaseTabContent(PhaseDefinition phase) {
-        JPanel content = new JBPanel(new BorderLayout(10, 10));
+        JPanel content = new JPanel(new BorderLayout(10, 10));
         content.setBorder(new EmptyBorder(15, 15, 15, 15));
 
         // Phase title
@@ -196,6 +235,18 @@ public class MigrationPhasesComponent {
 
     public MigrationStrategy getSelectedStrategy() {
         return selectedStrategy;
+    }
+
+    public JTabbedPane getPhaseTabs() {
+        return phaseTabs;
+    }
+
+    public MigrationStrategyComponent getStrategyComponent() {
+        return strategyComponent;
+    }
+
+    public Map<String, SubtaskTableComponent> getPhaseSubtaskTables() {
+        return phaseSubtaskTables;
     }
 
     public JPanel getPanel() {

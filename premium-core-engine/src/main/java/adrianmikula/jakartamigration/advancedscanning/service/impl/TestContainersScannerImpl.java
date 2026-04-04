@@ -77,11 +77,12 @@ public class TestContainersScannerImpl implements TestContainersScanner {
 
                 for (Map.Entry<String, String> entry : CONTAINER_PATTERNS.entrySet()) {
                     if (key.contains(entry.getKey())) {
-                        usages.add(new TestContainerUsage(
-                                pomPath.toString(),
-                                entry.getValue(),
-                                version,
-                                "javax-only"));
+                        usages.add(TestContainerUsage.builder()
+                                .filePath(pomPath.toString())
+                                .containerType(entry.getValue())
+                                .currentVersion(version)
+                                .issueType("javax-only")
+                                .build());
                         break;
                     }
                 }
@@ -103,11 +104,12 @@ public class TestContainersScannerImpl implements TestContainersScanner {
 
                 for (Map.Entry<String, String> entry : CONTAINER_PATTERNS.entrySet()) {
                     if (dep.contains(entry.getKey())) {
-                        usages.add(new TestContainerUsage(
-                                gradlePath.toString(),
-                                entry.getValue(),
-                                version,
-                                "javax-only"));
+                        usages.add(TestContainerUsage.builder()
+                                .filePath(gradlePath.toString())
+                                .containerType(entry.getValue())
+                                .currentVersion(version)
+                                .issueType("javax-only")
+                                .build());
                         break;
                     }
                 }

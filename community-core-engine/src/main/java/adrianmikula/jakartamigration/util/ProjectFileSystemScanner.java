@@ -18,7 +18,7 @@ public class ProjectFileSystemScanner {
 
     private static final Set<String> IGNORED_DIRECTORIES = Set.of(
             "target", "build", ".git", "node_modules", ".gradle", ".mvn",
-            ".idea", ".vscode", "out", "bin", "dist", "vendor");
+            ".idea", ".vscode", "out", "bin", "dist", "vendor", "tmp", "temp");
 
     /**
      * Finds files in a project path that match the given extensions.
@@ -81,8 +81,16 @@ public class ProjectFileSystemScanner {
      */
     public boolean isIgnored(Path path) {
         String name = path.getFileName().toString();
+        String fullPath = path.toString().toLowerCase();
+        
         // Exact match for common ignore directories
         if (IGNORED_DIRECTORIES.contains(name)) {
+            return true;
+        }
+        
+        // Skip IDE sandbox and temporary directories
+        if (fullPath.contains("idea-sandbox") || fullPath.contains("system/tmp") || 
+            fullPath.contains("temp") || fullPath.contains("tmp")) {
             return true;
         }
 

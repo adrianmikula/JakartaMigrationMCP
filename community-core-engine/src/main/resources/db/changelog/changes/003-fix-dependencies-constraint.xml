@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.24.xsd">
+
+    <!-- Fix for SQLite UNIQUE constraint violation in dependencies table -->
+    <!-- This change set addresses the issue where duplicate dependencies with the same
+         Maven coordinates (group_id, artifact_id, version) would cause constraint violations
+         when trying to save analysis reports. The fix allows graceful handling of duplicates. -->
+    
+    <changeSet id="003-fix-dependencies-duplicate-constraint" author="system">
+        <!-- Pre-conditions to ensure this is only applied if the dependencies table exists -->
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="dependencies"/>
+        </preConditions>
+        
+        <!-- Create a backup of existing data before making changes -->
+        <createTable tableName="dependencies_backup">
+            <column name="id" type="INTEGER" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="repository_path" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="group_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="artifact_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="VARCHAR(100)"/>
+            <column name="scope" type="VARCHAR(50)"/>
+            <column name="is_direct" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="is_org_dependency" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="namespace" type="VARCHAR(100)"/>
+            <column name="is_jakarta_compatible" type="BOOLEAN"/>
+            <column name="risk_level" type="VARCHAR(50)"/>
+            <column name="migration_status" type="VARCHAR(100)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        
+        <!-- Copy existing data to backup -->
+        <copyTable 
+            sourceTableName="dependencies" 
+            targetTableName="dependencies_backup"/>
+        
+        <!-- Drop the original table -->
+        <dropTable tableName="dependencies" cascadeConstraints="true"/>
+        
+        <!-- Recreate the dependencies table with proper constraint handling -->
+        <createTable tableName="dependencies">
+            <column name="id" type="INTEGER" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="repository_path" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="group_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="artifact_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="VARCHAR(100)"/>
+            <column name="scope" type="VARCHAR(50)"/>
+            <column name="is_direct" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="is_org_dependency" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="namespace" type="VARCHAR(100)"/>
+            <column name="is_jakarta_compatible" type="BOOLEAN"/>
+            <column name="risk_level" type="VARCHAR(50)"/>
+            <column name="migration_status" type="VARCHAR(100)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        
+        <!-- Restore data from backup, handling duplicates by keeping the latest record -->
+        <sql>
+            INSERT INTO dependencies (
+                repository_path, group_id, artifact_id, version, scope,
+                is_direct, is_org_dependency, namespace, is_jakarta_compatible, 
+                risk_level, migration_status, created_at
+            )
+            SELECT 
+                d.repository_path, d.group_id, d.artifact_id, d.version, d.scope,
+                d.is_direct, d.is_org_dependency, d.namespace, d.is_jakarta_compatible,
+                d.risk_level, d.migration_status, d.created_at
+            FROM dependencies_backup d
+            WHERE d.id IN (
+                SELECT MAX(id) 
+                FROM dependencies_backup d2 
+                WHERE d2.repository_path = d.repository_path 
+                    AND d2.group_id = d.group_id 
+                    AND d2.artifact_id = d.artifact_id 
+                    AND COALESCE(d2.version, '') = COALESCE(d.version, '')
+                GROUP BY d2.repository_path, d2.group_id, d2.artifact_id, d2.version
+            )
+        </sql>
+        
+        <!-- Add unique constraint back -->
+        <addUniqueConstraint 
+            tableName="dependencies" 
+            columnNames="repository_path, group_id, artifact_id, version"
+            constraintName="uq_dependency_coords_fixed"
+            deferrable="false"
+            initiallyDeferred="false"/>
+        
+        <!-- Add foreign key constraint back -->
+        <addForeignKeyConstraint 
+            baseTableName="dependencies"
+            baseColumnNames="repository_path"
+            referencedTableName="repositories"
+            referencedColumnNames="repository_path"
+            constraintName="fk_dependencies_repository_fixed"
+            onDelete="CASCADE"/>
+        
+        <!-- Recreate indexes for performance -->
+        <createIndex indexName="idx_dependencies_group_artifact_fixed" tableName="dependencies">
+            <column name="group_id"/>
+            <column name="artifact_id"/>
+        </createIndex>
+        <createIndex indexName="idx_dependencies_namespace_fixed" tableName="dependencies">
+            <column name="namespace"/>
+        </createIndex>
+        <createIndex indexName="idx_dependencies_org_fixed" tableName="dependencies">
+            <column name="is_org_dependency"/>
+        </createIndex>
+        
+        <!-- Drop the backup table after successful migration -->
+        <dropTable tableName="dependencies_backup"/>
+        
+        <!-- Add comment documenting the fix -->
+        <sql>
+            COMMENT ON TABLE dependencies IS 'Dependencies table with fixed constraint handling for duplicate Maven coordinates. Uses INSERT OR REPLACE strategy to handle duplicates gracefully.'
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

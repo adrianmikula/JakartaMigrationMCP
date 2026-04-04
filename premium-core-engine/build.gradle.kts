@@ -11,8 +11,21 @@ dependencies {
     // External dependencies
     implementation("org.slf4j:slf4j-api:2.0.9")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.15.2")
     implementation("org.ow2.asm:asm:9.6") // For bytecode analysis
     implementation("com.google.guava:guava:32.1.3-jre") // Common utilities
+    
+    // PDF generation using Apache PDFBox (modern, fast, Apache 2.0 license)
+    implementation("org.apache.pdfbox:pdfbox:3.0.2")
+    implementation("org.apache.pdfbox:fontbox:3.0.2")
+
+    // Test dependencies
+    testImplementation(platform("org.junit:junit-bom:5.10.1"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.assertj:assertj-core:3.24.2")
+    testImplementation("org.slf4j:slf4j-simple:2.0.9")
+    testImplementation("org.mockito:mockito-core:5.7.0")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.7.0")
 }
 
 // NOTE: This module is PROPRIETARY and not covered by Apache License 2.0
@@ -21,5 +34,79 @@ dependencies {
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
+tasks.test {
+    useJUnitPlatform()
+    testLogging {
+        showStandardStreams = true
+    }
+    // Enable parallel test execution
+    maxParallelForks = 4
+}
+
+// Fast test task for quick agent feedback
+tasks.register("fastTest") {
+    group = "verification"
+    description = "Run fast unit tests only (excludes integration and slow tests)"
+    
+    doLast {
+        exec {
+            workingDir = projectDir
+            commandLine = listOf(
+                "./gradlew", "test", "--tests", "*fast*",
+                "--parallel", "--max-worker-count=4",
+                "--configuration-cache", "--build-cache",
+                "--no-daemon"
+            )
+        }
+    }
+}
+
+// Ultra-fast compilation test
+tasks.register("compileCheck") {
+    group = "verification"
+    description = "Quick compilation check without running tests"
+    
+    dependsOn("compileJava", "compileTestJava")
+    doLast {
+        println("✅ Compilation successful - Ready for fast development!")
+    }
+}
+
+// PDF-specific fast test
+tasks.register("pdfTest") {
+    group = "verification"
+    description = "Test PDF generation functionality only"
+    
+    doLast {
+        exec {
+            workingDir = projectDir
+            commandLine = listOf(
+                "./gradlew", "test", "--tests", "*PdfReportServiceTest*",
+                "--parallel", "--configuration-cache", "--no-daemon"
+            )
+        }
+    }
+}
+
+// Core functionality tests
+tasks.register("coreTest") {
+    group = "verification"
+    description = "Test core functionality (recipes, PDF, validation)"
+    
+    doLast {
+        exec {
+            workingDir = projectDir
+            commandLine = listOf(
+                "./gradlew", "test", 
+                "--tests", "*PdfReportServiceTest*",
+                "--tests", "*RecipeServiceImplTest*", 
+                "--tests", "*ListRecipesTest*",
+                "--parallel", "--max-worker-count=4",
+                "--configuration-cache", "--no-daemon"
+            )
+        }
     }
 }

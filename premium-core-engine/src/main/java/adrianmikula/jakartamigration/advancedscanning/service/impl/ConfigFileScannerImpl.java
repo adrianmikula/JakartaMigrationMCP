@@ -100,6 +100,13 @@ public class ConfigFileScannerImpl implements ConfigFileScanner {
         }
 
         try {
+            // Skip files in temporary or system directories
+            String fullPath = filePath.toString().toLowerCase();
+            if (fullPath.contains("tmp") || fullPath.contains("temp") || 
+                fullPath.contains("idea-sandbox") || fullPath.contains("system/")) {
+                return ConfigFileScanResult.empty(filePath);
+            }
+
             String content = Files.readString(filePath);
             String fileName = filePath.getFileName().toString().toLowerCase();
 
@@ -155,6 +162,7 @@ public class ConfigFileScannerImpl implements ConfigFileScanner {
 
             return new ConfigFileScanResult(filePath, usages, fileType);
         } catch (Exception e) {
+            log.debug("Skipping file due to access error: {} - {}", filePath, e.getMessage());
             return ConfigFileScanResult.empty(filePath);
         }
     }

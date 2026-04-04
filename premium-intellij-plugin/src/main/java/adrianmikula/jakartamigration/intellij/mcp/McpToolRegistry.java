@@ -1,17 +1,19 @@
 package adrianmikula.jakartamigration.intellij.mcp;
 
+import adrianmikula.jakartamigration.config.JakartaMigrationConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.*;
 
 /**
- * Registry of all Jakarta Migration MCP tools with their metadata.
- * Provides tool definitions for IntelliJ AI Assistant integration.
+ * Registry for MCP tools available in the Jakarta Migration plugin.
  */
 public class McpToolRegistry {
 
-        private static final String SERVER_NAME = "jakarta-migration-mcp";
-        private static final String SERVER_VERSION = "1.0.0";
+        private static final String SERVER_NAME = JakartaMigrationConfigService.getInstance()
+            .getServerConfig().name();
+        private static final String SERVER_VERSION = JakartaMigrationConfigService.getInstance()
+            .getServerConfig().version();
         private static final ObjectMapper objectMapper = new ObjectMapper();
 
         /**

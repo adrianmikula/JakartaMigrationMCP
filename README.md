@@ -70,6 +70,79 @@ If you have IntelliJ AI Assistant installed:
 - Java 17 or later
 - Optional: AI Assistant plugin for AI features
 
+### 🔧 Development Setup
+
+#### Environment Switching
+
+The plugin supports switching between JetBrains Marketplace environments for testing:
+
+```bash
+# Switch to Demo Environment
+.\scripts\switch-env.ps1 Demo
+
+# Switch to Production Environment  
+.\scripts\switch-env.ps1 Production
+```
+
+**Demo Environment:**
+- For testing and development
+- Uses JetBrains Demo Marketplace
+- Requires separate plugin registration
+
+**Production Environment:**
+- For public release
+- Uses JetBrains Production Marketplace
+- Requires production plugin registration
+
+#### License Configuration
+
+The plugin uses JetBrains licensing with product code `PJAKARTAMIGRATI`. For development:
+
+1. **Register Plugin in Demo Marketplace:**
+   - Go to JetBrains Demo Marketplace portal
+   - Register plugin with product code `PJAKARTAMIGRATI`
+   - Use your JetBrains account email
+
+2. **Plugin Configuration:**
+   - Product Code: `PJAKARTAMIGRATI`
+   - Vendor Email: Must match your JetBrains account
+   - Plugin ID: `com.adrianmikula.jakarta-migration`
+
+3. **Troubleshooting License Issues:**
+   - Ensure vendor email matches JetBrains account
+   - Clear IntelliJ cache if license errors persist
+   - Verify plugin registration in correct marketplace
+
+#### Development Mode
+
+For local development without licensing checks:
+
+```bash
+# Run IDE in dev mode (skips all licensing)
+./gradlew :premium-intellij-plugin:runIdeDev
+
+# Run IDE in demo marketplace mode
+./gradlew :premium-intellij-plugin:runIdeDemo
+
+# Run IDE in production marketplace mode
+./gradlew :premium-intellij-plugin:runIdeProd
+
+# Build and run in dev mode
+./gradlew :premium-intellij-plugin:buildDevPlugin
+
+# Build and run in demo marketplace mode
+./gradlew :premium-intellij-plugin:buildDemoPlugin
+
+# Build and run in production mode
+./gradlew :premium-intellij-plugin:buildProductionPlugin
+```
+
+**Benefits:**
+- No license validation delays
+- Instant plugin startup
+- Full feature access for development
+- Faster development iteration
+
 ## 📋 What It Does
 
 The Jakarta Migration MCP Server enables your AI coding assistant to:
@@ -463,6 +536,36 @@ See [MCP Tools Documentation](docs/mcp/MCP_TOOLS_IMPLEMENTATION.md) for detailed
   - GitHub releases are accessible
   - Version matches package.json version
 - For local development, set `JAKARTA_MCP_JAR_PATH` environment variable to point to your local JAR file
+
+### IntelliJ Plugin License Issues
+
+**"Unknown product code" Error:**
+1. **Check Environment**: Ensure you're in the correct marketplace (Demo vs Production)
+2. **Verify Registration**: Plugin must be registered in the same marketplace you're using
+3. **Email Mismatch**: Vendor email in plugin.xml must match your JetBrains account email
+4. **Product Code**: Ensure product code `PJAKARTAMIGRATI` is correctly registered
+
+**"License fetching failed" Error:**
+1. **Clear IntelliJ Cache**: Delete IntelliJ cache and config directories
+2. **Restart IntelliJ**: Complete restart after cache clearing
+3. **Check Network**: Ensure JetBrains Marketplace is accessible
+4. **Verify Account**: Confirm your JetBrains account is in good standing
+
+**Environment Switching Issues:**
+1. **Script Permissions**: Ensure PowerShell script can execute
+2. **Configuration File**: Check `.env` file exists and is readable
+3. **IntelliJ Restart**: Required after environment switching
+
+**Common Solutions:**
+```bash
+# Clear IntelliJ cache (Windows)
+rmdir /s "%USERPROFILE%\AppData\Local\JetBrains\IntelliJIdea*"
+rmdir /s "%USERPROFILE%\AppData\Roaming\JetBrains\IntelliJIdea*"
+
+# Switch environment and restart
+.\scripts\switch-env.ps1 Demo
+# Then restart IntelliJ completely
+```
 
 ### Platform-Specific Issues
 

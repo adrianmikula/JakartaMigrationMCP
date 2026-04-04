@@ -1,0 +1,659 @@
+# Platform Detection Configuration for Jakarta Migration
+# This file defines supported application servers, frameworks, and Java versions
+# Simplified design: only essential patterns + common artifacts for fast detection
+
+platforms:
+  # Java Version Detection
+  java:
+    name: "Java"
+    description: "Java Development Kit version"
+    patterns:
+      - file: "gradle.properties"
+        regex: "org\\.gradle\\.java\\.home=.*jdk-([0-9]+)"
+        versionGroup: 1
+      - file: "build.gradle"
+        regex: "sourceCompatibility\\s*=\\s*['\"]([0-9]+)"
+        versionGroup: 1
+      - file: "build.gradle.kts"
+        regex: "sourceCompatibility\\s*=\\s*['\"]([0-9]+)"
+        versionGroup: 1
+      - file: "pom.xml"
+        regex: "<maven\\.compiler\\.source>([0-9]+)</maven\\.compiler\\.source>"
+        versionGroup: 1
+      - file: ".java-version"
+        regex: "([0-9]+)"
+        versionGroup: 1
+    jakartaCompatibility:
+      minVersion: "11"
+      supportedVersions:
+        - "11"
+        - "17"
+        - "21"
+        - "22"
+
+  # Spring Framework Detection
+  spring:
+    name: "Spring Framework"
+    description: "Spring Framework version"
+    patterns:
+      - file: "build.gradle"
+        regex: "org\\.springframework\\.boot:spring-boot-starter-parent:([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "build.gradle.kts"
+        regex: "org\\.springframework\\.boot:spring-boot-starter-parent:([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "pom.xml"
+        regex: "<spring-boot\\.version>([0-9]+\\.[0-9]+\\.[0-9]+)</spring-boot\\.version>"
+        versionGroup: 1
+      - file: "gradle.properties"
+        regex: "springVersion\\s*=\\s*['\"]([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+    jakartaCompatibility:
+      minVersion: "6.0"
+      supportedVersions:
+        - "6.0"
+        - "6.1"
+        - "6.2"
+        - "7.0"
+        - "7.1"
+        - "7.2"
+    javaxVersions:
+      - "5.3"
+      - "5.4"
+    requirements:
+      java: "17+"
+      jakarta: "9+"
+      spring: "self"
+    commonArtifacts:
+      - "spring-boot-starter"
+      - "spring-boot-starter-web"
+      - "spring-boot-starter-data-jpa"
+      - "spring-boot-starter-actuator"
+      - "spring-boot-starter-security"
+      - "spring-boot-starter-test"
+      - "spring-boot-starter-validation"
+      - "org.springframework.boot"
+      - "org.springframework.web"
+      - "org.springframework.data"
+      - "org.springframework.security"
+
+  # Apache Tomcat
+  tomcat:
+    name: "Apache Tomcat"
+    description: "Apache Tomcat application server"
+    patterns:
+      - file: "catalina.bat"
+        regex: "Apache Tomcat/([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "catalina.jar"
+        regex: "catalina-([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "server.xml"
+        regex: "<Connector[^>]*port=\"([0-9]+)\""
+        versionGroup: 1
+    commonArtifacts:
+      - "tomcat-embed-core"
+      - "tomcat-embed-jasper"
+      - "tomcat-catalina"
+      - "tomcat-coyote"
+      - "tomcat-juli"
+      - "tomcat-util"
+      - "tomcat-util-scan"
+      - "org.apache.tomcat.embed"
+      - "org.apache.tomcat.jasper"
+      - "org.apache.tomcat.catalina"
+      - "org.apache.tomcat.util"
+    jakartaCompatibility:
+      minVersion: "10.0"
+      supportedVersions:
+        - "10.0"
+        - "10.1"
+        - "11.0"
+        - "11.1"
+    javaxVersions:
+      - "8.5"
+      - "9.0"
+    requirements:
+      java: "11+"
+      jakarta: "9+"
+      spring: "self"
+
+  # Red Hat JBoss/WildFly
+  wildfly:
+    name: "WildFly"
+    description: "Red Hat WildFly application server"
+    patterns:
+      - file: "bin/standalone.sh"
+        regex: "WildFly Full Platform ([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "modules/system/layers/base/org/jboss/as/server/main/module.xml"
+        regex: "version=\"([0-9]+\\.[0-9]+\\.[0-9]+)\""
+        versionGroup: 1
+    commonArtifacts:
+      - "wildfly-ee"
+      - "wildfly-core"
+      - "wildfly-undertow"
+      - "wildfly-client"
+      - "wildfly-logging"
+      - "wildfly-naming"
+      - "wildfly-security"
+      - "wildfly-transactions"
+      - "org.wildfly.core"
+      - "org.wildfly.undertow"
+      - "org.wildfly.client"
+      - "org.wildfly.extension"
+      - "org.wildfly.security"
+      - "org.wildfly"
+      - "wildfly-arquillian-container-managed"
+      - "wildfly-arquillian-container-remote"
+      - "wildfly-dist"
+      - "org.jboss.as"
+      - "jboss-as"
+    jakartaCompatibility:
+      minVersion: "27.0"
+      supportedVersions:
+        - "27.0"
+        - "27.1"
+        - "28.0"
+        - "29.0"
+    javaxVersions:
+      - "20.0"
+      - "21.0"
+      - "23.0"
+    requirements:
+      java: "17+"
+      jakarta: "9+"
+      spring: "5+"
+
+  # Eclipse Jetty
+  jetty:
+    name: "Eclipse Jetty"
+    description: "Eclipse Jetty application server"
+    patterns:
+      - file: "start.ini"
+        regex: "jetty-([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "jetty-server"
+        regex: "jetty-server-([0-9]+)\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+    commonArtifacts:
+      - "jetty-server"
+      - "jetty-servlet"
+      - "jetty-servlets"
+      - "jetty-webapp"
+      - "jetty-annotations"
+      - "jetty-client"
+      - "jetty-continuation"
+      - "jetty-http"
+      - "jetty-io"
+      - "jetty-jmx"
+      - "jetty-jndi"
+      - "jetty-plus"
+      - "jetty-security"
+      - "jetty-util"
+      - "org.eclipse.jetty"
+      - "org.eclipse.jetty.server"
+      - "org.eclipse.jetty.servlet"
+      - "org.eclipse.jetty.client"
+      - "org.eclipse.jetty.websocket"
+    jakartaCompatibility:
+      minVersion: "12.0"
+      supportedVersions:
+        - "12.0"
+        - "11.0"
+        - "10.0"
+    javaxVersions:
+      - "9.4"
+      - "10.0"
+    requirements:
+      java: "11+"
+      jakarta: "9+"
+      spring: "5+"
+
+  # IBM WebSphere Liberty
+  liberty:
+    name: "WebSphere Liberty"
+    description: "IBM WebSphere Liberty application server"
+    patterns:
+      - file: "lib/com.ibm.websphere.appserver.api.jar"
+        regex: "version=([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "etc/server.env"
+        regex: "WLP_USER_DIR=([^\n]+)"
+        versionGroup: 1
+    commonArtifacts:
+      - "liberty"
+      - "wlp.lib"
+      - "com.ibm.websphere.appserver.api"
+      - "com.ibm.websphere.appserver.spi"
+      - "com.ibm.websphere.appserver.web"
+      - "io.openliberty"
+    jakartaCompatibility:
+      minVersion: "23.0"
+      supportedVersions:
+        - "23.0"
+        - "24.0"
+    javaxVersions:
+      - "8.0"
+      - "9.0"
+      - "9.1"
+    requirements:
+      java: "17+"
+      spring: "5.3+"
+
+  # IBM WebSphere Traditional
+  websphere:
+    name: "WebSphere Traditional"
+    description: "IBM WebSphere Application Server (Traditional)"
+    patterns:
+      - file: "was_home"
+        regex: "WebSphere ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "profileRegistry.xml"
+        regex: "version=\"([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\""
+        versionGroup: 1
+    commonArtifacts:
+      - "com.ibm.websphere"
+      - "com.ibm.ws"
+      - "com.ibm.websphere.appserver"
+      - "websphere-api"
+      - "websphere-embedded-api"
+      - "net.wasdev.maven.tools.targets"
+      - "com.ibm.websphere.pbw"
+    jakartaCompatibility:
+      minVersion: "9.0"
+      supportedVersions:
+        - "9.0"
+    javaxVersions:
+      - "6.0"
+      - "7.0"
+      - "8.0"
+    requirements:
+      java: "8+"
+      spring: "4.3+"
+
+  # Apache TomEE
+  tomee:
+    name: "Apache TomEE"
+    description: "Apache TomEE application server"
+    patterns:
+      - file: "bin/tomee.sh"
+        regex: "Apache TomEE ([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "lib/tomee-catalina-([0-9]+)\\.[0-9]+\\.[0-9]+)\\.jar"
+        regex: "tomee-catalina-([0-9]+)\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+    commonArtifacts:
+      - "tomee-embedded"
+      - "tomee-webapp"
+      - "tomee-ee"
+      - "tomee-microprofile"
+      - "fish.payara.api"
+      - "fish.payara.core"
+      - "fish.payara.enterprise"
+      - "fish.payara.extras"
+      - "fish.payara.nucleus"
+      - "fish.payara.security"
+      - "org.glassfish.main"
+      - "org.glassfish.web"
+      - "org.glassfish.jersey"
+      - "org.glassfish.jaxb"
+      - "org.glassfish.jersey.core"
+      - "org.glassfish.jersey.media"
+      - "org.glassfish.jersey.server"
+    jakartaCompatibility:
+      minVersion: "9.0"
+      supportedVersions:
+        - "9.0"
+        - "9.1"
+        - "10.0"
+    javaxVersions:
+      - "7.0"
+      - "8.0"
+    requirements:
+      java: "17+"
+      jakarta: "9+"
+      spring: "5+"
+
+  # GlassFish Server
+  glassfish:
+    name: "GlassFish Server"
+    description: "Oracle GlassFish application server"
+    patterns:
+      - file: "bin/asadmin"
+        regex: "GlassFish Server Open Source Edition ([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "lib/glassfish-([0-9]+)\\.[0-9]+\\.[0-9]+)\\.jar"
+        regex: "glassfish-([0-9]+)\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+    commonArtifacts:
+      - "glassfish"
+      - "glassfish-embedded"
+      - "glassfish-web"
+      - "glassfish-jersey"
+      - "glassfish-jaxb"
+      - "org.glassfish.main"
+      - "org.glassfish.web"
+      - "org.glassfish.jersey"
+      - "org.glassfish.jaxb"
+      - "org.glassfish.jersey.core"
+      - "org.glassfish.jersey.media"
+      - "org.glassfish.jersey.server"
+    jakartaCompatibility:
+      minVersion: "7.0"
+      supportedVersions:
+        - "7.0"
+        - "7.1"
+        - "8.0"
+    javaxVersions:
+      - "5.0"
+      - "6.0"
+    requirements:
+      java: "17+"
+      jakarta: "9+"
+      spring: "5+"
+
+  # NetBeans IDE Detection
+  netbeans:
+    name: "NetBeans IDE"
+    description: "Apache NetBeans IDE version"
+    patterns:
+      - file: "netbeans.conf"
+        regex: "netbeans_jdkhome=\"([^\"]+)\""
+        versionGroup: 1
+      - file: "etc/netbeans.clusters"
+        regex: "netbeans_id=\"([^\"]+)\""
+        versionGroup: 1
+    commonArtifacts:
+      - "org.netbeans.modules"
+      - "org.netbeans.api"
+      - "org.netbeans.swing"
+      - "org.netbeans.ide"
+    jakartaCompatibility:
+      minVersion: "12.0"
+      supportedVersions:
+        - "12.0"
+        - "12.1"
+        - "12.2"
+        - "12.3"
+        - "12.4"
+        - "12.5"
+        - "12.6"
+    javaxVersions:
+      - "11.0"
+      - "12.0"
+    requirements:
+      java: "11+"
+      jakarta: "9+"
+      spring: "self"
+
+  # Spring Boot Detection
+  springboot:
+    name: "Spring Boot"
+    description: "Spring Boot framework version"
+    patterns:
+      - file: "build.gradle"
+        regex: "org\\.springframework\\.boot:spring-boot-dependencies:([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "build.gradle.kts"
+        regex: "org\\.springframework\\.boot:spring-boot-dependencies:([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "pom.xml"
+        regex: "<spring-boot\\.version>([0-9]+\\.[0-9]+\\.[0-9]+)</spring-boot\\.version>"
+        versionGroup: 1
+    commonArtifacts:
+      - "spring-boot-starter-parent"
+      - "spring-boot-dependencies"
+      - "spring-boot-devtools"
+      - "spring-boot-actuator"
+      - "spring-boot-autoconfigure"
+      - "spring-boot-starter-web"
+      - "spring-boot-starter-data-jpa"
+      - "spring-boot-starter-security"
+      - "spring-boot-starter-test"
+      - "org.springframework.boot"
+      - "org.springframework.boot.actuator"
+      - "org.springframework.boot.autoconfigure"
+      - "org.springframework.boot.test"
+    jakartaCompatibility:
+      minVersion: "3.0"
+      supportedVersions:
+        - "3.0"
+        - "3.1"
+        - "3.2"
+        - "3.3"
+        - "3.4"
+        - "3.5"
+    javaxVersions:
+      - "2.7"
+      - "2.8"
+    requirements:
+      java: "17+"
+      jakarta: "9+"
+      spring: "self"
+
+  # Payara Server
+  payara:
+    name: "Payara Server"
+    description: "Payara application server"
+    patterns:
+      - file: "bin/asadmin"
+        regex: "Payara Server ([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "lib/payara-([0-9]+)\\.[0-9]+\\.[0-9]+)\\.jar"
+        regex: "payara-([0-9]+)\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+    commonArtifacts:
+      - "payara"
+      - "payara-embedded"
+      - "payara-api"
+      - "payara-nucleus"
+      - "payara-security"
+      - "fish.payara.api"
+      - "fish.payara.core"
+      - "fish.payara.enterprise"
+      - "fish.payara.extras"
+      - "fish.payara.nucleus"
+      - "fish.payara.security"
+      - "org.glassfish.main"
+      - "org.glassfish.web"
+      - "org.glassfish.jersey"
+      - "org.glassfish.jaxb"
+      - "org.glassfish.jersey.core"
+      - "org.glassfish.jersey.media"
+      - "org.glassfish.jersey.server"
+    jakartaCompatibility:
+      minVersion: "7.0"
+      supportedVersions:
+        - "7.0"
+        - "7.1"
+        - "8.0"
+    javaxVersions:
+      - "5.0"
+      - "6.0"
+    requirements:
+      java: "11+"
+      jakarta: "9+"
+      spring: "5+"
+
+  # JBoss EAP
+  jbosseap:
+    name: "JBoss EAP"
+    description: "Red Hat JBoss EAP application server"
+    patterns:
+      - file: "bin/standalone.sh"
+        regex: "JBoss EAP ([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "modules/system/layers/base/org/jboss/as/product/module.xml"
+        regex: "version=\"([0-9]+\\.[0-9]+\\.[0-9]+)\""
+        versionGroup: 1
+    commonArtifacts:
+      - "jboss-eap"
+      - "jboss-eap-embedded"
+      - "jboss-eap-transactions"
+      - "jboss-eap-logging"
+      - "jboss-eap-naming"
+      - "jboss-eap-security"
+      - "jboss-eap-system"
+      - "org.jboss.eap"
+      - "org.jboss.eap.embed"
+      - "org.jboss.eap.transactions"
+      - "org.jboss.eap.logging"
+      - "org.jboss.eap.naming"
+      - "org.jboss.eap.security"
+      - "org.jboss.eap.system"
+      - "org.wildfly.security"
+    jakartaCompatibility:
+      minVersion: "8.0"
+      supportedVersions:
+        - "8.0"
+        - "8.1"
+        - "8.2"
+    javaxVersions:
+      - "7.4"
+      - "7.5"
+    requirements:
+      java: "17+"
+      jakarta: "9+"
+      spring: "6+"
+
+  # GlassFish Server
+  glassfish:
+    name: "GlassFish Server"
+    description: "Eclipse GlassFish application server"
+    patterns:
+      - file: "glassfish-rt.jar"
+        regex: "glassfish-([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "domain.xml"
+        regex: "version=\"([0-9]+\\.[0-9]+\\.[0-9]+)\""
+        versionGroup: 1
+    commonArtifacts:
+      - "glassfish"
+      - "javax.servlet"
+      - "javax.persistence"
+      - "javax.transaction"
+      - "javax.annotation"
+      - "javax.ejb"
+      - "javax.faces"
+      - "javax.jms"
+      - "javax.validation"
+      - "org.glassfish"
+      - "org.glassfish.main"
+      - "org.glassfish.jersey"
+      - "org.glassfish.javax"
+    jakartaCompatibility:
+      minVersion: "7.0"
+      supportedVersions:
+        - "7.0"
+        - "6.2"
+        - "6.1"
+        - "6.0"
+    javaxVersions:
+      - "4.1"
+      - "4.0"
+      - "3.1"
+    requirements:
+      java: "11+"
+      jakarta: "9+"
+      spring: "5+"
+
+  # NetBeans
+  netbeans:
+    name: "NetBeans"
+    description: "Apache NetBeans IDE platform"
+    patterns:
+      - file: "netbeans-platform.jar"
+        regex: "netbeans-platform-([0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "cluster.json"
+        regex: "version\":\"([0-9]+\\.[0-9]+)\""
+        versionGroup: 1
+    commonArtifacts:
+      - "org.netbeans.modules"
+      - "org.netbeans.api"
+      - "org.openide.modules"
+      - "org.openide.util"
+      - "org.openide.windows"
+      - "org.netbeans.swing"
+      - "org.openide.awt"
+      - "org.openide.filesystems"
+      - "org.netbeans.bootstrap"
+      - "org.netbeans.core"
+    jakartaCompatibility:
+      minVersion: "22.0"
+      supportedVersions:
+        - "22.0"
+        - "21.0"
+        - "20.0"
+    javaxVersions:
+      - "12.6"
+      - "12.5"
+      - "12.4"
+    requirements:
+      java: "17+"
+      jakarta: "9+"
+      spring: "6+"
+
+  # Spring Boot (as application server)
+  springboot:
+    name: "Spring Boot"
+    description: "Spring Boot embedded server"
+    patterns:
+      - file: "spring-boot.jar"
+        regex: "Spring Boot ([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "application.properties"
+        regex: "spring.boot.version=([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+    commonArtifacts:
+      - "spring-boot-starter"
+      - "spring-boot-starter-web"
+      - "spring-boot-starter-data-jpa"
+      - "spring-boot-starter-actuator"
+      - "spring-boot-starter-security"
+      - "spring-boot-starter-test"
+      - "spring-boot-starter-validation"
+      - "spring-boot-autoconfigure"
+      - "spring-boot-loader"
+      - "spring-boot"
+      - "org.springframework.boot"
+      - "org.springframework.web"
+      - "org.springframework.data"
+      - "org.springframework.security"
+    jakartaCompatibility:
+      minVersion: "3.0"
+      supportedVersions:
+        - "3.0"
+        - "3.1"
+        - "3.2"
+        - "3.3"
+    javaxVersions:
+      - "2.7"
+      - "2.6"
+      - "2.5"
+    requirements:
+      java: "17+"
+      jakarta: "9+"
+      spring: "self"
+
+# Risk scoring for platform changes and deployment artifacts
+riskScoring:
+  # Platform-specific base risks
+  platformBaseRisks:
+    websphere: 25
+    liberty: 25
+    wildfly: 20
+    jboss: 20
+    tomcat: 15
+    jetty: 18
+    default: 12
+  
+  # Deployment artifact risk weights
+  deploymentArtifacts:
+    ear: 4        # EAR projects are most complex
+    war: 2        # WAR projects are moderate complexity
+    jar: 1        # JAR projects are low complexity
+  
+  # Legacy risk scoring (for backward compatibility)
+  javaVersionChange: 10

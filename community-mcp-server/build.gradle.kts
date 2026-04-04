@@ -8,10 +8,10 @@ dependencies {
     implementation(project(":community-core-engine"))
     
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.boot:spring-boot-starter-webflux")
     // Use working configuration from commit c8972f1
     implementation("org.springframework.ai:spring-ai-starter-mcp-server-webmvc:1.1.2")
     implementation("org.springaicommunity:mcp-annotations:0.8.0")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     
     compileOnly("org.projectlombok:lombok:1.18.30")
     annotationProcessor("org.projectlombok:lombok:1.18.30")
@@ -27,4 +27,13 @@ java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21))
     }
+}
+
+tasks.test {
+    useJUnitPlatform()
+    testLogging {
+        showStandardStreams = true
+    }
+    // Enable parallel test execution
+    maxParallelForks = 4
 }

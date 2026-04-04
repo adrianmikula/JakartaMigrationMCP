@@ -2,24 +2,30 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
+import adrianmikula.jakartamigration.intellij.model.JakartaArtifactCoordinates;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBPanel;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.table.JBTable;
-
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import javax.swing.event.MouseInputAdapter;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableCellRenderer;
+import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.event.DocumentListener;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.MouseInputAdapter;
+import javax.swing.event.ListSelectionListener;
+import javax.swing.table.TableCellRenderer;
+import adrianmikula.jakartamigration.intellij.service.MavenCentralService;
 
 /**
  * Dependencies table component with colored status indicators and dependency
@@ -27,8 +33,8 @@ import java.util.List;
  * Updated to show:
  * - Colored status dot (green/yellow/red)
  * - Dependency type (Direct/Transitive)
- * - Simplified columns (Group ID, Artifact ID, Version, Recommended Version,
- * Status, Type)
+ * - Jakarta Equivalent columns
+ * - Bottom panel for refactoring recipes (premium feature)
  */
 public class DependenciesTableComponent {
     private final JPanel panel;
@@ -39,7 +45,18 @@ public class DependenciesTableComponent {
     private final JComboBox<String> statusFilter;
     private final JCheckBox transitiveFilter;
     private final JCheckBox organizationalFilter;
+    private JProgressBar progressBar;
+    private boolean isQueryingMaven = false;
+    private static final Logger LOGGER = Logger.getLogger(DependenciesTableComponent.class.getName());
     private List<DependencyInfo> allDependencies;
+    
+    // Bottom panel for recipes
+    private JPanel recipesPanel;
+    private JList<String> recipeList;
+    private DefaultListModel<String> recipeListModel;
+    private JButton applyRecipeButton;
+    private JLabel selectedDependencyLabel;
+    private boolean isPremiumUser = false;
 
     // Status colors
     private static final Color STATUS_COMPATIBLE = new Color(40, 167, 69); // Green
@@ -52,15 +69,16 @@ public class DependenciesTableComponent {
         this.allDependencies = new ArrayList<>();
         this.panel = new JBPanel<>(new BorderLayout());
 
-        // Simplified columns - removed Risk Level, Migration Impact, Is Blocker
-        // Status column moved to the right
+        // Columns with Jakarta Equivalent information
         String[] columns = {
                 "Group ID",
                 "Artifact ID",
                 "Current Version",
+                "Jakarta Equivalent",
                 "Recommended Version",
+                "Compatibility Status",
                 "Dependency Type", // Direct or Transitive
-                "Status" // Colored dot indicator (moved to right)
+                "Status" // Colored dot indicator
         };
 
         this.tableModel = new DefaultTableModel(columns, 0) {
@@ -95,7 +113,8 @@ public class DependenciesTableComponent {
         public Component getTableCellRendererComponent(JTable table, Object value,
                 boolean isSelected, boolean hasFocus,
                 int row, int column) {
-            if (column == 5 && value instanceof DependencyInfo) {
+            // Status column is now at index 7
+            if (column == 7 && value instanceof DependencyInfo) {
                 DependencyInfo dep = (DependencyInfo) value;
                 JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
                 panel.setOpaque(true);
@@ -150,9 +169,9 @@ public class DependenciesTableComponent {
             if (isSelected) {
                 label.setBackground(table.getSelectionBackground());
             } else {
-                // Determine if this row is organizational
+                // Determine if this row is organizational (check status column at index 7)
                 boolean isOrg = false;
-                Object depObj = table.getModel().getValueAt(row, 5);
+                Object depObj = table.getModel().getValueAt(row, 7);
                 if (depObj instanceof DependencyInfo) {
                     isOrg = ((DependencyInfo) depObj).isOrganizational();
                 }
@@ -223,13 +242,15 @@ public class DependenciesTableComponent {
         table.setFillsViewportHeight(true);
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
-        // Set column widths (status is now at column 5)
-        table.getColumnModel().getColumn(0).setPreferredWidth(180); // Group ID
-        table.getColumnModel().getColumn(1).setPreferredWidth(180); // Artifact ID
-        table.getColumnModel().getColumn(2).setPreferredWidth(100); // Current Version
-        table.getColumnModel().getColumn(3).setPreferredWidth(100); // Recommended
-        table.getColumnModel().getColumn(4).setPreferredWidth(80); // Dependency Type
-        table.getColumnModel().getColumn(5).setPreferredWidth(120); // Status
+        // Set column widths (7 columns now)
+        table.getColumnModel().getColumn(0).setPreferredWidth(150); // Group ID
+        table.getColumnModel().getColumn(1).setPreferredWidth(150); // Artifact ID
+        table.getColumnModel().getColumn(2).setPreferredWidth(90); // Current Version
+        table.getColumnModel().getColumn(3).setPreferredWidth(150); // Jakarta Equivalent
+        table.getColumnModel().getColumn(4).setPreferredWidth(90); // Recommended Version
+        table.getColumnModel().getColumn(5).setPreferredWidth(100); // Compatibility Status
+        table.getColumnModel().getColumn(6).setPreferredWidth(80); // Dependency Type
+        table.getColumnModel().getColumn(7).setPreferredWidth(100); // Status
 
         // Add mouse listener for double-click navigation
         table.addMouseListener(new MouseInputAdapter() {
@@ -240,6 +261,16 @@ public class DependenciesTableComponent {
                 }
             }
         });
+
+        // Add selection listener to update recipes panel
+        table.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                updateRecipesPanel();
+            }
+        });
+
+        // Initialize bottom panel for recipes
+        initializeRecipesPanel();
 
         // Actions panel
         JPanel actionsPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT));
@@ -253,10 +284,160 @@ public class DependenciesTableComponent {
         actionsPanel.add(refreshButton);
         actionsPanel.add(updateButton);
         actionsPanel.add(viewDetailsButton);
+        
+        // Add progress bar to actions panel
+        progressBar = new JProgressBar();
+        progressBar.setVisible(false);
+        progressBar.setStringPainted(true);
+        actionsPanel.add(progressBar);
+
+        // Create center panel with table and recipes
+        JPanel centerPanel = new JBPanel<>(new BorderLayout());
+        centerPanel.add(scrollPane, BorderLayout.CENTER);
+        centerPanel.add(recipesPanel, BorderLayout.SOUTH);
 
         panel.add(headerPanel, BorderLayout.NORTH);
-        panel.add(scrollPane, BorderLayout.CENTER);
+        panel.add(centerPanel, BorderLayout.CENTER);
         panel.add(actionsPanel, BorderLayout.SOUTH);
+    }
+
+    private void initializeRecipesPanel() {
+        recipesPanel = new JBPanel<>(new BorderLayout());
+        recipesPanel.setBorder(new TitledBorder("Refactoring Recipes"));
+        recipesPanel.setPreferredSize(new Dimension(0, 150));
+        
+        selectedDependencyLabel = new JLabel("Select a dependency to see available recipes");
+        selectedDependencyLabel.setBorder(new EmptyBorder(5, 5, 5, 5));
+        recipesPanel.add(selectedDependencyLabel, BorderLayout.NORTH);
+        
+        recipeListModel = new DefaultListModel<>();
+        recipeList = new JList<>(recipeListModel);
+        recipeList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        
+        JBScrollPane recipeScrollPane = new JBScrollPane(recipeList);
+        recipesPanel.add(recipeScrollPane, BorderLayout.CENTER);
+        
+        JPanel recipeActionsPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT));
+        applyRecipeButton = new JButton("Apply Recipe");
+        applyRecipeButton.setEnabled(false);
+        applyRecipeButton.addActionListener(this::handleApplyRecipe);
+        recipeActionsPanel.add(applyRecipeButton);
+        
+        JLabel premiumHint = new JLabel("(Premium feature)");
+        premiumHint.setForeground(Color.GRAY);
+        recipeActionsPanel.add(premiumHint);
+        
+        recipesPanel.add(recipeActionsPanel, BorderLayout.SOUTH);
+        
+        // Initially hide the recipes panel
+        recipesPanel.setVisible(false);
+    }
+
+    private void updateRecipesPanel() {
+        List<DependencyInfo> selected = getSelectedDependencies();
+        
+        if (selected.isEmpty()) {
+            recipesPanel.setVisible(false);
+            return;
+        }
+        
+        DependencyInfo dep = selected.get(0);
+        
+        // Show the recipes panel
+        recipesPanel.setVisible(true);
+        
+        // Update the label
+        String recommendedCoords = dep.getRecommendedArtifactCoordinates();
+        if (recommendedCoords != null && !recommendedCoords.isEmpty() && !recommendedCoords.equals("-")) {
+            selectedDependencyLabel.setText("Selected: " + dep.getDisplayName() + " → " + recommendedCoords);
+        } else {
+            selectedDependencyLabel.setText("Selected: " + dep.getDisplayName());
+        }
+        
+        // Update recipe list
+        recipeListModel.clear();
+        
+        String associatedRecipe = dep.getAssociatedRecipeName();
+        if (associatedRecipe != null && !associatedRecipe.isEmpty()) {
+            recipeListModel.addElement(associatedRecipe);
+            recipeList.setSelectedIndex(0);
+            applyRecipeButton.setEnabled(true);
+        } else if (dep.getRecommendedVersion() != null && !dep.getRecommendedVersion().equals("-")) {
+            // Add generic upgrade recipe if there's a recommended version
+            String genericRecipe = "Upgrade to Jakarta: " + dep.getRecommendedArtifactCoordinates();
+            recipeListModel.addElement(genericRecipe);
+            recipeList.setSelectedIndex(0);
+            applyRecipeButton.setEnabled(true);
+        } else {
+            recipeListModel.addElement("No recipes available");
+            applyRecipeButton.setEnabled(false);
+        }
+    }
+
+    private void handleApplyRecipe(ActionEvent e) {
+        List<DependencyInfo> selected = getSelectedDependencies();
+        if (selected.isEmpty()) {
+            return;
+        }
+        
+        DependencyInfo dep = selected.get(0);
+        String selectedRecipe = recipeList.getSelectedValue();
+        
+        if (selectedRecipe == null || selectedRecipe.contains("No recipes")) {
+            return;
+        }
+        
+        if (!isPremiumUser) {
+            Messages.showWarningDialog(project, 
+                    "Applying recipes requires a Premium license.\nPlease upgrade to Premium to use this feature.", 
+                    "Premium Feature");
+            return;
+        }
+        
+        // For premium users, apply recipe directly without confirmation dialog
+        applyRecipeDirectly(dep, selectedRecipe);
+    }
+    
+    private void applyRecipeDirectly(DependencyInfo dep, String selectedRecipe) {
+        // This would trigger the recipe execution
+        // Get the refactoring service and apply the recipe
+        try {
+            adrianmikula.jakartamigration.coderefactoring.service.RecipeService recipeService = 
+                project.getService(adrianmikula.jakartamigration.coderefactoring.service.RecipeService.class);
+            
+            if (recipeService != null) {
+                // Apply the recipe to migrate the dependency
+                java.nio.file.Path projectPath = java.nio.file.Paths.get(project.getBasePath());
+                adrianmikula.jakartamigration.coderefactoring.domain.RecipeExecutionResult result = recipeService.applyRecipe(selectedRecipe, projectPath);
+                
+                if (result != null && result.success()) {
+                    Messages.showInfoMessage(project, 
+                            "Successfully applied recipe '" + selectedRecipe + "' to migrate " + dep.getDisplayName() + ".\n\nThe refactoring has been completed. Please review the changes and run tests.", 
+                            "Recipe Applied Successfully");
+                } else {
+                    String errorMessage = result != null ? result.errorMessage() : "Unknown error";
+                    Messages.showErrorDialog(project, 
+                            "Failed to apply recipe '" + selectedRecipe + "' to migrate " + dep.getDisplayName() + ".\n\nError: " + errorMessage, 
+                            "Recipe Application Failed");
+                }
+            } else {
+                Messages.showErrorDialog(project, 
+                        "Recipe service not available. Please ensure the Jakarta Migration plugin is properly configured.", 
+                        "Service Unavailable");
+            }
+        } catch (Exception e) {
+            Messages.showErrorDialog(project, 
+                    "Error applying recipe '" + selectedRecipe + "': " + e.getMessage(), 
+                    "Recipe Application Error");
+        }
+    }
+
+    public void setPremiumUser(boolean isPremium) {
+        this.isPremiumUser = isPremium;
+    }
+
+    public boolean isPremiumUser() {
+        return isPremiumUser;
     }
 
     public JPanel getPanel() {
@@ -266,6 +447,11 @@ public class DependenciesTableComponent {
     public void setDependencies(List<DependencyInfo> dependencies) {
         this.allDependencies = dependencies != null ? dependencies : new ArrayList<>();
         filterDependencies();
+        
+        // Automatically trigger Maven Central lookup for new dependencies
+        if (!this.allDependencies.isEmpty()) {
+            queryMavenCentralForDependencies();
+        }
     }
 
     public List<DependencyInfo> getSelectedDependencies() {
@@ -331,13 +517,26 @@ public class DependenciesTableComponent {
     private void addDependencyRow(DependencyInfo dep) {
         // Determine dependency type
         String dependencyType = dep.isTransitive() ? "Transitive" : "Direct";
+        
+        // Jakarta Equivalent
+        String jakartaEquivalent = dep.getRecommendedArtifactCoordinates() != null 
+                ? dep.getRecommendedArtifactCoordinates() 
+                : "-";
+        
+        // Compatibility Status
+        String compatibilityStatus = dep.getJakartaCompatibilityStatus() != null 
+                ? dep.getJakartaCompatibilityStatus() 
+                : (dep.getRecommendedVersion() != null && !dep.getRecommendedVersion().equals("-") 
+                        ? "Compatible" : "Unknown");
 
-        // Pass the full DependencyInfo object to the status column (column 5)
+        // Add row with all 8 columns
         tableModel.addRow(new Object[] {
                 dep.getGroupId(),
                 dep.getArtifactId(),
                 dep.getCurrentVersion(),
+                jakartaEquivalent,
                 dep.getRecommendedVersion() != null ? dep.getRecommendedVersion() : "-",
+                compatibilityStatus,
                 dependencyType,
                 dep // Full object for status column (last column)
         });
@@ -347,8 +546,137 @@ public class DependenciesTableComponent {
         SwingUtilities.invokeLater(() -> {
             Messages.showInfoMessage(project, "Refreshing dependency analysis...", "Refresh");
         });
+        
+        // Query Maven Central for Jakarta equivalents
+        queryMavenCentralForDependencies();
     }
-
+    
+    /**
+     * Queries Maven Central for Jakarta equivalents of detected javax dependencies
+     * Uses async/non-blocking approach with proper error handling
+     */
+    public void queryMavenCentralForDependencies() {
+        if (allDependencies.isEmpty()) {
+            return;
+        }
+        
+        // Find all javax dependencies
+        List<DependencyInfo> javaxDependencies = allDependencies.stream()
+                .filter(dep -> dep.getGroupId() != null && dep.getArtifactId() != null &&
+                        dep.getGroupId().startsWith("javax.") && dep.getArtifactId().startsWith("javax."))
+                .collect(Collectors.toList());
+        
+        if (javaxDependencies.isEmpty()) {
+            return;
+        }
+        
+        // Show progress bar
+        isQueryingMaven = true;
+        SwingUtilities.invokeLater(() -> {
+            progressBar.setVisible(true);
+            progressBar.setIndeterminate(true);
+            progressBar.setString("Querying Maven Central for " + javaxDependencies.size() + " dependencies...");
+        });
+        
+        MavenCentralService mavenService = new MavenCentralService();
+        
+        // Create a list of CompletableFutures for each dependency lookup
+        List<CompletableFuture<Void>> lookupFutures = javaxDependencies.stream()
+                .map(javaxDep -> 
+                    mavenService.findJakartaEquivalents(javaxDep.getGroupId(), javaxDep.getArtifactId())
+                            .thenAccept(jakartaArtifacts -> {
+                                updateDependencyWithJakartaInfo(javaxDep, jakartaArtifacts);
+                            })
+                            .exceptionally(throwable -> {
+                                LOGGER.warning("Failed to query Maven Central for " + javaxDep.getGroupId() + ":" + 
+                                           javaxDep.getArtifactId() + " - " + throwable.getMessage());
+                                return null; // Continue processing other dependencies
+                            })
+                )
+                .collect(Collectors.toList());
+        
+        // Wait for all lookups to complete
+        CompletableFuture.allOf(lookupFutures.toArray(new CompletableFuture[0]))
+                .thenRun(() -> {
+                    SwingUtilities.invokeLater(() -> {
+                        isQueryingMaven = false;
+                        progressBar.setVisible(false);
+                        progressBar.setIndeterminate(false);
+                        filterDependencies(); // Re-apply filters with updated data
+                        
+                        long successfulLookups = lookupFutures.stream()
+                                .mapToLong(f -> f.isCompletedExceptionally() ? 0 : 1)
+                                .sum();
+                        
+                        LOGGER.info("Maven Central query completed. Successfully processed " + 
+                                successfulLookups + " of " + javaxDependencies.size() + " dependencies.");
+                    });
+                })
+                .exceptionally(throwable -> {
+                    LOGGER.log(java.util.logging.Level.SEVERE, "Unexpected error in Maven Central queries", throwable);
+                    SwingUtilities.invokeLater(() -> {
+                        isQueryingMaven = false;
+                        progressBar.setVisible(false);
+                        progressBar.setIndeterminate(false);
+                        Messages.showErrorDialog(project, 
+                                "An unexpected error occurred during Maven Central lookup: " + throwable.getMessage(), 
+                                "Query Error");
+                    });
+                    return null;
+                });
+    }
+    
+    /**
+     * Updates a dependency with Jakarta artifact information from Maven Central
+     * Thread-safe implementation for async updates
+     * 
+     * @param javaxDep original javax dependency
+     * @param jakartaArtifacts list of Jakarta artifacts found
+     */
+    private synchronized void updateDependencyWithJakartaInfo(DependencyInfo javaxDep, List<JakartaArtifactCoordinates> jakartaArtifacts) {
+        if (jakartaArtifacts == null || jakartaArtifacts.isEmpty()) {
+            // No Jakarta artifacts found
+            javaxDep.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
+            return;
+        }
+        
+        // Use best match (first result for now, could be enhanced with version comparison)
+        JakartaArtifactCoordinates bestMatch = jakartaArtifacts.get(0);
+        
+        // Update dependency with Jakarta information
+        javaxDep.setRecommendedArtifactCoordinates(bestMatch.getCoordinates());
+        javaxDep.setJakartaCompatibilityStatus(bestMatch.status().getValue());
+        
+        // Update migration status based on found artifacts
+        if (bestMatch.status() == DependencyMigrationStatus.COMPATIBLE) {
+            javaxDep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
+        } else {
+            javaxDep.setMigrationStatus(bestMatch.status());
+        }
+        
+        // Update dependency in master list
+        for (int i = 0; i < allDependencies.size(); i++) {
+            DependencyInfo dep = allDependencies.get(i);
+            if (dep.getGroupId().equals(javaxDep.getGroupId()) && 
+                dep.getArtifactId().equals(javaxDep.getArtifactId())) {
+                
+                // Create a new DependencyInfo object with updated information
+                DependencyInfo updatedDep = new DependencyInfo();
+                updatedDep.setGroupId(dep.getGroupId());
+                updatedDep.setArtifactId(dep.getArtifactId());
+                updatedDep.setCurrentVersion(dep.getCurrentVersion());
+                updatedDep.setRecommendedArtifactCoordinates(bestMatch.getCoordinates());
+                updatedDep.setJakartaCompatibilityStatus(bestMatch.status().getValue());
+                updatedDep.setMigrationStatus(javaxDep.getMigrationStatus());
+                updatedDep.setTransitive(dep.isTransitive());
+                updatedDep.setOrganizational(dep.isOrganizational());
+                
+                allDependencies.set(i, updatedDep);
+                break;
+            }
+        }
+    }
+    
     private void handleUpdate(ActionEvent e) {
         List<DependencyInfo> selected = getSelectedDependencies();
         if (selected.isEmpty()) {
@@ -473,5 +801,37 @@ public class DependenciesTableComponent {
 
     public JCheckBox getTransitiveFilter() {
         return transitiveFilter;
+    }
+
+    public JButton getApplyRecipeButton() {
+        return applyRecipeButton;
+    }
+
+    public void updateRecipesPanel(DependencyInfo dependency) {
+        if (!isPremiumUser) {
+            recipesPanel.setVisible(false);
+            return;
+        }
+        
+        recipesPanel.setVisible(true);
+        selectedDependencyLabel.setText("Selected: " + dependency.getDisplayName());
+        
+        recipeListModel.clear();
+        
+        String associatedRecipe = dependency.getAssociatedRecipeName();
+        if (associatedRecipe != null && !associatedRecipe.isEmpty()) {
+            recipeListModel.addElement(associatedRecipe);
+            recipeList.setSelectedIndex(0);
+            applyRecipeButton.setEnabled(true);
+        } else if (dependency.getRecommendedVersion() != null && !dependency.getRecommendedVersion().equals("-")) {
+            // Add generic upgrade recipe if there's a recommended version
+            String genericRecipe = "Upgrade to Jakarta: " + dependency.getRecommendedArtifactCoordinates();
+            recipeListModel.addElement(genericRecipe);
+            recipeList.setSelectedIndex(0);
+            applyRecipeButton.setEnabled(true);
+        } else {
+            recipeListModel.addElement("No recipes available");
+            applyRecipeButton.setEnabled(false);
+        }
     }
 }

@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.24.xsd">
+
+    <!-- Create repositories table -->
+    <changeSet id="002-create-repositories-table" author="system">
+        <createTable tableName="repositories">
+            <column name="repository_path" type="VARCHAR(500)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="repository_name" type="VARCHAR(255)"/>
+            <column name="is_org_repo" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="last_analyzed_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        
+        <createIndex indexName="idx_repositories_name" tableName="repositories">
+            <column name="repository_name"/>
+        </createIndex>
+        <createIndex indexName="idx_repositories_org" tableName="repositories">
+            <column name="is_org_repo"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Create dependencies table with proper constraint handling -->
+    <changeSet id="003-create-dependencies-table" author="system">
+        <createTable tableName="dependencies">
+            <column name="id" type="INTEGER" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="repository_path" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="group_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="artifact_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="VARCHAR(100)"/>
+            <column name="scope" type="VARCHAR(50)"/>
+            <column name="is_direct" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="is_org_dependency" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="namespace" type="VARCHAR(100)"/>
+            <column name="is_jakarta_compatible" type="BOOLEAN"/>
+            <column name="risk_level" type="VARCHAR(50)"/>
+            <column name="migration_status" type="VARCHAR(100)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        
+        <!-- Add unique constraint to handle duplicates gracefully -->
+        <addUniqueConstraint 
+            tableName="dependencies" 
+            columnNames="repository_path, group_id, artifact_id, version"
+            constraintName="uq_dependency_coords"
+            deferrable="false"
+            initiallyDeferred="false"/>
+        
+        <!-- Add foreign key constraint -->
+        <addForeignKeyConstraint 
+            baseTableName="dependencies"
+            baseColumnNames="repository_path"
+            referencedTableName="repositories"
+            referencedColumnNames="repository_path"
+            constraintName="fk_dependencies_repository"
+            onDelete="CASCADE"/>
+        
+        <!-- Create indexes for performance -->
+        <createIndex indexName="idx_dependencies_group_artifact" tableName="dependencies">
+            <column name="group_id"/>
+            <column name="artifact_id"/>
+        </createIndex>
+        <createIndex indexName="idx_dependencies_namespace" tableName="dependencies">
+            <column name="namespace"/>
+        </createIndex>
+        <createIndex indexName="idx_dependencies_org" tableName="dependencies">
+            <column name="is_org_dependency"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Create org_dependencies table for cross-repository tracking -->
+    <changeSet id="004-create-org-dependencies-table" author="system">
+        <createTable tableName="org_dependencies">
+            <column name="id" type="INTEGER" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="group_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="artifact_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="VARCHAR(100)"/>
+            <column name="is_analyzed" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="source_repository" type="VARCHAR(500)"/>
+            <column name="last_analyzed_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        
+        <!-- Add unique constraint for org dependencies -->
+        <addUniqueConstraint 
+            tableName="org_dependencies" 
+            columnNames="group_id, artifact_id, version"
+            constraintName="uq_org_dependency_coords"/>
+        
+        <!-- Create indexes -->
+        <createIndex indexName="idx_org_dependencies_analyzed" tableName="org_dependencies">
+            <column name="is_analyzed"/>
+        </createIndex>
+        <createIndex indexName="idx_org_dependencies_group_artifact" tableName="org_dependencies">
+            <column name="group_id"/>
+            <column name="artifact_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Create analysis_reports table for storing raw reports -->
+    <changeSet id="005-create-analysis-reports-table" author="system">
+        <createTable tableName="analysis_reports">
+            <column name="id" type="INTEGER" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="repository_path" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="report_type" type="VARCHAR(50)" defaultValue="DEPENDENCY_ANALYSIS"/>
+            <column name="raw_report" type="TEXT"/>
+            <column name="report_version" type="INTEGER" defaultValue="1"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        
+        <!-- Add foreign key constraint -->
+        <addForeignKeyConstraint 
+            baseTableName="analysis_reports"
+            baseColumnNames="repository_path"
+            referencedTableName="repositories"
+            referencedColumnNames="repository_path"
+            constraintName="fk_analysis_reports_repository"
+            onDelete="CASCADE"/>
+        
+        <!-- Create indexes -->
+        <createIndex indexName="idx_analysis_reports_type" tableName="analysis_reports">
+            <column name="report_type"/>
+        </createIndex>
+        <createIndex indexName="idx_analysis_reports_created" tableName="analysis_reports">
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Create plugin_state table for storing arbitrary plugin state -->
+    <changeSet id="006-create-plugin-state-table" author="system">
+        <createTable tableName="plugin_state">
+            <column name="id" type="INTEGER" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="repository_path" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="state_key" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="state_json" type="TEXT"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        
+        <!-- Add unique constraint for plugin state -->
+        <addUniqueConstraint 
+            tableName="plugin_state" 
+            columnNames="repository_path, state_key"
+            constraintName="uq_plugin_state_key"/>
+        
+        <!-- Add foreign key constraint -->
+        <addForeignKeyConstraint 
+            baseTableName="plugin_state"
+            baseColumnNames="repository_path"
+            referencedTableName="repositories"
+            referencedColumnNames="repository_path"
+            constraintName="fk_plugin_state_repository"
+            onDelete="CASCADE"/>
+        
+        <!-- Create indexes -->
+        <createIndex indexName="idx_plugin_state_key" tableName="plugin_state">
+            <column name="state_key"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Create metadata table for version tracking -->
+    <changeSet id="007-create-metadata-table" author="system">
+        <createTable tableName="metadata">
+            <column name="key" type="VARCHAR(100)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="value" type="TEXT"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        
+        <!-- Insert initial metadata -->
+        <insert tableName="metadata">
+            <column name="key" value="db_version"/>
+            <column name="value" value="5"/>
+        </insert>
+        <insert tableName="metadata">
+            <column name="key" value="schema_created_at"/>
+            <column name="value" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

@@ -15,7 +15,7 @@ import java.util.List;
 public class GraphCanvas extends JPanel {
     private final List<GraphNode> nodes = new ArrayList<>();
     private final List<GraphEdge> edges = new ArrayList<>();
-    private GraphLayoutStrategy layoutStrategy = new HierarchicalLayoutStrategy();
+    private GraphLayoutStrategy layoutStrategy = new CircularLayoutStrategy();
     private double scale = 1.0;
     private double offsetX = 0;
     private double offsetY = 0;
@@ -38,6 +38,7 @@ public class GraphCanvas extends JPanel {
             public void mousePressed(MouseEvent e) {
                 handleMousePressed(e);
             }
+
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
@@ -49,6 +50,11 @@ public class GraphCanvas extends JPanel {
             @Override
             public void mouseDragged(MouseEvent e) {
                 handleMouseDragged(e);
+            }
+
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                handleMouseMoved(e);
             }
         });
     }
@@ -109,7 +115,8 @@ public class GraphCanvas extends JPanel {
     }
 
     private void applyLayout() {
-        if (nodes.isEmpty()) return;
+        if (nodes.isEmpty())
+            return;
         layoutStrategy.layout(nodes, edges, getWidth(), getHeight());
     }
 
@@ -152,6 +159,43 @@ public class GraphCanvas extends JPanel {
         lastMousePos = e.getPoint();
     }
 
+    private void handleMouseMoved(MouseEvent e) {
+        Point worldPos = screenToWorld(e.getX(), e.getY());
+        GraphNode hoveredNode = null;
+        for (GraphNode node : nodes) {
+            if (node.contains(worldPos.x, worldPos.y)) {
+                hoveredNode = node;
+                break;
+            }
+        }
+
+        if (hoveredNode != null) {
+            StringBuilder tooltip = new StringBuilder();
+            tooltip.append("<html>");
+            tooltip.append("<b>").append(hoveredNode.getLabel()).append("</b><br>");
+            tooltip.append("ID: ").append(hoveredNode.getId()).append("<br>");
+            if (hoveredNode.getMigrationStatus() != null) {
+                tooltip.append("Status: ").append(hoveredNode.getMigrationStatus()).append("<br>");
+            }
+
+            List<String> types = new ArrayList<>();
+            if (hoveredNode.isOrgInternal()) {
+                types.add("Organisational");
+            }
+            if (hoveredNode.isTransitive()) {
+                types.add("Transitive");
+            }
+
+            if (!types.isEmpty()) {
+                tooltip.append("Type: ").append(String.join(", ", types)).append(" Dependency<br>");
+            }
+            tooltip.append("</html>");
+            setToolTipText(tooltip.toString());
+        } else {
+            setToolTipText(null);
+        }
+    }
+
     private Point screenToWorld(int screenX, int screenY) {
         int worldX = (int) ((screenX - offsetX) / scale);
         int worldY = (int) ((screenY - offsetY) / scale);
@@ -180,7 +224,8 @@ public class GraphCanvas extends JPanel {
         g2d.setStroke(new BasicStroke(showCriticalPath ? 2.0f : 1.0f));
 
         for (GraphEdge edge : edges) {
-            if (!showCriticalPath && edge.isCriticalPath()) continue;
+            if (!showCriticalPath && edge.isCriticalPath())
+                continue;
 
             Color edgeColor = edge.isCriticalPath() ? new Color(220, 53, 69) : Color.GRAY;
             if (edge.getType() == GraphEdge.EdgeType.TRANSITIVE) {
@@ -191,12 +236,11 @@ public class GraphCanvas extends JPanel {
 
             g2d.setColor(edgeColor);
             drawArrowLine(g2d,
-                (int) edge.getSource().getCenterX(),
-                (int) edge.getSource().getCenterY(),
-                (int) edge.getTarget().getCenterX(),
-                (int) edge.getTarget().getCenterY(),
-                10, 5
-            );
+                    (int) edge.getSource().getCenterX(),
+                    (int) edge.getSource().getCenterY(),
+                    (int) edge.getTarget().getCenterX(),
+                    (int) edge.getTarget().getCenterY(),
+                    10, 5);
         }
     }
 
@@ -223,8 +267,8 @@ public class GraphCanvas extends JPanel {
         int arrowX2 = (int) (endX - arrowLength * Math.cos(angle + Math.PI / 6));
         int arrowY2 = (int) (endY - arrowLength * Math.sin(angle + Math.PI / 6));
 
-        int[] xPoints = {endX, arrowX1, arrowX2};
-        int[] yPoints = {endY, arrowY1, arrowY2};
+        int[] xPoints = { endX, arrowX1, arrowX2 };
+        int[] yPoints = { endY, arrowY1, arrowY2 };
         g2d.fillPolygon(xPoints, yPoints, 3);
     }
 
@@ -232,43 +276,45 @@ public class GraphCanvas extends JPanel {
         for (GraphNode node : nodes) {
             Color bgColor;
 
-            // Check if this is an org internal dependency - use purple for org
-            if (node.isOrgInternal()) {
-                bgColor = new Color(156, 39, 176); // Bright purple for org internal
+            // Use migration status colors for all nodes (including org internal)
+            // Org internal dependencies will get thicker border and larger font instead of
+            // different color
+            DependencyMigrationStatus status = node.getMigrationStatus();
+            if (status == null) {
+                // Root node or unknown status - use gray
+                bgColor = new Color(108, 117, 125);
             } else {
-                // Use migration status colors (same as dependencies table)
-                DependencyMigrationStatus status = node.getMigrationStatus();
-                if (status == null) {
-                    // Root node or unknown status - use gray
-                    bgColor = new Color(108, 117, 125);
-                } else {
-                    switch (status) {
-                        case COMPATIBLE:
-                            bgColor = new Color(40, 167, 69);  // Green
-                            break;
-                        case NEEDS_UPGRADE:
-                        case REQUIRES_MANUAL_MIGRATION:
-                            bgColor = new Color(255, 193, 7);  // Yellow
-                            break;
-                        case NO_JAKARTA_VERSION:
-                            bgColor = new Color(220, 53, 69);  // Red
-                            break;
-                        case MIGRATED:
-                            bgColor = new Color(23, 162, 184);  // Cyan
-                            break;
-                        default:
-                            bgColor = new Color(108, 117, 125);  // Gray for unknown
-                    }
+                switch (status) {
+                    case COMPATIBLE:
+                        bgColor = new Color(40, 167, 69); // Green
+                        break;
+                    case NEEDS_UPGRADE:
+                    case REQUIRES_MANUAL_MIGRATION:
+                        bgColor = new Color(255, 193, 7); // Yellow
+                        break;
+                    case NO_JAKARTA_VERSION:
+                        bgColor = new Color(220, 53, 69); // Red
+                        break;
+                    case MIGRATED:
+                        bgColor = new Color(23, 162, 184); // Cyan
+                        break;
+                    default:
+                        bgColor = new Color(108, 117, 125); // Gray for unknown
                 }
             }
 
-            // Set stroke - dashed for transitive dependencies
+            // Set stroke - thicker for org internal, dashed for transitive
             if (node.equals(selectedNode)) {
                 g2d.setColor(Color.BLUE);
                 g2d.setStroke(new BasicStroke(3));
+            } else if (node.isOrgInternal()) {
+                // Thicker border for org internal dependencies
+                g2d.setColor(bgColor);
+                g2d.setStroke(new BasicStroke(4));
             } else if (node.isTransitive()) {
                 g2d.setColor(bgColor);
-                g2d.setStroke(new BasicStroke(2f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{8, 4}, 0));
+                g2d.setStroke(
+                        new BasicStroke(2f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[] { 8, 4 }, 0));
             } else {
                 g2d.setColor(bgColor);
                 g2d.setStroke(new BasicStroke(1));
@@ -284,30 +330,19 @@ public class GraphCanvas extends JPanel {
 
             // Fill with lighter color
             g2d.setColor(new Color(
-                Math.min(255, bgColor.getRed() + 50),
-                Math.min(255, bgColor.getGreen() + 50),
-                Math.min(255, bgColor.getBlue() + 50)
-            ));
+                    Math.min(255, bgColor.getRed() + 50),
+                    Math.min(255, bgColor.getGreen() + 50),
+                    Math.min(255, bgColor.getBlue() + 50)));
             g2d.fillRoundRect(x + 1, y + 1, w - 2, h - 2, 7, 7);
 
-            // Draw org internal indicator (small dot in corner)
-            if (node.isOrgInternal()) {
-                g2d.setColor(node.isAnalyzedForMigration() ?
-                    new Color(255, 255, 0) : new Color(255, 100, 100));
-                g2d.fillOval(x + w - 12, y + 4, 8, 8);
-            }
-
-            // Draw transitive indicator (small "T" in corner)
-            if (node.isTransitive() && !node.isOrgInternal()) {
-                g2d.setColor(new Color(108, 117, 125));
-                g2d.setFont(g2d.getFont().deriveFont(Font.BOLD, 9f));
-                g2d.drawString("T", x + w - 12, y + h - 4);
-            }
-
-            // Draw label
+            // Draw label with larger font for org internal
             if (showLabels) {
                 g2d.setColor(Color.WHITE);
-                g2d.setFont(g2d.getFont().deriveFont(Font.BOLD, 11f));
+                if (node.isOrgInternal()) {
+                    g2d.setFont(g2d.getFont().deriveFont(Font.BOLD, 13f)); // Larger font for org internal
+                } else {
+                    g2d.setFont(g2d.getFont().deriveFont(Font.BOLD, 11f));
+                }
                 FontMetrics fm = g2d.getFontMetrics();
                 String label = node.getLabel();
                 if (fm.stringWidth(label) > w - 10) {

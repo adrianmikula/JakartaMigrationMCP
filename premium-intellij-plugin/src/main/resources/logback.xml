@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Check if running in dev mode -->
+    <define name="DEV_MODE" class="ch.qos.logback.core.property.DefineProperty">
+        <className>java.lang.Boolean</className>
+        <propertyName>dev.mode</propertyName>
+        <defaultValue>false</defaultValue>
+    </define>
+    
+    <!-- Development mode appender - detailed logging -->
+    <appender name="DEV_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    
+    <!-- Production mode appender - minimal logging -->
+    <appender name="PROD_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>INFO</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    
+    <!-- Platform detection logger - debug only in dev mode -->
+    <logger name="adrianmikula.jakartamigration.platforms.service.SimplifiedPlatformDetectionService" level="${dev.mode:-false == true ? DEBUG : INFO}">
+        <appender-ref ref="${dev.mode:-false == true ? DEV_CONSOLE : PROD_CONSOLE}"/>
+    </logger>
+    
+    <!-- File system scanner logger - debug only in dev mode -->
+    <logger name="adrianmikula.jakartamigration.util.ProjectFileSystemScanner" level="${dev.mode:-false == true ? DEBUG : INFO}">
+        <appender-ref ref="${dev.mode:-false == true ? DEV_CONSOLE : PROD_CONSOLE}"/>
+    </logger>
+    
+    <!-- Advanced scanning loggers - debug only in dev mode -->
+    <logger name="adrianmikula.jakartamigration.advancedscanning" level="${dev.mode:-false == true ? DEBUG : INFO}">
+        <appender-ref ref="${dev.mode:-false == true ? DEV_CONSOLE : PROD_CONSOLE}"/>
+    </logger>
+    
+    <!-- Root logger -->
+    <root level="INFO">
+        <appender-ref ref="${dev.mode:-false == true ? DEV_CONSOLE : PROD_CONSOLE}"/>
+    </root>
+</configuration>

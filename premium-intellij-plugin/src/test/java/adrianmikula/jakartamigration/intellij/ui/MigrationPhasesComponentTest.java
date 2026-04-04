@@ -38,8 +38,8 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
 
     public void testSetDependencies() {
         List<DependencyInfo> deps = new ArrayList<>();
-        deps.add(new DependencyInfo("org.hibernate", "hibernate-core", "5.6.0.Final", null,
-                DependencyMigrationStatus.NEEDS_UPGRADE, false, false));
+        deps.add(new DependencyInfo("org.hibernate", "hibernate-core", "5.6.0.Final", null, null, null,
+                "Unknown", null, DependencyMigrationStatus.NEEDS_UPGRADE, false, false));
 
         phasesComponent.setDependencies(deps);
 

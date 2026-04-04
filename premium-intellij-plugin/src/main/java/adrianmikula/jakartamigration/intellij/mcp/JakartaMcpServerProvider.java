@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.intellij.mcp;
 
+import adrianmikula.jakartamigration.config.JakartaMigrationConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.intellij.openapi.diagnostic.Logger;
@@ -28,12 +29,18 @@ import java.util.concurrent.ConcurrentHashMap;
 public class JakartaMcpServerProvider {
 
     private static final Logger LOG = Logger.getInstance(JakartaMcpServerProvider.class);
-    private static final String SERVER_ID = "jakarta-migration-mcp";
-    private static final String SERVER_NAME = "Jakarta Migration MCP";
-    private static final String SERVER_VERSION = "1.0.0";
-    private static final String SERVER_DESCRIPTION = "MCP server for Jakarta EE migration analysis and automation";
-    private static final String SERVER_VENDOR = "Jakarta Migration Team";
-    private static final String SERVER_URL = "https://jakarta-migration.com";
+    private static final String SERVER_ID = JakartaMigrationConfigService.getInstance()
+        .getServerConfig().name();
+    private static final String SERVER_NAME = JakartaMigrationConfigService.getInstance()
+        .getServerConfig().displayName();
+    private static final String SERVER_VERSION = JakartaMigrationConfigService.getInstance()
+        .getServerConfig().version();
+    private static final String SERVER_DESCRIPTION = JakartaMigrationConfigService.getInstance()
+        .getServerConfig().description();
+    private static final String SERVER_VENDOR = JakartaMigrationConfigService.getInstance()
+        .getServerConfig().vendor();
+    private static final String SERVER_URL = JakartaMigrationConfigService.getInstance()
+        .getServerConfig().url();
 
     // MCP Server connection configuration
     private static final String TRANSPORT_TYPE = "streamable-http";

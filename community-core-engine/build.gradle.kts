@@ -25,9 +25,11 @@ dependencies {
     api("org.ow2.asm:asm-tree:9.6")
 
     // OpenRewrite for refactoring and scanning
+    api("org.openrewrite:rewrite-core:8.10.0")
     api("org.openrewrite:rewrite-java:8.10.0")
     api("org.openrewrite:rewrite-maven:8.10.0")
     api("org.openrewrite:rewrite-xml:8.10.0")
+    api("org.openrewrite.recipe:rewrite-migrate-java:2.5.0")
     runtimeOnly("org.openrewrite:rewrite-java-17:8.10.0")
 
     testImplementation(platform("org.junit:junit-bom:5.10.1"))
@@ -45,6 +47,29 @@ java {
 
 tasks.test {
     useJUnitPlatform()
+    testLogging {
+        showStandardStreams = true
+    }
+    // Enable parallel test execution
+    maxParallelForks = 4
+}
+
+// Fast test task for quick agent feedback
+tasks.register("fastTest") {
+    group = "verification"
+    description = "Run fast unit tests only (excludes integration and slow tests)"
+    
+    doLast {
+        exec {
+            workingDir = projectDir
+            commandLine = listOf(
+                "./gradlew", "test", "--tests", "*fast*",
+                "--parallel", "--max-worker-count=4",
+                "--configuration-cache", "--build-cache",
+                "--no-daemon"
+            )
+        }
+    }
 }
 
 // =============================================================================
