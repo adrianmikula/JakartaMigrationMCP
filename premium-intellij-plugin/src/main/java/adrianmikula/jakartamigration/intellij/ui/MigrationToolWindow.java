@@ -17,6 +17,7 @@ import adrianmikula.jakartamigration.analysis.persistence.SqliteMigrationAnalysi
 import adrianmikula.jakartamigration.coderefactoring.service.CodeRefactoringModule;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import adrianmikula.jakartamigration.intellij.ui.SimplePlatformsTabComponent;
+import adrianmikula.jakartamigration.intellij.ui.PlatformsTabComponent;
 import adrianmikula.jakartamigration.intellij.ui.ComprehensiveReportsTabComponent;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
@@ -76,7 +77,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private McpServerTabComponent mcpServerTabComponent;
         private RefactorTabComponent refactorTabComponent;
         private HistoryTabComponent historyTabComponent;
-        private SimplePlatformsTabComponent platformsTabComponent;
+        private PlatformsTabComponent platformsTabComponent;
         private RuntimeTabComponent runtimeTabComponent;
         private ComprehensiveReportsTabComponent reportsTabComponent;
         private CodeRefactoringModule refactorModule;
@@ -214,9 +215,12 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 refactorTabComponent.setOnRecipeExecuted(() -> ApplicationManager.getApplication().invokeLater(() -> historyRef.refreshHistory()));
 
                 // Platforms tab (Premium)
-                platformsTabComponent = new SimplePlatformsTabComponent(project);
+                platformsTabComponent = new PlatformsTabComponent(project);
                 tabbedPane.addTab("Platforms ", platformsTabComponent.getPanel());
                 LOG.info("initializeContent: Added PREMIUM Platforms tab");
+                
+                // Connect dashboard with platforms tab for risk integration
+                dashboardComponent.setPlatformsTabComponent(platformsTabComponent);
 
                 // Reports tab (Premium + Experimental features only)
                 System.out.println("DEBUG: MigrationToolWindow - About to check experimental features");

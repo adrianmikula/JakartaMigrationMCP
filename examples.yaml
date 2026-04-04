@@ -7,12 +7,12 @@
 # =============================================================================
 application_servers:
   - name: "Apache Tomcat"
-    description: "Apache Tomcat with javax packages for migration testing"
-    url: "https://github.com/apache/tomcat"
+    description: "Apache Tomcat embedded with comprehensive dependencies for migration testing"
+    url: "https://github.com/jyeary/tomcat-9-embedded"
       
   - name: "WildFly"
-    description: "WildFly with javax packages for migration testing"
-    url: "https://github.com/fharms/java-examples"
+    description: "WildFly with real WildFly dependencies for migration testing"
+    url: "https://github.com/tolis-e/arquillian-wildfly-example"
       
   - name: "Spring Boot"
     description: "Spring with javax packages for migration testing"
@@ -30,6 +30,10 @@ application_servers:
     description: "NetBeans Platform with javax packages for migration testing"
     url: "https://github.com/apache/netbeans"
 
+  - name: "Docker Tomcat"
+    description: "Dockerfile with Tomcat for advanced scan testing"
+    url: "https://github.com/gbsnaker/docker-tomcat-java-example"
+
   - name: "Jetty"
     description: "Jetty with javax packages for migration testing"
     url: "https://github.com/ismailfer/java-jetty10-websocket-javax"
@@ -42,9 +46,13 @@ application_servers:
     description: "JBoss EAP with javax dependency"
     url: "https://github.com/techatspree/jbosscc-as7-examples"
 
+  - name: "WebSphere Liberty"
+    description: "WebSphere Liberty with Spring Boot integration example"
+    url: "https://github.com/WASdev/sample.Spring"
+      
   - name: "WebSphere"
-    description: "IBM WebSphere with javax dependency"
-    url: "https://github.com/craigstjean/WebSphere-JPA-Spring-Hibernate"
+    description: "IBM WebSphere traditional application server with JEE6 example"
+    url: "https://github.com/IBMAppModernization/app-modernization-plants-by-websphere-jee6"
 
   - name: "SpringBoot on WildFly"
     description: "SpringBoot on WildFly with javax dependency"

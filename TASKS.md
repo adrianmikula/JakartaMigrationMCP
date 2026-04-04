@@ -101,14 +101,26 @@ Lets choose the default view based on the number of dependencies:
 
 we will also need to add detection of dockerfile changes using examples like https://github.com/lurodrig/log4j2-in-tomcat
 
+lets improve our examples.yaml to specify what kind of items are present in each appserver example using broad categories: e.g. dependencies, metadata, docker, clients, spring
+
+lets extend our platform scan functionality to also count eh number of wars, ears, etc which are built/deployed to the appserver. we will use this to increase or decrease the platforms risk score calculation
+
+are the risk scoring weights still all in the YAML? I don't want any hardocded weights in the java code
+
+
+
+# support
+
+Link to repos which outline appserver-specific jakarta migration steps. 
+e.g. https://github.com/WASdev/sample.DefaultApplication
+https://github.com/IBM/application-modernization-javaee-quarkus
+
+
 
 
 # refactoring
 
-lets simplify the platform scanning code and try to reduce the length of the code by 50%
-
-lets simplify the refactor recipe code and try to reduce the length of the code by 50%
-
+lets review our recent code changes and eliminate any code duplication of unnecessary complexity. try to reduce the length of the code by 50%
 
 
 

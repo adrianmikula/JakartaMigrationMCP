@@ -55,17 +55,14 @@ public class RiskGauge extends JPanel {
         }
         
         this.score = Math.max(0, Math.min(100, score)); // Clamp between 0-100
-        RiskScoringService riskScoringService = RiskScoringService.getInstance();
         this.category = riskScoringService.getCategoryConfigForScore(this.score);
-        
         repaint();
     }
-
+    
     /**
-     * Gets the current score.
-     * Package-private for testing.
+     * Gets the current score
      */
-    int getScore() {
+    public int getScore() {
         return score;
     }
 

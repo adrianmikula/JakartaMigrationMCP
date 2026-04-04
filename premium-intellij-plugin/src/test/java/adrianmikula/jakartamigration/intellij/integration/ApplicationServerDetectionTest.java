@@ -26,53 +26,39 @@ public class ApplicationServerDetectionTest extends IntegrationTestBase {
         platformDetectionService = new SimplifiedPlatformDetectionService();
     }
     
-    // DISABLED: WildFly repository is not suitable for platform detection testing
-// @Test
-// @DisplayName("Platform detection should detect WildFly from real GitHub project")
-// void testDetectWildFlyFromRealProject() throws IOException {
-//     // Get WildFly project from GitHub examples
-//     // Path projectDir = projectManager.getExampleProject("WildFly", "application_servers");
-//     
-//     // Run platform detection
-//     // List<String> detectedPlatforms = platformDetectionService.scanProject(projectDir);
-//     
-//     // Verify result
-//     // assertNotNull(detectedPlatforms);
-//     
-//     // Check for WildFly detection
-//     // boolean wildflyDetected = detectedPlatforms.stream()
-//     //     .anyMatch(platform -> platform.toLowerCase().contains("wildfly"));
-//     
-//     // Print detailed results for debugging
-//     // System.out.println("=== WildFly Real Project Detection Results ===");
-//     // System.out.println("Detected platforms: " + detectedPlatforms.size());
-//     // detectedPlatforms.forEach(platform -> 
-//     //     System.out.println("  - " + platform));
-//     // System.out.println("WildFly detected: " + wildflyDetected);
-//     
-//     // Should actually detect the platform, not just handle gracefully
-//     // assertTrue(detectedPlatforms.size() > 0, "Should detect at least one platform from real WildFly project");
-//     // assertTrue(wildflyDetected, "Should detect WildFly platform from real GitHub project");
-// }
+    @Test
+    @DisplayName("Platform detection should detect WildFly from real GitHub project")
+    void testDetectWildFlyFromRealProject() throws IOException {
+        // Get WildFly project from GitHub examples
+        Path projectDir = projectManager.getExampleProject("WildFly", "application_servers");
+        
+        // Run platform detection
+        List<String> detectedPlatforms = platformDetectionService.scanProject(projectDir);
+        
+        // Verify result
+        assertNotNull(detectedPlatforms);
+        
+        // Check for WildFly detection
+        boolean wildflyDetected = detectedPlatforms.stream()
+            .anyMatch(platform -> platform.toLowerCase().contains("wildfly"));
+        
+        // Print detailed results for debugging
+        System.out.println("=== WildFly Real Project Detection Results ===");
+        System.out.println("Detected platforms: " + detectedPlatforms.size());
+        detectedPlatforms.forEach(platform -> 
+            System.out.println("  - " + platform));
+        System.out.println("WildFly detected: " + wildflyDetected);
+        
+        // Should actually detect the platform, not just handle gracefully
+        assertTrue(detectedPlatforms.size() > 0, "Should detect at least one platform from real WildFly project");
+        assertTrue(wildflyDetected, "Should detect WildFly platform from real GitHub project");
+    }
     
     @Test
     @DisplayName("Platform detection should detect Tomcat from real GitHub project")
     void testDetectTomcatFromRealProject() throws IOException {
         // Get Tomcat project from GitHub examples
         Path projectDir = projectManager.getExampleProject("Apache Tomcat", "application_servers");
-        
-        // DEBUG: Check if pom.xml exists and print its content
-        Path pomPath = projectDir.resolve("pom.xml");
-        if (java.nio.file.Files.exists(pomPath)) {
-            String pomContent = java.nio.file.Files.readString(pomPath);
-            System.out.println("=== POM Content (first 500 chars) ===");
-            System.out.println(pomContent.substring(0, Math.min(500, pomContent.length())));
-            System.out.println("=== Looking for tomcat artifacts ===");
-            System.out.println("Contains 'tomcat-embed-core': " + pomContent.contains("tomcat-embed-core"));
-            System.out.println("Contains 'org.apache.tomcat': " + pomContent.contains("org.apache.tomcat"));
-        } else {
-            System.out.println("No pom.xml found at: " + pomPath);
-        }
         
         // Run platform detection
         List<String> detectedPlatforms = platformDetectionService.scanProject(projectDir);
@@ -122,6 +108,63 @@ public class ApplicationServerDetectionTest extends IntegrationTestBase {
         // Should actually detect the platform, not just handle gracefully
         assertTrue(detectedPlatforms.size() > 0, "Should detect at least one platform from real Jetty project");
         assertTrue(jettyDetected, "Should detect Jetty platform from real GitHub project");
+    }
+    
+    @Test
+    @DisplayName("Platform detection should detect WebSphere Liberty from real GitHub project")
+    void testDetectWebSphereLibertyFromRealProject() throws IOException {
+        // Get WebSphere Liberty project from GitHub examples
+        Path projectDir = projectManager.getExampleProject("WebSphere Liberty", "application_servers");
+        
+        // Run platform detection
+        List<String> detectedPlatforms = platformDetectionService.scanProject(projectDir);
+        
+        // Verify result
+        assertNotNull(detectedPlatforms);
+        
+        // Check for WebSphere Liberty detection (could be 'liberty' or 'spring')
+        boolean libertyDetected = detectedPlatforms.stream()
+            .anyMatch(platform -> platform.toLowerCase().contains("liberty"));
+        
+        // Print detailed results for debugging
+        System.out.println("=== WebSphere Liberty Real Project Detection Results ===");
+        System.out.println("Detected platforms: " + detectedPlatforms.size());
+        detectedPlatforms.forEach(platform -> 
+            System.out.println("  - " + platform));
+        System.out.println("Liberty detected: " + libertyDetected);
+        
+        // Should actually detect the platform, not just handle gracefully
+        assertTrue(detectedPlatforms.size() > 0, "Should detect at least one platform from real WebSphere Liberty project");
+        assertTrue(libertyDetected, "Should detect WebSphere Liberty platform from real GitHub project");
+    }
+    
+    @Test
+    @DisplayName("Platform detection should detect WebSphere from real GitHub project")
+    void testDetectWebSphereFromRealProject() throws IOException {
+        // Get WebSphere project from GitHub examples
+        Path projectDir = projectManager.getExampleProject("WebSphere", "application_servers");
+        
+        // Run platform detection
+        List<String> detectedPlatforms = platformDetectionService.scanProject(projectDir);
+        
+        // Verify result
+        assertNotNull(detectedPlatforms);
+        
+        // Check for WebSphere detection (could be 'websphere' or 'liberty')
+        boolean websphereDetected = detectedPlatforms.stream()
+            .anyMatch(platform -> platform.toLowerCase().contains("websphere") || 
+                           platform.toLowerCase().contains("liberty"));
+        
+        // Print detailed results for debugging
+        System.out.println("=== WebSphere Real Project Detection Results ===");
+        System.out.println("Detected platforms: " + detectedPlatforms.size());
+        detectedPlatforms.forEach(platform -> 
+            System.out.println("  - " + platform));
+        System.out.println("WebSphere detected: " + websphereDetected);
+        
+        // Should actually detect the platform, not just handle gracefully
+        assertTrue(detectedPlatforms.size() > 0, "Should detect at least one platform from real WebSphere project");
+        assertTrue(websphereDetected, "Should detect WebSphere platform from real GitHub project");
     }
     
     @Test

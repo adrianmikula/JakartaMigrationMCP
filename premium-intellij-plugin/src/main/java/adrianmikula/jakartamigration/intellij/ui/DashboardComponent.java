@@ -44,6 +44,7 @@ public class DashboardComponent {
     private MigrationDashboard dashboard;
     private final Consumer<ActionEvent> onAnalyze;
     private final AdvancedScanningService advancedScanningService;
+    private PlatformsTabComponent platformsTabComponent;
     
     // Cache for preventing unnecessary updates
     private Integer lastCalculatedRiskScore = null;
@@ -1148,17 +1149,27 @@ private void resetAdvancedScanCounts() {
     }
     
     /**
-     * Gets the platform risk score based on platform compatibility.
+     * Gets the platform risk score based on platform compatibility and deployment artifacts.
      */
     private double getPlatformRiskScore() {
         try {
-            // For now, return a default low risk score
-            // TODO: Integrate with actual platform detection results
-            return 1.0; // Default low risk
+            if (platformsTabComponent != null) {
+                return platformsTabComponent.getCurrentPlatformRiskScore();
+            }
+            // Default low risk if no platforms tab component available
+            return 1.0;
         } catch (Exception e) {
             LOG.warn("Could not calculate platform risk: " + e.getMessage());
             return 1.0; // Default low risk
         }
+    }
+
+    /**
+     * Sets the platforms tab component for integration
+     */
+    public void setPlatformsTabComponent(PlatformsTabComponent platformsTabComponent) {
+        this.platformsTabComponent = platformsTabComponent;
+        LOG.info("DashboardComponent: PlatformsTabComponent set for risk integration");
     }
 
     private int calculateOverallScanProgress() {

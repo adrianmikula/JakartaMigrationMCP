@@ -143,6 +143,12 @@ platforms:
       - "org.wildfly.client"
       - "org.wildfly.extension"
       - "org.wildfly.security"
+      - "org.wildfly"
+      - "wildfly-arquillian-container-managed"
+      - "wildfly-arquillian-container-remote"
+      - "wildfly-dist"
+      - "org.jboss.as"
+      - "jboss-as"
     jakartaCompatibility:
       minVersion: "27.0"
       supportedVersions:
@@ -213,7 +219,7 @@ platforms:
         regex: "version=([0-9]+\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
       - file: "etc/server.env"
-        regex: "LIBERTY_VERSION=([0-9]+\\.[0-9]+\\.[0-9]+)"
+        regex: "WLP_USER_DIR=([^\n]+)"
         versionGroup: 1
     commonArtifacts:
       - "liberty"
@@ -226,16 +232,45 @@ platforms:
       minVersion: "23.0"
       supportedVersions:
         - "23.0"
-        - "23.1"
         - "24.0"
     javaxVersions:
-      - "18.0"
-      - "19.0"
-      - "20.0"
+      - "8.0"
+      - "9.0"
+      - "9.1"
     requirements:
       java: "17+"
-      jakarta: "9+"
-      spring: "6+"
+      spring: "5.3+"
+
+  # IBM WebSphere Traditional
+  websphere:
+    name: "WebSphere Traditional"
+    description: "IBM WebSphere Application Server (Traditional)"
+    patterns:
+      - file: "was_home"
+        regex: "WebSphere ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "profileRegistry.xml"
+        regex: "version=\"([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\""
+        versionGroup: 1
+    commonArtifacts:
+      - "com.ibm.websphere"
+      - "com.ibm.ws"
+      - "com.ibm.websphere.appserver"
+      - "websphere-api"
+      - "websphere-embedded-api"
+      - "net.wasdev.maven.tools.targets"
+      - "com.ibm.websphere.pbw"
+    jakartaCompatibility:
+      minVersion: "9.0"
+      supportedVersions:
+        - "9.0"
+    javaxVersions:
+      - "6.0"
+      - "7.0"
+      - "8.0"
+    requirements:
+      java: "8+"
+      spring: "4.3+"
 
   # Apache TomEE
   tomee:
@@ -602,9 +637,23 @@ platforms:
       jakarta: "9+"
       spring: "self"
 
-# Risk scoring for platform changes
+# Risk scoring for platform changes and deployment artifacts
 riskScoring:
-  majorVersionChange: 10
-  frameworkChange: 6
-  runtimeChange: 5
-  javaVersionChange: 8
+  # Platform-specific base risks
+  platformBaseRisks:
+    websphere: 25
+    liberty: 25
+    wildfly: 20
+    jboss: 20
+    tomcat: 15
+    jetty: 18
+    default: 12
+  
+  # Deployment artifact risk weights
+  deploymentArtifacts:
+    ear: 4        # EAR projects are most complex
+    war: 2        # WAR projects are moderate complexity
+    jar: 1        # JAR projects are low complexity
+  
+  # Legacy risk scoring (for backward compatibility)
+  javaVersionChange: 10
