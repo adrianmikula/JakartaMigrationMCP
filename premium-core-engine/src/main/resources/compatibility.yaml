@@ -9,6 +9,7 @@ maven_artifacts:
 
   safe:
     - org.apache.commons
+    - org.apache.httpcomponents
     - commons-lang
     - commons-io
     - commons-collections
@@ -23,6 +24,7 @@ maven_artifacts:
     - com.fasterxml.jackson.core
     - org.junit.jupiter
     - org.mockito
+    - org.hamcrest
     - com.google.guava
     - org.apache.logging.log4j
 
@@ -35,7 +37,6 @@ maven_artifacts:
     - javax.activation
     - javax.cache
     - javax.measure
-    - org.springframework
 
   upgrade:
     - javax.servlet

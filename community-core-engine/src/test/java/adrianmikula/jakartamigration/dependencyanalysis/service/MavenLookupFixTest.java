@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.dependencyanalysis.service;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 
 import java.util.List;
@@ -28,13 +29,13 @@ public class MavenLookupFixTest {
     @DisplayName("Should find Jakarta equivalents for javax.servlet-api")
     void shouldFindJakartaForJavaxServletApi() throws Exception {
         // Retry up to 3 times for network resilience
-        List<JakartaArtifactMatch> artifacts = null;
+        List<ImprovedMavenCentralLookupService.JakartaArtifactMatch> artifacts = null;
         Exception lastException = null;
         
         for (int attempt = 1; attempt <= 3; attempt++) {
             try {
                 System.out.println("Attempt " + attempt + " for javax.servlet-api lookup...");
-                CompletableFuture<List<JakartaArtifactMatch>> result = 
+                CompletableFuture<List<ImprovedMavenCentralLookupService.JakartaArtifactMatch>> result = 
                     lookupService.findJakartaEquivalents("javax.servlet", "javax.servlet-api");
                 
                 artifacts = result.get(30, TimeUnit.SECONDS);
@@ -83,13 +84,13 @@ public class MavenLookupFixTest {
     @DisplayName("Should find Jakarta equivalents for javax.persistence-api")
     void shouldFindJakartaForJavaxPersistenceApi() throws Exception {
         // Retry up to 3 times for network resilience
-        List<JakartaArtifactMatch> artifacts = null;
+        List<ImprovedMavenCentralLookupService.JakartaArtifactMatch> artifacts = null;
         Exception lastException = null;
         
         for (int attempt = 1; attempt <= 3; attempt++) {
             try {
                 System.out.println("Attempt " + attempt + " for javax.persistence-api lookup...");
-                CompletableFuture<List<JakartaArtifactMatch>> result = 
+                CompletableFuture<List<ImprovedMavenCentralLookupService.JakartaArtifactMatch>> result = 
                     lookupService.findJakartaEquivalents("javax.persistence", "javax.persistence-api");
                 
                 artifacts = result.get(30, TimeUnit.SECONDS);

@@ -83,13 +83,13 @@ public class PlatformsTabComponent {
         updatePremiumControls();
     }
     
-    private JPanel createResultsPanel() {
+    private JComponent createResultsPanel() {
         resultsPanel = new JPanel();
         resultsPanel.setLayout(new BoxLayout(resultsPanel, BoxLayout.Y_AXIS));
         resultsScrollPane = new JBScrollPane(resultsPanel);
         resultsScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         resultsScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        return resultsPanel;
+        return resultsScrollPane;
     }
     
     /**

@@ -692,9 +692,12 @@ public class DependenciesTableComponent {
         System.out.println("[DEBUG] App server deps to upgrade: " + appServerDeps.size());
         System.out.println("[DEBUG] Maven Central javax deps: " + javaxDependencies.size());
         
-        if (javaxDependencies.isEmpty()) {
-            // Refresh UI for app server updates
+        // Refresh UI to show app server upgrades immediately
+        if (!appServerDeps.isEmpty()) {
             SwingUtilities.invokeLater(() -> filterDependencies());
+        }
+        
+        if (javaxDependencies.isEmpty()) {
             return;
         }
         
