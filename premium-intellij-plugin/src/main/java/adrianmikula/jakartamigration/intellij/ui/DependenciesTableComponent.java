@@ -1,8 +1,11 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
+import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
+import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService.JakartaArtifactMatch;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
-import adrianmikula.jakartamigration.intellij.model.JakartaArtifactCoordinates;
+import adrianmikula.jakartamigration.platforms.config.PlatformConfigLoader;
+import adrianmikula.jakartamigration.platforms.model.PlatformConfig;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBPanel;
@@ -16,6 +19,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -25,7 +29,6 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.MouseInputAdapter;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.table.TableCellRenderer;
-import adrianmikula.jakartamigration.intellij.service.MavenCentralService;
 
 /**
  * Dependencies table component with colored status indicators and dependency
@@ -57,6 +60,7 @@ public class DependenciesTableComponent {
     private JButton applyRecipeButton;
     private JLabel selectedDependencyLabel;
     private boolean isPremiumUser = false;
+    private final PlatformConfigLoader platformConfigLoader;
 
     // Status colors
     private static final Color STATUS_COMPATIBLE = new Color(40, 167, 69); // Green
@@ -67,6 +71,7 @@ public class DependenciesTableComponent {
     public DependenciesTableComponent(Project project) {
         this.project = project;
         this.allDependencies = new ArrayList<>();
+        this.platformConfigLoader = new PlatformConfigLoader();
         this.panel = new JBPanel<>(new BorderLayout());
 
         // Columns with Jakarta Equivalent information
@@ -76,9 +81,9 @@ public class DependenciesTableComponent {
                 "Current Version",
                 "Jakarta Equivalent",
                 "Recommended Version",
-                "Compatibility Status",
-                "Dependency Type", // Direct or Transitive
-                "Status" // Colored dot indicator
+                "Status",
+                "Type",
+                "" // Hidden column for DependencyInfo object
         };
 
         this.tableModel = new DefaultTableModel(columns, 0) {
@@ -109,71 +114,87 @@ public class DependenciesTableComponent {
      * Custom cell renderer for status column with colored dot indicator.
      */
     private static class StatusCellRenderer implements TableCellRenderer {
+        private boolean isRendering = false; // Prevent infinite recursion
+        
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
                 boolean isSelected, boolean hasFocus,
                 int row, int column) {
-            // Status column is now at index 7
-            if (column == 7 && value instanceof DependencyInfo) {
-                DependencyInfo dep = (DependencyInfo) value;
-                JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-                panel.setOpaque(true);
+            // Prevent infinite recursion during rendering
+            if (isRendering) {
+                return new JLabel("Rendering...");
+            }
+            
+            isRendering = true;
+            try {
+            // Status column is now at index 5, DependencyInfo at index 7
+            if (column == 5 && row < table.getModel().getRowCount()) {
+                Object depObj = table.getModel().getValueAt(row, 7);
+                if (depObj instanceof DependencyInfo) {
+                    DependencyInfo dep = (DependencyInfo) depObj;
+                    JPanel panel = new JPanel(new BorderLayout());
+                    panel.setOpaque(true);
 
-                // Set background for selection
-                if (isSelected) {
-                    panel.setBackground(table.getSelectionBackground());
-                } else {
-                    if (dep.isOrganizational()) {
-                        panel.setBackground(new Color(230, 240, 255)); // Light blue tint
+                    // Set background for selection
+                    if (isSelected) {
+                        panel.setBackground(table.getSelectionBackground());
                     } else {
-                        panel.setBackground(table.getBackground());
+                        if (dep.isOrganizational()) {
+                            panel.setBackground(new Color(230, 240, 255)); // Light blue tint
+                        } else {
+                            panel.setBackground(table.getBackground());
+                        }
                     }
+
+                    // Create status label with color coding based on Jakarta equivalent availability
+                    String statusText = (String) value;
+                    JLabel statusLabel = new JLabel(statusText);
+                    statusLabel.setFont(table.getFont().deriveFont(Font.BOLD));
+                    statusLabel.setOpaque(true);
+                    statusLabel.setBorder(new EmptyBorder(2, 5, 2, 5));
+
+                    // Color coding: Green = has Jakarta equivalent, Red = no equivalent, Yellow = compatible
+                    boolean hasJakartaEquivalent = dep.getRecommendedArtifactCoordinates() != null 
+                            && !dep.getRecommendedArtifactCoordinates().equals("-");
+                    
+                    if (dep.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE) {
+                        statusLabel.setBackground(new Color(200, 255, 200)); // Light green
+                        statusLabel.setForeground(new Color(0, 100, 0)); // Dark green
+                    } else if (hasJakartaEquivalent) {
+                        statusLabel.setBackground(new Color(255, 255, 200)); // Light yellow
+                        statusLabel.setForeground(new Color(180, 140, 0)); // Dark yellow/gold
+                    } else {
+                        statusLabel.setBackground(new Color(255, 200, 200)); // Light red
+                        statusLabel.setForeground(new Color(150, 0, 0)); // Dark red
+                    }
+
+                    // Add dotted border for transitive dependencies on the panel
+                    if (dep.isTransitive()) {
+                        panel.setBorder(BorderFactory.createCompoundBorder(
+                                BorderFactory.createDashedBorder(Color.GRAY),
+                                new EmptyBorder(2, 2, 2, 2)));
+                    } else {
+                        panel.setBorder(new EmptyBorder(2, 2, 2, 2));
+                    }
+
+                    panel.add(statusLabel, BorderLayout.CENTER);
+                    return panel;
                 }
-
-                // Add dotted border for transitive dependencies
-                if (dep.isTransitive()) {
-                    panel.setBorder(BorderFactory.createCompoundBorder(
-                            BorderFactory.createDashedBorder(Color.GRAY),
-                            new EmptyBorder(5, 2, 5, 2)));
-                } else {
-                    panel.setBorder(new EmptyBorder(5, 0, 5, 0));
-                }
-
-                // Colored status dot
-                JPanel dot = new JPanel();
-                dot.setPreferredSize(new Dimension(12, 12));
-                dot.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
-
-                Color statusColor = getStatusColor(dep.getMigrationStatus());
-                dot.setBackground(statusColor);
-
-                JLabel label = new JLabel(dep.getMigrationStatus() != null
-                        ? dep.getMigrationStatus().getValue()
-                        : "UNKNOWN");
-                label.setFont(table.getFont());
-
-                // Add transitive indicator text
-                if (dep.isTransitive()) {
-                    label.setText(label.getText() + " (Transitive)");
-                    label.setFont(label.getFont().deriveFont(Font.ITALIC));
-                }
-
-                panel.add(dot);
-                panel.add(label);
-                return panel;
             }
 
-            // Default rendering for other columns - truncate text
+            // Default rendering for other columns - check organizational status from hidden column
             JLabel label = new JLabel(value != null ? value.toString() : "");
             label.setOpaque(true);
             if (isSelected) {
                 label.setBackground(table.getSelectionBackground());
             } else {
-                // Determine if this row is organizational (check status column at index 7)
+                // Determine if this row is organizational (check hidden column at index 7)
                 boolean isOrg = false;
-                Object depObj = table.getModel().getValueAt(row, 7);
-                if (depObj instanceof DependencyInfo) {
-                    isOrg = ((DependencyInfo) depObj).isOrganizational();
+                if (row < table.getModel().getRowCount()) {
+                    Object depObj = table.getModel().getValueAt(row, 7);
+                    if (depObj instanceof DependencyInfo) {
+                        isOrg = ((DependencyInfo) depObj).isOrganizational();
+                    }
                 }
 
                 if (isOrg) {
@@ -183,8 +204,11 @@ public class DependenciesTableComponent {
                 }
             }
             label.setHorizontalAlignment(SwingConstants.LEFT);
-
+            
             return label;
+            } finally {
+                isRendering = false;
+            }
         }
 
         private static Color getStatusColor(DependencyMigrationStatus status) {
@@ -242,15 +266,17 @@ public class DependenciesTableComponent {
         table.setFillsViewportHeight(true);
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
-        // Set column widths (7 columns now)
+        // Set column widths (7 columns + 1 hidden)
         table.getColumnModel().getColumn(0).setPreferredWidth(150); // Group ID
         table.getColumnModel().getColumn(1).setPreferredWidth(150); // Artifact ID
-        table.getColumnModel().getColumn(2).setPreferredWidth(90); // Current Version
+        table.getColumnModel().getColumn(2).setPreferredWidth(90);  // Current Version
         table.getColumnModel().getColumn(3).setPreferredWidth(150); // Jakarta Equivalent
-        table.getColumnModel().getColumn(4).setPreferredWidth(90); // Recommended Version
-        table.getColumnModel().getColumn(5).setPreferredWidth(100); // Compatibility Status
-        table.getColumnModel().getColumn(6).setPreferredWidth(80); // Dependency Type
-        table.getColumnModel().getColumn(7).setPreferredWidth(100); // Status
+        table.getColumnModel().getColumn(4).setPreferredWidth(100); // Recommended Version
+        table.getColumnModel().getColumn(5).setPreferredWidth(120); // Status (color-coded)
+        table.getColumnModel().getColumn(6).setPreferredWidth(80);  // Type
+        table.getColumnModel().getColumn(7).setMinWidth(0);       // Hidden DependencyInfo
+        table.getColumnModel().getColumn(7).setMaxWidth(0);
+        table.getColumnModel().getColumn(7).setWidth(0);
 
         // Add mouse listener for double-click navigation
         table.addMouseListener(new MouseInputAdapter() {
@@ -274,14 +300,11 @@ public class DependenciesTableComponent {
 
         // Actions panel
         JPanel actionsPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT));
-        JButton refreshButton = new JButton("Refresh");
-        refreshButton.addActionListener(this::handleRefresh);
         JButton updateButton = new JButton("Update Selected");
         updateButton.addActionListener(this::handleUpdate);
         JButton viewDetailsButton = new JButton("View Details");
         viewDetailsButton.addActionListener(this::handleViewDetails);
 
-        actionsPanel.add(refreshButton);
         actionsPanel.add(updateButton);
         actionsPanel.add(viewDetailsButton);
         
@@ -523,54 +546,120 @@ public class DependenciesTableComponent {
                 ? dep.getRecommendedArtifactCoordinates() 
                 : "-";
         
-        // Compatibility Status
-        String compatibilityStatus = dep.getJakartaCompatibilityStatus() != null 
-                ? dep.getJakartaCompatibilityStatus() 
-                : (dep.getRecommendedVersion() != null && !dep.getRecommendedVersion().equals("-") 
-                        ? "Compatible" : "Unknown");
+        // Compatibility Status - determines color coding
+        String statusText;
+        boolean hasJakartaEquivalent = jakartaEquivalent != null && !jakartaEquivalent.equals("-");
+        
+        if (dep.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE) {
+            statusText = "✓ Compatible";
+        } else if (hasJakartaEquivalent) {
+            statusText = "↑ Upgrade Available";
+        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.NO_JAKARTA_VERSION) {
+            statusText = "✗ No Jakarta Version";
+        } else {
+            statusText = "? Unknown";
+        }
 
-        // Add row with all 8 columns
+        // Add row with all columns - DependencyInfo at column 7 (hidden)
         tableModel.addRow(new Object[] {
                 dep.getGroupId(),
                 dep.getArtifactId(),
                 dep.getCurrentVersion(),
                 jakartaEquivalent,
                 dep.getRecommendedVersion() != null ? dep.getRecommendedVersion() : "-",
-                compatibilityStatus,
+                statusText,
                 dependencyType,
-                dep // Full object for status column (last column)
+                dep // Full object for renderer (hidden column)
         });
-    }
-
-    private void handleRefresh(ActionEvent e) {
-        SwingUtilities.invokeLater(() -> {
-            Messages.showInfoMessage(project, "Refreshing dependency analysis...", "Refresh");
-        });
-        
-        // Query Maven Central for Jakarta equivalents
-        queryMavenCentralForDependencies();
     }
     
     /**
-     * Queries Maven Central for Jakarta equivalents of detected javax dependencies
-     * Uses async/non-blocking approach with proper error handling
+     * Queries Maven Central for Jakarta equivalents of detected javax dependencies.
+     * For app server dependencies (Tomcat, WildFly, etc.), uses platforms.yaml config
+     * to recommend min Jakarta version directly instead of querying Maven Central.
      */
     public void queryMavenCentralForDependencies() {
         if (allDependencies.isEmpty()) {
             return;
         }
         
-        // Find all javax dependencies
-        List<DependencyInfo> javaxDependencies = allDependencies.stream()
-                .filter(dep -> dep.getGroupId() != null && dep.getArtifactId() != null &&
-                        dep.getGroupId().startsWith("javax.") && dep.getArtifactId().startsWith("javax."))
-                .collect(Collectors.toList());
+        // Load platform configurations
+        Map<String, PlatformConfig> platforms = platformConfigLoader.getPlatformConfigs();
+        
+        // Separate app server dependencies from regular javax dependencies
+        List<DependencyInfo> appServerDeps = new ArrayList<>();
+        List<DependencyInfo> javaxDependencies = new ArrayList<>();
+        
+        for (DependencyInfo dep : allDependencies) {
+            if (dep.getGroupId() == null || dep.getArtifactId() == null) {
+                continue;
+            }
+            
+            // Check if this is an app server dependency using group:name format
+            String depGroupId = dep.getGroupId();
+            String depArtifactId = dep.getArtifactId();
+            boolean isAppServer = false;
+            PlatformConfig matchingPlatform = null;
+            
+            for (PlatformConfig platform : platforms.values()) {
+                if (platform.commonArtifacts() != null) {
+                    for (String commonArtifact : platform.commonArtifacts()) {
+                        // Parse group:name format
+                        String[] parts = commonArtifact.split(":");
+                        if (parts.length == 2) {
+                            String artifactGroup = parts[0];
+                            String artifactName = parts[1];
+                            
+                            // Match both group and artifact name
+                            if (depGroupId.equals(artifactGroup) && depArtifactId.equals(artifactName)) {
+                                isAppServer = true;
+                                matchingPlatform = platform;
+                                System.out.println("[DEBUG] Matched app server artifact: " + commonArtifact);
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (isAppServer) break;
+            }
+            
+            if (isAppServer && matchingPlatform != null) {
+                // Check if version is below Jakarta min version
+                String currentVersion = dep.getCurrentVersion();
+                String minJakartaVersion = matchingPlatform.jakartaCompatibility() != null ? 
+                    matchingPlatform.jakartaCompatibility().minVersion() : null;
+                
+                if (minJakartaVersion != null && currentVersion != null) {
+                    // Simple version comparison (assumes semantic versioning)
+                    if (isVersionBelow(currentVersion, minJakartaVersion)) {
+                        // This is a javax-era app server - recommend Jakarta upgrade
+                        dep.setRecommendedArtifactCoordinates(
+                            matchingPlatform.name() + " " + minJakartaVersion + "+ (Jakarta EE)");
+                        dep.setJakartaCompatibilityStatus("Upgrade to " + minJakartaVersion + "+");
+                        dep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
+                        appServerDeps.add(dep);
+                        System.out.println("[DEBUG] App server using javax: " + dep.getGroupId() + ":" + 
+                            dep.getArtifactId() + " v" + currentVersion + " -> recommend " + minJakartaVersion + "+");
+                    } else {
+                        // Already Jakarta-compatible
+                        dep.setMigrationStatus(DependencyMigrationStatus.COMPATIBLE);
+                    }
+                }
+            } else if (dep.getGroupId().startsWith("javax.")) {
+                javaxDependencies.add(dep);
+            }
+        }
+        
+        System.out.println("[DEBUG] App server deps to upgrade: " + appServerDeps.size());
+        System.out.println("[DEBUG] Maven Central javax deps: " + javaxDependencies.size());
         
         if (javaxDependencies.isEmpty()) {
+            // Refresh UI for app server updates
+            SwingUtilities.invokeLater(() -> filterDependencies());
             return;
         }
         
-        // Show progress bar
+        // Continue with Maven Central lookup for remaining javax dependencies
         isQueryingMaven = true;
         SwingUtilities.invokeLater(() -> {
             progressBar.setVisible(true);
@@ -578,9 +667,8 @@ public class DependenciesTableComponent {
             progressBar.setString("Querying Maven Central for " + javaxDependencies.size() + " dependencies...");
         });
         
-        MavenCentralService mavenService = new MavenCentralService();
+        ImprovedMavenCentralLookupService mavenService = new ImprovedMavenCentralLookupService();
         
-        // Create a list of CompletableFutures for each dependency lookup
         List<CompletableFuture<Void>> lookupFutures = javaxDependencies.stream()
                 .map(javaxDep -> 
                     mavenService.findJakartaEquivalents(javaxDep.getGroupId(), javaxDep.getArtifactId())
@@ -590,26 +678,20 @@ public class DependenciesTableComponent {
                             .exceptionally(throwable -> {
                                 LOGGER.warning("Failed to query Maven Central for " + javaxDep.getGroupId() + ":" + 
                                            javaxDep.getArtifactId() + " - " + throwable.getMessage());
-                                return null; // Continue processing other dependencies
+                                return null;
                             })
                 )
                 .collect(Collectors.toList());
         
-        // Wait for all lookups to complete
         CompletableFuture.allOf(lookupFutures.toArray(new CompletableFuture[0]))
                 .thenRun(() -> {
                     SwingUtilities.invokeLater(() -> {
                         isQueryingMaven = false;
                         progressBar.setVisible(false);
                         progressBar.setIndeterminate(false);
-                        filterDependencies(); // Re-apply filters with updated data
+                        filterDependencies();
                         
-                        long successfulLookups = lookupFutures.stream()
-                                .mapToLong(f -> f.isCompletedExceptionally() ? 0 : 1)
-                                .sum();
-                        
-                        LOGGER.info("Maven Central query completed. Successfully processed " + 
-                                successfulLookups + " of " + javaxDependencies.size() + " dependencies.");
+                        LOGGER.info("Maven Central query completed.");
                     });
                 })
                 .exceptionally(throwable -> {
@@ -618,12 +700,26 @@ public class DependenciesTableComponent {
                         isQueryingMaven = false;
                         progressBar.setVisible(false);
                         progressBar.setIndeterminate(false);
-                        Messages.showErrorDialog(project, 
-                                "An unexpected error occurred during Maven Central lookup: " + throwable.getMessage(), 
-                                "Query Error");
                     });
                     return null;
                 });
+    }
+    
+    /**
+     * Simple version comparison. Assumes semantic versioning.
+     * Returns true if v1 is below v2.
+     */
+    private boolean isVersionBelow(String v1, String v2) {
+        try {
+            String[] parts1 = v1.split("\\.")[0].split("-");
+            String[] parts2 = v2.split("\\.")[0].split("-");
+            int major1 = Integer.parseInt(parts1[0]);
+            int major2 = Integer.parseInt(parts2[0]);
+            return major1 < major2;
+        } catch (Exception e) {
+            // If parsing fails, assume it needs upgrade
+            return true;
+        }
     }
     
     /**
@@ -633,26 +729,29 @@ public class DependenciesTableComponent {
      * @param javaxDep original javax dependency
      * @param jakartaArtifacts list of Jakarta artifacts found
      */
-    private synchronized void updateDependencyWithJakartaInfo(DependencyInfo javaxDep, List<JakartaArtifactCoordinates> jakartaArtifacts) {
+    private synchronized void updateDependencyWithJakartaInfo(DependencyInfo javaxDep, List<JakartaArtifactMatch> jakartaArtifacts) {
         if (jakartaArtifacts == null || jakartaArtifacts.isEmpty()) {
             // No Jakarta artifacts found
             javaxDep.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
             return;
         }
         
-        // Use best match (first result for now, could be enhanced with version comparison)
-        JakartaArtifactCoordinates bestMatch = jakartaArtifacts.get(0);
+        // Filter to only found artifacts and get best match
+        JakartaArtifactMatch bestMatch = jakartaArtifacts.stream()
+                .filter(JakartaArtifactMatch::found)
+                .findFirst()
+                .orElse(null);
+        
+        if (bestMatch == null) {
+            javaxDep.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
+            return;
+        }
         
         // Update dependency with Jakarta information
-        javaxDep.setRecommendedArtifactCoordinates(bestMatch.getCoordinates());
-        javaxDep.setJakartaCompatibilityStatus(bestMatch.status().getValue());
-        
-        // Update migration status based on found artifacts
-        if (bestMatch.status() == DependencyMigrationStatus.COMPATIBLE) {
-            javaxDep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
-        } else {
-            javaxDep.setMigrationStatus(bestMatch.status());
-        }
+        String coordinates = bestMatch.groupId() + ":" + bestMatch.artifactId() + ":" + bestMatch.version();
+        javaxDep.setRecommendedArtifactCoordinates(coordinates);
+        javaxDep.setJakartaCompatibilityStatus("Compatible");
+        javaxDep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
         
         // Update dependency in master list
         for (int i = 0; i < allDependencies.size(); i++) {
@@ -665,9 +764,9 @@ public class DependenciesTableComponent {
                 updatedDep.setGroupId(dep.getGroupId());
                 updatedDep.setArtifactId(dep.getArtifactId());
                 updatedDep.setCurrentVersion(dep.getCurrentVersion());
-                updatedDep.setRecommendedArtifactCoordinates(bestMatch.getCoordinates());
-                updatedDep.setJakartaCompatibilityStatus(bestMatch.status().getValue());
-                updatedDep.setMigrationStatus(javaxDep.getMigrationStatus());
+                updatedDep.setRecommendedArtifactCoordinates(coordinates);
+                updatedDep.setJakartaCompatibilityStatus("Compatible");
+                updatedDep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
                 updatedDep.setTransitive(dep.isTransitive());
                 updatedDep.setOrganizational(dep.isOrganizational());
                 

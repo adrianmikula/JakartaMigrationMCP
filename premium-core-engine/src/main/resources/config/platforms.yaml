@@ -92,17 +92,14 @@ platforms:
         regex: "<Connector[^>]*port=\"([0-9]+)\""
         versionGroup: 1
     commonArtifacts:
-      - "tomcat-embed-core"
-      - "tomcat-embed-jasper"
-      - "tomcat-catalina"
-      - "tomcat-coyote"
-      - "tomcat-juli"
-      - "tomcat-util"
-      - "tomcat-util-scan"
-      - "org.apache.tomcat.embed"
-      - "org.apache.tomcat.jasper"
-      - "org.apache.tomcat.catalina"
-      - "org.apache.tomcat.util"
+      - "org.apache.tomcat.embed:tomcat-embed-core"
+      - "org.apache.tomcat.embed:tomcat-embed-jasper"
+      - "org.apache.tomcat:tomcat-catalina"
+      - "org.apache.tomcat:tomcat-coyote"
+      - "org.apache.tomcat:tomcat-juli"
+      - "org.apache.tomcat:tomcat-util"
+      - "org.apache.tomcat:tomcat-util-scan"
+      - "org.apache.tomcat:tomcat-servlet-api"
     jakartaCompatibility:
       minVersion: "10.0"
       supportedVersions:
@@ -130,25 +127,18 @@ platforms:
         regex: "version=\"([0-9]+\\.[0-9]+\\.[0-9]+)\""
         versionGroup: 1
     commonArtifacts:
-      - "wildfly-ee"
-      - "wildfly-core"
-      - "wildfly-undertow"
-      - "wildfly-client"
-      - "wildfly-logging"
-      - "wildfly-naming"
-      - "wildfly-security"
-      - "wildfly-transactions"
-      - "org.wildfly.core"
-      - "org.wildfly.undertow"
-      - "org.wildfly.client"
-      - "org.wildfly.extension"
-      - "org.wildfly.security"
-      - "org.wildfly"
-      - "wildfly-arquillian-container-managed"
-      - "wildfly-arquillian-container-remote"
-      - "wildfly-dist"
-      - "org.jboss.as"
-      - "jboss-as"
+      - "org.wildfly:wildfly-ee"
+      - "org.wildfly.core:wildfly-core"
+      - "org.wildfly:wildfly-undertow"
+      - "org.wildfly:wildfly-client"
+      - "org.wildfly:wildfly-logging"
+      - "org.wildfly:wildfly-naming"
+      - "org.wildfly:wildfly-security"
+      - "org.wildfly:wildfly-transactions"
+      - "org.wildfly.arquillian:wildfly-arquillian-container-managed"
+      - "org.wildfly.arquillian:wildfly-arquillian-container-remote"
+      - "org.wildfly:wildfly-dist"
+      - "org.jboss.as:jboss-as"
     jakartaCompatibility:
       minVersion: "27.0"
       supportedVersions:
@@ -177,25 +167,22 @@ platforms:
         regex: "jetty-server-([0-9]+)\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
     commonArtifacts:
-      - "jetty-server"
-      - "jetty-servlet"
-      - "jetty-servlets"
-      - "jetty-webapp"
-      - "jetty-annotations"
-      - "jetty-client"
-      - "jetty-continuation"
-      - "jetty-http"
-      - "jetty-io"
-      - "jetty-jmx"
-      - "jetty-jndi"
-      - "jetty-plus"
-      - "jetty-security"
-      - "jetty-util"
-      - "org.eclipse.jetty"
-      - "org.eclipse.jetty.server"
-      - "org.eclipse.jetty.servlet"
-      - "org.eclipse.jetty.client"
-      - "org.eclipse.jetty.websocket"
+      - "org.eclipse.jetty:jetty-server"
+      - "org.eclipse.jetty:jetty-servlet"
+      - "org.eclipse.jetty:jetty-servlets"
+      - "org.eclipse.jetty:jetty-webapp"
+      - "org.eclipse.jetty:jetty-annotations"
+      - "org.eclipse.jetty:jetty-client"
+      - "org.eclipse.jetty:jetty-continuation"
+      - "org.eclipse.jetty:jetty-http"
+      - "org.eclipse.jetty:jetty-io"
+      - "org.eclipse.jetty:jetty-jmx"
+      - "org.eclipse.jetty:jetty-jndi"
+      - "org.eclipse.jetty:jetty-plus"
+      - "org.eclipse.jetty:jetty-security"
+      - "org.eclipse.jetty:jetty-util"
+      - "org.eclipse.jetty.websocket:websocket-jetty-server"
+      - "org.eclipse.jetty.websocket:websocket-jetty-client"
     jakartaCompatibility:
       minVersion: "12.0"
       supportedVersions:
@@ -222,12 +209,10 @@ platforms:
         regex: "WLP_USER_DIR=([^\n]+)"
         versionGroup: 1
     commonArtifacts:
-      - "liberty"
-      - "wlp.lib"
-      - "com.ibm.websphere.appserver.api"
-      - "com.ibm.websphere.appserver.spi"
-      - "com.ibm.websphere.appserver.web"
-      - "io.openliberty"
+      - "com.ibm.websphere.appserver:liberty"
+      - "io.openliberty:openliberty-kernel"
+      - "io.openliberty:openliberty-webProfile"
+      - "io.openliberty:openliberty-jakartaee"
     jakartaCompatibility:
       minVersion: "23.0"
       supportedVersions:
@@ -253,13 +238,10 @@ platforms:
         regex: "version=\"([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\""
         versionGroup: 1
     commonArtifacts:
-      - "com.ibm.websphere"
-      - "com.ibm.ws"
-      - "com.ibm.websphere.appserver"
-      - "websphere-api"
-      - "websphere-embedded-api"
-      - "net.wasdev.maven.tools.targets"
-      - "com.ibm.websphere.pbw"
+      - "com.ibm.websphere:websphere"
+      - "com.ibm.ws:ws-javaee"
+      - "com.ibm.websphere.appserver:websphere-api"
+      - "net.wasdev.maven.tools.targets:websphere-embedded-api"
     jakartaCompatibility:
       minVersion: "9.0"
       supportedVersions:
@@ -284,23 +266,10 @@ platforms:
         regex: "tomee-catalina-([0-9]+)\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
     commonArtifacts:
-      - "tomee-embedded"
-      - "tomee-webapp"
-      - "tomee-ee"
-      - "tomee-microprofile"
-      - "fish.payara.api"
-      - "fish.payara.core"
-      - "fish.payara.enterprise"
-      - "fish.payara.extras"
-      - "fish.payara.nucleus"
-      - "fish.payara.security"
-      - "org.glassfish.main"
-      - "org.glassfish.web"
-      - "org.glassfish.jersey"
-      - "org.glassfish.jaxb"
-      - "org.glassfish.jersey.core"
-      - "org.glassfish.jersey.media"
-      - "org.glassfish.jersey.server"
+      - "org.apache.tomee:tomee-embedded"
+      - "org.apache.tomee:tomee-webapp"
+      - "org.apache.tomee:tomee-ee"
+      - "org.apache.tomee:tomee-microprofile"
     jakartaCompatibility:
       minVersion: "9.0"
       supportedVersions:
@@ -327,18 +296,9 @@ platforms:
         regex: "glassfish-([0-9]+)\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
     commonArtifacts:
-      - "glassfish"
-      - "glassfish-embedded"
-      - "glassfish-web"
-      - "glassfish-jersey"
-      - "glassfish-jaxb"
-      - "org.glassfish.main"
-      - "org.glassfish.web"
-      - "org.glassfish.jersey"
-      - "org.glassfish.jaxb"
-      - "org.glassfish.jersey.core"
-      - "org.glassfish.jersey.media"
-      - "org.glassfish.jersey.server"
+      - "org.glassfish.main:glassfish-main"
+      - "org.glassfish.main:glassfish-embedded"
+      - "org.glassfish.web:glassfish-web"
     jakartaCompatibility:
       minVersion: "7.0"
       supportedVersions:
@@ -356,7 +316,7 @@ platforms:
   # NetBeans IDE Detection
   netbeans:
     name: "NetBeans IDE"
-    description: "Apache NetBeans IDE version"
+    description: "Apache NetBeans IDE version and platform"
     patterns:
       - file: "netbeans.conf"
         regex: "netbeans_jdkhome=\"([^\"]+)\""
@@ -364,11 +324,19 @@ platforms:
       - file: "etc/netbeans.clusters"
         regex: "netbeans_id=\"([^\"]+)\""
         versionGroup: 1
+      - file: "netbeans-platform.jar"
+        regex: "netbeans-platform-([0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "cluster.json"
+        regex: "version\":\"([0-9]+\\.[0-9]+)\""
+        versionGroup: 1
     commonArtifacts:
-      - "org.netbeans.modules"
-      - "org.netbeans.api"
-      - "org.netbeans.swing"
-      - "org.netbeans.ide"
+      - "org.netbeans.modules:org-netbeans-modules-java-platform"
+      - "org.netbeans.api:org-netbeans-api-java"
+      - "org.netbeans.api:org-netbeans-api-progress"
+      - "org.netbeans.modules:org-netbeans-modules-projectapi"
+      - "org.netbeans.api:org-netbeans-api-lsp"
+      - "org.openide.util:org-openide-util"
     jakartaCompatibility:
       minVersion: "12.0"
       supportedVersions:
@@ -379,6 +347,9 @@ platforms:
         - "12.4"
         - "12.5"
         - "12.6"
+        - "22.0"
+        - "21.0"
+        - "20.0"
     javaxVersions:
       - "11.0"
       - "12.0"
@@ -402,19 +373,15 @@ platforms:
         regex: "<spring-boot\\.version>([0-9]+\\.[0-9]+\\.[0-9]+)</spring-boot\\.version>"
         versionGroup: 1
     commonArtifacts:
-      - "spring-boot-starter-parent"
-      - "spring-boot-dependencies"
-      - "spring-boot-devtools"
-      - "spring-boot-actuator"
-      - "spring-boot-autoconfigure"
-      - "spring-boot-starter-web"
-      - "spring-boot-starter-data-jpa"
-      - "spring-boot-starter-security"
-      - "spring-boot-starter-test"
-      - "org.springframework.boot"
-      - "org.springframework.boot.actuator"
-      - "org.springframework.boot.autoconfigure"
-      - "org.springframework.boot.test"
+      - "org.springframework.boot:spring-boot-starter-parent"
+      - "org.springframework.boot:spring-boot-dependencies"
+      - "org.springframework.boot:spring-boot-devtools"
+      - "org.springframework.boot:spring-boot-actuator"
+      - "org.springframework.boot:spring-boot-autoconfigure"
+      - "org.springframework.boot:spring-boot-starter-web"
+      - "org.springframework.boot:spring-boot-starter-data-jpa"
+      - "org.springframework.boot:spring-boot-starter-security"
+      - "org.springframework.boot:spring-boot-starter-test"
     jakartaCompatibility:
       minVersion: "3.0"
       supportedVersions:
@@ -444,24 +411,10 @@ platforms:
         regex: "payara-([0-9]+)\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
     commonArtifacts:
-      - "payara"
-      - "payara-embedded"
-      - "payara-api"
-      - "payara-nucleus"
-      - "payara-security"
-      - "fish.payara.api"
-      - "fish.payara.core"
-      - "fish.payara.enterprise"
-      - "fish.payara.extras"
-      - "fish.payara.nucleus"
-      - "fish.payara.security"
-      - "org.glassfish.main"
-      - "org.glassfish.web"
-      - "org.glassfish.jersey"
-      - "org.glassfish.jaxb"
-      - "org.glassfish.jersey.core"
-      - "org.glassfish.jersey.media"
-      - "org.glassfish.jersey.server"
+      - "fish.payara.extras:payara-embedded"
+      - "fish.payara.extras:payara-micro"
+      - "fish.payara.api:payara-api"
+      - "fish.payara.nucleus:payara-nucleus"
     jakartaCompatibility:
       minVersion: "7.0"
       supportedVersions:
@@ -488,21 +441,8 @@ platforms:
         regex: "version=\"([0-9]+\\.[0-9]+\\.[0-9]+)\""
         versionGroup: 1
     commonArtifacts:
-      - "jboss-eap"
-      - "jboss-eap-embedded"
-      - "jboss-eap-transactions"
-      - "jboss-eap-logging"
-      - "jboss-eap-naming"
-      - "jboss-eap-security"
-      - "jboss-eap-system"
-      - "org.jboss.eap"
-      - "org.jboss.eap.embed"
-      - "org.jboss.eap.transactions"
-      - "org.jboss.eap.logging"
-      - "org.jboss.eap.naming"
-      - "org.jboss.eap.security"
-      - "org.jboss.eap.system"
-      - "org.wildfly.security"
+      - "org.jboss.eap:jboss-eap-dist"
+      - "org.jboss.eap:jboss-eap-embedded"
     jakartaCompatibility:
       minVersion: "8.0"
       supportedVersions:
@@ -529,19 +469,9 @@ platforms:
         regex: "version=\"([0-9]+\\.[0-9]+\\.[0-9]+)\""
         versionGroup: 1
     commonArtifacts:
-      - "glassfish"
-      - "javax.servlet"
-      - "javax.persistence"
-      - "javax.transaction"
-      - "javax.annotation"
-      - "javax.ejb"
-      - "javax.faces"
-      - "javax.jms"
-      - "javax.validation"
-      - "org.glassfish"
-      - "org.glassfish.main"
-      - "org.glassfish.jersey"
-      - "org.glassfish.javax"
+      - "org.glassfish.main:glassfish"
+      - "org.glassfish:javax.faces"
+      - "org.glassfish:javax.json"
     jakartaCompatibility:
       minVersion: "7.0"
       supportedVersions:
@@ -558,43 +488,6 @@ platforms:
       jakarta: "9+"
       spring: "5+"
 
-  # NetBeans
-  netbeans:
-    name: "NetBeans"
-    description: "Apache NetBeans IDE platform"
-    patterns:
-      - file: "netbeans-platform.jar"
-        regex: "netbeans-platform-([0-9]+\\.[0-9]+)"
-        versionGroup: 1
-      - file: "cluster.json"
-        regex: "version\":\"([0-9]+\\.[0-9]+)\""
-        versionGroup: 1
-    commonArtifacts:
-      - "org.netbeans.modules"
-      - "org.netbeans.api"
-      - "org.openide.modules"
-      - "org.openide.util"
-      - "org.openide.windows"
-      - "org.netbeans.swing"
-      - "org.openide.awt"
-      - "org.openide.filesystems"
-      - "org.netbeans.bootstrap"
-      - "org.netbeans.core"
-    jakartaCompatibility:
-      minVersion: "22.0"
-      supportedVersions:
-        - "22.0"
-        - "21.0"
-        - "20.0"
-    javaxVersions:
-      - "12.6"
-      - "12.5"
-      - "12.4"
-    requirements:
-      java: "17+"
-      jakarta: "9+"
-      spring: "6+"
-
   # Spring Boot (as application server)
   springboot:
     name: "Spring Boot"
@@ -607,20 +500,16 @@ platforms:
         regex: "spring.boot.version=([0-9]+\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
     commonArtifacts:
-      - "spring-boot-starter"
-      - "spring-boot-starter-web"
-      - "spring-boot-starter-data-jpa"
-      - "spring-boot-starter-actuator"
-      - "spring-boot-starter-security"
-      - "spring-boot-starter-test"
-      - "spring-boot-starter-validation"
-      - "spring-boot-autoconfigure"
-      - "spring-boot-loader"
-      - "spring-boot"
-      - "org.springframework.boot"
-      - "org.springframework.web"
-      - "org.springframework.data"
-      - "org.springframework.security"
+      - "org.springframework.boot:spring-boot-starter"
+      - "org.springframework.boot:spring-boot-starter-web"
+      - "org.springframework.boot:spring-boot-starter-data-jpa"
+      - "org.springframework.boot:spring-boot-starter-actuator"
+      - "org.springframework.boot:spring-boot-starter-security"
+      - "org.springframework.boot:spring-boot-starter-test"
+      - "org.springframework.boot:spring-boot-starter-validation"
+      - "org.springframework.boot:spring-boot-autoconfigure"
+      - "org.springframework.boot:spring-boot-loader"
+      - "org.springframework.boot:spring-boot"
     jakartaCompatibility:
       minVersion: "3.0"
       supportedVersions:

@@ -15,7 +15,7 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
     private MigrationPhasesComponent phasesComponent;
 
     @Override
-    protected void setUp() throws Exception {
+    public void setUp() throws Exception {
         super.setUp();
         phasesComponent = new MigrationPhasesComponent(getProject());
     }

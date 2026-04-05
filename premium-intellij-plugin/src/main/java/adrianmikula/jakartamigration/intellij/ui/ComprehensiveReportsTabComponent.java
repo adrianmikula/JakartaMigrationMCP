@@ -1,8 +1,12 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
-import adrianmikula.jakartamigration.reporting.domain.ComprehensiveScanResults;
-import adrianmikula.jakartamigration.reporting.service.ComprehensiveReportService;
+import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
+import adrianmikula.jakartamigration.pdfreporting.service.PdfReportService;
+import adrianmikula.jakartamigration.pdfreporting.service.impl.PdfReportServiceImpl;
+import adrianmikula.jakartamigration.pdfreporting.domain.ReportTemplate;
+import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
+import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults.ScanSummary;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBPanel;
@@ -14,11 +18,12 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+
+import static java.util.Map.of;
 
 /**
  * Comprehensive Reports tab component for generating
@@ -28,7 +33,7 @@ import java.util.Map;
 public class ComprehensiveReportsTabComponent {
     
     private final Project project;
-    private final ComprehensiveReportService reportService;
+    private PdfReportService reportService;
     
     // UI Components
     private JPanel mainPanel;
@@ -40,24 +45,14 @@ public class ComprehensiveReportsTabComponent {
     
     public ComprehensiveReportsTabComponent(@NotNull Project project) {
         this.project = project;
-        this.reportService = new ComprehensiveReportService() {
-            @Override
-            public String generateComprehensiveReport(Project project, DependencyGraph dependencyGraph, ComprehensiveScanResults scanResults, String outputPath, Map<String, String> customData) {
-                // Simple stub implementation for now
-                return "PDF generation temporarily disabled";
-            }
-        };
+        this.reportService = new PdfReportServiceImpl();
         
-        // Initialize UI components
-        mainPanel = new JPanel(new BorderLayout());
-        generateReportButton = new JButton("Generate Comprehensive Report");
-        progressBar = new JProgressBar();
-        progressBar.setVisible(false);
-        statusLabel = new JBLabel("Ready to generate report");
-        outputArea = new JBTextArea();
-        outputArea.setEditable(false);
-        outputArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        scrollPane = new JBScrollPane(outputArea);
+        createUI();
+        initializeComponent();
+    }
+    
+    private void createUI() {
+        mainPanel = new JBPanel<>(new BorderLayout());
         
         // Layout components
         JPanel headerPanel = createHeaderPanel();
@@ -67,9 +62,6 @@ public class ComprehensiveReportsTabComponent {
         mainPanel.add(headerPanel, BorderLayout.NORTH);
         mainPanel.add(contentPanel, BorderLayout.CENTER);
         mainPanel.add(actionsPanel, BorderLayout.SOUTH);
-        
-        // Set up action listeners
-        generateReportButton.addActionListener(this::handleGenerateReport);
     }
     
     /**
@@ -79,22 +71,17 @@ public class ComprehensiveReportsTabComponent {
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBorder(JBUI.Borders.empty(10));
         
-        JLabel titleLabel = new JBLabel("Comprehensive Migration Report");
-        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
+        JLabel titleLabel = new JLabel("Comprehensive Migration Reports");
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 14f));
         
-        JLabel descriptionLabel = new JBLabel("<html><body style='width: 600px'>" +
-                "Generate a comprehensive PDF report combining dashboard analysis, " +
-                "dependency graphs, and detailed scan results. " +
-                "This report provides executive summary, risk assessment, " +
-                "detailed findings, and migration recommendations." +
-                "</body></html>");
-        descriptionLabel.setFont(descriptionLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        JLabel descLabel = new JLabel("<html><center>Generate detailed migration reports with dashboard data, dependency analysis, and platform scan results.</center></html>");
+        descLabel.setFont(descLabel.getFont().deriveFont(Font.PLAIN, 11f));
         
         JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         titlePanel.add(titleLabel);
         
         JPanel descPanel = new JPanel(new BorderLayout());
-        descPanel.add(descriptionLabel, BorderLayout.CENTER);
+        descPanel.add(descLabel, BorderLayout.CENTER);
         
         headerPanel.add(titlePanel, BorderLayout.NORTH);
         headerPanel.add(descPanel, BorderLayout.CENTER);
@@ -103,30 +90,21 @@ public class ComprehensiveReportsTabComponent {
     }
     
     /**
-     * Creates content panel with progress and output
+     * Creates content panel with output area
      */
     private JPanel createContentPanel() {
         JPanel contentPanel = new JPanel(new BorderLayout());
         contentPanel.setBorder(JBUI.Borders.empty(10));
         
-        // Progress section
-        JPanel progressPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        progressPanel.add(new JBLabel("Status:"));
-        progressPanel.add(progressBar);
-        progressPanel.add(statusLabel);
+        outputArea = new JBTextArea();
+        outputArea.setEditable(false);
+        outputArea.setBackground(Color.WHITE);
+        outputArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
         
-        // Output section
-        JPanel outputPanel = new JPanel(new BorderLayout());
-        outputPanel.setBorder(JBUI.Borders.compound(
-                JBUI.Borders.empty(5, 5, 5, 5),
-                BorderFactory.createTitledBorder("Report Output")
-        ));
+        scrollPane = new JScrollPane(outputArea);
+        scrollPane.setPreferredSize(new Dimension(600, 200));
         
-        outputPanel.add(new JBLabel("Output:"), BorderLayout.NORTH);
-        outputPanel.add(scrollPane, BorderLayout.CENTER);
-        
-        contentPanel.add(progressPanel, BorderLayout.NORTH);
-        contentPanel.add(outputPanel, BorderLayout.CENTER);
+        contentPanel.add(scrollPane, BorderLayout.CENTER);
         
         return contentPanel;
     }
@@ -136,9 +114,27 @@ public class ComprehensiveReportsTabComponent {
      */
     private JPanel createActionsPanel() {
         JPanel actionsPanel = new JPanel(new FlowLayout());
+        generateReportButton = new JButton("Generate Report");
         generateReportButton.setToolTipText("Generate comprehensive migration report with dashboard data and scan results");
         actionsPanel.add(generateReportButton);
+        
         return actionsPanel;
+    }
+    
+    /**
+     * Initializes the component
+     */
+    private void initializeComponent() {
+        // Set up action listeners
+        generateReportButton.addActionListener(this::handleGenerateReport);
+        
+        // Initialize progress bar
+        progressBar = new JProgressBar();
+        progressBar.setIndeterminate(true);
+        progressBar.setVisible(false);
+        
+        // Initialize status label
+        statusLabel = new JLabel("Ready to generate report");
     }
     
     /**
@@ -152,45 +148,46 @@ public class ComprehensiveReportsTabComponent {
             statusLabel.setText("Generating comprehensive report...");
             generateReportButton.setEnabled(false);
             
-            // Get data from dashboard and scan results
-            DependencyGraph dependencyGraph = getDependencyGraph();
-            ComprehensiveScanResults scanResults = getScanResults();
-            
-            // Prepare custom data
-            Map<String, String> customData = new HashMap<>();
-            customData.put("projectName", project.getName());
-            customData.put("pluginVersion", getPluginVersion());
-            customData.put("jdkVersion", System.getProperty("java.version", "Unknown"));
-            customData.put("buildSystem", "Gradle");
-            
-            // Generate report
+            // Generate PDF report
             String outputPath = chooseOutputLocation();
             if (outputPath == null) {
                 statusLabel.setText("Report generation cancelled");
                 return;
             }
             
-            String result = reportService.generateComprehensiveReport(
-                    project,
-                    dependencyGraph,
-                    scanResults,
-                    outputPath,
-                    customData
+            Map<String, Object> customData = of(
+                    "projectName", project.getName(),
+                    "pluginVersion", getPluginVersion(),
+                    "jdkVersion", System.getProperty("java.version", "Unknown"),
+                    "buildSystem", "Gradle"
             );
             
-            // Show result
-            outputArea.setText("Comprehensive report generated successfully!\n");
-            outputArea.append("Output file: " + result + "\n");
+            java.nio.file.Path resultPath = reportService.generateComprehensiveReport(
+                new PdfReportService.GeneratePdfReportRequest(
+                    Paths.get(outputPath),
+                    getDependencyGraph(),
+                    null,
+                    getScanResults(),
+                    reportService.getDefaultTemplate(),
+                    customData
+                )
+            );
             
-            // Ask if user wants to open file
+            String resultString = resultPath.toString();
+            
+            // Show success and ask to open file
+            outputArea.setText("PDF report generated successfully!\n");
+            outputArea.append("Output file: " + resultString + "\n");
+            
             int choice = com.intellij.openapi.ui.Messages.showYesNoDialog(
-                    project,
-                    "Comprehensive report generated successfully!\n\nWould you like to open PDF file?",
-                    "Report Generated",
-                    com.intellij.openapi.ui.Messages.getQuestionIcon());
+                project,
+                "PDF report generated successfully!\n\nWould you like to open PDF file?",
+                "Report Generated",
+                com.intellij.openapi.ui.Messages.getQuestionIcon()
+            );
             
             if (choice == com.intellij.openapi.ui.Messages.YES) {
-                openFile(result);
+                openFile(resultString);
             }
             
         } catch (Exception ex) {
@@ -209,8 +206,50 @@ public class ComprehensiveReportsTabComponent {
      * Chooses output location for report
      */
     private String chooseOutputLocation() {
-        // For now, use a fixed location in project directory
-        return project.getBasePath();
+        // Use project directory with timestamped filename
+        String timestamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+        return project.getBasePath() + "/Jakarta_Migration_Report_" + timestamp + ".pdf";
+    }
+    
+    /**
+     * Gets dependency graph (placeholder implementation)
+     */
+    private DependencyGraph getDependencyGraph() {
+        return new DependencyGraph() {
+            public List<DependencyInfo> getAllDependencies() {
+                return Collections.emptyList();
+            }
+            
+            public int getTotalDependencies() {
+                return 0;
+            }
+        };
+    }
+    
+    /**
+     * Gets scan results (placeholder implementation)
+     */
+    private ComprehensiveScanResults getScanResults() {
+        return new ComprehensiveScanResults(
+                "/test/project",
+                java.time.LocalDateTime.now(),
+                java.util.Collections.emptyMap(),
+                java.util.Collections.emptyMap(),
+                java.util.Collections.emptyMap(),
+                java.util.Collections.emptyMap(),
+                java.util.Collections.emptyMap(),
+                java.util.Collections.emptyMap(),
+                java.util.Collections.emptyList(),
+                0,
+                new ScanSummary(0, 0, 0, 0, 0, 0.0)
+        );
+    }
+    
+    /**
+     * Gets plugin version
+     */
+    private String getPluginVersion() {
+        return "1.0.8";
     }
     
     /**
@@ -224,50 +263,7 @@ public class ComprehensiveReportsTabComponent {
         }
     }
     
-    /**
-     * Gets dependency graph (placeholder implementation)
-     */
-    private DependencyGraph getDependencyGraph() {
-        // This would integrate with the actual dependency graph component
-        // For now, return a simple placeholder
-        return new DependencyGraph() {
-            public java.util.List<String> getDependencyNodes() {
-                return java.util.Collections.emptyList();
-            }
-        };
-    }
-    
-    /**
-     * Gets scan results (placeholder implementation)
-     */
-    private ComprehensiveScanResults getScanResults() {
-        // This would integrate with the actual scan results
-        // For now, return a simple placeholder
-        return new ComprehensiveScanResults(
-                java.util.Collections.emptyList(), // securityIssues
-                java.util.Collections.emptyList(), // performanceIssues
-                java.util.Collections.emptyList(), // compatibilityIssues
-                java.util.Collections.emptyList(), // dataMigrationIssues
-                java.util.Collections.emptyList(), // configurationIssues
-                java.util.Collections.emptyList(), // buildSystemIssues
-                java.util.Collections.emptyList(), // thirdPartyLibIssues
-                0, // totalDependencies
-                0  // totalIssuesFound
-        );
-    }
-    
-    /**
-     * Gets plugin version
-     */
-    private String getPluginVersion() {
-        // Simplified version retrieval without PluginId
-        return "1.0.8"; // Return known version
-    }
-    
-    /**
-     * Gets main panel for this component
-     */
-    public JPanel getPanel() {
+    public JComponent getPanel() {
         return mainPanel;
     }
 }

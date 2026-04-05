@@ -45,8 +45,8 @@ public class RiskScoringConfig {
         platformBaseRisks.put("default", 12);
         
         // Deployment artifacts
-        deploymentArtifacts.put("ear", 8);
-        deploymentArtifacts.put("war", 4);
+        deploymentArtifacts.put("ear", 4);
+        deploymentArtifacts.put("war", 2);
         deploymentArtifacts.put("jar", 1);
         
         // Fixed calculation values (simplified approach)

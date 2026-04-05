@@ -67,21 +67,21 @@ public class FeatureFlagsProperties {
      * Get monthly subscription price in USD from pricing.properties
      */
     public static double getMonthlyPriceUsd() {
-        return Double.parseDouble(PRICING_PROPERTIES.getProperty("jakarta.migration.pricing.monthly.usd", "?"));
+        return Double.parseDouble(PRICING_PROPERTIES.getProperty("jakarta.migration.pricing.monthly.usd", "5.0"));
     }
     
     /**
      * Get yearly subscription price in USD from pricing.properties
      */
     public static double getYearlyPriceUsd() {
-        return Double.parseDouble(PRICING_PROPERTIES.getProperty("jakarta.migration.pricing.yearly.usd", "?"));
+        return Double.parseDouble(PRICING_PROPERTIES.getProperty("jakarta.migration.pricing.yearly.usd", "50.0"));
     }
     
     /**
      * Get free trial duration in days from pricing.properties
      */
     public static int getFreeTrialDays() {
-        return Integer.parseInt(PRICING_PROPERTIES.getProperty("jakarta.migration.trial.days", "?"));
+        return Integer.parseInt(PRICING_PROPERTIES.getProperty("jakarta.migration.trial.days", "7"));
     }
 
     /**

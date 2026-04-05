@@ -7,6 +7,8 @@ import org.junit.Test;
 import org.junit.Before;
 import org.junit.After;
 
+import java.io.IOException;
+
 import static org.junit.Assert.*;
 
 /**
@@ -39,7 +41,7 @@ public class SafeLicenseCheckerTest extends BasePlatformTestCase {
     }
     
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
         // Restore original system properties
         if (originalDevMode != null) {
             System.setProperty("jakarta.migration.dev", originalDevMode);
@@ -74,7 +76,11 @@ public class SafeLicenseCheckerTest extends BasePlatformTestCase {
         // Clear license cache
         SafeLicenseChecker.clearCache();
         
-        super.tearDown();
+        try {
+            super.tearDown();
+        } catch (IOException e) {
+            // Ignore cleanup errors
+        }
     }
     
     @Test

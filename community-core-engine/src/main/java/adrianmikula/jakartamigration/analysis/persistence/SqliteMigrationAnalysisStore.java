@@ -1248,6 +1248,7 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
      * Saves a record of a file changed by a recipe.
      */
     public void saveRecipeChangedFile(long executionId, String filePath, String originalContent) {
+        log.debug("Saving changed file for execution {}: {}", executionId, filePath);
         try (Connection conn = getConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement("""
                     INSERT INTO recipe_changed_files (execution_id, file_path, original_content)
@@ -1256,9 +1257,10 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
                 stmt.setLong(1, executionId);
                 stmt.setString(2, filePath);
                 stmt.setString(3, originalContent);
-                stmt.executeUpdate();
+                int rowsAffected = stmt.executeUpdate();
+                conn.commit();
+                log.debug("Saved changed file: {} rows affected for execution {}", rowsAffected, executionId);
             }
-            conn.commit();
         } catch (SQLException e) {
             log.error("Failed to save recipe changed file for execution: " + executionId, e);
         }
@@ -1287,6 +1289,7 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
      */
     public List<Map<String, String>> getChangedFiles(long executionId) {
         List<Map<String, String>> files = new ArrayList<>();
+        log.debug("Getting changed files for execution: {}", executionId);
         try (Connection conn = getConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement("""
                     SELECT file_path, original_content FROM recipe_changed_files WHERE execution_id = ?
@@ -1301,6 +1304,7 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
                     }
                 }
             }
+            log.debug("Found {} changed files for execution {}", files.size(), executionId);
         } catch (SQLException e) {
             log.error("Failed to get changed files for execution: " + executionId, e);
         }

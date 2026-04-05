@@ -70,9 +70,6 @@ public class HistoryTabComponent {
         panel.add(scrollPane, BorderLayout.CENTER);
 
         JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton refreshButton = new JButton("↻ Refresh History");
-        refreshButton.addActionListener(e -> refreshHistory());
-        actionsPanel.add(refreshButton);
 
         JButton undoButton = new JButton("↶ Undo Selected");
         undoButton.addActionListener(e -> handleUndo());

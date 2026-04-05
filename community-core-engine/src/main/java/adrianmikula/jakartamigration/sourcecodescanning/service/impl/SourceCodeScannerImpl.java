@@ -66,7 +66,7 @@ public class SourceCodeScannerImpl implements SourceCodeScanner {
                         totalScanned.incrementAndGet();
                         FileUsage usage = scanFile(file);
                         if (usage.hasJavaxUsage()) {
-                            log.debug("Found javax usage in: {}", file);
+                            log.info("Found javax usage in: {}", file);
                             return usage;
                         }
                         return null;

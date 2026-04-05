@@ -6,6 +6,7 @@ import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import adrianmikula.jakartamigration.platforms.service.SimplifiedPlatformDetectionService;
 import adrianmikula.jakartamigration.platforms.service.EnhancedPlatformDetectionService;
 import adrianmikula.jakartamigration.platforms.config.PlatformConfigLoader;
+import adrianmikula.jakartamigration.platforms.config.RiskScoringConfig;
 import adrianmikula.jakartamigration.intellij.util.DevModeLogger;
 
 import com.intellij.openapi.project.Project;
@@ -19,6 +20,7 @@ import java.awt.*;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,12 +84,12 @@ public class PlatformsTabComponent {
     }
     
     private JPanel createResultsPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        resultsScrollPane = new JBScrollPane(panel);
+        resultsPanel = new JPanel();
+        resultsPanel.setLayout(new BoxLayout(resultsPanel, BoxLayout.Y_AXIS));
+        resultsScrollPane = new JBScrollPane(resultsPanel);
         resultsScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         resultsScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        return panel;
+        return resultsPanel;
     }
     
     /**
@@ -148,39 +150,65 @@ public class PlatformsTabComponent {
     }
     
     /**
-     * Displays enhanced scan results with deployment artifact counts and risk scoring
+     * Displays scan results in the UI (unified method)
+     */
+    public void displayResults(List<String> detectedPlatforms) {
+        displayResults(new EnhancedPlatformScanResult(detectedPlatforms, new HashMap<>(), new HashMap<>()));
+    }
+    
+    /**
+     * Displays enhanced scan results in the UI (unified method)
      */
     public void displayEnhancedResults(EnhancedPlatformScanResult scanResult) {
+        displayResults(scanResult);
+    }
+    
+    /**
+     * Unified display method for both simple and enhanced results
+     */
+    private void displayResults(EnhancedPlatformScanResult scanResult) {
         // Store current scan result for external access
         this.currentScanResult = scanResult;
         
-        // Clear previous results
-        resultsPanel.removeAll();
-        platformPanels.clear();
+        clearResults();
         
         List<String> detectedPlatforms = scanResult.getDetectedPlatforms();
-        
         if (detectedPlatforms.isEmpty()) {
-            JLabel noResultsLabel = new JBLabel("No application servers detected in this project.");
-            resultsPanel.add(noResultsLabel);
-            return;
+            resultsPanel.add(createNoResultsLabel());
+        } else {
+            // Add artifact summary if available
+            if (scanResult.getTotalDeploymentCount() > 0) {
+                resultsPanel.add(createArtifactSummaryPanel(scanResult));
+            }
+            
+            // Add platform panels
+            detectedPlatforms.forEach(platform -> {
+                JPanel panel = scanResult.getTotalDeploymentCount() > 0 ? 
+                    createEnhancedPlatformPanel(platform, scanResult) : 
+                    createSimplePlatformPanel(platform);
+                platformPanels.add(panel);
+                resultsPanel.add(panel);
+                resultsPanel.add(Box.createVerticalStrut(10));
+            });
         }
         
-        // Calculate enhanced platform risk score including deployment artifacts
-        double platformRiskScore = calculateEnhancedPlatformRiskScore(scanResult);
-        
-        // Display platforms with artifact information
-        for (String platformName : detectedPlatforms) {
-            JPanel platformPanel = createEnhancedPlatformPanel(platformName, scanResult);
-            platformPanels.add(platformPanel);
-            resultsPanel.add(platformPanel);
-            resultsPanel.add(Box.createVerticalStrut(10));
+        refreshResultsPanel();
+    }
+    
+    private void clearResults() {
+        if (resultsPanel != null) {
+            resultsPanel.removeAll();
+            platformPanels.clear();
         }
-        
-        // Add deployment artifact summary
-        JPanel artifactPanel = createArtifactSummaryPanel(scanResult);
-        resultsPanel.add(artifactPanel, 0); // Add at top
-        
+    }
+    
+    private JLabel createNoResultsLabel() {
+        JLabel label = new JBLabel("No application servers detected in this project.");
+        label.setBorder(JBUI.Borders.empty(10));
+        return label;
+    }
+    
+    private void refreshResultsPanel() {
         resultsPanel.revalidate();
         resultsPanel.repaint();
     }
@@ -210,71 +238,31 @@ public class PlatformsTabComponent {
     }
     
     /**
-     * Displays scan results in the UI
-     */
-    public void displayResults(List<String> detectedPlatforms) {
-        // Clear previous results
-        resultsPanel.removeAll();
-        platformPanels.clear();
-        
-        if (detectedPlatforms.isEmpty()) {
-            JLabel noResultsLabel = new JBLabel("No application servers detected in this project.");
-            noResultsLabel.setBorder(JBUI.Borders.empty(10));
-            resultsPanel.add(noResultsLabel);
-        } else {
-            for (String platformName : detectedPlatforms) {
-                JPanel platformPanel = createSimplePlatformPanel(platformName);
-                platformPanels.add(platformPanel);
-                resultsPanel.add(platformPanel);
-                resultsPanel.add(Box.createVerticalStrut(10));
-            }
-        }
-        
-        resultsPanel.revalidate();
-        resultsPanel.repaint();
-    }
-    
-    /**
      * Calculates enhanced platform risk score based on detected platforms and deployment artifacts
      */
     private double calculateEnhancedPlatformRiskScore(EnhancedPlatformScanResult scanResult) {
-        List<String> detectedPlatforms = scanResult.getDetectedPlatforms();
-        
-        // Get risk scoring configuration
         var riskConfig = configLoader.getRiskScoringConfig();
         
-        // Base platform risk using configuration
-        double baseRisk = Math.min(detectedPlatforms.size() * riskConfig.getPlatformMultiplier(), 
-                                  riskConfig.getMaxPlatformRisk());
-        double platformSpecificRisk = 0.0;
+        double platformRisk = calculatePlatformRisk(scanResult.getDetectedPlatforms(), riskConfig);
+        double artifactRisk = calculateArtifactRisk(scanResult, riskConfig);
         
-        for (String platform : detectedPlatforms) {
-            platformSpecificRisk += riskConfig.getPlatformBaseRisk(platform);
-        }
+        return Math.min(platformRisk + artifactRisk, riskConfig.getMaxTotalRisk());
+    }
+    
+    private double calculatePlatformRisk(List<String> platforms, RiskScoringConfig riskConfig) {
+        double baseRisk = Math.min(platforms.size() * riskConfig.getPlatformMultiplier(), riskConfig.getMaxPlatformRisk());
+        double specificRisk = platforms.stream()
+            .mapToDouble(riskConfig::getPlatformBaseRisk)
+            .sum();
+        return baseRisk + specificRisk;
+    }
+    
+    private double calculateArtifactRisk(EnhancedPlatformScanResult scanResult, RiskScoringConfig riskConfig) {
+        double artifactRisk = scanResult.getWarCount() * riskConfig.getDeploymentArtifactRisk("war") +
+                             scanResult.getEarCount() * riskConfig.getDeploymentArtifactRisk("ear") +
+                             scanResult.getJarCount() * riskConfig.getDeploymentArtifactRisk("jar");
         
-        // Enhanced risk based on deployment artifacts using configuration
-        int warCount = scanResult.getWarCount();
-        int earCount = scanResult.getEarCount();
-        int jarCount = scanResult.getJarCount();
-        int totalArtifacts = scanResult.getTotalDeploymentCount();
-        
-        // Artifact-based risk adjustments using configuration
-        double artifactRisk = 0.0;
-        
-        // EAR projects are more complex (higher risk)
-        artifactRisk += earCount * riskConfig.getDeploymentArtifactRisk("ear");
-        
-        // WAR projects are moderate risk
-        artifactRisk += warCount * riskConfig.getDeploymentArtifactRisk("war");
-        
-        // JAR projects are low risk
-        artifactRisk += jarCount * riskConfig.getDeploymentArtifactRisk("jar");
-        
-        // Add artifact complexity risk (simplified calculation)
-        artifactRisk += riskConfig.calculateArtifactComplexityRisk(totalArtifacts);
-        
-        double totalRisk = baseRisk + platformSpecificRisk + artifactRisk;
-        return Math.min(totalRisk, riskConfig.getMaxTotalRisk());
+        return artifactRisk + riskConfig.calculateArtifactComplexityRisk(scanResult.getTotalDeploymentCount());
     }
     
     /**
@@ -284,31 +272,32 @@ public class PlatformsTabComponent {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createTitledBorder("Deployment Artifacts"));
         
-        StringBuilder artifactText = new StringBuilder();
-        artifactText.append("<html><b>Deployment Summary:</b><br>");
-        artifactText.append(String.format("• WAR files: %d<br>", scanResult.getWarCount()));
-        artifactText.append(String.format("• EAR files: %d<br>", scanResult.getEarCount()));
-        artifactText.append(String.format("• JAR files: %d<br>", scanResult.getJarCount()));
-        artifactText.append(String.format("• Total artifacts: %d<br>", scanResult.getTotalDeploymentCount()));
-        
-        // Platform-specific artifacts
-        if (!scanResult.getPlatformSpecificArtifacts().isEmpty()) {
-            artifactText.append("<br><b>Platform Configurations:</b><br>");
-            scanResult.getPlatformSpecificArtifacts().entrySet().stream()
-                .filter(entry -> entry.getValue() > 0)
-                .forEach(entry -> artifactText.append(String.format("• %s: %d<br>", entry.getKey(), entry.getValue())));
-        }
-        
-        // Risk assessment
-        double riskScore = calculateEnhancedPlatformRiskScore(scanResult);
-        String riskLevel = getRiskLevel(riskScore);
-        artifactText.append(String.format("<br><b>Migration Risk:</b> %s (%.1f/100)", riskLevel, riskScore));
-        artifactText.append("</html>");
-        
-        JLabel summaryLabel = new JBLabel(artifactText.toString());
+        String summaryText = buildArtifactSummaryText(scanResult);
+        JLabel summaryLabel = new JBLabel(summaryText);
         panel.add(summaryLabel, BorderLayout.CENTER);
         
         return panel;
+    }
+    
+    private String buildArtifactSummaryText(EnhancedPlatformScanResult scanResult) {
+        StringBuilder text = new StringBuilder("<html><b>Deployment Summary:</b><br>");
+        
+        // Basic artifact counts
+        text.append(String.format("• WAR files: %d<br>", scanResult.getWarCount()));
+        text.append(String.format("• EAR files: %d<br>", scanResult.getEarCount()));
+        text.append(String.format("• JAR files: %d<br>", scanResult.getJarCount()));
+        text.append(String.format("• Total artifacts: %d<br>", scanResult.getTotalDeploymentCount()));
+        
+        // Platform-specific artifacts
+        scanResult.getPlatformSpecificArtifacts().entrySet().stream()
+            .filter(entry -> entry.getValue() > 0)
+            .forEach(entry -> text.append(String.format("• %s: %d<br>", entry.getKey(), entry.getValue())));
+        
+        // Risk assessment
+        double riskScore = calculateEnhancedPlatformRiskScore(scanResult);
+        text.append(String.format("<br><b>Migration Risk:</b> %s (%.1f/100)</html>", getRiskLevel(riskScore), riskScore));
+        
+        return text.toString();
     }
     
     /**
@@ -323,86 +312,66 @@ public class PlatformsTabComponent {
     }
     
     /**
-     * Creates enhanced platform panel with artifact information
+     * Creates platform panel (unified method for both simple and enhanced)
      */
-    private JPanel createEnhancedPlatformPanel(String platformName, EnhancedPlatformScanResult scanResult) {
+    private JPanel createPlatformPanel(String platformName, EnhancedPlatformScanResult scanResult, boolean showRisk) {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1),
             BorderFactory.createEmptyBorder(8, 8, 8, 8)
         ));
         
-        // Platform name
         JLabel nameLabel = new JBLabel(platformName);
         nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 12f));
-        
-        // Risk indicator with enhanced calculation
-        double platformRisk = calculateIndividualPlatformRisk(platformName, scanResult);
-        String riskText = String.format("Risk: %s (%.1f/100)", getRiskLevel(platformRisk), platformRisk);
-        
-        JLabel riskLabel = new JBLabel(riskText);
-        riskLabel.setFont(riskLabel.getFont().deriveFont(Font.ITALIC, 11f));
-        
-        // Color code based on risk
-        if (platformRisk >= 60) {
-            riskLabel.setForeground(Color.RED);
-        } else if (platformRisk >= 40) {
-            riskLabel.setForeground(Color.ORANGE);
-        } else if (platformRisk >= 20) {
-            riskLabel.setForeground(Color.YELLOW.darker());
-        } else {
-            riskLabel.setForeground(Color.GREEN.darker());
-        }
         
         JPanel infoPanel = new JPanel(new BorderLayout());
         infoPanel.add(nameLabel, BorderLayout.NORTH);
-        infoPanel.add(riskLabel, BorderLayout.SOUTH);
-        panel.add(infoPanel, BorderLayout.CENTER);
         
-        return panel;
-    }
-    
-    /**
-     * Calculates individual platform risk considering artifacts using configuration
-     */
-    private double calculateIndividualPlatformRisk(String platformName, EnhancedPlatformScanResult scanResult) {
-        double baseRisk = calculateIndividualPlatformRisk(platformName);
-        
-        // Adjust risk based on artifact counts for this platform using simplified configuration
-        int totalArtifacts = scanResult.getTotalDeploymentCount();
-        if (totalArtifacts > 0) {
-            var riskConfig = configLoader.getRiskScoringConfig();
-            // Add artifact complexity risk (simplified)
-            baseRisk += riskConfig.calculateArtifactComplexityRisk(totalArtifacts);
+        if (showRisk) {
+            double platformRisk = calculateIndividualPlatformRisk(platformName, scanResult);
+            JLabel riskLabel = createRiskLabel(platformRisk);
+            infoPanel.add(riskLabel, BorderLayout.SOUTH);
         }
         
-        var riskConfig = configLoader.getRiskScoringConfig();
-        return Math.min(baseRisk, riskConfig.getMaxTotalRisk());
-    }
-    
-    /**
-     * Calculates base individual platform risk using configuration
-     */
-    private double calculateIndividualPlatformRisk(String platformName) {
-        var riskConfig = configLoader.getRiskScoringConfig();
-        return riskConfig.getPlatformBaseRisk(platformName);
-    }
-    
-    /**
-     * Creates a simple platform panel for display
-     */
-    private JPanel createSimplePlatformPanel(String platformName) {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1),
-            BorderFactory.createEmptyBorder()
-        ));
-        
-        JLabel nameLabel = new JBLabel(platformName);
-        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 12f));
-        panel.add(nameLabel, BorderLayout.CENTER);
-        
+        panel.add(infoPanel, BorderLayout.CENTER);
         return panel;
+    }
+    
+    private JLabel createRiskLabel(double risk) {
+        String riskText = String.format("Risk: %s (%.1f/100)", getRiskLevel(risk), risk);
+        JLabel riskLabel = new JBLabel(riskText);
+        riskLabel.setFont(riskLabel.getFont().deriveFont(Font.ITALIC, 11f));
+        riskLabel.setForeground(getRiskColor(risk));
+        return riskLabel;
+    }
+    
+    private Color getRiskColor(double risk) {
+        if (risk >= 60) return Color.RED;
+        if (risk >= 40) return Color.ORANGE;
+        if (risk >= 20) return Color.YELLOW.darker();
+        return Color.GREEN.darker();
+    }
+    
+    private JPanel createSimplePlatformPanel(String platformName) {
+        return createPlatformPanel(platformName, null, false);
+    }
+    
+    private JPanel createEnhancedPlatformPanel(String platformName, EnhancedPlatformScanResult scanResult) {
+        return createPlatformPanel(platformName, scanResult, true);
+    }
+    
+    /**
+     * Calculates individual platform risk considering artifacts
+     */
+    private double calculateIndividualPlatformRisk(String platformName, EnhancedPlatformScanResult scanResult) {
+        var riskConfig = configLoader.getRiskScoringConfig();
+        double baseRisk = riskConfig.getPlatformBaseRisk(platformName);
+        
+        if (scanResult != null && scanResult.getTotalDeploymentCount() > 0) {
+            baseRisk += riskConfig.calculateArtifactComplexityRisk(scanResult.getTotalDeploymentCount());
+        }
+        
+        return Math.min(baseRisk, riskConfig.getMaxTotalRisk());
     }
     
     /**

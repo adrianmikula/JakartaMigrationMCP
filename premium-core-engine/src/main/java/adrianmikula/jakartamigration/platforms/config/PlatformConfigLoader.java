@@ -172,4 +172,11 @@ public class PlatformConfigLoader {
     public RiskScoringConfig getRiskScoringConfig() {
         return riskScoringConfig;
     }
+    
+    /**
+     * Gets all platform configurations
+     */
+    public Map<String, PlatformConfig> getPlatformConfigs() {
+        return platformConfigs;
+    }
 }

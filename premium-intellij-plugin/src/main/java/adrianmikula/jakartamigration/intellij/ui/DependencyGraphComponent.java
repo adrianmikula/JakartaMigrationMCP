@@ -370,6 +370,10 @@ public class DependencyGraphComponent {
     
     /**
      * Auto-select the best layout based on the number of dependencies
+     * Requirements:
+     * - 5 or less: tree mode
+     * - 5 to 25: circular mode
+     * - 25 or more: force-directed mode
      */
     private void selectOptimalLayout(int nodeCount) {
         String optimalLayout;

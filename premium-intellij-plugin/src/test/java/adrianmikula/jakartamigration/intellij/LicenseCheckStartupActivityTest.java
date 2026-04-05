@@ -8,6 +8,8 @@ import org.junit.Before;
 import org.junit.After;
 import org.mockito.MockedStatic;
 
+import java.io.IOException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
@@ -34,11 +36,15 @@ public class LicenseCheckStartupActivityTest extends BasePlatformTestCase {
     }
     
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
         if (mockedSafeLicenseChecker != null) {
             mockedSafeLicenseChecker.close();
         }
-        super.tearDown();
+        try {
+            super.tearDown();
+        } catch (IOException e) {
+            // Ignore cleanup errors
+        }
     }
     
     @Test

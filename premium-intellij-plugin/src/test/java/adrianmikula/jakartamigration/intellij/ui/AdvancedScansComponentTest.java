@@ -14,7 +14,7 @@ public class AdvancedScansComponentTest extends BasePlatformTestCase {
     private AdvancedScanningService scanningService;
 
     @Override
-    protected void setUp() throws Exception {
+    public void setUp() throws Exception {
         super.setUp();
         // Create mock stores for testing
         CentralMigrationAnalysisStore centralStore = new CentralMigrationAnalysisStore();

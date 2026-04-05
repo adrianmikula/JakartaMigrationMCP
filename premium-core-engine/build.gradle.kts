@@ -46,22 +46,34 @@ tasks.test {
     maxParallelForks = 4
 }
 
-// Fast test task for quick agent feedback
-tasks.register("fastTest") {
+// Fast test task - excludes slow tests
+ tasks.register<Test>("fastTest") {
     group = "verification"
     description = "Run fast unit tests only (excludes integration and slow tests)"
     
-    doLast {
-        exec {
-            workingDir = projectDir
-            commandLine = listOf(
-                "./gradlew", "test", "--tests", "*fast*",
-                "--parallel", "--max-worker-count=4",
-                "--configuration-cache", "--build-cache",
-                "--no-daemon"
-            )
-        }
+    useJUnitPlatform {
+        excludeTags("slow")
     }
+    
+    testLogging {
+        showStandardStreams = true
+    }
+    maxParallelForks = 4
+}
+
+// Slow test task - only integration/performance tests
+tasks.register<Test>("slowTest") {
+    group = "verification"
+    description = "Run slow integration and performance tests only"
+    
+    useJUnitPlatform {
+        includeTags("slow")
+    }
+    
+    testLogging {
+        showStandardStreams = true
+    }
+    maxParallelForks = 2  // Fewer forks for network-heavy tests
 }
 
 // Ultra-fast compilation test
@@ -75,38 +87,17 @@ tasks.register("compileCheck") {
     }
 }
 
-// PDF-specific fast test
-tasks.register("pdfTest") {
+// Core functionality tests - excludes slow tests
+tasks.register<Test>("coreTest") {
     group = "verification"
-    description = "Test PDF generation functionality only"
+    description = "Test core functionality (recipes, PDF, validation) - excludes slow tests"
     
-    doLast {
-        exec {
-            workingDir = projectDir
-            commandLine = listOf(
-                "./gradlew", "test", "--tests", "*PdfReportServiceTest*",
-                "--parallel", "--configuration-cache", "--no-daemon"
-            )
-        }
+    useJUnitPlatform {
+        excludeTags("slow")
     }
-}
-
-// Core functionality tests
-tasks.register("coreTest") {
-    group = "verification"
-    description = "Test core functionality (recipes, PDF, validation)"
     
-    doLast {
-        exec {
-            workingDir = projectDir
-            commandLine = listOf(
-                "./gradlew", "test", 
-                "--tests", "*PdfReportServiceTest*",
-                "--tests", "*RecipeServiceImplTest*", 
-                "--tests", "*ListRecipesTest*",
-                "--parallel", "--max-worker-count=4",
-                "--configuration-cache", "--no-daemon"
-            )
-        }
+    testLogging {
+        showStandardStreams = true
     }
+    maxParallelForks = 4
 }

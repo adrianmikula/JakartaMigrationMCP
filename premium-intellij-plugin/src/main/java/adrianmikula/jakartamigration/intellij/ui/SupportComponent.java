@@ -26,11 +26,11 @@ public class SupportComponent {
     private static final Logger LOG = Logger.getInstance(SupportComponent.class);
     private final Project project;
     private final Consumer<Void> onPremiumActivated;
+    private final Runnable onExperimentalFeaturesChanged;
     
     // UI Components
     private JPanel mainPanel;
     private JButton startTrialButton;
-    private JButton refreshButton;
     JCheckBox experimentalFeaturesCheckbox;
     private JBTextArea outputArea;
     private JBScrollPane scrollPane;
@@ -45,9 +45,10 @@ public class SupportComponent {
     private static boolean isPremiumActive = false;
     private static String licenseStatus = "Unknown";
     
-    public SupportComponent(@NotNull Project project, Consumer<Void> onPremiumActivated) {
+    public SupportComponent(@NotNull Project project, Consumer<Void> onPremiumActivated, Runnable onExperimentalFeaturesChanged) {
         this.project = project;
         this.onPremiumActivated = onPremiumActivated;
+        this.onExperimentalFeaturesChanged = onExperimentalFeaturesChanged;
         
         // Load support URLs from properties file
         loadSupportUrls();
@@ -178,6 +179,11 @@ public class SupportComponent {
             if (onPremiumActivated != null) {
                 onPremiumActivated.accept(null);
             }
+            // Additionally, refresh experimental tabs specifically
+            if (onExperimentalFeaturesChanged != null) {
+                onExperimentalFeaturesChanged.run();
+                System.out.println("DEBUG: Experimental tabs refreshed after checkbox change");
+            }
         });
         experimentalPanel.add(experimentalFeaturesCheckbox);
         
@@ -185,11 +191,8 @@ public class SupportComponent {
         JPanel buttonPanel = new JPanel(new FlowLayout());
         startTrialButton = new JButton("Start Free Trial");
         startTrialButton.setToolTipText("Activate 7-day premium trial");
-        refreshButton = new JButton("Refresh Status");
-        refreshButton.setToolTipText("Refresh license and premium status");
         
         buttonPanel.add(startTrialButton);
-        buttonPanel.add(refreshButton);
         
         controlPanel.add(experimentalPanel);
         controlPanel.add(buttonPanel);

@@ -60,6 +60,7 @@ public class DashboardComponent {
     private JBLabel dependenciesFoundValue;
     private JBLabel basicDependenciesValue;
     private JBLabel refactorRecipesValue;
+    private JBLabel detectedPlatformsValue;
     
     // UI Components for scan results table (bottom section)
     private JPanel scanResultsPanel;
@@ -235,6 +236,24 @@ public class DashboardComponent {
             updateSummary();
             updateScanResultsTable();
         });
+    }
+    
+    /**
+     * Helper method to get detected platforms from platforms tab component
+     */
+    private List<String> getDetectedPlatformsFromTab() {
+        try {
+            if (platformsTabComponent != null) {
+                // This would need to be implemented based on the actual platforms tab
+                // For now, return empty list - the actual platform detection
+                // happens in the PlatformsTabComponent itself
+                return new ArrayList<>();
+            }
+            return new ArrayList<>();
+        } catch (Exception e) {
+            LOG.warn("Could not get detected platforms: " + e.getMessage());
+            return new ArrayList<>();
+        }
     }
     
     /**
@@ -482,11 +501,6 @@ private void resetAdvancedScanCounts() {
             actionsPanel.add(premiumBadge);
         }
 
-        JButton refreshButton = new JButton("↻ Refresh");
-        refreshButton.setToolTipText("Refresh analysis results");
-        refreshButton.addActionListener(this::handleRefresh);
-        actionsPanel.add(refreshButton);
-
         return actionsPanel;
     }
 
@@ -609,6 +623,14 @@ private void resetAdvancedScanCounts() {
         gbc.gridx = 1;
         refactorRecipesValue = createValueLabel("-");
         summaryGrid.add(refactorRecipesValue, gbc);
+        gbc.gridy++;
+
+        // Detected Platforms (from platform scanning)
+        gbc.gridx = 0; gbc.gridy = gbc.gridy;
+        summaryGrid.add(createKeyLabel("Detected Platforms:"), gbc);
+        gbc.gridx = 1;
+        JBLabel detectedPlatformsValue = createValueLabel("-");
+        summaryGrid.add(detectedPlatformsValue, gbc);
 
         panel.add(summaryGrid, BorderLayout.CENTER);
         return panel;
@@ -648,117 +670,6 @@ private void resetAdvancedScanCounts() {
         beanValidationScanCountValue = createValueLabel("0");
         scanGrid.add(beanValidationScanCountValue, gbc);
         row++;
-
-        // Servlet/JSP Scan
-        gbc.gridx = 0; gbc.gridy = row;
-        scanGrid.add(createKeyLabel("Servlet/JSP:"), gbc);
-        gbc.gridx = 1;
-        servletJspScanCountValue = createValueLabel("0");
-        scanGrid.add(servletJspScanCountValue, gbc);
-        row++;
-
-        // CDI Injection Scan
-        gbc.gridx = 0; gbc.gridy = row;
-        scanGrid.add(createKeyLabel("CDI Injection:"), gbc);
-        gbc.gridx = 1;
-        cdiInjectionScanCountValue = createValueLabel("0");
-        scanGrid.add(cdiInjectionScanCountValue, gbc);
-        row++;
-
-        // Build Config Scan
-        gbc.gridx = 0; gbc.gridy = row;
-        scanGrid.add(createKeyLabel("Build Config:"), gbc);
-        gbc.gridx = 1;
-        buildConfigScanCountValue = createValueLabel("0");
-        scanGrid.add(buildConfigScanCountValue, gbc);
-        row++;
-
-        // REST/SOAP Scan
-        gbc.gridx = 0; gbc.gridy = row;
-        scanGrid.add(createKeyLabel("REST/SOAP:"), gbc);
-        gbc.gridx = 1;
-        restSoapScanCountValue = createValueLabel("0");
-        scanGrid.add(restSoapScanCountValue, gbc);
-        row++;
-
-        // Deprecated API Scan
-        gbc.gridx = 0; gbc.gridy = row;
-        scanGrid.add(createKeyLabel("Deprecated APIs:"), gbc);
-        gbc.gridx = 1;
-        deprecatedApiScanCountValue = createValueLabel("0");
-        scanGrid.add(deprecatedApiScanCountValue, gbc);
-        row++;
-
-        // Security API Scan
-        gbc.gridx = 0; gbc.gridy = row;
-        scanGrid.add(createKeyLabel("Security APIs:"), gbc);
-        gbc.gridx = 1;
-        securityApiScanCountValue = createValueLabel("0");
-        scanGrid.add(securityApiScanCountValue, gbc);
-        row++;
-
-        // JMS Messaging Scan
-        gbc.gridx = 0; gbc.gridy = row;
-        scanGrid.add(createKeyLabel("JMS Messaging:"), gbc);
-        gbc.gridx = 1;
-        jmsMessagingScanCountValue = createValueLabel("0");
-        scanGrid.add(jmsMessagingScanCountValue, gbc);
-        row++;
-
-        // Transitive Dependencies Scan
-        gbc.gridx = 0; gbc.gridy = row;
-        scanGrid.add(createKeyLabel("Transitive Deps:"), gbc);
-        gbc.gridx = 1;
-        transitiveDependencyScanCountValue = createValueLabel("0");
-        scanGrid.add(transitiveDependencyScanCountValue, gbc);
-        row++;
-
-        // Config Files Scan
-        gbc.gridx = 0; gbc.gridy = row;
-        scanGrid.add(createKeyLabel("Config Files:"), gbc);
-        gbc.gridx = 1;
-        configFileScanCountValue = createValueLabel("0");
-        scanGrid.add(configFileScanCountValue, gbc);
-        row++;
-
-        // Classloader/Module Scan
-        gbc.gridx = 0; gbc.gridy = row;
-        scanGrid.add(createKeyLabel("Classloader/Module:"), gbc);
-        gbc.gridx = 1;
-        classloaderModuleScanCountValue = createValueLabel("0");
-        scanGrid.add(classloaderModuleScanCountValue, gbc);
-        row++;
-
-        // Logging Metrics Scan
-        gbc.gridx = 0; gbc.gridy = row;
-        scanGrid.add(createKeyLabel("Logging Metrics:"), gbc);
-        gbc.gridx = 1;
-        loggingMetricsScanCountValue = createValueLabel("0");
-        scanGrid.add(loggingMetricsScanCountValue, gbc);
-        row++;
-
-        // Serialization/Cache Scan
-        gbc.gridx = 0; gbc.gridy = row;
-        scanGrid.add(createKeyLabel("Serialization/Cache:"), gbc);
-        gbc.gridx = 1;
-        serializationCacheScanCountValue = createValueLabel("0");
-        scanGrid.add(serializationCacheScanCountValue, gbc);
-        row++;
-
-        // Third-party Libraries Scan
-        gbc.gridx = 0; gbc.gridy = row;
-        scanGrid.add(createKeyLabel("Third-party Libs:"), gbc);
-        gbc.gridx = 1;
-        thirdPartyLibScanCountValue = createValueLabel("0");
-        scanGrid.add(thirdPartyLibScanCountValue, gbc);
-        row++;
-
-        // Total Issues
-        gbc.gridx = 0; gbc.gridy = row;
-        scanGrid.add(createKeyLabel("Total Issues:"), gbc);
-        gbc.gridx = 1;
-        totalAdvancedScanCountValue = createValueLabel("0");
-        scanGrid.add(totalAdvancedScanCountValue, gbc);
 
         panel.add(scanGrid, BorderLayout.CENTER);
         return panel;
@@ -913,6 +824,33 @@ private void resetAdvancedScanCounts() {
 
             // Update refactor recipes (this would need integration with recipe service)
             refactorRecipesValue.setText("Calculating...");
+            
+            // Update detected platforms from platform scanning
+            if (detectedPlatformsValue != null && platformsTabComponent != null) {
+                try {
+                    // Get platform list from platforms tab component
+                    List<String> detectedPlatforms = getDetectedPlatformsFromTab();
+                    if (detectedPlatforms != null && !detectedPlatforms.isEmpty()) {
+                        String platformsText = String.join(", ", detectedPlatforms);
+                        detectedPlatformsValue.setText(platformsText);
+                        detectedPlatformsValue.setForeground(Color.BLUE);
+                    } else {
+                        detectedPlatformsValue.setText("No platforms detected");
+                        detectedPlatformsValue.setForeground(Color.GRAY);
+                    }
+                } catch (Exception e) {
+                    LOG.warn("Could not update detected platforms: " + e.getMessage());
+                    if (detectedPlatformsValue != null) {
+                        detectedPlatformsValue.setText("-");
+                        detectedPlatformsValue.setForeground(Color.GRAY);
+                    }
+                }
+            } else {
+                if (detectedPlatformsValue != null) {
+                    detectedPlatformsValue.setText("-");
+                    detectedPlatformsValue.setForeground(Color.GRAY);
+                }
+            }
         });
     }
 
@@ -920,7 +858,7 @@ private void resetAdvancedScanCounts() {
      * Updates the scan results table with current scan data.
      */
     public void updateScanResultsTable() {
-        if (dashboard == null) return;
+        if (dashboard == null || detectedPlatformsValue == null) return;
 
         SwingUtilities.invokeLater(() -> {
             // Clear existing data
@@ -952,8 +890,10 @@ private void resetAdvancedScanCounts() {
     // ==================== Helper Methods ====================
 
     private void addScanResultRow(String scanName, int count, String riskLevel) {
-        Object[] row = {scanName, count, riskLevel};
-        scanResultsModel.addRow(row);
+        if (count > 0) { // Only show scans with results
+            Object[] row = {scanName, count, riskLevel};
+            scanResultsModel.addRow(row);
+        }
     }
 
     private int getBasicScanCount() {
@@ -1207,10 +1147,6 @@ private void resetAdvancedScanCounts() {
         if (progress >= 100) return new Color(40, 167, 69); // Green
         if (progress >= 50) return new Color(255, 193, 7); // Yellow
         return new Color(220, 53, 69); // Red
-    }
-
-    private void handleRefresh(ActionEvent e) {
-        Messages.showInfoMessage(project, "Refreshing analysis results...", "Refresh");
     }
 
     public JBLabel getDeprecatedApiScanCountValue() {

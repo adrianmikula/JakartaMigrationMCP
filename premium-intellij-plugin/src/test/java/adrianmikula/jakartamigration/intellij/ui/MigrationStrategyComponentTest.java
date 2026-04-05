@@ -12,7 +12,7 @@ public class MigrationStrategyComponentTest extends BasePlatformTestCase {
     private MigrationStrategyComponent strategyComponent;
 
     @Override
-    protected void setUp() throws Exception {
+    public void setUp() throws Exception {
         super.setUp();
         strategyComponent = new MigrationStrategyComponent(getProject());
     }

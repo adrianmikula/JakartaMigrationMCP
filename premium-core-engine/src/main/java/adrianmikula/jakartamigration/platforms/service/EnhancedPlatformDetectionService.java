@@ -53,7 +53,7 @@ public class EnhancedPlatformDetectionService {
                 detectedServers.addAll(mavenServers);
                 
                 // Count deployment artifacts in Maven project
-                countMavenArtifacts(projectPath, deploymentArtifacts, platformSpecificArtifacts);
+                countArtifacts(projectPath, "pom.xml", deploymentArtifacts, platformSpecificArtifacts);
             }
             
             if (Files.exists(projectPath.resolve("build.gradle")) || Files.exists(projectPath.resolve("build.gradle.kts"))) {
@@ -62,7 +62,8 @@ public class EnhancedPlatformDetectionService {
                 detectedServers.addAll(gradleServers);
                 
                 // Count deployment artifacts in Gradle project
-                countGradleArtifacts(projectPath, deploymentArtifacts, platformSpecificArtifacts);
+                String gradleFile = Files.exists(projectPath.resolve("build.gradle.kts")) ? "build.gradle.kts" : "build.gradle";
+                countArtifacts(projectPath, gradleFile, deploymentArtifacts, platformSpecificArtifacts);
             }
             
             // Scan for installed servers
@@ -86,62 +87,47 @@ public class EnhancedPlatformDetectionService {
     }
     
     /**
-     * Count deployment artifacts in Maven project
+     * Unified artifact counting for Maven and Gradle projects
      */
-    private void countMavenArtifacts(Path projectPath, Map<String, Integer> deploymentArtifacts, 
-                                   Map<String, Integer> platformSpecificArtifacts) {
+    private void countArtifacts(Path projectPath, String buildFile, Map<String, Integer> deploymentArtifacts, 
+                               Map<String, Integer> platformSpecificArtifacts) {
         try {
-            Path pomPath = projectPath.resolve("pom.xml");
-            String pomContent = Files.readString(pomPath);
+            Path filePath = projectPath.resolve(buildFile);
+            String content = Files.readString(filePath);
             
-            // Count packaging types
-            int warCount = countOccurrences(pomContent, "<packaging>war</packaging>");
-            int earCount = countOccurrences(pomContent, "<packaging>ear</packaging>");
-            int jarCount = countOccurrences(pomContent, "<packaging>jar</packaging>");
-            
-            deploymentArtifacts.put("war", deploymentArtifacts.getOrDefault("war", 0) + warCount);
-            deploymentArtifacts.put("ear", deploymentArtifacts.getOrDefault("ear", 0) + jarCount);
-            deploymentArtifacts.put("jar", deploymentArtifacts.getOrDefault("jar", 0) + jarCount);
+            // Count deployment artifacts based on build file type
+            if (buildFile.equals("pom.xml")) {
+                countMavenPackaging(content, deploymentArtifacts);
+            } else {
+                countGradlePlugins(content, deploymentArtifacts);
+            }
             
             // Count platform-specific dependencies
-            countPlatformDependencies(pomContent, platformSpecificArtifacts);
-            
-            log.debug("Maven artifact counts - WAR: {}, EAR: {}, JAR: {}", warCount, earCount, jarCount);
+            countPlatformDependencies(content, platformSpecificArtifacts);
             
         } catch (IOException e) {
-            log.debug("Error reading pom.xml: {}", e.getMessage());
+            log.debug("Error reading {}: {}", buildFile, e.getMessage());
         }
     }
     
-    /**
-     * Count deployment artifacts in Gradle project
-     */
-    private void countGradleArtifacts(Path projectPath, Map<String, Integer> deploymentArtifacts,
-                                    Map<String, Integer> platformSpecificArtifacts) {
-        try {
-            Path buildGradle = Files.exists(projectPath.resolve("build.gradle.kts")) ? 
-                              projectPath.resolve("build.gradle.kts") : 
-                              projectPath.resolve("build.gradle");
-            
-            String buildContent = Files.readString(buildGradle);
-            
-            // Count plugin applications that indicate WAR/EAR projects
-            int warCount = countOccurrences(buildContent, "apply.*plugin.*['\"]war['\"]") +
-                          countOccurrences(buildContent, "id\\s*['\"]war['\"]");
-            int earCount = countOccurrences(buildContent, "apply.*plugin.*['\"]ear['\"]") +
-                          countOccurrences(buildContent, "id\\s*['\"]ear['\"]");
-            
-            deploymentArtifacts.put("war", deploymentArtifacts.getOrDefault("war", 0) + warCount);
-            deploymentArtifacts.put("ear", deploymentArtifacts.getOrDefault("ear", 0) + earCount);
-            
-            // Count platform-specific dependencies
-            countPlatformDependencies(buildContent, platformSpecificArtifacts);
-            
-            log.debug("Gradle artifact counts - WAR: {}, EAR: {}", warCount, earCount);
-            
-        } catch (IOException e) {
-            log.debug("Error reading Gradle build file: {}", e.getMessage());
-        }
+    private void countMavenPackaging(String content, Map<String, Integer> deploymentArtifacts) {
+        int warCount = countOccurrences(content, "<packaging>war</packaging>");
+        int earCount = countOccurrences(content, "<packaging>ear</packaging>");
+        int jarCount = countOccurrences(content, "<packaging>jar</packaging>");
+        
+        deploymentArtifacts.merge("war", warCount, Integer::sum);
+        deploymentArtifacts.merge("ear", earCount, Integer::sum);
+        deploymentArtifacts.merge("jar", jarCount, Integer::sum);
+    }
+    
+    private void countGradlePlugins(String content, Map<String, Integer> deploymentArtifacts) {
+        int warCount = countOccurrences(content, "apply.*plugin.*['\"]war['\"]") +
+                      countOccurrences(content, "id\\s*['\"]war['\"]");
+        int earCount = countOccurrences(content, "apply.*plugin.*['\"]ear['\"]") +
+                      countOccurrences(content, "id\\s*['\"]ear['\"]");
+        
+        deploymentArtifacts.merge("war", warCount, Integer::sum);
+        deploymentArtifacts.merge("ear", earCount, Integer::sum);
     }
     
     /**

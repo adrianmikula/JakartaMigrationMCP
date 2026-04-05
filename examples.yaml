@@ -145,3 +145,25 @@ project_complexity:
   - name: "Complex Project B"
     description: "Large complex project with javax dependencies"
     url: "https://github.com/daggerok/java-ee-examples"
+
+
+
+
+# =============================================================================
+# MIXED EXAMPLES
+# =============================================================================
+mixed_examples:
+  - name: "Non-Javax Only"
+    description: "Project with only non-javax dependencies"
+    url: "https://github.com/wx-chevalier/ms-java-commons"
+      
+  - name: "Non-Javax plus Servlet"
+    description: "Mostly non-javax dependencies plus javax.servlet"
+    url: "https://github.com/Porsyak/javax-servlet-examples/tree/master"
+      
+  - name: "Non-Javax plus JSON"
+    description: "Mostly non-javax dependencies plus javax.json"
+    url: "https://github.com/dodie/working-with-structured-data-in-java"
+
+
+    

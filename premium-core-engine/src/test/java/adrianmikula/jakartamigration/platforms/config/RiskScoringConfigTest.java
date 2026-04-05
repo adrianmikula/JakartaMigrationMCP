@@ -32,8 +32,8 @@ public class RiskScoringConfigTest {
         assertEquals(12, riskConfig.getPlatformBaseRisk("unknown")); // default
         
         // Test deployment artifact risks from YAML
-        assertEquals(8, riskConfig.getDeploymentArtifactRisk("ear"));
-        assertEquals(4, riskConfig.getDeploymentArtifactRisk("war"));
+        assertEquals(4, riskConfig.getDeploymentArtifactRisk("ear"));
+        assertEquals(2, riskConfig.getDeploymentArtifactRisk("war"));
         assertEquals(1, riskConfig.getDeploymentArtifactRisk("jar"));
         
         // Test base calculations (hardcoded defaults)
@@ -55,7 +55,7 @@ public class RiskScoringConfigTest {
         
         // Should have default values
         assertEquals(25, defaultConfig.getPlatformBaseRisk("websphere"));
-        assertEquals(8, defaultConfig.getDeploymentArtifactRisk("ear"));
+        assertEquals(4, defaultConfig.getDeploymentArtifactRisk("ear"));
         assertEquals(15, defaultConfig.getPlatformMultiplier());
         assertEquals(100, defaultConfig.getMaxTotalRisk());
         assertEquals(0, defaultConfig.calculateArtifactComplexityRisk(3)); // Default calculation
@@ -68,8 +68,8 @@ public class RiskScoringConfigTest {
         // Test case insensitive lookups
         assertEquals(25, riskConfig.getPlatformBaseRisk("WEBSPHERE"));
         assertEquals(25, riskConfig.getPlatformBaseRisk("WebSphere"));
-        assertEquals(8, riskConfig.getDeploymentArtifactRisk("EAR"));
-        assertEquals(4, riskConfig.getDeploymentArtifactRisk("WAR"));
+        assertEquals(4, riskConfig.getDeploymentArtifactRisk("EAR"));
+        assertEquals(2, riskConfig.getDeploymentArtifactRisk("WAR"));
         assertEquals(1, riskConfig.getDeploymentArtifactRisk("JAR"));
     }
 }

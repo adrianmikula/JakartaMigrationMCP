@@ -18,9 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Test class for PdfReportServiceImpl using Apache PDFBox.
- * Tagged as "fast" for quick agent feedback loop.
  */
-@Tag("fast")
 class PdfReportServiceImplTest {
     
     private PdfReportServiceImpl pdfReportService;

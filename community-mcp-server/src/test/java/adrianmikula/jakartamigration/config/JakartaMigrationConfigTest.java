@@ -2,7 +2,7 @@ package adrianmikula.jakartamigration.config;
 
 import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
-import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaArtifactLookupService;
+import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
 import org.junit.jupiter.api.Disabled;
@@ -51,7 +51,7 @@ class JakartaMigrationConfigTest {
         DependencyGraphBuilder graphBuilder = config.dependencyGraphBuilder();
         NamespaceClassifier classifier = config.namespaceClassifier();
         JakartaMappingService mappingService = config.jakartaMappingService();
-        JakartaArtifactLookupService lookupService = config.jakartaArtifactLookupService();
+        ImprovedMavenCentralLookupService lookupService = config.jakartaArtifactLookupService();
         CentralMigrationAnalysisStore analysisStore = config.centralMigrationAnalysisStore();
 
         assertThat(config.dependencyAnalysisModule(graphBuilder, classifier, mappingService, lookupService, analysisStore))

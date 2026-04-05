@@ -100,12 +100,6 @@ public class RefactorTabComponent {
 
         panel.add(splitPane, BorderLayout.CENTER);
 
-        JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton refreshButton = new JButton("↻ Refresh All");
-        refreshButton.addActionListener(e -> refreshAllRecipes());
-        actionsPanel.add(refreshButton);
-        panel.add(actionsPanel, BorderLayout.SOUTH);
-
         refreshAllRecipes();
     }
 

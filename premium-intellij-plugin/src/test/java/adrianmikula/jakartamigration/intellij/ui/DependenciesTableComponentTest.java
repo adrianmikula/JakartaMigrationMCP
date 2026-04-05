@@ -15,7 +15,7 @@ public class DependenciesTableComponentTest extends BasePlatformTestCase {
     private DependenciesTableComponent tableComponent;
 
     @Override
-    protected void setUp() throws Exception {
+    public void setUp() throws Exception {
         super.setUp();
         tableComponent = new DependenciesTableComponent(getProject());
     }

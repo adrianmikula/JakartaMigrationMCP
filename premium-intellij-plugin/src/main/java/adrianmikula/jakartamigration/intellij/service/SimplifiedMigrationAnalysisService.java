@@ -2,7 +2,8 @@ package adrianmikula.jakartamigration.intellij.service;
 
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.MigrationReadinessScore;
-import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaArtifactLookupService;
+import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
+import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService.JakartaArtifactMatch;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.JakartaMappingServiceImpl;
 import com.intellij.openapi.diagnostic.Logger;
@@ -21,11 +22,11 @@ public class SimplifiedMigrationAnalysisService {
     
     private static final Logger LOG = Logger.getInstance(SimplifiedMigrationAnalysisService.class);
     
-    private final JakartaArtifactLookupService lookupService;
+    private final ImprovedMavenCentralLookupService lookupService;
     private final JakartaMappingService mappingService;
     
     public SimplifiedMigrationAnalysisService() {
-        this.lookupService = new JakartaArtifactLookupService();
+        this.lookupService = new ImprovedMavenCentralLookupService();
         this.mappingService = new JakartaMappingServiceImpl();
         LOG.info("SimplifiedMigrationAnalysisService initialized");
     }

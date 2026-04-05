@@ -24,12 +24,23 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class ImprovedMavenCentralLookupService {
     
-    private static final String MAVEN_CENTRAL_URL = "https://search.maven.org/solrsearch/select";
-    private static final String MAVEN_CENTRAL_API_URL = "https://api.sonatype.org/service/local/lucene/search";
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(15))
-            .build();
+    private static final String MAVEN_CENTRAL_API = "https://search.maven.org/solrsearch/select";
+    private static final String MAVEN_CENTRAL_FALLBACK = "https://search.maven.org/solrsearch/select";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    
+    // HTTP client is instance field to allow mocking in tests
+    private HttpClient httpClient;
+    
+    public ImprovedMavenCentralLookupService() {
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(15))
+                .build();
+    }
+    
+    // Package-private constructor for testing with mocked HTTP client
+    ImprovedMavenCentralLookupService(HttpClient httpClient) {
+        this.httpClient = httpClient;
+    }
     
     // Common artifact name mappings for fuzzy matching
     private static final Map<String, String> ARTIFACT_MAPPINGS = new HashMap<>();
@@ -49,6 +60,11 @@ public class ImprovedMavenCentralLookupService {
         ARTIFACT_MAPPINGS.put("javax.websocket-api", "jakarta.websocket-api");
         ARTIFACT_MAPPINGS.put("javax.xml.bind-api", "jakarta.xml.bind-api");
         ARTIFACT_MAPPINGS.put("javax.xml.ws-api", "jakarta.xml.ws-api");
+        // Additional mappings for comprehensive coverage
+        ARTIFACT_MAPPINGS.put("javax.ws.rs-api", "jakarta.ws.rs-api");
+        ARTIFACT_MAPPINGS.put("javax.mail-api", "jakarta.mail-api");
+        ARTIFACT_MAPPINGS.put("javax.enterprise.cdi-api", "jakarta.enterprise.cdi-api");
+        ARTIFACT_MAPPINGS.put("javax.security.enterprise-api", "jakarta.security.enterprise-api");
     }
     
     // Common group name mappings for fuzzy matching
@@ -67,6 +83,13 @@ public class ImprovedMavenCentralLookupService {
         GROUP_MAPPINGS.put("javax.websocket", "jakarta.websocket");
         GROUP_MAPPINGS.put("javax.xml.bind", "jakarta.xml.bind");
         GROUP_MAPPINGS.put("javax.xml.ws", "jakarta.xml.ws");
+        // Additional group mappings for comprehensive coverage
+        GROUP_MAPPINGS.put("javax.ws.rs", "jakarta.ws.rs");
+        GROUP_MAPPINGS.put("javax.mail", "jakarta.mail");
+        GROUP_MAPPINGS.put("javax.enterprise", "jakarta.enterprise");
+        GROUP_MAPPINGS.put("javax.security", "jakarta.security");
+        GROUP_MAPPINGS.put("javax.servlet.jsp", "jakarta.servlet.jsp");
+        GROUP_MAPPINGS.put("javax.servlet.jsp.jstl", "jakarta.servlet.jsp.jstl");
     }
     
     /**
@@ -96,6 +119,13 @@ public class ImprovedMavenCentralLookupService {
         
         log.info("Searching for Jakarta equivalents for javax dependency: {}:{}", javaxGroupId, javaxArtifactId);
         
+        // Input validation
+        if (javaxGroupId == null || javaxGroupId.trim().isEmpty() || 
+            javaxArtifactId == null || javaxArtifactId.trim().isEmpty()) {
+            log.warn("Invalid coordinates provided: groupId='{}', artifactId='{}'", javaxGroupId, javaxArtifactId);
+            return CompletableFuture.completedFuture(List.of());
+        }
+        
         return CompletableFuture.supplyAsync(() -> {
             List<JakartaArtifactMatch> allResults = new ArrayList<>();
             
@@ -103,6 +133,8 @@ public class ImprovedMavenCentralLookupService {
             allResults.addAll(searchWithExactMatch(javaxGroupId, javaxArtifactId));
             allResults.addAll(searchWithArtifactNameMapping(javaxGroupId, javaxArtifactId));
             allResults.addAll(searchWithGroupNameMapping(javaxGroupId, javaxArtifactId));
+            allResults.addAll(searchWithNamingVariations(javaxGroupId, javaxArtifactId));
+            allResults.addAll(searchWithCaseInsensitiveVariations(javaxGroupId, javaxArtifactId));
             
             // Remove duplicates and return first few results
             List<JakartaArtifactMatch> uniqueResults = allResults.stream()
@@ -130,7 +162,13 @@ public class ImprovedMavenCentralLookupService {
         
         String mappedArtifactId = ARTIFACT_MAPPINGS.get(artifactId);
         if (mappedArtifactId != null) {
-            results.addAll(performMavenCentralSearch(groupId, mappedArtifactId));
+            // Also map the groupId if it's a javax group
+            String mappedGroupId = GROUP_MAPPINGS.get(groupId);
+            if (mappedGroupId != null) {
+                results.addAll(performMavenCentralSearch(mappedGroupId, mappedArtifactId));
+            } else {
+                results.addAll(performMavenCentralSearch(groupId, mappedArtifactId));
+            }
         }
         
         return results;
@@ -151,18 +189,55 @@ public class ImprovedMavenCentralLookupService {
     }
     
     /**
+     * Search with naming variations (e.g., "javax.servlet" vs "javax.servlet-api")
+     */
+    private List<JakartaArtifactMatch> searchWithNamingVariations(String groupId, String artifactId) {
+        List<JakartaArtifactMatch> results = new ArrayList<>();
+        
+        // Try removing -api suffix if present
+        if (artifactId.endsWith("-api")) {
+            String baseArtifactId = artifactId.substring(0, artifactId.length() - 4);
+            results.addAll(performMavenCentralSearch(groupId, baseArtifactId));
+        }
+        // Try adding -api suffix if not present
+        else if (!artifactId.endsWith("-api")) {
+            String apiArtifactId = artifactId + "-api";
+            results.addAll(performMavenCentralSearch(groupId, apiArtifactId));
+        }
+        
+        return results;
+    }
+    
+    /**
+     * Search with case insensitive variations
+     */
+    private List<JakartaArtifactMatch> searchWithCaseInsensitiveVariations(String groupId, String artifactId) {
+        List<JakartaArtifactMatch> results = new ArrayList<>();
+        
+        // Try lowercase versions
+        String lowerGroupId = groupId.toLowerCase();
+        String lowerArtifactId = artifactId.toLowerCase();
+        
+        if (!groupId.equals(lowerGroupId) || !artifactId.equals(lowerArtifactId)) {
+            results.addAll(performMavenCentralSearch(lowerGroupId, lowerArtifactId));
+        }
+        
+        return results;
+    }
+    
+    /**
      * Performs the actual Maven Central search with fallback endpoints
      */
     private List<JakartaArtifactMatch> performMavenCentralSearch(String groupId, String artifactId) {
         List<JakartaArtifactMatch> results = new ArrayList<>();
         
         // Try the primary endpoint first
-        results.addAll(performSearchWithEndpoint(MAVEN_CENTRAL_URL, groupId, artifactId));
+        results.addAll(performSearchWithEndpoint(MAVEN_CENTRAL_API, groupId, artifactId));
         
         // If no results, try alternative endpoint
         if (results.isEmpty()) {
             log.info("No results from primary endpoint, trying alternative...");
-            results.addAll(performSearchWithEndpoint(MAVEN_CENTRAL_API_URL, groupId, artifactId));
+            results.addAll(performSearchWithEndpoint(MAVEN_CENTRAL_FALLBACK, groupId, artifactId));
         }
         
         return results;
@@ -176,6 +251,10 @@ public class ImprovedMavenCentralLookupService {
             String searchQuery = "g:" + groupId + " AND a:" + artifactId;
             String url = endpoint + "?q=" + URLEncoder.encode(searchQuery, "UTF-8") + "&rows=5&wt=json";
             
+            log.info("Querying Maven Central: {}", url);
+            
+            System.out.println("[MavenLookup] Querying: " + url);
+            
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .timeout(Duration.ofSeconds(15))
@@ -183,10 +262,18 @@ public class ImprovedMavenCentralLookupService {
                     .header("User-Agent", "Jakarta-Migration-MCP/1.0")
                     .build();
             
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-                    
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            
+            log.info("Maven Central response status: {} for query: {}", response.statusCode(), searchQuery);
+            
+            System.out.println("[MavenLookup] Response status: " + response.statusCode());
+            
             if (response.statusCode() == 200) {
-                return parseMavenCentralResponse(response.body());
+                String body = response.body();
+                System.out.println("[MavenLookup] Response body (first 300 chars): " + body.substring(0, Math.min(300, body.length())));
+                List<JakartaArtifactMatch> matches = parseMavenCentralResponse(body);
+                System.out.println("[MavenLookup] Parsed " + matches.size() + " matches");
+                return matches;
             } else {
                 log.warn("Failed to query Maven Central endpoint {}: HTTP {}", endpoint, response.statusCode());
                 return new ArrayList<>();
@@ -212,8 +299,12 @@ public class ImprovedMavenCentralLookupService {
         try {
             JsonNode rootNode = OBJECT_MAPPER.readTree(responseBody);
             
-            // Navigate to the "docs" array
-            JsonNode docsNode = rootNode.path("docs");
+            // Navigate to the "docs" array - it's inside the "response" object
+            JsonNode responseNode = rootNode.path("response");
+            JsonNode docsNode = responseNode.path("docs");
+            
+            System.out.println("[MavenLookup] Response numFound: " + responseNode.path("numFound").asInt());
+            System.out.println("[MavenLookup] Docs array size: " + docsNode.size());
             
             if (docsNode.isArray() && docsNode.size() > 0) {
                 for (JsonNode docNode : docsNode) {
@@ -221,6 +312,8 @@ public class ImprovedMavenCentralLookupService {
                     String foundGroupId = docNode.path("g").asText();
                     String foundArtifactId = docNode.path("a").asText();
                     String version = docNode.path("latestVersion").asText();
+                    
+                    System.out.println("[MavenLookup] Found artifact: " + foundGroupId + ":" + foundArtifactId + ":" + version);
                     
                     if (!foundGroupId.isEmpty() && !foundArtifactId.isEmpty() && !version.isEmpty()) {
                         results.add(JakartaArtifactMatch.of(foundGroupId, foundArtifactId, version));
@@ -231,6 +324,7 @@ public class ImprovedMavenCentralLookupService {
             
         } catch (Exception e) {
             log.warn("Error parsing Maven Central response", e);
+            System.out.println("[MavenLookup] Parse error: " + e.getMessage());
         }
         
         return results;

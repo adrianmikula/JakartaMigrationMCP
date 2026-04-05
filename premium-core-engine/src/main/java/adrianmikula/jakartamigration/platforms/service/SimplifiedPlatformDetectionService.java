@@ -109,10 +109,11 @@ public class SimplifiedPlatformDetectionService {
                 }
                 
                 // Check common artifacts first (faster than regex)
+                // Supports both Gradle format (group:artifact) and Maven XML format
                 if (config.commonArtifacts() != null) {
                     log.debug("Platform {} has {} common artifacts to check", platformName, config.commonArtifacts().size());
                     for (String artifact : config.commonArtifacts()) {
-                        if (pomContent.toLowerCase().contains(artifact.toLowerCase())) {
+                        if (matchesArtifact(pomContent, artifact)) {
                             servers.add(platformName);
                             log.debug("✓ Detected {} via common artifact: {}", platformName, artifact);
                             break; // Found this platform, move to next
@@ -184,10 +185,11 @@ public class SimplifiedPlatformDetectionService {
                 }
                 
                 // Check common artifacts first (faster than regex)
+                // Supports both Gradle format (group:artifact) and Maven XML format
                 if (config.commonArtifacts() != null) {
                     log.debug("Platform {} has {} common artifacts to check", platformName, config.commonArtifacts().size());
                     for (String artifact : config.commonArtifacts()) {
-                        if (gradleContent.toLowerCase().contains(artifact.toLowerCase())) {
+                        if (matchesArtifact(gradleContent, artifact)) {
                             servers.add(platformName);
                             log.debug("✓ Detected {} via common artifact: {}", platformName, artifact);
                             break; // Found this platform, move to next
@@ -381,5 +383,37 @@ public class SimplifiedPlatformDetectionService {
         
         log.debug("Installed servers scan complete. Found {} servers: {}", servers.size(), servers);
         return servers;
+    }
+    
+    /**
+     * Checks if the content contains the specified artifact.
+     * Supports both Gradle format (group:artifact) and Maven XML format (separate groupId/artifactId elements).
+     * 
+     * @param content The file content to search (pom.xml or build.gradle)
+     * @param artifact The artifact in group:name format
+     * @return true if the artifact is found in the content
+     */
+    private boolean matchesArtifact(String content, String artifact) {
+        String lowerContent = content.toLowerCase();
+        String lowerArtifact = artifact.toLowerCase();
+        
+        // First check for Gradle format: group:artifact
+        if (lowerContent.contains(lowerArtifact)) {
+            return true;
+        }
+        
+        // For Maven XML format, check if both group and artifact are present
+        if (artifact.contains(":")) {
+            String[] parts = artifact.split(":");
+            if (parts.length == 2) {
+                String group = parts[0].toLowerCase();
+                String name = parts[1].toLowerCase();
+                // Check for Maven XML format with separate groupId and artifactId elements
+                return lowerContent.contains("<groupid>" + group + "</groupid>") &&
+                       lowerContent.contains("<artifactid>" + name + "</artifactid>");
+            }
+        }
+        
+        return false;
     }
 }

@@ -9,6 +9,8 @@ import org.junit.After;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
+import java.io.IOException;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -40,7 +42,7 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
     }
     
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
         if (mockedFailsafeConfig != null) {
             mockedFailsafeConfig.close();
         }
@@ -48,7 +50,11 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
             mockedCheckLicense.close();
         }
         SafeLicenseChecker.clearCache();
-        super.tearDown();
+        try {
+            super.tearDown();
+        } catch (IOException e) {
+            // Ignore cleanup errors
+        }
     }
     
     // ==================== Comprehensive Mode Tests ====================

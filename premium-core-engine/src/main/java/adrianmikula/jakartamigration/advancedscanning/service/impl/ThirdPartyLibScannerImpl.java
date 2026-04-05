@@ -73,10 +73,10 @@ public class ThirdPartyLibScannerImpl implements ThirdPartyLibScanner {
         StringBuilder buildFilesFound = new StringBuilder();
 
         try {
-            // Find ALL build files recursively
+            // Find ALL build files recursively including Dockerfile
             List<Path> buildFiles = fileScanner.findFiles(projectPath, path -> {
                 String name = path.getFileName().toString();
-                return name.equals("pom.xml") || name.startsWith("build.gradle");
+                return name.equals("pom.xml") || name.startsWith("build.gradle") || name.equals("Dockerfile") || name.equals("dockerfile");
             });
 
             for (Path buildFile : buildFiles) {
@@ -87,6 +87,8 @@ public class ThirdPartyLibScannerImpl implements ThirdPartyLibScanner {
 
                 if (name.equals("pom.xml")) {
                     problematicLibs.addAll(scanMavenPom(buildFile));
+                } else if (name.equals("Dockerfile") || name.equals("dockerfile")) {
+                    problematicLibs.addAll(scanDockerfile(buildFile));
                 } else {
                     problematicLibs.addAll(scanGradleBuild(buildFile));
                 }
@@ -165,6 +167,47 @@ public class ThirdPartyLibScannerImpl implements ThirdPartyLibScanner {
             log.warn("Error reading build.gradle: {}", e.getMessage());
         }
 
+        return usages;
+    }
+
+    /**
+     * Scans Dockerfile for Jakarta EE migration issues
+     */
+    private List<ThirdPartyLibUsage> scanDockerfile(Path dockerfilePath) {
+        List<ThirdPartyLibUsage> usages = new ArrayList<>();
+        
+        try {
+            String content = Files.readString(dockerfilePath);
+            
+            // Check for Java EE base images that need Jakarta EE migration
+            if (content.contains("payara/") || content.contains("glassfish/") || 
+                content.contains("wildfly/") || content.contains("tomcat:") || 
+                content.contains("jetty:") || content.contains("openliberty/")) {
+                
+                usages.add(new ThirdPartyLibUsage(
+                        "Java EE Application Server",
+                        "javax.server",
+                        "appserver",
+                        "legacy",
+                        "container-migration",
+                        "Use Jakarta EE compatible server image"));
+            }
+            
+            // Check for Maven builds that might need Jakarta dependencies
+            if (content.contains("mvn") && content.contains("javax")) {
+                usages.add(new ThirdPartyLibUsage(
+                        "Maven Build with javax dependencies",
+                        "javax.build",
+                        "maven",
+                        "detected",
+                        "dependency-migration",
+                        "Review pom.xml for Jakarta migration"));
+            }
+            
+        } catch (IOException e) {
+            log.warn("Error reading Dockerfile: {}", e.getMessage());
+        }
+        
         return usages;
     }
 

@@ -1,0 +1,16 @@
+ignore_folders:
+  - "node_modules"
+  - ".git"
+  - ".gradle"
+  - ".idea"
+  - ".vscode"
+  - "target"
+  - "bin"
+  - "build"
+  - "out"
+  - "dist"
+  - "tmp"
+  - "temp"
+
+
+

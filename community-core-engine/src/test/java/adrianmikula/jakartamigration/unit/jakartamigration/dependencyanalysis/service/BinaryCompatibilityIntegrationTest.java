@@ -4,7 +4,7 @@ import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalys
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
-import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaArtifactLookupService;
+import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.DependencyAnalysisModuleImpl;
@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@Tag("slow")  // Integration test with heavy dependency analysis
 @DisplayName("Binary Compatibility Integration Tests")
 class BinaryCompatibilityIntegrationTest {
 
@@ -49,7 +50,7 @@ class BinaryCompatibilityIntegrationTest {
                 dependencyGraphBuilder,
                 namespaceClassifier,
                 jakartaMappingService,
-                new JakartaArtifactLookupService(),
+                new ImprovedMavenCentralLookupService(),
                 analysisStore);
     }
 

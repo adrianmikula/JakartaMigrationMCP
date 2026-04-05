@@ -96,7 +96,7 @@ public class SimplifiedPlatformDetectionServiceTest {
         
         // Then
         assertThat(detectedServers).contains("glassfish");
-        assertThat(detectedServers).hasSize(3); // Detects glassfish, tomee, payara due to overlapping artifacts
+        assertThat(detectedServers).hasSize(1); // Only glassfish detected with specific group:name artifacts
     }
     
     @Test
@@ -160,7 +160,7 @@ public class SimplifiedPlatformDetectionServiceTest {
         
         String gradleContent = """
             dependencies {
-                implementation 'org.wildfly.core:wildfly-ee:27.0.1.Final'
+                implementation 'org.wildfly:wildfly-ee:27.0.1.Final'
             }
             """;
         Files.write(projectPath.resolve("build.gradle"), gradleContent.getBytes());
@@ -187,8 +187,8 @@ public class SimplifiedPlatformDetectionServiceTest {
         
         String gradleContent = """
             dependencies {
-                implementation 'org.netbeans.modules:org-netbeans-api:12.6'
-                implementation 'org.netbeans.swing:org-netbeans-swing:12.6'
+                implementation 'org.netbeans.modules:org-netbeans-modules-java-platform:12.6'
+                implementation 'org.netbeans.api:org-netbeans-api-java:12.6'
             }
             """;
         Files.write(projectPath.resolve("build.gradle"), gradleContent.getBytes());
@@ -201,8 +201,7 @@ public class SimplifiedPlatformDetectionServiceTest {
         
         String gradleContent = """
             dependencies {
-                implementation 'org.glassfish.main:glassfish:7.0.0'
-                implementation 'org.glassfish.jersey:jersey-server:3.1.0'
+                implementation 'org.glassfish.main:glassfish-main:7.0.0'
             }
             """;
         Files.write(projectPath.resolve("build.gradle"), gradleContent.getBytes());
@@ -210,13 +209,13 @@ public class SimplifiedPlatformDetectionServiceTest {
     }
     
     private Path createMixedProjectWithMultiplePlatforms() throws IOException {
-        Path projectPath = tempDir.resolve("mixed-platforms");
+        Path projectPath = tempDir.resolve("mixed-project");
         Files.createDirectories(projectPath);
         
         String gradleContent = """
             dependencies {
                 implementation 'org.apache.tomcat.embed:tomcat-embed-core:10.1.15'
-                implementation 'org.wildfly.core:wildfly-ee:27.0.1.Final'
+                implementation 'org.wildfly:wildfly-ee:27.0.1.Final'
                 implementation 'org.springframework.boot:spring-boot-starter:3.1.5'
             }
             """;

@@ -1070,22 +1070,31 @@ public class AdvancedScansComponent {
         }
     }
 
+    /**
+     * Generic table setup method to reduce duplication
+     */
     private void setupTable(JBTable table) {
         table.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
-
-        // Hide the Path column (last column)
+        
+        // Hide the last column (Path column)
         TableColumnModel columnModel = table.getColumnModel();
         int pathColumnIndex = columnModel.getColumnCount() - 1;
         columnModel.removeColumn(columnModel.getColumn(pathColumnIndex));
-
+        
         // Add double-click listener to open file
+        addFileOpenListener(table, pathColumnIndex);
+    }
+    
+    /**
+     * Adds file open listener to table
+     */
+    private void addFileOpenListener(JBTable table, int pathColumnIndex) {
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
                     int row = table.getSelectedRow();
                     if (row >= 0) {
-                        // Get path from model (even if column is hidden in view)
                         String pathStr = (String) table.getModel().getValueAt(row, pathColumnIndex);
                         if (pathStr != null && !pathStr.isEmpty()) {
                             openFileInEditor(pathStr);

@@ -190,7 +190,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             }
 
             // Support tab - links to GitHub, LinkedIn, sponsor pages
-            supportComponent = new SupportComponent(project, v -> refreshPremiumTabs());
+            supportComponent = new SupportComponent(project, v -> refreshPremiumTabs(), () -> refreshExperimentalTabs());
             tabbedPane.addTab("Support", supportComponent.getPanel());
 
             // AI tab - always visible (formerly MCP Server)
@@ -293,37 +293,68 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         /**
-         * Refreshes tabs when experimental features flag changes
+         * Refreshes tabs when experimental features flag changes.
+         * Properly adds or removes experimental tabs at the correct positions.
          */
         public void refreshExperimentalTabs() {
             System.out.println("DEBUG: MigrationToolWindow.refreshExperimentalTabs() called");
             boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
             System.out.println("DEBUG: MigrationToolWindow - experimentalEnabled = " + experimentalEnabled);
             
-            // Refresh Reports tab
-            if (reportsTabComponent != null && experimentalEnabled) {
+            // Find the Reports tab index if it exists
+            int reportsTabIndex = findTabIndex("Reports");
+            boolean reportsTabExists = reportsTabIndex >= 0;
+            
+            // Add or remove Reports tab
+            if (experimentalEnabled && !reportsTabExists && reportsTabComponent == null) {
                 reportsTabComponent = new ComprehensiveReportsTabComponent(project);
-                tabbedPane.setComponentAt(1, reportsTabComponent.getPanel());
-                tabbedPane.setTitleAt(1, "Reports 📊 (Experimental)");
-                LOG.info("refreshExperimentalTabs: Reports tab added");
-            } else if (reportsTabComponent != null && !experimentalEnabled) {
-                tabbedPane.removeTabAt(1);
+                // Insert after Platforms tab (find appropriate position)
+                int platformsIndex = findTabIndex("Platforms");
+                int insertIndex = platformsIndex >= 0 ? platformsIndex + 1 : tabbedPane.getTabCount();
+                tabbedPane.insertTab("Reports 📊 (Experimental)", null, reportsTabComponent.getPanel(), null, insertIndex);
+                LOG.info("refreshExperimentalTabs: Reports tab added at index " + insertIndex);
+            } else if (!experimentalEnabled && reportsTabExists) {
+                tabbedPane.removeTabAt(reportsTabIndex);
+                reportsTabComponent = null;
                 LOG.info("refreshExperimentalTabs: Reports tab removed");
             }
             
-            // Refresh Runtime tab  
-            if (runtimeTabComponent != null && experimentalEnabled) {
+            // Find the Runtime tab index if it exists
+            int runtimeTabIndex = findTabIndex("Runtime");
+            boolean runtimeTabExists = runtimeTabIndex >= 0;
+            
+            // Add or remove Runtime tab
+            if (experimentalEnabled && !runtimeTabExists && runtimeTabComponent == null) {
                 runtimeTabComponent = new RuntimeTabComponent(project);
-                tabbedPane.setComponentAt(2, runtimeTabComponent.getPanel());
-                tabbedPane.setTitleAt(2, "Runtime ⚡ (Experimental)");
-                LOG.info("refreshExperimentalTabs: Runtime tab added");
-            } else if (runtimeTabComponent != null && !experimentalEnabled) {
-                tabbedPane.removeTabAt(2);
+                // Insert after Reports tab if it exists, otherwise after Platforms
+                int insertAfter = findTabIndex("Reports");
+                if (insertAfter < 0) {
+                    insertAfter = findTabIndex("Platforms");
+                }
+                int insertIndex = insertAfter >= 0 ? insertAfter + 1 : tabbedPane.getTabCount();
+                tabbedPane.insertTab("Runtime ⚡ (Experimental)", null, runtimeTabComponent.getPanel(), null, insertIndex);
+                LOG.info("refreshExperimentalTabs: Runtime tab added at index " + insertIndex);
+            } else if (!experimentalEnabled && runtimeTabExists) {
+                tabbedPane.removeTabAt(runtimeTabIndex);
+                runtimeTabComponent = null;
                 LOG.info("refreshExperimentalTabs: Runtime tab removed");
             }
             
             contentPanel.revalidate();
             contentPanel.repaint();
+        }
+        
+        /**
+         * Helper method to find tab index by title prefix.
+         */
+        private int findTabIndex(String titlePrefix) {
+            for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+                String title = tabbedPane.getTitleAt(i);
+                if (title != null && title.startsWith(titlePrefix)) {
+                    return i;
+                }
+            }
+            return -1;
         }
 
         public void rebuildUI() {
@@ -362,12 +393,6 @@ public class MigrationToolWindow implements ToolWindowFactory {
             analyzeButton.addActionListener(this::handleAnalyzeProject);
             System.out.println("DEBUG: Analyze button created, enabled: " + analyzeButton.isEnabled());
             toolbarPanel.add(analyzeButton);
-
-            // Refresh button
-            JButton refreshButton = new JButton("↻ Refresh");
-            refreshButton.setToolTipText("Refresh analysis results");
-            refreshButton.addActionListener(e -> handleAnalyzeProject(null));
-            toolbarPanel.add(refreshButton);
 
             // Status indicator
             JLabel statusLabel = new JLabel("Ready");
