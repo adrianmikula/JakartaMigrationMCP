@@ -68,8 +68,13 @@ public class DependenciesTableComponent {
     // Status colors
     private static final Color STATUS_COMPATIBLE = new Color(40, 167, 69); // Green
     private static final Color STATUS_NEEDS_UPGRADE = new Color(255, 193, 7); // Yellow
-    private static final Color STATUS_NO_JAKARTA = new Color(220, 53, 69); // Red
-    private static final Color STATUS_UNKNOWN = new Color(108, 117, 125); // Gray
+    private static final Color STATUS_INCOMPATIBLE = new Color(220, 53, 69); // Red
+    
+    // Callback interface for notifying when analysis completes
+    public interface OnAnalysisCompleteListener {
+        void onAnalysisComplete(List<DependencyInfo> dependencies);
+    }
+    private OnAnalysisCompleteListener analysisCompleteListener;
 
     public DependenciesTableComponent(Project project) {
         this.project = project;
@@ -131,8 +136,8 @@ public class DependenciesTableComponent {
             
             isRendering = true;
             try {
-            // Status column is now at index 5, DependencyInfo at index 7
-            if (column == 5 && row < table.getModel().getRowCount()) {
+            // Status column is now at index 5, Jakarta Equivalent at index 3, DependencyInfo at index 7
+            if ((column == 5 || column == 3) && row < table.getModel().getRowCount()) {
                 Object depObj = table.getModel().getValueAt(row, 7);
                 if (depObj instanceof DependencyInfo) {
                     DependencyInfo dep = (DependencyInfo) depObj;
@@ -466,6 +471,10 @@ public class DependenciesTableComponent {
         this.isPremiumUser = isPremium;
     }
 
+    public void setOnAnalysisCompleteListener(OnAnalysisCompleteListener listener) {
+        this.analysisCompleteListener = listener;
+    }
+
     public boolean isPremiumUser() {
         return isPremiumUser;
     }
@@ -696,6 +705,10 @@ public class DependenciesTableComponent {
         // Refresh UI to show app server upgrades immediately
         if (!appServerDeps.isEmpty()) {
             SwingUtilities.invokeLater(() -> filterDependencies());
+            // Notify listener that analysis has new results
+            if (analysisCompleteListener != null) {
+                analysisCompleteListener.onAnalysisComplete(new ArrayList<>(allDependencies));
+            }
         }
         
         if (javaxDependencies.isEmpty()) {
@@ -733,6 +746,11 @@ public class DependenciesTableComponent {
                         progressBar.setVisible(false);
                         progressBar.setIndeterminate(false);
                         filterDependencies();
+                        
+                        // Notify listener that analysis is complete
+                        if (analysisCompleteListener != null) {
+                            analysisCompleteListener.onAnalysisComplete(new ArrayList<>(allDependencies));
+                        }
                         
                         LOGGER.info("Maven Central query completed.");
                     });

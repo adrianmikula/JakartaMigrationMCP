@@ -148,6 +148,10 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Dependencies tab
             dependenciesComponent = new DependenciesTableComponent(project);
+            dependenciesComponent.setOnAnalysisCompleteListener(updatedDependencies -> {
+                // Refresh dependency graph with updated status when async analysis completes
+                refreshDependencyGraphWithUpdatedStatus(updatedDependencies);
+            });
             tabbedPane.addTab("Dependencies", dependenciesComponent.getPanel());
 
             // Dependency Graph tab
@@ -849,6 +853,25 @@ public class MigrationToolWindow implements ToolWindowFactory {
             dashboardComponent.setDashboard(dashboard);
             dependenciesComponent.setDependencies(new ArrayList<>());
             migrationPhasesComponent.setDependencies(new ArrayList<>());
+        }
+
+        /**
+         * Refresh dependency graph with updated status when async analysis completes
+         */
+        private void refreshDependencyGraphWithUpdatedStatus(List<DependencyInfo> updatedDependencies) {
+            SwingUtilities.invokeLater(() -> {
+                // Build updated status map for dependency graph
+                Map<String, String> updatedStatusMap = new HashMap<>();
+                for (DependencyInfo dep : updatedDependencies) {
+                    String key = dep.getGroupId() + ":" + dep.getArtifactId();
+                    updatedStatusMap.put(key, dep.getMigrationStatus().name());
+                }
+                
+                // Update dependency graph with new statuses
+                dependencyGraphComponent.updateNodeStatuses(updatedStatusMap);
+                
+                LOG.info("Dependency graph refreshed with " + updatedDependencies.size() + " updated statuses");
+            });
         }
 
         /**
