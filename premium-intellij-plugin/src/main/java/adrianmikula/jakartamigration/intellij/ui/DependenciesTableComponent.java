@@ -69,6 +69,8 @@ public class DependenciesTableComponent {
     private static final Color STATUS_COMPATIBLE = new Color(40, 167, 69); // Green
     private static final Color STATUS_NEEDS_UPGRADE = new Color(255, 193, 7); // Yellow
     private static final Color STATUS_INCOMPATIBLE = new Color(220, 53, 69); // Red
+    private static final Color STATUS_NO_JAKARTA = new Color(220, 53, 69); // Red
+    private static final Color STATUS_UNKNOWN = new Color(108, 117, 125); // Gray
     
     // Callback interface for notifying when analysis completes
     public interface OnAnalysisCompleteListener {

@@ -241,6 +241,31 @@ public class DependencyGraphComponent {
         updateGraphFromDependencyGraph();
     }
 
+    /**
+     * Update node statuses from a string-based status map and refresh the graph.
+     * Used to sync status updates from DependenciesTableComponent async analysis.
+     */
+    public void updateNodeStatuses(Map<String, String> statusMap) {
+        if (statusMap == null || statusMap.isEmpty()) {
+            return;
+        }
+        
+        // Convert string status to enum and update artifactStatusMap
+        for (Map.Entry<String, String> entry : statusMap.entrySet()) {
+            try {
+                DependencyMigrationStatus status = DependencyMigrationStatus.valueOf(entry.getValue());
+                artifactStatusMap.put(entry.getKey(), status);
+            } catch (IllegalArgumentException e) {
+                // Ignore invalid status values
+            }
+        }
+        
+        // Refresh the graph with updated statuses
+        if (dependencyGraph != null) {
+            updateGraphFromDependencyGraph();
+        }
+    }
+
     private void updateGraphFromDependencyGraph() {
         if (dependencyGraph == null) {
             return;
