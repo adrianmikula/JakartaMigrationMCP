@@ -642,6 +642,7 @@ public class DependenciesTableComponent {
                         // This is a javax-era app server - recommend Jakarta upgrade
                         dep.setRecommendedArtifactCoordinates(
                             matchingPlatform.name() + " " + minJakartaVersion + "+ (Jakarta EE)");
+                        dep.setRecommendedVersion(minJakartaVersion + "+");
                         dep.setJakartaCompatibilityStatus("Upgrade to " + minJakartaVersion + "+");
                         dep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
                         appServerDeps.add(dep);
