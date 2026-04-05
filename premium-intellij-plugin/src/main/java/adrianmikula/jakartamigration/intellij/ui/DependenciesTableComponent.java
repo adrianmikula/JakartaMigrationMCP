@@ -4,6 +4,8 @@ import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService.JakartaArtifactMatch;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
+import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader;
+import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader.ArtifactClassification;
 import adrianmikula.jakartamigration.platforms.config.PlatformConfigLoader;
 import adrianmikula.jakartamigration.platforms.model.PlatformConfig;
 import com.intellij.openapi.project.Project;
@@ -61,6 +63,7 @@ public class DependenciesTableComponent {
     private JLabel selectedDependencyLabel;
     private boolean isPremiumUser = false;
     private final PlatformConfigLoader platformConfigLoader;
+    private final CompatibilityConfigLoader compatibilityConfigLoader;
 
     // Status colors
     private static final Color STATUS_COMPATIBLE = new Color(40, 167, 69); // Green
@@ -72,6 +75,7 @@ public class DependenciesTableComponent {
         this.project = project;
         this.allDependencies = new ArrayList<>();
         this.platformConfigLoader = new PlatformConfigLoader();
+        this.compatibilityConfigLoader = new CompatibilityConfigLoader();
         this.panel = new JBPanel<>(new BorderLayout());
 
         // Columns with Jakarta Equivalent information
@@ -102,7 +106,7 @@ public class DependenciesTableComponent {
 
         this.searchField = new JTextField(20);
         this.statusFilter = new JComboBox<>(new String[] {
-                "All", "Compatible", "Needs Upgrade", "No Jakarta Version"
+                "All", "Compatible", "Needs Upgrade", "No Jakarta Version", "Unknown"
         });
         this.transitiveFilter = new JCheckBox("Show Transitive Only", false);
         this.organizationalFilter = new JCheckBox("Show All Organisational Artifacts", false);
@@ -218,10 +222,13 @@ public class DependenciesTableComponent {
                 case COMPATIBLE:
                     return STATUS_COMPATIBLE;
                 case NEEDS_UPGRADE:
-                case REQUIRES_MANUAL_MIGRATION:
                     return STATUS_NEEDS_UPGRADE;
                 case NO_JAKARTA_VERSION:
                     return STATUS_NO_JAKARTA;
+                case REQUIRES_MANUAL_MIGRATION:
+                    return STATUS_NO_JAKARTA; // Red for manual migration required
+                case UNKNOWN:
+                    return STATUS_UNKNOWN;
                 default:
                     return STATUS_UNKNOWN;
             }
@@ -646,7 +653,39 @@ public class DependenciesTableComponent {
                     }
                 }
             } else if (dep.getGroupId().startsWith("javax.")) {
-                javaxDependencies.add(dep);
+                // Use compatibility config to classify javax dependencies
+                ArtifactClassification classification = compatibilityConfigLoader.classifyArtifact(
+                    dep.getGroupId(), dep.getArtifactId());
+                
+                switch (classification) {
+                    case JDK_PROVIDED:
+                        // JDK-provided packages - no Jakarta migration needed
+                        dep.setMigrationStatus(DependencyMigrationStatus.COMPATIBLE);
+                        dep.setJakartaCompatibilityStatus("JDK Provided - No migration needed");
+                        System.out.println("[DEBUG] JDK-provided (no migration): " + dep.getGroupId() + ":" + dep.getArtifactId());
+                        break;
+                        
+                    case JAKARTA_REQUIRED:
+                        // Must migrate to Jakarta EE - query Maven Central
+                        javaxDependencies.add(dep);
+                        System.out.println("[DEBUG] Jakarta required: " + dep.getGroupId() + ":" + dep.getArtifactId());
+                        break;
+                        
+                    case CONTEXT_DEPENDENT:
+                        // Ambiguous - requires manual review or Maven lookup
+                        dep.setMigrationStatus(DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION);
+                        dep.setJakartaCompatibilityStatus("Review Required - Context dependent");
+                        // Also query Maven Central as a hint
+                        javaxDependencies.add(dep);
+                        System.out.println("[DEBUG] Context dependent (manual review): " + dep.getGroupId() + ":" + dep.getArtifactId());
+                        break;
+                        
+                    case UNKNOWN:
+                        // Not in any list - query Maven Central as fallback
+                        javaxDependencies.add(dep);
+                        System.out.println("[DEBUG] Unknown (Maven lookup fallback): " + dep.getGroupId() + ":" + dep.getArtifactId());
+                        break;
+                }
             }
         }
         
@@ -731,8 +770,10 @@ public class DependenciesTableComponent {
      */
     private synchronized void updateDependencyWithJakartaInfo(DependencyInfo javaxDep, List<JakartaArtifactMatch> jakartaArtifacts) {
         if (jakartaArtifacts == null || jakartaArtifacts.isEmpty()) {
-            // No Jakarta artifacts found
-            javaxDep.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
+            // No Jakarta artifacts found - mark as UNKNOWN
+            javaxDep.setMigrationStatus(DependencyMigrationStatus.UNKNOWN);
+            javaxDep.setJakartaCompatibilityStatus("Unknown - No Jakarta equivalent found");
+            System.out.println("[DEBUG] No Jakarta equivalent found for: " + javaxDep.getGroupId() + ":" + javaxDep.getArtifactId());
             return;
         }
         
@@ -743,7 +784,10 @@ public class DependenciesTableComponent {
                 .orElse(null);
         
         if (bestMatch == null) {
-            javaxDep.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
+            // No valid matches found - mark as UNKNOWN
+            javaxDep.setMigrationStatus(DependencyMigrationStatus.UNKNOWN);
+            javaxDep.setJakartaCompatibilityStatus("Unknown - No valid Jakarta match");
+            System.out.println("[DEBUG] No valid Jakarta match for: " + javaxDep.getGroupId() + ":" + javaxDep.getArtifactId());
             return;
         }
         
@@ -881,8 +925,10 @@ public class DependenciesTableComponent {
                 return DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION;
             case "migrated":
                 return DependencyMigrationStatus.MIGRATED;
+            case "unknown":
+                return DependencyMigrationStatus.UNKNOWN;
             default:
-                return DependencyMigrationStatus.COMPATIBLE;
+                return DependencyMigrationStatus.UNKNOWN;
         }
     }
 

@@ -96,6 +96,23 @@ public class DependenciesTableComponentTest extends BasePlatformTestCase {
         assertThat(tableComponent.getTableModel().getValueAt(0, 0)).isEqualTo("transitive.dep");
     }
 
+    public void testFilteringByUnknownStatus() {
+        List<DependencyInfo> deps = new ArrayList<>();
+        deps.add(new DependencyInfo("org.hibernate", "hibernate-core", "5.6.0.Final", null, null, null,
+                "Unknown", null, DependencyMigrationStatus.NEEDS_UPGRADE, false, false));
+        deps.add(new DependencyInfo("com.unknown", "unknown-api", "1.0.0", null, null, null,
+                "Unknown", null, DependencyMigrationStatus.UNKNOWN, false, false));
+        deps.add(new DependencyInfo("javax.servlet", "javax.servlet-api", "4.0.1", null, null, null,
+                "Unknown", null, DependencyMigrationStatus.COMPATIBLE, false, false));
+        tableComponent.setDependencies(deps);
+
+        tableComponent.getStatusFilter().setSelectedItem("Unknown");
+        // actionPerformed is handled by listener
+
+        assertThat(tableComponent.getTableModel().getRowCount()).isEqualTo(1);
+        assertThat(tableComponent.getTableModel().getValueAt(0, 0)).isEqualTo("com.unknown");
+    }
+
     public void testApplyRecipeButtonForNonPremiumUsers() {
         // Mock Messages to verify dialog behavior
         Messages messages = mock(Messages.class);

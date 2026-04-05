@@ -10,7 +10,8 @@ public enum DependencyMigrationStatus {
     NEEDS_UPGRADE("NEEDS_UPGRADE"),
     NO_JAKARTA_VERSION("NO_JAKARTA_VERSION"),
     REQUIRES_MANUAL_MIGRATION("REQUIRES_MANUAL_MIGRATION"),
-    MIGRATED("MIGRATED");
+    MIGRATED("MIGRATED"),
+    UNKNOWN("UNKNOWN");
 
     private final String value;
 

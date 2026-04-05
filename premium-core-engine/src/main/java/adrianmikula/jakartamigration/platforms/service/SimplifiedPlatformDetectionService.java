@@ -408,9 +408,26 @@ public class SimplifiedPlatformDetectionService {
             if (parts.length == 2) {
                 String group = parts[0].toLowerCase();
                 String name = parts[1].toLowerCase();
-                // Check for Maven XML format with separate groupId and artifactId elements
-                return lowerContent.contains("<groupid>" + group + "</groupid>") &&
-                       lowerContent.contains("<artifactid>" + name + "</artifactid>");
+                
+                // Check for Maven XML format with case-insensitive tag matching
+                // Pattern: <groupId>group</groupId> anywhere in content
+                boolean hasGroup = lowerContent.contains("<groupid>" + group + "</groupid>");
+                boolean hasArtifact = lowerContent.contains("<artifactid>" + name + "</artifactid>");
+                
+                if (hasGroup && hasArtifact) {
+                    return true;
+                }
+                
+                // Also check for simple artifact name match (backward compatibility)
+                // This handles cases where only artifactId is specified without group
+                if (lowerContent.contains(name)) {
+                    return true;
+                }
+            }
+        } else {
+            // No colon - simple artifact name check (backward compatibility)
+            if (lowerContent.contains(lowerArtifact)) {
+                return true;
             }
         }
         
