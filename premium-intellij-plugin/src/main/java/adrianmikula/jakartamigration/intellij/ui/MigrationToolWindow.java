@@ -572,7 +572,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
         /**
          * Handle analyze project action - triggers analysis using migration-core
-         * library
+         * library. For premium/trial users, runs all 3 scans sequentially.
+         * For non-premium users, runs only basic scan.
          */
         private void handleAnalyzeProject(java.awt.event.ActionEvent e) {
             String projectPathStr = project.getBasePath();
@@ -588,22 +589,37 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             final Path projectPath = Path.of(projectPathStr);
 
-            // Run analysis directly using the migration-core library
+            // Check license status at runtime
+            boolean isLicensed = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
+            LOG.info("handleAnalyzeProject: License check - isLicensed=" + isLicensed);
+
+            if (isLicensed) {
+                // Premium/Trial: Run all 3 scans sequentially
+                runPremiumAnalysis(projectPath);
+            } else {
+                // Non-premium: Run only basic scan
+                runBasicAnalysis(projectPath);
+            }
+        }
+
+        /**
+         * Run basic analysis only (for non-premium users)
+         */
+        private void runBasicAnalysis(Path projectPath) {
+            LOG.info("runBasicAnalysis: Starting basic scan only (non-premium user)");
+
             CompletableFuture.supplyAsync(() -> analysisService.analyzeProject(projectPath))
                     .thenAccept(report -> {
                         ApplicationManager.getApplication().invokeLater(() -> {
                             if (report != null && report.dependencyGraph() != null &&
                                     !report.dependencyGraph().getNodes().isEmpty()) {
-                                // Save to database
                                 store.saveAnalysisReport(projectPath, report, false);
-                                // Update dashboard with real data
                                 updateDashboardFromReport(report);
                                 int depsCount = report.dependencyGraph().getNodes().size();
                                 Messages.showInfoMessage(project, "Analysis complete! " +
                                         depsCount +
                                         " dependencies analyzed.", "Analysis Complete");
                             } else {
-                                // No dependencies found - project is ready
                                 showEmptyResultsState();
                                 Messages.showInfoMessage(project,
                                         "Analysis complete. No Jakarta migration issues found.",
@@ -613,6 +629,91 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     })
                     .exceptionally(ex -> {
                         ApplicationManager.getApplication().invokeLater(() -> {
+                            Messages.showWarningDialog(project,
+                                    "Analysis failed: " + ex.getMessage(),
+                                    "Analysis Failed");
+                        });
+                        return null;
+                    });
+        }
+
+        /**
+         * Run all 3 scans sequentially for premium/trial users:
+         * 1. Basic dependency analysis
+         * 2. Advanced scans
+         * 3. Platform detection
+         */
+        private void runPremiumAnalysis(Path projectPath) {
+            LOG.info("runPremiumAnalysis: Starting sequential scan (basic → advanced → platform)");
+
+            // Step 1: Run basic analysis
+            CompletableFuture.supplyAsync(() -> analysisService.analyzeProject(projectPath))
+                    .thenCompose(basicReport -> {
+                        LOG.info("runPremiumAnalysis: Basic scan completed");
+
+                        // Update UI with basic results
+                        ApplicationManager.getApplication().invokeLater(() -> {
+                            if (basicReport != null && basicReport.dependencyGraph() != null &&
+                                    !basicReport.dependencyGraph().getNodes().isEmpty()) {
+                                store.saveAnalysisReport(projectPath, basicReport, false);
+                                updateDashboardFromReport(basicReport);
+                            } else {
+                                showEmptyResultsState();
+                            }
+                        });
+
+                        // Step 2: Run advanced scans
+                        return CompletableFuture.supplyAsync(() -> {
+                            LOG.info("runPremiumAnalysis: Starting advanced scans");
+                            try {
+                                AdvancedScanningService.AdvancedScanSummary advancedSummary =
+                                        advancedScanningService.scanAll(projectPath);
+                                LOG.info("runPremiumAnalysis: Advanced scans completed");
+                                return advancedSummary;
+                            } catch (Exception ex) {
+                                LOG.warn("runPremiumAnalysis: Advanced scans failed", ex);
+                                return null; // Continue even if advanced scan fails
+                            }
+                        });
+                    })
+                    .thenCompose(advancedSummary -> {
+                        LOG.info("runPremiumAnalysis: Advanced scan step completed");
+
+                        // Update UI with advanced results
+                        ApplicationManager.getApplication().invokeLater(() -> {
+                            if (advancedSummary != null) {
+                                dashboardComponent.updateAdvancedScanCounts();
+                            }
+                        });
+
+                        // Step 3: Run platform scan
+                        return CompletableFuture.supplyAsync(() -> {
+                            LOG.info("runPremiumAnalysis: Starting platform scan");
+                            try {
+                                if (platformsTabComponent != null) {
+                                    platformsTabComponent.scanProject();
+                                    LOG.info("runPremiumAnalysis: Platform scan completed");
+                                } else {
+                                    LOG.warn("runPremiumAnalysis: platformsTabComponent is null");
+                                }
+                                return true;
+                            } catch (Exception ex) {
+                                LOG.warn("runPremiumAnalysis: Platform scan failed", ex);
+                                return false; // Continue even if platform scan fails
+                            }
+                        }).thenApply(platformSuccess -> advancedSummary);
+                    })
+                    .thenAccept(finalSummary -> {
+                        ApplicationManager.getApplication().invokeLater(() -> {
+                            LOG.info("runPremiumAnalysis: All scans completed successfully");
+                            Messages.showInfoMessage(project,
+                                    "Premium analysis complete! Basic, advanced, and platform scans finished.",
+                                    "Analysis Complete");
+                        });
+                    })
+                    .exceptionally(ex -> {
+                        ApplicationManager.getApplication().invokeLater(() -> {
+                            LOG.error("runPremiumAnalysis: Analysis failed", ex);
                             Messages.showWarningDialog(project,
                                     "Analysis failed: " + ex.getMessage(),
                                     "Analysis Failed");
@@ -733,18 +834,28 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     info.setRecommendedArtifactCoordinates(recommended.groupId() + ":" + recommended.artifactId());
                 }
 
-                // Determine migration status based on namespace from the report's namespace map
+                // Determine migration status based on namespace and whether there's a known Jakarta upgrade path
                 Namespace namespace = report.namespaceMap() != null
                         ? report.namespaceMap().get(artifact)
                         : Namespace.UNKNOWN;
 
+                // Use the recommendation already looked up earlier
+                boolean hasJakartaUpgrade = recommended != null;
+
                 if (namespace == Namespace.JAKARTA) {
                     info.setMigrationStatus(DependencyMigrationStatus.COMPATIBLE);
-                } else if (namespace == Namespace.JAVAX) {
-                    // Check if there's a Jakarta equivalent
+                } else if (namespace == Namespace.JAVAX && hasJakartaUpgrade) {
+                    // Has known Jakarta upgrade path from compatibility.yaml or platforms.yaml
                     info.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
                     info.setTransitive(false);
+                } else if (namespace == Namespace.JAVAX && !hasJakartaUpgrade) {
+                    // JAVAX but no known Jakarta upgrade path
+                    info.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
+                } else if (namespace == Namespace.UNKNOWN) {
+                    // Unknown namespace - requires manual review
+                    info.setMigrationStatus(DependencyMigrationStatus.UNKNOWN_REVIEW);
                 } else {
+                    // Other namespace
                     info.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
                 }
 
@@ -777,11 +888,22 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             LOG.info("updateDashboardFromReport: converted " + deps.size() + " dependencies, updating UI");
 
-            // Calculate metrics
+            // Calculate metrics with all dependency categories
             long blockers = deps.stream().filter(DependencyInfo::isBlocker).count();
             long migrable = deps.stream().filter(d -> d.getRecommendedVersion() != null).count();
             long noJakartaSupport = deps.stream()
                     .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.NO_JAKARTA_VERSION)
+                    .count();
+            long jakartaUpgrade = deps.stream()
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.NEEDS_UPGRADE)
+                    .count();
+            long jakartaCompatible = deps.stream()
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE)
+                    .count();
+            long organisational = deps.stream().filter(d -> d.isOrganizational()).count();
+            long unknownReview = deps.stream()
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.UNKNOWN_REVIEW ||
+                                 d.getMigrationStatus() == DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION)
                     .count();
             long transitive = deps.stream().filter(d -> d.isTransitive()).count();
 
@@ -799,6 +921,10 @@ public class MigrationToolWindow implements ToolWindowFactory {
             summary.setBlockerDependencies((int) blockers);
             summary.setMigrableDependencies((int) migrable);
             summary.setNoJakartaSupportCount((int) noJakartaSupport);
+            summary.setJakartaUpgradeCount((int) jakartaUpgrade);
+            summary.setJakartaCompatibleCount((int) jakartaCompatible);
+            summary.setOrganisationalDependencies((int) organisational);
+            summary.setUnknownReviewCount((int) unknownReview);
             summary.setTransitiveDependencies((int) transitive);
             dashboard.setDependencySummary(summary);
 

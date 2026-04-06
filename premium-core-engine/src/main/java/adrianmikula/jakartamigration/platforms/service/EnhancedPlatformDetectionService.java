@@ -88,6 +88,13 @@ public class EnhancedPlatformDetectionService {
                  deploymentArtifacts.getOrDefault("ear", 0),
                  deploymentArtifacts.getOrDefault("jar", 0));
         
+        // Remove duplicates while preserving order
+        Set<String> uniqueServers = new LinkedHashSet<>(detectedServers);
+        detectedServers.clear();
+        detectedServers.addAll(uniqueServers);
+        
+        log.debug("After deduplication: {} unique servers: {}", detectedServers.size(), detectedServers);
+        
         return new EnhancedPlatformScanResult(detectedServers, deploymentArtifacts, platformSpecificArtifacts);
     }
     

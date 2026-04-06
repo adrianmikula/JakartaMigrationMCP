@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -10,6 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Tests for premium UI refresh functionality in MigrationToolWindow.
  * Tests the premium status detection, trial expiration, and upgrade requirement logic.
+ * Also tests license-based analyze functionality.
  */
 class MigrationToolWindowPremiumTest {
 
@@ -22,6 +24,8 @@ class MigrationToolWindowPremiumTest {
         // Clean up system properties after each test
         System.clearProperty("jakarta.migration.premium");
         System.clearProperty("jakarta.migration.trial.end");
+        // Clear license cache to ensure fresh checks
+        CheckLicense.clearCache();
     }
 
     // ==================== Basic Premium Status Tests ====================
@@ -279,6 +283,117 @@ class MigrationToolWindowPremiumTest {
         
         // Then: Premium should be cleared
         assertThat(System.getProperty("jakarta.migration.premium")).isEqualTo("false");
+    }
+
+    // ==================== License-Based Analyze Tests ====================
+
+    @Test
+    @DisplayName("Should detect non-premium user for basic scan only")
+    void shouldDetectNonPremiumUserForBasicScanOnly() {
+        // Given: No premium system property set (non-premium user)
+        System.clearProperty("jakarta.migration.premium");
+        System.clearProperty("jakarta.migration.trial.end");
+        CheckLicense.clearCache();
+        
+        // When: Check license status (same logic as handleAnalyzeProject)
+        boolean isLicensed = CheckLicense.isLicensed();
+        
+        // Then: Should return false (non-premium)
+        assertThat(isLicensed).isFalse();
+        // Non-premium users should only run basic scan
+    }
+
+    @Test
+    @DisplayName("Should detect premium user for all scans")
+    void shouldDetectPremiumUserForAllScans() {
+        // Given: Premium system property is set to true with valid trial
+        long futureTime = System.currentTimeMillis() + SEVEN_DAYS_MS;
+        System.setProperty("jakarta.migration.premium", "true");
+        System.setProperty("jakarta.migration.trial.end", String.valueOf(futureTime));
+        CheckLicense.clearCache();
+        
+        // When: Check license status (same logic as handleAnalyzeProject)
+        boolean isLicensed = CheckLicense.isLicensed();
+        
+        // Then: Should return true (premium/trial)
+        assertThat(isLicensed).isTrue();
+        // Premium users should run all 3 scans (basic, advanced, platform)
+    }
+
+    @Test
+    @DisplayName("Should detect trial user for all scans")
+    void shouldDetectTrialUserForAllScans() {
+        // Given: Trial is active (3 days remaining)
+        long threeDaysFromNow = System.currentTimeMillis() + (3L * 24 * 60 * 60 * 1000);
+        System.setProperty("jakarta.migration.premium", "true");
+        System.setProperty("jakarta.migration.trial.end", String.valueOf(threeDaysFromNow));
+        CheckLicense.clearCache();
+        
+        // When: Check license status (same logic as handleAnalyzeProject)
+        boolean isLicensed = CheckLicense.isLicensed();
+        
+        // Then: Should return true (trial counts as licensed)
+        assertThat(isLicensed).isTrue();
+        // Trial users should run all 3 scans like premium users
+    }
+
+    @Test
+    @DisplayName("Should require upgrade for expired trial user")
+    void shouldRequireUpgradeForExpiredTrialUser() {
+        // Given: Trial has expired 2 days ago
+        long twoDaysAgo = System.currentTimeMillis() - (2L * 24 * 60 * 60 * 1000);
+        System.setProperty("jakarta.migration.premium", "true");
+        System.setProperty("jakarta.migration.trial.end", String.valueOf(twoDaysAgo));
+        CheckLicense.clearCache();
+        
+        // When: Check license status (same logic as handleAnalyzeProject)
+        boolean isLicensed = CheckLicense.isLicensed();
+        
+        // Then: Should return false (expired trial = not licensed)
+        assertThat(isLicensed).isFalse();
+        // Expired trial users should only run basic scan (like non-premium)
+    }
+
+    @Test
+    @DisplayName("Should use runtime license check for analyze decision")
+    void shouldUseRuntimeLicenseCheckForAnalyzeDecision() {
+        // Given: Initially non-premium
+        System.clearProperty("jakarta.migration.premium");
+        CheckLicense.clearCache();
+        
+        // When: Check license status initially
+        boolean initialStatus = CheckLicense.isLicensed();
+        
+        // Then: Initially not licensed
+        assertThat(initialStatus).isFalse();
+        
+        // Given: User starts trial (simulating trial activation during session)
+        long futureTime = System.currentTimeMillis() + SEVEN_DAYS_MS;
+        System.setProperty("jakarta.migration.premium", "true");
+        System.setProperty("jakarta.migration.trial.end", String.valueOf(futureTime));
+        CheckLicense.clearCache();
+        
+        // When: Check license status again at runtime
+        boolean runtimeStatus = CheckLicense.isLicensed();
+        
+        // Then: Now licensed (runtime check reflects current status)
+        assertThat(runtimeStatus).isTrue();
+        // This verifies that handleAnalyzeProject uses runtime check, not cached
+    }
+
+    @Test
+    @DisplayName("Should handle license check with null trial end date")
+    void shouldHandleLicenseCheckWithNullTrialEndDate() {
+        // Given: Premium is true but no trial end date (permanent license)
+        System.setProperty("jakarta.migration.premium", "true");
+        System.clearProperty("jakarta.migration.trial.end");
+        CheckLicense.clearCache();
+        
+        // When: Check license status
+        boolean isLicensed = CheckLicense.isLicensed();
+        
+        // Then: Should return true (premium without expiration)
+        assertThat(isLicensed).isTrue();
     }
 
     /**

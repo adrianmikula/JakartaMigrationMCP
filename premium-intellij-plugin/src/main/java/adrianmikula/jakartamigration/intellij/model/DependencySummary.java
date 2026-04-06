@@ -27,6 +27,18 @@ public class DependencySummary {
     @JsonProperty("transitiveDependencies")
     private Integer transitiveDependencies = 0;
 
+    @JsonProperty("organisationalDependencies")
+    private Integer organisationalDependencies = 0;
+
+    @JsonProperty("unknownReviewCount")
+    private Integer unknownReviewCount = 0;
+
+    @JsonProperty("jakartaUpgradeCount")
+    private Integer jakartaUpgradeCount = 0;
+
+    @JsonProperty("jakartaCompatibleCount")
+    private Integer jakartaCompatibleCount = 0;
+
     // Getters and setters
     public Integer getTotalDependencies() {
         return totalDependencies;
@@ -82,5 +94,37 @@ public class DependencySummary {
 
     public void setTransitiveDependencies(Integer transitiveDependencies) {
         this.transitiveDependencies = transitiveDependencies;
+    }
+
+    public Integer getOrganisationalDependencies() {
+        return organisationalDependencies;
+    }
+
+    public void setOrganisationalDependencies(Integer organisationalDependencies) {
+        this.organisationalDependencies = organisationalDependencies;
+    }
+
+    public Integer getUnknownReviewCount() {
+        return unknownReviewCount;
+    }
+
+    public void setUnknownReviewCount(Integer unknownReviewCount) {
+        this.unknownReviewCount = unknownReviewCount;
+    }
+
+    public Integer getJakartaUpgradeCount() {
+        return jakartaUpgradeCount;
+    }
+
+    public void setJakartaUpgradeCount(Integer jakartaUpgradeCount) {
+        this.jakartaUpgradeCount = jakartaUpgradeCount;
+    }
+
+    public Integer getJakartaCompatibleCount() {
+        return jakartaCompatibleCount;
+    }
+
+    public void setJakartaCompatibleCount(Integer jakartaCompatibleCount) {
+        this.jakartaCompatibleCount = jakartaCompatibleCount;
     }
 }

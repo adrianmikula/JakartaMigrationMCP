@@ -3,6 +3,8 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.platforms.model.PlatformDetection;
 import adrianmikula.jakartamigration.platforms.model.PlatformScanResult;
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
+import adrianmikula.jakartamigration.platforms.model.PlatformConfig;
+import adrianmikula.jakartamigration.platforms.model.JakartaCompatibility;
 import adrianmikula.jakartamigration.platforms.service.SimplifiedPlatformDetectionService;
 import adrianmikula.jakartamigration.platforms.service.EnhancedPlatformDetectionService;
 import adrianmikula.jakartamigration.platforms.config.PlatformConfigLoader;
@@ -173,31 +175,25 @@ public class PlatformsTabComponent {
      */
     private void displayResults(EnhancedPlatformScanResult scanResult) {
         System.out.println("[DEBUG] displayResults() called with " + scanResult.getDetectedPlatforms().size() + " platforms");
-        // Store current scan result for external access
         this.currentScanResult = scanResult;
         
         clearResults();
         
         List<String> detectedPlatforms = scanResult.getDetectedPlatforms();
         System.out.println("[DEBUG] detectedPlatforms isEmpty: " + detectedPlatforms.isEmpty());
-        if (detectedPlatforms.isEmpty()) {
+        
+        if (detectedPlatforms.isEmpty() && scanResult.getTotalDeploymentCount() == 0) {
             System.out.println("[DEBUG] Adding 'no results' label");
             resultsPanel.add(createNoResultsLabel());
         } else {
-            // Add artifact summary if available
-            if (scanResult.getTotalDeploymentCount() > 0) {
-                resultsPanel.add(createArtifactSummaryPanel(scanResult));
-            }
+            // Section 1: Detected Platforms (cards)
+            JPanel platformsSection = createPlatformsSection(detectedPlatforms);
+            resultsPanel.add(platformsSection);
+            resultsPanel.add(Box.createVerticalStrut(15));
             
-            // Add platform panels
-            detectedPlatforms.forEach(platform -> {
-                JPanel panel = scanResult.getTotalDeploymentCount() > 0 ? 
-                    createEnhancedPlatformPanel(platform, scanResult) : 
-                    createSimplePlatformPanel(platform);
-                platformPanels.add(panel);
-                resultsPanel.add(panel);
-                resultsPanel.add(Box.createVerticalStrut(10));
-            });
+            // Section 2: Deployment Artifacts (summary badges)
+            JPanel artifactsSection = createArtifactsSection(scanResult);
+            resultsPanel.add(artifactsSection);
         }
         
         refreshResultsPanel();
@@ -280,81 +276,154 @@ public class PlatformsTabComponent {
     /**
      * Creates a panel showing deployment artifact summary
      */
-    private JPanel createArtifactSummaryPanel(EnhancedPlatformScanResult scanResult) {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createTitledBorder("Deployment Artifacts"));
+    private JPanel createPlatformsSection(List<String> detectedPlatforms) {
+        JPanel sectionPanel = new JPanel(new BorderLayout());
+        sectionPanel.setBorder(BorderFactory.createTitledBorder("Detected Platforms"));
         
-        String summaryText = buildArtifactSummaryText(scanResult);
-        JLabel summaryLabel = new JBLabel(summaryText);
-        panel.add(summaryLabel, BorderLayout.CENTER);
+        JPanel cardsPanel = new JPanel();
+        cardsPanel.setLayout(new BoxLayout(cardsPanel, BoxLayout.Y_AXIS));
         
-        return panel;
-    }
-    
-    private String buildArtifactSummaryText(EnhancedPlatformScanResult scanResult) {
-        StringBuilder text = new StringBuilder("<html><b>Deployment Summary:</b><br>");
-        
-        // Basic artifact counts
-        text.append(String.format("• WAR files: %d<br>", scanResult.getWarCount()));
-        text.append(String.format("• EAR files: %d<br>", scanResult.getEarCount()));
-        text.append(String.format("• JAR files: %d<br>", scanResult.getJarCount()));
-        text.append(String.format("• Total artifacts: %d<br>", scanResult.getTotalDeploymentCount()));
-        
-        // Platform-specific artifacts
-        scanResult.getPlatformSpecificArtifacts().entrySet().stream()
-            .filter(entry -> entry.getValue() > 0)
-            .forEach(entry -> text.append(String.format("• %s: %d<br>", entry.getKey(), entry.getValue())));
-        
-        // Risk assessment
-        double riskScore = calculateEnhancedPlatformRiskScore(scanResult);
-        text.append(String.format("<br><b>Migration Risk:</b> %s (%.1f/100)</html>", getRiskLevel(riskScore), riskScore));
-        
-        return text.toString();
-    }
-    
-    /**
-     * Gets risk level description based on score
-     */
-    private String getRiskLevel(double score) {
-        if (score >= 80) return "Very High";
-        if (score >= 60) return "High";
-        if (score >= 40) return "Medium";
-        if (score >= 20) return "Low";
-        return "Very Low";
-    }
-    
-    /**
-     * Creates platform panel (unified method for both simple and enhanced)
-     */
-    private JPanel createPlatformPanel(String platformName, EnhancedPlatformScanResult scanResult, boolean showRisk) {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1),
-            BorderFactory.createEmptyBorder(8, 8, 8, 8)
-        ));
-        
-        JLabel nameLabel = new JBLabel(platformName);
-        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 12f));
-        
-        JPanel infoPanel = new JPanel(new BorderLayout());
-        infoPanel.add(nameLabel, BorderLayout.NORTH);
-        
-        if (showRisk) {
-            double platformRisk = calculateIndividualPlatformRisk(platformName, scanResult);
-            JLabel riskLabel = createRiskLabel(platformRisk);
-            infoPanel.add(riskLabel, BorderLayout.SOUTH);
+        if (detectedPlatforms.isEmpty()) {
+            JLabel noPlatformsLabel = new JBLabel("No platforms detected");
+            noPlatformsLabel.setBorder(JBUI.Borders.empty(10));
+            cardsPanel.add(noPlatformsLabel);
+        } else {
+            for (String platformName : detectedPlatforms) {
+                JPanel card = createPlatformCard(platformName);
+                cardsPanel.add(card);
+                cardsPanel.add(Box.createVerticalStrut(8));
+            }
         }
         
-        panel.add(infoPanel, BorderLayout.CENTER);
-        return panel;
+        JScrollPane scrollPane = new JBScrollPane(cardsPanel);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.setPreferredSize(new Dimension(400, 250));
+        
+        sectionPanel.add(scrollPane, BorderLayout.CENTER);
+        return sectionPanel;
     }
     
-    private JLabel createRiskLabel(double risk) {
-        String riskText = String.format("Risk: %s (%.1f/100)", getRiskLevel(risk), risk);
-        JLabel riskLabel = new JBLabel(riskText);
-        riskLabel.setFont(riskLabel.getFont().deriveFont(Font.ITALIC, 11f));
-        riskLabel.setForeground(getRiskColor(risk));
-        return riskLabel;
+    private JPanel createPlatformCard(String platformName) {
+        JPanel card = new JPanel(new BorderLayout());
+        card.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1),
+            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+        
+        PlatformConfig config = configLoader.getPlatformConfig(platformName.toLowerCase());
+        
+        // Header with platform name
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        JLabel nameLabel = new JBLabel(config != null ? config.name() : platformName);
+        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 13f));
+        headerPanel.add(nameLabel, BorderLayout.WEST);
+        card.add(headerPanel, BorderLayout.NORTH);
+        
+        // Content panel with compatibility info
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
+        
+        if (config != null && config.jakartaCompatibility() != null) {
+            JakartaCompatibility compat = config.jakartaCompatibility();
+            
+            // Upgrade requirement status
+            boolean requiresUpgrade = config.javaxVersions() != null && !config.javaxVersions().isEmpty();
+            JLabel statusLabel = new JBLabel(requiresUpgrade ? 
+                "⚠️ Requires Upgrade" : "✅ Jakarta EE Compatible");
+            statusLabel.setForeground(requiresUpgrade ? 
+                new Color(255, 152, 0) : new Color(40, 167, 69));
+            contentPanel.add(statusLabel);
+            contentPanel.add(Box.createVerticalStrut(4));
+            
+            // Jakarta compatible versions
+            JLabel versionsLabel = new JBLabel(
+                "Jakarta Compatible Versions: " + String.join(", ", compat.supportedVersions()));
+            versionsLabel.setFont(versionsLabel.getFont().deriveFont(Font.PLAIN, 11f));
+            contentPanel.add(versionsLabel);
+            contentPanel.add(Box.createVerticalStrut(4));
+            
+            // Requirements
+            if (config.requirements() != null && !config.requirements().isEmpty()) {
+                StringBuilder reqText = new StringBuilder("Requirements: ");
+                config.requirements().forEach((key, value) -> 
+                    reqText.append(String.format("%s=%s ", key, value)));
+                JLabel reqLabel = new JBLabel(reqText.toString());
+                reqLabel.setFont(reqLabel.getFont().deriveFont(Font.ITALIC, 10f));
+                reqLabel.setForeground(Color.GRAY);
+                contentPanel.add(reqLabel);
+            }
+        } else {
+            JLabel unknownLabel = new JBLabel("Platform configuration not available");
+            unknownLabel.setForeground(Color.GRAY);
+            contentPanel.add(unknownLabel);
+        }
+        
+        card.add(contentPanel, BorderLayout.CENTER);
+        return card;
+    }
+    
+    private JPanel createArtifactsSection(EnhancedPlatformScanResult scanResult) {
+        JPanel sectionPanel = new JPanel(new BorderLayout());
+        sectionPanel.setBorder(BorderFactory.createTitledBorder("Deployment Artifacts"));
+        
+        JPanel contentPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 10));
+        contentPanel.setBorder(JBUI.Borders.empty(10));
+        
+        int warCount = scanResult.getWarCount();
+        int earCount = scanResult.getEarCount();
+        int jarCount = scanResult.getJarCount();
+        int total = scanResult.getTotalDeploymentCount();
+        
+        // WAR count badge
+        contentPanel.add(createArtifactBadge("WAR", warCount, new Color(70, 130, 180)));
+        // EAR count badge
+        contentPanel.add(createArtifactBadge("EAR", earCount, new Color(128, 0, 128)));
+        // JAR count badge
+        contentPanel.add(createArtifactBadge("JAR", jarCount, new Color(34, 139, 34)));
+        // Total badge
+        contentPanel.add(createArtifactBadge("Total", total, Color.DARK_GRAY));
+        
+        if (total == 0) {
+            JLabel noArtifactsLabel = new JBLabel("No deployment artifacts detected");
+            noArtifactsLabel.setForeground(Color.GRAY);
+            noArtifactsLabel.setFont(noArtifactsLabel.getFont().deriveFont(Font.ITALIC));
+            contentPanel.removeAll();
+            contentPanel.add(noArtifactsLabel);
+        }
+        
+        sectionPanel.add(contentPanel, BorderLayout.CENTER);
+        return sectionPanel;
+    }
+    
+    private JPanel createArtifactBadge(String type, int count, Color color) {
+        JPanel badge = new JPanel(new BorderLayout());
+        badge.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(color, 2),
+            BorderFactory.createEmptyBorder(10, 20, 10, 20)
+        ));
+        badge.setBackground(new Color(250, 250, 250));
+        
+        // Type label at the top - prominent
+        JLabel typeLabel = new JBLabel(type);
+        typeLabel.setFont(typeLabel.getFont().deriveFont(Font.BOLD, 12f));
+        typeLabel.setForeground(color.darker());
+        typeLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        
+        // Count label below - larger
+        JLabel countLabel = new JBLabel(String.valueOf(count));
+        countLabel.setFont(countLabel.getFont().deriveFont(Font.BOLD, 24f));
+        countLabel.setForeground(color);
+        countLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        
+        JPanel textPanel = new JPanel(new GridLayout(2, 1, 0, 4));
+        textPanel.setOpaque(false);
+        textPanel.add(typeLabel);
+        textPanel.add(countLabel);
+        
+        badge.add(textPanel, BorderLayout.CENTER);
+        return badge;
     }
     
     private Color getRiskColor(double risk) {
@@ -362,14 +431,6 @@ public class PlatformsTabComponent {
         if (risk >= 40) return Color.ORANGE;
         if (risk >= 20) return Color.YELLOW.darker();
         return Color.GREEN.darker();
-    }
-    
-    private JPanel createSimplePlatformPanel(String platformName) {
-        return createPlatformPanel(platformName, null, false);
-    }
-    
-    private JPanel createEnhancedPlatformPanel(String platformName, EnhancedPlatformScanResult scanResult) {
-        return createPlatformPanel(platformName, scanResult, true);
     }
     
     /**
