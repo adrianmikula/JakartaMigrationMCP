@@ -4,13 +4,19 @@ import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test for enhanced platform detection service
@@ -92,5 +98,51 @@ public class EnhancedPlatformDetectionServiceTest {
         assertTrue(resultString.contains("EnhancedPlatformScanResult"));
         assertTrue(resultString.contains("platforms=[Tomcat]"));
         assertTrue(resultString.contains("artifacts={war=2}"));
+    }
+    
+    @Test
+    @DisplayName("Should not return duplicate platforms when detected by multiple sources")
+    void testNoDuplicatePlatforms_WhenDetectedByMultipleSources(@TempDir Path tempDir) throws IOException {
+        // Given - a project with both pom.xml and build.gradle containing the same platform
+        Path projectPath = tempDir.resolve("multi-build-project");
+        Files.createDirectories(projectPath);
+        
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project>
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>tomcat-test</artifactId>
+                <version>1.0.0</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.apache.tomcat.embed</groupId>
+                        <artifactId>tomcat-embed-core</artifactId>
+                        <version>10.1.15</version>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+        
+        String gradleContent = """
+            dependencies {
+                implementation 'org.apache.tomcat.embed:tomcat-embed-core:10.1.15'
+            }
+            """;
+        Files.write(projectPath.resolve("build.gradle"), gradleContent.getBytes());
+        
+        // When
+        EnhancedPlatformScanResult result = service.scanProjectWithArtifacts(projectPath);
+        List<String> detectedPlatforms = result.getDetectedPlatforms();
+        
+        // Then - should contain tomcat but only once (no duplicates)
+        assertThat(detectedPlatforms).contains("tomcat");
+        assertThat(detectedPlatforms).hasSize(1);
+        
+        // Verify no duplicates by checking distinct count equals size
+        assertThat(detectedPlatforms.stream().distinct().count())
+            .isEqualTo(detectedPlatforms.size())
+            .as("All platforms should be unique with no duplicates");
     }
 }

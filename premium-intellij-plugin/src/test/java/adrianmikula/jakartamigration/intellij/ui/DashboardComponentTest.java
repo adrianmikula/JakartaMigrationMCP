@@ -49,7 +49,7 @@ public class DashboardComponentTest extends BasePlatformTestCase {
         // Update dashboard with all components
         dashboardComponent.updateGauges();
         dashboardComponent.updateSummary();
-        dashboardComponent.updateScanResultsTable();
+        // dashboardComponent.updateScanResultsTable(); // Method doesn't exist
     }
 
     public void testUpdateAdvancedScanCounts() {

@@ -116,6 +116,51 @@ public class SimplifiedPlatformDetectionServiceTest {
     }
     
     @Test
+    @DisplayName("Should not return duplicate platforms when detected by multiple sources")
+    void testNoDuplicatePlatforms_WhenDetectedByMultipleSources() throws IOException {
+        // Given - a project with both pom.xml and build.gradle containing the same platform
+        Path projectPath = tempDir.resolve("multi-build-project");
+        Files.createDirectories(projectPath);
+        
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project>
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>tomcat-test</artifactId>
+                <version>1.0.0</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.apache.tomcat.embed</groupId>
+                        <artifactId>tomcat-embed-core</artifactId>
+                        <version>10.1.15</version>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+        
+        String gradleContent = """
+            dependencies {
+                implementation 'org.apache.tomcat.embed:tomcat-embed-core:10.1.15'
+            }
+            """;
+        Files.write(projectPath.resolve("build.gradle"), gradleContent.getBytes());
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then - should contain tomcat but only once (no duplicates)
+        assertThat(detectedServers).contains("tomcat");
+        assertThat(detectedServers).hasSize(1);
+        
+        // Verify no duplicates by checking distinct count equals size
+        assertThat(detectedServers.stream().distinct().count())
+            .isEqualTo(detectedServers.size())
+            .as("All platforms should be unique with no duplicates");
+    }
+    
+    @Test
     @DisplayName("Should return empty result for project with no platforms")
     void testScanProject_NoPlatformsFound_ReturnsEmptyResult() throws IOException {
         // Given

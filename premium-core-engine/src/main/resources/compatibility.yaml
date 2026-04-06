@@ -27,6 +27,22 @@ maven_artifacts:
     - org.hamcrest
     - com.google.guava
     - org.apache.logging.log4j
+    - org.bouncycastle
+    - org.jsoup
+    - org.json
+    - rhino
+    - xmlunit
+    - httpunit
+    - net.sourceforge.htmlunit
+    - org.assertj
+    - com.jayway.awaitility
+    - org.skyscreamer
+    - org.codehaus.jackson
+    - io.thorntail
+    - org.atmosphere
+    - io.opentracing
+    - com.h2database
+    - org.hsqldb
 
   review:
     - javax.xml
@@ -37,6 +53,10 @@ maven_artifacts:
     - javax.activation
     - javax.cache
     - javax.measure
+    - org.glassfish.grizzly
+    - io.undertow
+    - org.apache.tomcat
+    - org.omnifaces
 
   upgrade:
     - javax.servlet
@@ -47,6 +67,21 @@ maven_artifacts:
     - javax.jms
     - javax.faces
     - javax.enterprise
+    - javax
+    - com.sun.xml.rpc
+    - com.sun.xml.ws
+    - org.glassfish
+    - org.glassfish.jersey.core
+    - org.glassfish.jersey.media
+    - org.glassfish.jersey.containers
+    - org.glassfish.tyrus
+    - org.glassfish.metro
+    - org.jboss.resteasy
+    - org.wildfly
+    - org.apache.tomee
+    - org.apache.cxf
+    - org.apache.batchee
+    - org.apache.johnzon
     
 
 java_packages:
