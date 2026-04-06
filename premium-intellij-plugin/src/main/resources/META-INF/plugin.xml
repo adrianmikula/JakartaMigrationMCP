@@ -98,7 +98,7 @@
         
         <!-- Plugin Discoverability Service -->
         <!-- Automatically detects javax usage and suggests plugin installation -->
-        <postStartupActivity implementation="adrianmikula.jakartamigration.intellij.discovery.JakartaMigrationDiscoverabilityService"/>
+        <!--postStartupActivity implementation="adrianmikula.jakartamigration.intellij.discovery.JakartaMigrationDiscoverabilityService"/-->
         
         <!-- License Check on Plugin Startup -->
         <!-- Ensures license status is checked and UI updated when plugin first loads -->
