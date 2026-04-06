@@ -196,9 +196,24 @@ run = "gradle :community-core-engine:test :community-mcp-server:test --no-config
 
 # Fast Test Tasks (for quick feedback during development)
 [tasks.fast-test]
-description = "Run fast tests only - no compilation, just execute pre-built tests"
-run_windows = "gradlew.bat :community-core-engine:test :premium-core-engine:test --continue"
-run = "gradle :community-core-engine:test :premium-core-engine:test --continue --no-configuration-cache"
+description = "Run fast tests only (excludes slow tests)"
+run_windows = "gradlew.bat :premium-core-engine:fastTest :community-core-engine:fastTest"
+run = "gradle :premium-core-engine:fastTest :community-core-engine:fastTest"
+
+[tasks.slow-test]
+description = "Run slow integration tests only"
+run_windows = "gradlew.bat :premium-core-engine:slowTest :community-core-engine:slowTest"
+run = "gradle :premium-core-engine:slowTest :community-core-engine:slowTest"
+
+[tasks.core-test]
+description = "Run core tests (excludes slow tests)"
+run_windows = "gradlew.bat :premium-core-engine:coreTest"
+run = "gradle :premium-core-engine:coreTest"
+
+[tasks.compile-check]
+description = "Quick compile check without running tests"
+run_windows = "gradlew.bat :premium-core-engine:compileCheck"
+run = "gradle :premium-core-engine:compileCheck"
 
 [tasks.fast-compile]
 description = "Quick compile check - no tests, just syntax verification"

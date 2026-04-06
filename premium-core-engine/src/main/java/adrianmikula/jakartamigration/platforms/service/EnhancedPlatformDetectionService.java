@@ -22,12 +22,17 @@ public class EnhancedPlatformDetectionService {
     private static final Logger log = LoggerFactory.getLogger(EnhancedPlatformDetectionService.class);
     private final PlatformConfigLoader configLoader;
     
+    // Delegate to SimplifiedPlatformDetectionService for actual platform detection
+    private final SimplifiedPlatformDetectionService simpleDetectionService;
+    
     public EnhancedPlatformDetectionService() {
         this.configLoader = new PlatformConfigLoader();
+        this.simpleDetectionService = new SimplifiedPlatformDetectionService();
     }
     
     public EnhancedPlatformDetectionService(PlatformConfigLoader configLoader) {
         this.configLoader = configLoader;
+        this.simpleDetectionService = new SimplifiedPlatformDetectionService();
     }
     
     /**
@@ -202,17 +207,14 @@ public class EnhancedPlatformDetectionService {
     
     // Reuse existing methods from SimplifiedPlatformDetectionService
     private List<String> scanMavenProject(Path projectPath) {
-        // Simplified implementation - could delegate to existing service
-        return new ArrayList<>();
+        return simpleDetectionService.scanProject(projectPath);
     }
     
     private List<String> scanGradleProject(Path projectPath) {
-        // Simplified implementation - could delegate to existing service
-        return new ArrayList<>();
+        return simpleDetectionService.scanProject(projectPath);
     }
     
     private List<String> scanForInstalledServers(Path projectPath) {
-        // Simplified implementation - could delegate to existing service
-        return new ArrayList<>();
+        return simpleDetectionService.scanProject(projectPath);
     }
 }

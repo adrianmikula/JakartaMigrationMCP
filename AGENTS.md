@@ -11,7 +11,7 @@
 ## Tasks
 
 ### Pre-Task Steps
-- Check the codebase for existing implementations to avoid duplicating the same functionality (DRY principle) 
+- Check the codebase and index/codemap for existing implementations to avoid duplicating the same functionality (DRY principle) 
 - review specifications under root level spec folder to understand existing implementation
 - Check the codebase for existing tests to avoid duplicating the same tests (DRY principle)
 - Check the licensing structure so we know the correct code module to put the new code in.
@@ -80,13 +80,14 @@ Full simplicity guidelines are documented in docs\standards\simplicity_and_consi
 
 ### Automated Testing
 
+- Use the fast test loop for quick feedback during development
 - Always use TDD (test driven development) to implement new features
 - Set up code coverage tracking for all modules
 - Minimum 50% code coverage, with unit tests as a minimum requirement for all features.
 - Add a small number of integration and performance tests
 - Projects should configure a subset of unit tests as 'fast tests' for fast agentic AI feeback.
 
-Full testing standards are documented in AgentRules\TESTING.md
+Full testing standards are documented in AgentRules\TESTING.md and docs/FAST_TEST_LOOP.md
 
 
 ### Performance
@@ -121,9 +122,10 @@ Full testing standards are documented in AgentRules\TESTING.md
 
 ## Velocity
 
+- Prefer using commands from the mise-en-place catalogue or the IDE's whitelist. Avoid using commands on the IDE's blacklist. 
 - Agentic coding AIs should default to running the 'fast tests' subset for faster feeback while working.
 - Agents should have relevant/useful MCP servers installed to speed up coding workflows.
 - We should run build/test commands using a fast-start JVM like Graal or CRAK to improve agent feedback time.
 
-Full efficiency tweaks are documented in AgentRules\EFFICIENCy.md
+Full efficiency tweaks are documented in AgentRules\EFFICIENCy.md and docs/FAST_TEST_LOOP.md
 

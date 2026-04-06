@@ -73,3 +73,6 @@ intellij-plugin/build/idea-sandbox/
 intellij-plugin/build/searchableOptions/
 intellij-plugin/build/sandbox/stderr.txt
 stdout.txt
+
+#Ignore windsurf AI rules
+.windsurfrules
