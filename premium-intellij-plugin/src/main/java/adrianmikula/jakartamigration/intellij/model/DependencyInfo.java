@@ -108,6 +108,14 @@ public class DependencyInfo {
         this.recommendedGroupId = recommendedGroupId;
     }
 
+    public String getRecommendedArtifactId() {
+        return recommendedArtifactId;
+    }
+
+    public void setRecommendedArtifactId(String recommendedArtifactId) {
+        this.recommendedArtifactId = recommendedArtifactId;
+    }
+
     public String getRecommendedVersion() {
         return recommendedVersion;
     }

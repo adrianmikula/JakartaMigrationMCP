@@ -65,11 +65,12 @@ public class DependenciesTableComponent {
     private final PlatformConfigLoader platformConfigLoader;
     private final CompatibilityConfigLoader compatibilityConfigLoader;
 
-    // Status colors
+    // Status colors - matches DependencyGraphComponent color schema
     private static final Color STATUS_COMPATIBLE = new Color(40, 167, 69); // Green
     private static final Color STATUS_NEEDS_UPGRADE = new Color(255, 193, 7); // Yellow
-    private static final Color STATUS_INCOMPATIBLE = new Color(220, 53, 69); // Red
+    private static final Color STATUS_REQUIRES_MANUAL = new Color(255, 193, 7); // Yellow (same as needs upgrade)
     private static final Color STATUS_NO_JAKARTA = new Color(220, 53, 69); // Red
+    private static final Color STATUS_MIGRATED = new Color(23, 162, 184); // Cyan
     private static final Color STATUS_UNKNOWN = new Color(108, 117, 125); // Gray
     
     // Callback interface for notifying when analysis completes
@@ -85,13 +86,14 @@ public class DependenciesTableComponent {
         this.compatibilityConfigLoader = new CompatibilityConfigLoader();
         this.panel = new JBPanel<>(new BorderLayout());
 
-        // Columns with Jakarta Equivalent information
+        // Columns with Jakarta Equivalent information and Maven Coordinates
         String[] columns = {
                 "Group ID",
                 "Artifact ID",
                 "Current Version",
                 "Jakarta Equivalent",
                 "Recommended Version",
+                "Maven Coordinates",
                 "Status",
                 "Type",
                 "" // Hidden column for DependencyInfo object
@@ -138,9 +140,9 @@ public class DependenciesTableComponent {
             
             isRendering = true;
             try {
-            // Status column is now at index 5, Jakarta Equivalent at index 3, DependencyInfo at index 7
-            if ((column == 5 || column == 3) && row < table.getModel().getRowCount()) {
-                Object depObj = table.getModel().getValueAt(row, 7);
+            // Status column is at index 6, Jakarta Equivalent at index 3, Maven Coordinates at index 5, DependencyInfo at index 8
+            if ((column == 6 || column == 3) && row < table.getModel().getRowCount()) {
+                Object depObj = table.getModel().getValueAt(row, 8);
                 if (depObj instanceof DependencyInfo) {
                     DependencyInfo dep = (DependencyInfo) depObj;
                     JPanel panel = new JPanel(new BorderLayout());
@@ -164,20 +166,13 @@ public class DependenciesTableComponent {
                     statusLabel.setOpaque(true);
                     statusLabel.setBorder(new EmptyBorder(2, 5, 2, 5));
 
-                    // Color coding: Green = has Jakarta equivalent, Red = no equivalent, Yellow = compatible
-                    boolean hasJakartaEquivalent = dep.getRecommendedArtifactCoordinates() != null 
-                            && !dep.getRecommendedArtifactCoordinates().equals("-");
+                    // Apply color coding based on migration status - matches DependencyGraphComponent
+                    DependencyMigrationStatus status = dep.getMigrationStatus();
+                    Color baseColor = getStatusColor(status);
+                    Color bgColor = getStatusBackgroundColor(status);
                     
-                    if (dep.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE) {
-                        statusLabel.setBackground(new Color(200, 255, 200)); // Light green
-                        statusLabel.setForeground(new Color(0, 100, 0)); // Dark green
-                    } else if (hasJakartaEquivalent) {
-                        statusLabel.setBackground(new Color(255, 255, 200)); // Light yellow
-                        statusLabel.setForeground(new Color(180, 140, 0)); // Dark yellow/gold
-                    } else {
-                        statusLabel.setBackground(new Color(255, 200, 200)); // Light red
-                        statusLabel.setForeground(new Color(150, 0, 0)); // Dark red
-                    }
+                    statusLabel.setBackground(bgColor);
+                    statusLabel.setForeground(baseColor.darker());
 
                     // Add dotted border for transitive dependencies on the panel
                     if (dep.isTransitive()) {
@@ -199,10 +194,10 @@ public class DependenciesTableComponent {
             if (isSelected) {
                 label.setBackground(table.getSelectionBackground());
             } else {
-                // Determine if this row is organizational (check hidden column at index 7)
+                // Determine if this row is organizational (check hidden column at index 8)
                 boolean isOrg = false;
                 if (row < table.getModel().getRowCount()) {
-                    Object depObj = table.getModel().getValueAt(row, 7);
+                    Object depObj = table.getModel().getValueAt(row, 8);
                     if (depObj instanceof DependencyInfo) {
                         isOrg = ((DependencyInfo) depObj).isOrganizational();
                     }
@@ -222,23 +217,32 @@ public class DependenciesTableComponent {
             }
         }
 
-        private static Color getStatusColor(DependencyMigrationStatus status) {
-            if (status == null)
+        /**
+         * Get the status color based on migration status - matches DependencyGraphComponent.
+         */
+        private Color getStatusColor(DependencyMigrationStatus status) {
+            if (status == null) {
                 return STATUS_UNKNOWN;
-            switch (status) {
-                case COMPATIBLE:
-                    return STATUS_COMPATIBLE;
-                case NEEDS_UPGRADE:
-                    return STATUS_NEEDS_UPGRADE;
-                case NO_JAKARTA_VERSION:
-                    return STATUS_NO_JAKARTA;
-                case REQUIRES_MANUAL_MIGRATION:
-                    return STATUS_NO_JAKARTA; // Red for manual migration required
-                case UNKNOWN:
-                    return STATUS_UNKNOWN;
-                default:
-                    return STATUS_UNKNOWN;
             }
+            return switch (status) {
+                case COMPATIBLE -> STATUS_COMPATIBLE;
+                case NEEDS_UPGRADE, REQUIRES_MANUAL_MIGRATION -> STATUS_NEEDS_UPGRADE;
+                case NO_JAKARTA_VERSION -> STATUS_NO_JAKARTA;
+                case MIGRATED -> STATUS_MIGRATED;
+                default -> STATUS_UNKNOWN;
+            };
+        }
+
+        /**
+         * Get background color for a status (lighter version for table cells).
+         */
+        private Color getStatusBackgroundColor(DependencyMigrationStatus status) {
+            Color baseColor = getStatusColor(status);
+            return new Color(
+                Math.min(255, baseColor.getRed() + 50),
+                Math.min(255, baseColor.getGreen() + 50),
+                Math.min(255, baseColor.getBlue() + 50)
+            );
         }
     }
 
@@ -280,17 +284,18 @@ public class DependenciesTableComponent {
         table.setFillsViewportHeight(true);
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
-        // Set column widths (7 columns + 1 hidden)
+        // Set column widths (8 columns + 1 hidden)
         table.getColumnModel().getColumn(0).setPreferredWidth(150); // Group ID
         table.getColumnModel().getColumn(1).setPreferredWidth(150); // Artifact ID
         table.getColumnModel().getColumn(2).setPreferredWidth(90);  // Current Version
         table.getColumnModel().getColumn(3).setPreferredWidth(150); // Jakarta Equivalent
         table.getColumnModel().getColumn(4).setPreferredWidth(100); // Recommended Version
-        table.getColumnModel().getColumn(5).setPreferredWidth(120); // Status (color-coded)
-        table.getColumnModel().getColumn(6).setPreferredWidth(80);  // Type
-        table.getColumnModel().getColumn(7).setMinWidth(0);       // Hidden DependencyInfo
-        table.getColumnModel().getColumn(7).setMaxWidth(0);
-        table.getColumnModel().getColumn(7).setWidth(0);
+        table.getColumnModel().getColumn(5).setPreferredWidth(200); // Maven Coordinates
+        table.getColumnModel().getColumn(6).setPreferredWidth(120); // Status (color-coded)
+        table.getColumnModel().getColumn(7).setPreferredWidth(80);  // Type
+        table.getColumnModel().getColumn(8).setMinWidth(0);       // Hidden DependencyInfo
+        table.getColumnModel().getColumn(8).setMaxWidth(0);
+        table.getColumnModel().getColumn(8).setWidth(0);
 
         // Add mouse listener for double-click navigation
         table.addMouseListener(new MouseInputAdapter() {
@@ -578,13 +583,25 @@ public class DependenciesTableComponent {
             statusText = "? Unknown";
         }
 
-        // Add row with all columns - DependencyInfo at column 7 (hidden)
+        // Build Maven Coordinates string (groupId:artifactId:version)
+        String mavenCoordinates = "-";
+        if (dep.getRecommendedGroupId() != null && dep.getRecommendedArtifactId() != null) {
+            mavenCoordinates = dep.getRecommendedGroupId() + ":" + 
+                              dep.getRecommendedArtifactId() + 
+                              (dep.getRecommendedVersion() != null ? ":" + dep.getRecommendedVersion() : "");
+        } else if (hasJakartaEquivalent) {
+            // Fallback to using the Jakarta Equivalent coordinates
+            mavenCoordinates = jakartaEquivalent;
+        }
+
+        // Add row with all columns - DependencyInfo at column 8 (hidden)
         tableModel.addRow(new Object[] {
                 dep.getGroupId(),
                 dep.getArtifactId(),
                 dep.getCurrentVersion(),
                 jakartaEquivalent,
                 dep.getRecommendedVersion() != null ? dep.getRecommendedVersion() : "-",
+                mavenCoordinates,
                 statusText,
                 dependencyType,
                 dep // Full object for renderer (hidden column)
