@@ -78,18 +78,17 @@ public class PlatformsTabComponent {
         headerPanel.add(scanButton, BorderLayout.EAST);
         
         mainPanel.add(headerPanel, BorderLayout.NORTH);
-        mainPanel.add(createResultsPanel(), BorderLayout.CENTER);
-        mainPanel.add(createPremiumPanel(), BorderLayout.SOUTH);
-        updatePremiumControls();
-    }
-    
-    private JComponent createResultsPanel() {
+        
+        // Results area - inline setup from working commit
         resultsPanel = new JPanel();
         resultsPanel.setLayout(new BoxLayout(resultsPanel, BoxLayout.Y_AXIS));
         resultsScrollPane = new JBScrollPane(resultsPanel);
         resultsScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         resultsScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        return resultsScrollPane;
+        mainPanel.add(resultsScrollPane, BorderLayout.CENTER);
+        
+        mainPanel.add(createPremiumPanel(), BorderLayout.SOUTH);
+        updatePremiumControls();
     }
     
     /**
@@ -116,6 +115,7 @@ public class PlatformsTabComponent {
      * Scans the project for application servers with deployment artifact counting
      */
     public void scanProject() {
+        System.out.println("[DEBUG] Starting enhanced platform scan for project: " + project.getBasePath());
         log.debug("Starting enhanced platform scan for project: {}", project.getBasePath());
         scanButton.setEnabled(false);
         scanButton.setText("Scanning...");
@@ -123,13 +123,17 @@ public class PlatformsTabComponent {
         SwingWorker<EnhancedPlatformScanResult, Void> worker = new SwingWorker<>() {
             @Override
             protected EnhancedPlatformScanResult doInBackground() throws Exception {
-                return enhancedDetectionService.scanProjectWithArtifacts(java.nio.file.Paths.get(project.getBasePath()));
+                System.out.println("[DEBUG] Calling enhancedDetectionService.scanProjectWithArtifacts()");
+                EnhancedPlatformScanResult result = enhancedDetectionService.scanProjectWithArtifacts(java.nio.file.Paths.get(project.getBasePath()));
+                System.out.println("[DEBUG] Scan completed. Found platforms: " + result.getDetectedPlatforms());
+                return result;
             }
             
             @Override
             protected void done() {
                 try {
                     EnhancedPlatformScanResult scanResult = get();
+                    System.out.println("[DEBUG] SwingWorker done. Found " + scanResult.getDetectedPlatforms().size() + " platforms");
                     log.debug("Enhanced platform scan completed. Found {} platforms, WARs: {}, EARs: {}", 
                              scanResult.getDetectedPlatforms().size(), 
                              scanResult.getWarCount(), 
@@ -138,6 +142,7 @@ public class PlatformsTabComponent {
                     scanButton.setEnabled(true);
                     scanButton.setText("Analyse Project");
                 } catch (Exception e) {
+                    System.err.println("[DEBUG] Platform scan failed: " + e.getMessage());
                     log.error("Platform scan failed: {}", e.getMessage(), e);
                     displayError("Failed to scan project: " + e.getMessage());
                     scanButton.setEnabled(true);
@@ -167,13 +172,16 @@ public class PlatformsTabComponent {
      * Unified display method for both simple and enhanced results
      */
     private void displayResults(EnhancedPlatformScanResult scanResult) {
+        System.out.println("[DEBUG] displayResults() called with " + scanResult.getDetectedPlatforms().size() + " platforms");
         // Store current scan result for external access
         this.currentScanResult = scanResult;
         
         clearResults();
         
         List<String> detectedPlatforms = scanResult.getDetectedPlatforms();
+        System.out.println("[DEBUG] detectedPlatforms isEmpty: " + detectedPlatforms.isEmpty());
         if (detectedPlatforms.isEmpty()) {
+            System.out.println("[DEBUG] Adding 'no results' label");
             resultsPanel.add(createNoResultsLabel());
         } else {
             // Add artifact summary if available
@@ -211,6 +219,10 @@ public class PlatformsTabComponent {
     private void refreshResultsPanel() {
         resultsPanel.revalidate();
         resultsPanel.repaint();
+        if (resultsScrollPane != null) {
+            resultsScrollPane.revalidate();
+            resultsScrollPane.repaint();
+        }
     }
     
     /**
