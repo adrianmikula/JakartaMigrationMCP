@@ -7,8 +7,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -74,6 +76,13 @@ public class SimplifiedPlatformDetectionService {
         }
         
         log.debug("Platform detection complete. Total servers found: {}", detectedServers.size());
+        
+        // Remove duplicates while preserving order
+        Set<String> uniqueServers = new LinkedHashSet<>(detectedServers);
+        detectedServers.clear();
+        detectedServers.addAll(uniqueServers);
+        
+        log.debug("After deduplication: {} unique servers: {}", detectedServers.size(), detectedServers);
         return detectedServers;
     }
     

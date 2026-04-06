@@ -9,6 +9,7 @@ import adrianmikula.jakartamigration.intellij.service.RiskScoringService;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.intellij.ui.SupportComponent;
 import adrianmikula.jakartamigration.intellij.ui.components.RiskGauge;
+import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -54,18 +55,41 @@ public class DashboardComponent {
     private JBLabel migrationEffortLabel;
     private RiskGauge migrationRiskGauge;
     
-    // UI Components for middle section
-    private JPanel summaryPanel;
+    // UI Components for progress section (middle)
+    private JPanel progressPanel;
+    private JProgressBar mainScanProgressBar;
+    private JBLabel mainScanProgressLabel;
+    
+    // UI Components for results section with sub-panels
+    private JPanel resultsPanel;
+    private JPanel basicResultsPanel;
+    private JPanel platformResultsPanel;
+    private JPanel advancedResultsPanel;
     private JBLabel scanProgressValue;
     private JBLabel dependenciesFoundValue;
     private JBLabel basicDependenciesValue;
     private JBLabel refactorRecipesValue;
     private JBLabel detectedPlatformsValue;
     
-    // UI Components for scan results table (bottom section)
-    private JPanel scanResultsPanel;
-    private JBTable scanResultsTable;
-    private DefaultTableModel scanResultsModel;
+    // Comprehensive Summary Components
+    private JBLabel totalBasicIssuesValue;
+    private JBLabel totalAdvancedIssuesValue;
+    private JBLabel totalPlatformArtifactsValue;
+    private JBLabel grandTotalValue;
+    private JBLabel deploymentWarCountValue;
+    private JBLabel deploymentEarCountValue;
+    private JBLabel deploymentJarCountValue;
+    private JBLabel totalDeploymentCountValue;
+    
+    // New Dependency Count Components
+    private JBLabel organisationalDepsValue;
+    private JBLabel noJakartaEquivalentValue;
+    private JBLabel jakartaUpgradeValue;
+    private JBLabel jakartaCompatibleValue;
+    private JBLabel unknownReviewValue;
+    
+    // UI Components for scan results table (removed - was integrated into basicResultsPanel)
+    // Note: scan results now displayed directly in basicResultsPanel as count labels
     
     // Legacy components for backward compatibility
     private JPanel metricsTablePanel;
@@ -109,9 +133,6 @@ public class DashboardComponent {
         this.advancedScanningService = advancedScanningService;
         this.panel = new JBPanel<>(new BorderLayout());
         initializeComponent();
-        
-        // Initialize with current scan results if available
-        updateScanResultsTable();
     }
     
     /**
@@ -131,7 +152,6 @@ public class DashboardComponent {
         // Update all components with new data
         updateGauges();
         updateSummary();
-        updateScanResultsTable();
     }
     
     /**
@@ -162,26 +182,21 @@ public class DashboardComponent {
         // Main dashboard content with multiple sections
         JPanel mainPanel = new JBPanel<>(new BorderLayout());
         
-        // Top: Gauges
+        // Top: Gauges (Risk Assessment)
         gaugesPanel = createGaugesPanel();
         mainPanel.add(gaugesPanel, BorderLayout.NORTH);
         
-        // Middle: Summary information
-        summaryPanel = createSummaryPanel();
-        mainPanel.add(summaryPanel, BorderLayout.CENTER);
+        // Middle: Progress Panel (Scan Progress Bar)
+        progressPanel = createProgressPanel();
+        mainPanel.add(progressPanel, BorderLayout.CENTER);
         
-        // Bottom: Combined results panel (advanced scan + table)
-        JPanel bottomPanel = new JBPanel<>(new BorderLayout());
-        
-        // Scan results table (bottom section)
-        scanResultsPanel = createScanResultsPanel();
-        bottomPanel.add(scanResultsPanel, BorderLayout.CENTER);
-        
-        mainPanel.add(bottomPanel, BorderLayout.SOUTH);
+        // Bottom: Results Panel (Comprehensive Scan Summary with sub-panels)
+        JPanel resultsPanel = createResultsPanel();
+        mainPanel.add(resultsPanel, BorderLayout.SOUTH);
         
         contentPanel.add(mainPanel, BorderLayout.CENTER);
 
-        // Actions panel
+        // Actions panel with Analyse button
         JPanel actionsPanel = createActionsPanel();
 
         panel.add(contentPanel, BorderLayout.CENTER);
@@ -234,7 +249,6 @@ public class DashboardComponent {
             // Update new dashboard components with advanced scan data
             updateGauges();
             updateSummary();
-            updateScanResultsTable();
         });
     }
     
@@ -458,9 +472,28 @@ private void resetAdvancedScanCounts() {
     }
 
     private JPanel createActionsPanel() {
-        JPanel actionsPanel = new JBPanel<>(new FlowLayout(FlowLayout.RIGHT, 10, 5));
-        actionsPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        // Use BorderLayout to separate analyse button (left) from trial/upgrade buttons (right)
+        JPanel actionsPanel = new JBPanel<>(new BorderLayout());
+        actionsPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
 
+        // Left: Analyse button
+        JPanel leftPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        JButton analyseButton = new JButton("Analyse");
+        analyseButton.setToolTipText("Start migration analysis scan");
+        analyseButton.setBackground(new Color(59, 130, 246)); // Blue background
+        analyseButton.setForeground(Color.WHITE);
+        analyseButton.setFont(analyseButton.getFont().deriveFont(Font.BOLD));
+        analyseButton.addActionListener(e -> {
+            if (onAnalyze != null) {
+                onAnalyze.accept(e);
+            }
+        });
+        leftPanel.add(analyseButton);
+        actionsPanel.add(leftPanel, BorderLayout.WEST);
+
+        // Right: Trial/Upgrade/Premium buttons
+        JPanel rightPanel = new JBPanel<>(new FlowLayout(FlowLayout.RIGHT, 10, 5));
+        
         // Check if premium is already active
         boolean isPremium = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
         
@@ -478,7 +511,7 @@ private void resetAdvancedScanCounts() {
                     "Free trial started! Premium features are now available.\n\nPlease restart the tool window to see all premium features.",
                     "Trial Started");
             });
-            actionsPanel.add(trialButton);
+            rightPanel.add(trialButton);
             
             // Add upgrade button
             JButton upgradeButton = new JButton("⬆ Upgrade to Premium");
@@ -492,15 +525,16 @@ private void resetAdvancedScanCounts() {
                     Messages.showErrorDialog(project, "Could not open URL", "Error");
                 }
             });
-            actionsPanel.add(upgradeButton);
+            rightPanel.add(upgradeButton);
         } else {
             // Show premium badge
             JLabel premiumBadge = new JLabel("⭐ Premium Active");
             premiumBadge.setForeground(new Color(255, 215, 0));
             premiumBadge.setToolTipText("Premium license active");
-            actionsPanel.add(premiumBadge);
+            rightPanel.add(premiumBadge);
         }
 
+        actionsPanel.add(rightPanel, BorderLayout.EAST);
         return actionsPanel;
     }
 
@@ -581,16 +615,77 @@ private void resetAdvancedScanCounts() {
     }
 
     /**
-     * Creates the middle section showing scan progress and summary information.
-     * Shows percentage of scans run, dependencies found, and refactor recipes.
+     * Creates the progress panel showing the main scan progress bar.
      */
-    private JPanel createSummaryPanel() {
+    private JPanel createProgressPanel() {
         JPanel panel = new JBPanel<>(new BorderLayout());
         panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder("Migration Summary"),
+                BorderFactory.createTitledBorder("Scan Progress"),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+        panel.setPreferredSize(new Dimension(0, 80)); // Fixed height to ensure visibility
+
+        JPanel progressContainer = new JBPanel<>(new BorderLayout(10, 0));
+        
+        // Progress bar
+        mainScanProgressBar = new JProgressBar(0, 100);
+        mainScanProgressBar.setValue(0);
+        mainScanProgressBar.setStringPainted(true);
+        mainScanProgressBar.setString("0%");
+        mainScanProgressBar.setPreferredSize(new Dimension(0, 25)); // Taller progress bar
+        progressContainer.add(mainScanProgressBar, BorderLayout.CENTER);
+        
+        // Progress label
+        mainScanProgressLabel = new JBLabel("Ready to scan");
+        mainScanProgressLabel.setFont(mainScanProgressLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        progressContainer.add(mainScanProgressLabel, BorderLayout.EAST);
+        
+        panel.add(progressContainer, BorderLayout.CENTER);
+        return panel;
+    }
+
+    /**
+     * Creates the results panel container with basic, platform, and advanced sub-panels.
+     */
+    private JPanel createResultsPanel() {
+        JPanel panel = new JBPanel<>(new BorderLayout());
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder("Comprehensive Scan Summary"),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
 
+        // Top section: Basic and Platform panels side by side
+        JPanel topSection = new JBPanel<>(new BorderLayout());
+        
+        // Basic Results (WEST - takes more space for the table)
+        basicResultsPanel = createBasicResultsPanel();
+        topSection.add(basicResultsPanel, BorderLayout.WEST);
+        
+        // Platform Results (EAST)
+        platformResultsPanel = createPlatformResultsPanel();
+        topSection.add(platformResultsPanel, BorderLayout.EAST);
+        
+        panel.add(topSection, BorderLayout.NORTH);
+        
+        // Bottom section: Advanced Results (SOUTH)
+        advancedResultsPanel = createAdvancedResultsPanel();
+        panel.add(advancedResultsPanel, BorderLayout.SOUTH);
+        
+        return panel;
+    }
+
+    /**
+     * Creates the basic results panel showing dependency counts and scan results table.
+     */
+    private JPanel createBasicResultsPanel() {
+        JPanel panel = new JBPanel<>(new BorderLayout());
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder("Basic Scan Results"),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+        panel.setPreferredSize(new Dimension(400, 300));
+
+        // Top: Summary counts
         JPanel summaryGrid = new JBPanel<>(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
@@ -610,100 +705,295 @@ private void resetAdvancedScanCounts() {
         dependenciesFoundValue = createValueLabel("-");
         summaryGrid.add(dependenciesFoundValue, gbc);
 
-        // Basic Dependencies Summary
+        // Basic Dependencies
         gbc.gridx = 0; gbc.gridy = 2;
         summaryGrid.add(createKeyLabel("Basic Dependencies:"), gbc);
         gbc.gridx = 1;
         basicDependenciesValue = createValueLabel("-");
         summaryGrid.add(basicDependenciesValue, gbc);
 
-        // Refactor Recipes Available
+        // Refactor Recipes
         gbc.gridx = 0; gbc.gridy = 3;
         summaryGrid.add(createKeyLabel("Refactor Recipes:"), gbc);
         gbc.gridx = 1;
         refactorRecipesValue = createValueLabel("-");
         summaryGrid.add(refactorRecipesValue, gbc);
-        gbc.gridy++;
-
-        // Detected Platforms (from platform scanning)
-        gbc.gridx = 0; gbc.gridy = gbc.gridy;
-        summaryGrid.add(createKeyLabel("Detected Platforms:"), gbc);
+        
+        // Total Basic Issues
+        gbc.gridx = 0; gbc.gridy = 4;
+        JBLabel totalLabel = createKeyLabel("Total Basic Issues:");
+        totalLabel.setFont(totalLabel.getFont().deriveFont(Font.BOLD));
+        summaryGrid.add(totalLabel, gbc);
         gbc.gridx = 1;
-        JBLabel detectedPlatformsValue = createValueLabel("-");
-        summaryGrid.add(detectedPlatformsValue, gbc);
+        totalBasicIssuesValue = createValueLabel("0");
+        totalBasicIssuesValue.setFont(totalBasicIssuesValue.getFont().deriveFont(Font.BOLD));
+        summaryGrid.add(totalBasicIssuesValue, gbc);
+
+        // Organisational Dependencies
+        gbc.gridx = 0; gbc.gridy = 5;
+        summaryGrid.add(createKeyLabel("Organisational Deps:"), gbc);
+        gbc.gridx = 1;
+        organisationalDepsValue = createValueLabel("0");
+        summaryGrid.add(organisationalDepsValue, gbc);
+
+        // No Jakarta Equivalent
+        gbc.gridx = 0; gbc.gridy = 6;
+        summaryGrid.add(createKeyLabel("No Jakarta Equivalent:"), gbc);
+        gbc.gridx = 1;
+        noJakartaEquivalentValue = createValueLabel("0");
+        summaryGrid.add(noJakartaEquivalentValue, gbc);
+
+        // Jakarta Upgrade
+        gbc.gridx = 0; gbc.gridy = 7;
+        summaryGrid.add(createKeyLabel("Jakarta Upgrade:"), gbc);
+        gbc.gridx = 1;
+        jakartaUpgradeValue = createValueLabel("0");
+        summaryGrid.add(jakartaUpgradeValue, gbc);
+
+        // Jakarta Compatible
+        gbc.gridx = 0; gbc.gridy = 8;
+        summaryGrid.add(createKeyLabel("Jakarta Compatible:"), gbc);
+        gbc.gridx = 1;
+        jakartaCompatibleValue = createValueLabel("0");
+        summaryGrid.add(jakartaCompatibleValue, gbc);
+
+        // Unknown/Review
+        gbc.gridx = 0; gbc.gridy = 9;
+        summaryGrid.add(createKeyLabel("Unknown/Review:"), gbc);
+        gbc.gridx = 1;
+        unknownReviewValue = createValueLabel("0");
+        summaryGrid.add(unknownReviewValue, gbc);
+
+        // Separator before grand total
+        gbc.gridx = 0; gbc.gridy = 10; gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(10, 5, 5, 5);
+        JSeparator separator = new JSeparator();
+        separator.setForeground(Color.GRAY);
+        summaryGrid.add(separator, gbc);
+        gbc.gridwidth = 1;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.insets = new Insets(5, 5, 5, 5);
+
+        // Grand Total across all scan types
+        gbc.gridx = 0; gbc.gridy = 11;
+        JBLabel grandTotalLabel = createKeyLabel("GRAND TOTAL:");
+        grandTotalLabel.setFont(grandTotalLabel.getFont().deriveFont(Font.BOLD, 13f));
+        grandTotalLabel.setForeground(new Color(0, 100, 200));
+        summaryGrid.add(grandTotalLabel, gbc);
+        gbc.gridx = 1;
+        grandTotalValue = createValueLabel("0");
+        grandTotalValue.setFont(grandTotalValue.getFont().deriveFont(Font.BOLD, 13f));
+        grandTotalValue.setForeground(new Color(0, 100, 200));
+        summaryGrid.add(grandTotalValue, gbc);
 
         panel.add(summaryGrid, BorderLayout.CENTER);
+
         return panel;
     }
 
     /**
-     * Creates the advanced scan results panel showing detailed scan counts.
-     * Shows individual scan type results with color coding.
+     * Creates the platform results panel showing deployment artifact counts.
      */
-    private JPanel createAdvancedScanResultsPanel() {
+    private JPanel createPlatformResultsPanel() {
+        JPanel panel = new JBPanel<>(new BorderLayout());
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder("Platform Scan Results"),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+        panel.setPreferredSize(new Dimension(250, 300));
+
+        JPanel platformGrid = new JBPanel<>(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.anchor = GridBagConstraints.CENTER;
+
+        int row = 0;
+
+        // Detected Platforms
+        gbc.gridx = 0; gbc.gridy = row;
+        platformGrid.add(createKeyLabel("Detected Platforms:"), gbc);
+        gbc.gridx = 1;
+        detectedPlatformsValue = createValueLabel("-");
+        platformGrid.add(detectedPlatformsValue, gbc);
+        row++;
+
+        // WAR Files
+        gbc.gridx = 0; gbc.gridy = row;
+        platformGrid.add(createKeyLabel("WAR Files:"), gbc);
+        gbc.gridx = 1;
+        deploymentWarCountValue = createValueLabel("0");
+        platformGrid.add(deploymentWarCountValue, gbc);
+        row++;
+
+        // EAR Files
+        gbc.gridx = 0; gbc.gridy = row;
+        platformGrid.add(createKeyLabel("EAR Files:"), gbc);
+        gbc.gridx = 1;
+        deploymentEarCountValue = createValueLabel("0");
+        platformGrid.add(deploymentEarCountValue, gbc);
+        row++;
+
+        // JAR Files
+        gbc.gridx = 0; gbc.gridy = row;
+        platformGrid.add(createKeyLabel("JAR Files:"), gbc);
+        gbc.gridx = 1;
+        deploymentJarCountValue = createValueLabel("0");
+        platformGrid.add(deploymentJarCountValue, gbc);
+        row++;
+
+        // Total Artifacts
+        gbc.gridx = 0; gbc.gridy = row;
+        JBLabel totalArtifactsLabel = createKeyLabel("Total Artifacts:");
+        totalArtifactsLabel.setFont(totalArtifactsLabel.getFont().deriveFont(Font.BOLD));
+        platformGrid.add(totalArtifactsLabel, gbc);
+        gbc.gridx = 1;
+        totalDeploymentCountValue = createValueLabel("0");
+        totalDeploymentCountValue.setFont(totalDeploymentCountValue.getFont().deriveFont(Font.BOLD));
+        platformGrid.add(totalDeploymentCountValue, gbc);
+        row++;
+
+        // Separator
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        JSeparator separator = new JSeparator();
+        separator.setForeground(Color.LIGHT_GRAY);
+        platformGrid.add(separator, gbc);
+        gbc.gridwidth = 1;
+        gbc.fill = GridBagConstraints.NONE;
+        row++;
+
+        // Total Platform Artifacts (sum for grand total calculation)
+        gbc.gridx = 0; gbc.gridy = row;
+        JBLabel platformTotalLabel = createKeyLabel("Platform Issues:");
+        platformTotalLabel.setFont(platformTotalLabel.getFont().deriveFont(Font.BOLD));
+        platformGrid.add(platformTotalLabel, gbc);
+        gbc.gridx = 1;
+        totalPlatformArtifactsValue = createValueLabel("0");
+        totalPlatformArtifactsValue.setFont(totalPlatformArtifactsValue.getFont().deriveFont(Font.BOLD));
+        platformGrid.add(totalPlatformArtifactsValue, gbc);
+
+        panel.add(platformGrid, BorderLayout.CENTER);
+        return panel;
+    }
+
+    /**
+     * Creates the advanced results panel showing all 14 scan type counts.
+     */
+    private JPanel createAdvancedResultsPanel() {
         JPanel panel = new JBPanel<>(new BorderLayout());
         panel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createTitledBorder("Advanced Scan Results"),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
 
+        // Use 3-column grid for compact layout
         JPanel scanGrid = new JBPanel<>(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(3, 5, 3, 5);
+        gbc.insets = new Insets(3, 10, 3, 10);
         gbc.anchor = GridBagConstraints.WEST;
 
-        // Initialize all advanced scan count labels
-        int row = 0;
-        
-        // JPA Scan
-        gbc.gridx = 0; gbc.gridy = row;
-        scanGrid.add(createKeyLabel("JPA Issues:"), gbc);
-        gbc.gridx = 1;
-        jpaScanCountValue = createValueLabel("0");
-        scanGrid.add(jpaScanCountValue, gbc);
-        row++;
+        int[] row = {0};
+        int[] col = {0};
+        final int MAX_COLS = 3;
 
-        // Bean Validation Scan
-        gbc.gridx = 0; gbc.gridy = row;
-        scanGrid.add(createKeyLabel("Bean Validation:"), gbc);
-        gbc.gridx = 1;
+        // Helper method reference for adding scan rows
+        class ScanRowHelper {
+            void add(String labelText, JBLabel labelValue) {
+                gbc.gridx = col[0] * 2;
+                gbc.gridy = row[0];
+                scanGrid.add(createKeyLabel(labelText), gbc);
+                gbc.gridx = col[0] * 2 + 1;
+                scanGrid.add(labelValue, gbc);
+                col[0]++;
+                if (col[0] >= MAX_COLS) {
+                    col[0] = 0;
+                    row[0]++;
+                }
+            }
+        }
+        ScanRowHelper addScanRow = new ScanRowHelper();
+
+        // Initialize all advanced scan count labels and add to grid
+        jpaScanCountValue = createValueLabel("0");
+        addScanRow.add("JPA:", jpaScanCountValue);
+
         beanValidationScanCountValue = createValueLabel("0");
-        scanGrid.add(beanValidationScanCountValue, gbc);
-        row++;
+        addScanRow.add("Bean Validation:", beanValidationScanCountValue);
+
+        servletJspScanCountValue = createValueLabel("0");
+        addScanRow.add("Servlet/JSP:", servletJspScanCountValue);
+
+        cdiInjectionScanCountValue = createValueLabel("0");
+        addScanRow.add("CDI Injection:", cdiInjectionScanCountValue);
+
+        buildConfigScanCountValue = createValueLabel("0");
+        addScanRow.add("Build Config:", buildConfigScanCountValue);
+
+        restSoapScanCountValue = createValueLabel("0");
+        addScanRow.add("REST/SOAP:", restSoapScanCountValue);
+
+        deprecatedApiScanCountValue = createValueLabel("0");
+        addScanRow.add("Deprecated API:", deprecatedApiScanCountValue);
+
+        securityApiScanCountValue = createValueLabel("0");
+        addScanRow.add("Security API:", securityApiScanCountValue);
+
+        jmsMessagingScanCountValue = createValueLabel("0");
+        addScanRow.add("JMS Messaging:", jmsMessagingScanCountValue);
+
+        transitiveDependencyScanCountValue = createValueLabel("0");
+        addScanRow.add("Transitive Deps:", transitiveDependencyScanCountValue);
+
+        configFileScanCountValue = createValueLabel("0");
+        addScanRow.add("Config Files:", configFileScanCountValue);
+
+        classloaderModuleScanCountValue = createValueLabel("0");
+        addScanRow.add("Classloader:", classloaderModuleScanCountValue);
+
+        loggingMetricsScanCountValue = createValueLabel("0");
+        addScanRow.add("Logging/Metrics:", loggingMetricsScanCountValue);
+
+        serializationCacheScanCountValue = createValueLabel("0");
+        addScanRow.add("Serialization:", serializationCacheScanCountValue);
+
+        thirdPartyLibScanCountValue = createValueLabel("0");
+        addScanRow.add("Third-Party:", thirdPartyLibScanCountValue);
+
+        // Total Advanced Issues (span across columns)
+        if (col[0] > 0) {
+            row[0]++; // Move to next row if we're in the middle of a row
+        }
+        gbc.gridx = 0; gbc.gridy = row[0]; gbc.gridwidth = MAX_COLS * 2;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        JSeparator separator = new JSeparator();
+        separator.setForeground(Color.GRAY);
+        scanGrid.add(separator, gbc);
+        gbc.gridwidth = 1;
+        gbc.fill = GridBagConstraints.NONE;
+        row[0]++;
+
+        // Total row
+        gbc.gridx = 0; gbc.gridy = row[0]; gbc.gridwidth = 2;
+        JBLabel totalLabel = createKeyLabel("Total Advanced Issues:");
+        totalLabel.setFont(totalLabel.getFont().deriveFont(Font.BOLD, 12f));
+        scanGrid.add(totalLabel, gbc);
+        gbc.gridx = 2; gbc.gridwidth = 1;
+        totalAdvancedScanCountValue = createValueLabel("0");
+        totalAdvancedScanCountValue.setFont(totalAdvancedScanCountValue.getFont().deriveFont(Font.BOLD, 12f));
+        scanGrid.add(totalAdvancedScanCountValue, gbc);
+
+        // Total for grand total calculation
+        gbc.gridx = 4; gbc.gridy = row[0]; gbc.gridwidth = 2;
+        JBLabel grandLabel = createKeyLabel("Advanced Issues:");
+        grandLabel.setFont(grandLabel.getFont().deriveFont(Font.BOLD, 12f));
+        scanGrid.add(grandLabel, gbc);
+        gbc.gridx = 6; gbc.gridwidth = 1;
+        totalAdvancedIssuesValue = createValueLabel("0");
+        totalAdvancedIssuesValue.setFont(totalAdvancedIssuesValue.getFont().deriveFont(Font.BOLD, 12f));
+        scanGrid.add(totalAdvancedIssuesValue, gbc);
 
         panel.add(scanGrid, BorderLayout.CENTER);
-        return panel;
-    }
-
-    /**
-     * Creates the bottom section with a table of scan results.
-     * Shows scan name, number of items found, and risk level.
-     */
-    private JPanel createScanResultsPanel() {
-        JPanel panel = new JBPanel<>(new BorderLayout());
-        panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder("Scan Results"),
-                BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-
-        // Create table model
-        scanResultsModel = new DefaultTableModel();
-        scanResultsModel.addColumn("Scan Name");
-        scanResultsModel.addColumn("Items Found");
-        scanResultsModel.addColumn("Risk Level");
-
-        // Create table
-        scanResultsTable = new JBTable(scanResultsModel);
-        scanResultsTable.setRowHeight(25);
-        scanResultsTable.getColumnModel().getColumn(0).setPreferredWidth(200);
-        scanResultsTable.getColumnModel().getColumn(1).setPreferredWidth(100);
-        scanResultsTable.getColumnModel().getColumn(2).setPreferredWidth(100);
-
-        // Add scroll pane
-        JBScrollPane scrollPane = new JBScrollPane(scanResultsTable);
-        scrollPane.setPreferredSize(new Dimension(450, 200));
-
-        panel.add(scrollPane, BorderLayout.CENTER);
         return panel;
     }
 
@@ -807,6 +1097,7 @@ private void resetAdvancedScanCounts() {
 
             // Update dependencies found
             DependencySummary depSummary = dashboard.getDependencySummary();
+            int totalBasicIssues = 0;
             if (depSummary != null) {
                 int totalDeps = depSummary.getTotalDependencies();
                 int affectedDeps = depSummary.getAffectedDependencies();
@@ -817,13 +1108,91 @@ private void resetAdvancedScanCounts() {
                 int basicDeps = totalDeps - affectedDeps; // Basic = total - affected
                 basicDependenciesValue.setText(basicDeps + " compatible");
                 basicDependenciesValue.setForeground(basicDeps > 0 ? Color.GREEN : Color.GRAY);
+                
+                // Calculate total basic scan issues (affected dependencies)
+                totalBasicIssues = affectedDeps;
+                
+                // Update the 5 new dependency count labels
+                int orgDeps = depSummary.getOrganisationalDependencies() != null ? depSummary.getOrganisationalDependencies() : 0;
+                int noJakartaEquiv = depSummary.getNoJakartaSupportCount() != null ? depSummary.getNoJakartaSupportCount() : 0;
+                int jakartaUpgrade = depSummary.getJakartaUpgradeCount() != null ? depSummary.getJakartaUpgradeCount() : 0;
+                int jakartaCompatible = depSummary.getJakartaCompatibleCount() != null ? depSummary.getJakartaCompatibleCount() : 0;
+                int unknownReview = depSummary.getUnknownReviewCount() != null ? depSummary.getUnknownReviewCount() : 0;
+                
+                organisationalDepsValue.setText(String.valueOf(orgDeps));
+                noJakartaEquivalentValue.setText(String.valueOf(noJakartaEquiv));
+                jakartaUpgradeValue.setText(String.valueOf(jakartaUpgrade));
+                jakartaCompatibleValue.setText(String.valueOf(jakartaCompatible));
+                unknownReviewValue.setText(String.valueOf(unknownReview));
+                
+                // Apply color coding based on values
+                organisationalDepsValue.setForeground(orgDeps > 0 ? Color.ORANGE : Color.GREEN);
+                noJakartaEquivalentValue.setForeground(noJakartaEquiv > 0 ? Color.RED : Color.GREEN);
+                jakartaUpgradeValue.setForeground(jakartaUpgrade > 0 ? Color.ORANGE : Color.GREEN);
+                jakartaCompatibleValue.setForeground(jakartaCompatible > 0 ? Color.GREEN : Color.GRAY);
+                unknownReviewValue.setForeground(unknownReview > 0 ? Color.ORANGE : Color.GREEN);
             } else {
                 dependenciesFoundValue.setText("-");
                 basicDependenciesValue.setText("-");
+                organisationalDepsValue.setText("0");
+                noJakartaEquivalentValue.setText("0");
+                jakartaUpgradeValue.setText("0");
+                jakartaCompatibleValue.setText("0");
+                unknownReviewValue.setText("0");
             }
+            
+            // Update comprehensive summary - Basic Issues
+            updateScanCountWithColor(totalBasicIssuesValue, totalBasicIssues);
 
             // Update refactor recipes (this would need integration with recipe service)
             refactorRecipesValue.setText("Calculating...");
+            
+            // Update advanced scan totals
+            int totalAdvancedIssues = 0;
+            if (advancedScanningService != null && advancedScanningService.hasCachedResults()) {
+                AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
+                if (summary != null) {
+                    totalAdvancedIssues = summary.getTotalIssuesFound();
+                }
+            }
+            updateScanCountWithColor(totalAdvancedIssuesValue, totalAdvancedIssues);
+            
+            // Update platform artifact totals
+            int totalPlatformArtifacts = 0;
+            int warCount = 0;
+            int earCount = 0;
+            int jarCount = 0;
+            int totalDeploymentCount = 0;
+            
+            if (platformsTabComponent != null) {
+                EnhancedPlatformScanResult platformResult = platformsTabComponent.getCurrentScanResult();
+                if (platformResult != null) {
+                    warCount = platformResult.getWarCount();
+                    earCount = platformResult.getEarCount();
+                    jarCount = platformResult.getJarCount();
+                    totalDeploymentCount = platformResult.getTotalDeploymentCount();
+                    // Platform artifacts count as the total deployment artifacts
+                    totalPlatformArtifacts = totalDeploymentCount;
+                }
+            }
+            
+            // Update platform artifact labels
+            updateScanCountWithColor(totalPlatformArtifactsValue, totalPlatformArtifacts);
+            updateScanCountWithColor(deploymentWarCountValue, warCount);
+            updateScanCountWithColor(deploymentEarCountValue, earCount);
+            updateScanCountWithColor(deploymentJarCountValue, jarCount);
+            updateScanCountWithColor(totalDeploymentCountValue, totalDeploymentCount);
+            
+            // Calculate and update GRAND TOTAL
+            int grandTotal = totalBasicIssues + totalAdvancedIssues + totalPlatformArtifacts;
+            if (grandTotalValue != null) {
+                grandTotalValue.setText(String.valueOf(grandTotal));
+                if (grandTotal > 0) {
+                    grandTotalValue.setForeground(new Color(220, 53, 69)); // Red for issues
+                } else {
+                    grandTotalValue.setForeground(new Color(40, 167, 69)); // Green for no issues
+                }
+            }
             
             // Update detected platforms from platform scanning
             if (detectedPlatformsValue != null && platformsTabComponent != null) {
@@ -854,57 +1223,11 @@ private void resetAdvancedScanCounts() {
         });
     }
 
-    /**
-     * Updates the scan results table with current scan data.
-     */
-    public void updateScanResultsTable() {
-        if (dashboard == null || detectedPlatformsValue == null) return;
-
-        SwingUtilities.invokeLater(() -> {
-            // Clear existing data
-            scanResultsModel.setRowCount(0);
-
-            // Add basic scan results
-            addScanResultRow("Basic Analysis", getBasicScanCount(), getRiskLevelForCount(getBasicScanCount()));
-            
-            // Add advanced scan results if available
-            if (advancedScanningService != null && advancedScanningService.hasCachedResults()) {
-                AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
-                if (summary != null) {
-                    addScanResultRow("JPA Issues", summary.getJpaCount(), getRiskLevelForCount(summary.getJpaCount()));
-                    addScanResultRow("Bean Validation", summary.getBeanValidationCount(), getRiskLevelForCount(summary.getBeanValidationCount()));
-                    addScanResultRow("Servlet/JSP", summary.getServletJspCount(), getRiskLevelForCount(summary.getServletJspCount()));
-                    addScanResultRow("CDI Injection", summary.getCdiInjectionCount(), getRiskLevelForCount(summary.getCdiInjectionCount()));
-                    addScanResultRow("Build Config", summary.getBuildConfigCount(), getRiskLevelForCount(summary.getBuildConfigCount()));
-                    addScanResultRow("REST/SOAP", summary.getRestSoapCount(), getRiskLevelForCount(summary.getRestSoapCount()));
-                    addScanResultRow("Deprecated API", summary.getDeprecatedApiCount(), getRiskLevelForCount(summary.getDeprecatedApiCount()));
-                    addScanResultRow("Security API", summary.getSecurityApiCount(), getRiskLevelForCount(summary.getSecurityApiCount()));
-                    addScanResultRow("JMS Messaging", summary.getJmsMessagingCount(), getRiskLevelForCount(summary.getJmsMessagingCount()));
-                    addScanResultRow("Config Files", summary.getConfigFileCount(), getRiskLevelForCount(summary.getConfigFileCount()));
-                    addScanResultRow("Total Advanced", summary.getTotalIssuesFound(), getRiskLevelForCount(summary.getTotalIssuesFound()));
-                }
-            }
-        });
-    }
-
     // ==================== Helper Methods ====================
-
-    private void addScanResultRow(String scanName, int count, String riskLevel) {
-        if (count > 0) { // Only show scans with results
-            Object[] row = {scanName, count, riskLevel};
-            scanResultsModel.addRow(row);
-        }
-    }
 
     private int getBasicScanCount() {
         if (dashboard == null || dashboard.getDependencySummary() == null) return 0;
         return dashboard.getDependencySummary().getAffectedDependencies();
-    }
-
-    private String getRiskLevelForCount(int count) {
-        if (count == 0) return "Low";
-        if (count < 10) return "Medium";
-        return "High";
     }
 
     private int calculateEffortWeeks() {

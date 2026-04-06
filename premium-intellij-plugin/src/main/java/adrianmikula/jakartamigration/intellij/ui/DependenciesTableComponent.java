@@ -226,7 +226,7 @@ public class DependenciesTableComponent {
             }
             return switch (status) {
                 case COMPATIBLE -> STATUS_COMPATIBLE;
-                case NEEDS_UPGRADE, REQUIRES_MANUAL_MIGRATION -> STATUS_NEEDS_UPGRADE;
+                case NEEDS_UPGRADE, REQUIRES_MANUAL_MIGRATION, UNKNOWN_REVIEW -> STATUS_NEEDS_UPGRADE;
                 case NO_JAKARTA_VERSION -> STATUS_NO_JAKARTA;
                 case MIGRATED -> STATUS_MIGRATED;
                 default -> STATUS_UNKNOWN;
