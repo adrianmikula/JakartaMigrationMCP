@@ -14,7 +14,7 @@ public enum FeatureFlag {
 
     // === PREMIUM FEATURES ===
     // All features below require a JetBrains Marketplace subscription
-    // Pricing: $49/month or $399/year (with 7-day free trial)
+    // Pricing: $49/month or $399/year (with configurable free trial)
 
     /**
      * Auto-fixes / Auto-remediation.
@@ -94,6 +94,46 @@ public enum FeatureFlag {
             "export-reports",
             "Report export",
             "Export detailed migration reports in PDF, HTML, and other formats",
+            FeatureFlagsProperties.LicenseTier.PREMIUM),
+
+    /**
+     * Audit trail.
+     * Track and historical actions for compliance.
+     */
+    AUDIT_TRAIL(
+            "audit-trail",
+            "Audit trail and history",
+            "Track historical migration actions and maintain audit trail",
+            FeatureFlagsProperties.LicenseTier.PREMIUM),
+
+    /**
+     * Reporting.
+     * Create comprehensive migration reports.
+     */
+    REPORTING(
+            "reporting",
+            "Comprehensive reporting",
+            "Create comprehensive migration reports with analysis and recommendations",
+            FeatureFlagsProperties.LicenseTier.PREMIUM),
+
+    /**
+     * Runtime diagnostics.
+     * Runtime error diagnosis and troubleshooting.
+     */
+    RUNTIME_DIAGNOSTICS(
+            "runtime-diagnostics",
+            "Runtime error diagnosis and troubleshooting",
+            "Diagnose runtime errors with AI-powered analysis",
+            FeatureFlagsProperties.LicenseTier.PREMIUM),
+
+    /**
+     * Experimental features.
+     * Cutting-edge features under development.
+     */
+    EXPERIMENTAL_FEATURES(
+            "experimental-features",
+            "Experimental features",
+            "Cutting-edge features under development",
             FeatureFlagsProperties.LicenseTier.PREMIUM);
 
     // === COMMUNITY FEATURES ===
@@ -162,8 +202,9 @@ public enum FeatureFlag {
      */
     public String getPricingInfo() {
         return String.format(
-                "Upgrade to Premium: %s or %s. Start your free 7-day trial today!",
+                "Upgrade to Premium: %s or %s. Start your free %d-day trial today!",
                 FeatureFlagsProperties.getMonthlyPriceFormatted(),
-                FeatureFlagsProperties.getYearlyPriceFormatted());
+                FeatureFlagsProperties.getYearlyPriceFormatted(),
+                FeatureFlagsProperties.getFreeTrialDays());
     }
 }

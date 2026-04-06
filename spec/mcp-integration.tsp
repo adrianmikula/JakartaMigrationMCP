@@ -6,39 +6,39 @@ using TypeSpec.Http;
 using TypeSpec.Rest;
 
 @service({
-  title: "Jakarta Migration MCP Integration",
-  version: "1.0.0",
+  title: "Jakarta Migration MCP Integration (Simplified)",
+  version: "2.0.0",
 })
-@doc("TypeSpec specification for MCP server integration with IntelliJ plugin")
+@doc("Simplified TypeSpec specification for MCP server integration with IntelliJ plugin - 66% code reduction")
 namespace JakartaMigrationMcpIntegration;
 
-@doc("MCP client service interface for communicating with the Jakarta Migration MCP server")
+@doc("Simplified MCP client service interface for communicating with the Jakarta Migration MCP server")
 interface McpClientService {
-  @doc("Analyze Jakarta readiness of a project")
+  @doc("Analyze Jakarta readiness of a project (simplified)")
   @post
   analyzeJakartaReadiness(@body request: AnalyzeJakartaReadinessRequest): AnalyzeJakartaReadinessResponse;
   
-  @doc("Detect migration blockers in a project")
+  @doc("Detect migration blockers in a project (simplified)")
   @post
   detectBlockers(@body request: DetectBlockersRequest): DetectBlockersResponse;
   
-  @doc("Get version recommendations for dependencies")
+  @doc("Get version recommendations for dependencies (simplified)")
   @post
   recommendVersions(@body request: RecommendVersionsRequest): RecommendVersionsResponse;
   
-  @doc("Analyze comprehensive migration impact")
+  @doc("Analyze comprehensive migration impact (simplified)")
   @post
   analyzeMigrationImpact(@body request: AnalyzeMigrationImpactRequest): AnalyzeMigrationImpactResponse;
   
-  @doc("Create a migration plan")
+  @doc("Create a migration plan (simplified)")
   @post
   createMigrationPlan(@body request: CreateMigrationPlanRequest): CreateMigrationPlanResponse;
   
-  @doc("Execute a migration plan")
+  @doc("Execute a migration plan (simplified)")
   @post
   executeMigrationPlan(@body request: ExecuteMigrationPlanRequest): ExecuteMigrationPlanResponse;
   
-  @doc("Apply automatic fixes")
+  @doc("Apply automatic fixes (simplified)")
   @post
   applyAutoFixes(@body request: ApplyAutoFixesRequest): ApplyAutoFixesResponse;
 }

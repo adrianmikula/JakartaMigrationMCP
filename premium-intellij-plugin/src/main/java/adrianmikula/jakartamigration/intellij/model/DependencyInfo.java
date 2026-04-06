@@ -16,8 +16,20 @@ public class DependencyInfo {
     @JsonProperty("currentVersion")
     private String currentVersion;
 
+    @JsonProperty("recommendedGroupId")
+    private String recommendedGroupId;
+
+    @JsonProperty("recommendedArtifactId")
+    private String recommendedArtifactId;
+
     @JsonProperty("recommendedVersion")
     private String recommendedVersion;
+
+    @JsonProperty("jakartaCompatibilityStatus")
+    private String jakartaCompatibilityStatus;
+
+    @JsonProperty("associatedRecipeName")
+    private String associatedRecipeName;
 
     @JsonProperty("migrationStatus")
     private DependencyMigrationStatus migrationStatus;
@@ -47,12 +59,18 @@ public class DependencyInfo {
     }
 
     public DependencyInfo(String groupId, String artifactId, String currentVersion,
-            String recommendedVersion, DependencyMigrationStatus migrationStatus,
+            String recommendedGroupId, String recommendedArtifactId, String recommendedVersion,
+            String jakartaCompatibilityStatus, String associatedRecipeName,
+            DependencyMigrationStatus migrationStatus,
             boolean isTransitive, boolean isOrganizational) {
         this.groupId = groupId;
         this.artifactId = artifactId;
         this.currentVersion = currentVersion;
+        this.recommendedGroupId = recommendedGroupId;
+        this.recommendedArtifactId = recommendedArtifactId;
         this.recommendedVersion = recommendedVersion;
+        this.jakartaCompatibilityStatus = jakartaCompatibilityStatus;
+        this.associatedRecipeName = associatedRecipeName;
         this.migrationStatus = migrationStatus;
         this.isTransitive = isTransitive;
         this.isOrganizational = isOrganizational;
@@ -82,12 +100,44 @@ public class DependencyInfo {
         this.currentVersion = currentVersion;
     }
 
+    public String getRecommendedGroupId() {
+        return recommendedGroupId;
+    }
+
+    public void setRecommendedGroupId(String recommendedGroupId) {
+        this.recommendedGroupId = recommendedGroupId;
+    }
+
+    public String getRecommendedArtifactId() {
+        return recommendedArtifactId;
+    }
+
+    public void setRecommendedArtifactId(String recommendedArtifactId) {
+        this.recommendedArtifactId = recommendedArtifactId;
+    }
+
     public String getRecommendedVersion() {
         return recommendedVersion;
     }
 
     public void setRecommendedVersion(String recommendedVersion) {
         this.recommendedVersion = recommendedVersion;
+    }
+
+    public String getJakartaCompatibilityStatus() {
+        return jakartaCompatibilityStatus;
+    }
+
+    public void setJakartaCompatibilityStatus(String jakartaCompatibilityStatus) {
+        this.jakartaCompatibilityStatus = jakartaCompatibilityStatus;
+    }
+
+    public String getAssociatedRecipeName() {
+        return associatedRecipeName;
+    }
+
+    public void setAssociatedRecipeName(String associatedRecipeName) {
+        this.associatedRecipeName = associatedRecipeName;
     }
 
     public DependencyMigrationStatus getMigrationStatus() {
@@ -129,6 +179,27 @@ public class DependencyInfo {
 
     public String getDisplayName() {
         return groupId + ":" + artifactId;
+    }
+
+    public String getRecommendedArtifactCoordinates() {
+        if (recommendedGroupId != null && recommendedArtifactId != null) {
+            return recommendedGroupId + ":" + recommendedArtifactId + 
+                   (recommendedVersion != null ? ":" + recommendedVersion : "");
+        }
+        return recommendedVersion != null ? recommendedVersion : "";
+    }
+
+    public void setRecommendedArtifactCoordinates(String coordinates) {
+        if (coordinates != null && coordinates.contains(":")) {
+            String[] parts = coordinates.split(":");
+            if (parts.length >= 2) {
+                this.recommendedGroupId = parts[0];
+                this.recommendedArtifactId = parts[1];
+                if (parts.length >= 3) {
+                    this.recommendedVersion = parts[2];
+                }
+            }
+        }
     }
 
     public DependencyType getDependencyType() {

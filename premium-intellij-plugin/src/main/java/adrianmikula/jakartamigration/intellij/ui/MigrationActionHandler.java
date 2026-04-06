@@ -1,7 +1,5 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
-import adrianmikula.jakartamigration.coderefactoring.domain.Recipe;
-import adrianmikula.jakartamigration.coderefactoring.domain.SafetyLevel;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.JakartaMappingServiceImpl;
@@ -13,16 +11,15 @@ import com.intellij.openapi.ui.Messages;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 
 /**
  * Handles migration actions by calling the core migration library directly.
- * Provides real implementation for OpenRewrite, Binary Scan, and Dependency
- * Update actions.
+ * Provides implementation for Binary Scan and Dependency Update actions.
+ *
+ * Note: OpenRewrite/recipe actions have been moved to the RefactorTabComponent
+ * as per docs/requirements/REFACTOR.md.
  */
 public class MigrationActionHandler {
     private static final Logger LOG = Logger.getInstance(MigrationActionHandler.class);
@@ -32,75 +29,8 @@ public class MigrationActionHandler {
 
     public MigrationActionHandler(Project project) {
         this.project = project;
-        // Initialize core library components directly
         this.jakartaMappingService = new JakartaMappingServiceImpl();
         LOG.info("MigrationActionHandler initialized with core library");
-    }
-
-    /**
-     * Handle OpenRewrite refactoring action.
-     * Uses the core library's Recipe class for javax→jakarta migration.
-     */
-    public void handleOpenRewriteAction(
-            SubtaskTableComponent.SubtaskItem subtask,
-            BiConsumer<SubtaskTableComponent.SubtaskItem, String> callback) {
-
-        String projectPathStr = getProjectPath();
-        if (projectPathStr == null) {
-            callback.accept(subtask, "Cannot determine project path");
-            return;
-        }
-
-        String message = "Run OpenRewrite Refactoring\n\n" +
-                "Task: " + subtask.getName() + "\n" +
-                (subtask.getDependency() != null ? "Dependency: " + subtask.getDependencyName() : "") + "\n\n" +
-                "This will automatically refactor javax.* imports to jakarta.* in the selected scope.";
-
-        int result = Messages.showYesNoDialog(project, message, "OpenRewrite Migration",
-                Messages.getQuestionIcon());
-
-        if (result != Messages.YES) {
-            callback.accept(subtask, null);
-            return;
-        }
-
-        // Call core library directly for OpenRewrite refactoring
-        handleRecipeExecution(Recipe.jakartaNamespaceRecipe(), (success, statusMessage) -> {
-            callback.accept(subtask, statusMessage);
-        });
-    }
-
-    /**
-     * Executes a specific refactoring recipe.
-     */
-    public void handleRecipeExecution(Recipe recipe, BiConsumer<Boolean, String> callback) {
-        CompletableFuture.supplyAsync(() -> {
-            try {
-                // Simulate recipe execution logic
-                // In a real scenario, this would call OpenRewrite engine
-                String messageResult = "OpenRewrite refactoring prepared with recipe: " + recipe.name() + "\n" +
-                        "Description: " + recipe.description() + "\n\n" +
-                        "To apply this refactoring, ensure OpenRewrite is configured in your project.";
-
-                return "{\"success\":true,\"recipeName\":\"" + recipe.name() +
-                        "\",\"message\":\"" + messageResult.replace("\"", "'") + "\"}";
-
-            } catch (Exception e) {
-                LOG.error("Recipe execution failed", e);
-                return "{\"success\":false,\"error\":\"" + e.getMessage().replace("\"", "'") + "\"}";
-            }
-        })
-                .thenAccept(resultJson -> {
-                    boolean success = resultJson.contains("\"success\":true");
-                    String statusMessage = success
-                            ? "OpenRewrite recipe '" + recipe.name() + "' executed successfully."
-                            : "OpenRewrite recipe execution failed: " + extractError(resultJson);
-                    callback.accept(success, statusMessage);
-                })
-                .exceptionally(ex -> {
-                    callback.accept(false, "OpenRewrite recipe error: " + ex.getMessage());
-                    return null;
-                });
     }
 
     /**

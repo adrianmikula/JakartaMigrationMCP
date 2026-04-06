@@ -1,7 +1,6 @@
 package adrianmikula.jakartamigration.advancedscanning.domain;
 
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -15,7 +14,6 @@ import java.util.stream.Collectors;
  */
 @Getter
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE)
-@AllArgsConstructor
 public class ThirdPartyLibProjectScanResult {
     private final String projectPath;
     private final List<ThirdPartyLibUsage> libraries;
@@ -25,6 +23,12 @@ public class ThirdPartyLibProjectScanResult {
         this.projectPath = projectPath;
         this.libraries = new ArrayList<>();
         this.buildFile = "";
+    }
+
+    public ThirdPartyLibProjectScanResult(String projectPath, List<ThirdPartyLibUsage> libraries, String buildFile) {
+        this.projectPath = projectPath;
+        this.libraries = libraries != null ? libraries : new ArrayList<>();
+        this.buildFile = buildFile;
     }
 
     public int getTotalLibraries() {

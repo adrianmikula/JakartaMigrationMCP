@@ -157,10 +157,11 @@ public class AdvancedScansComponent {
         scanButton.addActionListener(e -> runScans());
         toolbarPanel.add(scanButton);
 
-        progressBar = new JProgressBar();
-        progressBar.setIndeterminate(true);
+        progressBar = new JProgressBar(0, 14);
+        progressBar.setValue(0);
         progressBar.setVisible(false);
-        progressBar.setPreferredSize(new Dimension(200, 20));
+        progressBar.setPreferredSize(new Dimension(150, 20));
+        progressBar.setStringPainted(true);
         toolbarPanel.add(progressBar);
 
         toolbarPanel.add(Box.createHorizontalGlue());
@@ -522,8 +523,24 @@ public class AdvancedScansComponent {
         final Path projectPath = Path.of(projectPathStr);
 
         // Show progress
+        progressBar.setValue(0);
         progressBar.setVisible(true);
         scanButton.setEnabled(false);
+
+        // Progress simulation timer
+        final int totalScans = 14;
+        final int[] currentScan = {0};
+        Timer progressTimer = new Timer(300, null);
+        progressTimer.addActionListener(e -> {
+            currentScan[0]++;
+            if (currentScan[0] >= totalScans) {
+                currentScan[0] = totalScans - 1;
+            }
+            progressBar.setValue(currentScan[0]);
+            progressBar.setString("Scanning... " + currentScan[0] + "/" + totalScans);
+        });
+        progressTimer.setInitialDelay(0);
+        progressTimer.start();
 
         // Run scans in background
         SwingWorker<AdvancedScanningService.AdvancedScanSummary, Void> worker = new SwingWorker<>() {
@@ -534,6 +551,7 @@ public class AdvancedScansComponent {
 
             @Override
             protected void done() {
+                progressTimer.stop();
                 try {
                     AdvancedScanningService.AdvancedScanSummary summary = get();
 
@@ -541,6 +559,8 @@ public class AdvancedScansComponent {
                     String stateJson = objectMapper.toJson(summary);
                     store.savePluginState(projectPath, "advancedScansSummary", stateJson);
 
+                    progressBar.setValue(totalScans);
+                    progressBar.setString("Complete!");
                     displayResults(summary);
                 } catch (Exception e) {
                     LOG.error("Error running scans", e);
@@ -1050,22 +1070,31 @@ public class AdvancedScansComponent {
         }
     }
 
+    /**
+     * Generic table setup method to reduce duplication
+     */
     private void setupTable(JBTable table) {
         table.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
-
-        // Hide the Path column (last column)
+        
+        // Hide the last column (Path column)
         TableColumnModel columnModel = table.getColumnModel();
         int pathColumnIndex = columnModel.getColumnCount() - 1;
         columnModel.removeColumn(columnModel.getColumn(pathColumnIndex));
-
+        
         // Add double-click listener to open file
+        addFileOpenListener(table, pathColumnIndex);
+    }
+    
+    /**
+     * Adds file open listener to table
+     */
+    private void addFileOpenListener(JBTable table, int pathColumnIndex) {
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
                     int row = table.getSelectedRow();
                     if (row >= 0) {
-                        // Get path from model (even if column is hidden in view)
                         String pathStr = (String) table.getModel().getValueAt(row, pathColumnIndex);
                         if (pathStr != null && !pathStr.isEmpty()) {
                             openFileInEditor(pathStr);
@@ -1173,7 +1202,7 @@ public class AdvancedScansComponent {
         if (projectPathStr == null) {
             projectPathStr = project.getProjectFilePath();
         }
-        if (projectPathStr != null) {
+if (projectPathStr != null) {
             Path projectPath = Path.of(projectPathStr);
             String stateJson = store.getPluginState(projectPath, "advancedScansSummary");
             if (stateJson != null && !stateJson.isEmpty()) {
@@ -1184,7 +1213,7 @@ public class AdvancedScansComponent {
                         displayResults(summary);
                     }
                 } catch (Exception e) {
-                    LOG.error("Failed to load initial state for AdvancedScansComponent", e);
+                    LOG.warn("Failed to load initial state for AdvancedScansComponent (may be due to schema changes): " + e.getMessage());
                 }
             }
         }

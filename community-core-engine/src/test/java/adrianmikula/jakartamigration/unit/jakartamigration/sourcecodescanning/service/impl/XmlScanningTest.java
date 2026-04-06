@@ -43,8 +43,18 @@ class XmlScanningTest {
             """;
         Files.writeString(webXml, content);
         
+        System.out.println("Created web.xml at: " + webXml);
+        System.out.println("Temp dir: " + tempDir);
+        System.out.println("File exists: " + Files.exists(webXml));
+        
         // When
         List<XmlFileUsage> usages = scanner.scanXmlFiles(tempDir);
+        
+        System.out.println("Found " + usages.size() + " XML usages");
+        usages.forEach(u -> {
+            System.out.println("  File: " + u.filePath());
+            System.out.println("  Has javax: " + u.hasJavaxUsage());
+        });
         
         // Then
         assertThat(usages).hasSize(1);

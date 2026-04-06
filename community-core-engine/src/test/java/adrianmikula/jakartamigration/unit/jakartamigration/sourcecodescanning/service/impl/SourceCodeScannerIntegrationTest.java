@@ -3,6 +3,7 @@ package unit.jakartamigration.sourcecodescanning.service.impl;
 import adrianmikula.jakartamigration.sourcecodescanning.domain.SourceCodeAnalysisResult;
 import adrianmikula.jakartamigration.sourcecodescanning.service.impl.SourceCodeScannerImpl;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -10,6 +11,7 @@ import java.nio.file.Paths;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Tag("slow")  // Integration test - scans real example projects
 class SourceCodeScannerIntegrationTest {
     
     private SourceCodeScannerImpl scanner;

@@ -1,18 +1,23 @@
 package unit.jakartamigration.dependencyanalysis.service;
 
+import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
+import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.DependencyAnalysisModuleImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -20,6 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@Tag("slow")  // Integration test with heavy dependency analysis
 @DisplayName("Binary Compatibility Integration Tests")
 class BinaryCompatibilityIntegrationTest {
 
@@ -33,13 +39,20 @@ class BinaryCompatibilityIntegrationTest {
     private JakartaMappingService jakartaMappingService;
 
     private DependencyAnalysisModule module;
+    private CentralMigrationAnalysisStore analysisStore;
+
+    @TempDir
+    Path tempDir;
 
     @BeforeEach
     void setUp() {
+        analysisStore = new CentralMigrationAnalysisStore(tempDir.resolve("test.db"));
         module = new DependencyAnalysisModuleImpl(
                 dependencyGraphBuilder,
                 namespaceClassifier,
-                jakartaMappingService);
+                jakartaMappingService,
+                new ImprovedMavenCentralLookupService(),
+                analysisStore);
     }
 
     @Test

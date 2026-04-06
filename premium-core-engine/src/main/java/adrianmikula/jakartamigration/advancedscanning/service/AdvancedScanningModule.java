@@ -11,6 +11,7 @@ import adrianmikula.jakartamigration.advancedscanning.service.impl.IntegrationPo
 import adrianmikula.jakartamigration.advancedscanning.service.impl.JpaAnnotationScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.JmsMessagingScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.LoggingMetricsScannerImpl;
+import adrianmikula.jakartamigration.advancedscanning.service.impl.ReflectionUsageScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.RestSoapScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.SecurityApiScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.SerializationCacheScannerImpl;
@@ -19,6 +20,8 @@ import adrianmikula.jakartamigration.advancedscanning.service.impl.TestContainer
 import adrianmikula.jakartamigration.advancedscanning.service.impl.ThirdPartyLibScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.TransitiveDependencyScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.UnitTestScannerImpl;
+import adrianmikula.jakartamigration.advancedscanning.service.impl.ScanRecipeRecommendationServiceImpl;
+import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 
 /**
  * Module that provides access to all premium advanced scanning services.
@@ -40,13 +43,15 @@ public class AdvancedScanningModule {
     private final ClassloaderModuleScanner classloaderModuleScanner;
     private final LoggingMetricsScanner loggingMetricsScanner;
     private final SerializationCacheScanner serializationCacheScanner;
+    private final ReflectionUsageScanner reflectionUsageScanner;
     private final ThirdPartyLibScanner thirdPartyLibScanner;
     private final UnitTestScanner unitTestScanner;
     private final TestContainersScanner testContainersScanner;
     private final IntegrationPointsScanner integrationPointsScanner;
     private final AppServerScanner appServerScanner;
+    private final ScanRecipeRecommendationService recipeRecommendationService;
 
-    public AdvancedScanningModule() {
+    public AdvancedScanningModule(RecipeService recipeService) {
         // Initialize all scanners
         this.jpaAnnotationScanner = new JpaAnnotationScannerImpl();
         this.beanValidationScanner = new BeanValidationScannerImpl();
@@ -62,11 +67,13 @@ public class AdvancedScanningModule {
         this.classloaderModuleScanner = new ClassloaderModuleScannerImpl();
         this.loggingMetricsScanner = new LoggingMetricsScannerImpl();
         this.serializationCacheScanner = new SerializationCacheScannerImpl();
+        this.reflectionUsageScanner = new ReflectionUsageScannerImpl();
         this.thirdPartyLibScanner = new ThirdPartyLibScannerImpl();
         this.unitTestScanner = new UnitTestScannerImpl();
         this.testContainersScanner = new TestContainersScannerImpl();
         this.integrationPointsScanner = new IntegrationPointsScannerImpl();
         this.appServerScanner = new AppServerScannerImpl();
+        this.recipeRecommendationService = new ScanRecipeRecommendationServiceImpl(recipeService);
     }
 
     /**
@@ -168,6 +175,13 @@ public class AdvancedScanningModule {
     }
 
     /**
+     * Gets the Reflection Usage Scanner.
+     */
+    public ReflectionUsageScanner getReflectionUsageScanner() {
+        return reflectionUsageScanner;
+    }
+
+    /**
      * Gets the Third-Party Library Scanner.
      */
     public ThirdPartyLibScanner getThirdPartyLibScanner() {
@@ -188,5 +202,12 @@ public class AdvancedScanningModule {
 
     public AppServerScanner getAppServerScanner() {
         return appServerScanner;
+    }
+
+    /**
+     * Gets the Recipe Recommendation Service.
+     */
+    public ScanRecipeRecommendationService getRecipeRecommendationService() {
+        return recipeRecommendationService;
     }
 }

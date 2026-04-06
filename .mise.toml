@@ -6,8 +6,8 @@
 # Java 21 - Required for the project
 java = "21.0.0"
 
-# Mill - Build tool on Linux/macOS (faster startup); Gradle used on Windows
-mill = "0.12.17"
+# Gradle - Build tool (cross-platform)
+gradle = "8.5"
 
 # Node.js - Required for frontend development
 node = "20.11.0"
@@ -59,51 +59,51 @@ run = "bash scripts/stop-services.sh"
 # Free Modules Build Tasks (Apache 2.0)
 
 [tasks.build]
-description = "Build free modules (without tests). Linux/macOS: Mill; Windows: Gradle"
-run_windows = "gradlew.bat :free-core-engine:compileJava :free-mcp-server:compileJava :free-intellij-plugin:compileJava"
-run = "mill free_core_engine.compile free_mcp_server.compile free_intellij_plugin.compile"
+description = "Build all modules (without tests)"
+run_windows = "gradlew.bat :community-core-engine:compileJava :community-mcp-server:compileJava :premium-core-engine:compileJava :premium-mcp-server:compileJava :premium-intellij-plugin:compileJava"
+run = "gradle :community-core-engine:compileJava :community-mcp-server:compileJava :premium-core-engine:compileJava :premium-mcp-server:compileJava :premium-intellij-plugin:compileJava"
 
 [tasks.build-all]
-description = "Build free modules with tests. Linux/macOS: Mill; Windows: Gradle"
-run_windows = "gradlew.bat :free-core-engine:build :free-mcp-server:build :free-intellij-plugin:build"
-run = "mill free_core_engine.compile free_core_engine.test free_mcp_server.compile free_mcp_server.test free_intellij_plugin.compile free_intellij_plugin.test"
+description = "Build all modules with tests"
+run_windows = "gradlew.bat build"
+run = "gradle build"
 
 [tasks.test]
-description = "Run tests for all free modules. Linux/macOS: Mill; Windows: Gradle"
-run_windows = "gradlew.bat :free-core-engine:test :free-mcp-server:test :free-intellij-plugin:test"
-run = "mill free_core_engine.test free_mcp_server.test free_intellij_plugin.test"
+description = "Run tests for all modules"
+run_windows = "gradlew.bat test"
+run = "gradle test --no-configuration-cache"
 
 [tasks.run]
-description = "Run the free MCP server application. Linux/macOS: Mill; Windows: Gradle"
-run_windows = "gradlew.bat :free-mcp-server:bootRun"
-run = "mill free_mcp_server.run"
+description = "Run the community MCP server application"
+run_windows = "gradlew.bat :community-mcp-server:bootRun"
+run = "gradle :community-mcp-server:bootRun"
 
 [tasks.assembly]
-description = "Build fat JAR for free MCP server (for release). Linux/macOS: Mill; Windows: Gradle"
-run_windows = "gradlew.bat :free-mcp-server:bootJar"
-run = "mill free_mcp_server.assembly"
+description = "Build fat JAR for MCP server (for release)"
+run_windows = "gradlew.bat :community-mcp-server:bootJar"
+run = "gradle :community-mcp-server:bootJar"
 
 [tasks.clean]
-description = "Clean build artifacts. Linux/macOS: Mill; Windows: Gradle"
+description = "Clean build artifacts"
 run_windows = "gradlew.bat clean"
-run = "mill clean"
+run = "gradle clean"
 
 # Individual Module Build Tasks
 
 [tasks.build-core]
-description = "Build free-core-engine module"
-run_windows = "gradlew.bat :free-core-engine:compileJava"
-run = "mill free_core_engine.compile"
+description = "Build community-core-engine module"
+run_windows = "gradlew.bat :community-core-engine:compileJava"
+run = "gradle :community-core-engine:compileJava"
 
 [tasks.build-server]
-description = "Build free-mcp-server module"
-run_windows = "gradlew.bat :free-mcp-server:compileJava"
-run = "mill free_mcp_server.compile"
+description = "Build community-mcp-server module"
+run_windows = "gradlew.bat :community-mcp-server:compileJava"
+run = "gradle :community-mcp-server:compileJava"
 
 [tasks.build-plugin]
-description = "Build free-intellij-plugin module"
-run_windows = "gradlew.bat :free-intellij-plugin:compileJava"
-run = "mill free_intellij_plugin.compile"
+description = "Build premium-intellij-plugin module"
+run_windows = "gradlew.bat :premium-intellij-plugin:compileJava"
+run = "gradle :premium-intellij-plugin:compileJava"
 
 # Docker Tasks
 
@@ -163,45 +163,106 @@ run = "cd frontend && npm run build-storybook"
 # Premium Modules Build Tasks (Proprietary)
 
 [tasks.build-premium]
-description = "Build premium modules (without tests). Linux/macOS: Mill; Windows: Gradle"
+description = "Build premium modules (without tests)"
 run_windows = "gradlew.bat :premium-core-engine:compileJava :premium-mcp-server:compileJava :premium-intellij-plugin:compileJava"
-run = "mill premium_core_engine.compile premium_mcp_server.compile premium_intellij_plugin.compile"
+run = "gradle :premium-core-engine:compileJava :premium-mcp-server:compileJava :premium-intellij-plugin:compileJava"
 
 [tasks.build-premium-all]
-description = "Build premium modules with tests. Linux/macOS: Mill; Windows: Gradle"
+description = "Build premium modules with tests"
 run_windows = "gradlew.bat :premium-core-engine:build :premium-mcp-server:build :premium-intellij-plugin:build"
-run = "mill premium_core_engine.compile premium_core_engine.test premium_mcp_server.compile premium_mcp_server.test premium_intellij_plugin.compile premium_intellij_plugin.test"
+run = "gradle :premium-core-engine:build :premium-mcp-server:build :premium-intellij-plugin:build"
 
 [tasks.test-premium]
-description = "Run tests for all premium modules. Linux/macOS: Mill; Windows: Gradle"
+description = "Run tests for all premium modules"
 run_windows = "gradlew.bat :premium-core-engine:test :premium-mcp-server:test :premium-intellij-plugin:test"
-run = "mill premium_core_engine.test premium_mcp_server.test premium_intellij_plugin.test"
+run = "gradle :premium-core-engine:test :premium-mcp-server:test :premium-intellij-plugin:test --no-configuration-cache"
 
 [tasks.build-premium-plugin]
 description = "Build premium IntelliJ plugin"
 run_windows = "gradlew.bat :premium-intellij-plugin:buildPlugin"
-run = "mill premium_intellij_plugin.compile"
+run = "gradle :premium-intellij-plugin:buildPlugin"
 
 # Community Modules Build Tasks (Apache 2.0)
 
 [tasks.build-community]
-description = "Build community modules (without tests). Linux/macOS: Mill; Windows: Gradle"
+description = "Build community modules (without tests)"
 run_windows = "gradlew.bat :community-core-engine:compileJava :community-mcp-server:compileJava"
-run = "mill community_core_engine.compile community_mcp_server.compile"
+run = "gradle :community-core-engine:compileJava :community-mcp-server:compileJava"
 
 [tasks.test-community]
-description = "Run tests for all community modules. Linux/macOS: Mill; Windows: Gradle"
+description = "Run tests for all community modules"
 run_windows = "gradlew.bat :community-core-engine:test :community-mcp-server:test"
-run = "mill community_core_engine.test community_mcp_server.test"
+run = "gradle :community-core-engine:test :community-mcp-server:test --no-configuration-cache"
 
 # Fast Test Tasks (for quick feedback during development)
-
 [tasks.fast-test]
-description = "Run fast tests only - no compilation, just execute pre-built tests"
-run_windows = "gradlew.bat :community-core-engine:test :premium-core-engine:test --continue"
-run = "mill community_core_engine.test premium_core_engine.test"
+description = "Run fast tests only (excludes slow tests)"
+run_windows = "gradlew.bat :premium-core-engine:fastTest :community-core-engine:fastTest"
+run = "gradle :premium-core-engine:fastTest :community-core-engine:fastTest"
+
+[tasks.slow-test]
+description = "Run slow integration tests only"
+run_windows = "gradlew.bat :premium-core-engine:slowTest :community-core-engine:slowTest"
+run = "gradle :premium-core-engine:slowTest :community-core-engine:slowTest"
+
+[tasks.core-test]
+description = "Run core tests (excludes slow tests)"
+run_windows = "gradlew.bat :premium-core-engine:coreTest"
+run = "gradle :premium-core-engine:coreTest"
+
+[tasks.compile-check]
+description = "Quick compile check without running tests"
+run_windows = "gradlew.bat :premium-core-engine:compileCheck"
+run = "gradle :premium-core-engine:compileCheck"
 
 [tasks.fast-compile]
 description = "Quick compile check - no tests, just syntax verification"
 run_windows = "gradlew.bat compileJava --parallel"
-run = "mill __.compile"
+run = "gradle compileJava --parallel"
+
+# Additional Gradle Tasks
+
+[tasks.test-compile]
+description = "Compile test sources only"
+run_windows = "gradlew.bat compileTestJava"
+run = "gradle compileTestJava"
+
+[tasks.check]
+description = "Run all checks (including code quality)"
+run_windows = "gradlew.bat check"
+run = "gradle check --no-configuration-cache"
+
+[tasks.dependencies]
+description = "Show dependency tree"
+run_windows = "gradlew.bat dependencies"
+run = "gradle dependencies"
+
+[tasks.projects]
+description = "List all available projects/modules"
+run_windows = "gradlew.bat projects"
+run = "gradle projects"
+
+[tasks.tasks]
+description = "List all available tasks"
+run_windows = "gradlew.bat tasks"
+run = "gradle tasks"
+
+[tasks.build-deps]
+description = "Build with dependencies resolution"
+run_windows = "gradlew.bat build --dry-run"
+run = "gradle build --dry-run"
+
+[tasks.clean-test]
+description = "Clean and run tests (fresh test run)"
+run_windows = "gradlew.bat clean test"
+run = "gradle clean test --no-configuration-cache"
+
+[tasks.boot-run]
+description = "Run Spring Boot application"
+run_windows = "gradlew.bat bootRun"
+run = "gradle bootRun"
+
+[tasks.jacoco]
+description = "Generate test coverage report"
+run_windows = "gradlew.bat jacocoTestReport"
+run = "gradle jacocoTestReport"

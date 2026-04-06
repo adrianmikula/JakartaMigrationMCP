@@ -41,7 +41,7 @@ public class DependencyGraphComponent {
         this.panel = new JBPanel<>(new BorderLayout());
         this.graphCanvas = new GraphCanvas();
         this.layoutCombo = new JComboBox<>(new String[]{
-            "Hierarchical", "Force-Directed", "Circular", "Tree"
+            "Hierarchical", "Circular", "Tree", "Force-Directed"
         });
         this.organisationalDependenciesCheck = new JCheckBox("Organisational Dependencies", true);
         this.directDependenciesCheck = new JCheckBox("Direct Dependencies", true);
@@ -110,8 +110,8 @@ public class DependencyGraphComponent {
         JPanel legendItem3 = createLegendItem(new Color(220, 53, 69), "No Jakarta Version");
         legendPanel.add(legendItem3);
 
-        // Organisational (Purple)
-        JPanel legendItem4 = createLegendItem(new Color(156, 39, 176), "Organisational");
+        // Organisational - Thicker border indicator
+        JPanel legendItem4 = createLegendItemWithBorder(new Color(108, 117, 125), "Organisational (thicker border)");
         legendPanel.add(legendItem4);
 
         // Combine controls and legend in a wrapper panel
@@ -132,6 +132,24 @@ public class DependencyGraphComponent {
         colorBox.setBackground(color);
         colorBox.setPreferredSize(new Dimension(16, 16));
         colorBox.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
+
+        JLabel labelText = new JLabel(label);
+        labelText.setFont(labelText.getFont().deriveFont(Font.PLAIN, 11f));
+
+        itemPanel.add(colorBox);
+        itemPanel.add(labelText);
+
+        return itemPanel;
+    }
+
+    private JPanel createLegendItemWithBorder(Color color, String label) {
+        JPanel itemPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        itemPanel.setOpaque(false);
+
+        JPanel colorBox = new JPanel();
+        colorBox.setBackground(color);
+        colorBox.setPreferredSize(new Dimension(16, 16));
+        colorBox.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 3));
 
         JLabel labelText = new JLabel(label);
         labelText.setFont(labelText.getFont().deriveFont(Font.PLAIN, 11f));
@@ -221,6 +239,31 @@ public class DependencyGraphComponent {
         this.dependencyGraph = graph != null ? graph : new DependencyGraph();
         this.artifactStatusMap = statusMap != null ? statusMap : new HashMap<String, DependencyMigrationStatus>();
         updateGraphFromDependencyGraph();
+    }
+
+    /**
+     * Update node statuses from a string-based status map and refresh the graph.
+     * Used to sync status updates from DependenciesTableComponent async analysis.
+     */
+    public void updateNodeStatuses(Map<String, String> statusMap) {
+        if (statusMap == null || statusMap.isEmpty()) {
+            return;
+        }
+        
+        // Convert string status to enum and update artifactStatusMap
+        for (Map.Entry<String, String> entry : statusMap.entrySet()) {
+            try {
+                DependencyMigrationStatus status = DependencyMigrationStatus.valueOf(entry.getValue());
+                artifactStatusMap.put(entry.getKey(), status);
+            } catch (IllegalArgumentException e) {
+                // Ignore invalid status values
+            }
+        }
+        
+        // Refresh the graph with updated statuses
+        if (dependencyGraph != null) {
+            updateGraphFromDependencyGraph();
+        }
     }
 
     private void updateGraphFromDependencyGraph() {
@@ -345,6 +388,30 @@ public class DependencyGraphComponent {
 
         graphCanvas.setNodes(nodes);
         graphCanvas.setEdges(edges);
+        
+        // Auto-select optimal layout based on dependency count
+        selectOptimalLayout(nodes.size());
+    }
+    
+    /**
+     * Auto-select the best layout based on the number of dependencies
+     * Requirements:
+     * - 5 or less: tree mode
+     * - 5 to 25: circular mode
+     * - 25 or more: force-directed mode
+     */
+    private void selectOptimalLayout(int nodeCount) {
+        String optimalLayout;
+        if (nodeCount <= 5) {
+            optimalLayout = "Tree";
+        } else if (nodeCount <= 25) {
+            optimalLayout = "Circular";
+        } else {
+            optimalLayout = "Force-Directed";
+        }
+        
+        layoutCombo.setSelectedItem(optimalLayout);
+        handleLayoutChange(null); // Apply the selected layout
     }
 
     /**

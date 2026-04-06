@@ -71,11 +71,7 @@ public class MigrationStepsComponent {
         startButton.setFont(startButton.getFont().deriveFont(Font.BOLD));
         startButton.addActionListener(this::handleStartMigration);
         
-        JButton refreshButton = new JButton("↻ Refresh Steps");
-        refreshButton.addActionListener(e -> updateSteps());
-        
         buttonPanel.add(startButton);
-        buttonPanel.add(refreshButton);
         
         // Info panel
         JPanel infoPanel = new JPanel();

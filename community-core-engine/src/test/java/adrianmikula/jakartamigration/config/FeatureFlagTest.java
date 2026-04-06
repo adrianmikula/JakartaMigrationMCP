@@ -117,8 +117,9 @@ class FeatureFlagTest {
     @DisplayName("Pricing info should contain monthly and yearly prices")
     void pricingInfoContainsMonthlyAndYearly() {
         String pricing = FeatureFlag.AUTO_FIXES.getPricingInfo();
-        assertThat(pricing).contains("$49/month");
-        assertThat(pricing).contains("$399/year");
+        // Match values from production pricing.properties: 5.0 and 50.0
+        assertThat(pricing).contains("$5/month");
+        assertThat(pricing).contains("$50/year");
         assertThat(pricing).contains("free 7-day trial");
     }
 

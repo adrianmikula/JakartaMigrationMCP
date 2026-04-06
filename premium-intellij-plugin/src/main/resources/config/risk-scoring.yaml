@@ -1,0 +1,308 @@
+# Risk Scoring Configuration for Jakarta Migration Plugin
+# Defines risk levels and weights for different scan types and findings
+
+# Risk categories and their score thresholds
+# Adjusted for 0-100 scale with granular scoring
+riskCategories:
+  trivial:
+    minScore: 0
+    maxScore: 9
+    label: "Trivial"
+    color: "#28a745"  # Green
+    
+  low:
+    minScore: 10
+    maxScore: 24
+    label: "Low"
+    color: "#17a2b8"  # Blue
+    
+  medium:
+    minScore: 25
+    maxScore: 49
+    label: "Medium"
+    color: "#ffc107"  # Yellow
+    
+  high:
+    minScore: 50
+    maxScore: 74
+    label: "High"
+    color: "#fd7e14"  # Orange
+    
+  extreme:
+    minScore: 75
+    maxScore: 100
+    label: "Extreme"
+    color: "#dc3545"  # Red
+
+# Scan type risk weights and findings
+scanRisks:
+  basic:
+    displayName: "Basic Migration"
+    baseWeight: 0.1
+    findings:
+      basicIssue:
+        riskLevel: "low"
+        description: "Basic migration issue"
+        
+  jpa:
+    displayName: "JPA/Entity"
+    baseWeight: 0.1
+    findings:
+      entityWithJakartaId:
+        riskLevel: "low"
+        description: "Jakarta ID annotation usage"
+      missingVersion:
+        riskLevel: "high"
+        description: "Missing version in persistence.xml"
+      entityWithDeprecatedApi:
+        riskLevel: "medium"
+        description: "Deprecated JPA API usage"
+        
+  beanValidation:
+    displayName: "Bean Validation"
+    baseWeight: 0.1
+    findings:
+      constraintAnnotation:
+        riskLevel: "low"
+        description: "Validation constraint annotation"
+      customValidator:
+        riskLevel: "medium"
+        description: "Custom validator implementation"
+        
+  servletJsp:
+    displayName: "Servlet/JSP"
+    baseWeight: 1.0
+    findings:
+      javaxServletImport:
+        riskLevel: "high"
+        description: "javax.servlet import - needs migration"
+      webXmlConfig:
+        riskLevel: "medium"
+        description: "web.xml configuration"
+        
+  cdi:
+    displayName: "CDI"
+    baseWeight: 0.1
+    findings:
+      cdiBean:
+        riskLevel: "low"
+        description: "CDI managed bean"
+      interceptorBinding:
+        riskLevel: "medium"
+        description: "Custom interceptor binding"
+        
+  jms:
+    displayName: "JMS"
+    baseWeight: 1.0
+    findings:
+      jmsQueueConnection:
+        riskLevel: "high"
+        description: "JMS QueueConnection - needs migration"
+      messageListener:
+        riskLevel: "medium"
+        description: "Message listener configuration"
+        
+  webservice:
+    displayName: "Web Services"
+    baseWeight: 1.0
+    findings:
+      jaxWsEndpoint:
+        riskLevel: "high"
+        description: "JAX-WS endpoint - needs migration"
+      soapBinding:
+        riskLevel: "medium"
+        description: "SOAP binding configuration"
+        
+  serializationCache:
+    displayName: "Serialization/Cache"
+    baseWeight: 0.01
+    findings:
+      Serializable:
+        riskLevel: "low"
+        description: "Java Serialization usage"
+      ObjectInputStream:
+        riskLevel: "low"
+        description: "Deserialization usage"
+      ObjectOutputStream:
+        riskLevel: "low"
+        description: "Serialization usage"
+      SessionSerialization:
+        riskLevel: "low"
+        description: "HttpSession serialization"
+      CacheEntry:
+        riskLevel: "low"
+        description: "Cache entry usage"
+      CacheLibrary:
+        riskLevel: "low"
+        description: "Third-party cache library"
+
+  reflectionUsage:
+    displayName: "Reflection Usage"
+    baseWeight: 0.05
+    findings:
+      classForName:
+        riskLevel: "high"
+        description: "Class.forName with javax class reference"
+      classLoader:
+        riskLevel: "high"
+        description: "ClassLoader loading javax classes"
+      methodInvoke:
+        riskLevel: "medium"
+        description: "Method.invoke on javax objects"
+      fieldAccess:
+        riskLevel: "medium"
+        description: "Field access on javax objects"
+      constructorNewInstance:
+        riskLevel: "medium"
+        description: "Constructor.newInstance on javax classes"
+      proxyUsage:
+        riskLevel: "high"
+        description: "Dynamic proxy with javax interfaces"
+      annotationReflection:
+        riskLevel: "medium"
+        description: "Reflection on javax annotations"
+        
+  # Additional scan types from advanced scanning
+  deprecatedApi:
+    displayName: "Deprecated APIs"
+    baseWeight: 1
+    findings:
+      deprecatedMethod:
+        riskLevel: "high"
+        description: "Deprecated method usage"
+      deprecatedClass:
+        riskLevel: "high"
+        description: "Deprecated class usage"
+      deprecatedAnnotation:
+        riskLevel: "medium"
+        description: "Deprecated annotation usage"
+        
+  securityApi:
+    displayName: "Security APIs"
+    baseWeight: 1
+    findings:
+      securityConstraint:
+        riskLevel: "high"
+        description: "Security constraint configuration"
+      authenticationMechanism:
+        riskLevel: "medium"
+        description: "Authentication mechanism"
+      authorizationConfig:
+        riskLevel: "medium"
+        description: "Authorization configuration"
+        
+  cdiInjection:
+    displayName: "CDI Injection"
+    baseWeight: 0.1
+    findings:
+      injectAnnotation:
+        riskLevel: "low"
+        description: "CDI @Inject usage"
+      qualifierAnnotation:
+        riskLevel: "low"
+        description: "CDI qualifier usage"
+      producerMethod:
+        riskLevel: "medium"
+        description: "CDI producer method"
+        
+  buildConfig:
+    displayName: "Build Configuration"
+    baseWeight: 0.1
+    findings:
+      mavenConfig:
+        riskLevel: "low"
+        description: "Maven build configuration"
+      gradleConfig:
+        riskLevel: "low"
+        description: "Gradle build configuration"
+      dependencyVersion:
+        riskLevel: "medium"
+        description: "Dependency version configuration"
+        
+  restSoap:
+    displayName: "REST/SOAP"
+    baseWeight: 0.5
+    findings:
+      restEndpoint:
+        riskLevel: "medium"
+        description: "REST endpoint configuration"
+      soapEndpoint:
+        riskLevel: "high"
+        description: "SOAP endpoint configuration"
+      wsdlImport:
+        riskLevel: "medium"
+        description: "WSDL import usage"
+        
+  jmsMessaging:
+    displayName: "JMS Messaging"
+    baseWeight: 1
+    findings:
+      jmsTemplate:
+        riskLevel: "medium"
+        description: "JMS template usage"
+      messageQueue:
+        riskLevel: "medium"
+        description: "Message queue configuration"
+      topicConfig:
+        riskLevel: "low"
+        description: "Topic configuration"
+        
+  configFiles:
+    displayName: "Configuration Files"
+    baseWeight: 0.1
+    findings:
+      xmlConfig:
+        riskLevel: "low"
+        description: "XML configuration file"
+      propertiesConfig:
+        riskLevel: "low"
+        description: "Properties configuration file"
+      yamlConfig:
+        riskLevel: "low"
+        description: "YAML configuration file"
+
+# Dependency risk scoring
+dependencyRisks:
+  # Risk factors for Maven/Gradle dependencies
+  noJakartaVersion:
+    riskLevel: "high"
+    score: 5.0
+    description: "No Jakarta EE version available"
+    
+  hasMigrationPath:
+    riskLevel: "low"
+    score: 0.5
+    description: "Has clear migration path"
+    
+  blockedDependency:
+    riskLevel: "extreme"
+    score: 5.0
+    description: "Migration blocker - no path available"
+    
+  directDependency:
+    riskLevel: "medium"
+    score: 1.0
+    description: "Direct dependency (higher priority)"
+    
+  transitiveDependency:
+    riskLevel: "low"
+    score: 0.1
+    description: "Transitive dependency"
+
+# Overall risk calculation
+riskCalculation:
+  # Weights for different components in overall score
+  componentWeights:
+    scanFindings: 0.3      # 30% from scan findings
+    dependencyIssues: 0.3   # 30% from dependency issues
+    codeComplexity: 0.2     # 20% from code complexity
+    platformRisk: 0.2      # 20% from platform compatibility
+    
+  # Minimum scan threshold to include in scoring
+  minScanThreshold: 0.5
+  
+  # Maximum findings to score per scan type
+  maxFindingsPerScan: 5
+  
+  # Score normalization to ensure 0-100 scale
+  maxTotalScore: 100.0

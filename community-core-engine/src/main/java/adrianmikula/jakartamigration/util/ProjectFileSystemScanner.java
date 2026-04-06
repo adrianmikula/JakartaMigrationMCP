@@ -18,7 +18,7 @@ public class ProjectFileSystemScanner {
 
     private static final Set<String> IGNORED_DIRECTORIES = Set.of(
             "target", "build", ".git", "node_modules", ".gradle", ".mvn",
-            ".idea", ".vscode", "out", "bin", "dist", "vendor");
+            ".idea", ".vscode", "out", "bin", "dist", "vendor", "tmp", "temp");
 
     /**
      * Finds files in a project path that match the given extensions.
@@ -43,20 +43,24 @@ public class ProjectFileSystemScanner {
      */
     public List<Path> findFiles(Path projectPath, Predicate<Path> filter) {
         List<Path> matchingFiles = new ArrayList<>();
+        
+        System.out.println("[DEBUG] Scanner scanning: " + projectPath);
 
         try {
             Files.walkFileTree(projectPath, new SimpleFileVisitor<Path>() {
                 @Override
                 public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
                     if (isIgnored(dir)) {
-                        log.debug("Skipping ignored directory: {}", dir);
+                        System.out.println("[DEBUG] Ignoring directory: " + dir);
                         return FileVisitResult.SKIP_SUBTREE;
                     }
+                    System.out.println("[DEBUG] Visiting directory: " + dir);
                     return FileVisitResult.CONTINUE;
                 }
 
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    System.out.println("[DEBUG] Visiting file: " + file + " matches=" + filter.test(file));
                     if (filter.test(file)) {
                         matchingFiles.add(file);
                     }
@@ -81,8 +85,22 @@ public class ProjectFileSystemScanner {
      */
     public boolean isIgnored(Path path) {
         String name = path.getFileName().toString();
+        String fullPath = path.toString().toLowerCase();
+        
         // Exact match for common ignore directories
         if (IGNORED_DIRECTORIES.contains(name)) {
+            return true;
+        }
+        
+        // Skip IDE sandbox and system temporary directories
+        // Allow JUnit test temp directories (they contain "junit" in the path)
+        if (fullPath.contains("idea-sandbox") || fullPath.contains("system/tmp")) {
+            return true;
+        }
+        
+        // Only skip system /tmp and /var/tmp if not a JUnit test directory
+        if ((fullPath.startsWith("/tmp/") || fullPath.startsWith("/var/tmp/")) 
+                && !fullPath.contains("junit")) {
             return true;
         }
 

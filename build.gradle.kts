@@ -1,5 +1,6 @@
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
+import java.util.Properties
+import java.io.File
+import org.gradle.api.Task
 
 plugins {
     java
@@ -8,16 +9,117 @@ plugins {
     id("org.jetbrains.intellij") version "1.17.2" apply false
 }
 
-// Generate automatic version based on timestamp for all builds (dev and release)
-// This ensures IntelliJ always reloads the plugin with a fresh version
-val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
-val autoVersion = "1.0.1.$timestamp"
+// =============================================================================
+// CROSS-PLATFORM JAVA HOME DETECTION
+// =============================================================================
+// Auto-detect Java home based on operating system
+val os = System.getProperty("os.name").lowercase()
+val javaHome = when {
+    os.contains("windows") -> {
+        // Try common Windows Java installation paths
+        val possiblePaths = listOf(
+            "C:\\Program Files\\Java\\jdk-21.0.10",
+            "C:\\Program Files\\Java\\jdk-21.0.9",
+            "C:\\Program Files\\Java\\jdk-21.0.8",
+            "C:\\Program Files\\Java\\jdk-21",
+            "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.10-hotspot",
+            "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.9-hotspot",
+            "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.8-hotspot",
+            "C:\\Program Files\\Eclipse Adoptium\\jdk-21-hotspot",
+            "C:\\Program Files\\Microsoft\\jdk-21.0.10-hotspot",
+            "C:\\Program Files\\Microsoft\\jdk-21.0.9-hotspot",
+            "C:\\Program Files\\Microsoft\\jdk-21.0.8-hotspot",
+            "C:\\Program Files\\Microsoft\\jdk-21-hotspot"
+        )
+        possiblePaths.find { path -> File(path).exists() } ?: run {
+            println("⚠️  No Java 21 found in common Windows locations, using system default")
+            null
+        }
+    }
+    os.contains("linux") -> {
+        // Try common Linux Java installation paths
+        val possiblePaths = listOf(
+            "/usr/lib/jvm/java-21-openjdk-amd64",
+            "/usr/lib/jvm/java-21-openjdk",
+            "/usr/lib/jvm/java-21-temurin",
+            "/usr/lib/jvm/java-21",
+            "/usr/lib/jvm/temurin-21-jdk-amd64",
+            "/usr/lib/jvm/temurin-21-jdk",
+            "/usr/lib/jvm/jdk-21",
+            "/opt/java/jdk-21",
+            "/usr/java/jdk-21",
+            System.getenv("JAVA_HOME") ?: "",
+            System.getProperty("java.home")
+        )
+        possiblePaths.find { path -> 
+            path.isNotEmpty() && File(path).exists()
+        } ?: run {
+            println("⚠️  No Java 21 found in common Linux locations, using system default")
+            null
+        }
+    }
+    os.contains("mac") -> {
+        // Try common macOS Java installation paths
+        val possiblePaths = listOf(
+            "/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home",
+            "/Library/Java/JavaVirtualMachines/openjdk-21.jdk/Contents/Home",
+            "/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home",
+            "/usr/local/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home",
+            System.getenv("JAVA_HOME") ?: "",
+            System.getProperty("java.home")
+        )
+        possiblePaths.find { path -> 
+            path.isNotEmpty() && File(path).exists()
+        } ?: run {
+            println("⚠️  No Java 21 found in common macOS locations, using system default")
+            null
+        }
+    }
+    else -> {
+        println("⚠️  Unknown OS: $os, using system default Java")
+        null
+    }
+}
+
+// Set Java home if found
+if (javaHome != null) {
+    println("🔧 Using Java home: $javaHome")
+    ext.set("javaHome", javaHome)
+} else {
+    println("🔧 Using system default Java")
+    ext.set("javaHome", System.getProperty("java.home"))
+}
+
+// =============================================================================
+// CROSS-PLATFORM GRADLE USER HOME CONFIGURATION
+// =============================================================================
+// Set Gradle user home dynamically based on OS for better caching
+val gradleUserHome = when {
+    os.contains("windows") -> System.getenv("USERPROFILE") + "\\.gradle"
+    os.contains("linux") -> System.getProperty("user.home") + "/.gradle"
+    os.contains("mac") -> System.getProperty("user.home") + "/.gradle"
+    else -> System.getProperty("user.home") + "/.gradle"
+}
+
+println("🔧 Using Gradle user home: $gradleUserHome")
+ext.set("gradleUserHome", gradleUserHome)
+
+// =============================================================================
+// PROJECT CONFIGURATION
+// =============================================================================
 
 allprojects {
     group = "adrianmikula"
-    version = autoVersion
+    
+    val props = Properties()
+    rootProject.file("gradle.properties").inputStream().use { props.load(it) }
+    version = props.getProperty("version", "1.0.0")
+    
+    // Apply cross-platform Java home to this project
+    extra.set("javaHome", javaHome)
     
     println(">>> Project: $name, Version: $version")
+    println(">>> OS: $os, Java Home: ${extra.get("javaHome")}")
 
     repositories {
         mavenCentral()
@@ -168,26 +270,62 @@ tasks.register("validateModuleBoundaries") {
     doLast {
         val proprietaryModules = setOf("premium-core-engine", "premium-mcp-server", "premium-intellij-plugin")
         val communityModules = setOf("community-core-engine", "community-mcp-server", "community-intellij-plugin")
+        val violations = mutableListOf<String>()
         
         allprojects.forEach { project ->
             if (communityModules.contains(project.name)) {
                 // Community modules - check they don't depend on proprietary modules
                 project.configurations.forEach { config ->
                     config.dependencies.forEach { dep ->
+                        // Check for direct dependency on proprietary modules
                         if (proprietaryModules.any { proprietary -> 
                             dep.name.contains(proprietary, ignoreCase = true) 
                         }) {
-                            throw GradleException(
-                                "Module boundary violation: ${project.name} (community) " +
-                                "cannot depend on proprietary module ${dep.name}"
-                            )
+                            violations.add("Direct dependency: ${project.name} -> ${dep.name}")
+                        }
+                        
+                        // Check for transitive dependencies that bring in proprietary modules
+                        try {
+                            config.resolvedConfiguration.resolvedArtifacts.forEach { artifact ->
+                                if (artifact.moduleVersion?.id?.name?.let { moduleId ->
+                                    proprietaryModules.any { proprietary -> 
+                                        moduleId.contains(proprietary, ignoreCase = true)
+                                    }
+                                } == true) {
+                                    violations.add("Transitive dependency: ${project.name} -> ${artifact.moduleVersion.id.name}")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // If resolution fails, still check basic dependency names
+                            if (dep.group != null && dep.name != null) {
+                                val depNotation = "${dep.group}:${dep.name}"
+                                if (proprietaryModules.any { proprietary -> 
+                                    depNotation.contains(proprietary, ignoreCase = true)
+                                }) {
+                                    violations.add("Dependency notation: ${project.name} -> ${depNotation}")
+                                }
+                            }
                         }
                     }
                 }
+            } else if (proprietaryModules.contains(project.name)) {
+                // Premium modules - they can depend on community modules, but we log for awareness
+                println("🔍 Premium module ${project.name} dependencies checked")
             }
         }
         
+        if (violations.isNotEmpty()) {
+            throw GradleException(
+                "Module boundary violations detected:\n" + violations.joinToString("\n") + "\n\n" +
+                "Community modules (Apache 2.0) cannot depend on Premium modules (Proprietary).\n" +
+                "Violations must be resolved before proceeding with build."
+            )
+        }
+        
         println("✅ Module boundary validation completed")
+        println("📊 Checked ${allprojects.size} modules for boundary compliance")
+        println("🔍 Community modules: ${communityModules.joinToString(", ")}")
+        println("🔒 Proprietary modules: ${proprietaryModules.joinToString(", ")}")
     }
 }
 
@@ -197,11 +335,43 @@ tasks.register("validateAll") {
     dependsOn("validateLicenseHeaders", "validateDependencyLicenses", "validateModuleBoundaries")
 }
 
+tasks.register("validateAllWithBuildTests") {
+    description = "Run all validation checks including build configuration tests"
+    group = "verification"
+    dependsOn("validateLicenseHeaders", "validateDependencyLicenses", "validateModuleBoundaries")
+    
+    doLast {
+        println("✅ All validation checks completed")
+        println("🔧 To also run build validation tests, use: ./gradlew :premium-intellij-plugin:validateBuildConfiguration")
+        println("🔧 To run marketplace validation, use: ./gradlew :premium-intellij-plugin:validateMarketplaceRequirements")
+    }
+}
+
 // =============================================================================
 // BUILD HOOKS
 // =============================================================================
 
 gradle.projectsEvaluated {
+    // Apply cross-platform configuration to all projects
+    allprojects {
+        // Apply Java home configuration
+        if (javaHome != null) {
+            println("🔧 Applying Java home: $javaHome to project: $name")
+        }
+        
+        // Apply Gradle user home configuration for better caching
+        println("🔧 Applying Gradle user home: $gradleUserHome to project: $name")
+        
+        // Configure build cache directory
+        tasks.withType<Task>().configureEach {
+            if (name.contains("build") || name.contains("compile") || name.contains("test")) {
+                doFirst {
+                    println("🔧 Configuring caching for task: $name in project: $project.name")
+                }
+            }
+        }
+    }
+    
     // Validation tasks are available but not automatically run during build
     // Run explicitly with: ./gradlew validateAll
 }

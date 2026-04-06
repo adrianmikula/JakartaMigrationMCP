@@ -72,7 +72,19 @@ public class AppServerScannerImpl implements AppServerScanner {
     private List<AppServerUsage> scanMaven(Path pomPath) {
         List<AppServerUsage> usages = new ArrayList<>();
         try {
-            String content = Files.readString(pomPath);
+            // Use streaming for memory efficiency with large pom.xml files
+            long fileSize = Files.size(pomPath);
+            String content;
+            
+            // For files larger than 5MB, use streaming approach
+            if (fileSize > 5 * 1024 * 1024) {
+                log.debug("Large pom.xml detected ({} bytes), using streaming for: {}", fileSize, pomPath);
+                content = Files.lines(pomPath).collect(java.util.stream.Collectors.joining("\n"));
+            } else {
+                // For smaller files, regular readString is more efficient
+                content = Files.readString(pomPath);
+            }
+            
             Matcher matcher = MAVEN_DEP.matcher(content);
             while (matcher.find()) {
                 String dep = matcher.group(1) + ":" + matcher.group(2);
@@ -96,7 +108,19 @@ public class AppServerScannerImpl implements AppServerScanner {
     private List<AppServerUsage> scanGradle(Path gradlePath) {
         List<AppServerUsage> usages = new ArrayList<>();
         try {
-            String content = Files.readString(gradlePath);
+            // Use streaming for memory efficiency with large build.gradle files
+            long fileSize = Files.size(gradlePath);
+            String content;
+            
+            // For files larger than 5MB, use streaming approach
+            if (fileSize > 5 * 1024 * 1024) {
+                log.debug("Large build.gradle detected ({} bytes), using streaming for: {}", fileSize, gradlePath);
+                content = Files.lines(gradlePath).collect(java.util.stream.Collectors.joining("\n"));
+            } else {
+                // For smaller files, regular readString is more efficient
+                content = Files.readString(gradlePath);
+            }
+            
             Matcher matcher = GRADLE_DEP.matcher(content);
             while (matcher.find()) {
                 String dep = matcher.group(2) + ":" + matcher.group(3);

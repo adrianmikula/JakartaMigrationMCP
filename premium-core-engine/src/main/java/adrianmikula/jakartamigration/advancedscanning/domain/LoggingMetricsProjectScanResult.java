@@ -3,7 +3,6 @@ package adrianmikula.jakartamigration.advancedscanning.domain;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -16,7 +15,6 @@ import java.util.stream.Collectors;
  */
 @Getter
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE)
-@AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class LoggingMetricsProjectScanResult {
     private final String projectPath;

@@ -1,20 +1,13 @@
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.io.File
+
 plugins {
-    id("org.jetbrains.intellij")
+    id("org.jetbrains.intellij") version "1.17.2"
     `java-library`
     java
     jacoco
 }
-
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-
-// Force version override for development - ensures plugin is always reloaded
-version = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
-
-jacoco {
-    toolVersion = "0.8.11"
-}
-
 tasks.withType<JacocoReport> {
     dependsOn("test")
     
@@ -34,6 +27,83 @@ tasks.withType<JacocoReport> {
     }
 }
 
+// Custom task to run integration tests
+tasks.register("runIntegrationTests") {
+    group = "verification"
+    description = "Runs integration tests to verify Maven Central lookup functionality"
+    
+    dependsOn("compileTestJava")
+    
+    doLast {
+        javaexec {
+            classpath = sourceSets.test.get().runtimeClasspath
+            mainClass = "org.junit.platform.console.ConsoleLauncher"
+            args = listOf(
+                "--details=verbose",
+                "--select-class=adrianmikula.jakartamigration.intellij.service.MavenCentralServiceIntegrationTest"
+            )
+        }
+    }
+}
+
+// Custom task to run marketplace validation tests
+tasks.register("validateMarketplaceRequirements") {
+    group = "verification"
+    description = "Validates plugin.xml meets JetBrains Marketplace requirements for paid plugins"
+    
+    dependsOn("compileTestJava")
+    
+    doLast {
+        javaexec {
+            classpath = sourceSets.test.get().runtimeClasspath
+            mainClass = "org.junit.platform.console.ConsoleLauncher"
+            args = listOf(
+                "--details=verbose",
+                "--select-class=adrianmikula.jakartamigration.intellij.PluginMarketplaceValidationTest"
+            )
+        }
+    }
+}
+
+// Custom task to run build validation tests
+tasks.register("validateBuildConfiguration") {
+    group = "verification"
+    description = "Validates build configuration and dependencies"
+    
+    dependsOn("compileTestJava")
+    
+    doLast {
+        javaexec {
+            classpath = sourceSets.test.get().runtimeClasspath
+            mainClass = "org.junit.platform.console.ConsoleLauncher"
+            args = listOf(
+                "--details=verbose",
+                "--select-class=adrianmikula.jakartamigration.intellij.BuildConfigurationValidationTest"
+            )
+        }
+    }
+}
+
+// Fix task dependency issue with classpathIndexCleanup
+tasks.named("classpathIndexCleanup") {
+    mustRunAfter("compileTestJava")
+}
+
+// Custom task to run fast tests only
+tasks.register<JavaExec>("runFastTests") {
+    group = "verification"
+    description = "Runs fast subset of tests for quick feedback"
+    
+    dependsOn("compileTestJava")
+    
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass = "org.junit.platform.console.ConsoleLauncher"
+    args = listOf(
+        "--details=summary",
+        "--include-tag=fast"
+    )
+}
+
 dependencies {
     // Jackson for JSON serialization
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
@@ -41,50 +111,77 @@ dependencies {
     // Community Core Engine - local project dependency (Apache 2.0)
     // Using 'api' to include classes in the final plugin JAR
     api(project(":community-core-engine"))
-
+    
     // Premium Core Engine - local project dependency (Proprietary)
     // Contains premium features: refactoring, runtime verification, etc.
     implementation(project(":premium-core-engine"))
-
+    
     // Premium Core Engine - runtime verification and premium features (Proprietary)
     implementation(project(":premium-core-engine"))
-
+    
     // UI Testing dependencies
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.0")
     testImplementation("org.junit.platform:junit-platform-suite:1.10.0")
-    testImplementation("org.junit.platform:junit-platform-launcher:1.10.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.0")
     testImplementation("org.assertj:assertj-core:3.24.2")
+    
+    // Kotest for property testing
+    testImplementation("io.kotest:kotest-runner-junit5:5.8.0")
+    testImplementation("io.kotest:kotest-assertions-core:5.8.0")
+    testImplementation("io.kotest:kotest-property:5.8.0")
+    
     testImplementation("org.mockito:mockito-core:5.5.0")
     testImplementation("org.mockito:mockito-junit-jupiter:5.5.0")
 }
 
 intellij {
-    version.set("2023.3.4")
-    type.set("IC")
-    plugins.set(listOf("com.intellij.java"))
+    version = "2023.3.4"
+    type = "IC"
+    plugins = listOf("com.intellij.java")
 }
 
-    tasks {
+tasks {
     patchPluginXml {
         sinceBuild.set(providers.gradleProperty("intellij.sinceBuild").orElse("233"))
-        // Use empty string to get open-ended compatibility (no until-build in generated XML)
-        // This allows plugin to work with all future IntelliJ versions
         untilBuild.set(providers.gradleProperty("intellij.untilBuild").orElse(""))
-        changeNotes.set("""
-            <h>${project.version}</h>
-            <ul>
-                <li>Automated builds with unique versioning</li>
-                <li>Jakarta EE migration tools for dependencies and code</li>
-                <li>OpenRewrite refactoring integration</li>
-                <li>MCP Server for AI Assistant discovery</li>
-            </ul>
-        """.trimIndent())
+    }
+    
+    // Write build timestamp to a properties file for runtime access
+    val buildTimestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+    val projectVersion = project.version.toString()
+    
+    // Create build info file using a simple file task
+    val generateBuildInfo = register<DefaultTask>("generateBuildInfo") {
+        description = "Generates build info properties file"
+        group = "build"
+        
+        // Use inputs to make it compatible with configuration cache
+        inputs.property("buildTimestamp", buildTimestamp)
+        inputs.property("projectVersion", projectVersion)
+        outputs.file(layout.buildDirectory.file("build-info.properties"))
+        
+        doLast {
+            val buildInfoFile = outputs.files.singleFile
+            buildInfoFile.writeText("""
+                build.timestamp=$buildTimestamp
+                build.version=$projectVersion
+                build.java.version=${System.getProperty("java.version", "unknown")}
+                build.java.vendor=${System.getProperty("java.vendor", "unknown")}
+            """.trimIndent())
+        }
     }
 
     // Disable buildSearchableOptions task to avoid JavaVersion.parse() failure with JDK 25
     buildSearchableOptions {
         onlyIf { false }
+    }
+    
+    // Disable problematic tasks that cause connectivity issues
+    tasks {
+        named("initializeIntelliJPlugin") {
+            enabled = false
+        }
     }
 
     // Configure JUnit Jupiter for testing
@@ -96,12 +193,20 @@ intellij {
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
+        vendor.set(JvmVendorSpec.ADOPTIUM)
     }
+    
+    // Set source and target compatibility to match IntelliJ 2023.3.4 requirements
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 // Include community-core-engine classes in the plugin JAR
 tasks.named<Jar>("jar") {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    
+    // Ensure build-info.properties is generated before jar
+    dependsOn("generateBuildInfo")
     
     // Include community-core-engine classes
     val communityCoreEngine = project(":community-core-engine")
@@ -110,6 +215,16 @@ tasks.named<Jar>("jar") {
     // Also include premium-core-engine classes
     val premiumCoreEngine = project(":premium-core-engine")
     from(premiumCoreEngine.sourceSets.main.get().output)
+    
+    // Include build info from generateBuildInfo (now in build directory)
+    from(layout.buildDirectory.file("build-info.properties"))
+}
+
+// Ensure instrumentedJar task depends on generateBuildInfo
+tasks.withType<Jar> {
+    if (name == "instrumentedJar") {
+        dependsOn("generateBuildInfo")
+    }
 }
 
 // Create a task to generate MCP tool definitions JSON
@@ -296,22 +411,182 @@ tasks.register("generateMcpToolsJson") {
 }
 
 /**
- * Build development plugin: clean, rebuild all modules, and run IDE.
- * Force rebuilds community-core-engine and premium-core-engine to ensure fresh code.
+ * Build development plugin: clean, rebuild all modules, and run IDE for development
  * 
  * Usage: ./gradlew :premium-intellij-plugin:buildDevPlugin
  */
 tasks.register("buildDevPlugin") {
     group = "build"
-    description = "Clean, rebuild all modules, and run IDE for development"
+    description = "Clean, rebuild all modules, and run IDE for development (dev mode - skips licensing)"
     
     // Clean all modules to ensure fresh rebuild
     dependsOn(":community-core-engine:clean", ":premium-core-engine:clean", "clean")
-    // Build and run
-    dependsOn("jar", "runIde")
+    
+    // Set development environment
+    doLast {        
+        project.ext.set("environment", "dev")
+        println("\n=== Building in DEV MODE (skipping all licensing checks) ===")
+        
+        // Build and run
+        dependsOn(tasks.named<Jar>("jar").get(), tasks.named("runIdeDev").get())
+        
+        println("\n=== Development Build Complete ===")
+        println("Plugin built with development configuration (no licensing checks)")
+    }
+}
+
+/**
+ * Disable product descriptor for development (prevents license dialog)
+ * 
+ * Usage: ./gradlew :premium-intellij-plugin:disableProductDescriptor --no-configuration-cache
+ */
+tasks.register<DefaultTask>("disableProductDescriptor") {
+    group = "build"
+    description = "Disable product descriptor to prevent license dialog during development"
     
     doLast {
-        println("\n=== Distribution Build Complete ===")
-        println("Distribution files in build/distributions:")
+        val pluginXml = file("src/main/resources/META-INF/plugin.xml")
+        if (!pluginXml.exists()) {
+            println(" plugin.xml not found at ${pluginXml.absolutePath}")
+            return@doLast
+        }
+        
+        val content = pluginXml.readText()
+        
+        if (content.contains("<!-- <product-descriptor")) {
+            println(" Product descriptor is already disabled for development")
+        } else {
+            // Comment out the product descriptor
+            val updatedContent = content.replace(
+                "<product-descriptor code=\"PJAKARTAMIGRATI\" release-date=\"20250326\" release-version=\"108\"/>",
+                "<!-- <product-descriptor code=\"PJAKARTAMIGRATI\" release-date=\"20250326\" release-version=\"108\"/> -->"
+            )
+            
+            pluginXml.writeText(updatedContent)
+            println(" Product descriptor disabled - no license dialog during development")
+        }
+    }
+}
+
+/**
+ * Enable product descriptor for production
+ * 
+ * Usage: ./gradlew :premium-intellij-plugin:enableProductDescriptor --no-configuration-cache
+ */
+tasks.register<DefaultTask>("enableProductDescriptor") {
+    group = "build"
+    description = "Enable product descriptor for production builds"
+    
+    doLast {
+        val pluginXml = file("src/main/resources/META-INF/plugin.xml")
+        if (!pluginXml.exists()) {
+            println(" plugin.xml not found at ${pluginXml.absolutePath}")
+            return@doLast
+        }
+        
+        val content = pluginXml.readText()
+        
+        if (content.contains("<product-descriptor code=\"PJAKARTAMIGRATI\"") && !content.contains("<!-- <product-descriptor")) {
+            println(" Product descriptor is already enabled for production")
+        } else {
+            // Uncomment the product descriptor
+            val updatedContent = content.replace(
+                "<!-- <product-descriptor code=\"PJAKARTAMIGRATI\" release-date=\"20250326\" release-version=\"108\"/> -->",
+                "<product-descriptor code=\"PJAKARTAMIGRATI\" release-date=\"20250326\" release-version=\"108\"/>"
+            )
+            
+            pluginXml.writeText(updatedContent)
+            println(" Product descriptor enabled - ready for production")
+        }
+    }
+}
+
+/**
+ * Run IDE in development mode (skips licensing)
+ * 
+ * Usage: ./gradlew :premium-intellij-plugin:runIdeDev
+ */
+tasks.register("runIdeDev") {
+    group = "build"
+    description = "Run IDE in development mode (dev - skips all licensing checks)"
+    
+    // Set development environment
+    doFirst {
+        project.ext.set("environment", "dev")
+        println("\n=== Running IDE in DEV MODE (skipping all licensing checks) ===")
+    }
+    
+    // Run IDE without building JAR (uses existing classes)
+    finalizedBy("runIde")
+}
+
+/**
+ * Run IDE in demo marketplace mode
+ * 
+ * Usage: ./gradlew :premium-intellij-plugin:runIdeDemo
+ */
+tasks.register("runIdeDemo") {
+    group = "build"
+    description = "Run IDE in demo marketplace mode (demo - uses JetBrains Demo Marketplace)"
+    
+    // Set demo environment
+    doFirst {
+        project.ext.set("environment", "demo")
+        println("\n=== Running IDE in DEMO MODE (JetBrains Demo Marketplace) ===")
+        println("NOTE: Make sure product descriptor is enabled in plugin.xml")
+        println("Run: .\\fix-license-dialog.bat enable if needed")
+    }
+    
+    // Run IDE without building JAR (uses existing classes)
+    finalizedBy("runIde")
+}
+
+/**
+ * Run IDE in production marketplace mode
+ * 
+ * Usage: ./gradlew :premium-intellij-plugin:runIdeProd
+ */
+tasks.register("runIdeProd") {
+    group = "build"
+    description = "Run IDE in production marketplace mode (production - uses JetBrains Production Marketplace)"
+    
+    // Enable product descriptor for production marketplace
+    dependsOn("enableProductDescriptor")
+    
+    // Set production environment
+    doFirst {
+        project.ext.set("environment", "production")
+        println("\n=== Running IDE in PRODUCTION MODE (JetBrains Production Marketplace) ===")
+    }
+    
+    // Run IDE without building JAR (uses existing classes)
+    finalizedBy("runIde")
+}
+
+/**
+ * Build production plugin: clean, rebuild all modules, and run IDE for production marketplace (default)
+ * 
+ * Usage: ./gradlew :premium-intellij-plugin:buildProductionPlugin
+ */
+tasks.register("buildProductionPlugin") {
+    group = "build"
+    description = "Clean, rebuild all modules, and run IDE for production marketplace (default)"
+    
+    // Clean all modules to ensure fresh rebuild
+    dependsOn(":community-core-engine:clean", ":premium-core-engine:clean", "clean")
+    
+    // Validate marketplace requirements before building
+    dependsOn("validateMarketplaceRequirements")
+    
+    // Set production environment
+    doLast {
+        project.ext.set("environment", "production")
+        println("\n=== Building in PRODUCTION MODE (JetBrains Production Marketplace) ===")
+        
+        // Build and run
+        dependsOn("jar", "runIde")
+        
+        println("\n=== Production Build Complete ===")
+        println("Plugin built with production marketplace configuration")
     }
 }

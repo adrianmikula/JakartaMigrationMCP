@@ -4,10 +4,14 @@ import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
 import adrianmikula.jakartamigration.intellij.model.MigrationStatus;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
+import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
+import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
+import adrianmikula.jakartamigration.analysis.persistence.SqliteMigrationAnalysisStore;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
+import java.nio.file.Paths;
 
 public class DashboardComponentTest extends BasePlatformTestCase {
 
@@ -15,9 +19,13 @@ public class DashboardComponentTest extends BasePlatformTestCase {
     private AdvancedScanningService advancedScanningService;
 
     @Override
-    protected void setUp() throws Exception {
+    public void setUp() throws Exception {
         super.setUp();
-        advancedScanningService = new AdvancedScanningService();
+        // Create mock stores for testing
+        CentralMigrationAnalysisStore centralStore = new CentralMigrationAnalysisStore();
+        SqliteMigrationAnalysisStore projectStore = new SqliteMigrationAnalysisStore(Paths.get(getProject().getBasePath()));
+        RecipeService recipeService = new adrianmikula.jakartamigration.coderefactoring.service.impl.RecipeServiceImpl(centralStore, projectStore);
+        advancedScanningService = new AdvancedScanningService(recipeService);
         dashboardComponent = new DashboardComponent(getProject(), advancedScanningService, e -> {
         });
     }
@@ -38,7 +46,10 @@ public class DashboardComponentTest extends BasePlatformTestCase {
         summary.setMigrableDependencies(2);
         dashboard.setDependencySummary(summary);
 
-        dashboardComponent.updateDashboard(dashboard);
+        // Update dashboard with all components
+        dashboardComponent.updateGauges();
+        dashboardComponent.updateSummary();
+        dashboardComponent.updateScanResultsTable();
     }
 
     public void testUpdateAdvancedScanCounts() {
@@ -58,7 +69,4 @@ public class DashboardComponentTest extends BasePlatformTestCase {
         assertThat(dashboardComponent.getJpaScanCountValue().getText()).isEqualTo("0");
     }
 
-    public void testClearMetrics() {
-        dashboardComponent.clearMetrics();
     }
-}

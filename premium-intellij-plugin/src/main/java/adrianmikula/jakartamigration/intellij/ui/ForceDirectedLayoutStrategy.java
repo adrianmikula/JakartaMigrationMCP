@@ -7,12 +7,13 @@ import java.util.*;
  * Repulsive forces between nodes, attractive forces along edges.
  */
 public class ForceDirectedLayoutStrategy implements GraphLayoutStrategy {
-    private static final double REPULSION_STRENGTH = 1000;
-    private static final double ATTRACTION_STRENGTH = 0.01;
-    private static final double DAMPING = 0.85;
-    private static final int MAX_ITERATIONS = 200;
-    private static final double NODE_WIDTH = 120;
-    private static final double NODE_HEIGHT = 40;
+    private static final double REPULSION_STRENGTH = 8000; // Increased for better separation
+    private static final double ATTRACTION_STRENGTH = 0.01; // Reduced for less clustering
+    private static final double DAMPING = 0.85; // Good damping for stability
+    private static final int MAX_ITERATIONS = 500; // More iterations for better convergence
+    private static final double NODE_WIDTH = 120; // Reasonable node size
+    private static final double NODE_HEIGHT = 40; // Reasonable node size
+    private static final double MIN_SEPARATION = 200; // Increased minimum distance between nodes
 
     @Override
     public void layout(List<GraphNode> nodes, List<GraphEdge> edges, int canvasWidth, int canvasHeight) {
@@ -87,14 +88,26 @@ public class ForceDirectedLayoutStrategy implements GraphLayoutStrategy {
         double dx = n2.getCenterX() - n1.getCenterX();
         double dy = n2.getCenterY() - n1.getCenterY();
         double distSq = dx * dx + dy * dy;
-        if (distSq < 1) distSq = 1;
-
+        
+        // Enhanced repulsive force calculation with exponential falloff for better separation
+        double minDistSq = MIN_SEPARATION * MIN_SEPARATION;
+        if (distSq < minDistSq) {
+            distSq = minDistSq;
+        }
+        
         double dist = Math.sqrt(distSq);
-        double force = REPULSION_STRENGTH / distSq;
-
+        
+        // Use exponential falloff for better node separation
+        double force = REPULSION_STRENGTH * Math.exp(-dist / (2 * MIN_SEPARATION));
+        
+        // Additional force if nodes are too close
+        if (dist < MIN_SEPARATION * 1.5) {
+            force += REPULSION_STRENGTH * (MIN_SEPARATION * 1.5 - dist) / MIN_SEPARATION;
+        }
+        
         double fx = (dx / dist) * force;
         double fy = (dy / dist) * force;
-
+        
         forcesX.put(n1.getId(), forcesX.get(n1.getId()) - fx);
         forcesY.put(n1.getId(), forcesY.get(n1.getId()) - fy);
         forcesX.put(n2.getId(), forcesX.get(n2.getId()) + fx);

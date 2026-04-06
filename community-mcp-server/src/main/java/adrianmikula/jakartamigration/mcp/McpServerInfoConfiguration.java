@@ -1,9 +1,10 @@
 package adrianmikula.jakartamigration.mcp;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Configuration to provide MCP server info for GetInstructions/ListOfferings actions.
@@ -15,8 +16,9 @@ import org.springframework.context.annotation.Configuration;
  * but it's an attempt to provide server metadata that might be needed.
  */
 @Configuration
-@Slf4j
 public class McpServerInfoConfiguration {
+    
+    private static final Logger log = LoggerFactory.getLogger(McpServerInfoConfiguration.class);
     
     /**
      * Server info properties from application.yml.

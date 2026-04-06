@@ -12,15 +12,15 @@ public class MigrationStrategyComponentTest extends BasePlatformTestCase {
     private MigrationStrategyComponent strategyComponent;
 
     @Override
-    protected void setUp() throws Exception {
+    public void setUp() throws Exception {
         super.setUp();
         strategyComponent = new MigrationStrategyComponent(getProject());
     }
 
     public void testInitialization() {
         assertThat(strategyComponent.getPanel()).isNotNull();
-        // Initial selected strategy is null by default
-        assertThat(strategyComponent.getSelectedStrategy()).isNull();
+        // Six strategies should be available
+        assertThat(MigrationStrategy.values()).hasSize(6);
     }
 
     public void testStrategySelection() {

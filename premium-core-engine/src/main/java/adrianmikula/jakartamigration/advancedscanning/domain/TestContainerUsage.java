@@ -4,11 +4,13 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Builder;
 
 /**
  * Represents a test container or embedded server that needs migration.
  */
 @Getter
+@Builder
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE)
 @AllArgsConstructor
 public class TestContainerUsage {

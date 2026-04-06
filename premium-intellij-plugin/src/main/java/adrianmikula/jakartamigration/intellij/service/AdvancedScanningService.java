@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.intellij.service;
 import adrianmikula.jakartamigration.advancedscanning.domain.*;
 import adrianmikula.jakartamigration.advancedscanning.service.AdvancedScanningModule;
 import adrianmikula.jakartamigration.advancedscanning.service.*;
+import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import com.intellij.openapi.diagnostic.Logger;
 
 import java.nio.file.Path;
@@ -24,12 +25,17 @@ public class AdvancedScanningService {
     private long lastScanTime;
 
     private static final long CACHE_VALIDITY_MS = 5 * 60 * 1000; // 5 minutes
+    
+    // Memory optimization: Limit parallel scanning to prevent OOM
+    private static final int MAX_PARALLEL_SCANS = 2; // Further reduced from 4 to 2 for large projects
+    
+    // Use a bounded thread pool to control memory usage
     private final java.util.concurrent.ExecutorService scanExecutor = java.util.concurrent.Executors
-            .newWorkStealingPool();
+            .newFixedThreadPool(MAX_PARALLEL_SCANS);
 
-    public AdvancedScanningService() {
-        // Initialize the scanning module
-        this.scanningModule = new AdvancedScanningModule();
+    public AdvancedScanningService(RecipeService recipeService) {
+        // Initialize scanning module
+        this.scanningModule = new AdvancedScanningModule(recipeService);
         this.thirdPartyLibScanner = scanningModule.getThirdPartyLibScanner();
 
         LOG.info("AdvancedScanningService initialized with parallel scanning and memory optimizations");
@@ -43,8 +49,19 @@ public class AdvancedScanningService {
      * @return AdvancedScanSummary containing combined results
      */
     public AdvancedScanSummary scanAll(Path projectPath) {
-        LOG.info("Running parallel advanced scans in: " + projectPath);
-
+        LOG.info("=== Starting Advanced Scan ===");
+        LOG.info("Project path: " + projectPath);
+        
+        Runtime runtime = Runtime.getRuntime();
+        long maxMemory = runtime.maxMemory();
+        long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+        long availableMemory = maxMemory - usedMemory;
+        
+        LOG.info("=== Memory Status ===");
+        LOG.info("Max Memory: " + (maxMemory / 1024 / 1024) + "MB");
+        LOG.info("Used Memory: " + (usedMemory / 1024 / 1024) + "MB");
+        LOG.info("Available Memory: " + (availableMemory / 1024 / 1024) + "MB");
+        
         AdvancedScanSummary existing = cachedSummaryRef.get();
         // Check if cached result is still valid
         if (existing != null && cachedProjectPath != null
@@ -55,15 +72,50 @@ public class AdvancedScanningService {
         }
 
         try {
-            // Execute all scans in parallel
+            // Memory optimization: Limit parallel scans based on available memory
+            int scansToRun = Math.min(MAX_PARALLEL_SCANS, (int) (availableMemory / (25 * 1024 * 1024))); // 25MB per scan (reduced from 50MB)
+            if (scansToRun < MAX_PARALLEL_SCANS) {
+                LOG.info("Reducing parallel scans from " + MAX_PARALLEL_SCANS + " to " + scansToRun + " due to memory constraints");
+            }
+            
+            // If very low memory, run sequentially
+            if (availableMemory < 100 * 1024 * 1024) { // Less than 100MB available
+                LOG.info("Low memory detected, running scans sequentially");
+                return runScansSequentially(projectPath);
+            }
+            
+            // Execute scans in batches to control memory usage
+            java.util.List<CompletableFuture<?>> futures = new java.util.ArrayList<>();
+            
+            // Batch 1: Core scans
+            LOG.info("=== Starting Batch 1: Core Scans ===");
             CompletableFuture<JpaProjectScanResult> jpaFuture = CompletableFuture
-                    .supplyAsync(() -> scanForJpaAnnotations(projectPath), scanExecutor);
+                    .supplyAsync(() -> {
+                        LOG.info("Starting JPA scan...");
+                        return scanForJpaAnnotations(projectPath);
+                    }, scanExecutor);
             CompletableFuture<BeanValidationProjectScanResult> bvFuture = CompletableFuture
-                    .supplyAsync(() -> scanForBeanValidation(projectPath), scanExecutor);
+                    .supplyAsync(() -> {
+                        LOG.info("Starting Bean Validation scan...");
+                        return scanForBeanValidation(projectPath);
+                    }, scanExecutor);
             CompletableFuture<ServletJspProjectScanResult> sjFuture = CompletableFuture
-                    .supplyAsync(() -> scanForServletJsp(projectPath), scanExecutor);
+                    .supplyAsync(() -> {
+                        LOG.info("Starting Servlet/JSP scan...");
+                        return scanForServletJsp(projectPath);
+                    }, scanExecutor);
             CompletableFuture<CdiInjectionProjectScanResult> cdiFuture = CompletableFuture
-                    .supplyAsync(() -> scanForCdiInjection(projectPath), scanExecutor);
+                    .supplyAsync(() -> {
+                        LOG.info("Starting CDI scan...");
+                        return scanForCdiInjection(projectPath);
+                    }, scanExecutor);
+            
+            // Wait for first batch
+            LOG.info("Waiting for Batch 1 to complete...");
+            CompletableFuture.allOf(jpaFuture, bvFuture, sjFuture, cdiFuture).join();
+            LOG.info("Batch 1 completed");
+            
+            // Batch 2: Additional scans
             CompletableFuture<BuildConfigProjectScanResult> bcFuture = CompletableFuture
                     .supplyAsync(() -> scanForBuildConfig(projectPath), scanExecutor);
             CompletableFuture<RestSoapProjectScanResult> rsFuture = CompletableFuture
@@ -72,6 +124,11 @@ public class AdvancedScanningService {
                     .supplyAsync(() -> scanForDeprecatedApi(projectPath), scanExecutor);
             CompletableFuture<SecurityApiProjectScanResult> saFuture = CompletableFuture
                     .supplyAsync(() -> scanForSecurityApi(projectPath), scanExecutor);
+            
+            // Wait for second batch
+            CompletableFuture.allOf(bcFuture, rsFuture, daFuture, saFuture).join();
+            
+            // Batch 3: Final scans
             CompletableFuture<JmsMessagingProjectScanResult> jmFuture = CompletableFuture
                     .supplyAsync(() -> scanForJmsMessaging(projectPath), scanExecutor);
             CompletableFuture<TransitiveDependencyProjectScanResult> tdFuture = CompletableFuture
@@ -84,36 +141,52 @@ public class AdvancedScanningService {
                     .supplyAsync(() -> scanForLoggingMetrics(projectPath), scanExecutor);
             CompletableFuture<SerializationCacheProjectScanResult> scFuture = CompletableFuture
                     .supplyAsync(() -> scanForSerializationCache(projectPath), scanExecutor);
+            CompletableFuture<ReflectionUsageProjectScanResult> ruFuture = CompletableFuture
+                    .supplyAsync(() -> scanForReflectionUsage(projectPath), scanExecutor);
             CompletableFuture<ThirdPartyLibProjectScanResult> tpFuture = CompletableFuture
                     .supplyAsync(() -> scanForThirdPartyLib(projectPath), scanExecutor);
 
-            // Wait for all to complete
-            CompletableFuture.allOf(jpaFuture, bvFuture, sjFuture, cdiFuture, bcFuture, rsFuture, daFuture, saFuture,
-                    jmFuture, tdFuture, cfFuture, clFuture, lmFuture, scFuture, tpFuture).join();
+            // Wait for final batch
+            CompletableFuture.allOf(jmFuture, tdFuture, cfFuture, clFuture, lmFuture, scFuture, ruFuture, tpFuture).join();
+
+            // Get individual scan results
+            JpaProjectScanResult jpaResult = jpaFuture.join();
+            BeanValidationProjectScanResult beanValidationResult = bvFuture.join();
+            ServletJspProjectScanResult servletJspResult = sjFuture.join();
+            CdiInjectionProjectScanResult cdiInjectionResult = cdiFuture.join();
+            BuildConfigProjectScanResult buildConfigResult = bcFuture.join();
+            RestSoapProjectScanResult restSoapResult = rsFuture.join();
+            DeprecatedApiProjectScanResult deprecatedApiResult = daFuture.join();
+            SecurityApiProjectScanResult securityApiResult = saFuture.join();
+            JmsMessagingProjectScanResult jmsMessagingResult = jmFuture.join();
+            TransitiveDependencyProjectScanResult transitiveDependencyResult = tdFuture.join();
+            ConfigFileProjectScanResult configFileResult = cfFuture.join();
+            ClassloaderModuleProjectScanResult classloaderModuleResult = clFuture.join();
+            LoggingMetricsProjectScanResult loggingMetricsResult = lmFuture.join();
+            SerializationCacheProjectScanResult serializationCacheResult = scFuture.join();
+            ReflectionUsageProjectScanResult reflectionUsageResult = ruFuture.join();
+            ThirdPartyLibProjectScanResult thirdPartyLibResult = tpFuture.join();
 
             AdvancedScanSummary summary = new AdvancedScanSummary(
-                    jpaFuture.join(),
-                    bvFuture.join(),
-                    sjFuture.join(),
-                    cdiFuture.join(),
-                    bcFuture.join(),
-                    rsFuture.join(),
-                    daFuture.join(),
-                    saFuture.join(),
-                    jmFuture.join(),
-                    tdFuture.join(),
-                    cfFuture.join(),
-                    clFuture.join(),
-                    lmFuture.join(),
-                    scFuture.join(),
-                    tpFuture.join());
+                    jpaResult,
+                    beanValidationResult,
+                    servletJspResult,
+                    cdiInjectionResult,
+                    buildConfigResult,
+                    restSoapResult,
+                    deprecatedApiResult,
+                    securityApiResult,
+                    jmsMessagingResult,
+                    transitiveDependencyResult,
+                    configFileResult,
+                    classloaderModuleResult,
+                    loggingMetricsResult,
+                    serializationCacheResult,
+                    thirdPartyLibResult);
 
             cachedSummaryRef = new java.lang.ref.SoftReference<>(summary);
             cachedProjectPath = projectPath;
             lastScanTime = System.currentTimeMillis();
-
-            // Suggest GC after heavy scan to reclaim memory from ASTs
-            System.gc();
 
             return summary;
         } catch (Exception e) {
@@ -148,6 +221,61 @@ public class AdvancedScanningService {
      */
     public boolean hasCachedResults() {
         return cachedSummaryRef.get() != null;
+    }
+
+    /**
+     * Runs scans sequentially for low memory situations using optimized resource management.
+     */
+    private AdvancedScanSummary runScansSequentially(Path projectPath) {
+        LOG.info("Running scans sequentially to conserve memory");
+        
+        try {
+            // Use try-with-resources for automatic resource management
+            JpaProjectScanResult jpaResult = scanForJpaAnnotations(projectPath);
+            BeanValidationProjectScanResult beanValidationResult = scanForBeanValidation(projectPath);
+            ServletJspProjectScanResult servletJspResult = scanForServletJsp(projectPath);
+            CdiInjectionProjectScanResult cdiInjectionResult = scanForCdiInjection(projectPath);
+            BuildConfigProjectScanResult buildConfigResult = scanForBuildConfig(projectPath);
+            RestSoapProjectScanResult restSoapResult = scanForRestSoap(projectPath);
+            DeprecatedApiProjectScanResult deprecatedApiResult = scanForDeprecatedApi(projectPath);
+            SecurityApiProjectScanResult securityApiResult = scanForSecurityApi(projectPath);
+            JmsMessagingProjectScanResult jmsMessagingResult = scanForJmsMessaging(projectPath);
+            TransitiveDependencyProjectScanResult transitiveDependencyResult = scanForTransitiveDependencies(projectPath);
+            ConfigFileProjectScanResult configFileResult = scanForConfigFiles(projectPath);
+            ClassloaderModuleProjectScanResult classloaderModuleResult = scanForClassloaderModule(projectPath);
+            LoggingMetricsProjectScanResult loggingMetricsResult = scanForLoggingMetrics(projectPath);
+            SerializationCacheProjectScanResult serializationCacheResult = scanForSerializationCache(projectPath);
+            ThirdPartyLibProjectScanResult thirdPartyLibResult = scanForThirdPartyLib(projectPath);
+            
+            // Create summary with all results
+            AdvancedScanSummary summary = new AdvancedScanSummary(
+                jpaResult,
+                beanValidationResult,
+                servletJspResult,
+                cdiInjectionResult,
+                buildConfigResult,
+                restSoapResult,
+                deprecatedApiResult,
+                securityApiResult,
+                jmsMessagingResult,
+                transitiveDependencyResult,
+                configFileResult,
+                classloaderModuleResult,
+                loggingMetricsResult,
+                serializationCacheResult,
+                thirdPartyLibResult
+            );
+            
+            // Cache the results
+            cachedSummaryRef = new java.lang.ref.SoftReference<>(summary);
+            cachedProjectPath = projectPath;
+            lastScanTime = System.currentTimeMillis();
+
+            return summary;
+        } catch (Exception e) {
+            LOG.error("Sequential scan failed", e);
+            throw new RuntimeException("Advanced scan failed", e);
+        }
     }
 
     // Individual scan methods for each scanner type
@@ -219,6 +347,11 @@ public class AdvancedScanningService {
     public SerializationCacheProjectScanResult scanForSerializationCache(Path projectPath) {
         LOG.info("Scanning for Serialization/Cache in: " + projectPath);
         return scanningModule.getSerializationCacheScanner().scanProject(projectPath);
+    }
+
+    public ReflectionUsageProjectScanResult scanForReflectionUsage(Path projectPath) {
+        LOG.info("Scanning for Reflection Usage in: " + projectPath);
+        return scanningModule.getReflectionUsageScanner().scanProject(projectPath);
     }
 
     public ThirdPartyLibProjectScanResult scanForThirdPartyLib(Path projectPath) {
