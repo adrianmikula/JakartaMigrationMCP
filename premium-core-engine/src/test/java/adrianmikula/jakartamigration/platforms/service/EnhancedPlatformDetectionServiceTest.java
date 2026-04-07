@@ -145,4 +145,137 @@ public class EnhancedPlatformDetectionServiceTest {
             .isEqualTo(detectedPlatforms.size())
             .as("All platforms should be unique with no duplicates");
     }
+    
+    @Test
+    @DisplayName("Should infer servlet containers from WAR artifacts when no dependencies detected")
+    void testInferPlatformsFromWarArtifacts(@TempDir Path tempDir) throws IOException {
+        // Given - a project with WAR file but no server dependencies
+        Path projectPath = tempDir.resolve("war-only-project");
+        Files.createDirectories(projectPath);
+
+        // Create a pom.xml without server dependencies
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project>
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>war-test</artifactId>
+                <version>1.0.0</version>
+                <packaging>war</packaging>
+            </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+
+        // When
+        EnhancedPlatformScanResult result = service.scanProjectWithArtifacts(projectPath);
+
+        // Then - should infer platforms from WAR packaging
+        assertThat(result.getDetectedPlatforms()).isEmpty();
+        assertThat(result.getInferredPlatforms()).isNotEmpty();
+        assertThat(result.getInferredPlatforms()).contains("tomcat", "jetty", "wildfly");
+        assertThat(result.getWarCount()).isGreaterThan(0);
+    }
+
+    @Test
+    @DisplayName("Should infer full EE servers from EAR artifacts")
+    void testInferPlatformsFromEarArtifacts(@TempDir Path tempDir) throws IOException {
+        // Given - a project with EAR packaging
+        Path projectPath = tempDir.resolve("ear-project");
+        Files.createDirectories(projectPath);
+
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project>
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>ear-test</artifactId>
+                <version>1.0.0</version>
+                <packaging>ear</packaging>
+            </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+
+        // When
+        EnhancedPlatformScanResult result = service.scanProjectWithArtifacts(projectPath);
+
+        // Then - should infer full EE servers from EAR
+        assertThat(result.getDetectedPlatforms()).isEmpty();
+        assertThat(result.getInferredPlatforms()).isNotEmpty();
+        assertThat(result.getInferredPlatforms()).contains("wildfly", "websphere", "weblogic", "glassfish");
+        assertThat(result.getEarCount()).isGreaterThan(0);
+    }
+
+    @Test
+    @DisplayName("Should not infer platforms when platforms detected via dependencies")
+    void testNoInferenceWhenPlatformsDetected(@TempDir Path tempDir) throws IOException {
+        // Given - a project with both server dependencies and WAR packaging
+        Path projectPath = tempDir.resolve("mixed-detection-project");
+        Files.createDirectories(projectPath);
+
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project>
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>tomcat-test</artifactId>
+                <version>1.0.0</version>
+                <packaging>war</packaging>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.apache.tomcat.embed</groupId>
+                        <artifactId>tomcat-embed-core</artifactId>
+                        <version>10.1.15</version>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+
+        // When
+        EnhancedPlatformScanResult result = service.scanProjectWithArtifacts(projectPath);
+
+        // Then - should have detected platforms but no inferred platforms
+        assertThat(result.getDetectedPlatforms()).contains("tomcat");
+        assertThat(result.getInferredPlatforms()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should detect web.xml and infer platforms")
+    void testInferFromWebXml(@TempDir Path tempDir) throws IOException {
+        // Given - a project with web.xml but no server dependencies
+        Path projectPath = tempDir.resolve("webxml-project");
+        Path webInfPath = projectPath.resolve("src/main/webapp/WEB-INF");
+        Files.createDirectories(webInfPath);
+
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project>
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>webxml-test</artifactId>
+                <version>1.0.0</version>
+            </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+
+        String webXmlContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                     xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee
+                                         http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
+                     version="3.1">
+                <display-name>Test Web App</display-name>
+            </web-app>
+            """;
+        Files.write(webInfPath.resolve("web.xml"), webXmlContent.getBytes());
+
+        // When
+        EnhancedPlatformScanResult result = service.scanProjectWithArtifacts(projectPath);
+
+        // Then - should detect web.xml and infer platforms
+        assertThat(result.getDetectedPlatforms()).isEmpty();
+        assertThat(result.getPlatformSpecificArtifacts()).containsKey("web.xml");
+        assertThat(result.getInferredPlatforms()).contains("tomcat", "jetty", "wildfly");
+    }
 }

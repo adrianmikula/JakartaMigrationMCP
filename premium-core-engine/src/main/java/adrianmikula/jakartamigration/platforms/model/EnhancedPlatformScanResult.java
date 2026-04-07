@@ -8,19 +8,36 @@ import java.util.Map;
  */
 public class EnhancedPlatformScanResult {
     private final List<String> detectedPlatforms;
+    private final List<String> inferredPlatforms;
     private final Map<String, Integer> deploymentArtifacts;
     private final Map<String, Integer> platformSpecificArtifacts;
     
     public EnhancedPlatformScanResult(List<String> detectedPlatforms, 
                                     Map<String, Integer> deploymentArtifacts,
                                     Map<String, Integer> platformSpecificArtifacts) {
+        this(detectedPlatforms, List.of(), deploymentArtifacts, platformSpecificArtifacts);
+    }
+    
+    public EnhancedPlatformScanResult(List<String> detectedPlatforms,
+                                    List<String> inferredPlatforms,
+                                    Map<String, Integer> deploymentArtifacts,
+                                    Map<String, Integer> platformSpecificArtifacts) {
         this.detectedPlatforms = detectedPlatforms;
+        this.inferredPlatforms = inferredPlatforms;
         this.deploymentArtifacts = deploymentArtifacts;
         this.platformSpecificArtifacts = platformSpecificArtifacts;
     }
     
     public List<String> getDetectedPlatforms() {
         return detectedPlatforms;
+    }
+    
+    public List<String> getInferredPlatforms() {
+        return inferredPlatforms;
+    }
+    
+    public boolean hasInferredPlatforms() {
+        return inferredPlatforms != null && !inferredPlatforms.isEmpty();
     }
     
     public Map<String, Integer> getDeploymentArtifacts() {
@@ -49,7 +66,7 @@ public class EnhancedPlatformScanResult {
     
     @Override
     public String toString() {
-        return String.format("EnhancedPlatformScanResult{platforms=%s, artifacts=%s, platformSpecific=%s}", 
-                           detectedPlatforms, deploymentArtifacts, platformSpecificArtifacts);
+        return String.format("EnhancedPlatformScanResult{platforms=%s, inferred=%s, artifacts=%s, platformSpecific=%s}", 
+                           detectedPlatforms, inferredPlatforms, deploymentArtifacts, platformSpecificArtifacts);
     }
 }

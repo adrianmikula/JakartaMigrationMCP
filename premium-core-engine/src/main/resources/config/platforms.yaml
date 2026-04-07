@@ -478,6 +478,112 @@ platforms:
       jakarta: "9+"
       spring: "6+"
 
+  # Arquillian Testing Framework
+  arquillian:
+    name: "Arquillian"
+    description: "Arquillian testing framework for Java EE/Jakarta EE"
+    patterns:
+      - file: "pom.xml"
+        regex: "org\\.jboss\\.arquillian:arquillian-([a-z-]+):([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 2
+      - file: "build.gradle"
+        regex: "org\\.jboss\\.arquillian:arquillian-([a-z-]+):([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 2
+    commonArtifacts:
+      - "org.jboss.arquillian:arquillian-core"
+      - "org.jboss.arquillian:arquillian-junit"
+      - "org.jboss.arquillian:arquillian-junit4"
+      - "org.jboss.arquillian:arquillian-junit5"
+      - "org.jboss.arquillian:arquillian-testng"
+      - "org.jboss.arquillian.container:arquillian-container-managed"
+      - "org.jboss.arquillian.container:arquillian-container-remote"
+      - "org.jboss.arquillian.container:arquillian-container-embedded"
+      - "org.jboss.arquillian.protocol:arquillian-protocol-servlet"
+      - "org.jboss.arquillian.test:arquillian-test-impl"
+      - "org.jboss.arquillian.core:arquillian-core-api"
+      - "org.jboss.arquillian.config:arquillian-config-api"
+    jakartaCompatibility:
+      minVersion: "1.7"
+      supportedVersions:
+        - "1.7"
+        - "1.8"
+        - "1.9"
+    javaxVersions:
+      - "1.1"
+      - "1.6"
+    requirements:
+      java: "8+"
+      jakarta: "optional"
+
+  # ShrinkWrap Deployment Framework
+  shrinkwrap:
+    name: "ShrinkWrap"
+    description: "ShrinkWrap deployment archive creation framework"
+    patterns:
+      - file: "pom.xml"
+        regex: "org\\.jboss\\.shrinkwrap:shrinkwrap-([a-z-]+):([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 2
+      - file: "build.gradle"
+        regex: "org\\.jboss\\.shrinkwrap:shrinkwrap-([a-z-]+):([0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 2
+    commonArtifacts:
+      - "org.jboss.shrinkwrap:shrinkwrap-api"
+      - "org.jboss.shrinkwrap:shrinkwrap-impl-base"
+      - "org.jboss.shrinkwrap:shrinkwrap-depchain"
+      - "org.jboss.shrinkwrap.resolver:shrinkwrap-resolver-api"
+      - "org.jboss.shrinkwrap.resolver:shrinkwrap-resolver-impl-maven"
+      - "org.jboss.shrinkwrap.resolver:shrinkwrap-resolver-depchain"
+      - "org.jboss.shrinkwrap.descriptors:shrinkwrap-descriptors-api"
+      - "org.jboss.shrinkwrap.descriptors:shrinkwrap-descriptors-impl"
+    jakartaCompatibility:
+      minVersion: "1.2"
+      supportedVersions:
+        - "1.2"
+        - "1.3"
+    javaxVersions:
+      - "1.0"
+      - "1.1"
+      - "1.2"
+    requirements:
+      java: "8+"
+      jakarta: "optional"
+
+  # Oracle WebLogic Server
+  weblogic:
+    name: "Oracle WebLogic Server"
+    description: "Oracle WebLogic Application Server"
+    patterns:
+      - file: "registry.xml"
+        regex: "WebLogic Server ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "setDomainEnv.sh"
+        regex: "WLS_HOME=.*/([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+      - file: "wlst.sh"
+        regex: "WebLogic Server ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)"
+        versionGroup: 1
+    commonArtifacts:
+      - "com.oracle.weblogic:weblogic-server"
+      - "com.oracle.weblogic:weblogic-client"
+      - "com.oracle.weblogic:weblogic-deploy-tooling"
+      - "weblogic:weblogic"
+      - "weblogic:wlclient"
+      - "weblogic:wljmsclient"
+      - "weblogic:wlthint3client"
+      - "com.oracle.weblogic:weblogic-maven-plugin"
+    jakartaCompatibility:
+      minVersion: "14.1.1"
+      supportedVersions:
+        - "14.1.1"
+        - "14.1.2"
+    javaxVersions:
+      - "12.2.1"
+      - "12.1.3"
+      - "10.3.6"
+    requirements:
+      java: "11+"
+      jakarta: "8+"
+
   # Spring Boot (as application server)
   springboot:
     name: "Spring Boot"

@@ -146,6 +146,10 @@ project_complexity:
     description: "Large complex project with javax dependencies"
     url: "https://github.com/daggerok/java-ee-examples"
 
+  - name: "J2EE7 Samples"
+    description: "Java EE 7 Samples project with comprehensive JEE technologies including CDI, EJB, JPA, JSF, JMS, WebSocket, and Arquillian testing"
+    url: "https://github.com/tgupta018/J2EE7Samples"
+
 
 
 

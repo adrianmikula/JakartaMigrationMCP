@@ -106,7 +106,7 @@ public class CompatibilityConfigLoader {
         String normalizedGroup = groupId.toLowerCase();
         
         // Check JDK-provided packages first (no migration needed)
-        for (String jdkPattern : config.getMavenArtifacts().getJdk()) {
+        for (String jdkPattern : sortByLengthDesc(config.getMavenArtifacts().getJdk())) {
             if (matchesPattern(normalizedGroup, jdkPattern.toLowerCase())) {
                 log.debug("Artifact {}:{} matches JDK pattern {}, classified as JDK_PROVIDED", 
                     groupId, artifactId, jdkPattern);
@@ -115,7 +115,7 @@ public class CompatibilityConfigLoader {
         }
         
         // Check safe packages (no migration needed)
-        for (String safePattern : config.getMavenArtifacts().getSafe()) {
+        for (String safePattern : sortByLengthDesc(config.getMavenArtifacts().getSafe())) {
             if (matchesPattern(normalizedGroup, safePattern.toLowerCase())) {
                 log.debug("Artifact {}:{} matches safe pattern {}, classified as JDK_PROVIDED", 
                     groupId, artifactId, safePattern);
@@ -123,21 +123,23 @@ public class CompatibilityConfigLoader {
             }
         }
         
-        // Check upgrade list (requires Jakarta migration)
-        for (String upgradePattern : config.getMavenArtifacts().getUpgrade()) {
-            if (matchesPattern(normalizedGroup, upgradePattern.toLowerCase())) {
-                log.debug("Artifact {}:{} matches upgrade pattern {}, classified as JAKARTA_REQUIRED", 
-                    groupId, artifactId, upgradePattern);
-                return ArtifactClassification.JAKARTA_REQUIRED;
-            }
-        }
-        
-        // Check review list (context-dependent)
-        for (String reviewPattern : config.getMavenArtifacts().getReview()) {
+        // Check review list (context-dependent) BEFORE upgrade list
+        // This ensures more specific patterns like javax.xml.bind are matched
+        // before generic patterns like javax
+        for (String reviewPattern : sortByLengthDesc(config.getMavenArtifacts().getReview())) {
             if (matchesPattern(normalizedGroup, reviewPattern.toLowerCase())) {
                 log.debug("Artifact {}:{} matches review pattern {}, classified as CONTEXT_DEPENDENT", 
                     groupId, artifactId, reviewPattern);
                 return ArtifactClassification.CONTEXT_DEPENDENT;
+            }
+        }
+        
+        // Check upgrade list (requires Jakarta migration)
+        for (String upgradePattern : sortByLengthDesc(config.getMavenArtifacts().getUpgrade())) {
+            if (matchesPattern(normalizedGroup, upgradePattern.toLowerCase())) {
+                log.debug("Artifact {}:{} matches upgrade pattern {}, classified as JAKARTA_REQUIRED", 
+                    groupId, artifactId, upgradePattern);
+                return ArtifactClassification.JAKARTA_REQUIRED;
             }
         }
         
@@ -152,6 +154,19 @@ public class CompatibilityConfigLoader {
      */
     private boolean matchesPattern(String groupId, String pattern) {
         return groupId.equals(pattern) || groupId.startsWith(pattern + ".");
+    }
+    
+    /**
+     * Sorts a list of patterns by length in descending order.
+     * This ensures more specific (longer) patterns are checked before generic (shorter) ones.
+     */
+    private List<String> sortByLengthDesc(List<String> patterns) {
+        if (patterns == null) {
+            return Collections.emptyList();
+        }
+        return patterns.stream()
+            .sorted((a, b) -> Integer.compare(b.length(), a.length()))
+            .collect(Collectors.toList());
     }
     
     /**

@@ -1,6 +1,7 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
+import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
 import com.intellij.openapi.project.Project;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +21,9 @@ public class ReportsTabComponentTest extends BasePlatformTestCase {
     @Mock
     private AdvancedScanningService mockAdvancedScanningService;
     
+    @Mock
+    private MigrationAnalysisService mockMigrationAnalysisService;
+    
     private ReportsTabComponent reportsTabComponent;
     
     @Override
@@ -27,7 +31,7 @@ public class ReportsTabComponentTest extends BasePlatformTestCase {
     public void setUp() throws Exception {
         super.setUp();
         MockitoAnnotations.openMocks(this);
-        reportsTabComponent = new ReportsTabComponent(getProject());
+        reportsTabComponent = new ReportsTabComponent(getProject(), mockMigrationAnalysisService, mockAdvancedScanningService);
     }
     
     @Test

@@ -18,7 +18,7 @@ import adrianmikula.jakartamigration.coderefactoring.service.CodeRefactoringModu
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import adrianmikula.jakartamigration.intellij.ui.SimplePlatformsTabComponent;
 import adrianmikula.jakartamigration.intellij.ui.PlatformsTabComponent;
-import adrianmikula.jakartamigration.intellij.ui.ComprehensiveReportsTabComponent;
+import adrianmikula.jakartamigration.intellij.ui.ReportsTabComponent;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -79,7 +79,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private HistoryTabComponent historyTabComponent;
         private PlatformsTabComponent platformsTabComponent;
         private RuntimeTabComponent runtimeTabComponent;
-        private ComprehensiveReportsTabComponent reportsTabComponent;
+        private ReportsTabComponent reportsTabComponent;
         private CodeRefactoringModule refactorModule;
         private RecipeService recipeService;
         private SqliteMigrationAnalysisStore projectStore;
@@ -231,7 +231,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
                 System.out.println("DEBUG: MigrationToolWindow - experimentalEnabled = " + experimentalEnabled);
                 if (experimentalEnabled) {
-                    reportsTabComponent = new ComprehensiveReportsTabComponent(project);
+                    reportsTabComponent = new ReportsTabComponent(project, analysisService, advancedScanningService);
                     tabbedPane.addTab("Reports 📊 (Experimental)", reportsTabComponent.getPanel());
                     LOG.info("initializeContent: Added PREMIUM+EXPERIMENTAL Reports tab");
                 } else {
@@ -311,7 +311,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             
             // Add or remove Reports tab
             if (experimentalEnabled && !reportsTabExists && reportsTabComponent == null) {
-                reportsTabComponent = new ComprehensiveReportsTabComponent(project);
+                reportsTabComponent = new ReportsTabComponent(project, analysisService, advancedScanningService);
                 // Insert after Platforms tab (find appropriate position)
                 int platformsIndex = findTabIndex("Platforms");
                 int insertIndex = platformsIndex >= 0 ? platformsIndex + 1 : tabbedPane.getTabCount();

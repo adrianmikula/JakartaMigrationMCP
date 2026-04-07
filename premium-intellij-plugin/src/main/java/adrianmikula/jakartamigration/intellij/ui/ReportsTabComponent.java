@@ -4,6 +4,8 @@ import adrianmikula.jakartamigration.pdfreporting.service.PdfReportService;
 import adrianmikula.jakartamigration.pdfreporting.service.impl.PdfReportServiceImpl;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
+import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
+import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBLabel;
@@ -17,6 +19,7 @@ import java.awt.Desktop;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,6 +32,8 @@ public class ReportsTabComponent {
     private final Project project;
     private final JPanel mainPanel;
     private final PdfReportService pdfReportService;
+    private final MigrationAnalysisService migrationAnalysisService;
+    private final AdvancedScanningService advancedScanningService;
     
     // UI Components
     private final JButton generateDependencyReportButton;
@@ -37,9 +42,11 @@ public class ReportsTabComponent {
     private final JLabel statusLabel;
     private final JTextArea outputArea;
     
-    public ReportsTabComponent(Project project) {
+    public ReportsTabComponent(Project project, MigrationAnalysisService migrationAnalysisService, AdvancedScanningService advancedScanningService) {
         this.project = project;
         this.pdfReportService = new PdfReportServiceImpl();
+        this.migrationAnalysisService = migrationAnalysisService;
+        this.advancedScanningService = advancedScanningService;
         
         // Initialize UI components
         generateDependencyReportButton = new JButton("Generate Dependency Report");
@@ -126,8 +133,17 @@ public class ReportsTabComponent {
             statusLabel.setText("Generating dependency report...");
             outputArea.setText("Starting dependency report generation...\n");
             
-            // Create sample dependency graph (in real implementation, this would come from actual analysis)
-            DependencyGraph dependencyGraph = createSampleDependencyGraph();
+            // Get real dependency graph from the analysis service
+            Path projectPath = Paths.get(project.getBasePath());
+            DependencyGraph dependencyGraph = migrationAnalysisService.getDependencyGraph(projectPath);
+            
+            if (dependencyGraph == null || dependencyGraph.getNodes().isEmpty()) {
+                outputArea.append("Warning: No dependencies found. Run analysis first.\n");
+                statusLabel.setText("No dependency data available");
+                return;
+            }
+            
+            outputArea.append("Found " + dependencyGraph.getNodes().size() + " dependencies\n");
             
             // Choose output location
             Path outputPath = chooseOutputLocation("dependency-report.pdf");
@@ -168,8 +184,16 @@ public class ReportsTabComponent {
             statusLabel.setText("Generating scan results report...");
             outputArea.setText("Starting scan results report generation...\n");
             
-            // Create sample scan results (in real implementation, this would come from actual scans)
-            ComprehensiveScanResults scanResults = createSampleScanResults();
+            // Get real scan results from the advanced scanning service
+            ComprehensiveScanResults scanResults = getRealScanResults();
+            
+            if (scanResults == null) {
+                outputArea.append("Warning: No scan results found. Run analysis first.\n");
+                statusLabel.setText("No scan data available");
+                return;
+            }
+            
+            outputArea.append("Total issues found: " + scanResults.totalIssuesFound() + "\n");
             
             // Choose output location
             Path outputPath = chooseOutputLocation("scan-results-report.pdf");
@@ -210,9 +234,21 @@ public class ReportsTabComponent {
             statusLabel.setText("Generating comprehensive report...");
             outputArea.setText("Starting comprehensive report generation...\n");
             
-            // Create sample data (in real implementation, this would come from actual analysis)
-            DependencyGraph dependencyGraph = createSampleDependencyGraph();
-            ComprehensiveScanResults scanResults = createSampleScanResults();
+            // Get real data from services
+            Path projectPath = Paths.get(project.getBasePath());
+            DependencyGraph dependencyGraph = migrationAnalysisService.getDependencyGraph(projectPath);
+            ComprehensiveScanResults scanResults = getRealScanResults();
+            
+            if (dependencyGraph == null || dependencyGraph.getNodes().isEmpty()) {
+                outputArea.append("Warning: No dependency data found. Run analysis first.\n");
+                statusLabel.setText("No analysis data available");
+                return;
+            }
+            
+            outputArea.append("Found " + dependencyGraph.getNodes().size() + " dependencies\n");
+            if (scanResults != null) {
+                outputArea.append("Total scan issues: " + scanResults.totalIssuesFound() + "\n");
+            }
             
             // Choose output location
             Path outputPath = chooseOutputLocation("comprehensive-report.pdf");
@@ -225,7 +261,7 @@ public class ReportsTabComponent {
             Map<String, Object> customData = new HashMap<>();
             customData.put("projectName", project.getName());
             customData.put("description", "Jakarta Migration Analysis Report");
-            customData.put("organization", "Sample Organization");
+            customData.put("generatedAt", LocalDateTime.now().toString());
             
             // Generate report
             PdfReportService.GeneratePdfReportRequest request = new PdfReportService.GeneratePdfReportRequest(
@@ -283,31 +319,100 @@ public class ReportsTabComponent {
         }
     }
     
-    // Sample data methods (in real implementation, these would get actual data)
-    private DependencyGraph createSampleDependencyGraph() {
-        // This would get actual dependency data from the project analysis
-        DependencyGraph graph = new DependencyGraph();
-        // Add sample dependencies...
-        return graph;
+    // Helper method to get real scan results from the advanced scanning service
+    private ComprehensiveScanResults getRealScanResults() {
+        if (advancedScanningService == null) {
+            return null;
+        }
+        
+        // Check if we have cached results
+        if (advancedScanningService.hasCachedResults()) {
+            AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
+            if (summary != null) {
+                // Convert AdvancedScanSummary to ComprehensiveScanResults
+                return convertToComprehensiveScanResults(summary);
+            }
+        }
+        
+        // No cached results available - return null
+        return null;
     }
     
-    private ComprehensiveScanResults createSampleScanResults() {
-        // This would get actual scan results from the advanced scanning service
-        ComprehensiveScanResults.ScanSummary summary = new ComprehensiveScanResults.ScanSummary(
-            100, 10, 2, 5, 3, 85.5
+    // Convert AdvancedScanSummary to ComprehensiveScanResults
+    private ComprehensiveScanResults convertToComprehensiveScanResults(AdvancedScanningService.AdvancedScanSummary summary) {
+        java.util.Map<String, Object> jpaResults = new java.util.HashMap<>();
+        jpaResults.put("count", summary.getJpaCount());
+        
+        java.util.Map<String, Object> beanValidationResults = new java.util.HashMap<>();
+        beanValidationResults.put("count", summary.getBeanValidationCount());
+        
+        java.util.Map<String, Object> servletJspResults = new java.util.HashMap<>();
+        servletJspResults.put("count", summary.getServletJspCount());
+        
+        java.util.Map<String, Object> thirdPartyLibResults = new java.util.HashMap<>();
+        thirdPartyLibResults.put("count", summary.getThirdPartyLibCount());
+        
+        java.util.Map<String, Object> buildConfigResults = new java.util.HashMap<>();
+        buildConfigResults.put("count", summary.getBuildConfigCount());
+        
+        java.util.Map<String, Object> transitiveDependencyResults = new java.util.HashMap<>();
+        transitiveDependencyResults.put("count", summary.getTransitiveDependencyCount());
+        
+        // Create scan summary
+        ComprehensiveScanResults.ScanSummary scanSummary = new ComprehensiveScanResults.ScanSummary(
+            0, // totalFilesScanned - not directly available from summary
+            summary.getTotalIssuesFound(), // filesWithIssues
+            0, // criticalIssues - not directly available
+            0, // warningIssues - not directly available
+            0, // infoIssues - not directly available
+            0.0 // readinessScore - not directly available
         );
         
         return new ComprehensiveScanResults(
-            project.getBasePath().toString(),
-            java.time.LocalDateTime.now(),
-            Map.of("jpa", "sample results"),
-            Map.of("validation", "sample results"),
-            Map.of("servlet", "sample results"),
-            Map.of("thirdParty", "sample results"),
-            Map.of("transitive", "sample results"),
-            Map.of("build", "sample results"),
-            java.util.List.of("Update dependencies", "Apply recipes"),
-            10,
+            project.getBasePath(),
+            LocalDateTime.now(),
+            jpaResults,
+            beanValidationResults,
+            servletJspResults,
+            thirdPartyLibResults,
+            transitiveDependencyResults,
+            buildConfigResults,
+            java.util.List.of(), // recommendations - empty for now
+            summary.getTotalIssuesFound(),
+            scanSummary
+        );
+    }
+    
+    // Sample data methods (deprecated - use getRealScanResults instead)
+    private DependencyGraph createSampleDependencyGraph() {
+        // This method is kept for backward compatibility but should not be used
+        // Real implementation should call migrationAnalysisService.getDependencyGraph()
+        return new DependencyGraph();
+    }
+    
+    private ComprehensiveScanResults createSampleScanResults() {
+        // Try to get real results first
+        ComprehensiveScanResults realResults = getRealScanResults();
+        if (realResults != null) {
+            return realResults;
+        }
+        
+        // Fallback to empty results if no real data available
+        ComprehensiveScanResults.ScanSummary summary = new ComprehensiveScanResults.ScanSummary(
+            0, 0, 0, 0, 0, 0.0
+        );
+        
+        return new ComprehensiveScanResults(
+            project.getBasePath(),
+            LocalDateTime.now(),
+            java.util.Map.of(),
+            java.util.Map.of(),
+            java.util.Map.of(),
+            java.util.Map.of(),
+            java.util.Map.of(),
+            java.util.Map.of(),
+            java.util.List.of(),
+            0,
             summary
         );
     }

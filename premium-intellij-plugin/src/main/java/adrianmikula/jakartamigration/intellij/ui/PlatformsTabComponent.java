@@ -174,20 +174,25 @@ public class PlatformsTabComponent {
      * Unified display method for both simple and enhanced results
      */
     private void displayResults(EnhancedPlatformScanResult scanResult) {
-        System.out.println("[DEBUG] displayResults() called with " + scanResult.getDetectedPlatforms().size() + " platforms");
+        System.out.println("[DEBUG] displayResults() called with " + scanResult.getDetectedPlatforms().size() + " detected platforms and " + scanResult.getInferredPlatforms().size() + " inferred platforms");
         this.currentScanResult = scanResult;
         
         clearResults();
         
         List<String> detectedPlatforms = scanResult.getDetectedPlatforms();
-        System.out.println("[DEBUG] detectedPlatforms isEmpty: " + detectedPlatforms.isEmpty());
+        List<String> inferredPlatforms = scanResult.getInferredPlatforms();
+        int totalDeployments = scanResult.getTotalDeploymentCount();
         
-        if (detectedPlatforms.isEmpty() && scanResult.getTotalDeploymentCount() == 0) {
+        System.out.println("[DEBUG] detectedPlatforms isEmpty: " + detectedPlatforms.isEmpty() + ", inferredPlatforms isEmpty: " + inferredPlatforms.isEmpty() + ", totalDeployments: " + totalDeployments);
+        
+        if (detectedPlatforms.isEmpty() && inferredPlatforms.isEmpty() && totalDeployments == 0) {
             System.out.println("[DEBUG] Adding 'no results' label");
             resultsPanel.add(createNoResultsLabel());
         } else {
-            // Section 1: Detected Platforms (cards)
-            JPanel platformsSection = createPlatformsSection(detectedPlatforms);
+            // Section 1: Detected Platforms (cards) - includes both detected and inferred
+            List<String> allPlatforms = new ArrayList<>(detectedPlatforms);
+            allPlatforms.addAll(inferredPlatforms);
+            JPanel platformsSection = createPlatformsSection(allPlatforms, inferredPlatforms);
             resultsPanel.add(platformsSection);
             resultsPanel.add(Box.createVerticalStrut(15));
             
@@ -276,7 +281,7 @@ public class PlatformsTabComponent {
     /**
      * Creates a panel showing deployment artifact summary
      */
-    private JPanel createPlatformsSection(List<String> detectedPlatforms) {
+    private JPanel createPlatformsSection(List<String> detectedPlatforms, List<String> inferredPlatforms) {
         JPanel sectionPanel = new JPanel(new BorderLayout());
         sectionPanel.setBorder(BorderFactory.createTitledBorder("Detected Platforms"));
         
@@ -289,7 +294,8 @@ public class PlatformsTabComponent {
             cardsPanel.add(noPlatformsLabel);
         } else {
             for (String platformName : detectedPlatforms) {
-                JPanel card = createPlatformCard(platformName);
+                boolean isInferred = inferredPlatforms.contains(platformName);
+                JPanel card = createPlatformCard(platformName, isInferred);
                 cardsPanel.add(card);
                 cardsPanel.add(Box.createVerticalStrut(8));
             }
@@ -304,18 +310,22 @@ public class PlatformsTabComponent {
         return sectionPanel;
     }
     
-    private JPanel createPlatformCard(String platformName) {
+    private JPanel createPlatformCard(String platformName, boolean isInferred) {
         JPanel card = new JPanel(new BorderLayout());
         card.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1),
+            BorderFactory.createLineBorder(isInferred ? new Color(255, 152, 0) : Color.LIGHT_GRAY, 1),
             BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
         
         PlatformConfig config = configLoader.getPlatformConfig(platformName.toLowerCase());
         
-        // Header with platform name
+        // Header with platform name and inferred indicator
         JPanel headerPanel = new JPanel(new BorderLayout());
-        JLabel nameLabel = new JBLabel(config != null ? config.name() : platformName);
+        String displayName = config != null ? config.name() : platformName;
+        if (isInferred) {
+            displayName = displayName + " (inferred from artifacts)";
+        }
+        JLabel nameLabel = new JBLabel(displayName);
         nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 13f));
         headerPanel.add(nameLabel, BorderLayout.WEST);
         card.add(headerPanel, BorderLayout.NORTH);

@@ -421,59 +421,116 @@ public class PdfReportServiceImpl implements PdfReportService {
     
     private void generateScanResults(PDPageContentStream contentStream, ComprehensiveScanResults scanResults) throws IOException {
         float yPosition = PDRectangle.A4.getHeight() - MARGIN;
-        
+
         // Section title
         contentStream.setFont(HEADER_FONT, 18);
         contentStream.beginText();
         contentStream.newLineAtOffset(MARGIN, yPosition);
         contentStream.showText("ADVANCED SCAN RESULTS");
         contentStream.endText();
-        
+
         yPosition -= 30;
-        
+
         // Draw underline
         contentStream.setLineWidth(1);
         contentStream.moveTo(MARGIN, yPosition);
         contentStream.lineTo(MARGIN + 200, yPosition);
         contentStream.stroke();
-        
+
         yPosition -= 40;
-        
-        // Scan summary
+
+        // Scan summary - use actual data from scanResults
         contentStream.setFont(BODY_FONT, 12);
-        
+
         contentStream.beginText();
         contentStream.newLineAtOffset(MARGIN, yPosition);
         contentStream.showText("Scan Summary:");
         contentStream.endText();
-        
+
         yPosition -= 20;
-        
+
+        // Use actual summary data if available
+        int totalFilesScanned = scanResults.summary() != null ? scanResults.summary().totalFilesScanned() : 0;
+        int filesWithIssues = scanResults.summary() != null ? scanResults.summary().filesWithIssues() : 0;
+        int criticalIssues = scanResults.summary() != null ? scanResults.summary().criticalIssues() : 0;
+        int warningIssues = scanResults.summary() != null ? scanResults.summary().warningIssues() : 0;
+        int infoIssues = scanResults.summary() != null ? scanResults.summary().infoIssues() : 0;
+        double readinessScore = scanResults.summary() != null ? scanResults.summary().readinessScore() : 0.0;
+
         contentStream.beginText();
         contentStream.newLineAtOffset(MARGIN + 20, yPosition);
-        contentStream.showText("- Critical Issues Found: 0");
+        contentStream.showText("- Total Files Scanned: " + totalFilesScanned);
         contentStream.endText();
-        
+
         yPosition -= 20;
-        
+
         contentStream.beginText();
         contentStream.newLineAtOffset(MARGIN + 20, yPosition);
-        contentStream.showText("- Scan Coverage: Complete");
+        contentStream.showText("- Files with Issues: " + filesWithIssues);
         contentStream.endText();
-        
+
         yPosition -= 20;
-        
+
         contentStream.beginText();
         contentStream.newLineAtOffset(MARGIN + 20, yPosition);
-        contentStream.showText("- Files Analyzed: N/A (placeholder)");
+        contentStream.showText("- Critical Issues Found: " + criticalIssues);
         contentStream.endText();
-        
+
         yPosition -= 20;
-        
+
         contentStream.beginText();
         contentStream.newLineAtOffset(MARGIN + 20, yPosition);
-        contentStream.showText("- Migration Recipes Applied: N/A (placeholder)");
+        contentStream.showText("- Warning Issues: " + warningIssues);
         contentStream.endText();
+
+        yPosition -= 20;
+
+        contentStream.beginText();
+        contentStream.newLineAtOffset(MARGIN + 20, yPosition);
+        contentStream.showText("- Info Issues: " + infoIssues);
+        contentStream.endText();
+
+        yPosition -= 20;
+
+        contentStream.beginText();
+        contentStream.newLineAtOffset(MARGIN + 20, yPosition);
+        contentStream.showText("- Readiness Score: " + String.format("%.1f", readinessScore) + "%");
+        contentStream.endText();
+
+        yPosition -= 20;
+
+        contentStream.beginText();
+        contentStream.newLineAtOffset(MARGIN + 20, yPosition);
+        contentStream.showText("- Total Issues Found: " + scanResults.totalIssuesFound());
+        contentStream.endText();
+
+        yPosition -= 20;
+
+        // Show scan categories
+        if (scanResults.jpaResults() != null && !scanResults.jpaResults().isEmpty()) {
+            yPosition -= 10;
+            contentStream.beginText();
+            contentStream.newLineAtOffset(MARGIN, yPosition);
+            contentStream.showText("JPA Scan: " + scanResults.jpaResults().size() + " findings");
+            contentStream.endText();
+            yPosition -= 15;
+        }
+
+        if (scanResults.beanValidationResults() != null && !scanResults.beanValidationResults().isEmpty()) {
+            contentStream.beginText();
+            contentStream.newLineAtOffset(MARGIN, yPosition);
+            contentStream.showText("Bean Validation Scan: " + scanResults.beanValidationResults().size() + " findings");
+            contentStream.endText();
+            yPosition -= 15;
+        }
+
+        if (scanResults.servletJspResults() != null && !scanResults.servletJspResults().isEmpty()) {
+            contentStream.beginText();
+            contentStream.newLineAtOffset(MARGIN, yPosition);
+            contentStream.showText("Servlet/JSP Scan: " + scanResults.servletJspResults().size() + " findings");
+            contentStream.endText();
+            yPosition -= 15;
+        }
     }
     
     private void generateRecommendations(PDPageContentStream contentStream) throws IOException {
@@ -624,11 +681,19 @@ public class PdfReportServiceImpl implements PdfReportService {
         
         yPosition -= 40;
         
+        // Calculate actual risk score from available data
+        double riskScore = calculateRiskScore(request);
+        String riskLevel = determineRiskLevel(riskScore);
+        
+        // Calculate estimated migration time based on risk score
+        int effortWeeks = (int) Math.ceil(Math.sqrt(Math.max(0, riskScore * 2)));
+        String migrationTime = effortWeeks + (effortWeeks == 1 ? " week" : " weeks");
+        
         // Risk score visualization
         contentStream.setFont(BODY_FONT, 14);
         contentStream.beginText();
         contentStream.newLineAtOffset(MARGIN, yPosition);
-        contentStream.showText("Overall Risk Score: LOW (15/100)");
+        contentStream.showText("Overall Risk Score: " + riskLevel + " (" + String.format("%.0f", riskScore) + "/100)");
         contentStream.endText();
         
         yPosition -= 25;
@@ -636,7 +701,7 @@ public class PdfReportServiceImpl implements PdfReportService {
         contentStream.setFont(BODY_FONT, 12);
         contentStream.beginText();
         contentStream.newLineAtOffset(MARGIN, yPosition);
-        contentStream.showText("Estimated Migration Time: 2-4 weeks");
+        contentStream.showText("Estimated Migration Time: " + migrationTime);
         contentStream.endText();
         
         yPosition -= 20;
@@ -648,11 +713,23 @@ public class PdfReportServiceImpl implements PdfReportService {
         
         yPosition -= 20;
         
+        // Calculate actual risk factors from data
+        DependencyGraph graph = request.dependencyGraph();
+        ComprehensiveScanResults scanResults = request.scanResults();
+        
+        long totalDeps = graph != null ? graph.getNodes().size() : 0;
+        long jakartaCompatible = graph != null ? countJakartaCompatible(graph) : 0;
+        long blockers = graph != null ? countBlockers(graph) : 0;
+        int totalIssues = scanResults != null ? scanResults.totalIssuesFound() : 0;
+        
+        String depComplexity = totalDeps < 10 ? "Low" : (totalDeps < 50 ? "Medium" : "High");
+        String testCoverage = riskScore < 30 ? "Good" : (riskScore < 60 ? "Moderate" : "Needs Improvement");
+        
         String[] riskFactors = {
-            "• Dependency Complexity: Low (3 major dependencies)",
-            "• Code Base Size: Medium (50K LOC)",
-            "• Test Coverage: Good (85%)",
-            "• Team Experience: High (Jakarta EE familiar)"
+            "• Dependency Complexity: " + depComplexity + " (" + totalDeps + " dependencies, " + jakartaCompatible + " compatible)",
+            "• Migration Blockers: " + blockers + " dependencies require migration",
+            "• Total Issues Found: " + totalIssues + " from advanced scans",
+            "• Test Coverage: " + testCoverage
         };
         
         for (String factor : riskFactors) {
@@ -821,7 +898,7 @@ public class PdfReportServiceImpl implements PdfReportService {
         
         yPosition -= 40;
         
-        // Scan summary
+        // Scan summary - use actual data from scanResults
         contentStream.setFont(BODY_FONT, 12);
         contentStream.beginText();
         contentStream.newLineAtOffset(MARGIN, yPosition);
@@ -830,12 +907,29 @@ public class PdfReportServiceImpl implements PdfReportService {
         
         yPosition -= 25;
         
+        // Use actual summary data if available
+        int totalFilesScanned = scanResults.summary() != null ? scanResults.summary().totalFilesScanned() : 0;
+        int totalIssues = scanResults.totalIssuesFound();
+        int criticalIssues = scanResults.summary() != null ? scanResults.summary().criticalIssues() : 0;
+        int recipesAvailable = scanResults.recommendations() != null ? scanResults.recommendations().size() : 0;
+        double readinessScore = scanResults.summary() != null ? scanResults.summary().readinessScore() : 0.0;
+        
+        // Determine effort level based on readiness score
+        String effortLevel;
+        if (readinessScore >= 80) {
+            effortLevel = "Low";
+        } else if (readinessScore >= 50) {
+            effortLevel = "Medium";
+        } else {
+            effortLevel = "High";
+        }
+        
         String[] scanStats = {
-            "• Total Files Scanned: 1,247",
-            "• Issues Found: 23",
-            "• Critical Issues: 3",
-            "• Migration Recipes Available: 18",
-            "• Estimated Effort: Medium"
+            "• Total Files Scanned: " + totalFilesScanned,
+            "• Issues Found: " + totalIssues,
+            "• Critical Issues: " + criticalIssues,
+            "• Migration Recipes Available: " + recipesAvailable,
+            "• Estimated Effort: " + effortLevel
         };
         
         for (String stat : scanStats) {
@@ -925,5 +1019,58 @@ public class PdfReportServiceImpl implements PdfReportService {
                 .filter(section -> sectionId.equals(section.id()))
                 .findFirst()
                 .orElse(null);
+    }
+    
+    /**
+     * Calculates risk score based on dependency graph and scan results.
+     * Score ranges from 0 (no risk) to 100 (maximum risk).
+     */
+    private double calculateRiskScore(GeneratePdfReportRequest request) {
+        double score = 0.0;
+        
+        DependencyGraph graph = request.dependencyGraph();
+        ComprehensiveScanResults scanResults = request.scanResults();
+        
+        // Factor 1: Dependencies that need migration (blockers)
+        if (graph != null) {
+            long blockers = countBlockers(graph);
+            score += blockers * 10; // 10 points per blocker
+            
+            long totalDeps = graph.getNodes().size();
+            long compatible = countJakartaCompatible(graph);
+            
+            // Add score for non-compatible dependencies
+            long nonCompatible = totalDeps - compatible;
+            score += nonCompatible * 2; // 2 points per non-compatible dependency
+        }
+        
+        // Factor 2: Advanced scan issues
+        if (scanResults != null) {
+            int totalIssues = scanResults.totalIssuesFound();
+            score += totalIssues * 0.5; // 0.5 points per issue
+            
+            // Add extra for critical issues
+            if (scanResults.summary() != null) {
+                score += scanResults.summary().criticalIssues() * 5; // 5 extra points per critical issue
+            }
+        }
+        
+        // Cap at 100
+        return Math.min(score, 100.0);
+    }
+    
+    /**
+     * Determines risk level based on calculated score.
+     */
+    private String determineRiskLevel(double score) {
+        if (score < 25) {
+            return "LOW";
+        } else if (score < 50) {
+            return "MEDIUM";
+        } else if (score < 75) {
+            return "HIGH";
+        } else {
+            return "CRITICAL";
+        }
     }
 }

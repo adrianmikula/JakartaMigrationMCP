@@ -322,8 +322,8 @@ private void resetAdvancedScanCounts() {
 
     private void resetScanCountToZero(JBLabel label) {
         if (label != null) {
-            label.setText("0");
-            label.setForeground(new Color(40, 167, 69)); // Green for zero
+            label.setText("?");
+            label.setForeground(Color.GRAY); // Grey for unscanned
         }
     }
 
@@ -915,49 +915,49 @@ private void resetAdvancedScanCounts() {
         ScanRowHelper addScanRow = new ScanRowHelper();
 
         // Initialize all advanced scan count labels and add to grid
-        jpaScanCountValue = createValueLabel("0");
+        jpaScanCountValue = createValueLabel("?");
         addScanRow.add("JPA:", jpaScanCountValue);
 
-        beanValidationScanCountValue = createValueLabel("0");
+        beanValidationScanCountValue = createValueLabel("?");
         addScanRow.add("Bean Validation:", beanValidationScanCountValue);
 
-        servletJspScanCountValue = createValueLabel("0");
+        servletJspScanCountValue = createValueLabel("?");
         addScanRow.add("Servlet/JSP:", servletJspScanCountValue);
 
-        cdiInjectionScanCountValue = createValueLabel("0");
+        cdiInjectionScanCountValue = createValueLabel("?");
         addScanRow.add("CDI Injection:", cdiInjectionScanCountValue);
 
-        buildConfigScanCountValue = createValueLabel("0");
+        buildConfigScanCountValue = createValueLabel("?");
         addScanRow.add("Build Config:", buildConfigScanCountValue);
 
-        restSoapScanCountValue = createValueLabel("0");
+        restSoapScanCountValue = createValueLabel("?");
         addScanRow.add("REST/SOAP:", restSoapScanCountValue);
 
-        deprecatedApiScanCountValue = createValueLabel("0");
+        deprecatedApiScanCountValue = createValueLabel("?");
         addScanRow.add("Deprecated API:", deprecatedApiScanCountValue);
 
-        securityApiScanCountValue = createValueLabel("0");
+        securityApiScanCountValue = createValueLabel("?");
         addScanRow.add("Security API:", securityApiScanCountValue);
 
-        jmsMessagingScanCountValue = createValueLabel("0");
+        jmsMessagingScanCountValue = createValueLabel("?");
         addScanRow.add("JMS Messaging:", jmsMessagingScanCountValue);
 
-        transitiveDependencyScanCountValue = createValueLabel("0");
+        transitiveDependencyScanCountValue = createValueLabel("?");
         addScanRow.add("Transitive Deps:", transitiveDependencyScanCountValue);
 
-        configFileScanCountValue = createValueLabel("0");
+        configFileScanCountValue = createValueLabel("?");
         addScanRow.add("Config Files:", configFileScanCountValue);
 
-        classloaderModuleScanCountValue = createValueLabel("0");
+        classloaderModuleScanCountValue = createValueLabel("?");
         addScanRow.add("Classloader:", classloaderModuleScanCountValue);
 
-        loggingMetricsScanCountValue = createValueLabel("0");
+        loggingMetricsScanCountValue = createValueLabel("?");
         addScanRow.add("Logging/Metrics:", loggingMetricsScanCountValue);
 
-        serializationCacheScanCountValue = createValueLabel("0");
+        serializationCacheScanCountValue = createValueLabel("?");
         addScanRow.add("Serialization:", serializationCacheScanCountValue);
 
-        thirdPartyLibScanCountValue = createValueLabel("0");
+        thirdPartyLibScanCountValue = createValueLabel("?");
         addScanRow.add("Third-Party:", thirdPartyLibScanCountValue);
 
         // Total Advanced Issues (span across columns)
@@ -979,7 +979,7 @@ private void resetAdvancedScanCounts() {
         totalLabel.setFont(totalLabel.getFont().deriveFont(Font.BOLD, 12f));
         scanGrid.add(totalLabel, gbc);
         gbc.gridx = 2; gbc.gridwidth = 1;
-        totalAdvancedScanCountValue = createValueLabel("0");
+        totalAdvancedScanCountValue = createValueLabel("?");
         totalAdvancedScanCountValue.setFont(totalAdvancedScanCountValue.getFont().deriveFont(Font.BOLD, 12f));
         scanGrid.add(totalAdvancedScanCountValue, gbc);
 
@@ -989,7 +989,7 @@ private void resetAdvancedScanCounts() {
         grandLabel.setFont(grandLabel.getFont().deriveFont(Font.BOLD, 12f));
         scanGrid.add(grandLabel, gbc);
         gbc.gridx = 6; gbc.gridwidth = 1;
-        totalAdvancedIssuesValue = createValueLabel("0");
+        totalAdvancedIssuesValue = createValueLabel("?");
         totalAdvancedIssuesValue.setFont(totalAdvancedIssuesValue.getFont().deriveFont(Font.BOLD, 12f));
         scanGrid.add(totalAdvancedIssuesValue, gbc);
 

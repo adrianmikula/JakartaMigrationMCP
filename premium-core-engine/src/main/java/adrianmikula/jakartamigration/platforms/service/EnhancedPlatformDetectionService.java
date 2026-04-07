@@ -95,7 +95,14 @@ public class EnhancedPlatformDetectionService {
         
         log.debug("After deduplication: {} unique servers: {}", detectedServers.size(), detectedServers);
         
-        return new EnhancedPlatformScanResult(detectedServers, deploymentArtifacts, platformSpecificArtifacts);
+        // If no platforms detected via dependencies but artifacts exist, infer from artifacts
+        List<String> inferredServers = List.of();
+        if (detectedServers.isEmpty() && !deploymentArtifacts.isEmpty()) {
+            inferredServers = inferPlatformsFromArtifacts(deploymentArtifacts, platformSpecificArtifacts);
+            log.debug("Inferred {} platforms from artifacts: {}", inferredServers.size(), inferredServers);
+        }
+        
+        return new EnhancedPlatformScanResult(detectedServers, inferredServers, deploymentArtifacts, platformSpecificArtifacts);
     }
     
     /**
@@ -210,6 +217,60 @@ public class EnhancedPlatformDetectionService {
             count++;
         }
         return count;
+    }
+    
+    /**
+     * Infers likely application server platforms based on detected deployment artifacts.
+     * This is a fallback when no platforms are detected via dependency analysis.
+     */
+    private List<String> inferPlatformsFromArtifacts(Map<String, Integer> deploymentArtifacts,
+                                                     Map<String, Integer> platformSpecificArtifacts) {
+        List<String> inferredServers = new ArrayList<>();
+        
+        int warCount = deploymentArtifacts.getOrDefault("war", 0);
+        int earCount = deploymentArtifacts.getOrDefault("ear", 0);
+        int jarCount = deploymentArtifacts.getOrDefault("jar", 0);
+        
+        // EAR files indicate full Java EE/Jakarta EE servers
+        if (earCount > 0) {
+            inferredServers.add("wildfly");
+            inferredServers.add("websphere");
+            inferredServers.add("weblogic");
+            inferredServers.add("glassfish");
+            log.debug("Inferred full EE servers from EAR artifacts: {}", inferredServers);
+        }
+        
+        // WAR files indicate servlet containers or web servers
+        if (warCount > 0 || (earCount == 0 && jarCount > 0)) {
+            // Check for specific indicators in platform artifacts
+            int webXmlCount = platformSpecificArtifacts.getOrDefault("web.xml", 0);
+            
+            if (webXmlCount > 0 || warCount > 0) {
+                inferredServers.add("tomcat");
+                inferredServers.add("jetty");
+                inferredServers.add("wildfly");
+                log.debug("Inferred servlet containers from WAR/web.xml artifacts");
+            }
+        }
+        
+        // If only web.xml detected without any deployment artifacts, still infer web containers
+        if (warCount == 0 && earCount == 0 && jarCount == 0) {
+            int webXmlCount = platformSpecificArtifacts.getOrDefault("web.xml", 0);
+            if (webXmlCount > 0) {
+                inferredServers.add("tomcat");
+                inferredServers.add("jetty");
+                inferredServers.add("wildfly");
+                log.debug("Inferred servlet containers from web.xml presence");
+            }
+        }
+        
+        // If only JARs detected without WAR/EAR, it's likely a standalone/boot app
+        if (warCount == 0 && earCount == 0 && jarCount > 0) {
+            // Could be Spring Boot or just a regular Java app
+            log.debug("Only JAR artifacts detected - no specific server inference");
+        }
+        
+        return inferredServers;
     }
     
     // Reuse existing methods from SimplifiedPlatformDetectionService

@@ -174,6 +174,45 @@ public class SimplifiedPlatformDetectionServiceTest {
         assertThat(detectedServers).isEmpty();
     }
     
+    @Test
+    @DisplayName("Should detect Arquillian via common artifacts")
+    void testDetectArquillianViaCommonArtifacts() throws IOException {
+        // Given
+        Path projectPath = createProjectWithArquillianArtifacts();
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then
+        assertThat(detectedServers).contains("arquillian");
+    }
+    
+    @Test
+    @DisplayName("Should detect ShrinkWrap via common artifacts")
+    void testDetectShrinkWrapViaCommonArtifacts() throws IOException {
+        // Given
+        Path projectPath = createProjectWithShrinkWrapArtifacts();
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then
+        assertThat(detectedServers).contains("shrinkwrap");
+    }
+    
+    @Test
+    @DisplayName("Should detect WebLogic via common artifacts")
+    void testDetectWebLogicViaCommonArtifacts() throws IOException {
+        // Given
+        Path projectPath = createProjectWithWebLogicArtifacts();
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then
+        assertThat(detectedServers).contains("weblogic");
+    }
+    
     // Helper methods for creating test projects
     private Path createMavenProjectWithTomcatArtifacts() throws IOException {
         Path projectPath = tempDir.resolve("tomcat-maven");
@@ -265,6 +304,73 @@ public class SimplifiedPlatformDetectionServiceTest {
             }
             """;
         Files.write(projectPath.resolve("build.gradle"), gradleContent.getBytes());
+        return projectPath;
+    }
+    
+    private Path createProjectWithArquillianArtifacts() throws IOException {
+        Path projectPath = tempDir.resolve("arquillian-project");
+        Files.createDirectories(projectPath);
+        
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project>
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>arquillian-test</artifactId>
+                <version>1.0.0</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.jboss.arquillian</groupId>
+                        <artifactId>arquillian-core</artifactId>
+                        <version>1.7.0.Final</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.jboss.arquillian.container</groupId>
+                        <artifactId>arquillian-container-managed</artifactId>
+                        <version>1.7.0.Final</version>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+        return projectPath;
+    }
+    
+    private Path createProjectWithShrinkWrapArtifacts() throws IOException {
+        Path projectPath = tempDir.resolve("shrinkwrap-project");
+        Files.createDirectories(projectPath);
+        
+        String gradleContent = """
+            dependencies {
+                implementation 'org.jboss.shrinkwrap:shrinkwrap-api:1.2.6'
+                implementation 'org.jboss.shrinkwrap.resolver:shrinkwrap-resolver-api:3.1.4'
+            }
+            """;
+        Files.write(projectPath.resolve("build.gradle"), gradleContent.getBytes());
+        return projectPath;
+    }
+    
+    private Path createProjectWithWebLogicArtifacts() throws IOException {
+        Path projectPath = tempDir.resolve("weblogic-project");
+        Files.createDirectories(projectPath);
+        
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project>
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>weblogic-test</artifactId>
+                <version>1.0.0</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.oracle.weblogic</groupId>
+                        <artifactId>weblogic-server</artifactId>
+                        <version>14.1.1.0</version>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
         return projectPath;
     }
 }
