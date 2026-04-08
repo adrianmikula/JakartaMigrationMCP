@@ -1,10 +1,10 @@
 package adrianmikula.jakartamigration.intellij.service;
 
-import adrianmikula.jakartamigration.intellij.service.RiskScoringService;
-import adrianmikula.jakartamigration.intellij.service.RiskScoringService.RiskScore;
-import adrianmikula.jakartamigration.intellij.service.RiskScoringService.RiskFinding;
-import adrianmikula.jakartamigration.intellij.service.RiskScoringService.RiskConfig;
-import adrianmikula.jakartamigration.intellij.service.RiskScoringService.CategoryConfig;
+import adrianmikula.jakartamigration.risk.RiskScoringService;
+import adrianmikula.jakartamigration.risk.RiskScoringService.RiskScore;
+import adrianmikula.jakartamigration.risk.RiskScoringService.RiskFinding;
+import adrianmikula.jakartamigration.risk.RiskScoringService.RiskConfig;
+import adrianmikula.jakartamigration.risk.RiskScoringService.CategoryConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;

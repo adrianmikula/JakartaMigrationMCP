@@ -852,8 +852,13 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     // JAVAX but no known Jakarta upgrade path
                     info.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
                 } else if (namespace == Namespace.UNKNOWN) {
-                    // Unknown namespace - requires manual review
-                    info.setMigrationStatus(DependencyMigrationStatus.UNKNOWN_REVIEW);
+                    // Unknown namespace - check if it's a known non-Jakarta library
+                    if (isKnownNonJakartaLibrary(artifact)) {
+                        info.setMigrationStatus(DependencyMigrationStatus.COMPATIBLE);
+                    } else {
+                        // Requires manual review
+                        info.setMigrationStatus(DependencyMigrationStatus.UNKNOWN_REVIEW);
+                    }
                 } else {
                     // Other namespace
                     info.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
@@ -934,6 +939,78 @@ public class MigrationToolWindow implements ToolWindowFactory {
             migrationPhasesComponent.setDependencies(deps);
         }
 
+        /**
+         * Check if an artifact is a known non-Jakarta library that doesn't need migration.
+         * These libraries should be marked as COMPATIBLE rather than UNKNOWN_REVIEW.
+         */
+        private boolean isKnownNonJakartaLibrary(Artifact artifact) {
+            String groupId = artifact.groupId();
+            
+            // Test frameworks and libraries
+            if (groupId.startsWith("junit")) return true;
+            if (groupId.startsWith("org.junit")) return true;
+            if (groupId.startsWith("org.hamcrest")) return true;
+            if (groupId.startsWith("org.assertj")) return true;
+            if (groupId.startsWith("org.testng")) return true;
+            if (groupId.startsWith("org.mockito")) return true;
+            if (groupId.startsWith("org.spockframework")) return true;
+            
+            // Arquillian core/protocol modules are generally safe
+            // BUT container adapters (org.jboss.arquillian.container.*) are NOT all Jakarta-compatible
+            // Only mark specific safe Arquillian artifacts as non-Jakarta
+            if (groupId.equals("org.jboss.arquillian")) return true; // BOM
+            if (groupId.equals("org.jboss.arquillian.protocol")) return true; // Protocol modules
+            if (groupId.equals("org.jboss.arquillian.test")) return true; // Test core
+            if (groupId.equals("org.jboss.arquillian.junit")) return true; // JUnit integration
+            if (groupId.equals("org.jboss.arquillian.testng")) return true; // TestNG integration
+            if (groupId.equals("org.jboss.arquillian.core")) return true; // Core
+            if (groupId.equals("org.jboss.arquillian.config")) return true; // Config
+            // NOTE: org.jboss.arquillian.container.* is NOT safe - adapters vary by server
+            
+            if (groupId.startsWith("org.jboss.shrinkwrap")) return true;
+            
+            // Utility libraries
+            if (groupId.startsWith("org.apache.commons")) return true;
+            if (groupId.startsWith("org.apache.logging")) return true;
+            if (groupId.startsWith("org.slf4j")) return true;
+            if (groupId.startsWith("ch.qos.logback")) return true;
+            
+            // JSON/XML processing
+            if (groupId.startsWith("com.fasterxml.jackson")) return true;
+            if (groupId.startsWith("org.json")) return true;
+            if (groupId.startsWith("com.google.code.gson")) return true;
+            if (groupId.startsWith("org.skyscreamer")) return true; // jsonassert
+            
+            // Database drivers
+            if (groupId.startsWith("com.h2database")) return true;
+            if (groupId.startsWith("mysql")) return true;
+            if (groupId.startsWith("org.postgresql")) return true;
+            if (groupId.startsWith("com.oracle.database")) return true;
+            
+            // Security/Crypto
+            if (groupId.startsWith("org.bouncycastle")) return true;
+            if (groupId.startsWith("org.springframework.security")) return true;
+            
+            // Build tools and plugins
+            if (groupId.startsWith("org.apache.maven")) return true;
+            if (groupId.startsWith("org.gradle")) return true;
+            
+            // Async/testing utilities
+            if (groupId.startsWith("com.jayway.awaitility")) return true;
+            if (groupId.startsWith("org.awaitility")) return true;
+            if (groupId.startsWith("org.omnifaces")) return true;
+            
+            // Web/HTTP testing
+            if (groupId.startsWith("net.sourceforge.htmlunit")) return true;
+            if (groupId.startsWith("httpunit")) return true;
+            if (groupId.startsWith("rhino")) return true;
+            
+            // XML utilities
+            if (groupId.startsWith("xmlunit")) return true;
+            
+            return false;
+        }
+        
         private int calculateReadinessScore(List<DependencyInfo> deps) {
             if (deps == null || deps.isEmpty()) {
                 return 100;

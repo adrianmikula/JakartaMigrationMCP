@@ -4,6 +4,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
 import adrianmikula.jakartamigration.config.JakartaMigrationConfigService;
+import adrianmikula.jakartamigration.platforms.model.PlatformScanResult;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -76,6 +77,7 @@ public interface PdfReportService {
         DependencyGraph dependencyGraph,
         DependencyAnalysisReport analysisReport,
         ComprehensiveScanResults scanResults,
+        PlatformScanResult platformScanResults,
         ReportTemplate template,
         Map<String, Object> customData
     ) {}

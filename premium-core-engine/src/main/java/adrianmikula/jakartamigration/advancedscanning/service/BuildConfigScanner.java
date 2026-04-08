@@ -1,7 +1,8 @@
 package adrianmikula.jakartamigration.advancedscanning.service;
 
-import adrianmikula.jakartamigration.advancedscanning.domain.BuildConfigProjectScanResult;
-import adrianmikula.jakartamigration.advancedscanning.domain.BuildConfigScanResult;
+import adrianmikula.jakartamigration.advancedscanning.domain.BuildConfigUsage;
+import adrianmikula.jakartamigration.advancedscanning.domain.FileScanResult;
+import adrianmikula.jakartamigration.advancedscanning.domain.ProjectScanResult;
 
 import java.nio.file.Path;
 
@@ -11,7 +12,7 @@ import java.nio.file.Path;
  */
 public interface BuildConfigScanner {
 
-    BuildConfigProjectScanResult scanProject(Path projectPath);
+    ProjectScanResult<FileScanResult<BuildConfigUsage>> scanProject(Path projectPath);
 
-    BuildConfigScanResult scanFile(Path filePath);
+    FileScanResult<BuildConfigUsage> scanFile(Path filePath);
 }

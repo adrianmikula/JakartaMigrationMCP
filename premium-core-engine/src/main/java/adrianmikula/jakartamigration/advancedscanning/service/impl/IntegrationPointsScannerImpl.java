@@ -9,8 +9,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 
@@ -33,6 +35,9 @@ public class IntegrationPointsScannerImpl implements IntegrationPointsScanner {
     private static final Pattern IMPORT_PATTERN = Pattern.compile("import\\s+javax\\.([^;]+);");
     private static final Set<String> SCAN_EXTENSIONS = Set.of(".java");
 
+    // Maximum file size to scan (5MB) - larger files are skipped
+    private static final long MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+
     @Override
     public IntegrationPointsProjectScanResult scanProject(Path projectPath) {
         log.info("Starting integration points scan for project: {}", projectPath);
@@ -43,24 +48,33 @@ public class IntegrationPointsScannerImpl implements IntegrationPointsScanner {
 
             for (Path filePath : javaFiles) {
                 try {
-                    String content = Files.readString(filePath);
-                    String[] lines = content.split("\\r?\\n");
+                    // Skip large files to prevent memory issues
+                    long fileSize = Files.size(filePath);
+                    if (fileSize > MAX_FILE_SIZE_BYTES) {
+                        log.warn("Skipping large file ({} bytes): {}", fileSize, filePath);
+                        continue;
+                    }
 
-                    for (int i = 0; i < lines.length; i++) {
-                        Matcher matcher = IMPORT_PATTERN.matcher(lines[i]);
-                        if (matcher.find()) {
-                            String pkg = "javax." + matcher.group(1);
-                            for (Map.Entry<String, String> entry : INTEGRATION_PATTERNS.entrySet()) {
-                                if (pkg.startsWith(entry.getKey())) {
-                                    usages.add(new IntegrationPointUsage(
-                                            filePath.toString(),
-                                            i + 1,
-                                            entry.getValue(),
-                                            extractClassName(lines[i])));
-                                    break;
+                    // Use streaming with try-with-resources for memory efficiency
+                    try (Stream<String> lines = Files.lines(filePath)) {
+                        final AtomicInteger lineNumber = new AtomicInteger(0);
+                        lines.forEach(line -> {
+                            int currentLineNumber = lineNumber.incrementAndGet();
+                            Matcher matcher = IMPORT_PATTERN.matcher(line);
+                            if (matcher.find()) {
+                                String pkg = "javax." + matcher.group(1);
+                                for (Map.Entry<String, String> entry : INTEGRATION_PATTERNS.entrySet()) {
+                                    if (pkg.startsWith(entry.getKey())) {
+                                        usages.add(new IntegrationPointUsage(
+                                                filePath.toString(),
+                                                currentLineNumber,
+                                                entry.getValue(),
+                                                extractClassName(line)));
+                                        break;
+                                    }
                                 }
                             }
-                        }
+                        });
                     }
                 } catch (IOException e) {
                     log.warn("Error reading file: {}", e.getMessage());

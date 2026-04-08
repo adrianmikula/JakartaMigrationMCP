@@ -10,8 +10,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 
@@ -36,9 +38,9 @@ public class SerializationCacheScannerImpl implements SerializationCacheScanner 
 
     // File extensions to scan
     private static final Set<String> SCAN_EXTENSIONS = Set.of(".java", ".xml", ".properties");
-    
-    // Deduplication tracking
-    private final Set<String> processedLines = new HashSet<>();
+
+    // Maximum file size to scan (5MB) - larger files are skipped
+    private static final long MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
     @Override
     public SerializationCacheProjectScanResult scanProject(Path projectPath) {
@@ -74,40 +76,56 @@ public class SerializationCacheScannerImpl implements SerializationCacheScanner 
 
     private SerializationCacheScanResult scanFile(Path filePath) {
         List<SerializationCacheUsage> usages = new ArrayList<>();
-        String fileKey = filePath.toString();
+        StringBuilder contentBuilder = new StringBuilder();
 
         try {
-            String content = Files.readString(filePath);
-            String[] lines = content.split("\\r?\\n");
-
-            for (int i = 0; i < lines.length; i++) {
-                String line = lines[i];
-                int lineNumber = i + 1;
-                String lineKey = fileKey + ":" + lineNumber;
-                
-                // Skip if already processed this line (deduplication)
-                if (processedLines.contains(lineKey)) {
-                    continue;
-                }
-                processedLines.add(lineKey);
-
-                // Check for any serialization-related pattern
-                Matcher serializationMatcher = SERIALIZATION_PATTERN.matcher(line);
-                if (serializationMatcher.find()) {
-                    String usageType = determineUsageType(line);
-                    if (usageType != null) {
-                        usages.add(new SerializationCacheUsage(
-                                filePath.toString(),
-                                lineNumber,
-                                usageType,
-                                extractClassName(line),
-                                extractMethodName(line)));
-                    }
-                }
+            // Skip large files to prevent memory issues
+            long fileSize = Files.size(filePath);
+            if (fileSize > MAX_FILE_SIZE_BYTES) {
+                log.warn("Skipping large file ({} bytes): {}", fileSize, filePath);
+                return new SerializationCacheScanResult(filePath.toString(), usages);
             }
 
-            // Check file content for cache library imports
-            if (CACHE_LIB_PATTERN.matcher(content).find()) {
+            // Deduplication tracking - local to this file only to prevent memory leak
+            Set<String> processedLines = new HashSet<>();
+            String fileKey = filePath.toString();
+
+            // Use streaming with try-with-resources for memory efficiency
+            try (Stream<String> lines = Files.lines(filePath)) {
+                final AtomicInteger lineNumber = new AtomicInteger(0);
+                lines.forEach(line -> {
+                    int currentLineNumber = lineNumber.incrementAndGet();
+                    String lineKey = fileKey + ":" + currentLineNumber;
+
+                    // Collect content for cache library pattern check (limited)
+                    if (contentBuilder.length() < 10000) {
+                        contentBuilder.append(line).append("\n");
+                    }
+
+                    // Skip if already processed this line (deduplication within file)
+                    if (processedLines.contains(lineKey)) {
+                        return;
+                    }
+                    processedLines.add(lineKey);
+
+                    // Check for any serialization-related pattern
+                    Matcher serializationMatcher = SERIALIZATION_PATTERN.matcher(line);
+                    if (serializationMatcher.find()) {
+                        String usageType = determineUsageType(line);
+                        if (usageType != null) {
+                            usages.add(new SerializationCacheUsage(
+                                    filePath.toString(),
+                                    currentLineNumber,
+                                    usageType,
+                                    extractClassName(line),
+                                    extractMethodName(line)));
+                        }
+                    }
+                });
+            }
+
+            // Check file content for cache library imports (on limited content)
+            if (CACHE_LIB_PATTERN.matcher(contentBuilder.toString()).find()) {
                 // Add a single finding for the file if it uses cache libs
                 if (!usages.isEmpty()) {
                     usages.add(new SerializationCacheUsage(

@@ -1,8 +1,9 @@
 package adrianmikula.jakartamigration.advancedscanning.service.impl;
 
-import adrianmikula.jakartamigration.advancedscanning.domain.RestSoapProjectScanResult;
-import adrianmikula.jakartamigration.advancedscanning.domain.RestSoapScanResult;
-import adrianmikula.jakartamigration.advancedscanning.domain.RestSoapUsage;
+import adrianmikula.jakartamigration.advancedscanning.domain.FileScanResult;
+import adrianmikula.jakartamigration.advancedscanning.domain.JavaxUsage;
+import adrianmikula.jakartamigration.advancedscanning.domain.ProjectScanResult;
+import adrianmikula.jakartamigration.advancedscanning.service.BaseScanner;
 import adrianmikula.jakartamigration.advancedscanning.service.RestSoapScanner;
 import lombok.extern.slf4j.Slf4j;
 import org.openrewrite.java.JavaParser;
@@ -12,16 +13,17 @@ import org.openrewrite.SourceFile;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
-
 @Slf4j
-public class RestSoapScannerImpl implements RestSoapScanner {
+public class RestSoapScannerImpl extends BaseScanner<JavaxUsage> implements RestSoapScanner {
 
     private static final Map<String, String> REST_SOAP_MAPPINGS = new HashMap<>();
 
@@ -93,78 +95,46 @@ public class RestSoapScannerImpl implements RestSoapScanner {
         REST_SOAP_MAPPINGS.put("javax.xml.soap.SOAPConnectionFactory", "jakarta.xml.soap.SOAPConnectionFactory");
     }
 
-    private final ThreadLocal<JavaParser> javaParserThreadLocal = ThreadLocal
-            .withInitial(() -> JavaParser.fromJavaVersion().build());
-
-    private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
-
     @Override
-    public RestSoapProjectScanResult scanProject(Path projectPath) {
-        if (projectPath == null || !Files.exists(projectPath) || !Files.isDirectory(projectPath)) {
-            return RestSoapProjectScanResult.empty();
-        }
-
-        try {
-            List<Path> javaFiles = discoverJavaFiles(projectPath);
-            if (javaFiles.isEmpty())
-                return RestSoapProjectScanResult.empty();
-
-            AtomicInteger totalScanned = new AtomicInteger(0);
-            List<RestSoapScanResult> results = javaFiles.parallelStream()
-                    .map(file -> {
-                        totalScanned.incrementAndGet();
-                        RestSoapScanResult result = scanFile(file);
-                        return result.hasJavaxUsage() ? result : null;
-                    })
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-
-            int totalUsages = results.stream().mapToInt(r -> r.usages().size()).sum();
-
-            return new RestSoapProjectScanResult(results, totalScanned.get(), results.size(), totalUsages);
-        } catch (Exception e) {
-            log.error("Error scanning project for REST/SOAP", e);
-            return RestSoapProjectScanResult.empty();
-        }
+    public ProjectScanResult<FileScanResult<JavaxUsage>> scanProject(Path projectPath) {
+        return scanProjectGeneric(projectPath, "REST/SOAP");
     }
 
     @Override
-    public RestSoapScanResult scanFile(Path filePath) {
-        if (filePath == null || !Files.exists(filePath)) {
-            return RestSoapScanResult.empty(filePath);
+    public FileScanResult<JavaxUsage> scanFile(Path filePath) {
+        Path validatedPath = validateFilePath(filePath);
+        if (validatedPath == null) {
+            return FileScanResult.empty(filePath);
         }
 
         try {
-            String content = Files.readString(filePath);
-            int lineCount = content.split("\n").length;
+            String content = Files.readString(validatedPath);
+            int lineCount = countLines(content);
 
             JavaParser parser = javaParserThreadLocal.get();
             parser.reset();
 
             List<SourceFile> sourceFiles = parser.parse(content).collect(Collectors.toList());
-            if (sourceFiles.isEmpty())
-                return RestSoapScanResult.empty(filePath);
+            if (sourceFiles.isEmpty()) {
+                return FileScanResult.empty(filePath);
+            }
 
-            List<RestSoapUsage> usages = new ArrayList<>();
+            List<JavaxUsage> usages = new ArrayList<>();
             for (SourceFile sourceFile : sourceFiles) {
-                if (sourceFile instanceof CompilationUnit) {
-                    CompilationUnit cu = (CompilationUnit) sourceFile;
+                if (sourceFile instanceof CompilationUnit cu) {
                     usages.addAll(extractRestSoapUsages(cu, content));
                 }
             }
 
-            return new RestSoapScanResult(filePath, usages, lineCount);
+            return new FileScanResult<>(filePath, usages, lineCount);
         } catch (Exception e) {
-            return RestSoapScanResult.empty(filePath);
+            log.warn("Error scanning file for REST/SOAP: {}", filePath, e);
+            return FileScanResult.empty(filePath);
         }
     }
 
-    private List<Path> discoverJavaFiles(Path projectPath) {
-        return fileScanner.findFiles(projectPath, List.of(".java"));
-    }
-
-    private List<RestSoapUsage> extractRestSoapUsages(CompilationUnit cu, String content) {
-        List<RestSoapUsage> usages = new ArrayList<>();
+    private List<JavaxUsage> extractRestSoapUsages(CompilationUnit cu, String content) {
+        List<JavaxUsage> usages = new ArrayList<>();
         String[] lines = content.split("\n");
 
         // Check imports
@@ -174,55 +144,30 @@ public class RestSoapScannerImpl implements RestSoapScanner {
                     importName.startsWith("javax.xml.ws.") ||
                     importName.startsWith("javax.jws.") ||
                     importName.startsWith("javax.xml.soap.")) {
-
                 String jakartaEquivalent = REST_SOAP_MAPPINGS.get(importName);
                 int lineNumber = findLineNumber(lines, importName);
-                String type = getUsageType(importName);
-
-                usages.add(new RestSoapUsage(
+                usages.add(new JavaxUsage(
                         importName,
                         jakartaEquivalent != null ? jakartaEquivalent : importName.replace("javax.", "jakarta."),
-                        lineNumber, "import", type));
+                        lineNumber, "import"));
             }
         }
 
         // Search for annotation usages
         Pattern annotationPattern = Pattern.compile(
-                "@((?:javax\\\\.ws\\\\.rs[\\\\w.]*|javax\\\\.xml\\\\.ws[\\\\w.]*|javax\\\\.jws[\\\\w.]*|javax\\\\.xml\\\\.soap[\\\\w.]*))");
+                "@((?:javax\\.ws\\.rs[\\w.]*|javax\\.xml\\.ws[\\w.]*|javax\\.jws[\\w.]*|javax\\.xml\\.soap[\\w.]*))");
         Matcher matcher = annotationPattern.matcher(content);
 
         while (matcher.find()) {
             String annotationName = matcher.group(1);
             String jakartaEquivalent = REST_SOAP_MAPPINGS.get(annotationName);
             int lineNumber = findLineNumber(lines, matcher.group(0));
-            String type = getUsageType(annotationName);
-
-            usages.add(new RestSoapUsage(
+            usages.add(new JavaxUsage(
                     annotationName,
                     jakartaEquivalent != null ? jakartaEquivalent : annotationName.replace("javax.", "jakarta."),
-                    lineNumber, "annotation", type));
+                    lineNumber, "annotation"));
         }
 
         return usages;
-    }
-
-    private String getUsageType(String className) {
-        if (className.startsWith("javax.ws.rs."))
-            return "rest";
-        if (className.startsWith("javax.xml.ws."))
-            return "soap";
-        if (className.startsWith("javax.jws."))
-            return "soap";
-        if (className.startsWith("javax.xml.soap."))
-            return "soap";
-        return "unknown";
-    }
-
-    private int findLineNumber(String[] lines, String searchText) {
-        for (int i = 0; i < lines.length; i++) {
-            if (lines[i].contains(searchText))
-                return i + 1;
-        }
-        return 1;
     }
 }

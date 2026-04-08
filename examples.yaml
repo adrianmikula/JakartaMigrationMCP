@@ -103,6 +103,10 @@ build_systems:
     description: "Gradle project using javax packages"
     url: "https://github.com/pkainulainen/gradle-examples"
 
+  - name: "Modern Java Practices"
+    description: "Real-world project demonstrating modern Java/JVM build practices with both Gradle and Maven configurations, Earthly container builds, and comprehensive build scripts"
+    url: "https://github.com/binkley/modern-java-practices"
+
   - name: "No Build System"
     description: " Project with no build system using javax packages"
     url: "https://github.com/fabiodomingues/javaee-legacy-app-example"

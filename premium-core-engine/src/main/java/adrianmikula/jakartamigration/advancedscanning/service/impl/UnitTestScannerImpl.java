@@ -9,8 +9,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 
@@ -22,6 +24,9 @@ public class UnitTestScannerImpl implements UnitTestScanner {
     private static final Pattern JAVAX_PATTERN = Pattern.compile("import\\s+javax\\.([^;]+);");
     private static final Set<String> TEST_DIRS = Set.of("test", "src/test", "tests", "src/tests");
     private static final Set<String> TEST_EXTENSIONS = Set.of(".java");
+
+    // Maximum file size to scan (5MB) - larger files are skipped
+    private static final long MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
     @Override
     public UnitTestProjectScanResult scanProject(Path projectPath) {
@@ -35,19 +40,36 @@ public class UnitTestScannerImpl implements UnitTestScanner {
 
             for (Path filePath : testFiles) {
                 try {
-                    String content = Files.readString(filePath);
-                    String[] lines = content.split("\\r?\\n");
+                    // Skip large files to prevent memory issues
+                    long fileSize = Files.size(filePath);
+                    if (fileSize > MAX_FILE_SIZE_BYTES) {
+                        log.warn("Skipping large test file ({} bytes): {}", fileSize, filePath);
+                        continue;
+                    }
 
-                    for (int i = 0; i < lines.length; i++) {
-                        Matcher matcher = JAVAX_PATTERN.matcher(lines[i]);
-                        if (matcher.find()) {
-                            String packageName = matcher.group(1);
-                            usages.add(new UnitTestUsage(
-                                    filePath.toString(),
-                                    i + 1,
-                                    "javax." + packageName,
-                                    detectTestFramework(content)));
-                        }
+                    // Collect content for framework detection (limited) and scan lines
+                    StringBuilder contentBuilder = new StringBuilder();
+
+                    // Use streaming with try-with-resources for memory efficiency
+                    try (Stream<String> lines = Files.lines(filePath)) {
+                        final AtomicInteger lineNumber = new AtomicInteger(0);
+                        lines.forEach(line -> {
+                            // Collect limited content for framework detection
+                            if (contentBuilder.length() < 5000) {
+                                contentBuilder.append(line).append("\n");
+                            }
+
+                            int currentLineNumber = lineNumber.incrementAndGet();
+                            Matcher matcher = JAVAX_PATTERN.matcher(line);
+                            if (matcher.find()) {
+                                String packageName = matcher.group(1);
+                                usages.add(new UnitTestUsage(
+                                        filePath.toString(),
+                                        currentLineNumber,
+                                        "javax." + packageName,
+                                        detectTestFramework(contentBuilder.toString())));
+                            }
+                        });
                     }
                 } catch (IOException e) {
                     log.warn("Error reading test file: {}", e.getMessage());

@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -49,6 +50,13 @@ public class ConfigFileScannerImpl implements ConfigFileScanner {
     private record ConfigFileInfo(String replacement, String context, String fileType) {
     }
 
+    // Parallelism configuration - can be overridden via system property
+    private static final int MAX_PARALLELISM = Integer.parseInt(
+            System.getProperty("advanced.scan.parallelism", "4"));
+
+    // Memory threshold for sequential fallback (100MB)
+    private static final long MEMORY_THRESHOLD_BYTES = 100 * 1024 * 1024;
+
     // Pattern for javax references in config files
     private static final Pattern JAVAX_PATTERN = Pattern.compile(
             "javax\\.\\w+(\\.\\w+)*",
@@ -74,15 +82,46 @@ public class ConfigFileScannerImpl implements ConfigFileScanner {
             if (configFiles.isEmpty())
                 return ConfigFileProjectScanResult.empty();
 
+            // Check available memory and determine parallelism
+            Runtime runtime = Runtime.getRuntime();
+            long maxMemory = runtime.maxMemory();
+            long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+            long availableMemory = maxMemory - usedMemory;
+
             AtomicInteger totalScanned = new AtomicInteger(0);
-            List<ConfigFileScanResult> results = configFiles.parallelStream()
-                    .map(file -> {
-                        totalScanned.incrementAndGet();
-                        ConfigFileScanResult result = scanFile(file);
-                        return result.hasJavaxUsage() ? result : null;
-                    })
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
+            List<ConfigFileScanResult> results;
+
+            // Use sequential processing if low on memory, otherwise use bounded parallelism
+            if (availableMemory < MEMORY_THRESHOLD_BYTES) {
+                log.info("Low memory detected ({} MB available), using sequential processing for Config File scan",
+                        availableMemory / (1024 * 1024));
+                results = configFiles.stream()
+                        .map(file -> scanFileWithTracking(file, totalScanned))
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+            } else {
+                // Use bounded parallelism with custom ForkJoinPool
+                int parallelism = Math.min(MAX_PARALLELISM, configFiles.size());
+                log.debug("Using parallel processing with parallelism={} for Config File scan", parallelism);
+
+                ForkJoinPool customPool = new ForkJoinPool(parallelism);
+                try {
+                    results = customPool.submit(() ->
+                            configFiles.parallelStream()
+                                    .map(file -> scanFileWithTracking(file, totalScanned))
+                                    .filter(Objects::nonNull)
+                                    .collect(Collectors.toList())
+                    ).get();
+                } catch (Exception e) {
+                    log.warn("Parallel scan failed for Config File, falling back to sequential: {}", e.getMessage());
+                    results = configFiles.stream()
+                            .map(file -> scanFileWithTracking(file, totalScanned))
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toList());
+                } finally {
+                    customPool.shutdown();
+                }
+            }
 
             int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
 
@@ -168,10 +207,7 @@ public class ConfigFileScannerImpl implements ConfigFileScanner {
     }
 
     private List<Path> discoverConfigFiles(Path projectPath) {
-        return fileScanner.findFiles(projectPath, path -> {
-            String name = path.getFileName().toString().toLowerCase();
-            return isConfigFile(name);
-        });
+        return fileScanner.findFiles(projectPath, List.of(".xml", ".properties", ".yaml", ".yml"));
     }
 
     private boolean isConfigFile(String name) {
@@ -197,5 +233,14 @@ public class ConfigFileScannerImpl implements ConfigFileScanner {
                 return i + 1;
         }
         return 1;
+    }
+
+    /**
+     * Scans a single file with tracking for parallel processing.
+     */
+    private ConfigFileScanResult scanFileWithTracking(Path filePath, AtomicInteger totalScanned) {
+        totalScanned.incrementAndGet();
+        ConfigFileScanResult result = scanFile(filePath);
+        return result.hasJavaxUsage() ? result : null;
     }
 }

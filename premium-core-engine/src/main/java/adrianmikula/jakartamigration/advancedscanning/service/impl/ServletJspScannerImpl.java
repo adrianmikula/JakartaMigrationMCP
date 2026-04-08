@@ -1,8 +1,9 @@
 package adrianmikula.jakartamigration.advancedscanning.service.impl;
 
-import adrianmikula.jakartamigration.advancedscanning.domain.ServletJspProjectScanResult;
-import adrianmikula.jakartamigration.advancedscanning.domain.ServletJspScanResult;
+import adrianmikula.jakartamigration.advancedscanning.domain.FileScanResult;
+import adrianmikula.jakartamigration.advancedscanning.domain.ProjectScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.ServletJspUsage;
+import adrianmikula.jakartamigration.advancedscanning.service.BaseScanner;
 import adrianmikula.jakartamigration.advancedscanning.service.ServletJspScanner;
 import lombok.extern.slf4j.Slf4j;
 import org.openrewrite.java.JavaParser;
@@ -16,12 +17,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 
 /**
  * Implementation of ServletJspScanner using OpenRewrite JavaParser.
@@ -29,9 +27,8 @@ import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
  * usage.
  */
 @Slf4j
-public class ServletJspScannerImpl implements ServletJspScanner {
+public class ServletJspScannerImpl extends BaseScanner<ServletJspUsage> implements ServletJspScanner {
 
-    // Map of javax.servlet classes to their Jakarta equivalents
     private static final Map<String, String> SERVLET_MAPPINGS = new HashMap<>();
 
     static {
@@ -124,108 +121,34 @@ public class ServletJspScannerImpl implements ServletJspScanner {
         SERVLET_MAPPINGS.put("javax.el.MapELResolver", "jakarta.el.MapELResolver");
     }
 
-    private final ThreadLocal<JavaParser> javaParserThreadLocal = ThreadLocal
-            .withInitial(() -> JavaParser.fromJavaVersion().build());
-    
-    private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
-
-    // Memory optimization: Limit parallel scanning to prevent OOM
-            private static final int MAX_PARALLEL_SCANS = 4; // Limit parallel scans to prevent memory issues
-
     @Override
-    public ServletJspProjectScanResult scanProject(Path projectPath) {
-        if (projectPath == null || !Files.exists(projectPath) || !Files.isDirectory(projectPath)) {
-            log.warn("Invalid project path: {}", projectPath);
-            return ServletJspProjectScanResult.empty();
-        }
-
-        try {
-            // Discover all Java and JSP files
-            List<Path> javaFiles = discoverFiles(projectPath, ".java");
-            List<Path> jspFiles = discoverFiles(projectPath, ".jsp");
-
-            if (javaFiles.isEmpty() && jspFiles.isEmpty()) {
-                log.info("No Java/JSP files found in project: {}", projectPath);
-                return ServletJspProjectScanResult.empty();
-            }
-
-            log.info("Scanning {} Java files and {} JSP files for Servlet/JSP in project: {}",
-                    javaFiles.size(), jspFiles.size(), projectPath);
-
-            // Scan Java files
-            AtomicInteger totalScanned = new AtomicInteger(0);
-            List<ServletJspScanResult> results = new ArrayList<>();
-
-            // Scan Java files with limited parallelism
-            javaFiles.stream().parallel().limit(MAX_PARALLEL_SCANS).forEach(file -> {
-                totalScanned.incrementAndGet();
-                ServletJspScanResult result = scanJavaFile(file);
-                if (result.hasJavaxUsage()) {
-                    synchronized (results) {
-                        results.add(result);
-                    }
-                }
-            });
-
-            // Scan JSP files with limited parallelism
-            jspFiles.stream().parallel().limit(MAX_PARALLEL_SCANS).forEach(file -> {
-                totalScanned.incrementAndGet();
-                ServletJspScanResult result = scanJspFile(file);
-                if (result.hasJavaxUsage()) {
-                    synchronized (results) {
-                        results.add(result);
-                    }
-                }
-            });
-
-            int totalUsages = results.stream()
-                    .mapToInt(r -> r.usages().size())
-                    .sum();
-
-            log.info("Servlet/JSP scan complete: {} files scanned, {} files with usage, {} total usages",
-                    totalScanned.get(), results.size(), totalUsages);
-
-            return new ServletJspProjectScanResult(
-                    results,
-                    totalScanned.get(),
-                    results.size(),
-                    totalUsages);
-
-        } catch (Exception e) {
-            log.error("Error scanning project for Servlet/JSP: {}", projectPath, e);
-            return ServletJspProjectScanResult.empty();
-        }
+    public ProjectScanResult<FileScanResult<ServletJspUsage>> scanProject(Path projectPath) {
+        return scanProjectGeneric(projectPath, "Servlet/JSP");
     }
 
     @Override
-    public ServletJspScanResult scanFile(Path filePath) {
-        if (filePath == null) {
-            throw new IllegalArgumentException("filePath cannot be null");
-        }
-        if (!Files.exists(filePath)) {
-            log.warn("File does not exist: {}", filePath);
-            return ServletJspScanResult.empty(filePath);
+    public FileScanResult<ServletJspUsage> scanFile(Path filePath) {
+        Path validatedPath = validateFilePath(filePath);
+        if (validatedPath == null) {
+            return FileScanResult.empty(filePath);
         }
 
         // Skip files in temporary or system directories
-        String fullPath = filePath.toString().toLowerCase();
+        String fullPath = validatedPath.toString().toLowerCase();
         if (fullPath.contains("tmp") || fullPath.contains("temp") || 
             fullPath.contains("idea-sandbox") || fullPath.contains("system/")) {
-            return ServletJspScanResult.empty(filePath);
+            return FileScanResult.empty(filePath);
         }
 
-        String fileName = filePath.getFileName().toString();
+        String fileName = validatedPath.getFileName().toString();
         if (fileName.endsWith(".jsp")) {
-            return scanJspFile(filePath);
+            return scanJspFile(validatedPath);
         } else {
-            return scanJavaFile(filePath);
+            return scanJavaFile(validatedPath);
         }
     }
 
-    /**
-     * Scans a Java file for Servlet/JSP usages.
-     */
-    private ServletJspScanResult scanJavaFile(Path filePath) {
+    private FileScanResult<ServletJspUsage> scanJavaFile(Path filePath) {
         try {
             String content = Files.readString(filePath);
             int lineCount = countLines(content);
@@ -233,44 +156,40 @@ public class ServletJspScannerImpl implements ServletJspScanner {
             JavaParser parser = javaParserThreadLocal.get();
             parser.reset();
 
-            List<SourceFile> sourceFiles = parser.parse(content).collect(java.util.stream.Collectors.toList());
+            List<SourceFile> sourceFiles = parser.parse(content).collect(Collectors.toList());
 
             if (sourceFiles.isEmpty()) {
                 log.debug("No source files found in file: {}", filePath);
-                return ServletJspScanResult.empty(filePath);
+                return FileScanResult.empty(filePath);
             }
 
             List<ServletJspUsage> usages = new ArrayList<>();
             for (SourceFile sourceFile : sourceFiles) {
-                if (sourceFile instanceof CompilationUnit) {
-                    CompilationUnit cu = (CompilationUnit) sourceFile;
+                if (sourceFile instanceof CompilationUnit cu) {
                     usages.addAll(extractServletUsages(cu, content));
                 }
             }
 
-            return new ServletJspScanResult(filePath, usages, lineCount);
+            return new FileScanResult<>(filePath, usages, lineCount);
 
         } catch (Exception e) {
             log.warn("Error scanning Java file for Servlet/JSP: {}", filePath, e);
-            return ServletJspScanResult.empty(filePath);
+            return FileScanResult.empty(filePath);
         }
     }
 
-    /**
-     * Scans a JSP file for javax.servlet and EL usages.
-     */
-    private ServletJspScanResult scanJspFile(Path filePath) {
+    private FileScanResult<ServletJspUsage> scanJspFile(Path filePath) {
         try {
             String content = Files.readString(filePath);
             int lineCount = countLines(content);
 
             List<ServletJspUsage> usages = extractJspUsages(content);
 
-            return new ServletJspScanResult(filePath, usages, lineCount);
+            return new FileScanResult<>(filePath, usages, lineCount);
 
         } catch (Exception e) {
             log.warn("Error scanning JSP file for Servlet/JSP: {}", filePath, e);
-            return ServletJspScanResult.empty(filePath);
+            return FileScanResult.empty(filePath);
         }
     }
 
@@ -309,64 +228,25 @@ public class ServletJspScannerImpl implements ServletJspScanner {
         return usages;
     }
 
-    /**
-     * Finds the line number in content.
-     */
-    private int findLineNumber(String[] lines, String searchText) {
-        for (int i = 0; i < lines.length; i++) {
-            if (lines[i].contains(searchText)) {
-                return i + 1;
-            }
-        }
-        return 1;
-    }
-
-    /**
-     * Discovers all files of a specific type in the project.
-     */
-    private List<Path> discoverFiles(Path projectPath, String extension) {
-        return fileScanner.findFiles(projectPath, List.of(extension));
-    }
-
-    /**
-     * Extracts javax.servlet.* usages from a compilation unit.
-     */
     private List<ServletJspUsage> extractServletUsages(CompilationUnit cu, String content) {
         List<ServletJspUsage> usages = new ArrayList<>();
-
         String[] lines = content.split("\n");
 
-        // Check imports
         for (J.Import imp : cu.getImports()) {
             String importName = imp.getQualid().toString();
 
-            if (importName.startsWith("javax.servlet.") ||
-                    importName.startsWith("javax.el.")) {
-
+            if (importName.startsWith("javax.servlet.") || importName.startsWith("javax.el.")) {
                 String jakartaEquivalent = SERVLET_MAPPINGS.get(importName);
                 int lineNumber = findLineNumber(lines, importName);
-
                 String usageType = importName.contains("jsp") ? "jsp" : importName.contains("el") ? "el" : "servlet";
 
                 usages.add(new ServletJspUsage(
                         importName,
                         jakartaEquivalent != null ? jakartaEquivalent : importName.replace("javax.", "jakarta."),
-                        lineNumber,
-                        "import",
-                        usageType));
+                        lineNumber, "import", usageType));
             }
         }
 
         return usages;
-    }
-
-    /**
-     * Counts lines in content.
-     */
-    private int countLines(String content) {
-        if (content == null || content.isEmpty()) {
-            return 0;
-        }
-        return content.split("\n").length;
     }
 }

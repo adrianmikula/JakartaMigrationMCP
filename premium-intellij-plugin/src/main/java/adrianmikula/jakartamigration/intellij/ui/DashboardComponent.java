@@ -5,7 +5,7 @@ import adrianmikula.jakartamigration.intellij.mcp.JakartaMcpServerProvider;
 import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
-import adrianmikula.jakartamigration.intellij.service.RiskScoringService;
+import adrianmikula.jakartamigration.risk.RiskScoringService;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.intellij.ui.SupportComponent;
 import adrianmikula.jakartamigration.intellij.ui.components.RiskGauge;
@@ -23,6 +23,8 @@ import java.util.Objects;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.time.Instant;
@@ -54,6 +56,14 @@ public class DashboardComponent {
     private JPanel gaugesPanel;
     private JBLabel migrationEffortLabel;
     private RiskGauge migrationRiskGauge;
+    
+    // UI Components for effort estimation sliders
+    private JSlider devTeamSizeSlider;
+    private JBLabel devTeamSizeValueLabel;
+    private static final int DEFAULT_TEAM_SIZE = 5;
+    
+    // Test coverage display
+    private JBLabel testCoverageLabel;
     
     // UI Components for progress section (middle)
     private JPanel progressPanel;
@@ -87,6 +97,10 @@ public class DashboardComponent {
     private JBLabel jakartaUpgradeValue;
     private JBLabel jakartaCompatibleValue;
     private JBLabel unknownReviewValue;
+    
+    // Project Size and Test Coverage Components
+    private JBLabel projectSizeValue;
+    private JBLabel basicTestCoverageValue;
     
     // UI Components for scan results table (removed - was integrated into basicResultsPanel)
     // Note: scan results now displayed directly in basicResultsPanel as count labels
@@ -606,11 +620,79 @@ private void resetAdvancedScanCounts() {
         
         gaugesContainer.add(effortPanel);
         
-        // Migration Risk Gauge (Indicator 2)  
+        // Migration Risk Gauge (Indicator 2)
         migrationRiskGauge = new RiskGauge("Migration Risk");
         gaugesContainer.add(migrationRiskGauge);
         
+        // Test Coverage Estimate (Indicator 3)
+        JPanel coveragePanel = new JBPanel<>(new BorderLayout());
+        coveragePanel.setPreferredSize(new java.awt.Dimension(150, 150));
+        
+        JLabel coverageTitle = new JBLabel("Est. Test Coverage", SwingConstants.CENTER);
+        coverageTitle.setFont(coverageTitle.getFont().deriveFont(Font.BOLD, 12f));
+        coveragePanel.add(coverageTitle, BorderLayout.NORTH);
+        
+        testCoverageLabel = new JBLabel("Calculating...", SwingConstants.CENTER);
+        testCoverageLabel.setFont(testCoverageLabel.getFont().deriveFont(Font.BOLD, 24f));
+        testCoverageLabel.setForeground(new Color(100, 100, 100));
+        coveragePanel.add(testCoverageLabel, BorderLayout.CENTER);
+        
+        JLabel coverageSubtitle = new JBLabel("based on test file ratio", SwingConstants.CENTER);
+        coverageSubtitle.setFont(coverageSubtitle.getFont().deriveFont(Font.ITALIC, 9f));
+        coveragePanel.add(coverageSubtitle, BorderLayout.SOUTH);
+        
+        gaugesContainer.add(coveragePanel);
+
         panel.add(gaugesContainer, BorderLayout.CENTER);
+
+        // Slider panel for effort estimation inputs
+        JPanel slidersPanel = createSlidersPanel();
+        panel.add(slidersPanel, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    /**
+     * Creates the sliders panel for dev team size and environment count.
+     * These inputs affect the migration effort calculation.
+     */
+    private JPanel createSlidersPanel() {
+        JPanel panel = new JBPanel<>(new GridBagLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 20, 5, 20));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 10, 5, 10);
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // Dev Team Size Slider
+        gbc.gridx = 0; gbc.gridy = 0;
+        JLabel teamLabel = new JLabel("Dev Team Size:");
+        teamLabel.setFont(teamLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        panel.add(teamLabel, gbc);
+
+        devTeamSizeSlider = new JSlider(JSlider.HORIZONTAL, 1, 20, DEFAULT_TEAM_SIZE);
+        devTeamSizeSlider.setMajorTickSpacing(5);
+        devTeamSizeSlider.setMinorTickSpacing(1);
+        devTeamSizeSlider.setPaintTicks(true);
+        devTeamSizeSlider.setPreferredSize(new Dimension(150, 40));
+        gbc.gridx = 1;
+        panel.add(devTeamSizeSlider, gbc);
+
+        devTeamSizeValueLabel = new JBLabel(String.valueOf(DEFAULT_TEAM_SIZE));
+        devTeamSizeValueLabel.setFont(devTeamSizeValueLabel.getFont().deriveFont(Font.BOLD, 11f));
+        devTeamSizeValueLabel.setPreferredSize(new Dimension(25, 20));
+        gbc.gridx = 2;
+        panel.add(devTeamSizeValueLabel, gbc);
+
+        // Add change listener to update effort calculation
+        devTeamSizeSlider.addChangeListener(e -> {
+            if (!devTeamSizeSlider.getValueIsAdjusting()) {
+                int value = devTeamSizeSlider.getValue();
+                devTeamSizeValueLabel.setText(String.valueOf(value));
+                updateGauges();
+            }
+        });
+
         return panel;
     }
 
@@ -698,29 +780,43 @@ private void resetAdvancedScanCounts() {
         scanProgressValue = createValueLabel("0%");
         summaryGrid.add(scanProgressValue, gbc);
 
-        // Dependencies Found
+        // Project Size (Total Files)
         gbc.gridx = 0; gbc.gridy = 1;
+        summaryGrid.add(createKeyLabel("Project Size (Files):"), gbc);
+        gbc.gridx = 1;
+        projectSizeValue = createValueLabel("-");
+        summaryGrid.add(projectSizeValue, gbc);
+
+        // Test Coverage Estimate
+        gbc.gridx = 0; gbc.gridy = 2;
+        summaryGrid.add(createKeyLabel("Est. Test Coverage:"), gbc);
+        gbc.gridx = 1;
+        basicTestCoverageValue = createValueLabel("-");
+        summaryGrid.add(basicTestCoverageValue, gbc);
+
+        // Dependencies Found
+        gbc.gridx = 0; gbc.gridy = 3;
         summaryGrid.add(createKeyLabel("Dependencies Found:"), gbc);
         gbc.gridx = 1;
         dependenciesFoundValue = createValueLabel("-");
         summaryGrid.add(dependenciesFoundValue, gbc);
 
         // Basic Dependencies
-        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.gridx = 0; gbc.gridy = 4;
         summaryGrid.add(createKeyLabel("Basic Dependencies:"), gbc);
         gbc.gridx = 1;
         basicDependenciesValue = createValueLabel("-");
         summaryGrid.add(basicDependenciesValue, gbc);
 
         // Refactor Recipes
-        gbc.gridx = 0; gbc.gridy = 3;
+        gbc.gridx = 0; gbc.gridy = 5;
         summaryGrid.add(createKeyLabel("Refactor Recipes:"), gbc);
         gbc.gridx = 1;
         refactorRecipesValue = createValueLabel("-");
         summaryGrid.add(refactorRecipesValue, gbc);
         
         // Total Basic Issues
-        gbc.gridx = 0; gbc.gridy = 4;
+        gbc.gridx = 0; gbc.gridy = 6;
         JBLabel totalLabel = createKeyLabel("Total Basic Issues:");
         totalLabel.setFont(totalLabel.getFont().deriveFont(Font.BOLD));
         summaryGrid.add(totalLabel, gbc);
@@ -730,42 +826,42 @@ private void resetAdvancedScanCounts() {
         summaryGrid.add(totalBasicIssuesValue, gbc);
 
         // Organisational Dependencies
-        gbc.gridx = 0; gbc.gridy = 5;
+        gbc.gridx = 0; gbc.gridy = 7;
         summaryGrid.add(createKeyLabel("Organisational Deps:"), gbc);
         gbc.gridx = 1;
         organisationalDepsValue = createValueLabel("0");
         summaryGrid.add(organisationalDepsValue, gbc);
 
         // No Jakarta Equivalent
-        gbc.gridx = 0; gbc.gridy = 6;
+        gbc.gridx = 0; gbc.gridy = 8;
         summaryGrid.add(createKeyLabel("No Jakarta Equivalent:"), gbc);
         gbc.gridx = 1;
         noJakartaEquivalentValue = createValueLabel("0");
         summaryGrid.add(noJakartaEquivalentValue, gbc);
 
         // Jakarta Upgrade
-        gbc.gridx = 0; gbc.gridy = 7;
+        gbc.gridx = 0; gbc.gridy = 9;
         summaryGrid.add(createKeyLabel("Jakarta Upgrade:"), gbc);
         gbc.gridx = 1;
         jakartaUpgradeValue = createValueLabel("0");
         summaryGrid.add(jakartaUpgradeValue, gbc);
 
         // Jakarta Compatible
-        gbc.gridx = 0; gbc.gridy = 8;
+        gbc.gridx = 0; gbc.gridy = 10;
         summaryGrid.add(createKeyLabel("Jakarta Compatible:"), gbc);
         gbc.gridx = 1;
         jakartaCompatibleValue = createValueLabel("0");
         summaryGrid.add(jakartaCompatibleValue, gbc);
 
         // Unknown/Review
-        gbc.gridx = 0; gbc.gridy = 9;
+        gbc.gridx = 0; gbc.gridy = 11;
         summaryGrid.add(createKeyLabel("Unknown/Review:"), gbc);
         gbc.gridx = 1;
         unknownReviewValue = createValueLabel("0");
         summaryGrid.add(unknownReviewValue, gbc);
 
         // Separator before grand total
-        gbc.gridx = 0; gbc.gridy = 10; gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = 12; gbc.gridwidth = 2;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(10, 5, 5, 5);
         JSeparator separator = new JSeparator();
@@ -776,7 +872,7 @@ private void resetAdvancedScanCounts() {
         gbc.insets = new Insets(5, 5, 5, 5);
 
         // Grand Total across all scan types
-        gbc.gridx = 0; gbc.gridy = 11;
+        gbc.gridx = 0; gbc.gridy = 13;
         JBLabel grandTotalLabel = createKeyLabel("GRAND TOTAL:");
         grandTotalLabel.setFont(grandTotalLabel.getFont().deriveFont(Font.BOLD, 13f));
         grandTotalLabel.setForeground(new Color(0, 100, 200));
@@ -1095,6 +1191,24 @@ private void resetAdvancedScanCounts() {
             scanProgressValue.setText(scanProgress + "%");
             scanProgressValue.setForeground(getProgressColor(scanProgress));
 
+            // Update project size (total file count)
+            int totalFiles = getTotalFileCount();
+            projectSizeValue.setText(String.valueOf(totalFiles));
+            projectSizeValue.setForeground(totalFiles > 0 ? new Color(100, 100, 200) : Color.GRAY);
+
+            // Update test coverage estimate
+            double testCoverage = calculateTestCoverageEstimate();
+            basicTestCoverageValue.setText(String.format("%.0f%%", testCoverage));
+            if (testCoverage >= 80) {
+                basicTestCoverageValue.setForeground(new Color(40, 167, 69)); // Green
+            } else if (testCoverage >= 50) {
+                basicTestCoverageValue.setForeground(new Color(255, 193, 7)); // Yellow
+            } else if (testCoverage > 0) {
+                basicTestCoverageValue.setForeground(new Color(220, 53, 69)); // Red
+            } else {
+                basicTestCoverageValue.setForeground(Color.GRAY);
+            }
+
             // Update dependencies found
             DependencySummary depSummary = dashboard.getDependencySummary();
             int totalBasicIssues = 0;
@@ -1139,6 +1253,10 @@ private void resetAdvancedScanCounts() {
                 jakartaUpgradeValue.setText("0");
                 jakartaCompatibleValue.setText("0");
                 unknownReviewValue.setText("0");
+                projectSizeValue.setText("-");
+                projectSizeValue.setForeground(Color.GRAY);
+                basicTestCoverageValue.setText("-");
+                basicTestCoverageValue.setForeground(Color.GRAY);
             }
             
             // Update comprehensive summary - Basic Issues
@@ -1231,35 +1349,35 @@ private void resetAdvancedScanCounts() {
     }
 
     private int calculateEffortWeeks() {
-        // Calculate effort in weeks: square root of (risk score * 2)
-        // Using the actual risk score from RiskScoringService
+        // Calculate effort in weeks using the new exponential formula from RiskScoringService
+        // Uses default team size (5) and customer count (1) - can be enhanced with UI inputs later
         RiskScoringService riskScoringService = RiskScoringService.getInstance();
         double currentRiskScore = 0;
-        
+
         if (riskScoringService != null) {
             try {
                 // Get current scan findings for effort calculation
                 Map<String, List<RiskScoringService.RiskFinding>> scanFindings = new HashMap<>();
                 Map<String, Integer> depIssues = new HashMap<>();
-                
+
                 // Build dependency issues map from dashboard
                 DependencySummary depSummary = dashboard != null ? dashboard.getDependencySummary() : null;
                 if (depSummary != null) {
                     int noSupport = depSummary.getNoJakartaSupportCount() != null ? depSummary.getNoJakartaSupportCount() : 0;
                     int affected = depSummary.getAffectedDependencies() != null ? depSummary.getAffectedDependencies() : 0;
                     int blockers = depSummary.getBlockerDependencies() != null ? depSummary.getBlockerDependencies() : 0;
-                    
+
                     if (noSupport > 0) depIssues.put("noJakartaVersion", noSupport * 25);
                     if (affected > 0) depIssues.put("affectedDependencies", affected * 10);
                     if (blockers > 0) depIssues.put("blockerDependencies", blockers * 50);
                 }
-                
+
                 // Add basic scan findings
                 int basicCount = getBasicScanCount();
                 if (basicCount > 0) {
                     scanFindings.put("basic", createRiskFindings(basicCount, "basic"));
                 }
-                
+
                 RiskScoringService.RiskScore currentScore = riskScoringService.calculateRiskScore(
                     scanFindings, depIssues, getTotalFileCount(), getPlatformRiskScore());
                 currentRiskScore = currentScore.totalScore();
@@ -1268,14 +1386,45 @@ private void resetAdvancedScanCounts() {
                 currentRiskScore = 25; // Default to medium risk
             }
         }
-        
-        // Calculate weeks as square root of (risk score * 2)
-        int effortWeeks = (int) Math.ceil(Math.sqrt(Math.max(0, currentRiskScore * 2)));
-        
+
+        // Use team size from slider, default to 1 environment (environments removed from formula)
+        int teamSize = (devTeamSizeSlider != null) ? devTeamSizeSlider.getValue() : DEFAULT_TEAM_SIZE;
+
+        // Calculate test coverage estimate
+        double testCoverage = calculateTestCoverageEstimate();
+
+        // Apply coverage factor: lower coverage = higher effort (more testing needed)
+        // 100% coverage = 1.0x multiplier, 0% coverage = 2.0x multiplier
+        double coverageFactor = 2.0 - (testCoverage / 100.0);
+
+        // Use new exponential formula with team size only (environments parameter removed)
+        int baseEffortWeeks = riskScoringService.calculateMigrationTimeWeeks(currentRiskScore, teamSize, 1);
+
+        // Apply coverage factor to effort
+        int effortWeeks = (int) Math.ceil(baseEffortWeeks * coverageFactor);
+
         // DEBUG: Log effort calculation
-        System.out.println("DEBUG: Effort calculation - Risk Score: " + currentRiskScore + 
-                          ", Weeks: " + effortWeeks);
-        
+        System.out.println("DEBUG: Effort calculation - Risk Score: " + currentRiskScore +
+                          ", Team Size: " + teamSize +
+                          ", Test Coverage: " + String.format("%.1f%%", testCoverage) +
+                          ", Coverage Factor: " + String.format("%.2f", coverageFactor) +
+                          ", Weeks: " + effortWeeks + " (base: " + baseEffortWeeks + ")");
+
+        // Update test coverage label
+        if (testCoverageLabel != null) {
+            SwingUtilities.invokeLater(() -> {
+                testCoverageLabel.setText(String.format("%.0f%%", testCoverage));
+                // Color code based on coverage level
+                if (testCoverage >= 80) {
+                    testCoverageLabel.setForeground(new Color(40, 167, 69)); // Green - good coverage
+                } else if (testCoverage >= 50) {
+                    testCoverageLabel.setForeground(new Color(255, 193, 7)); // Yellow - moderate
+                } else {
+                    testCoverageLabel.setForeground(new Color(220, 53, 69)); // Red - low coverage
+                }
+            });
+        }
+
         return effortWeeks;
     }
     
@@ -1397,7 +1546,7 @@ private void resetAdvancedScanCounts() {
                     .filter(p -> {
                         String fileName = p.getFileName().toString();
                         // Count only source files and configuration files
-                        return fileName.endsWith(".java") || fileName.endsWith(".xml") || 
+                        return fileName.endsWith(".java") || fileName.endsWith(".xml") ||
                                fileName.endsWith(".properties") || fileName.endsWith(".yml") ||
                                fileName.endsWith(".yaml") || fileName.endsWith(".kt") ||
                                fileName.endsWith(".scala") || fileName.endsWith(".groovy");
@@ -1409,6 +1558,94 @@ private void resetAdvancedScanCounts() {
             LOG.warn("Error counting files: " + e.getMessage());
             return 0;
         }
+    }
+
+    /**
+     * Gets the test file count for the project.
+     * Test files are identified by common test naming patterns and locations.
+     */
+    private int getTestFileCount() {
+        try {
+            if (project != null && project.getBasePath() != null) {
+                java.nio.file.Path projectPath = java.nio.file.Paths.get(project.getBasePath());
+                return countTestFilesRecursively(projectPath);
+            }
+        } catch (Exception e) {
+            LOG.warn("Could not count test files: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    /**
+     * Recursively counts test files in the project directory.
+     * Identifies test files by:
+     * - Files in test directories (src/test, test/, tests/, __tests__/)
+     * - Files with test naming patterns (Test*.java, *Test.java, *Tests.java, *IT.java)
+     */
+    private int countTestFilesRecursively(java.nio.file.Path path) {
+        try {
+            return java.nio.file.Files.walk(path)
+                    .filter(java.nio.file.Files::isRegularFile)
+                    .filter(p -> {
+                        String fileName = p.getFileName().toString().toLowerCase();
+                        String pathStr = p.toString().toLowerCase();
+
+                        // Check if in test directory
+                        boolean inTestDir = pathStr.contains("/test/") ||
+                                          pathStr.contains("/tests/") ||
+                                          pathStr.contains("/__tests__/") ||
+                                          pathStr.contains("/src/test/") ||
+                                          pathStr.contains("/src/it/") ||
+                                          pathStr.contains("/integration-test/");
+
+                        // Check test file naming patterns
+                        boolean isTestFile = fileName.endsWith("test.java") ||
+                                             fileName.endsWith("tests.java") ||
+                                             fileName.endsWith("it.java") ||
+                                             fileName.startsWith("test") && fileName.endsWith(".java") ||
+                                             fileName.matches(".*test[0-9]*\\.java");
+
+                        // Kotlin test files
+                        boolean isKotlinTest = fileName.endsWith("test.kt") ||
+                                               fileName.endsWith("tests.kt") ||
+                                               fileName.endsWith("ittest.kt") ||
+                                               fileName.endsWith("spec.kt");
+
+                        return (inTestDir && (fileName.endsWith(".java") || fileName.endsWith(".kt"))) ||
+                               isTestFile || isKotlinTest;
+                    })
+                    .mapToInt(p -> 1)
+                    .limit(5000) // Cap at 5000 test files for performance
+                    .sum();
+        } catch (Exception e) {
+            LOG.warn("Error counting test files: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Calculates estimated test coverage percentage based on test file ratio.
+     * Formula: coverage = (testFiles * 1000) / totalFiles, capped at 100%
+     *
+     * Examples:
+     * - 10:1 ratio (10% test files) = 100% coverage
+     * - 100:1 ratio (1% test files) = 10% coverage
+     */
+    private double calculateTestCoverageEstimate() {
+        int totalFiles = getTotalFileCount();
+        int testFiles = getTestFileCount();
+
+        if (totalFiles == 0) {
+            return 0.0;
+        }
+
+        // Formula: (testFiles / totalFiles) * 1000 gives coverage percentage
+        // 10:1 ratio (10% are tests) -> 100% coverage
+        // 100:1 ratio (1% are tests) -> 10% coverage
+        double coverage = (testFiles * 1000.0) / totalFiles;
+
+        // Cap at 100%
+        return Math.min(coverage, 100.0);
     }
     
     /**

@@ -47,29 +47,50 @@ public class SafeLicenseChecker {
         public final boolean isCertain;
         public final boolean isFallback;
         public final long timestamp;
+        public final int daysUntilExpiration;
+        public final boolean wasTrial;
         
         public LicenseResult(boolean isLicensed, String status, boolean isCertain, boolean isFallback) {
+            this(isLicensed, status, isCertain, isFallback, -1, false);
+        }
+        
+        public LicenseResult(boolean isLicensed, String status, boolean isCertain, boolean isFallback,
+                            int daysUntilExpiration, boolean wasTrial) {
             this.isLicensed = isLicensed;
             this.status = status;
             this.isCertain = isCertain;
             this.isFallback = isFallback;
             this.timestamp = System.currentTimeMillis();
+            this.daysUntilExpiration = daysUntilExpiration;
+            this.wasTrial = wasTrial;
         }
         
         public static LicenseResult licensed(String status) {
-            return new LicenseResult(true, status, true, false);
+            return new LicenseResult(true, status, true, false, -1, false);
+        }
+        
+        public static LicenseResult licensed(String status, int daysUntilExpiration, boolean wasTrial) {
+            return new LicenseResult(true, status, true, false, daysUntilExpiration, wasTrial);
         }
         
         public static LicenseResult unlicensed(String status) {
-            return new LicenseResult(false, status, true, false);
+            return new LicenseResult(false, status, true, false, -1, false);
+        }
+        
+        public static LicenseResult unlicensed(String status, boolean wasTrial) {
+            return new LicenseResult(false, status, true, false, -1, wasTrial);
         }
         
         public static LicenseResult uncertain(String status, boolean isFallback) {
-            return new LicenseResult(false, status, false, isFallback);
+            return new LicenseResult(false, status, false, isFallback, -1, false);
         }
         
         public static LicenseResult fallback(boolean isLicensed, String status) {
-            return new LicenseResult(isLicensed, status, false, true);
+            return new LicenseResult(isLicensed, status, false, true, -1, false);
+        }
+        
+        public static LicenseResult fallback(boolean isLicensed, String status, boolean wasTrial) {
+            return new LicenseResult(isLicensed, status, false, true, -1, wasTrial);
         }
     }
     
@@ -265,10 +286,13 @@ public class SafeLicenseChecker {
                 return LicenseResult.uncertain("Checking...", false);
             }
             
+            int daysUntilExpiration = CheckLicense.getDaysUntilExpiration();
+            boolean wasTrial = CheckLicense.wasTrialEverActivated();
+            
             if (licensed) {
-                return LicenseResult.licensed(CheckLicense.getLicenseStatusString());
+                return LicenseResult.licensed(CheckLicense.getLicenseStatusString(), daysUntilExpiration, wasTrial);
             } else {
-                return LicenseResult.unlicensed(CheckLicense.getLicenseStatusString());
+                return LicenseResult.unlicensed(CheckLicense.getLicenseStatusString(), wasTrial);
             }
             
         } catch (Exception e) {
@@ -282,31 +306,33 @@ public class SafeLicenseChecker {
         // Check trial status as fallback
         try {
             String premiumProp = System.getProperty("jakarta.migration.premium");
+            String trialEnd = System.getProperty("jakarta.migration.trial.end");
+            boolean wasTrial = trialEnd != null;
+            
             if ("true".equals(premiumProp)) {
-                String trialEnd = System.getProperty("jakarta.migration.trial.end");
                 if (trialEnd != null) {
                     try {
                         long endTime = Long.parseLong(trialEnd);
                         if (System.currentTimeMillis() > endTime) {
-                            return LicenseResult.fallback(false, "Trial Expired");
+                            return LicenseResult.fallback(false, "Trial Expired", wasTrial);
                         }
                     } catch (NumberFormatException e) {
                         // Ignore
                     }
                 }
-                return LicenseResult.fallback(true, "Trial Active");
+                return LicenseResult.fallback(true, "Trial Active", wasTrial);
             }
             
             // Check if trial is forced
             if (LicenseFailsafeConfig.isTrialForced()) {
-                return LicenseResult.fallback(true, "Trial (Forced)");
+                return LicenseResult.fallback(true, "Trial (Forced)", wasTrial);
             }
             
         } catch (Exception e) {
             LOG.warn("SafeLicenseChecker: Fallback trial check failed", e);
         }
         
-        return LicenseResult.fallback(false, "Free");
+        return LicenseResult.fallback(false, "Free", false);
     }
     
     private static void updateLicenseUI(@NotNull LicenseResult result) {

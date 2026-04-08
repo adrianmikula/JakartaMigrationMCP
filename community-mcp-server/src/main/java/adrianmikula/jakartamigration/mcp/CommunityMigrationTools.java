@@ -30,7 +30,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.stream.Collectors;
+import adrianmikula.jakartamigration.mcp.util.JsonUtils;
 
 /**
  * Community Edition MCP Tools for Jakarta Migration.
@@ -63,7 +63,7 @@ public class CommunityMigrationTools {
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
             }
 
             // Default to basic scan types if not specified
@@ -151,7 +151,7 @@ public class CommunityMigrationTools {
 
         } catch (Exception e) {
             log.error("Unexpected error during basic Jakarta EE scanning", e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
+            return JsonUtils.createErrorResponse("Unexpected error: " + e.getMessage());
         }
     }
 
@@ -167,7 +167,7 @@ public class CommunityMigrationTools {
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
             }
 
             // Run dependency analysis for comprehensive scanning
@@ -227,7 +227,7 @@ public class CommunityMigrationTools {
 
         } catch (Exception e) {
             log.error("Unexpected error during Jakarta readiness analysis", e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
+            return JsonUtils.createErrorResponse("Unexpected error: " + e.getMessage());
         }
     }
 
@@ -245,7 +245,7 @@ public class CommunityMigrationTools {
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
             }
 
             // Build dependency graph
@@ -259,10 +259,10 @@ public class CommunityMigrationTools {
 
         } catch (DependencyGraphException e) {
             log.error("Failed to detect blockers: {}", e.getMessage(), e);
-            return createErrorResponse("Failed to detect blockers: " + e.getMessage());
+            return JsonUtils.createErrorResponse("Failed to detect blockers: " + e.getMessage());
         } catch (Exception e) {
             log.error("Unexpected error during blocker detection", e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
+            return JsonUtils.createErrorResponse("Unexpected error: " + e.getMessage());
         }
     }
 
@@ -280,7 +280,7 @@ public class CommunityMigrationTools {
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
             }
 
             // Run dependency analysis
@@ -290,7 +290,7 @@ public class CommunityMigrationTools {
             StringBuilder json = new StringBuilder();
             json.append("{\n");
             json.append("  \"status\": \"success\",\n");
-            json.append("  \"projectPath\": \"").append(escapeJson(projectPath)).append("\",\n");
+            json.append("  \"projectPath\": \"").append(JsonUtils.escapeJson(projectPath)).append("\",\n");
             json.append("  \"totalDependencies\": ").append(report.dependencyGraph().nodeCount()).append(",\n");
             json.append("  \"recommendations\": [\n");
             
@@ -312,10 +312,10 @@ public class CommunityMigrationTools {
 
         } catch (DependencyGraphException e) {
             log.error("Failed to recommend versions: {}", e.getMessage(), e);
-            return createErrorResponse("Failed to recommend versions: " + e.getMessage());
+            return JsonUtils.createErrorResponse("Failed to recommend versions: " + e.getMessage());
         } catch (Exception e) {
             log.error("Unexpected error during version recommendation", e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
+            return JsonUtils.createErrorResponse("Unexpected error: " + e.getMessage());
         }
     }
 
@@ -327,12 +327,12 @@ public class CommunityMigrationTools {
         json.append("  \"status\": \"success\",\n");
         json.append("  \"edition\": \"community\",\n");
         json.append("  \"readinessScore\": ").append(report.readinessScore().score()).append(",\n");
-        json.append("  \"readinessMessage\": \"").append(escapeJson(report.readinessScore().explanation())).append("\",\n");
+        json.append("  \"readinessMessage\": \"").append(JsonUtils.escapeJson(report.readinessScore().explanation())).append("\",\n");
         json.append("  \"totalDependencies\": ").append(report.dependencyGraph().nodeCount()).append(",\n");
         json.append("  \"blockers\": ").append(report.blockers().size()).append(",\n");
         json.append("  \"recommendations\": ").append(report.recommendations().size()).append(",\n");
         json.append("  \"riskScore\": ").append(report.riskAssessment().riskScore()).append(",\n");
-        json.append("  \"riskFactors\": ").append(buildStringArray(report.riskAssessment().riskFactors())).append("\n");
+        json.append("  \"riskFactors\": ").append(JsonUtils.buildStringArray(report.riskAssessment().riskFactors())).append("\n");
         json.append("}");
         return json.toString();
     }
@@ -347,11 +347,11 @@ public class CommunityMigrationTools {
         for (int i = 0; i < blockers.size(); i++) {
             Blocker blocker = blockers.get(i);
             json.append("    {\n");
-            json.append("      \"artifact\": \"").append(escapeJson(blocker.artifact().toString())).append("\",\n");
+            json.append("      \"artifact\": \"").append(JsonUtils.escapeJson(blocker.artifact().toString())).append("\",\n");
             json.append("      \"type\": \"").append(blocker.type()).append("\",\n");
-            json.append("      \"reason\": \"").append(escapeJson(blocker.reason())).append("\",\n");
+            json.append("      \"reason\": \"").append(JsonUtils.escapeJson(blocker.reason())).append("\",\n");
             json.append("      \"confidence\": ").append(blocker.confidence()).append(",\n");
-            json.append("      \"mitigationStrategies\": ").append(buildStringArray(blocker.mitigationStrategies()))
+            json.append("      \"mitigationStrategies\": ").append(JsonUtils.buildStringArray(blocker.mitigationStrategies()))
                     .append("\n");
             json.append("    }");
             if (i < blockers.size() - 1) {
@@ -363,30 +363,4 @@ public class CommunityMigrationTools {
         return json.toString();
     }
 
-    private String createErrorResponse(String message) {
-        return "{\n" +
-                "  \"status\": \"error\",\n" +
-                "  \"message\": \"" + escapeJson(message) + "\"\n" +
-                "}";
-    }
-
-    private String buildStringArray(List<String> list) {
-        if (list.isEmpty()) {
-            return "[]";
-        }
-        return "[" + list.stream()
-                .map(s -> "\"" + escapeJson(s) + "\"")
-                .collect(Collectors.joining(", ")) + "]";
-    }
-
-    private String escapeJson(String str) {
-        if (str == null) {
-            return "";
-        }
-        return str.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
-    }
 }

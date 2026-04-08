@@ -484,4 +484,61 @@ public class CheckLicense {
         lastCheckTime = 0;
         LOG.info("CheckLicense: Cache cleared");
     }
+
+    /**
+     * Gets the number of days until license/trial expiration.
+     * Returns -1 if no expiration date is set or if already expired.
+     * Returns 0 if expiration is today.
+     * 
+     * @return Days until expiration, or -1 if not applicable
+     */
+    public static int getDaysUntilExpiration() {
+        String trialEnd = System.getProperty("jakarta.migration.trial.end");
+        if (trialEnd != null) {
+            try {
+                long endTime = Long.parseLong(trialEnd);
+                long remaining = endTime - System.currentTimeMillis();
+                if (remaining <= 0) {
+                    return -1; // Already expired
+                }
+                return (int) (remaining / (24 * 60 * 60 * 1000));
+            } catch (NumberFormatException e) {
+                LOG.warn("CheckLicense: Invalid trial end time format", e);
+                return -1;
+            }
+        }
+        return -1; // No expiration date set
+    }
+
+    /**
+     * Checks if trial was ever activated (based on trial end property being set).
+     * This is useful for distinguishing between expired trial vs never started.
+     * 
+     * @return true if trial end date is set in system properties
+     */
+    public static boolean wasTrialEverActivated() {
+        return System.getProperty("jakarta.migration.trial.end") != null;
+    }
+
+    /**
+     * Checks if the current license state is in trial mode.
+     * Returns true only if premium is active and trial end date is set.
+     * 
+     * @return true if currently in trial mode
+     */
+    public static boolean isInTrialMode() {
+        String premiumProp = System.getProperty("jakarta.migration.premium");
+        String trialEnd = System.getProperty("jakarta.migration.trial.end");
+        
+        if (!"true".equals(premiumProp) || trialEnd == null) {
+            return false;
+        }
+        
+        try {
+            long endTime = Long.parseLong(trialEnd);
+            return System.currentTimeMillis() <= endTime;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
 }

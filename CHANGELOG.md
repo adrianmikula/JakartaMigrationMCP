@@ -5,6 +5,26 @@ All notable changes to the Jakarta Migration IntelliJ plugin will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] - 2026-04-08
+
+### Added
+- Added license expiry notification
+
+### Fixed
+- Fixed memory leaks when scanning large projects
+- Re-organized main dashboard scan results summary
+- Major code refactor and simplification
+
+## [1.0.10] - 2026-04-06
+
+### Added
+- Added risk score dial and estimated migration time
+
+### Fixed
+- Fixed memory leaks when scanning large projects
+- Fixed recommendation of jakarta compatible upgrades
+- Major platform detection and integration testing overhaul
+
 ## [1.0.9] - 2026-04-02
 
 ### Added

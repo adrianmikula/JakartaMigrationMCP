@@ -13,6 +13,7 @@ import org.openrewrite.SourceFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -94,6 +95,13 @@ public class DeprecatedApiScannerImpl implements DeprecatedApiScanner {
 
         private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
 
+        // Parallelism configuration - can be overridden via system property
+        private static final int MAX_PARALLELISM = Integer.parseInt(
+                        System.getProperty("advanced.scan.parallelism", "4"));
+
+        // Memory threshold for sequential fallback (100MB)
+        private static final long MEMORY_THRESHOLD_BYTES = 100 * 1024 * 1024;
+
         @Override
         public DeprecatedApiProjectScanResult scanProject(Path projectPath) {
                 if (projectPath == null || !Files.exists(projectPath) || !Files.isDirectory(projectPath)) {
@@ -105,15 +113,49 @@ public class DeprecatedApiScannerImpl implements DeprecatedApiScanner {
                         if (javaFiles.isEmpty())
                                 return DeprecatedApiProjectScanResult.empty();
 
+                        // Check available memory and determine parallelism
+                        Runtime runtime = Runtime.getRuntime();
+                        long maxMemory = runtime.maxMemory();
+                        long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+                        long availableMemory = maxMemory - usedMemory;
+
                         AtomicInteger totalScanned = new AtomicInteger(0);
-                        List<DeprecatedApiScanResult> results = javaFiles.parallelStream()
-                                        .map(file -> {
-                                                totalScanned.incrementAndGet();
-                                                DeprecatedApiScanResult result = scanFile(file);
-                                                return result.hasJavaxUsage() ? result : null;
-                                        })
-                                        .filter(Objects::nonNull)
-                                        .collect(Collectors.toList());
+                        List<DeprecatedApiScanResult> results;
+
+                        // Use sequential processing if low on memory, otherwise use bounded parallelism
+                        if (availableMemory < MEMORY_THRESHOLD_BYTES) {
+                                log.info("Low memory detected ({} MB available), using sequential processing for Deprecated API scan",
+                                                availableMemory / (1024 * 1024));
+                                results = javaFiles.stream()
+                                                .map(file -> scanFileWithTracking(file, totalScanned))
+                                                .filter(Objects::nonNull)
+                                                .collect(Collectors.toList());
+                        } else {
+                                // Use bounded parallelism with custom ForkJoinPool
+                                int parallelism = Math.min(MAX_PARALLELISM, javaFiles.size());
+                                log.debug("Using parallel processing with parallelism={} for Deprecated API scan", parallelism);
+
+                                ForkJoinPool customPool = new ForkJoinPool(parallelism);
+                                try {
+                                        results = customPool.submit(() ->
+                                                        javaFiles.parallelStream()
+                                                                        .map(file -> scanFileWithTracking(file, totalScanned))
+                                                                        .filter(Objects::nonNull)
+                                                                        .collect(Collectors.toList())
+                                        ).get();
+                                } catch (Exception e) {
+                                        log.warn("Parallel scan failed for Deprecated API, falling back to sequential: {}", e.getMessage());
+                                        results = javaFiles.stream()
+                                                        .map(file -> scanFileWithTracking(file, totalScanned))
+                                                        .filter(Objects::nonNull)
+                                                        .collect(Collectors.toList());
+                                } finally {
+                                        customPool.shutdown();
+                                }
+                        }
+
+                        // Cleanup ThreadLocal to prevent memory leaks
+                        cleanupThreadLocal();
 
                         int totalUsages = results.stream().mapToInt(r -> r.usages().size()).sum();
 
@@ -198,5 +240,26 @@ public class DeprecatedApiScannerImpl implements DeprecatedApiScanner {
                                 return i + 1;
                 }
                 return 1;
+        }
+
+        /**
+         * Scans a single file with tracking for parallel processing.
+         */
+        private DeprecatedApiScanResult scanFileWithTracking(Path filePath, AtomicInteger totalScanned) {
+                totalScanned.incrementAndGet();
+                DeprecatedApiScanResult result = scanFile(filePath);
+                return result.hasJavaxUsage() ? result : null;
+        }
+
+        /**
+         * Cleans up ThreadLocal JavaParser instances to prevent memory leaks.
+         * Should be called after project scan completes.
+         */
+        private void cleanupThreadLocal() {
+                try {
+                        javaParserThreadLocal.remove();
+                } catch (Exception e) {
+                        log.debug("Error cleaning up ThreadLocal: {}", e.getMessage());
+                }
         }
 }

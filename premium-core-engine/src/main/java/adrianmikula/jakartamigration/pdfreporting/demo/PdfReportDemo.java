@@ -119,6 +119,7 @@ public class PdfReportDemo {
             dependencyGraph,
             null,
             scanResults,
+            null,
             pdfService.getDefaultTemplate(),
             customData
         );

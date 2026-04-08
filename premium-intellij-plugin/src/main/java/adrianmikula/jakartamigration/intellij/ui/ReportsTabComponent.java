@@ -269,6 +269,7 @@ public class ReportsTabComponent {
                 dependencyGraph,
                 null,
                 scanResults,
+                null,
                 pdfReportService.getDefaultTemplate(),
                 customData
             );

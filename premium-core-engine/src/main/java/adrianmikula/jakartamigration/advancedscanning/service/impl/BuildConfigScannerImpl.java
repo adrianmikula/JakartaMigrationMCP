@@ -1,27 +1,28 @@
 package adrianmikula.jakartamigration.advancedscanning.service.impl;
 
-import adrianmikula.jakartamigration.advancedscanning.domain.BuildConfigProjectScanResult;
-import adrianmikula.jakartamigration.advancedscanning.domain.BuildConfigScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.BuildConfigUsage;
+import adrianmikula.jakartamigration.advancedscanning.domain.FileScanResult;
+import adrianmikula.jakartamigration.advancedscanning.domain.ProjectScanResult;
+import adrianmikula.jakartamigration.advancedscanning.service.BaseScanner;
 import adrianmikula.jakartamigration.advancedscanning.service.BuildConfigScanner;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import java.util.HashMap;
 
 import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 
 @Slf4j
-public class BuildConfigScannerImpl implements BuildConfigScanner {
-
-    private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
+public class BuildConfigScannerImpl extends BaseScanner<BuildConfigUsage> implements BuildConfigScanner {
 
     // Map of javax.* dependencies to Jakarta equivalents
     private static final Map<String, String[]> DEPENDENCY_MAPPINGS = new HashMap<>();
@@ -81,10 +82,10 @@ public class BuildConfigScannerImpl implements BuildConfigScanner {
     }
 
     @Override
-    public BuildConfigProjectScanResult scanProject(Path projectPath) {
+    public ProjectScanResult<FileScanResult<BuildConfigUsage>> scanProject(Path projectPath) {
         if (projectPath == null || !Files.exists(projectPath) || !Files.isDirectory(projectPath)) {
             log.warn("Invalid project path: {}", projectPath);
-            return BuildConfigProjectScanResult.empty();
+            return ProjectScanResult.empty();
         }
 
         try {
@@ -92,23 +93,23 @@ public class BuildConfigScannerImpl implements BuildConfigScanner {
 
             if (buildFiles.isEmpty()) {
                 log.info("No build files found in project: {}", projectPath);
-                return BuildConfigProjectScanResult.empty();
+                return ProjectScanResult.empty();
             }
 
             log.info("Scanning {} build files in project: {}", buildFiles.size(), projectPath);
 
             AtomicInteger totalScanned = new AtomicInteger(0);
-            List<BuildConfigScanResult> results = new ArrayList<>();
-
-            buildFiles.parallelStream().forEach(file -> {
-                totalScanned.incrementAndGet();
-                BuildConfigScanResult result = scanFile(file);
-                if (result.hasJavaxDependencies()) {
-                    synchronized (results) {
-                        results.add(result);
-                    }
-                }
-            });
+            List<FileScanResult<BuildConfigUsage>> results = buildFiles.parallelStream()
+                    .map(file -> {
+                        totalScanned.incrementAndGet();
+                        FileScanResult<BuildConfigUsage> result = scanFile(file);
+                        if (result.hasIssues()) {
+                            return result;
+                        }
+                        return null;
+                    })
+                    .filter(java.util.Objects::nonNull)
+                    .collect(Collectors.toList());
 
             int totalDeps = results.stream()
                     .mapToInt(r -> r.usages().size())
@@ -117,62 +118,46 @@ public class BuildConfigScannerImpl implements BuildConfigScanner {
             log.info("Build config scan complete: {} files scanned, {} files with javax deps, {} total deps",
                     totalScanned.get(), results.size(), totalDeps);
 
-            return new BuildConfigProjectScanResult(
-                    results,
-                    totalScanned.get(),
-                    results.size(),
-                    totalDeps);
+            return new ProjectScanResult<>(results, totalScanned.get(), results.size(), totalDeps);
 
         } catch (Exception e) {
             log.error("Error scanning project for build config: {}", projectPath, e);
-            return BuildConfigProjectScanResult.empty();
+            return ProjectScanResult.empty();
         }
     }
 
     @Override
-    public BuildConfigScanResult scanFile(Path filePath) {
-        if (filePath == null || !Files.exists(filePath)) {
-            return BuildConfigScanResult.empty(filePath);
+    public FileScanResult<BuildConfigUsage> scanFile(Path filePath) {
+        Path validatedPath = validateFilePath(filePath);
+        if (validatedPath == null) {
+            return FileScanResult.empty(filePath);
         }
 
         try {
-            String content = Files.readString(filePath);
+            String content = Files.readString(validatedPath);
             String fileName = filePath.getFileName().toString();
-            String buildType = determineBuildType(fileName);
 
             List<BuildConfigUsage> usages = new ArrayList<>();
 
-            if ("pom.xml".equals(buildType)) {
+            if (fileName.equals("pom.xml")) {
                 usages = parsePomXml(content, filePath);
-            } else if (buildType.startsWith("build.gradle")) {
+            } else if (fileName.startsWith("build.gradle")) {
                 usages = parseGradle(content, filePath);
             }
 
-            return new BuildConfigScanResult(filePath, usages, buildType);
+            return new FileScanResult<>(filePath, usages, content.split("\n").length);
 
         } catch (Exception e) {
             log.warn("Error scanning build file: {}", filePath, e);
-            return BuildConfigScanResult.empty(filePath);
+            return FileScanResult.empty(filePath);
         }
     }
 
     private List<Path> discoverBuildFiles(Path projectPath) {
         return fileScanner.findFiles(projectPath, path -> {
             String name = path.getFileName().toString();
-            return "pom.xml".equals(name) ||
-                    name.startsWith("build.gradle") ||
-                    name.endsWith(".gradle");
+            return "pom.xml".equals(name) || name.startsWith("build.gradle") || name.endsWith(".gradle");
         });
-    }
-
-    private String determineBuildType(String fileName) {
-        if (fileName.equals("pom.xml"))
-            return "pom.xml";
-        if (fileName.endsWith(".gradle.kts"))
-            return "build.gradle.kts";
-        if (fileName.startsWith("build.gradle"))
-            return "build.gradle";
-        return "unknown";
     }
 
     private List<BuildConfigUsage> parsePomXml(String content, Path filePath) {
@@ -241,14 +226,5 @@ public class BuildConfigScannerImpl implements BuildConfigScanner {
         }
 
         return usages;
-    }
-
-    private int findLineNumber(String[] lines, String searchText) {
-        for (int i = 0; i < lines.length; i++) {
-            if (lines[i].contains(searchText)) {
-                return i + 1;
-            }
-        }
-        return 1;
     }
 }

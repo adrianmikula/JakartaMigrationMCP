@@ -592,39 +592,38 @@ public class AdvancedScansComponent {
 
     private void displayResults(AdvancedScanningService.AdvancedScanSummary summary) {
         // Display JPA results
-        JpaProjectScanResult jpaResult = summary.jpaResult();
+        ProjectScanResult<FileScanResult<JpaAnnotationUsage>> jpaResult = summary.jpaResult();
         int jpaIssues = 0;
         if (jpaResult != null) {
             displayJpaResults(jpaResult);
-            jpaIssues = jpaResult.hasJavaxUsage() ? jpaResult.totalAnnotationsFound() : 0;
+            jpaIssues = jpaResult.hasIssues() ? jpaResult.totalIssuesFound() : 0;
         }
         updateTabTitle(0, "JPA Annotations", jpaIssues);
 
         // Display Bean Validation results
-        BeanValidationProjectScanResult beanValidationResult = summary.beanValidationResult();
+        ProjectScanResult<FileScanResult<JavaxUsage>> beanValidationResult = summary.beanValidationResult();
         int bvIssues = 0;
         if (beanValidationResult != null) {
             displayBeanValidationResults(beanValidationResult);
-            bvIssues = beanValidationResult.hasJavaxUsage() ? beanValidationResult.totalAnnotationsFound() : 0;
+            bvIssues = beanValidationResult.hasIssues() ? beanValidationResult.totalIssuesFound() : 0;
         }
         updateTabTitle(1, "Bean Validation", bvIssues);
 
         // Display Servlet/JSP results
-        ServletJspProjectScanResult servletJspResult = summary.servletJspResult();
+        ProjectScanResult<FileScanResult<ServletJspUsage>> servletJspResult = summary.servletJspResult();
         int servletJspIssues = 0;
         if (servletJspResult != null) {
             displayServletJspResults(servletJspResult);
-            servletJspIssues = servletJspResult.hasJavaxUsage() ? servletJspResult.totalUsagesFound() : 0;
+            servletJspIssues = servletJspResult.hasIssues() ? servletJspResult.totalIssuesFound() : 0;
         }
         updateTabTitle(2, "Servlet/JSP", servletJspIssues);
 
         // Display Build Config results
-        BuildConfigProjectScanResult buildConfigResult = summary.buildConfigResult();
+        ProjectScanResult<FileScanResult<BuildConfigUsage>> buildConfigResult = summary.buildConfigResult();
         int buildConfigIssues = 0;
         if (buildConfigResult != null) {
             displayBuildConfigResults(buildConfigResult);
-            buildConfigIssues = buildConfigResult.hasJavaxDependencies() ? buildConfigResult.totalDependenciesFound()
-                    : 0;
+            buildConfigIssues = buildConfigResult.hasIssues() ? buildConfigResult.totalIssuesFound() : 0;
         }
         updateTabTitle(3, "Build Config", buildConfigIssues);
 
@@ -648,20 +647,20 @@ public class AdvancedScansComponent {
         updateTabTitle(5, "Deprecated API", deprecatedApiIssues);
 
         // Display CDI Injection results
-        CdiInjectionProjectScanResult cdiInjectionResult = summary.cdiInjectionResult();
+        ProjectScanResult<FileScanResult<JavaxUsage>> cdiInjectionResult = summary.cdiInjectionResult();
         int cdiIssues = 0;
         if (cdiInjectionResult != null) {
             displayCdiInjectionResults(cdiInjectionResult);
-            cdiIssues = cdiInjectionResult.hasJavaxUsage() ? cdiInjectionResult.totalAnnotationsFound() : 0;
+            cdiIssues = cdiInjectionResult.hasIssues() ? cdiInjectionResult.totalIssuesFound() : 0;
         }
         updateTabTitle(6, "CDI Injection", cdiIssues);
 
         // Display REST/SOAP results
-        RestSoapProjectScanResult restSoapResult = summary.restSoapResult();
+        ProjectScanResult<FileScanResult<JavaxUsage>> restSoapResult = summary.restSoapResult();
         int restSoapIssues = 0;
         if (restSoapResult != null) {
             displayRestSoapResults(restSoapResult);
-            restSoapIssues = restSoapResult.hasJavaxUsage() ? restSoapResult.totalUsagesFound() : 0;
+            restSoapIssues = restSoapResult.hasIssues() ? restSoapResult.totalIssuesFound() : 0;
         }
         updateTabTitle(7, "REST/SOAP", restSoapIssues);
 
@@ -727,17 +726,17 @@ public class AdvancedScansComponent {
         notifyScanComplete();
     }
 
-    private void displayJpaResults(JpaProjectScanResult result) {
+    private void displayJpaResults(ProjectScanResult<FileScanResult<JpaAnnotationUsage>> result) {
         DefaultTableModel model = (DefaultTableModel) jpaTable.getModel();
         model.setRowCount(0);
 
-        if (result.hasJavaxUsage()) {
+        if (result.hasIssues()) {
             jpaStatusLabel.setText(String.format("Found %d annotations in %d files",
-                    result.totalAnnotationsFound(), result.totalFilesWithJavaxUsage()));
+                    result.totalIssuesFound(), result.filesWithIssues()));
             jpaStatusLabel.setForeground(new Color(200, 100, 0));
 
             for (var fileResult : result.fileResults()) {
-                for (var annotation : fileResult.annotations()) {
+                for (var annotation : fileResult.usages()) {
                     model.addRow(new Object[] {
                             fileResult.filePath().getFileName(),
                             annotation.lineNumber(),
@@ -753,22 +752,22 @@ public class AdvancedScansComponent {
         }
     }
 
-    private void displayBeanValidationResults(BeanValidationProjectScanResult result) {
+    private void displayBeanValidationResults(ProjectScanResult<FileScanResult<JavaxUsage>> result) {
         DefaultTableModel model = (DefaultTableModel) beanValidationTable.getModel();
         model.setRowCount(0);
 
-        if (result.hasJavaxUsage()) {
+        if (result.hasIssues()) {
             beanValidationStatusLabel.setText(String.format("Found %d constraints in %d files",
-                    result.totalAnnotationsFound(), result.totalFilesWithJavaxUsage()));
+                    result.totalIssuesFound(), result.filesWithIssues()));
             beanValidationStatusLabel.setForeground(new Color(200, 100, 0));
 
             for (var fileResult : result.fileResults()) {
-                for (var annotation : fileResult.annotations()) {
+                for (var usage : fileResult.usages()) {
                     model.addRow(new Object[] {
                             fileResult.filePath().getFileName(),
-                            annotation.lineNumber(),
-                            annotation.annotationName(),
-                            annotation.jakartaEquivalent(),
+                            usage.lineNumber(),
+                            usage.className(),
+                            usage.jakartaEquivalent(),
                             fileResult.filePath().toString()
                     });
                 }
@@ -779,13 +778,13 @@ public class AdvancedScansComponent {
         }
     }
 
-    private void displayServletJspResults(ServletJspProjectScanResult result) {
+    private void displayServletJspResults(ProjectScanResult<FileScanResult<ServletJspUsage>> result) {
         DefaultTableModel model = (DefaultTableModel) servletJspTable.getModel();
         model.setRowCount(0);
 
-        if (result.hasJavaxUsage()) {
+        if (result.hasIssues()) {
             servletJspStatusLabel.setText(String.format("Found %d usages in %d files",
-                    result.totalUsagesFound(), result.totalFilesWithJavaxUsage()));
+                    result.totalIssuesFound(), result.filesWithIssues()));
             servletJspStatusLabel.setForeground(new Color(200, 100, 0));
 
             for (var fileResult : result.fileResults()) {
@@ -806,13 +805,13 @@ public class AdvancedScansComponent {
         }
     }
 
-    private void displayBuildConfigResults(BuildConfigProjectScanResult result) {
+    private void displayBuildConfigResults(ProjectScanResult<FileScanResult<BuildConfigUsage>> result) {
         DefaultTableModel model = (DefaultTableModel) buildConfigTable.getModel();
         model.setRowCount(0);
 
-        if (result.hasJavaxDependencies()) {
+        if (result.hasIssues()) {
             buildConfigStatusLabel.setText(String.format("Found %d dependencies in %d files",
-                    result.totalDependenciesFound(), result.totalFilesWithJavaxDependencies()));
+                    result.totalIssuesFound(), result.filesWithIssues()));
             buildConfigStatusLabel.setForeground(new Color(200, 100, 0));
 
             for (var fileResult : result.fileResults()) {
@@ -886,13 +885,13 @@ public class AdvancedScansComponent {
         }
     }
 
-    private void displayCdiInjectionResults(CdiInjectionProjectScanResult result) {
+    private void displayCdiInjectionResults(ProjectScanResult<FileScanResult<JavaxUsage>> result) {
         DefaultTableModel model = (DefaultTableModel) cdiInjectionTable.getModel();
         model.setRowCount(0);
 
-        if (result.hasJavaxUsage()) {
+        if (result.hasIssues()) {
             cdiInjectionStatusLabel.setText(String.format("Found %d usages in %d files",
-                    result.totalAnnotationsFound(), result.totalFilesWithJavaxUsage()));
+                    result.totalIssuesFound(), result.filesWithIssues()));
             cdiInjectionStatusLabel.setForeground(new Color(200, 100, 0));
 
             for (var fileResult : result.fileResults()) {
@@ -912,13 +911,13 @@ public class AdvancedScansComponent {
         }
     }
 
-    private void displayRestSoapResults(RestSoapProjectScanResult result) {
+    private void displayRestSoapResults(ProjectScanResult<FileScanResult<JavaxUsage>> result) {
         DefaultTableModel model = (DefaultTableModel) restSoapTable.getModel();
         model.setRowCount(0);
 
-        if (result.hasJavaxUsage()) {
+        if (result.hasIssues()) {
             restSoapStatusLabel.setText(String.format("Found %d usages in %d files",
-                    result.totalUsagesFound(), result.totalFilesWithJavaxUsage()));
+                    result.totalIssuesFound(), result.filesWithIssues()));
             restSoapStatusLabel.setForeground(new Color(200, 100, 0));
 
             for (var fileResult : result.fileResults()) {

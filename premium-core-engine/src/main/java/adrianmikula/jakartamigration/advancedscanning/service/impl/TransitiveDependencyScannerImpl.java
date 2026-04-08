@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -71,6 +72,13 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
     private record TransitiveDependencyInfo(String jakartaEquivalent, String severity, String recommendation) {
     }
 
+    // Parallelism configuration - can be overridden via system property
+    private static final int MAX_PARALLELISM = Integer.parseInt(
+            System.getProperty("advanced.scan.parallelism", "4"));
+
+    // Memory threshold for sequential fallback (100MB)
+    private static final long MEMORY_THRESHOLD_BYTES = 100 * 1024 * 1024;
+
     // Patterns for Maven pom.xml
     private static final Pattern MAVEN_DEPENDENCY_PATTERN = Pattern.compile(
             "<dependency>\\s*<groupId>([^<]+)</groupId>\\s*<artifactId>([^<]+)</artifactId>\\s*<version>([^<]*)</version>",
@@ -92,15 +100,46 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
             if (buildFiles.isEmpty())
                 return TransitiveDependencyProjectScanResult.empty();
 
+            // Check available memory and determine parallelism
+            Runtime runtime = Runtime.getRuntime();
+            long maxMemory = runtime.maxMemory();
+            long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+            long availableMemory = maxMemory - usedMemory;
+
             AtomicInteger totalScanned = new AtomicInteger(0);
-            List<TransitiveDependencyScanResult> results = buildFiles.parallelStream()
-                    .map(file -> {
-                        totalScanned.incrementAndGet();
-                        TransitiveDependencyScanResult result = scanFile(file);
-                        return result.hasJavaxUsage() ? result : null;
-                    })
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
+            List<TransitiveDependencyScanResult> results;
+
+            // Use sequential processing if low on memory, otherwise use bounded parallelism
+            if (availableMemory < MEMORY_THRESHOLD_BYTES) {
+                log.info("Low memory detected ({} MB available), using sequential processing for Transitive Dependency scan",
+                        availableMemory / (1024 * 1024));
+                results = buildFiles.stream()
+                        .map(file -> scanFileWithTracking(file, totalScanned))
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+            } else {
+                // Use bounded parallelism with custom ForkJoinPool
+                int parallelism = Math.min(MAX_PARALLELISM, buildFiles.size());
+                log.debug("Using parallel processing with parallelism={} for Transitive Dependency scan", parallelism);
+
+                ForkJoinPool customPool = new ForkJoinPool(parallelism);
+                try {
+                    results = customPool.submit(() ->
+                            buildFiles.parallelStream()
+                                    .map(file -> scanFileWithTracking(file, totalScanned))
+                                    .filter(Objects::nonNull)
+                                    .collect(Collectors.toList())
+                    ).get();
+                } catch (Exception e) {
+                    log.warn("Parallel scan failed for Transitive Dependency, falling back to sequential: {}", e.getMessage());
+                    results = buildFiles.stream()
+                            .map(file -> scanFileWithTracking(file, totalScanned))
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toList());
+                } finally {
+                    customPool.shutdown();
+                }
+            }
 
             int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
 
@@ -196,5 +235,14 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         }
 
         return usages;
+    }
+
+    /**
+     * Scans a single file with tracking for parallel processing.
+     */
+    private TransitiveDependencyScanResult scanFileWithTracking(Path filePath, AtomicInteger totalScanned) {
+        totalScanned.incrementAndGet();
+        TransitiveDependencyScanResult result = scanFile(filePath);
+        return result.hasJavaxUsage() ? result : null;
     }
 }

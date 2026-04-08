@@ -6,7 +6,6 @@ import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import adrianmikula.jakartamigration.platforms.model.PlatformConfig;
 import adrianmikula.jakartamigration.platforms.model.JakartaCompatibility;
 import adrianmikula.jakartamigration.platforms.service.SimplifiedPlatformDetectionService;
-import adrianmikula.jakartamigration.platforms.service.EnhancedPlatformDetectionService;
 import adrianmikula.jakartamigration.platforms.config.PlatformConfigLoader;
 import adrianmikula.jakartamigration.platforms.config.RiskScoringConfig;
 import adrianmikula.jakartamigration.intellij.util.DevModeLogger;
@@ -33,7 +32,6 @@ public class PlatformsTabComponent {
     private static final Logger log = LoggerFactory.getLogger(PlatformsTabComponent.class);
     private final Project project;
     private final SimplifiedPlatformDetectionService detectionService;
-    private final EnhancedPlatformDetectionService enhancedDetectionService;
     private final PlatformConfigLoader configLoader;
     
     // Main UI components
@@ -56,7 +54,6 @@ public class PlatformsTabComponent {
         this.project = project;
         this.configLoader = new PlatformConfigLoader();
         this.detectionService = new SimplifiedPlatformDetectionService();
-        this.enhancedDetectionService = new EnhancedPlatformDetectionService(configLoader);
         this.platformPanels = new ArrayList<>();
         initializeUI();
     }
@@ -125,8 +122,8 @@ public class PlatformsTabComponent {
         SwingWorker<EnhancedPlatformScanResult, Void> worker = new SwingWorker<>() {
             @Override
             protected EnhancedPlatformScanResult doInBackground() throws Exception {
-                System.out.println("[DEBUG] Calling enhancedDetectionService.scanProjectWithArtifacts()");
-                EnhancedPlatformScanResult result = enhancedDetectionService.scanProjectWithArtifacts(java.nio.file.Paths.get(project.getBasePath()));
+                System.out.println("[DEBUG] Calling detectionService.scanProjectWithArtifacts()");
+                EnhancedPlatformScanResult result = detectionService.scanProjectWithArtifacts(java.nio.file.Paths.get(project.getBasePath()));
                 System.out.println("[DEBUG] Scan completed. Found platforms: " + result.getDetectedPlatforms());
                 return result;
             }

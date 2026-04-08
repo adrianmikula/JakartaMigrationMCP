@@ -1,6 +1,6 @@
 package adrianmikula.jakartamigration.intellij.ui.components;
 
-import adrianmikula.jakartamigration.intellij.service.RiskScoringService;
+import adrianmikula.jakartamigration.risk.RiskScoringService;
 
 import javax.swing.*;
 import java.awt.*;

@@ -1,6 +1,6 @@
 package adrianmikula.jakartamigration.intellij.service;
 
-import adrianmikula.jakartamigration.intellij.service.RiskScoringService;
+import adrianmikula.jakartamigration.risk.RiskScoringService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

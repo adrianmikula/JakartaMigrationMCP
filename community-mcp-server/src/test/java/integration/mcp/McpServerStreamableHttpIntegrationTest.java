@@ -12,10 +12,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -198,7 +194,7 @@ class McpServerStreamableHttpIntegrationTest {
     @Disabled("Tool analyzeJakartaReadiness no longer exists in community edition")
     @DisplayName("Should handle analyzeJakartaReadiness tool call")
     void testAnalyzeJakartaReadinessTool() throws Exception {
-        Path testProject = createTestProject();
+        Path testProject = TestProjectHelper.createTestProject();
         
         try {
             Map<String, Object> request = Map.of(
@@ -229,14 +225,14 @@ class McpServerStreamableHttpIntegrationTest {
             assertThat(text).contains("\"status\"");
             
         } finally {
-            deleteTestProject(testProject);
+            TestProjectHelper.deleteTestProject(testProject);
         }
     }
 
     @Test
     @Disabled("Tool detectBlockers no longer exists in community edition")
     void testDetectBlockersTool() throws Exception {
-        Path testProject = createTestProject();
+        Path testProject = TestProjectHelper.createTestProject();
         
         try {
             Map<String, Object> request = Map.of(
@@ -267,13 +263,13 @@ class McpServerStreamableHttpIntegrationTest {
             assertThat(text).contains("\"status\"");
             
         } finally {
-            deleteTestProject(testProject);
+            TestProjectHelper.deleteTestProject(testProject);
         }
     }
 
     @Test
     void testRecommendVersionsTool() throws Exception {
-        Path testProject = createTestProject();
+        Path testProject = TestProjectHelper.createTestProject();
         
         try {
             Map<String, Object> request = Map.of(
@@ -304,14 +300,14 @@ class McpServerStreamableHttpIntegrationTest {
             assertThat(text).contains("\"status\"");
             
         } finally {
-            deleteTestProject(testProject);
+            TestProjectHelper.deleteTestProject(testProject);
         }
     }
 
     @Test
     @Disabled("Tool createMigrationPlan no longer exists in community edition")
     void testCreateMigrationPlanTool() throws Exception {
-        Path testProject = createTestProject();
+        Path testProject = TestProjectHelper.createTestProject();
         
         try {
             Map<String, Object> request = Map.of(
@@ -342,7 +338,7 @@ class McpServerStreamableHttpIntegrationTest {
             assertThat(text).contains("\"status\"");
             
         } finally {
-            deleteTestProject(testProject);
+            TestProjectHelper.deleteTestProject(testProject);
         }
     }
 
@@ -474,62 +470,4 @@ class McpServerStreamableHttpIntegrationTest {
         assertThat(jsonResponse.has("result")).isTrue();
     }
 
-    /**
-     * Create a minimal test project for testing Jakarta migration tools.
-     */
-    private Path createTestProject() {
-        try {
-            Path testProject = Paths.get(System.getProperty("java.io.tmpdir"), "mcp-test-project-" + System.currentTimeMillis());
-            testProject.toFile().mkdirs();
-            
-            // Create a minimal pom.xml
-            Path pomXml = testProject.resolve("pom.xml");
-            Files.writeString(pomXml, """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <project xmlns="http://maven.apache.org/POM/4.0.0"
-                         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
-                         http://maven.apache.org/xsd/maven-4.0.0.xsd">
-                    <modelVersion>4.0.0</modelVersion>
-                    <groupId>com.test</groupId>
-                    <artifactId>test-project</artifactId>
-                    <version>1.0.0</version>
-                    <dependencies>
-                        <dependency>
-                            <groupId>javax.servlet</groupId>
-                            <artifactId>javax.servlet-api</artifactId>
-                            <version>4.0.1</version>
-                        </dependency>
-                    </dependencies>
-                </project>
-                """);
-            
-            return testProject;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to create test project", e);
-        }
-    }
-
-    private void deleteTestProject(Path testProject) {
-        try {
-            if (testProject != null && testProject.toFile().exists()) {
-                deleteRecursively(testProject.toFile());
-            }
-        } catch (Exception e) {
-            // Ignore cleanup errors
-        }
-    }
-
-    private void deleteRecursively(File file) {
-        if (file.isDirectory()) {
-            File[] children = file.listFiles();
-            if (children != null) {
-                for (File child : children) {
-                    deleteRecursively(child);
-                }
-            }
-        }
-        file.delete();
-    }
-}
 

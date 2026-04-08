@@ -5,6 +5,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
+import adrianmikula.jakartamigration.platforms.model.PlatformScanResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
@@ -50,6 +51,7 @@ class PdfReportServiceImplTest {
         PdfReportService.GeneratePdfReportRequest request = new PdfReportService.GeneratePdfReportRequest(
             outputPath,
             dependencyGraph,
+            null,
             null,
             null,
             pdfReportService.getDefaultTemplate(),
@@ -126,6 +128,7 @@ class PdfReportServiceImplTest {
             dependencyGraph,
             null,
             null,
+            null,
             pdfReportService.getDefaultTemplate(),
             customData
         );
@@ -146,6 +149,7 @@ class PdfReportServiceImplTest {
         PdfReportService.GeneratePdfReportRequest request = new PdfReportService.GeneratePdfReportRequest(
             null,
             dependencyGraph,
+            null,
             null,
             null,
             pdfReportService.getDefaultTemplate(),
@@ -172,6 +176,7 @@ class PdfReportServiceImplTest {
             null,
             null,
             null,
+            null,
             pdfReportService.getDefaultTemplate(),
             customData
         );
@@ -192,7 +197,7 @@ class PdfReportServiceImplTest {
         // Assert
         assertNotNull(template);
         assertEquals("Jakarta Migration Risk Analysis Report", template.name());
-        assertEquals(6, template.sections().size());
+        assertEquals(7, template.sections().size());
         assertTrue(template.metadata().containsKey("engine"));
         assertEquals("Apache PDFBox 3.0.2", template.metadata().get("engine"));
     }
@@ -227,6 +232,7 @@ class PdfReportServiceImplTest {
         PdfReportService.GeneratePdfReportRequest request = new PdfReportService.GeneratePdfReportRequest(
                 outputPath,
                 dependencyGraph,
+                null,
                 null,
                 null,
                 pdfReportService.getDefaultTemplate(),
@@ -267,6 +273,7 @@ class PdfReportServiceImplTest {
                 dependencyGraph,
                 null,
                 null,
+                null,
                 customTemplate,
                 customData
         );
@@ -296,6 +303,7 @@ class PdfReportServiceImplTest {
                 dependencyGraph,
                 null,
                 null,
+                null,
                 customTemplate,
                 Map.of("platform", "Tomcat 10+", "java", "OpenJDK 17+", "build", "Maven 3.8+")
         );
@@ -323,6 +331,7 @@ class PdfReportServiceImplTest {
         PdfReportService.GeneratePdfReportRequest request = new PdfReportService.GeneratePdfReportRequest(
                 outputPath,
                 dependencyGraph,
+                null,
                 null,
                 null,
                 customTemplate,
@@ -372,6 +381,7 @@ class PdfReportServiceImplTest {
                 null,
                 null,
                 scanResults,
+                null,
                 customTemplate,
                 Map.of("scanType", "comprehensive")
         );
@@ -401,6 +411,7 @@ class PdfReportServiceImplTest {
                 null,
                 null,
                 null,
+                null,
                 customTemplate,
                 Map.of("supportEmail", "support@example.com", "supportPhone", "+1-555-0123")
         );
@@ -422,6 +433,7 @@ class PdfReportServiceImplTest {
         PdfReportService.GeneratePdfReportRequest request = new PdfReportService.GeneratePdfReportRequest(
                 invalidOutputPath,
                 dependencyGraph,
+                null,
                 null,
                 null,
                 pdfReportService.getDefaultTemplate(),
@@ -566,6 +578,7 @@ class PdfReportServiceImplTest {
                 dependencyGraph,
                 null,
                 null,
+                null,
                 customTemplate,
                 Map.of("projectName", "Disabled Sections Test")
         );
@@ -595,6 +608,7 @@ class PdfReportServiceImplTest {
         PdfReportService.GeneratePdfReportRequest request = new PdfReportService.GeneratePdfReportRequest(
                 outputPath,
                 dependencyGraph,
+                null,
                 null,
                 null,
                 pdfReportService.getDefaultTemplate(),
@@ -630,6 +644,7 @@ class PdfReportServiceImplTest {
         Path result = pdfReportService.generateComprehensiveReport(new PdfReportService.GeneratePdfReportRequest(
                 outputPath,
                 dependencyGraph,
+                null,
                 null,
                 null,
                 pdfReportService.getDefaultTemplate(),

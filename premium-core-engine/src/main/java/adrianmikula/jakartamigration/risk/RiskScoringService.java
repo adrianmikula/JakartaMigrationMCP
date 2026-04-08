@@ -1,9 +1,7 @@
-package adrianmikula.jakartamigration.intellij.service;
+package adrianmikula.jakartamigration.risk;
 
 import org.yaml.snakeyaml.Yaml;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -81,18 +79,12 @@ public class RiskScoringService {
 
     private void loadConfiguration() {
         try {
-            // Try to load from classpath
+            // Load from classpath
             InputStream inputStream = getClass().getClassLoader()
                     .getResourceAsStream("config/risk-scoring.yaml");
 
             if (inputStream == null) {
-                // Try file system
-                File configFile = new File("premium-intellij-plugin/src/main/resources/config/risk-scoring.yaml");
-                if (configFile.exists()) {
-                    inputStream = new FileInputStream(configFile);
-                } else {
-                    throw new RuntimeException("CRITICAL: risk-scoring.yaml not found in classpath or filesystem.");
-                }
+                throw new RuntimeException("CRITICAL: risk-scoring.yaml not found in classpath.");
             }
 
             Yaml yaml = new Yaml();
@@ -153,13 +145,13 @@ public class RiskScoringService {
     public RiskScore calculateRiskScore(
             Map<String, List<RiskFinding>> scanFindings,
             Map<String, Integer> dependencyIssues) {
-        
+
         return calculateRiskScore(scanFindings, dependencyIssues, 0, 0.0);
     }
-    
+
     /**
      * Calculates overall risk score based on scan findings, dependency issues, and project metrics.
-     * 
+     *
      * @param scanFindings Map of scan type to list of risk findings
      * @param dependencyIssues Map of dependency issue types to scores
      * @param totalFileCount Total number of files in the project
@@ -206,7 +198,7 @@ public class RiskScoringService {
 
         // Calculate code complexity based on file count
         double rawComplexityScore = calculateComplexityScore(totalFileCount);
-        
+
         // Platform risk score (already normalized 0-10)
         double rawPlatformScore = platformRiskScore;
 
@@ -241,7 +233,7 @@ public class RiskScoringService {
                 (rawDepScore * depWeight) +
                 (rawComplexityScore * complexityWeight) +
                 (rawPlatformScore * platformWeight);
-        
+
         // Normalize to 0-100 scale
         totalScore = Math.min(totalScore, maxTotalScore);
         totalScore = Math.max(totalScore, 0);
@@ -259,6 +251,133 @@ public class RiskScoringService {
                 allFindings);
     }
 
+    /**
+     * Calculates risk score from basic metrics (used by PDF reports).
+     * Score ranges from 0 (no risk) to 100 (maximum risk).
+     *
+     * @param blockers Number of blocking dependencies that need migration
+     * @param nonCompatibleDeps Number of non-compatible dependencies
+     * @param totalIssues Total number of issues found
+     * @param criticalIssues Number of critical issues
+     * @return Risk score from 0 to 100
+     */
+    public double calculateRiskScore(int blockers, int nonCompatibleDeps, int totalIssues, int criticalIssues) {
+        double score = 0.0;
+
+        // Factor 1: Dependencies that need migration (blockers)
+        score += blockers * 10; // 10 points per blocker
+
+        // Add score for non-compatible dependencies
+        score += nonCompatibleDeps * 2; // 2 points per non-compatible dependency
+
+        // Factor 2: Issues
+        score += totalIssues * 0.5; // 0.5 points per issue
+        score += criticalIssues * 5; // 5 extra points per critical issue
+
+        // Cap at 100
+        return Math.min(score, 100.0);
+    }
+
+    /**
+     * Determines risk level based on calculated score.
+     *
+     * @param score Risk score (0-100)
+     * @return Risk level string (LOW, MEDIUM, HIGH, CRITICAL)
+     */
+    public String determineRiskLevel(double score) {
+        if (score < 25) {
+            return "LOW";
+        } else if (score < 50) {
+            return "MEDIUM";
+        } else if (score < 75) {
+            return "HIGH";
+        } else {
+            return "CRITICAL";
+        }
+    }
+
+    /**
+     * Calculates estimated migration time in weeks based on risk score, team size, and environment count.
+     * Uses an exponential formula that doubles every 25 risk points.
+     * Time estimate increases logarithmically with environment count and decreases with dev team size.
+     *
+     * For average team (5 devs) and single environment:
+     * - Risk 1-10: ~1 week
+     * - Risk 25: 5 weeks
+     * - Risk 50: 10 weeks
+     * - Risk 75: 20 weeks
+     * - Risk 100: 40 weeks
+     *
+     * @param riskScore The calculated risk score (0-100)
+     * @param devTeamSize Number of developers on the team (default 5 if <= 0)
+     * @param environmentCount Number of deployment environments (default 1 if <= 0)
+     * @return Estimated effort in weeks
+     */
+    public int calculateMigrationTimeWeeks(double riskScore, int devTeamSize, int environmentCount) {
+        // Ensure valid inputs
+        int teamSize = devTeamSize > 0 ? devTeamSize : 5;
+        int environments = environmentCount > 0 ? environmentCount : 1;
+
+        // Base formula: exponential growth that doubles every 25 risk points
+        // At risk 10: 1 week, risk 25: 5 weeks, risk 50: 10 weeks, risk 75: 20 weeks, risk 100: 40 weeks
+        double baseWeeks;
+        if (riskScore <= 10) {
+            baseWeeks = 1.0;
+        } else if (riskScore <= 25) {
+            // Linear interpolation from 1 to 5 weeks between risk 10 and 25
+            baseWeeks = 1.0 + ((riskScore - 10) / 15.0) * 4.0;
+        } else {
+            // Exponential: 5 weeks at risk 25, doubling every 25 points
+            double exponent = (riskScore - 25) / 25.0;
+            baseWeeks = 5.0 * Math.pow(2, exponent);
+        }
+
+        // Apply team size factor: larger teams = less time (inverse relationship)
+        // Team factor: 1.0 at 5 devs, 0.5 at 10 devs, 2.0 at 2.5 devs
+        double teamFactor = 5.0 / teamSize;
+
+        // Apply environment factor: more environments = more time (logarithmic relationship)
+        // Logarithmic scale: 1 env = 1.0, 10 envs = 1.5, 100 envs = 2.0, 1000 envs = 2.5
+        double environmentFactor = 1.0 + (Math.log10(environments) / 2.0);
+
+        double totalWeeks = baseWeeks * teamFactor * environmentFactor;
+
+        return (int) Math.ceil(totalWeeks);
+    }
+
+    /**
+     * Calculates estimated migration time with default team size (5) and environment count (1).
+     *
+     * @param riskScore The calculated risk score (0-100)
+     * @return Estimated effort in weeks
+     */
+    public int calculateMigrationTimeWeeks(double riskScore) {
+        return calculateMigrationTimeWeeks(riskScore, 5, 1);
+    }
+
+    /**
+     * Gets formatted migration time string based on risk score with team and environment inputs.
+     *
+     * @param riskScore The calculated risk score (0-100)
+     * @param devTeamSize Number of developers on the team
+     * @param environmentCount Number of deployment environments
+     * @return Formatted string like "3 weeks" or "1 week"
+     */
+    public String formatMigrationTime(double riskScore, int devTeamSize, int environmentCount) {
+        int effortWeeks = calculateMigrationTimeWeeks(riskScore, devTeamSize, environmentCount);
+        return effortWeeks + (effortWeeks == 1 ? " week" : " weeks");
+    }
+
+    /**
+     * Gets formatted migration time string with default team size and single environment.
+     *
+     * @param riskScore The calculated risk score (0-100)
+     * @return Formatted string like "3 weeks" or "1 week"
+     */
+    public String formatMigrationTime(double riskScore) {
+        return formatMigrationTime(riskScore, 5, 1);
+    }
+
     private String getCategoryForScore(double score) {
         for (Map.Entry<String, CategoryConfig> entry : categoryConfigs.entrySet()) {
             if (score >= entry.getValue().minScore && score <= entry.getValue().maxScore) {
@@ -267,11 +386,11 @@ public class RiskScoringService {
         }
         return "trivial"; // Default category
     }
-    
+
     /**
      * Calculates complexity score based on the total number of files in the project.
      * Uses a logarithmic scale to prevent very large projects from dominating the score.
-     * 
+     *
      * @param totalFileCount Total number of files in the project
      * @return Normalized complexity score (0-10 scale)
      */
@@ -279,17 +398,17 @@ public class RiskScoringService {
         if (totalFileCount <= 0) {
             return 0.0;
         }
-        
+
         // Use logarithmic scale: log10(fileCount) normalized to 0-10
         // 1-10 files: 0-2 points
-        // 11-100 files: 2-4 points  
+        // 11-100 files: 2-4 points
         // 101-1000 files: 4-6 points
         // 1001-10000 files: 6-8 points
         // 10000+ files: 8-10 points
-        
+
         double logScale = Math.log10(totalFileCount);
         double normalizedScore = (logScale / 5.0) * 10.0; // log10(100000) = 5, so scale to 0-10
-        
+
         // Cap at 10.0 maximum
         return Math.min(normalizedScore, 10.0);
     }

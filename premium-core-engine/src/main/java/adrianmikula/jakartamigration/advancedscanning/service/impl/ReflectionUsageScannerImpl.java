@@ -6,6 +6,7 @@ import adrianmikula.jakartamigration.advancedscanning.domain.ReflectionUsageScan
 import adrianmikula.jakartamigration.advancedscanning.service.ReflectionUsageScanner;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,8 +55,8 @@ public class ReflectionUsageScannerImpl implements ReflectionUsageScanner {
     // File extensions to scan
     private static final Set<String> SCAN_EXTENSIONS = Set.of(".java", ".kt", ".scala");
 
-    // Deduplication tracking
-    private final Set<String> processedLines = new HashSet<>();
+    // Maximum file size to scan (5MB) - larger files are skipped
+    private static final long MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
     @Override
     public ReflectionUsageProjectScanResult scanProject(Path projectPath) {
@@ -93,20 +94,30 @@ public class ReflectionUsageScannerImpl implements ReflectionUsageScanner {
         List<ReflectionUsage> usages = new ArrayList<>();
         String fileKey = filePath.toString();
 
-        try {
-            String content = Files.readString(filePath);
-            String[] lines = content.split("\\r?\\n");
+        // Deduplication tracking - local to this file only to prevent memory leak
+        Set<String> processedLines = new HashSet<>();
 
-            for (int i = 0; i < lines.length; i++) {
-                String line = lines[i];
-                int lineNumber = i + 1;
-                String lineKey = fileKey + ":" + lineNumber;
-                
-                // Skip if already processed this line (deduplication)
-                if (processedLines.contains(lineKey)) {
-                    continue;
-                }
-                processedLines.add(lineKey);
+        try {
+            // Skip large files to prevent memory issues
+            long fileSize = Files.size(filePath);
+            if (fileSize > MAX_FILE_SIZE_BYTES) {
+                log.warn("Skipping large file ({} bytes): {}", fileSize, filePath);
+                return new ReflectionUsageScanResult(filePath.toString(), usages);
+            }
+
+            // Use streaming with try-with-resources for memory efficiency
+            try (BufferedReader reader = Files.newBufferedReader(filePath)) {
+                String line;
+                int lineNumber = 0;
+                while ((line = reader.readLine()) != null) {
+                    lineNumber++;
+                    String lineKey = fileKey + ":" + lineNumber;
+                    
+                    // Skip if already processed this line (deduplication within file)
+                    if (processedLines.contains(lineKey)) {
+                        continue;
+                    }
+                    processedLines.add(lineKey);
 
                 // Check for Class.forName usage
                 Matcher classForNameMatcher = CLASS_FOR_NAME_PATTERN.matcher(line);
@@ -196,6 +207,7 @@ public class ReflectionUsageScannerImpl implements ReflectionUsageScanner {
                             extractClassName(line),
                             extractMethodName(line),
                             extractJavaxReference(line)));
+                }
                 }
             }
 

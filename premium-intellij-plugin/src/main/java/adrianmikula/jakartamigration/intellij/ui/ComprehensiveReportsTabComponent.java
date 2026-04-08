@@ -7,6 +7,9 @@ import adrianmikula.jakartamigration.pdfreporting.service.impl.PdfReportServiceI
 import adrianmikula.jakartamigration.pdfreporting.domain.ReportTemplate;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults.ScanSummary;
+import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
+import adrianmikula.jakartamigration.platforms.model.PlatformScanResult;
+import adrianmikula.jakartamigration.platforms.service.SimplifiedPlatformDetectionService;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBPanel;
@@ -168,6 +171,7 @@ public class ComprehensiveReportsTabComponent {
                     getDependencyGraph(),
                     null,
                     getScanResults(),
+                    getPlatformScanResults(),
                     reportService.getDefaultTemplate(),
                     customData
                 )
@@ -245,6 +249,33 @@ public class ComprehensiveReportsTabComponent {
         );
     }
     
+    /**
+     * Gets platform scan results using actual platform detection service
+     */
+    private PlatformScanResult getPlatformScanResults() {
+        try {
+            String basePath = project.getBasePath();
+            if (basePath == null) {
+                return null;
+            }
+            SimplifiedPlatformDetectionService detectionService = new SimplifiedPlatformDetectionService();
+            EnhancedPlatformScanResult result = detectionService.scanProjectWithArtifacts(java.nio.file.Path.of(basePath));
+            // Convert EnhancedPlatformScanResult to PlatformScanResult format
+            return new PlatformScanResult(
+                result.getDetectedPlatforms().stream()
+                    .map(name -> new adrianmikula.jakartamigration.platforms.model.PlatformDetection(
+                        name, name, "detected", true, "", java.util.Collections.emptyMap()
+                    ))
+                    .toList(),
+                result.getTotalDeploymentCount(),
+                java.util.Collections.emptyList()
+            );
+        } catch (Exception e) {
+            // Return null if platform detection fails
+            return null;
+        }
+    }
+
     /**
      * Gets plugin version
      */

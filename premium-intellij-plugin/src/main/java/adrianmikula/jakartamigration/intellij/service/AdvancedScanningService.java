@@ -89,22 +89,22 @@ public class AdvancedScanningService {
             
             // Batch 1: Core scans
             LOG.info("=== Starting Batch 1: Core Scans ===");
-            CompletableFuture<JpaProjectScanResult> jpaFuture = CompletableFuture
+            CompletableFuture<ProjectScanResult<FileScanResult<JpaAnnotationUsage>>> jpaFuture = CompletableFuture
                     .supplyAsync(() -> {
                         LOG.info("Starting JPA scan...");
                         return scanForJpaAnnotations(projectPath);
                     }, scanExecutor);
-            CompletableFuture<BeanValidationProjectScanResult> bvFuture = CompletableFuture
+            CompletableFuture<ProjectScanResult<FileScanResult<JavaxUsage>>> bvFuture = CompletableFuture
                     .supplyAsync(() -> {
                         LOG.info("Starting Bean Validation scan...");
                         return scanForBeanValidation(projectPath);
                     }, scanExecutor);
-            CompletableFuture<ServletJspProjectScanResult> sjFuture = CompletableFuture
+            CompletableFuture<ProjectScanResult<FileScanResult<ServletJspUsage>>> sjFuture = CompletableFuture
                     .supplyAsync(() -> {
                         LOG.info("Starting Servlet/JSP scan...");
                         return scanForServletJsp(projectPath);
                     }, scanExecutor);
-            CompletableFuture<CdiInjectionProjectScanResult> cdiFuture = CompletableFuture
+            CompletableFuture<ProjectScanResult<FileScanResult<JavaxUsage>>> cdiFuture = CompletableFuture
                     .supplyAsync(() -> {
                         LOG.info("Starting CDI scan...");
                         return scanForCdiInjection(projectPath);
@@ -116,9 +116,9 @@ public class AdvancedScanningService {
             LOG.info("Batch 1 completed");
             
             // Batch 2: Additional scans
-            CompletableFuture<BuildConfigProjectScanResult> bcFuture = CompletableFuture
+            CompletableFuture<ProjectScanResult<FileScanResult<BuildConfigUsage>>> bcFuture = CompletableFuture
                     .supplyAsync(() -> scanForBuildConfig(projectPath), scanExecutor);
-            CompletableFuture<RestSoapProjectScanResult> rsFuture = CompletableFuture
+            CompletableFuture<ProjectScanResult<FileScanResult<JavaxUsage>>> rsFuture = CompletableFuture
                     .supplyAsync(() -> scanForRestSoap(projectPath), scanExecutor);
             CompletableFuture<DeprecatedApiProjectScanResult> daFuture = CompletableFuture
                     .supplyAsync(() -> scanForDeprecatedApi(projectPath), scanExecutor);
@@ -150,12 +150,12 @@ public class AdvancedScanningService {
             CompletableFuture.allOf(jmFuture, tdFuture, cfFuture, clFuture, lmFuture, scFuture, ruFuture, tpFuture).join();
 
             // Get individual scan results
-            JpaProjectScanResult jpaResult = jpaFuture.join();
-            BeanValidationProjectScanResult beanValidationResult = bvFuture.join();
-            ServletJspProjectScanResult servletJspResult = sjFuture.join();
-            CdiInjectionProjectScanResult cdiInjectionResult = cdiFuture.join();
-            BuildConfigProjectScanResult buildConfigResult = bcFuture.join();
-            RestSoapProjectScanResult restSoapResult = rsFuture.join();
+            ProjectScanResult<FileScanResult<JpaAnnotationUsage>> jpaResult = jpaFuture.join();
+            ProjectScanResult<FileScanResult<JavaxUsage>> beanValidationResult = bvFuture.join();
+            ProjectScanResult<FileScanResult<ServletJspUsage>> servletJspResult = sjFuture.join();
+            ProjectScanResult<FileScanResult<JavaxUsage>> cdiInjectionResult = cdiFuture.join();
+            ProjectScanResult<FileScanResult<BuildConfigUsage>> buildConfigResult = bcFuture.join();
+            ProjectScanResult<FileScanResult<JavaxUsage>> restSoapResult = rsFuture.join();
             DeprecatedApiProjectScanResult deprecatedApiResult = daFuture.join();
             SecurityApiProjectScanResult securityApiResult = saFuture.join();
             JmsMessagingProjectScanResult jmsMessagingResult = jmFuture.join();
@@ -231,12 +231,12 @@ public class AdvancedScanningService {
         
         try {
             // Use try-with-resources for automatic resource management
-            JpaProjectScanResult jpaResult = scanForJpaAnnotations(projectPath);
-            BeanValidationProjectScanResult beanValidationResult = scanForBeanValidation(projectPath);
-            ServletJspProjectScanResult servletJspResult = scanForServletJsp(projectPath);
-            CdiInjectionProjectScanResult cdiInjectionResult = scanForCdiInjection(projectPath);
-            BuildConfigProjectScanResult buildConfigResult = scanForBuildConfig(projectPath);
-            RestSoapProjectScanResult restSoapResult = scanForRestSoap(projectPath);
+            ProjectScanResult<FileScanResult<JpaAnnotationUsage>> jpaResult = scanForJpaAnnotations(projectPath);
+            ProjectScanResult<FileScanResult<JavaxUsage>> beanValidationResult = scanForBeanValidation(projectPath);
+            ProjectScanResult<FileScanResult<ServletJspUsage>> servletJspResult = scanForServletJsp(projectPath);
+            ProjectScanResult<FileScanResult<JavaxUsage>> cdiInjectionResult = scanForCdiInjection(projectPath);
+            ProjectScanResult<FileScanResult<BuildConfigUsage>> buildConfigResult = scanForBuildConfig(projectPath);
+            ProjectScanResult<FileScanResult<JavaxUsage>> restSoapResult = scanForRestSoap(projectPath);
             DeprecatedApiProjectScanResult deprecatedApiResult = scanForDeprecatedApi(projectPath);
             SecurityApiProjectScanResult securityApiResult = scanForSecurityApi(projectPath);
             JmsMessagingProjectScanResult jmsMessagingResult = scanForJmsMessaging(projectPath);
@@ -279,32 +279,32 @@ public class AdvancedScanningService {
     }
 
     // Individual scan methods for each scanner type
-    public JpaProjectScanResult scanForJpaAnnotations(Path projectPath) {
+    public ProjectScanResult<FileScanResult<JpaAnnotationUsage>> scanForJpaAnnotations(Path projectPath) {
         LOG.info("Scanning for JPA annotations in: " + projectPath);
         return scanningModule.getJpaAnnotationScanner().scanProject(projectPath);
     }
 
-    public BeanValidationProjectScanResult scanForBeanValidation(Path projectPath) {
+    public ProjectScanResult<FileScanResult<JavaxUsage>> scanForBeanValidation(Path projectPath) {
         LOG.info("Scanning for Bean Validation in: " + projectPath);
         return scanningModule.getBeanValidationScanner().scanProject(projectPath);
     }
 
-    public ServletJspProjectScanResult scanForServletJsp(Path projectPath) {
+    public ProjectScanResult<FileScanResult<ServletJspUsage>> scanForServletJsp(Path projectPath) {
         LOG.info("Scanning for Servlet/JSP in: " + projectPath);
         return scanningModule.getServletJspScanner().scanProject(projectPath);
     }
 
-    public CdiInjectionProjectScanResult scanForCdiInjection(Path projectPath) {
+    public ProjectScanResult<FileScanResult<JavaxUsage>> scanForCdiInjection(Path projectPath) {
         LOG.info("Scanning for CDI Injection in: " + projectPath);
         return scanningModule.getCdiInjectionScanner().scanProject(projectPath);
     }
 
-    public BuildConfigProjectScanResult scanForBuildConfig(Path projectPath) {
+    public ProjectScanResult<FileScanResult<BuildConfigUsage>> scanForBuildConfig(Path projectPath) {
         LOG.info("Scanning for Build Config in: " + projectPath);
         return scanningModule.getBuildConfigScanner().scanProject(projectPath);
     }
 
-    public RestSoapProjectScanResult scanForRestSoap(Path projectPath) {
+    public ProjectScanResult<FileScanResult<JavaxUsage>> scanForRestSoap(Path projectPath) {
         LOG.info("Scanning for REST/SOAP in: " + projectPath);
         return scanningModule.getRestSoapScanner().scanProject(projectPath);
     }
@@ -363,12 +363,12 @@ public class AdvancedScanningService {
      * Summary of all advanced scanning results.
      */
     public record AdvancedScanSummary(
-            JpaProjectScanResult jpaResult,
-            BeanValidationProjectScanResult beanValidationResult,
-            ServletJspProjectScanResult servletJspResult,
-            CdiInjectionProjectScanResult cdiInjectionResult,
-            BuildConfigProjectScanResult buildConfigResult,
-            RestSoapProjectScanResult restSoapResult,
+            ProjectScanResult<FileScanResult<JpaAnnotationUsage>> jpaResult,
+            ProjectScanResult<FileScanResult<JavaxUsage>> beanValidationResult,
+            ProjectScanResult<FileScanResult<ServletJspUsage>> servletJspResult,
+            ProjectScanResult<FileScanResult<JavaxUsage>> cdiInjectionResult,
+            ProjectScanResult<FileScanResult<BuildConfigUsage>> buildConfigResult,
+            ProjectScanResult<FileScanResult<JavaxUsage>> restSoapResult,
             DeprecatedApiProjectScanResult deprecatedApiResult,
             SecurityApiProjectScanResult securityApiResult,
             JmsMessagingProjectScanResult jmsMessagingResult,
@@ -382,42 +382,42 @@ public class AdvancedScanningService {
          * Returns individual count for JPA annotations.
          */
         public int getJpaCount() {
-            return jpaResult != null ? jpaResult.totalAnnotationsFound() : 0;
+            return jpaResult != null ? jpaResult.totalIssuesFound() : 0;
         }
 
         /**
          * Returns individual count for Bean Validation.
          */
         public int getBeanValidationCount() {
-            return beanValidationResult != null ? beanValidationResult.totalAnnotationsFound() : 0;
+            return beanValidationResult != null ? beanValidationResult.totalIssuesFound() : 0;
         }
 
         /**
          * Returns individual count for Servlet/JSP.
          */
         public int getServletJspCount() {
-            return servletJspResult != null ? servletJspResult.totalUsagesFound() : 0;
+            return servletJspResult != null ? servletJspResult.totalIssuesFound() : 0;
         }
 
         /**
          * Returns individual count for CDI Injection.
          */
         public int getCdiInjectionCount() {
-            return cdiInjectionResult != null ? cdiInjectionResult.totalAnnotationsFound() : 0;
+            return cdiInjectionResult != null ? cdiInjectionResult.totalIssuesFound() : 0;
         }
 
         /**
          * Returns individual count for Build Config.
          */
         public int getBuildConfigCount() {
-            return buildConfigResult != null ? buildConfigResult.totalDependenciesFound() : 0;
+            return buildConfigResult != null ? buildConfigResult.totalIssuesFound() : 0;
         }
 
         /**
          * Returns individual count for REST/SOAP.
          */
         public int getRestSoapCount() {
-            return restSoapResult != null ? restSoapResult.totalUsagesFound() : 0;
+            return restSoapResult != null ? restSoapResult.totalIssuesFound() : 0;
         }
 
         /**
@@ -489,22 +489,22 @@ public class AdvancedScanningService {
         public int getTotalIssuesFound() {
             int total = 0;
             if (jpaResult != null) {
-                total += jpaResult.totalAnnotationsFound();
+                total += jpaResult.totalIssuesFound();
             }
             if (beanValidationResult != null) {
-                total += beanValidationResult.totalAnnotationsFound();
+                total += beanValidationResult.totalIssuesFound();
             }
             if (servletJspResult != null) {
-                total += servletJspResult.totalUsagesFound();
+                total += servletJspResult.totalIssuesFound();
             }
             if (cdiInjectionResult != null) {
-                total += cdiInjectionResult.totalAnnotationsFound();
+                total += cdiInjectionResult.totalIssuesFound();
             }
             if (buildConfigResult != null) {
-                total += buildConfigResult.totalDependenciesFound();
+                total += buildConfigResult.totalIssuesFound();
             }
             if (restSoapResult != null) {
-                total += restSoapResult.totalUsagesFound();
+                total += restSoapResult.totalIssuesFound();
             }
             if (deprecatedApiResult != null) {
                 total += deprecatedApiResult.totalUsagesFound();

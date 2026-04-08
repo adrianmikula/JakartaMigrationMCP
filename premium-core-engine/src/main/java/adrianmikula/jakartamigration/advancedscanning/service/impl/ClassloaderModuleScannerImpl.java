@@ -13,6 +13,7 @@ import org.openrewrite.SourceFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -52,6 +53,13 @@ public class ClassloaderModuleScannerImpl implements ClassloaderModuleScanner {
 
     private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
 
+    // Parallelism configuration - can be overridden via system property
+    private static final int MAX_PARALLELISM = Integer.parseInt(
+            System.getProperty("advanced.scan.parallelism", "4"));
+
+    // Memory threshold for sequential fallback (100MB)
+    private static final long MEMORY_THRESHOLD_BYTES = 100 * 1024 * 1024;
+
     // Pattern for javax classloader/module imports
     private static final Pattern CLASSLOADER_IMPORT_PATTERN = Pattern.compile(
             "import\\s+javax\\.(management\\.loading|annotation\\.processing|\\w*\\.classloader|\\w*\\.module)[\\.\\w]*;",
@@ -78,15 +86,49 @@ public class ClassloaderModuleScannerImpl implements ClassloaderModuleScanner {
             if (javaFiles.isEmpty())
                 return ClassloaderModuleProjectScanResult.empty();
 
+            // Check available memory and determine parallelism
+            Runtime runtime = Runtime.getRuntime();
+            long maxMemory = runtime.maxMemory();
+            long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+            long availableMemory = maxMemory - usedMemory;
+
             AtomicInteger totalScanned = new AtomicInteger(0);
-            List<ClassloaderModuleScanResult> results = javaFiles.parallelStream()
-                    .map(file -> {
-                        totalScanned.incrementAndGet();
-                        ClassloaderModuleScanResult result = scanFile(file);
-                        return result.hasJavaxUsage() ? result : null;
-                    })
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
+            List<ClassloaderModuleScanResult> results;
+
+            // Use sequential processing if low on memory, otherwise use bounded parallelism
+            if (availableMemory < MEMORY_THRESHOLD_BYTES) {
+                log.info("Low memory detected ({} MB available), using sequential processing for Classloader/Module scan",
+                        availableMemory / (1024 * 1024));
+                results = javaFiles.stream()
+                        .map(file -> scanFileWithTracking(file, totalScanned))
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+            } else {
+                // Use bounded parallelism with custom ForkJoinPool
+                int parallelism = Math.min(MAX_PARALLELISM, javaFiles.size());
+                log.debug("Using parallel processing with parallelism={} for Classloader/Module scan", parallelism);
+
+                ForkJoinPool customPool = new ForkJoinPool(parallelism);
+                try {
+                    results = customPool.submit(() ->
+                            javaFiles.parallelStream()
+                                    .map(file -> scanFileWithTracking(file, totalScanned))
+                                    .filter(Objects::nonNull)
+                                    .collect(Collectors.toList())
+                    ).get();
+                } catch (Exception e) {
+                    log.warn("Parallel scan failed for Classloader/Module, falling back to sequential: {}", e.getMessage());
+                    results = javaFiles.stream()
+                            .map(file -> scanFileWithTracking(file, totalScanned))
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toList());
+                } finally {
+                    customPool.shutdown();
+                }
+            }
+
+            // Cleanup ThreadLocal to prevent memory leaks
+            cleanupThreadLocal();
 
             int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
 
@@ -193,5 +235,26 @@ public class ClassloaderModuleScannerImpl implements ClassloaderModuleScanner {
                 return i + 1;
         }
         return 1;
+    }
+
+    /**
+     * Scans a single file with tracking for parallel processing.
+     */
+    private ClassloaderModuleScanResult scanFileWithTracking(Path filePath, AtomicInteger totalScanned) {
+        totalScanned.incrementAndGet();
+        ClassloaderModuleScanResult result = scanFile(filePath);
+        return result.hasJavaxUsage() ? result : null;
+    }
+
+    /**
+     * Cleans up ThreadLocal JavaParser instances to prevent memory leaks.
+     * Should be called after project scan completes.
+     */
+    private void cleanupThreadLocal() {
+        try {
+            javaParserThreadLocal.remove();
+        } catch (Exception e) {
+            log.debug("Error cleaning up ThreadLocal: {}", e.getMessage());
+        }
     }
 }

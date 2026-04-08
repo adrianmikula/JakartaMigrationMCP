@@ -1,7 +1,8 @@
 package adrianmikula.jakartamigration.advancedscanning.service;
 
-import adrianmikula.jakartamigration.advancedscanning.domain.CdiInjectionProjectScanResult;
-import adrianmikula.jakartamigration.advancedscanning.domain.CdiInjectionScanResult;
+import adrianmikula.jakartamigration.advancedscanning.domain.FileScanResult;
+import adrianmikula.jakartamigration.advancedscanning.domain.JavaxUsage;
+import adrianmikula.jakartamigration.advancedscanning.domain.ProjectScanResult;
 
 import java.nio.file.Path;
 
@@ -17,7 +18,7 @@ public interface CdiInjectionScanner {
      * @param projectPath Path to the project root directory
      * @return Project scan result with all files containing CDI usage
      */
-    CdiInjectionProjectScanResult scanProject(Path projectPath);
+    ProjectScanResult<FileScanResult<JavaxUsage>> scanProject(Path projectPath);
 
     /**
      * Scans a single file for CDI usage.
@@ -25,5 +26,5 @@ public interface CdiInjectionScanner {
      * @param filePath Path to the Java file to scan
      * @return File scan result with CDI usages found
      */
-    CdiInjectionScanResult scanFile(Path filePath);
+    FileScanResult<JavaxUsage> scanFile(Path filePath);
 }

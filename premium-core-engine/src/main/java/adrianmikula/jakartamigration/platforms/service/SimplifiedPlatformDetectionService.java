@@ -2,6 +2,8 @@ package adrianmikula.jakartamigration.platforms.service;
 
 import adrianmikula.jakartamigration.platforms.config.PlatformConfigLoader;
 
+import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -86,6 +88,242 @@ public class SimplifiedPlatformDetectionService {
         return detectedServers;
     }
     
+    /**
+     * Enhanced scan for application servers with deployment artifact counting.
+     * This method provides additional artifact information beyond the simple scan.
+     *
+     * @param projectPath Path to the project directory
+     * @return EnhancedPlatformScanResult with detected platforms and artifact counts
+     */
+    public EnhancedPlatformScanResult scanProjectWithArtifacts(Path projectPath) {
+        log.debug("Starting enhanced platform detection for project: {}", projectPath);
+
+        List<String> detectedServers = new ArrayList<>();
+        Map<String, Integer> deploymentArtifacts = new HashMap<>();
+        Map<String, Integer> platformSpecificArtifacts = new HashMap<>();
+
+        try {
+            if (!Files.exists(projectPath)) {
+                log.debug("Project path does not exist: {}", projectPath);
+                return new EnhancedPlatformScanResult(detectedServers, deploymentArtifacts, platformSpecificArtifacts);
+            }
+
+            // Detect platforms using existing logic
+            if (Files.exists(projectPath.resolve("pom.xml"))) {
+                log.debug("Found pom.xml, scanning Maven project...");
+                List<String> mavenServers = scanMavenProject(projectPath);
+                detectedServers.addAll(mavenServers);
+
+                // Count deployment artifacts in Maven project
+                countArtifacts(projectPath, "pom.xml", deploymentArtifacts, platformSpecificArtifacts);
+            }
+
+            if (Files.exists(projectPath.resolve("build.gradle")) || Files.exists(projectPath.resolve("build.gradle.kts"))) {
+                log.debug("Found Gradle build file, scanning Gradle project...");
+                List<String> gradleServers = scanGradleProject(projectPath);
+                detectedServers.addAll(gradleServers);
+
+                // Count deployment artifacts in Gradle project
+                String gradleFile = Files.exists(projectPath.resolve("build.gradle.kts")) ? "build.gradle.kts" : "build.gradle";
+                countArtifacts(projectPath, gradleFile, deploymentArtifacts, platformSpecificArtifacts);
+            }
+
+            // Scan for installed servers
+            List<String> installedServers = scanForInstalledServers(projectPath);
+            detectedServers.addAll(installedServers);
+
+            // Count deployment artifacts in project structure
+            countProjectArtifacts(projectPath, deploymentArtifacts, platformSpecificArtifacts);
+
+        } catch (Exception e) {
+            log.error("Error scanning project: {}", e.getMessage(), e);
+        }
+
+        log.debug("Enhanced platform detection complete. Servers: {}, WARs: {}, EARs: {}, JARs: {}",
+                 detectedServers.size(),
+                 deploymentArtifacts.getOrDefault("war", 0),
+                 deploymentArtifacts.getOrDefault("ear", 0),
+                 deploymentArtifacts.getOrDefault("jar", 0));
+
+        // Remove duplicates while preserving order
+        Set<String> uniqueServers = new LinkedHashSet<>(detectedServers);
+        detectedServers.clear();
+        detectedServers.addAll(uniqueServers);
+
+        log.debug("After deduplication: {} unique servers: {}", detectedServers.size(), detectedServers);
+
+        // If no platforms detected via dependencies but artifacts exist, infer from artifacts
+        List<String> inferredServers = List.of();
+        if (detectedServers.isEmpty() && !deploymentArtifacts.isEmpty()) {
+            inferredServers = inferPlatformsFromArtifacts(deploymentArtifacts, platformSpecificArtifacts);
+            log.debug("Inferred {} platforms from artifacts: {}", inferredServers.size(), inferredServers);
+        }
+
+        return new EnhancedPlatformScanResult(detectedServers, inferredServers, deploymentArtifacts, platformSpecificArtifacts);
+    }
+
+    /**
+     * Unified artifact counting for Maven and Gradle projects.
+     */
+    private void countArtifacts(Path projectPath, String buildFile, Map<String, Integer> deploymentArtifacts,
+                               Map<String, Integer> platformSpecificArtifacts) {
+        try {
+            Path filePath = projectPath.resolve(buildFile);
+            String content = Files.readString(filePath);
+
+            // Count deployment artifacts based on build file type
+            if (buildFile.equals("pom.xml")) {
+                countMavenPackaging(content, deploymentArtifacts);
+            } else {
+                countGradlePlugins(content, deploymentArtifacts);
+            }
+
+            // Count platform-specific dependencies
+            countPlatformDependencies(content, platformSpecificArtifacts);
+
+        } catch (IOException e) {
+            log.debug("Error reading {}: {}", buildFile, e.getMessage());
+        }
+    }
+
+    private void countMavenPackaging(String content, Map<String, Integer> deploymentArtifacts) {
+        int warCount = countOccurrences(content, "<packaging>war</packaging>");
+        int earCount = countOccurrences(content, "<packaging>ear</packaging>");
+        int jarCount = countOccurrences(content, "<packaging>jar</packaging>");
+
+        deploymentArtifacts.merge("war", warCount, Integer::sum);
+        deploymentArtifacts.merge("ear", earCount, Integer::sum);
+        deploymentArtifacts.merge("jar", jarCount, Integer::sum);
+    }
+
+    private void countGradlePlugins(String content, Map<String, Integer> deploymentArtifacts) {
+        int warCount = countOccurrences(content, "apply.*plugin.*['\"]war['\"]") +
+                      countOccurrences(content, "id\\s*['\"]war['\"]");
+        int earCount = countOccurrences(content, "apply.*plugin.*['\"]ear['\"]") +
+                      countOccurrences(content, "id\\s*['\"]ear['\"]");
+
+        deploymentArtifacts.merge("war", warCount, Integer::sum);
+        deploymentArtifacts.merge("ear", earCount, Integer::sum);
+    }
+
+    /**
+     * Count deployment artifacts in project structure.
+     */
+    private void countProjectArtifacts(Path projectPath, Map<String, Integer> deploymentArtifacts,
+                                    Map<String, Integer> platformSpecificArtifacts) {
+        try {
+            Files.walk(projectPath)
+                .filter(path -> !Files.isDirectory(path))
+                .filter(path -> {
+                    String fileName = path.getFileName().toString().toLowerCase();
+                    return fileName.endsWith(".war") || fileName.endsWith(".ear") ||
+                           fileName.endsWith(".jar") || fileName.equals("web.xml") ||
+                           fileName.equals("application.xml") || fileName.equals("ejb-jar.xml");
+                })
+                .forEach(path -> {
+                    String fileName = path.getFileName().toString().toLowerCase();
+                    if (fileName.endsWith(".war")) {
+                        deploymentArtifacts.put("war", deploymentArtifacts.getOrDefault("war", 0) + 1);
+                    } else if (fileName.endsWith(".ear")) {
+                        deploymentArtifacts.put("ear", deploymentArtifacts.getOrDefault("ear", 0) + 1);
+                    } else if (fileName.endsWith(".jar")) {
+                        deploymentArtifacts.put("jar", deploymentArtifacts.getOrDefault("jar", 0) + 1);
+                    } else if (fileName.equals("web.xml")) {
+                        platformSpecificArtifacts.put("web.xml", platformSpecificArtifacts.getOrDefault("web.xml", 0) + 1);
+                    } else if (fileName.equals("application.xml")) {
+                        platformSpecificArtifacts.put("application.xml", platformSpecificArtifacts.getOrDefault("application.xml", 0) + 1);
+                    } else if (fileName.equals("ejb-jar.xml")) {
+                        platformSpecificArtifacts.put("ejb-jar.xml", platformSpecificArtifacts.getOrDefault("ejb-jar.xml", 0) + 1);
+                    }
+                });
+
+        } catch (IOException e) {
+            log.debug("Error walking project structure: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Count platform-specific dependencies.
+     */
+    private void countPlatformDependencies(String content, Map<String, Integer> platformSpecificArtifacts) {
+        // Common platform dependencies
+        String[] platformDeps = {
+            "spring-boot-starter-web", "spring-boot-starter-tomcat",
+            "javax.servlet", "jakarta.servlet", "javax.ejb", "jakarta.ejb",
+            "javax.persistence", "jakarta.persistence", "javax.jms", "jakarta.jms",
+            "org.springframework.boot", "org.jboss", "org.apache.tomcat",
+            "org.eclipse.jetty", "org.glassfish", "com.ibm.websphere"
+        };
+
+        for (String dep : platformDeps) {
+            int count = countOccurrences(content.toLowerCase(), dep.toLowerCase());
+            if (count > 0) {
+                platformSpecificArtifacts.put(dep, platformSpecificArtifacts.getOrDefault(dep, 0) + count);
+            }
+        }
+    }
+
+    /**
+     * Count occurrences of a pattern in text.
+     */
+    private int countOccurrences(String text, String pattern) {
+        Pattern p = Pattern.compile(pattern, Pattern.CASE_INSENSITIVE);
+        Matcher m = p.matcher(text);
+        int count = 0;
+        while (m.find()) {
+            count++;
+        }
+        return count;
+    }
+
+    /**
+     * Infers likely application server platforms based on detected deployment artifacts.
+     * This is a fallback when no platforms are detected via dependency analysis.
+     */
+    private List<String> inferPlatformsFromArtifacts(Map<String, Integer> deploymentArtifacts,
+                                                     Map<String, Integer> platformSpecificArtifacts) {
+        List<String> inferredServers = new ArrayList<>();
+
+        int warCount = deploymentArtifacts.getOrDefault("war", 0);
+        int earCount = deploymentArtifacts.getOrDefault("ear", 0);
+        int jarCount = deploymentArtifacts.getOrDefault("jar", 0);
+
+        // EAR files indicate full Java EE/Jakarta EE servers
+        if (earCount > 0) {
+            inferredServers.add("wildfly");
+            inferredServers.add("websphere");
+            inferredServers.add("weblogic");
+            inferredServers.add("glassfish");
+            log.debug("Inferred full EE servers from EAR artifacts: {}", inferredServers);
+        }
+
+        // WAR files indicate servlet containers or web servers
+        if (warCount > 0 || (earCount == 0 && jarCount > 0)) {
+            // Check for specific indicators in platform artifacts
+            int webXmlCount = platformSpecificArtifacts.getOrDefault("web.xml", 0);
+
+            if (webXmlCount > 0 || warCount > 0) {
+                inferredServers.add("tomcat");
+                inferredServers.add("jetty");
+                inferredServers.add("wildfly");
+                log.debug("Inferred servlet containers from WAR/web.xml artifacts");
+            }
+        }
+
+        // If only web.xml detected without any deployment artifacts, still infer web containers
+        if (warCount == 0 && earCount == 0 && jarCount == 0) {
+            int webXmlCount = platformSpecificArtifacts.getOrDefault("web.xml", 0);
+            if (webXmlCount > 0) {
+                inferredServers.add("tomcat");
+                inferredServers.add("jetty");
+                inferredServers.add("wildfly");
+                log.debug("Inferred servlet containers from web.xml presence");
+            }
+        }
+
+        return inferredServers;
+    }
+
     /**
      * Scan Maven project for server dependencies with variable resolution
      */

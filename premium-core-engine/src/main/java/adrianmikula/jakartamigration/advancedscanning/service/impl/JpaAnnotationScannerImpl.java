@@ -1,8 +1,9 @@
 package adrianmikula.jakartamigration.advancedscanning.service.impl;
 
+import adrianmikula.jakartamigration.advancedscanning.domain.FileScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.JpaAnnotationUsage;
-import adrianmikula.jakartamigration.advancedscanning.domain.JpaProjectScanResult;
-import adrianmikula.jakartamigration.advancedscanning.domain.JpaScanResult;
+import adrianmikula.jakartamigration.advancedscanning.domain.ProjectScanResult;
+import adrianmikula.jakartamigration.advancedscanning.service.BaseScanner;
 import adrianmikula.jakartamigration.advancedscanning.service.JpaAnnotationScanner;
 import lombok.extern.slf4j.Slf4j;
 import org.openrewrite.java.JavaParser;
@@ -16,19 +17,18 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 
 /**
  * Implementation of JpaAnnotationScanner using OpenRewrite JavaParser.
  * Provides AST-based scanning for javax.persistence.* annotations.
  */
 @Slf4j
-public class JpaAnnotationScannerImpl implements JpaAnnotationScanner {
+public class JpaAnnotationScannerImpl extends BaseScanner<JpaAnnotationUsage> implements JpaAnnotationScanner {
 
     // Map of javax.persistence annotations to their Jakarta equivalents
     private static final Map<String, String> JPA_ANNOTATION_MAPPINGS = new HashMap<>();
@@ -126,212 +126,183 @@ public class JpaAnnotationScannerImpl implements JpaAnnotationScanner {
         JPA_ANNOTATION_MAPPINGS.put("javax.persistence.PersistenceUnits", "jakarta.persistence.PersistenceUnits");
     }
 
-    private final ThreadLocal<JavaParser> javaParserThreadLocal = ThreadLocal
-            .withInitial(() -> JavaParser.fromJavaVersion().build());
+    // Parallelism configuration - can be overridden via system property
+    private static final int MAX_PARALLELISM = Integer.parseInt(
+            System.getProperty("advanced.scan.parallelism", "4"));
 
-    private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
+    // Memory threshold for sequential fallback (100MB)
+    private static final long MEMORY_THRESHOLD_BYTES = 100 * 1024 * 1024;
 
     @Override
-    public JpaProjectScanResult scanProject(Path projectPath) {
+    public ProjectScanResult<FileScanResult<JpaAnnotationUsage>> scanProject(Path projectPath) {
         if (projectPath == null || !Files.exists(projectPath) || !Files.isDirectory(projectPath)) {
             log.warn("Invalid project path: {}", projectPath);
-            return JpaProjectScanResult.empty();
+            return ProjectScanResult.empty();
         }
 
         try {
-            // Discover all Java files
             List<Path> javaFiles = discoverJavaFiles(projectPath);
 
             if (javaFiles.isEmpty()) {
                 log.info("No Java files found in project: {}", projectPath);
-                return JpaProjectScanResult.empty();
+                return ProjectScanResult.empty();
             }
 
             log.info("Scanning {} Java files for JPA annotations in project: {}", javaFiles.size(), projectPath);
 
-            // Scan files sequentially for large projects to prevent OOM
-            AtomicInteger totalScanned = new AtomicInteger(0);
-            List<JpaScanResult> results = new ArrayList<>();
+            // Check available memory and determine parallelism
+            Runtime runtime = Runtime.getRuntime();
+            long maxMemory = runtime.maxMemory();
+            long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+            long availableMemory = maxMemory - usedMemory;
 
-            // Use sequential stream for large projects to prevent memory issues
-            if (javaFiles.size() > 1000) {
-                log.info("Large project detected ({} files), using sequential scanning", javaFiles.size());
-                for (Path file : javaFiles) {
-                    totalScanned.incrementAndGet();
-                    JpaScanResult result = scanFile(file);
-                    if (result != null && !result.annotations().isEmpty()) {
-                        results.add(result);
-                    }
-                    // Clear memory periodically by cleaning up thread local
-                    if (totalScanned.get() % 100 == 0) {
-                        javaParserThreadLocal.remove(); // Clear thread local to prevent memory leaks
-                        javaParserThreadLocal.remove(); // Double clear to ensure cleanup
-                    }
-                }
-            } else {
-                // Use parallel stream for smaller projects
-                results = javaFiles.parallelStream()
-                        .map(file -> {
-                            totalScanned.incrementAndGet();
-                            JpaScanResult result = scanFile(file);
-                            if (result != null && !result.annotations().isEmpty()) {
-                                return result;
-                            }
-                            return null;
-                        })
+            AtomicInteger totalScanned = new AtomicInteger(0);
+            List<FileScanResult<JpaAnnotationUsage>> results;
+
+            // Use sequential processing if low on memory, otherwise use bounded parallelism
+            if (availableMemory < MEMORY_THRESHOLD_BYTES) {
+                log.info("Low memory detected ({} MB available), using sequential processing for JPA scan",
+                        availableMemory / (1024 * 1024));
+                results = javaFiles.stream()
+                        .map(file -> scanFileWithTracking(file, totalScanned))
                         .filter(java.util.Objects::nonNull)
                         .collect(Collectors.toList());
+            } else {
+                // Use bounded parallelism with custom ForkJoinPool
+                int parallelism = Math.min(MAX_PARALLELISM, javaFiles.size());
+                log.debug("Using parallel processing with parallelism={} for JPA scan", parallelism);
+
+                ForkJoinPool customPool = new ForkJoinPool(parallelism);
+                try {
+                    results = customPool.submit(() ->
+                            javaFiles.parallelStream()
+                                    .map(file -> scanFileWithTracking(file, totalScanned))
+                                    .filter(java.util.Objects::nonNull)
+                                    .collect(Collectors.toList())
+                    ).get();
+                } catch (Exception e) {
+                    log.warn("Parallel scan failed for JPA, falling back to sequential: {}", e.getMessage());
+                    results = javaFiles.stream()
+                            .map(file -> scanFileWithTracking(file, totalScanned))
+                            .filter(java.util.Objects::nonNull)
+                            .collect(Collectors.toList());
+                } finally {
+                    customPool.shutdown();
+                }
             }
 
+            // Cleanup ThreadLocal to prevent memory leaks
+            cleanupThreadLocal();
+
             int totalAnnotations = results.stream()
-                    .mapToInt(r -> r.annotations().size())
+                    .mapToInt(r -> r.usages().size())
                     .sum();
 
             log.info("JPA scan complete: {} files scanned, {} files with JPA usage, {} total annotations",
                     totalScanned.get(), results.size(), totalAnnotations);
 
-            return new JpaProjectScanResult(
-                    results,
-                    totalScanned.get(),
-                    results.size(),
-                    totalAnnotations);
+            return new ProjectScanResult<>(results, totalScanned.get(), results.size(), totalAnnotations);
 
         } catch (Exception e) {
             log.error("Error scanning project for JPA annotations: {}", projectPath, e);
-            return JpaProjectScanResult.empty();
+            return ProjectScanResult.empty();
         }
     }
 
     @Override
-    public JpaScanResult scanFile(Path filePath) {
-        if (filePath == null) {
-            throw new IllegalArgumentException("filePath cannot be null");
-        }
-        if (!Files.exists(filePath)) {
-            log.warn("File does not exist: {}", filePath);
-            return JpaScanResult.empty(filePath);
+    public FileScanResult<JpaAnnotationUsage> scanFile(Path filePath) {
+        Path validatedPath = validateFilePath(filePath);
+        if (validatedPath == null) {
+            return FileScanResult.empty(filePath);
         }
 
         try {
-            String content = Files.readString(filePath);
+            String content = Files.readString(validatedPath);
             int lineCount = countLines(content);
 
             JavaParser parser = javaParserThreadLocal.get();
             parser.reset();
 
-            List<SourceFile> sourceFiles = parser.parse(content).collect(java.util.stream.Collectors.toList());
+            List<SourceFile> sourceFiles = parser.parse(content).collect(Collectors.toList());
 
             if (sourceFiles.isEmpty()) {
-                log.debug("No source files found in file: {}", filePath);
-                return JpaScanResult.empty(filePath);
+                return FileScanResult.empty(filePath);
             }
 
-            // Extract JPA annotations from all compilation units
             List<JpaAnnotationUsage> annotations = new ArrayList<>();
             for (SourceFile sourceFile : sourceFiles) {
-                if (sourceFile instanceof CompilationUnit) {
-                    CompilationUnit cu = (CompilationUnit) sourceFile;
+                if (sourceFile instanceof CompilationUnit cu) {
                     annotations.addAll(extractJpaAnnotations(cu, content));
                 }
             }
 
-            return new JpaScanResult(filePath, annotations, lineCount);
+            return new FileScanResult<>(filePath, annotations, lineCount);
 
         } catch (Exception e) {
             log.warn("Error scanning file for JPA annotations: {}", filePath, e);
-            return JpaScanResult.empty(filePath);
+            return FileScanResult.empty(filePath);
         }
     }
 
-    /**
-     * Discovers all Java files in the project efficiently.
-     */
-    private List<Path> discoverJavaFiles(Path projectPath) {
-        return fileScanner.findFiles(projectPath, List.of(".java"));
-    }
-
-    /**
-     * Extracts javax.persistence.* annotations from a compilation unit.
-     */
     private List<JpaAnnotationUsage> extractJpaAnnotations(CompilationUnit cu, String content) {
         List<JpaAnnotationUsage> annotations = new ArrayList<>();
-
         String[] lines = content.split("\n");
 
-        // Find all imports first
+        // Check imports
         for (J.Import imp : cu.getImports()) {
             String importName = imp.getQualid().toString();
-
             if (importName.startsWith("javax.persistence.")) {
                 String jakartaEquivalent = JPA_ANNOTATION_MAPPINGS.get(importName);
-
-                // Find line number
-                int lineNumber = findLineNumberInContent(lines, importName);
-
+                int lineNumber = findLineNumber(lines, importName);
                 annotations.add(new JpaAnnotationUsage(
                         importName,
-                        jakartaEquivalent != null ? jakartaEquivalent
-                                : "jakarta.persistence." + importName.substring(17),
+                        jakartaEquivalent != null ? jakartaEquivalent : importName.replace("javax.", "jakarta."),
                         lineNumber,
                         "import",
                         "import"));
             }
         }
 
-        // Now search for annotation usages in the content using regex
-        // Pattern: @javax.persistence.SomeAnnotation or @SomeAnnotation (for
-        // annotations in javax.persistence package)
+        // Search for annotation usages
         Pattern annotationPattern = Pattern.compile("@((?:javax\\.persistence\\.\\w+|\\w+(?=\\s*\\()))");
         Matcher matcher = annotationPattern.matcher(content);
 
         while (matcher.find()) {
             String annotationName = matcher.group(1);
-
-            // Skip if it's not javax.persistence
-            if (!annotationName.startsWith("javax.persistence.") && !annotationName.contains(".")) {
-                // This might be a short annotation name - need to check imports
-                // For now, skip these
+            if (!annotationName.startsWith("javax.persistence.")) {
                 continue;
             }
-
-            if (annotationName.startsWith("javax.persistence.")) {
-                String jakartaEquivalent = JPA_ANNOTATION_MAPPINGS.get(annotationName);
-
-                // Find line number
-                int lineNumber = findLineNumberInContent(lines, matcher.group(0));
-
-                annotations.add(new JpaAnnotationUsage(
-                        annotationName,
-                        jakartaEquivalent != null ? jakartaEquivalent
-                                : "jakarta.persistence." + annotationName.substring(17),
-                        lineNumber,
-                        "annotation",
-                        "annotation"));
-            }
+            String jakartaEquivalent = JPA_ANNOTATION_MAPPINGS.get(annotationName);
+            int lineNumber = findLineNumber(lines, matcher.group(0));
+            annotations.add(new JpaAnnotationUsage(
+                    annotationName,
+                    jakartaEquivalent != null ? jakartaEquivalent : annotationName.replace("javax.", "jakarta."),
+                    lineNumber,
+                    "annotation",
+                    "annotation"));
         }
 
         return annotations;
     }
 
     /**
-     * Finds the line number of a string in the content.
+     * Scans a single file with tracking for parallel processing.
      */
-    private int findLineNumberInContent(String[] lines, String searchText) {
-        for (int i = 0; i < lines.length; i++) {
-            if (lines[i].contains(searchText)) {
-                return i + 1; // Line numbers are 1-based
-            }
-        }
-        return 1; // Default to line 1 if not found
+    private FileScanResult<JpaAnnotationUsage> scanFileWithTracking(Path filePath, AtomicInteger totalScanned) {
+        totalScanned.incrementAndGet();
+        FileScanResult<JpaAnnotationUsage> result = scanFile(filePath);
+        return result.hasIssues() ? result : null;
     }
 
     /**
-     * Counts lines in content.
+     * Cleans up ThreadLocal JavaParser instances to prevent memory leaks.
+     * Should be called after project scan completes.
      */
-    private int countLines(String content) {
-        if (content == null || content.isEmpty()) {
-            return 0;
+    protected void cleanupThreadLocal() {
+        try {
+            javaParserThreadLocal.remove();
+        } catch (Exception e) {
+            log.debug("Error cleaning up ThreadLocal: {}", e.getMessage());
         }
-        return content.split("\n").length;
     }
 }

@@ -13,6 +13,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 
@@ -48,6 +49,9 @@ public class LoggingMetricsScannerImpl implements LoggingMetricsScanner {
 
     // File extensions to scan
     private static final Set<String> SCAN_EXTENSIONS = Set.of(".java", ".xml", ".properties");
+
+    // Maximum file size to scan (5MB) - larger files are skipped
+    private static final long MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
     @Override
     public LoggingMetricsProjectScanResult scanProject(Path projectPath) {
@@ -85,48 +89,55 @@ public class LoggingMetricsScannerImpl implements LoggingMetricsScanner {
         List<LoggingMetricsUsage> usages = new ArrayList<>();
 
         try {
-            String content = Files.readString(filePath);
-            String[] lines = content.split("\\r?\\n");
+            // Skip large files to prevent memory issues
+            long fileSize = Files.size(filePath);
+            if (fileSize > MAX_FILE_SIZE_BYTES) {
+                log.warn("Skipping large file ({} bytes): {}", fileSize, filePath);
+                return new LoggingMetricsScanResult(filePath.toString(), usages);
+            }
 
-            for (int i = 0; i < lines.length; i++) {
-                String line = lines[i];
-                int lineNumber = i + 1;
+            // Use streaming with try-with-resources for memory efficiency
+            try (Stream<String> lines = Files.lines(filePath)) {
+                final AtomicInteger lineNumber = new AtomicInteger(0);
+                lines.forEach(line -> {
+                    int currentLineNumber = lineNumber.incrementAndGet();
 
-                // Check for javax.logging usage
-                Matcher loggerMatcher = LOGGER_PATTERN.matcher(line);
-                if (loggerMatcher.find()) {
-                    String usageType = detectUsageType(line, "javax.logging", "java.util.logging");
-                    usages.add(new LoggingMetricsUsage(
-                            filePath.toString(),
-                            lineNumber,
-                            usageType,
-                            extractClassName(line),
-                            extractMethodName(line)));
-                }
+                    // Check for javax.logging usage
+                    Matcher loggerMatcher = LOGGER_PATTERN.matcher(line);
+                    if (loggerMatcher.find()) {
+                        String usageType = detectUsageType(line, "javax.logging", "java.util.logging");
+                        usages.add(new LoggingMetricsUsage(
+                                filePath.toString(),
+                                currentLineNumber,
+                                usageType,
+                                extractClassName(line),
+                                extractMethodName(line)));
+                    }
 
-                // Check for JMX usage
-                Matcher jmxMatcher = JMX_PATTERN.matcher(line);
-                if (jmxMatcher.find()) {
-                    String usageType = detectUsageType(line, "javax.management", "jakarta.management");
-                    usages.add(new LoggingMetricsUsage(
-                            filePath.toString(),
-                            lineNumber,
-                            usageType,
-                            extractClassName(line),
-                            extractMethodName(line)));
-                }
+                    // Check for JMX usage
+                    Matcher jmxMatcher = JMX_PATTERN.matcher(line);
+                    if (jmxMatcher.find()) {
+                        String usageType = detectUsageType(line, "javax.management", "jakarta.management");
+                        usages.add(new LoggingMetricsUsage(
+                                filePath.toString(),
+                                currentLineNumber,
+                                usageType,
+                                extractClassName(line),
+                                extractMethodName(line)));
+                    }
 
-                // Check for javax.annotation usage
-                Matcher annotationMatcher = ANNOTATION_PATTERN.matcher(line);
-                if (annotationMatcher.find()) {
-                    String usageType = detectUsageType(line, "javax.annotation", "jakarta.annotation");
-                    usages.add(new LoggingMetricsUsage(
-                            filePath.toString(),
-                            lineNumber,
-                            usageType,
-                            extractClassName(line),
-                            extractMethodName(line)));
-                }
+                    // Check for javax.annotation usage
+                    Matcher annotationMatcher = ANNOTATION_PATTERN.matcher(line);
+                    if (annotationMatcher.find()) {
+                        String usageType = detectUsageType(line, "javax.annotation", "jakarta.annotation");
+                        usages.add(new LoggingMetricsUsage(
+                                filePath.toString(),
+                                currentLineNumber,
+                                usageType,
+                                extractClassName(line),
+                                extractMethodName(line)));
+                    }
+                });
             }
         } catch (IOException e) {
             log.warn("Error reading file {}: {}", filePath, e.getMessage());

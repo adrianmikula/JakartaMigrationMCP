@@ -20,8 +20,7 @@ import org.springframework.stereotype.Component;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
-import java.util.List;
+import adrianmikula.jakartamigration.mcp.util.JsonUtils;
 import java.util.List;
 
 /**
@@ -57,7 +56,7 @@ public class PremiumMigrationTools {
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
             }
 
             List<RecipeDefinition> recipes = recipeService.getRecipes(project);
@@ -66,15 +65,15 @@ public class PremiumMigrationTools {
             json.append("{\n");
             json.append("  \"status\": \"success\",\n");
             json.append("  \"edition\": \"premium\",\n");
-            json.append("  \"projectPath\": \"").append(escapeJson(projectPath)).append("\",\n");
+            json.append("  \"projectPath\": \"").append(JsonUtils.escapeJson(projectPath)).append("\",\n");
             json.append("  \"totalRecipes\": ").append(recipes.size()).append(",\n");
             json.append("  \"recipes\": [\n");
             
             for (int i = 0; i < recipes.size(); i++) {
                 RecipeDefinition recipe = recipes.get(i);
                 json.append("    {\n");
-                json.append("      \"name\": \"").append(escapeJson(recipe.getName())).append("\",\n");
-                json.append("      \"description\": \"").append(escapeJson(recipe.getDescription())).append("\",\n");
+                json.append("      \"name\": \"").append(JsonUtils.escapeJson(recipe.getName())).append("\",\n");
+                json.append("      \"description\": \"").append(JsonUtils.escapeJson(recipe.getDescription())).append("\",\n");
                 json.append("      \"category\": \"").append(recipe.getCategory()).append("\",\n");
                 json.append("      \"reversible\": ").append(recipe.isReversible()).append(",\n");
                 json.append("      \"status\": \"").append(recipe.getStatus() != null ? recipe.getStatus() : "NEVER_RUN").append("\"\n");
@@ -91,7 +90,7 @@ public class PremiumMigrationTools {
 
         } catch (Exception e) {
             log.error("Unexpected error listing refactor recipes", e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
+            return JsonUtils.createErrorResponse("Unexpected error: " + e.getMessage());
         }
     }
 
@@ -109,14 +108,14 @@ public class PremiumMigrationTools {
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
             }
 
             RecipeCategory recipeCategory;
             try {
                 recipeCategory = RecipeCategory.valueOf(category.toUpperCase());
             } catch (IllegalArgumentException e) {
-                return createErrorResponse("Invalid category: " + category + ". Valid categories: " + 
+                return JsonUtils.createErrorResponse("Invalid category: " + category + ". Valid categories: " + 
                     java.util.Arrays.toString(RecipeCategory.values()));
             }
 
@@ -126,7 +125,7 @@ public class PremiumMigrationTools {
             json.append("{\n");
             json.append("  \"status\": \"success\",\n");
             json.append("  \"edition\": \"premium\",\n");
-            json.append("  \"projectPath\": \"").append(escapeJson(projectPath)).append("\",\n");
+            json.append("  \"projectPath\": \"").append(JsonUtils.escapeJson(projectPath)).append("\",\n");
             json.append("  \"category\": \"").append(recipeCategory).append("\",\n");
             json.append("  \"totalRecipes\": ").append(recipes.size()).append(",\n");
             json.append("  \"recipes\": [\n");
@@ -134,8 +133,8 @@ public class PremiumMigrationTools {
             for (int i = 0; i < recipes.size(); i++) {
                 RecipeDefinition recipe = recipes.get(i);
                 json.append("    {\n");
-                json.append("      \"name\": \"").append(escapeJson(recipe.getName())).append("\",\n");
-                json.append("      \"description\": \"").append(escapeJson(recipe.getDescription())).append("\",\n");
+                json.append("      \"name\": \"").append(JsonUtils.escapeJson(recipe.getName())).append("\",\n");
+                json.append("      \"description\": \"").append(JsonUtils.escapeJson(recipe.getDescription())).append("\",\n");
                 json.append("      \"category\": \"").append(recipe.getCategory()).append("\",\n");
                 json.append("      \"reversible\": ").append(recipe.isReversible()).append(",\n");
                 json.append("      \"status\": \"").append(recipe.getStatus() != null ? recipe.getStatus() : "NEVER_RUN").append("\"\n");
@@ -151,7 +150,7 @@ public class PremiumMigrationTools {
 
         } catch (Exception e) {
             log.error("Unexpected error listing refactor recipes by category", e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
+            return JsonUtils.createErrorResponse("Unexpected error: " + e.getMessage());
         }
     }
 
@@ -169,7 +168,7 @@ public class PremiumMigrationTools {
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
             }
 
             RecipeExecutionResult result = recipeService.applyRecipe(recipeName, project);
@@ -178,21 +177,21 @@ public class PremiumMigrationTools {
             json.append("{\n");
             json.append("  \"status\": \"success\",\n");
             json.append("  \"edition\": \"premium\",\n");
-            json.append("  \"projectPath\": \"").append(escapeJson(projectPath)).append("\",\n");
-            json.append("  \"recipeName\": \"").append(escapeJson(recipeName)).append("\",\n");
+            json.append("  \"projectPath\": \"").append(JsonUtils.escapeJson(projectPath)).append("\",\n");
+            json.append("  \"recipeName\": \"").append(JsonUtils.escapeJson(recipeName)).append("\",\n");
             json.append("  \"executionId\": \"").append(result.executionId()).append(",\n");
             json.append("  \"success\": ").append(result.success()).append(",\n");
-            json.append("  \"message\": \"").append(escapeJson(result.errorMessage() != null ? result.errorMessage() : "Success")).append("\",\n");
+            json.append("  \"message\": \"").append(JsonUtils.escapeJson(result.errorMessage() != null ? result.errorMessage() : "Success")).append("\",\n");
             json.append("  \"filesProcessed\": ").append(result.filesProcessed()).append(",\n");
             json.append("  \"filesChanged\": ").append(result.filesChanged()).append(",\n");
-            json.append("  \"changedFilePaths\": [").append(String.join(", ", result.changedFilePaths().stream().map(s -> "\"" + escapeJson(s) + "\"").toList())).append("],\n");
+            json.append("  \"changedFilePaths\": [").append(String.join(", ", result.changedFilePaths().stream().map(s -> "\"" + JsonUtils.escapeJson(s) + "\"").toList())).append("],\n");
             json.append("  \"executionId\": \"").append(result.executionId()).append("\n");
             json.append("}");
             return json.toString();
 
         } catch (Exception e) {
             log.error("Unexpected error applying refactor recipe", e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
+            return JsonUtils.createErrorResponse("Unexpected error: " + e.getMessage());
         }
     }
 
@@ -210,7 +209,7 @@ public class PremiumMigrationTools {
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
             }
 
             RecipeExecutionResult result = recipeService.undoRecipe(executionId, project);
@@ -219,20 +218,20 @@ public class PremiumMigrationTools {
             json.append("{\n");
             json.append("  \"status\": \"success\",\n");
             json.append("  \"edition\": \"premium\",\n");
-            json.append("  \"projectPath\": \"").append(escapeJson(projectPath)).append("\",\n");
+            json.append("  \"projectPath\": \"").append(JsonUtils.escapeJson(projectPath)).append("\",\n");
             json.append("  \"executionId\": \"").append(executionId).append(",\n");
             json.append("  \"success\": ").append(result.success()).append(",\n");
-            json.append("  \"message\": \"").append(escapeJson(result.errorMessage() != null ? result.errorMessage() : "Success")).append("\",\n");
+            json.append("  \"message\": \"").append(JsonUtils.escapeJson(result.errorMessage() != null ? result.errorMessage() : "Success")).append("\",\n");
             json.append("  \"filesProcessed\": ").append(result.filesProcessed()).append(",\n");
             json.append("  \"filesChanged\": ").append(result.filesChanged()).append(",\n");
-            json.append("  \"changedFilePaths\": [").append(String.join(", ", result.changedFilePaths().stream().map(s -> "\"" + escapeJson(s) + "\"").toList())).append("],\n");
+            json.append("  \"changedFilePaths\": [").append(String.join(", ", result.changedFilePaths().stream().map(s -> "\"" + JsonUtils.escapeJson(s) + "\"").toList())).append("],\n");
             json.append("  \"executionId\": \"").append(result.executionId()).append("\n");
             json.append("}");
             return json.toString();
 
         } catch (Exception e) {
             log.error("Unexpected error undoing refactor recipe", e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
+            return JsonUtils.createErrorResponse("Unexpected error: " + e.getMessage());
         }
     }
 
@@ -249,7 +248,7 @@ public class PremiumMigrationTools {
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
             }
 
             List<RecipeExecutionHistory> history = recipeService.getHistory(project);
@@ -258,7 +257,7 @@ public class PremiumMigrationTools {
             json.append("{\n");
             json.append("  \"status\": \"success\",\n");
             json.append("  \"edition\": \"premium\",\n");
-            json.append("  \"projectPath\": \"").append(escapeJson(projectPath)).append("\",\n");
+            json.append("  \"projectPath\": \"").append(JsonUtils.escapeJson(projectPath)).append("\",\n");
             json.append("  \"totalExecutions\": ").append(history.size()).append(",\n");
             json.append("  \"history\": [\n");
             
@@ -266,11 +265,11 @@ public class PremiumMigrationTools {
                 RecipeExecutionHistory entry = history.get(i);
                 json.append("    {\n");
                 json.append("      \"id\": ").append(entry.getId()).append(",\n");
-                json.append("      \"recipeName\": \"").append(escapeJson(entry.getRecipeName())).append("\",\n");
+                json.append("      \"recipeName\": \"").append(JsonUtils.escapeJson(entry.getRecipeName())).append("\",\n");
                 json.append("      \"executedAt\": \"").append(entry.getExecutedAt()).append("\",\n");
                 json.append("      \"success\": ").append(entry.isSuccess()).append(",\n");
-                json.append("      \"message\": \"").append(escapeJson(entry.getMessage() != null ? entry.getMessage() : "")).append("\",\n");
-                json.append("      \"affectedFiles\": [").append(String.join(", ", entry.getAffectedFiles().stream().map(s -> "\"" + escapeJson(s) + "\"").toList())).append("],\n");
+                json.append("      \"message\": \"").append(JsonUtils.escapeJson(entry.getMessage() != null ? entry.getMessage() : "")).append("\",\n");
+                json.append("      \"affectedFiles\": [").append(String.join(", ", entry.getAffectedFiles().stream().map(s -> "\"" + JsonUtils.escapeJson(s) + "\"").toList())).append("],\n");
                 json.append("      \"undoExecutionId\": ").append(entry.getUndoExecutionId() != null ? entry.getUndoExecutionId() : "null").append(",\n");
                 json.append("      \"isUndo\": ").append(entry.isUndo()).append("\n");
                 json.append("    }");
@@ -285,7 +284,7 @@ public class PremiumMigrationTools {
 
         } catch (Exception e) {
             log.error("Unexpected error getting refactor history", e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
+            return JsonUtils.createErrorResponse("Unexpected error: " + e.getMessage());
         }
     }
 
@@ -301,7 +300,7 @@ public class PremiumMigrationTools {
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
             }
 
             // Run dependency analysis
@@ -312,17 +311,17 @@ public class PremiumMigrationTools {
             json.append("{\n");
             json.append("  \"status\": \"success\",\n");
             json.append("  \"edition\": \"premium\",\n");
-            json.append("  \"projectPath\": \"").append(escapeJson(projectPath)).append("\",\n");
+            json.append("  \"projectPath\": \"").append(JsonUtils.escapeJson(projectPath)).append("\",\n");
             json.append("  \"blockerCount\": ").append(report.blockers().size()).append(",\n");
             json.append("  \"blockers\": [\n");
             for (int i = 0; i < report.blockers().size(); i++) {
                 Blocker blocker = report.blockers().get(i);
                 json.append("    {\n");
-                json.append("      \"artifact\": \"").append(escapeJson(blocker.artifact().toString())).append("\",\n");
+                json.append("      \"artifact\": \"").append(JsonUtils.escapeJson(blocker.artifact().toString())).append("\",\n");
                 json.append("      \"type\": \"").append(blocker.type()).append("\",\n");
-                json.append("      \"reason\": \"").append(escapeJson(blocker.reason())).append("\",\n");
+                json.append("      \"reason\": \"").append(JsonUtils.escapeJson(blocker.reason())).append("\",\n");
                 json.append("      \"confidence\": ").append(blocker.confidence()).append(",\n");
-                json.append("      \"mitigationStrategies\": ").append(buildStringArray(blocker.mitigationStrategies()))
+                json.append("      \"mitigationStrategies\": ").append(JsonUtils.buildStringArray(blocker.mitigationStrategies()))
                     .append("\n");
                 json.append("    }");
                 if (i < report.blockers().size() - 1) {
@@ -336,20 +335,10 @@ public class PremiumMigrationTools {
 
         } catch (Exception e) {
             log.error("Unexpected error during blocker detection", e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
+            return JsonUtils.createErrorResponse("Unexpected error: " + e.getMessage());
         }
     }
 
-    private String buildStringArray(List<String> list) {
-        if (list.isEmpty()) {
-            return "[]";
-        }
-        return "[" + list.stream()
-                .map(s -> "\"" + escapeJson(s) + "\"")
-                .collect(java.util.stream.Collectors.joining(", ")) + "]";
-    }
-
-    
     /**
      * Creates a comprehensive migration report with analysis, recommendations, and statistics.
      * PREMIUM TOOL - Requires JetBrains Marketplace subscription
@@ -362,7 +351,7 @@ public class PremiumMigrationTools {
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
             }
 
             // Run dependency analysis for report data
@@ -381,10 +370,10 @@ public class PremiumMigrationTools {
             json.append("{\n");
             json.append("  \"status\": \"success\",\n");
             json.append("  \"edition\": \"premium\",\n");
-            json.append("  \"projectPath\": \"").append(escapeJson(projectPath)).append("\",\n");
-            json.append("  \"reportPath\": \"").append(escapeJson(reportPath.toString())).append("\",\n");
+            json.append("  \"projectPath\": \"").append(JsonUtils.escapeJson(projectPath)).append("\",\n");
+            json.append("  \"reportPath\": \"").append(JsonUtils.escapeJson(reportPath.toString())).append("\",\n");
             json.append("  \"readinessScore\": ").append(report.readinessScore().score()).append(",\n");
-            json.append("  \"readinessMessage\": \"").append(escapeJson(report.readinessScore().explanation())).append("\",\n");
+            json.append("  \"readinessMessage\": \"").append(JsonUtils.escapeJson(report.readinessScore().explanation())).append("\",\n");
             json.append("  \"totalDependencies\": ").append(report.dependencyGraph().nodeCount()).append(",\n");
             json.append("  \"totalBlockers\": ").append(report.blockers().size()).append(",\n");
             json.append("  \"totalRecommendations\": ").append(report.recommendations().size()).append(",\n");
@@ -392,7 +381,7 @@ public class PremiumMigrationTools {
             json.append("  \"generatedAt\": \"").append(java.time.LocalDateTime.now().toString()).append("\",\n");
             json.append("  \"reportData\": {\n");
             json.append("    \"summary\": \"Jakarta Migration Analysis Report\",\n");
-            json.append("    \"projectName\": \"").append(escapeJson(project.getFileName().toString())).append("\",\n");
+            json.append("    \"projectName\": \"").append(JsonUtils.escapeJson(project.getFileName().toString())).append("\",\n");
             json.append("    \"analysisDate\": \"").append(java.time.LocalDate.now().toString()).append("\",\n");
             json.append("    \"findings\": {\n");
             json.append("      \"javaxPackages\": [\n");
@@ -415,7 +404,7 @@ public class PremiumMigrationTools {
             // Add high-risk dependencies (simplified)
             report.dependencyGraph().getNodes().stream()
                 .filter(node -> !node.isJakartaCompatible())
-                .forEach(node -> json.append("          \"").append(escapeJson(node.artifactId())).append("\"\n"));
+                .forEach(node -> json.append("          \"").append(JsonUtils.escapeJson(node.artifactId())).append("\"\n"));
             
             json.append("      ]\n");
             json.append("      \"recommendations\": ").append(report.recommendations().size()).append(",\n");
@@ -423,7 +412,7 @@ public class PremiumMigrationTools {
             json.append("        \"riskScore\": ").append(report.riskAssessment().riskScore()).append(",\n");
             json.append("        \"riskFactors\": [");
             for (int i = 0; i < report.riskAssessment().riskFactors().size(); i++) {
-                json.append("\"").append(escapeJson(report.riskAssessment().riskFactors().get(i))).append("\"");
+                json.append("\"").append(JsonUtils.escapeJson(report.riskAssessment().riskFactors().get(i))).append("\"");
                 if (i < report.riskAssessment().riskFactors().size() - 1) {
                     json.append(", ");
                 }
@@ -431,7 +420,7 @@ public class PremiumMigrationTools {
             json.append("],\n");
             json.append("        \"mitigationStrategies\": [");
             for (int i = 0; i < report.riskAssessment().mitigationSuggestions().size(); i++) {
-                json.append("\"").append(escapeJson(report.riskAssessment().mitigationSuggestions().get(i))).append("\"");
+                json.append("\"").append(JsonUtils.escapeJson(report.riskAssessment().mitigationSuggestions().get(i))).append("\"");
                 if (i < report.riskAssessment().mitigationSuggestions().size() - 1) {
                     json.append(", ");
                 }
@@ -446,26 +435,8 @@ public class PremiumMigrationTools {
 
         } catch (Exception e) {
             log.error("Unexpected error during report creation", e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
+            return JsonUtils.createErrorResponse("Unexpected error: " + e.getMessage());
         }
     }
 
-    private String createErrorResponse(String message) {
-        return "{\n" +
-                "  \"status\": \"error\",\n" +
-                "  \"message\": \"" + escapeJson(message) + "\"\n" +
-                "  \"edition\": \"premium\"\n" +
-                "}";
-    }
-
-    private String escapeJson(String input) {
-        if (input == null) {
-            return "";
-        }
-        return input.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
-    }
 }

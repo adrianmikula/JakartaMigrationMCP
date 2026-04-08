@@ -2,21 +2,18 @@ package adrianmikula.jakartamigration.mcp;
 
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
-import adrianmikula.jakartamigration.config.FeatureFlag;
-import adrianmikula.jakartamigration.config.FeatureFlagsProperties;
 import adrianmikula.jakartamigration.config.FeatureFlagsService;
-import adrianmikula.jakartamigration.mcp.util.JsonResponseBuilder;
+import adrianmikula.jakartamigration.mcp.util.JsonUtils;
 import adrianmikula.jakartamigration.mcp.CommunityMigrationTools;
 import org.springaicommunity.mcp.annotation.McpTool;
 import org.springaicommunity.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * MCP Tools for Jakarta Migration.
@@ -65,9 +62,7 @@ public class JakartaMigrationTools {
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return new JsonResponseBuilder()
-                    .error("Project path does not exist or is not a directory: " + projectPath)
-                    .build();
+            return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
             }
 
             // Default to basic scan types if not specified
@@ -80,9 +75,7 @@ public class JakartaMigrationTools {
 
         } catch (Exception e) {
             log.error("Unexpected error during basic Jakarta EE scanning", e);
-            return new JsonResponseBuilder()
-                    .error("Unexpected error: " + e.getMessage())
-                    .build();
+            return JsonUtils.createErrorResponse("Unexpected error: " + e.getMessage());
         }
     }
 
@@ -108,7 +101,7 @@ public class JakartaMigrationTools {
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
             }
 
             // Run dependency analysis
@@ -130,66 +123,7 @@ public class JakartaMigrationTools {
 
         } catch (Exception e) {
             log.error("Unexpected error during dependency compatibility listing", e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
+            return JsonUtils.createErrorResponse("Unexpected error: " + e.getMessage());
         }
-    }
-
-    
-    // === HELPER METHODS ===
-
-    /**
-     * Creates a JSON error response with the given message.
-     * @param message Error message to include in response
-     * @return JSON error response as a string
-     */
-    private String createErrorResponse(String message) {
-        return "{\n" +
-                "  \"status\": \"error\",\n" +
-                "  \"message\": \"" + escapeJson(message) + "\",\n" +
-                "  \"errorType\": \"internal_server_error\"\n" +
-                "}";
-    }
-
-    /**
-     * Creates an upgrade required response for premium features.
-     * @param flag The feature flag that requires upgrade
-     * @param message Descriptive message
-     * @return JSON upgrade response as a string
-     */
-    private String createUpgradeRequiredResponse(FeatureFlag flag, String message) {
-        FeatureFlagsService.UpgradeInfo upgradeInfo = featureFlags.getUpgradeInfo(flag);
-        FeatureFlagsProperties.LicenseTier currentTier = featureFlags.getCurrentTier();
-
-        StringBuilder json = new StringBuilder();
-        json.append("{\n");
-        json.append("  \"status\": \"upgrade_required\",\n");
-        json.append("  \"feature\": \"").append(escapeJson(flag.getName())).append("\",\n");
-        json.append("  \"message\": \"").append(escapeJson(message)).append("\",\n");
-        json.append("  \"currentTier\": \"").append(escapeJson(currentTier.name())).append("\",\n");
-        json.append("  \"upgradeUrl\": \"").append(escapeJson(upgradeInfo.getPaymentLink())).append("\",\n");
-        json.append("  \"pricing\": {\n");
-        json.append("    \"monthly\": \"").append(escapeJson("$49")).append("\",\n");
-        json.append("    \"yearly\": \"").append(escapeJson("$399")).append("\",\n");
-        json.append("    \"freeTrialDays\": ").append(upgradeInfo.getRemainingTrialDays()).append("\n");
-        json.append("  }\n");
-        json.append("}");
-
-        return json.toString();
-    }
-
-    /**
-     * Escapes JSON special characters in strings.
-     * @param input The input string to escape
-     * @return The escaped string
-     */
-    private String escapeJson(String input) {
-        if (input == null) {
-            return "";
-        }
-        return input.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
     }
 }

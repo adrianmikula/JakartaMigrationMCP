@@ -27,7 +27,7 @@
     <idea-version since-build="233" />
 
     <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
-    <version>1.0.10</version>
+    <version>1.0.11</version>
 
     <name>Jakarta Migration (javax → jakarta)</name>
     <id>com.adrianmikula.jakarta-migration</id>
@@ -41,15 +41,26 @@
     <p>Migrate from Java EE 8 (javax.*) to Jakarta EE 9+ seamlessly. This plugin analyzes dependencies, detects migration blockers, and automates refactoring with OpenRewrite.</p>
 
     <h3>Why Jakarta EE?</h3>
-    <p>After Oracle donated Java EE to the Eclipse Foundation, the javax.* namespace became jakarta.*. If you're on Java 11+ with Spring Boot 3+ or Jakarta EE, you need this migration.</p>
+    <p>After Oracle donated Java EE to the Eclipse Foundation, the javax.* namespace became jakarta.*. If your code uses old appservers which depend on Java EE, you need this migration in order to upgrade.</p>
 
     <h3>Key Features</h3>
     <ul>
-    <li>🔍 <b>Migration Analysis</b> - Detect blockers before you start</li>
-    <li>📦 <b>Dependency Recommendations</b> - Find Jakarta-compatible versions</li>
-    <li>🤖 <b>AI-Powered</b> - MCP server for Claude, Cursor, and AI Assistants</li>
-    <li>📊 <b>Dependency Graphs</b> - Visualize your module dependencies</li>
-    <li>⚡ <b>Auto-Refactoring</b> - OpenRewrite-powered fixes</li>
+    <li>- <b>Risk Estimate</b> - Estimate the risk and effort of migrating</li>
+    <li>- <b>Dependency Scans</b> - Detect which dependencies are Jakarta EE compatible</li>
+    <li>- <b>Dependency Recommendations</b> - Find Jakarta-compatible versions</li>
+    <li>- <b>Platform Scans</b> - Detect frameworks and appservers which need to be upgraded</li>
+    <li>- <b>Source Scans</b> - Detect all code lines which need to be refactored</li>
+    <li>- <b>Migration Strategy</b> - Compare strengths and weaknesses of different migration strategies</li>
+    <li>- <b>AI-Powered</b> - MCP tools for Jetbrains AI Assistant</li>
+    <li>- <b>Dependency Graphs</b> - Visualize your module dependencies</li>
+    <li>- <b>Auto-Refactoring</b> - OpenRewrite-powered refactor recipes</li>
+    <li>- <b>Undo history</b> - Undo previously applied refactors</li>
+    </ul>
+
+    <h3>Experimental Features</h3>
+    <ul>
+    <li>- <b>Runtime</b> - Analyze runtime errors and suggest fixes</li>
+    <li>- <b>Reports</b> - Print a PDF report of scan results</li>
     </ul>
 
     <h3>Supported Technologies</h3>
@@ -57,7 +68,7 @@
     <li><b>Java Versions:</b> Java 11, 17, 21, 25</li>
     <li><b>Build Tools:</b> Maven, Gradle</li>
     <li><b>Frameworks:</b> Spring Boot 3+, Spring Framework 6+, Jakarta EE 9+</li>
-    <li><b>Application Servers:</b> Tomcat 10+, WildFly 27+, Jetty 12+, Open Liberty 23+, Payara 7+, JBoss EAP 8+</li>
+    <li><b>Application Servers:</b> Tomcat 10+, WildFly 27+, Jetty 12+, Open Liberty 23+, Payara 7+, JBoss EAP 8+, WebShphere, WebLogic</li>
     <li><b>Jakarta Specifications:</b> Jakarta Servlet, JSP, JPA, CDI, Bean Validation, JAX-RS, JAX-WS, JMS, WebSocket, JSON-B, JSON-P</li>
     </ul>
 
@@ -120,6 +131,14 @@
         <notificationGroup id="JakartaMigration.McpStatus"
                           displayType="BALLOON"
                           key="mcp.status.notification"/>
+
+        <!-- Notification for License Expiration -->
+        <notificationGroup id="JakartaMigration.LicenseExpiration"
+                          displayType="BALLOON"
+                          key="license.expiration.notification"/>
+
+        <!-- License Expiration Notifier - Monitors license status and notifies on expiration -->
+        <postStartupActivity implementation="adrianmikula.jakartamigration.intellij.license.LicenseExpirationNotifier"/>
     </extensions>
 
     <actions>
@@ -144,6 +163,20 @@
     </actions>
 
     <change-notes><![CDATA[
+    <h>1.0.11 - 2026-04-08</h>
+    <ul>
+        <li>Fixed memory leaks when scanning large projects</li>
+        <li>Re-organized main dashboard scan results summary</li>
+        <li>Major code refactor and simplification</li>
+        <li>Added license expiry notification</li>
+    </ul>
+    <h>1.0.10 - 2026-04-06</h>
+    <ul>
+        <li>Added risk score dial and estimated migration time</li>
+        <li>Fixed memory leaks when scanning large projects</li>
+        <li>Fixed recommendation of jakarta compatible upgrades</li>
+        <li>Major platform detection and integration testing overhaul</li>
+    </ul>
     <h>1.0.9 - 2026-04-02</h>
     <ul>
         <li><b>Added:</b> Advanced scan for reflection uses of javax packages - detects and analyzes dynamic class loading and reflection calls that reference javax.* packages</li>
