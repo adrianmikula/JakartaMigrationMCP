@@ -2,6 +2,9 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.coderefactoring.domain.RecipeExecutionHistory;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
+import adrianmikula.jakartamigration.credits.CreditType;
+import adrianmikula.jakartamigration.credits.CreditsService;
+import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -15,6 +18,8 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.awt.Desktop;
+import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.ZoneId;
@@ -36,15 +41,30 @@ public class HistoryTabComponent {
     private final JPanel panel;
     private final Project project;
     private final RecipeService recipeService;
+    private final CreditsService creditsService;
     private JBTable historyTable;
     private DefaultTableModel tableModel;
     private JButton undoButton;
 
+    // Callback to notify UI to refresh credits display
+    private Runnable onCreditUsed;
+
     public HistoryTabComponent(@NotNull Project project, RecipeService recipeService) {
         this.project = project;
         this.recipeService = recipeService;
+        this.creditsService = new CreditsService();
         this.panel = new JBPanel<>(new BorderLayout());
         initializeComponent();
+    }
+
+    public void setOnCreditUsed(Runnable callback) {
+        this.onCreditUsed = callback;
+    }
+
+    private void notifyCreditUsed() {
+        if (onCreditUsed != null) {
+            onCreditUsed.run();
+        }
     }
 
     private void initializeComponent() {
@@ -172,6 +192,24 @@ public class HistoryTabComponent {
             return;
         }
 
+        // Check credits for free users (undo consumes 1 action credit)
+        boolean isPremium = CheckLicense.isLicensed() != null && CheckLicense.isLicensed();
+        if (!isPremium) {
+            if (!creditsService.hasCredits(CreditType.ACTIONS)) {
+                int result = Messages.showYesNoDialog(project,
+                        "You've used all your action credits.\n\n" +
+                        "Undo operations require credits. Upgrade to Premium for unlimited undo.",
+                        "Credits Exhausted",
+                        "Upgrade to Premium",
+                        "Cancel",
+                        Messages.getWarningIcon());
+                if (result == Messages.YES) {
+                    openMarketplace();
+                }
+                return;
+            }
+        }
+
         int confirm = Messages.showYesNoDialog(project,
                 "Undo changes made by '" + recipeName + "' (ID: " + executionId + ")?\n\n" +
                         "This will restore files to their previous state.",
@@ -179,6 +217,17 @@ public class HistoryTabComponent {
                 Messages.getQuestionIcon());
 
         if (confirm == Messages.YES) {
+            // Use credit if free tier
+            if (!isPremium) {
+                boolean creditUsed = creditsService.useCredit(CreditType.ACTIONS);
+                if (creditUsed) {
+                    LOG.info("Credit deducted for undo in History tab. Remaining: " +
+                        creditsService.getRemainingCredits(CreditType.ACTIONS));
+                    notifyCreditUsed(); // Refresh UI
+                } else {
+                    LOG.warn("Failed to deduct credit for undo in History tab");
+                }
+            }
             LOG.info("Undoing execution: " + executionId);
             Path projectPath = Paths.get(project.getBasePath());
 
@@ -204,6 +253,22 @@ public class HistoryTabComponent {
 
     public JPanel getPanel() {
         return panel;
+    }
+
+    /**
+     * Opens the JetBrains Marketplace for upgrade.
+     */
+    private void openMarketplace() {
+        try {
+            Desktop.getDesktop().browse(new URI("https://plugins.jetbrains.com/plugin/30093-jakarta-migration"));
+        } catch (Exception ex) {
+            LOG.warn("Failed to open marketplace URL", ex);
+            Messages.showInfoMessage(
+                project,
+                "Please visit: https://plugins.jetbrains.com/plugin/30093-jakarta-migration",
+                "Upgrade to Premium"
+            );
+        }
     }
 }
 

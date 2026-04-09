@@ -18,8 +18,8 @@ import java.util.Properties;
 import java.util.function.Consumer;
 
 /**
- * Support tab component providing premium features,
- * trial activation, and help resources.
+ * Support tab component providing help resources
+ * and upgrade information.
  */
 public class SupportComponent {
     
@@ -30,7 +30,6 @@ public class SupportComponent {
     
     // UI Components
     private JPanel mainPanel;
-    private JButton startTrialButton;
     JCheckBox experimentalFeaturesCheckbox;
     private JBTextArea outputArea;
     private JBScrollPane scrollPane;
@@ -41,9 +40,7 @@ public class SupportComponent {
     private JBLabel titleLabel;
     private JBLabel descLabel;
     
-    // Static state for premium status
-    private static boolean isPremiumActive = false;
-    private static String licenseStatus = "Unknown";
+    // Removed trial-related static state - credits system handles free tier
     
     public SupportComponent(@NotNull Project project, Consumer<Void> onPremiumActivated, Runnable onExperimentalFeaturesChanged) {
         this.project = project;
@@ -87,7 +84,7 @@ public class SupportComponent {
         titleLabel.setForeground(new Color(0, 100, 180));
         
         descLabel = new JBLabel("<html><body style='width: 600px'>" +
-                "Get help with Jakarta EE migration, start premium trial, " +
+                "Get help with Jakarta EE migration, upgrade to premium, " +
                 "and access support resources for seamless migration " +
                 "from Java EE to Jakarta EE." +
                 "</body></html>");
@@ -187,15 +184,8 @@ public class SupportComponent {
         });
         experimentalPanel.add(experimentalFeaturesCheckbox);
         
-        // Buttons panel
-        JPanel buttonPanel = new JPanel(new FlowLayout());
-        startTrialButton = new JButton("Start Free Trial");
-        startTrialButton.setToolTipText("Activate 7-day premium trial");
-        
-        buttonPanel.add(startTrialButton);
-        
+        // Buttons panel - removed trial button, now just experimental features
         controlPanel.add(experimentalPanel);
-        controlPanel.add(buttonPanel);
         
         // Layout components
         mainPanel.add(linksPanel, BorderLayout.CENTER);
@@ -204,7 +194,7 @@ public class SupportComponent {
         // Update UI based on current license status
         refreshUI();
     }
-    
+
     /**
      * Creates a clickable link panel with title and description
      */
@@ -278,102 +268,12 @@ public class SupportComponent {
     }
     
     /**
-     * Starts the premium trial
-     */
-    private void startTrial() {
-        int result = Messages.showYesNoDialog(
-                project,
-                "Start a 7-day free trial of Premium features?",
-                "Start Free Trial",
-                Messages.getQuestionIcon());
-        
-        if (result == Messages.YES) {
-            LOG.info("User accepted free trial");
-            
-            // Set system properties for trial
-            System.setProperty("jakarta.migration.premium", "true");
-            System.setProperty("jakarta.migration.trial.end", 
-                    String.valueOf(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000));
-            
-            // Clear license cache to force fresh check
-            adrianmikula.jakartamigration.intellij.license.CheckLicense.clearCache();
-            
-            // Enable premium features
-            adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().setPlatformsEnabled(true);
-            adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().setAdvancedScansEnabled(true);
-            
-            // Update static state
-            setPremiumActive(true);
-            setLicenseStatus("Trial Active (7 days remaining)");
-            
-            // Show success message
-            Messages.showInfoMessage(project, 
-                    "Trial started! You now have 7 days of Premium access.", 
-                    "Trial Activated");
-            
-            LOG.info("Trial started - premium=true, trial.end=" + 
-                    System.getProperty("jakarta.migration.trial.end"));
-            
-            // Refresh premium tabs to enable buttons
-            if (onPremiumActivated != null) {
-                onPremiumActivated.accept(null);
-            }
-        }
-    }
-    
-    /**
      * Refreshes UI based on current license status
      */
     public void refreshUI() {
-        updatePremiumControls();
-    }
-    
-    /**
-     * Updates premium controls based on current license status
-     */
-    private void updatePremiumControls() {
-        if (startTrialButton != null) {
-            if (isPremiumActive) {
-                startTrialButton.setText("Trial Active");
-                startTrialButton.setEnabled(false);
-                startTrialButton.setToolTipText("Premium trial is currently active");
-            } else {
-                startTrialButton.setText("Start Free Trial");
-                startTrialButton.setEnabled(true);
-                startTrialButton.setToolTipText("Activate 7-day premium trial");
-            }
-        }
-        
-        // Update status display
-        String statusText = "License Status: " + licenseStatus;
-        if (outputArea != null) {
-            outputArea.setText(statusText);
-        }
-    }
-    
-    /**
-     * Static method to set premium active status
-     */
-    public static void setPremiumActive(boolean premium) {
-        isPremiumActive = premium;
-        LOG.info("Premium status set to: " + premium);
+        // No trial controls to update - credits system handles free tier
     }
 
-    /**
-     * Static method to get premium active status
-     */
-    public static boolean isPremiumActive() {
-        return isPremiumActive;
-    }
-    
-    /**
-     * Static method to set license status
-     */
-    public static void setLicenseStatus(String status) {
-        licenseStatus = status;
-        LOG.info("License status set to: " + status);
-    }
-    
     /**
      * Gets the main panel for this component
      */

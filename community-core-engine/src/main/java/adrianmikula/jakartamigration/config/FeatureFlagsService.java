@@ -11,9 +11,9 @@ import static adrianmikula.jakartamigration.config.FeatureFlag.EXPERIMENTAL_FEAT
 
 /**
  * Service for checking feature flag availability.
- * 
+ *
  * Integrates with JetBrains Marketplace licensing system.
- * Supports tier-based access (COMMUNITY, PREMIUM) with configurable free trial period.
+ * Supports tier-based access (COMMUNITY, PREMIUM) with credit-based free tier.
  */
 @Slf4j
 public class FeatureFlagsService {
@@ -93,34 +93,6 @@ public class FeatureFlagsService {
     }
 
     /**
-     * Check if user has an active subscription (paid or trial).
-     */
-    public boolean hasActiveSubscription() {
-        return licenseService.hasActiveSubscription();
-    }
-
-    /**
-     * Get remaining trial days.
-     */
-    public int getRemainingTrialDays() {
-        return licenseService.getRemainingTrialDays();
-    }
-
-    /**
-     * Check if trial is active.
-     */
-    public boolean isTrialActive() {
-        return licenseService.isTrialActive();
-    }
-
-    /**
-     * Start a free trial.
-     */
-    public void startTrial() {
-        licenseService.startTrial();
-    }
-
-    /**
      * Get subscription status as a human-readable string.
      */
     public String getSubscriptionStatus() {
@@ -139,10 +111,9 @@ public class FeatureFlagsService {
      */
     public String getPricingInfo() {
         return String.format(
-                "Upgrade: %s or %s. Start your free %d-day trial today!",
+                "Upgrade: %s or %s. Get unlimited scans and refactors!",
                 FeatureFlagsProperties.getMonthlyPriceFormatted(),
-                FeatureFlagsProperties.getYearlyPriceFormatted(),
-                FeatureFlagsProperties.getFreeTrialDays());
+                FeatureFlagsProperties.getYearlyPriceFormatted());
     }
 
     /**
@@ -150,17 +121,14 @@ public class FeatureFlagsService {
      */
     public String getFullUpgradePrompt() {
         int savings = FeatureFlagsProperties.getYearlySavingsPercent();
-        int trialDays = FeatureFlagsProperties.getFreeTrialDays();
         return String.format(
-                "Upgrade to Premium for:\n" +
+                "Upgrade to Premium for unlimited scans and refactors:\n" +
                         "• %s (billed monthly)\n" +
-                        "• %s (billed yearly - save %d%%)\n" +
-                        "• %d-day free trial available\n\n" +
+                        "• %s (billed yearly - save %d%%)\n\n" +
                         "Visit JetBrains Marketplace to subscribe.",
                 FeatureFlagsProperties.getMonthlyPriceFormatted(),
                 FeatureFlagsProperties.getYearlyPriceFormatted(),
-                savings,
-                trialDays);
+                savings);
     }
 
     public UpgradeInfo getUpgradeInfo(FeatureFlag flag) {
@@ -171,8 +139,7 @@ public class FeatureFlagsService {
                 flag.getRequiredTier(),
                 FeatureFlagsProperties.getMarketplaceUrl(),
                 getUpgradeMessage(flag),
-                getSubscriptionStatus(),
-                getRemainingTrialDays());
+                getSubscriptionStatus());
     }
 
     /**
@@ -186,8 +153,7 @@ public class FeatureFlagsService {
                 FeatureFlagsProperties.LicenseTier.PREMIUM,
                 FeatureFlagsProperties.getMarketplaceUrl(),
                 getFullUpgradePrompt(),
-                getSubscriptionStatus(),
-                getRemainingTrialDays());
+                getSubscriptionStatus());
     }
 
     public static class UpgradeInfo {
@@ -198,7 +164,6 @@ public class FeatureFlagsService {
         private final String paymentLink;
         private final String message;
         private final String subscriptionStatus;
-        private final int remainingTrialDays;
 
         public UpgradeInfo(
                 String featureName,
@@ -207,8 +172,7 @@ public class FeatureFlagsService {
                 FeatureFlagsProperties.LicenseTier requiredTier,
                 String paymentLink,
                 String message,
-                String subscriptionStatus,
-                int remainingTrialDays) {
+                String subscriptionStatus) {
             this.featureName = featureName;
             this.featureDescription = featureDescription;
             this.currentTier = currentTier;
@@ -216,7 +180,6 @@ public class FeatureFlagsService {
             this.paymentLink = paymentLink;
             this.message = message;
             this.subscriptionStatus = subscriptionStatus;
-            this.remainingTrialDays = remainingTrialDays;
         }
 
         public String getFeatureName() {
@@ -245,14 +208,6 @@ public class FeatureFlagsService {
 
         public String getSubscriptionStatus() {
             return subscriptionStatus;
-        }
-
-        public int getRemainingTrialDays() {
-            return remainingTrialDays;
-        }
-
-        public boolean isTrialActive() {
-            return remainingTrialDays > 0;
         }
 
         public boolean canUpgrade() {

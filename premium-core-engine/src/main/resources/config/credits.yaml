@@ -1,0 +1,49 @@
+# Credits Configuration for Jakarta Migration Freemium Model
+#
+# This file defines the credit limits for free users.
+# Premium users have unlimited credits.
+#
+# Credit Types:
+# - basic_scan: Used for basic dependency analysis scans
+# - advanced_scan: Used for advanced scanning (JPA, CDI, Servlet, etc.)
+# - refactor: Used for code refactoring operations and undo operations
+
+limits:
+  # Basic scan credits - used for basic dependency analysis
+  # When exhausted, shows partial/truncated results
+  basic_scan: 10
+
+  # Advanced scan credits - used for advanced scanning features
+  # When exhausted, the Advanced Scans tab is locked
+  advanced_scan: 50
+
+  # Refactor credits - used for code refactoring operations
+  # When exhausted, the Refactor tab is locked
+  refactor: 5
+
+# Credit behavior settings
+behavior:
+  # Whether to show partial results when basic scan credits are exhausted
+  # If true: shows first N dependencies with upgrade prompt
+  # If false: blocks scan entirely with upgrade prompt
+  show_partial_results: true
+
+  # Number of dependencies to show in partial results mode
+  partial_results_limit: 10
+
+  # Warning threshold percentage (show warning at X% remaining)
+  warning_threshold_percent: 20
+
+# Messages shown to users
+messages:
+  # Shown when credits are running low (below warning threshold)
+  low_credits_warning: "You're running low on {type} credits. Upgrade to Premium for unlimited access."
+
+  # Shown when basic scan credits are exhausted (partial results mode)
+  partial_results_message: "Showing {shown} of {total} dependencies. Upgrade to Premium to see all results."
+
+  # Shown when trying to use a feature with no credits
+  credits_exhausted: "You've used all your {type} credits. Upgrade to Premium to continue."
+
+  # Upgrade call-to-action button text
+  upgrade_cta: "Upgrade to Premium"

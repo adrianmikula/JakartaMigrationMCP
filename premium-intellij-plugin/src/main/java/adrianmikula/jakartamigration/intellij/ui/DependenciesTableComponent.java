@@ -1,6 +1,8 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
+import adrianmikula.jakartamigration.intellij.ui.components.TruncationHelper;
+import adrianmikula.jakartamigration.intellij.ui.components.TruncationNoticePanel;
 import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService.JakartaArtifactMatch;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
@@ -8,6 +10,8 @@ import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConf
 import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader.ArtifactClassification;
 import adrianmikula.jakartamigration.platforms.config.PlatformConfigLoader;
 import adrianmikula.jakartamigration.platforms.model.PlatformConfig;
+import adrianmikula.jakartamigration.credits.CreditsService;
+import adrianmikula.jakartamigration.credits.CreditType;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBPanel;
@@ -55,6 +59,9 @@ public class DependenciesTableComponent {
     private static final Logger LOGGER = Logger.getLogger(DependenciesTableComponent.class.getName());
     private List<DependencyInfo> allDependencies;
     
+    // Truncation notice panel (shown for free users)
+    private TruncationNoticePanel truncationNoticePanel;
+
     // Bottom panel for recipes
     private JPanel recipesPanel;
     private JList<String> recipeList;
@@ -64,6 +71,8 @@ public class DependenciesTableComponent {
     private boolean isPremiumUser = false;
     private final PlatformConfigLoader platformConfigLoader;
     private final CompatibilityConfigLoader compatibilityConfigLoader;
+    private final CreditsService creditsService;
+    private final TruncationHelper truncationHelper;
 
     // Status colors - matches DependencyGraphComponent color schema
     private static final Color STATUS_COMPATIBLE = new Color(40, 167, 69); // Green
@@ -84,6 +93,8 @@ public class DependenciesTableComponent {
         this.allDependencies = new ArrayList<>();
         this.platformConfigLoader = new PlatformConfigLoader();
         this.compatibilityConfigLoader = new CompatibilityConfigLoader();
+        this.creditsService = new CreditsService();
+        this.truncationHelper = new TruncationHelper();
         this.panel = new JBPanel<>(new BorderLayout());
 
         // Columns with Jakarta Equivalent information and Maven Coordinates
@@ -334,10 +345,19 @@ public class DependenciesTableComponent {
         progressBar.setStringPainted(true);
         actionsPanel.add(progressBar);
 
-        // Create center panel with table and recipes
+        // Create truncation notice panel (hidden by default)
+        truncationNoticePanel = new TruncationNoticePanel();
+        truncationNoticePanel.setVisible(false);
+
+        // Create center panel with table, truncation notice, and recipes
         JPanel centerPanel = new JBPanel<>(new BorderLayout());
         centerPanel.add(scrollPane, BorderLayout.CENTER);
-        centerPanel.add(recipesPanel, BorderLayout.SOUTH);
+
+        // South panel containing truncation notice (above recipes)
+        JPanel southPanel = new JBPanel<>(new BorderLayout());
+        southPanel.add(truncationNoticePanel, BorderLayout.NORTH);
+        southPanel.add(recipesPanel, BorderLayout.SOUTH);
+        centerPanel.add(southPanel, BorderLayout.SOUTH);
 
         panel.add(headerPanel, BorderLayout.NORTH);
         panel.add(centerPanel, BorderLayout.CENTER);
@@ -522,6 +542,11 @@ public class DependenciesTableComponent {
         boolean showTransitiveOnly = transitiveFilter.isSelected();
         boolean showOrganizationalOnly = organizationalFilter.isSelected();
 
+        // Check if truncation should be applied for free users
+        boolean shouldTruncate = truncationHelper.shouldTruncateResults();
+        int truncationLimit = shouldTruncate ? truncationHelper.getDependenciesTruncationLimit() : Integer.MAX_VALUE;
+        int addedCount = 0;
+
         for (DependencyInfo dep : allDependencies) {
             // Search filter
             boolean matchesSearch = searchText.isEmpty() ||
@@ -541,10 +566,23 @@ public class DependenciesTableComponent {
             boolean matchesOrganizational = !showOrganizationalOnly || dep.isOrganizational();
 
             if (matchesSearch && matchesStatus && matchesTransitive && matchesOrganizational) {
-                addDependencyRow(dep);
+                // Apply truncation limit for free users with exhausted credits
+                if (addedCount < truncationLimit) {
+                    addDependencyRow(dep);
+                    addedCount++;
+                }
             }
         }
+
+        // Update truncation notice visibility
+        if (shouldTruncate && allDependencies.size() > truncationLimit) {
+            truncationNoticePanel.updateMessage(truncationLimit, allDependencies.size(), "dependencies");
+        } else {
+            truncationNoticePanel.setVisible(false);
+        }
     }
+
+
 
     private String mapStatusToValue(String status) {
         if (status == null)

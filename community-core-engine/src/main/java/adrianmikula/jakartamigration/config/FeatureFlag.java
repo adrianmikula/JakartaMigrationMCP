@@ -202,9 +202,8 @@ public enum FeatureFlag {
      */
     public String getPricingInfo() {
         return String.format(
-                "Upgrade to Premium: %s or %s. Start your free %d-day trial today!",
+                "Upgrade to Premium: %s or %s. Get unlimited scans and refactors!",
                 FeatureFlagsProperties.getMonthlyPriceFormatted(),
-                FeatureFlagsProperties.getYearlyPriceFormatted(),
-                FeatureFlagsProperties.getFreeTrialDays());
+                FeatureFlagsProperties.getYearlyPriceFormatted());
     }
 }

@@ -286,13 +286,12 @@ public class SafeLicenseChecker {
                 return LicenseResult.uncertain("Checking...", false);
             }
             
-            int daysUntilExpiration = CheckLicense.getDaysUntilExpiration();
-            boolean wasTrial = CheckLicense.wasTrialEverActivated();
+            // Removed trial-related methods - credits system handles free tier
             
             if (licensed) {
-                return LicenseResult.licensed(CheckLicense.getLicenseStatusString(), daysUntilExpiration, wasTrial);
+                return LicenseResult.licensed(CheckLicense.getLicenseStatusString());
             } else {
-                return LicenseResult.unlicensed(CheckLicense.getLicenseStatusString(), wasTrial);
+                return LicenseResult.unlicensed(CheckLicense.getLicenseStatusString());
             }
             
         } catch (Exception e) {
@@ -303,46 +302,13 @@ public class SafeLicenseChecker {
     
     @NotNull
     private static LicenseResult getSafeFallbackResult() {
-        // Check trial status as fallback
-        try {
-            String premiumProp = System.getProperty("jakarta.migration.premium");
-            String trialEnd = System.getProperty("jakarta.migration.trial.end");
-            boolean wasTrial = trialEnd != null;
-            
-            if ("true".equals(premiumProp)) {
-                if (trialEnd != null) {
-                    try {
-                        long endTime = Long.parseLong(trialEnd);
-                        if (System.currentTimeMillis() > endTime) {
-                            return LicenseResult.fallback(false, "Trial Expired", wasTrial);
-                        }
-                    } catch (NumberFormatException e) {
-                        // Ignore
-                    }
-                }
-                return LicenseResult.fallback(true, "Trial Active", wasTrial);
-            }
-            
-            // Check if trial is forced
-            if (LicenseFailsafeConfig.isTrialForced()) {
-                return LicenseResult.fallback(true, "Trial (Forced)", wasTrial);
-            }
-            
-        } catch (Exception e) {
-            LOG.warn("SafeLicenseChecker: Fallback trial check failed", e);
-        }
-        
-        return LicenseResult.fallback(false, "Free", false);
+        // Credits system handles free tier - no trial fallback needed
+        return LicenseResult.fallback(false, "Free");
     }
     
     private static void updateLicenseUI(@NotNull LicenseResult result) {
-        try {
-            // Update SupportComponent safely
-            adrianmikula.jakartamigration.intellij.ui.SupportComponent.setPremiumActive(result.isLicensed);
-            adrianmikula.jakartamigration.intellij.ui.SupportComponent.setLicenseStatus(result.status);
-        } catch (Exception e) {
-            LOG.warn("SafeLicenseChecker: Failed to update license UI", e);
-        }
+        // UI updates removed - credits system handles free tier status
+        LOG.info("SafeLicenseChecker: License status updated - " + result.status);
     }
     
     /**

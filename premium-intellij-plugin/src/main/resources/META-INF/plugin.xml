@@ -27,7 +27,7 @@
     <idea-version since-build="233" />
 
     <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
-    <version>1.0.11</version>
+    <version>1.0.12</version>
 
     <name>Jakarta Migration (javax → jakarta)</name>
     <id>com.adrianmikula.jakarta-migration</id>
@@ -163,6 +163,12 @@
     </actions>
 
     <change-notes><![CDATA[
+    <h>1.0.12 - 2026-04-09</h>
+    <ul>
+        <li>Removed free trial period</li>
+        <li>Limited scan results to 10 for free verison</li>
+        <li>Limited refactor actions to 10 for free verison</li>
+    </ul>
     <h>1.0.11 - 2026-04-08</h>
     <ul>
         <li>Fixed memory leaks when scanning large projects</li>

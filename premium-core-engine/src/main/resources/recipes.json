@@ -53,7 +53,11 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "NAMESPACE_MIGRATION",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "recipeOptions": {
+        "oldPackageName": "javax",
+        "newPackageName": "jakarta"
+      },
       "replacements": [
         { "from": "javax.servlet", "to": "jakarta.servlet" },
         { "from": "javax.persistence", "to": "jakarta.persistence" },
@@ -76,7 +80,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "ANNOTATIONS",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
       "replacements": [
         { "from": "javax.annotation", "to": "jakarta.annotation" },
         { "from": "javax.annotation.security", "to": "jakarta.annotation.security" },
@@ -90,7 +94,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxValidationToJakartaValidation",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxValidationMigrationToJakartaValidation",
       "replacements": [
         { "from": "javax.validation", "to": "jakarta.validation" }
       ]
@@ -102,7 +106,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "DATABASE",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.UpdatePersistenceXml",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxPersistenceXmlToJakartaPersistenceXml",
       "replacements": [
         { "from": "xmlns:persistence='http://java.sun.com/xml/ns/persistence'", "to": "xmlns:persistence='https://jakarta.ee/xml/ns/persistence'" }
       ]
@@ -115,7 +119,7 @@
       "reversible": true,
       "fileFilter": "web.xml",
       "category": "CONFIGURATION",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.UpdateWebXml",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxWebXmlToJakartaWebXml",
       "replacements": [
         { "from": "http://java.sun.com/xml/ns/javaee", "to": "https://jakarta.ee/xml/ns/jakartaee" }
       ]
@@ -139,7 +143,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "DATABASE",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxValidationToJakartaValidation",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxValidationMigrationToJakartaValidation",
       "replacements": [
         { "from": "javax.validation", "to": "jakarta.validation" },
         { "from": "javax.validation.constraints", "to": "jakarta.validation.constraints" }
@@ -177,7 +181,7 @@
       "safety": "HIGH",
       "category": "API",
       "reversible": true,
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxJaxRsToJakartaJaxRs",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxWsToJakartaWs",
       "replacements": [
         { "from": "javax.ws.rs", "to": "jakarta.ws.rs" }
       ]
@@ -189,7 +193,7 @@
       "safety": "HIGH",
       "category": "API",
       "reversible": true,
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxXmlWsToJakartaXmlWs",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxXmlWsMigrationToJakartaXmlWs",
       "replacements": [
         { "from": "javax.xml.ws", "to": "jakarta.xml.ws" }
       ]
@@ -213,7 +217,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "OTHER",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxBatchToJakartaBatch",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxBatchMigrationToJakartaBatch",
       "replacements": [
         { "from": "javax.batch", "to": "jakarta.batch" }
       ]
@@ -237,7 +241,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxTransactionToJakartaTransaction",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxTransactionMigrationToJakartaTransaction",
       "replacements": [
         { "from": "javax.transaction", "to": "jakarta.transaction" }
       ]
@@ -249,7 +253,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb", "to": "jakarta.ejb" }
       ]
@@ -297,7 +301,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "OTHER",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxJsonbToJakartaJsonb",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxJsonToJakartaJson",
       "replacements": [
         { "from": "javax.json.bind", "to": "jakarta.json.bind" }
       ]
@@ -309,7 +313,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "SECURITY",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxSecurityEnterpriseToJakartaSecurityEnterprise",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxSecurityToJakartaSecurity",
       "replacements": [
         { "from": "javax.security.enterprise", "to": "jakarta.security.enterprise" }
       ]
@@ -333,7 +337,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CONFIGURATION",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxXmlBindToJakartaXmlBind",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxXmlBindMigrationToJakartaXmlBind",
       "replacements": [
         { "from": "javax.xml.bind", "to": "jakarta.xml.bind" }
       ]
@@ -345,7 +349,7 @@
       "safety": "MEDIUM",
       "reversible": true,
       "category": "API",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxXmlRpcToJakartaXmlRpc",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
       "replacements": [
         { "from": "javax.xml.rpc", "to": "jakarta.xml.rpc" }
       ]
@@ -357,7 +361,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "SECURITY",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxSecurityAuthMessageToJakartaSecurityAuthMessage",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxSecurityToJakartaSecurity",
       "replacements": [
         { "from": "javax.security.auth.message", "to": "jakarta.security.auth.message" }
       ]
@@ -369,7 +373,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CONFIGURATION",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxActivationToJakartaActivation",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxActivationMigrationToJakartaActivation",
       "replacements": [
         { "from": "javax.activation", "to": "jakarta.activation" }
       ]
@@ -405,7 +409,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
       "replacements": [
         { "from": "@Resource", "to": "@jakarta.annotation.Resource" }
       ]
@@ -429,7 +433,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "ANNOTATIONS",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
       "replacements": [
         { "from": "@PostConstruct", "to": "@jakarta.annotation.PostConstruct" }
       ]
@@ -441,7 +445,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "ANNOTATIONS",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
       "replacements": [
         { "from": "@PreDestroy", "to": "@jakarta.annotation.PreDestroy" }
       ]
@@ -453,7 +457,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "ANNOTATIONS",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
       "replacements": [
         { "from": "@Priority", "to": "@jakarta.annotation.Priority" }
       ]
@@ -465,7 +469,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "ANNOTATIONS",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
       "replacements": [
         { "from": "@Generated", "to": "@jakarta.annotation.Generated" }
       ]
@@ -477,7 +481,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "ANNOTATIONS",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
       "replacements": [
         { "from": "@ManagedBean", "to": "@jakarta.annotation.ManagedBean" }
       ]
@@ -489,7 +493,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "SECURITY",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
       "replacements": [
         { "from": "@DeclareRoles", "to": "@jakarta.annotation.DeclareRoles" }
       ]
@@ -501,7 +505,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "SECURITY",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
       "replacements": [
         { "from": "@RunAs", "to": "@jakarta.annotation.RunAs" }
       ]
@@ -513,7 +517,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "DATABASE",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
       "replacements": [
         { "from": "@DataSourceDefinition", "to": "@jakarta.annotation.DataSourceDefinition" }
       ]
@@ -525,7 +529,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "DATABASE",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
       "replacements": [
         { "from": "@DataSourceDefinitions", "to": "@jakarta.annotation.DataSourceDefinitions" }
       ]
@@ -2539,7 +2543,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "@TransactionAttribute", "to": "@jakarta.ejb.TransactionAttribute" }
       ]
@@ -2551,7 +2555,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "@TransactionManagement", "to": "@jakarta.ejb.TransactionManagement" }
       ]
@@ -2563,7 +2567,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "@Lock", "to": "@jakarta.ejb.Lock" }
       ]
@@ -2575,7 +2579,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "@AccessTimeout", "to": "@jakarta.ejb.AccessTimeout" }
       ]
@@ -2587,7 +2591,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "@Startup", "to": "@jakarta.ejb.Startup" }
       ]
@@ -2599,7 +2603,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "@DependsOn", "to": "@jakarta.ejb.DependsOn" }
       ]
@@ -2611,7 +2615,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.EJBException", "to": "jakarta.ejb.EJBException" }
       ]
@@ -2623,7 +2627,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.CreateException", "to": "jakarta.ejb.CreateException" }
       ]
@@ -2635,7 +2639,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.RemoveException", "to": "jakarta.ejb.RemoveException" }
       ]
@@ -2647,7 +2651,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.FinderException", "to": "jakarta.ejb.FinderException" }
       ]
@@ -2659,7 +2663,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.ObjectNotFoundException", "to": "jakarta.ejb.ObjectNotFoundException" }
       ]
@@ -2671,7 +2675,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.NoSuchEntityException", "to": "jakarta.ejb.NoSuchEntityException" }
       ]
@@ -2683,7 +2687,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.TransactionRequiredException", "to": "jakarta.ejb.TransactionRequiredException" }
       ]
@@ -2695,7 +2699,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.TransactionRolledbackException", "to": "jakarta.ejb.TransactionRolledbackException" }
       ]
@@ -2707,7 +2711,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.EJBContext", "to": "jakarta.ejb.EJBContext" }
       ]
@@ -2719,7 +2723,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.SessionContext", "to": "jakarta.ejb.SessionContext" }
       ]
@@ -2731,7 +2735,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.EntityContext", "to": "jakarta.ejb.EntityContext" }
       ]
@@ -2743,7 +2747,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.MessageDrivenContext", "to": "jakarta.ejb.MessageDrivenContext" }
       ]
@@ -2755,7 +2759,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.Timer", "to": "jakarta.ejb.Timer" }
       ]
@@ -2767,7 +2771,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.TimerService", "to": "jakarta.ejb.TimerService" }
       ]
@@ -2779,7 +2783,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.Handle", "to": "jakarta.ejb.Handle" }
       ]
@@ -2791,7 +2795,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.HomeHandle", "to": "jakarta.ejb.HomeHandle" }
       ]
@@ -2803,7 +2807,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.EJBHome", "to": "jakarta.ejb.EJBHome" }
       ]
@@ -2815,7 +2819,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.EJBObject", "to": "jakarta.ejb.EJBObject" }
       ]
@@ -2827,7 +2831,7 @@
       "safety": "HIGH",
       "reversible": true,
       "category": "CDI",
-      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxToJakarta",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
       "replacements": [
         { "from": "javax.ejb.EJBMetaData", "to": "jakarta.ejb.EJBMetaData" }
       ]

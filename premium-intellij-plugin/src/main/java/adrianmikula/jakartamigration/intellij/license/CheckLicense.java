@@ -146,13 +146,6 @@ public class CheckLicense {
      */
     @Nullable
     public static Boolean isLicensed() {
-        // Check trial status first (this should work even in dev mode)
-        Boolean trialStatus = checkTrialStatus();
-        if (trialStatus != null && trialStatus) {
-            LOG.info("CheckLicense: Trial is active - returning licensed");
-            return true;
-        }
-        
         // Skip all license checks in dev mode or marketplace testing
         if (isDevMode() || isMarketplaceTestMode()) {
             if (isDevMode()) {
@@ -162,9 +155,9 @@ public class CheckLicense {
             }
             return true; // Always licensed in dev/test mode
         }
-        
+
         long currentTime = System.currentTimeMillis();
-        
+
         // Check if we have a recent result
         if (currentTime - lastCheckTime < CHECK_INTERVAL_MS) {
             Boolean cached = cachedLicenseStatus.get();
@@ -173,14 +166,14 @@ public class CheckLicense {
                 return cached;
             }
         }
-        
+
         // Perform license check
         Boolean licensed = performLicenseCheck();
         if (licensed != null) {
             cachedLicenseStatus.set(licensed);
             lastCheckTime = currentTime;
         }
-        
+
         LOG.info("CheckLicense: License check completed. Licensed: " + licensed);
         return licensed;
     }
@@ -195,16 +188,15 @@ public class CheckLicense {
             LOG.info("CheckLicense: DEV MODE detected - skipping JetBrains license validation");
             return true; // Always licensed in dev mode
         }
-        
+
         try {
             final LicensingFacade facade = LicensingFacade.getInstance();
             if (facade == null) {
                 LOG.info("CheckLicense: LicensingFacade not available (not in paid IDE or not initialized)");
-                // For free IDEs or when LicensingFacade is not available,
-                // we rely on our own trial/premium system property
-                return checkTrialStatus();
+                // Free IDE - user is on free tier
+                return false;
             }
-            
+
             final String cstamp = facade.getConfirmationStamp(PRODUCT_CODE);
             if (cstamp == null) {
                 return false;
@@ -218,43 +210,11 @@ public class CheckLicense {
                 return isLicenseServerStampValid(cstamp.substring(STAMP_PREFIX.length()));
             }
             return false;
-            
+
         } catch (Exception e) {
             LOG.warn("CheckLicense: Error checking license", e);
-            // Fall back to trial check
-            return checkTrialStatus();
+            return false;
         }
-    }
-
-    /**
-     * Checks our own trial/premium status as fallback.
-     * This is used when LicensingFacade is not available.
-     */
-    private static Boolean checkTrialStatus() {
-        // Check system property set by trial activation
-        String premiumProp = System.getProperty("jakarta.migration.premium");
-        if ("true".equals(premiumProp)) {
-            // Check if trial has expired
-            String trialEnd = System.getProperty("jakarta.migration.trial.end");
-            if (trialEnd != null) {
-                try {
-                    long endTime = Long.parseLong(trialEnd);
-                    if (System.currentTimeMillis() > endTime) {
-                        LOG.info("CheckLicense: Trial has expired");
-                        System.setProperty("jakarta.migration.premium", "false");
-                        return false;
-                    }
-                } catch (NumberFormatException e) {
-                    LOG.warn("CheckLicense: Invalid trial end time", e);
-                    return false;
-                }
-            }
-            LOG.info("CheckLicense: Trial/premium is active");
-            return true;
-        }
-        
-        LOG.info("CheckLicense: No trial/premium active");
-        return false;
     }
 
     private static boolean isKeyValid(String key) {
@@ -412,62 +372,20 @@ public class CheckLicense {
     }
 
     /**
-     * Starts a free trial for the user.
-     * Sets trial end time and activates premium features.
-     * 
-     * @param project Current project
-     */
-    public static void startTrial() {
-        LOG.info("CheckLicense: Trial started via startTrial() method");
-        System.setProperty("jakarta.migration.premium", "true");
-        System.setProperty("jakarta.migration.trial.end", 
-                String.valueOf(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000));
-        
-        // Clear license cache to force fresh check
-        clearCache();
-        
-        // Notify all UI components to refresh
-        SupportComponent.setPremiumActive(true);
-        // Note: SupportComponent.refreshUI() is instance method, needs instance
-        
-        // Note: Other components should listen for license status changes
-        // and update their UI accordingly
-    }
-    
-    /**
      * Gets the license status as a user-friendly string.
      */
     @NotNull
     public static String getLicenseStatusString() {
-        // Check trial status first
-        Boolean trialStatus = checkTrialStatus();
-        if (trialStatus != null && trialStatus) {
-            String trialEnd = System.getProperty("jakarta.migration.trial.end");
-            if (trialEnd != null) {
-                try {
-                    long endTime = Long.parseLong(trialEnd);
-                    long remaining = endTime - System.currentTimeMillis();
-                    if (remaining > 0) {
-                        long daysRemaining = remaining / (24 * 60 * 60 * 1000);
-                        return "Trial - " + daysRemaining + " days remaining";
-                    }
-                } catch (NumberFormatException e) {
-                    // Ignore
-                }
-            }
-            return "Trial Active";
-        }
-        
         // Check development mode
         if (isDevMode()) {
             return "Development Mode";
         }
-        
+
         // Check marketplace test mode
         if (isMarketplaceTestMode()) {
             return "Marketplace Test Mode";
         }
-        
+
         // Check regular license status
         Boolean licensed = isLicensed();
         if (licensed == null) {
@@ -476,7 +394,7 @@ public class CheckLicense {
         if (licensed) {
             return "Premium Active";
         }
-        
+
         return "Free";
     }
 
@@ -490,60 +408,4 @@ public class CheckLicense {
         LOG.info("CheckLicense: Cache cleared");
     }
 
-    /**
-     * Gets the number of days until license/trial expiration.
-     * Returns -1 if no expiration date is set or if already expired.
-     * Returns 0 if expiration is today.
-     * 
-     * @return Days until expiration, or -1 if not applicable
-     */
-    public static int getDaysUntilExpiration() {
-        String trialEnd = System.getProperty("jakarta.migration.trial.end");
-        if (trialEnd != null) {
-            try {
-                long endTime = Long.parseLong(trialEnd);
-                long remaining = endTime - System.currentTimeMillis();
-                if (remaining <= 0) {
-                    return -1; // Already expired
-                }
-                return (int) (remaining / (24 * 60 * 60 * 1000));
-            } catch (NumberFormatException e) {
-                LOG.warn("CheckLicense: Invalid trial end time format", e);
-                return -1;
-            }
-        }
-        return -1; // No expiration date set
-    }
-
-    /**
-     * Checks if trial was ever activated (based on trial end property being set).
-     * This is useful for distinguishing between expired trial vs never started.
-     * 
-     * @return true if trial end date is set in system properties
-     */
-    public static boolean wasTrialEverActivated() {
-        return System.getProperty("jakarta.migration.trial.end") != null;
-    }
-
-    /**
-     * Checks if the current license state is in trial mode.
-     * Returns true only if premium is active and trial end date is set.
-     * 
-     * @return true if currently in trial mode
-     */
-    public static boolean isInTrialMode() {
-        String premiumProp = System.getProperty("jakarta.migration.premium");
-        String trialEnd = System.getProperty("jakarta.migration.trial.end");
-        
-        if (!"true".equals(premiumProp) || trialEnd == null) {
-            return false;
-        }
-        
-        try {
-            long endTime = Long.parseLong(trialEnd);
-            return System.currentTimeMillis() <= endTime;
-        } catch (NumberFormatException e) {
-            return false;
-        }
-    }
 }

@@ -6,8 +6,12 @@ import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.risk.RiskScoringService;
+import adrianmikula.jakartamigration.credits.CreditsService;
+import adrianmikula.jakartamigration.credits.CreditType;
+import adrianmikula.jakartamigration.credits.FreemiumConfig;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.intellij.ui.SupportComponent;
+import adrianmikula.jakartamigration.intellij.ui.components.TruncationHelper;
 import adrianmikula.jakartamigration.intellij.ui.components.RiskGauge;
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import com.intellij.openapi.diagnostic.Logger;
@@ -47,6 +51,8 @@ public class DashboardComponent {
     private MigrationDashboard dashboard;
     private final Consumer<ActionEvent> onAnalyze;
     private final AdvancedScanningService advancedScanningService;
+    private final CreditsService creditsService;
+    private final TruncationHelper truncationHelper;
     private PlatformsTabComponent platformsTabComponent;
     
     // Cache for preventing unnecessary updates
@@ -145,11 +151,16 @@ public class DashboardComponent {
     private JProgressBar advancedScanProgressBar;
     private JLabel advancedScanProgressLabel;
 
+    // Analyse button - instance field for external control
+    private JButton analyseButton;
+
     public DashboardComponent(@NotNull Project project, AdvancedScanningService advancedScanningService,
             Consumer<ActionEvent> onAnalyze) {
         this.project = project;
         this.onAnalyze = onAnalyze;
         this.advancedScanningService = advancedScanningService;
+        this.creditsService = new CreditsService();
+        this.truncationHelper = new TruncationHelper();
         this.panel = new JBPanel<>(new BorderLayout());
         initializeComponent();
     }
@@ -158,16 +169,8 @@ public class DashboardComponent {
      * Sets the migration dashboard data for this component.
      */
     public void setDashboard(MigrationDashboard dashboard) {
-        // Only update if dashboard data actually changed
-        if (this.dashboard != null && dashboard != null && 
-            this.dashboard.getReadinessScore() == dashboard.getReadinessScore() &&
-            this.dashboard.getStatus() == dashboard.getStatus() &&
-            Objects.equals(this.dashboard.getLastAnalyzed(), dashboard.getLastAnalyzed())) {
-            return; // No actual change, skip update
-        }
-        
         this.dashboard = dashboard;
-        
+
         // Update all components with new data
         updateGauges();
         updateSummary();
@@ -202,15 +205,15 @@ public class DashboardComponent {
         JPanel mainPanel = new JBPanel<>();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
 
-        // Top: Gauges (Risk Assessment)
-        gaugesPanel = createGaugesPanel();
-        gaugesPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        mainPanel.add(gaugesPanel);
-
-        // Middle: Progress Panel (Scan Progress Bar)
+        // Top: Progress Panel (Scan Progress Bar) - moved to top above gauges
         progressPanel = createProgressPanel();
         progressPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         mainPanel.add(progressPanel);
+
+        // Middle: Gauges (Risk Assessment)
+        gaugesPanel = createGaugesPanel();
+        gaugesPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.add(gaugesPanel);
 
         // Bottom: Results Panel (Comprehensive Scan Summary with sub-panels)
         JPanel resultsPanel = createResultsPanel();
@@ -520,7 +523,7 @@ private void resetAdvancedScanCounts() {
 
         // Left: Analyse button
         JPanel leftPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 10, 5));
-        JButton analyseButton = new JButton("Analyse");
+        analyseButton = new JButton("Analyse");
         analyseButton.setToolTipText("Start migration analysis scan");
         analyseButton.setBackground(new Color(59, 130, 246)); // Blue background
         analyseButton.setForeground(Color.WHITE);
@@ -540,22 +543,7 @@ private void resetAdvancedScanCounts() {
         boolean isPremium = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
         
         if (!isPremium) {
-            // Add trial button
-            JButton trialButton = new JButton("Start Free Trial");
-            trialButton.setToolTipText("Start a 7-day free trial of Premium features");
-            trialButton.addActionListener(e -> {
-                // Trigger trial start via project action
-                com.intellij.openapi.actionSystem.AnActionEvent event = null;
-                // Use CheckLicense.startTrial() method for consistency
-                adrianmikula.jakartamigration.intellij.license.CheckLicense.startTrial();
-                SupportComponent.setPremiumActive(true);
-                Messages.showInfoMessage(project, 
-                    "Free trial started! Premium features are now available.\n\nPlease restart the tool window to see all premium features.",
-                    "Trial Started");
-            });
-            rightPanel.add(trialButton);
-            
-            // Add upgrade button
+            // Add upgrade button for non-premium users (credits system handles free tier)
             JButton upgradeButton = new JButton("⬆ Upgrade to Premium");
             upgradeButton.setToolTipText("Get Premium features: Auto-fixes, one-click refactoring, binary fixes");
             upgradeButton.setBackground(new Color(255, 215, 0));
@@ -583,6 +571,38 @@ private void resetAdvancedScanCounts() {
     
     public JPanel getPanel() {
         return panel;
+    }
+
+    /**
+     * Sets the analysis running state - disables/enables button and updates progress UI.
+     * Should be called on EDT (Event Dispatch Thread) via SwingUtilities.invokeLater.
+     *
+     * @param running true if analysis is starting, false when complete
+     */
+    public void setAnalysisRunning(boolean running) {
+        SwingUtilities.invokeLater(() -> {
+            if (analyseButton != null) {
+                analyseButton.setEnabled(!running);
+                if (running) {
+                    analyseButton.setText("Scanning...");
+                    analyseButton.setBackground(new Color(156, 163, 175)); // Gray when disabled
+                } else {
+                    analyseButton.setText("Analyse");
+                    analyseButton.setBackground(new Color(59, 130, 246)); // Blue when enabled
+                }
+            }
+            if (mainScanProgressBar != null) {
+                mainScanProgressBar.setIndeterminate(running);
+                if (running) {
+                    mainScanProgressBar.setString("Scanning in progress...");
+                    mainScanProgressLabel.setText("Please wait");
+                } else {
+                    mainScanProgressBar.setValue(100);
+                    mainScanProgressBar.setString("100%");
+                    mainScanProgressLabel.setText("Scan complete");
+                }
+            }
+        });
     }
 
     public JBLabel getJpaScanCountValue() {
@@ -762,7 +782,7 @@ private void resetAdvancedScanCounts() {
             }
         });
 
-        // Project Size and Complexity - displayed below the slider
+        // Project Size - displayed below the sliders
         gbc.gridx = 0; gbc.gridy = 2;
         JLabel projectSizeLabel = new JLabel("Project Size:");
         projectSizeLabel.setFont(projectSizeLabel.getFont().deriveFont(Font.PLAIN, 11f));
@@ -772,20 +792,21 @@ private void resetAdvancedScanCounts() {
         gbc.gridx = 1;
         panel.add(projectSizeValue, gbc);
 
+        // Refactor Recipes - displayed below project size
         gbc.gridx = 0; gbc.gridy = 3;
-        JLabel complexityLabel = new JLabel("Project Complexity:");
-        complexityLabel.setFont(complexityLabel.getFont().deriveFont(Font.PLAIN, 11f));
-        panel.add(complexityLabel, gbc);
+        JLabel refactorRecipesLabel = new JLabel("Refactor Recipes:");
+        refactorRecipesLabel.setFont(refactorRecipesLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        panel.add(refactorRecipesLabel, gbc);
 
-        JBLabel complexityValue = createValueLabel("-");
+        refactorRecipesValue = createValueLabel("-");
         gbc.gridx = 1;
-        panel.add(complexityValue, gbc);
+        panel.add(refactorRecipesValue, gbc);
 
-        // Test Coverage Estimate - also in this section
+        // Basic Test Coverage - displayed below refactor recipes
         gbc.gridx = 0; gbc.gridy = 4;
-        JLabel coverageLabel = new JLabel("Est. Test Coverage:");
-        coverageLabel.setFont(coverageLabel.getFont().deriveFont(Font.PLAIN, 11f));
-        panel.add(coverageLabel, gbc);
+        JLabel basicTestCoverageLabel = new JLabel("Basic Test Coverage:");
+        basicTestCoverageLabel.setFont(basicTestCoverageLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        panel.add(basicTestCoverageLabel, gbc);
 
         basicTestCoverageValue = createValueLabel("-");
         gbc.gridx = 1;
@@ -899,43 +920,22 @@ private void resetAdvancedScanCounts() {
         scanProgressValue = createValueLabel("0%");
         summaryGrid.add(scanProgressValue, gbc);
 
-        // Project Size (Total Files)
-        gbc.gridx = 0; gbc.gridy = 1;
-        summaryGrid.add(createKeyLabel("Project Size (Files):"), gbc);
-        gbc.gridx = 1;
-        projectSizeValue = createValueLabel("-");
-        summaryGrid.add(projectSizeValue, gbc);
-
-        // Test Coverage Estimate
-        gbc.gridx = 0; gbc.gridy = 2;
-        summaryGrid.add(createKeyLabel("Est. Test Coverage:"), gbc);
-        gbc.gridx = 1;
-        basicTestCoverageValue = createValueLabel("-");
-        summaryGrid.add(basicTestCoverageValue, gbc);
-
         // Dependencies Found
-        gbc.gridx = 0; gbc.gridy = 3;
+        gbc.gridx = 0; gbc.gridy = 1;
         summaryGrid.add(createKeyLabel("Dependencies Found:"), gbc);
         gbc.gridx = 1;
         dependenciesFoundValue = createValueLabel("-");
         summaryGrid.add(dependenciesFoundValue, gbc);
 
         // Basic Dependencies
-        gbc.gridx = 0; gbc.gridy = 4;
+        gbc.gridx = 0; gbc.gridy = 2;
         summaryGrid.add(createKeyLabel("Basic Dependencies:"), gbc);
         gbc.gridx = 1;
         basicDependenciesValue = createValueLabel("-");
         summaryGrid.add(basicDependenciesValue, gbc);
 
-        // Refactor Recipes
-        gbc.gridx = 0; gbc.gridy = 5;
-        summaryGrid.add(createKeyLabel("Refactor Recipes:"), gbc);
-        gbc.gridx = 1;
-        refactorRecipesValue = createValueLabel("-");
-        summaryGrid.add(refactorRecipesValue, gbc);
-        
         // Total Basic Issues
-        gbc.gridx = 0; gbc.gridy = 6;
+        gbc.gridx = 0; gbc.gridy = 3;
         JBLabel totalLabel = createKeyLabel("Total Basic Issues:");
         totalLabel.setFont(totalLabel.getFont().deriveFont(Font.BOLD));
         summaryGrid.add(totalLabel, gbc);
@@ -945,42 +945,42 @@ private void resetAdvancedScanCounts() {
         summaryGrid.add(totalBasicIssuesValue, gbc);
 
         // Organisational Dependencies
-        gbc.gridx = 0; gbc.gridy = 7;
+        gbc.gridx = 0; gbc.gridy = 4;
         summaryGrid.add(createKeyLabel("Organisational Deps:"), gbc);
         gbc.gridx = 1;
         organisationalDepsValue = createValueLabel("0");
         summaryGrid.add(organisationalDepsValue, gbc);
 
         // No Jakarta Equivalent
-        gbc.gridx = 0; gbc.gridy = 8;
+        gbc.gridx = 0; gbc.gridy = 5;
         summaryGrid.add(createKeyLabel("No Jakarta Equivalent:"), gbc);
         gbc.gridx = 1;
         noJakartaEquivalentValue = createValueLabel("0");
         summaryGrid.add(noJakartaEquivalentValue, gbc);
 
         // Jakarta Upgrade
-        gbc.gridx = 0; gbc.gridy = 9;
+        gbc.gridx = 0; gbc.gridy = 6;
         summaryGrid.add(createKeyLabel("Jakarta Upgrade:"), gbc);
         gbc.gridx = 1;
         jakartaUpgradeValue = createValueLabel("0");
         summaryGrid.add(jakartaUpgradeValue, gbc);
 
         // Jakarta Compatible
-        gbc.gridx = 0; gbc.gridy = 10;
+        gbc.gridx = 0; gbc.gridy = 7;
         summaryGrid.add(createKeyLabel("Jakarta Compatible:"), gbc);
         gbc.gridx = 1;
         jakartaCompatibleValue = createValueLabel("0");
         summaryGrid.add(jakartaCompatibleValue, gbc);
 
         // Unknown/Review
-        gbc.gridx = 0; gbc.gridy = 11;
+        gbc.gridx = 0; gbc.gridy = 8;
         summaryGrid.add(createKeyLabel("Unknown/Review:"), gbc);
         gbc.gridx = 1;
         unknownReviewValue = createValueLabel("0");
         summaryGrid.add(unknownReviewValue, gbc);
 
         // Separator before grand total
-        gbc.gridx = 0; gbc.gridy = 12; gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = 9; gbc.gridwidth = 2;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(10, 5, 5, 5);
         JSeparator separator = new JSeparator();
@@ -991,7 +991,7 @@ private void resetAdvancedScanCounts() {
         gbc.insets = new Insets(5, 5, 5, 5);
 
         // Grand Total across all scan types
-        gbc.gridx = 0; gbc.gridy = 13;
+        gbc.gridx = 0; gbc.gridy = 10;
         JBLabel grandTotalLabel = createKeyLabel("GRAND TOTAL:");
         grandTotalLabel.setFont(grandTotalLabel.getFont().deriveFont(Font.BOLD, 13f));
         grandTotalLabel.setForeground(new Color(0, 100, 200));
@@ -1189,7 +1189,7 @@ private void resetAdvancedScanCounts() {
         gbc.fill = GridBagConstraints.NONE;
         row[0]++;
 
-        // Total row
+        // Total row - Total Advanced Issues
         gbc.gridx = 0; gbc.gridy = row[0]; gbc.gridwidth = 2;
         JBLabel totalLabel = createKeyLabel("Total Advanced Issues:");
         totalLabel.setFont(totalLabel.getFont().deriveFont(Font.BOLD, 12f));
@@ -1198,16 +1198,6 @@ private void resetAdvancedScanCounts() {
         totalAdvancedScanCountValue = createValueLabel("?");
         totalAdvancedScanCountValue.setFont(totalAdvancedScanCountValue.getFont().deriveFont(Font.BOLD, 12f));
         scanGrid.add(totalAdvancedScanCountValue, gbc);
-
-        // Total for grand total calculation
-        gbc.gridx = 4; gbc.gridy = row[0]; gbc.gridwidth = 2;
-        JBLabel grandLabel = createKeyLabel("Advanced Issues:");
-        grandLabel.setFont(grandLabel.getFont().deriveFont(Font.BOLD, 12f));
-        scanGrid.add(grandLabel, gbc);
-        gbc.gridx = 6; gbc.gridwidth = 1;
-        totalAdvancedIssuesValue = createValueLabel("?");
-        totalAdvancedIssuesValue.setFont(totalAdvancedIssuesValue.getFont().deriveFont(Font.BOLD, 12f));
-        scanGrid.add(totalAdvancedIssuesValue, gbc);
 
         panel.add(scanGrid, BorderLayout.CENTER);
         return panel;
@@ -1312,6 +1302,21 @@ private void resetAdvancedScanCounts() {
             int scanProgress = calculateOverallScanProgress();
             scanProgressValue.setText(scanProgress + "%");
             scanProgressValue.setForeground(getProgressColor(scanProgress));
+
+            // Update main progress bar at top of dashboard
+            if (mainScanProgressBar != null) {
+                mainScanProgressBar.setValue(scanProgress);
+                mainScanProgressBar.setString(scanProgress + "%");
+            }
+            if (mainScanProgressLabel != null) {
+                if (scanProgress >= 100) {
+                    mainScanProgressLabel.setText("Complete");
+                } else if (scanProgress > 0) {
+                    mainScanProgressLabel.setText("Scanning...");
+                } else {
+                    mainScanProgressLabel.setText("Ready to scan");
+                }
+            }
 
             // Update project size (total file count)
             int totalFiles = getTotalFileCount();
@@ -1871,5 +1876,26 @@ public JBLabel getSecurityApiScanCountValue() {
 
     public JBLabel getTotalAdvancedScanCountValue() {
         return totalAdvancedScanCountValue;
+    }
+
+    // ==================== Truncation Helper Delegation ====================
+
+    /**
+     * Checks if truncation mode should be applied.
+     * Delegates to TruncationHelper for consistent behavior across UI tabs.
+     * @return true if results should be truncated (free users see truncated results)
+     */
+    private boolean shouldTruncateResults() {
+        return truncationHelper.shouldTruncateResults();
+    }
+
+    /**
+     * Formats a count display with truncation indicator if needed.
+     * Delegates to TruncationHelper for consistent behavior across UI tabs.
+     * @param actualCount the actual number of results
+     * @return formatted string like "5" or "10 of 25" when truncated
+     */
+    private String formatTruncatedCount(int actualCount) {
+        return truncationHelper.formatTruncatedCount(actualCount);
     }
 }

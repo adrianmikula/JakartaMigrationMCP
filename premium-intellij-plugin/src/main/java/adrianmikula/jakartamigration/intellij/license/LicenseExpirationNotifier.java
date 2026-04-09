@@ -17,14 +17,14 @@ import java.net.URI;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Service that monitors license status and notifies users when their trial or license expires.
- * 
+ * Service that monitors license status and notifies users when their license expires.
+ *
  * This service runs on startup and periodically checks if the license has expired.
  * It shows a notification once per expiration event to avoid spamming the user.
- * 
+ *
  * Features:
  * - Checks license status on startup and periodically (every 6 hours)
- * - Shows notification when trial or license expires
+ * - Shows notification when license expires
  * - Provides actions to upgrade, renew, or dismiss
  * - Tracks notification state to avoid duplicates
  * - Integrates with existing license checking infrastructure
@@ -138,16 +138,8 @@ public class LicenseExpirationNotifier implements StartupActivity {
             }
             
             // Determine notification content based on current state
-            String title;
-            String content;
-            
-            if (result.status.contains("Trial")) {
-                title = "Trial Expired";
-                content = "Your free trial has ended. Upgrade to Premium to continue using advanced features like refactoring, platform detection, and PDF reports.";
-            } else {
-                title = "License Expired";
-                content = "Your Jakarta Migration license has expired. Renew to continue using premium features.";
-            }
+            String title = "License Expired";
+            String content = "Your Jakarta Migration license has expired. Renew to continue using premium features.";
             
             // Create notification
             Notification notification = NotificationGroupManager.getInstance()
@@ -162,17 +154,6 @@ public class LicenseExpirationNotifier implements StartupActivity {
                     notification.expire();
                 }
             });
-            
-            // Add start trial action (only if trial wasn't active)
-            if (!result.status.contains("Trial")) {
-                notification.addAction(new NotificationAction("Start Free Trial") {
-                    @Override
-                    public void actionPerformed(@NotNull AnActionEvent e, @NotNull Notification notification) {
-                        startTrial(project);
-                        notification.expire();
-                    }
-                });
-            }
             
             // Add dismiss action
             notification.addAction(new NotificationAction("Dismiss") {
@@ -198,21 +179,6 @@ public class LicenseExpirationNotifier implements StartupActivity {
         } catch (Exception e) {
             LOG.warn("LicenseExpirationNotifier: Failed to open marketplace URL", e);
         }
-    }
-    
-    /**
-     * Starts a free trial for the user.
-     */
-    private static void startTrial(@NotNull Project project) {
-        ApplicationManager.getApplication().invokeLater(() -> {
-            // Delegate to CheckLicense to start trial
-            CheckLicense.startTrial();
-            
-            // Refresh UI components
-            SafeLicenseChecker.clearCache();
-            
-            LOG.info("LicenseExpirationNotifier: Trial started from notification");
-        });
     }
     
     /**
