@@ -1,6 +1,10 @@
 package adrianmikula.jakartamigration.intellij.discovery;
 
-import com.intellij.notification.*;
+import com.intellij.notification.Notification;
+import com.intellij.notification.NotificationGroup;
+import com.intellij.notification.NotificationGroupManager;
+import com.intellij.notification.NotificationType;
+import com.intellij.notification.Notifications;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.startup.StartupActivity;
@@ -80,9 +84,8 @@ public class JakartaMigrationDiscoverabilityService implements StartupActivity {
      */
     private void suggestPlugin(@NotNull Project project, @NotNull String reason) {
         ApplicationManager.getApplication().invokeLater(() -> {
-            NotificationGroup notificationGroup = NotificationGroup.balloonGroup(
-                "Jakarta Migration Suggestion"
-            );
+            NotificationGroup notificationGroup = NotificationGroupManager.getInstance()
+                .getNotificationGroup("Jakarta Migration Suggestion");
             
             Notification notification = notificationGroup.createNotification(
                 "🚀 Jakarta Migration Plugin Available",

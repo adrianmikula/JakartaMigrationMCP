@@ -4,7 +4,10 @@ import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCen
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Assumptions;
 
+import java.net.InetAddress;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -12,9 +15,11 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.*;
 
 /**
- * Simple verification test for our TDD Jakarta lookup improvements
+ * Simple verification test for our TDD Jakarta lookup improvements.
+ * These tests make real network calls to Maven Central and are tagged as "slow".
  */
 @DisplayName("Jakarta Lookup Improvements Verification")
+@Tag("slow")
 public class JakartaLookupVerificationTest {
     
     private ImprovedMavenCentralLookupService lookupService;
@@ -22,6 +27,18 @@ public class JakartaLookupVerificationTest {
     @BeforeEach
     void setUp() {
         lookupService = new ImprovedMavenCentralLookupService();
+        // Skip tests if Maven Central is not reachable (offline or network issues)
+        Assumptions.assumeTrue(isMavenCentralReachable(), 
+            "Skipping test: Maven Central is not reachable (offline or network issues)");
+    }
+    
+    private boolean isMavenCentralReachable() {
+        try {
+            InetAddress.getByName("repo1.maven.org").isReachable(3000);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
     
     @Test

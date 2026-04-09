@@ -17,6 +17,10 @@ public class RiskScoringService {
     private final Map<String, RiskConfig> riskConfigs;
     private final Map<String, CategoryConfig> categoryConfigs;
     private final Map<String, Object> calculationConfig;
+    private final Map<String, Object> scanCalculationConfig;
+    private final Map<String, Object> coverageMultiplierConfig;
+    private final Map<String, Object> pdfFormulaConfig;
+    private final Map<String, Object> complexityScoringConfig;
 
     public static class RiskConfig {
         public String displayName;
@@ -67,6 +71,10 @@ public class RiskScoringService {
         riskConfigs = new ConcurrentHashMap<>();
         categoryConfigs = new ConcurrentHashMap<>();
         calculationConfig = new HashMap<>();
+        scanCalculationConfig = new HashMap<>();
+        coverageMultiplierConfig = new HashMap<>();
+        pdfFormulaConfig = new HashMap<>();
+        complexityScoringConfig = new HashMap<>();
         loadConfiguration();
     }
 
@@ -133,6 +141,26 @@ public class RiskScoringService {
                 calculationConfig.putAll((Map<String, Object>) config.get("riskCalculation"));
             }
 
+            // Load scan calculation multipliers
+            if (config.containsKey("scanCalculation")) {
+                scanCalculationConfig.putAll((Map<String, Object>) config.get("scanCalculation"));
+            }
+
+            // Load coverage multiplier formula config
+            if (config.containsKey("coverageMultiplier")) {
+                coverageMultiplierConfig.putAll((Map<String, Object>) config.get("coverageMultiplier"));
+            }
+
+            // Load PDF formula weights
+            if (config.containsKey("pdfFormula")) {
+                pdfFormulaConfig.putAll((Map<String, Object>) config.get("pdfFormula"));
+            }
+
+            // Load complexity scoring config
+            if (config.containsKey("complexityScoring")) {
+                complexityScoringConfig.putAll((Map<String, Object>) config.get("complexityScoring"));
+            }
+
         } catch (Exception e) {
             throw new RuntimeException("CRITICAL: Failed to load risk-scoring.yaml. Risk calculation cannot proceed.",
                     e);
@@ -146,7 +174,7 @@ public class RiskScoringService {
             Map<String, List<RiskFinding>> scanFindings,
             Map<String, Integer> dependencyIssues) {
 
-        return calculateRiskScore(scanFindings, dependencyIssues, 0, 0.0);
+        return calculateRiskScore(scanFindings, dependencyIssues, 0, 0.0, 50.0);
     }
 
     /**
@@ -162,6 +190,24 @@ public class RiskScoringService {
             Map<String, Integer> dependencyIssues,
             int totalFileCount,
             double platformRiskScore) {
+        return calculateRiskScore(scanFindings, dependencyIssues, totalFileCount, platformRiskScore, 50.0);
+    }
+
+    /**
+     * Calculates overall risk score based on scan findings, dependency issues, and project metrics.
+     *
+     * @param scanFindings Map of scan type to list of risk findings
+     * @param dependencyIssues Map of dependency issue types to scores
+     * @param totalFileCount Total number of files in the project
+     * @param platformRiskScore Platform compatibility risk score (0-10)
+     * @param testCoverage Test coverage percentage (0-100)
+     */
+    public RiskScore calculateRiskScore(
+            Map<String, List<RiskFinding>> scanFindings,
+            Map<String, Integer> dependencyIssues,
+            int totalFileCount,
+            double platformRiskScore,
+            double testCoverage) {
 
         Map<String, Integer> componentScores = new HashMap<>();
         List<RiskFinding> allFindings = new ArrayList<>();
@@ -185,8 +231,9 @@ public class RiskScoringService {
                 throw new IllegalArgumentException("Invalid baseWeight (<= 0) for scan type: " + entry.getKey());
             }
 
-            // Apply base weight as a multiplier for normalization
-            scanTypeScore = (scanTypeScore * config.baseWeight) / 10.0;
+            // Apply base weight as a multiplier for normalization (configurable divisor)
+            Number baseWeightDivisor = (Number) scanCalculationConfig.getOrDefault("baseWeightDivisor", 10.0);
+            scanTypeScore = (scanTypeScore * config.baseWeight) / baseWeightDivisor.doubleValue();
             rawScanScore += scanTypeScore;
         }
 
@@ -228,11 +275,22 @@ public class RiskScoringService {
         Number maxScoreNum = (Number) calculationConfig.get("maxTotalScore");
         double maxTotalScore = maxScoreNum != null ? maxScoreNum.doubleValue() : 100.0;
 
+        componentScores.put("scanFindings", (int) rawScanScore);
+        componentScores.put("dependencyIssues", (int) rawDepScore);
+        componentScores.put("codeComplexity", (int) rawComplexityScore);
+        componentScores.put("platformRisk", (int) rawPlatformScore);
+
         // Weighted total (normalized to 0-100 scale)
         double totalScore = (rawScanScore * scanWeight) +
                 (rawDepScore * depWeight) +
                 (rawComplexityScore * complexityWeight) +
                 (rawPlatformScore * platformWeight);
+
+        // Apply test coverage multiplier from YAML configuration
+        // Default: 0% = 2x, 50% = 1x, 100% = 0.5x
+        double coverage = Math.min(Math.max(testCoverage, 0.0), 100.0);
+        double coverageMultiplier = calculateCoverageMultiplier(coverage);
+        totalScore = totalScore * coverageMultiplier;
 
         // Normalize to 0-100 scale
         totalScore = Math.min(totalScore, maxTotalScore);
@@ -264,18 +322,55 @@ public class RiskScoringService {
     public double calculateRiskScore(int blockers, int nonCompatibleDeps, int totalIssues, int criticalIssues) {
         double score = 0.0;
 
+        // Load PDF formula weights from YAML configuration
+        Number pointsPerBlocker = (Number) pdfFormulaConfig.getOrDefault("pointsPerBlocker", 10);
+        Number pointsPerNonCompatibleDep = (Number) pdfFormulaConfig.getOrDefault("pointsPerNonCompatibleDep", 2);
+        Number pointsPerIssue = (Number) pdfFormulaConfig.getOrDefault("pointsPerIssue", 0.5);
+        Number pointsPerCriticalIssue = (Number) pdfFormulaConfig.getOrDefault("pointsPerCriticalIssue", 5);
+        Number maxScoreCap = (Number) pdfFormulaConfig.getOrDefault("maxScoreCap", 100.0);
+
         // Factor 1: Dependencies that need migration (blockers)
-        score += blockers * 10; // 10 points per blocker
+        score += blockers * pointsPerBlocker.doubleValue();
 
         // Add score for non-compatible dependencies
-        score += nonCompatibleDeps * 2; // 2 points per non-compatible dependency
+        score += nonCompatibleDeps * pointsPerNonCompatibleDep.doubleValue();
 
         // Factor 2: Issues
-        score += totalIssues * 0.5; // 0.5 points per issue
-        score += criticalIssues * 5; // 5 extra points per critical issue
+        score += totalIssues * pointsPerIssue.doubleValue();
+        score += criticalIssues * pointsPerCriticalIssue.doubleValue();
 
-        // Cap at 100
-        return Math.min(score, 100.0);
+        // Cap at configured maximum
+        return Math.min(score, maxScoreCap.doubleValue());
+    }
+
+    /**
+     * Calculates the coverage multiplier based on YAML configuration.
+     * Default formula: 0% = 2.0x, 50% = 1.0x, 100% = 0.5x
+     *
+     * @param coverage Test coverage percentage (0-100)
+     * @return Multiplier to apply to risk score
+     */
+    private double calculateCoverageMultiplier(double coverage) {
+        // Load coverage multiplier config from YAML with defaults
+        Number maxMultiplier = (Number) coverageMultiplierConfig.getOrDefault("maxMultiplier", 2.0);
+        Number midMultiplier = (Number) coverageMultiplierConfig.getOrDefault("midMultiplier", 1.0);
+        Number minMultiplier = (Number) coverageMultiplierConfig.getOrDefault("minMultiplier", 0.5);
+        Number refCoverageLow = (Number) coverageMultiplierConfig.getOrDefault("referenceCoverageLow", 50.0);
+        Number refCoverageHigh = (Number) coverageMultiplierConfig.getOrDefault("referenceCoverageHigh", 50.0);
+
+        double max = maxMultiplier.doubleValue();
+        double mid = midMultiplier.doubleValue();
+        double min = minMultiplier.doubleValue();
+        double refLow = refCoverageLow.doubleValue();
+        double refHigh = refCoverageHigh.doubleValue();
+
+        if (coverage <= refLow) {
+            // Linear interpolation from max to mid between 0% and refLow%
+            return max - (coverage / refLow) * (max - mid);
+        } else {
+            // Linear interpolation from mid to min between refLow% and 100%
+            return mid - ((coverage - refLow) / (100.0 - refLow)) * (mid - min);
+        }
     }
 
     /**
@@ -406,11 +501,15 @@ public class RiskScoringService {
         // 1001-10000 files: 6-8 points
         // 10000+ files: 8-10 points
 
-        double logScale = Math.log10(totalFileCount);
-        double normalizedScore = (logScale / 5.0) * 10.0; // log10(100000) = 5, so scale to 0-10
+        // Load complexity scoring config from YAML
+        Number logScaleDivisor = (Number) complexityScoringConfig.getOrDefault("logScaleDivisor", 5.0);
+        Number maxComplexityScore = (Number) complexityScoringConfig.getOrDefault("maxScore", 10.0);
 
-        // Cap at 10.0 maximum
-        return Math.min(normalizedScore, 10.0);
+        double logScale = Math.log10(totalFileCount);
+        double normalizedScore = (logScale / logScaleDivisor.doubleValue()) * maxComplexityScore.doubleValue();
+
+        // Cap at configured maximum
+        return Math.min(normalizedScore, maxComplexityScore.doubleValue());
     }
 
     /**

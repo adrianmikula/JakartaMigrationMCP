@@ -5,6 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.regex.Pattern;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
@@ -611,5 +615,6 @@ class McpServerSseIntegrationTest {
         // Should have an error
         assertThat(jsonResponse.has("error")).isTrue();
     }
+}
 
 

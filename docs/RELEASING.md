@@ -189,7 +189,13 @@ The plugin.xml must pass all JetBrains Marketplace validation checks:
 
 ## Version History
 
-### v1.0.8 (Current)
+### v1.0.11 (Current)
+- **API Compatibility**: Fixed 2 scheduled for removal API usages
+  - Replaced `NotificationGroup.balloonGroup(String)` with `NotificationGroupManager.getInstance().getNotificationGroup()` in `JakartaMigrationDiscoverabilityService.java`
+  - Replaced `AnActionEvent.createFromDataContext()` with `AnActionEvent.createFromAnAction()` in `CheckLicense.java`
+- **Future-Proofing**: Ensures compatibility with IntelliJ Platform 2023.3+ and future releases
+
+### v1.0.8
 - **Dashboard Refactoring**: Implemented new three-section layout with speedometer gauges
 - **Platform Detection**: Added comprehensive application server detection
 - **Risk Scoring Integration**: Platform changes affect migration risk assessment

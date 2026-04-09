@@ -141,6 +141,16 @@ intellij {
     plugins = listOf("com.intellij.java")
 }
 
+// Exclude IDE packages that should be provided by the IntelliJ platform
+tasks.named<org.jetbrains.intellij.tasks.PrepareSandboxTask>("prepareSandbox") {
+    exclude { entry ->
+        // Exclude org.jetbrains.concurrency package to prevent bundling
+        // This package is provided by IntelliJ platform and bundling it causes compatibility issues
+        entry.name.startsWith("org/jetbrains/concurrency/") ||
+        entry.name.contains("/org/jetbrains/concurrency/")
+    }
+}
+
 tasks {
     patchPluginXml {
         sinceBuild.set(providers.gradleProperty("intellij.sinceBuild").orElse("233"))

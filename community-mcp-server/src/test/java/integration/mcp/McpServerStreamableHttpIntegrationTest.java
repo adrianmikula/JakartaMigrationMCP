@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.nio.file.Path;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -469,5 +470,6 @@ class McpServerStreamableHttpIntegrationTest {
         JsonNode jsonResponse = objectMapper.readTree(response);
         assertThat(jsonResponse.has("result")).isTrue();
     }
+}
 
 

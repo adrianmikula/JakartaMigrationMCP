@@ -1,635 +1,191 @@
-# Jakarta Migration MCP Server
 
-A Model Context Protocol (MCP) server that provides AI coding assistants with specialized tools for analyzing and migrating Java applications from Java EE 8 (`javax.*`) to Jakarta EE 9+ (`jakarta.*`).
+# 🚀 Jakarta Migration (javax → jakarta)
 
-[![MCP Protocol](https://img.shields.io/badge/MCP-Protocol-green)](https://modelcontextprotocol.io)
+**Analyze, plan, and automate your Java EE → Jakarta EE migration — directly inside IntelliJ.**
 
-## 🚀 Quick Start
+Migrate from Java EE 8 (`javax.*`) to Jakarta EE 9+ with confidence.
+This plugin detects migration blockers, analyzes dependencies, and helps you refactor safely using OpenRewrite.
 
-### Run locally (STDIO)
+---
 
-**Prerequisites**: Java 21+ and Node.js 18+
+## ⚠️ Why This Matters
 
-```bash
-# Install via npm (one-time)
-npm install -g @jakarta-migration/mcp-server
+The transition from `javax.*` to `jakarta.*` is **not a simple rename**.
 
-# Or use with npx (no installation)
-npx -y @jakarta-migration/mcp-server
-```
+* Dependencies break
+* Frameworks require upgrades
+* Application servers must change
+* Hidden references cause runtime failures
 
-See [Local Setup (STDIO)](#local-setup-stdio) below for client configuration.
+This plugin helps you **identify risks early and migrate systematically**.
+
+---
 
 ## 🖥️ IntelliJ IDEA Plugin
-
-A native IntelliJ IDEA plugin is also available for users who prefer an IDE-integrated experience:
-
-[![Plugin Version](https://img.shields.io/plugin/v/jakarta-migration)](https://plugins.jetbrains.com/plugin/30093-jakarta-migration)
 
 ### Download
 
 **[Get it from JetBrains Marketplace →](https://plugins.jetbrains.com/plugin/30093-jakarta-migration)**
 
-### Features
+---
 
-- **Migration Analysis** - Analyze Java projects for Jakarta EE migration readiness
-- **Dependency Graph Visualization** - Visualize module dependencies with multiple layout options (hierarchical, force-directed, circular, tree)
-- **MCP Server Integration** - Automatically connects to Jakarta Migration MCP server
-- **AI Assistant Tools** - AI Assistant integration for intelligent migration suggestions
-- **Tool Window** - Dedicated Jakarta Migration tool window for easy access
-- **Refactor Tab** - Apply and manage OpenRewrite refactorings
-- **Runtime Verification** - Test migrated applications at runtime
+## 🔍 What You Can Do
 
-### Installation
+### 📊 Analyze Your Project
 
-1. **Install** via IntelliJ IDEA:
-   - Open **Settings** (`Ctrl+Alt+S` or `Cmd+,`)
-   - Go to **Plugins**
-   - Search for **Jakarta Migration**
-   - Click **Install**
-2. **Restart** IntelliJ IDEA
+* Scan your entire codebase for `javax.*` usage
+* Identify migration blockers and compatibility issues
+* Estimate migration effort and risk
 
-### Usage
+### 📦 Understand Dependencies
 
-1. Open a Java project
-2. Go to **Tools** → **Jakarta Migration** or use **Ctrl+Shift+J**
-3. The Jakarta Migration tool window will open
-4. Click **Analyze Project** to start analysis
-5. View results in the dependency graph and analysis panel
+* Detect which dependencies are Jakarta-compatible
+* Get recommendations for compatible versions
+* Visualize module relationships with dependency graphs
 
-### AI Assistant Integration
 
-If you have IntelliJ AI Assistant installed:
-1. The plugin automatically registers MCP tools with AI Assistant
-2. Ask AI Assistant: "Analyze my project for Jakarta migration"
-3. AI Assistant will use the MCP tools to analyze your project
+### 🧠 Plan Your Migration
 
-### Requirements
+* Compare migration strategies
+* Identify required platform upgrades (Spring, app servers, etc.)
+* Make informed decisions before changing code
 
-- IntelliJ IDEA 2023.3.4 or later
-- Java 17 or later
-- Optional: AI Assistant plugin for AI features
+### ⚡ Refactor with Confidence
 
-### 🔧 Development Setup
-
-#### Environment Switching
-
-The plugin supports switching between JetBrains Marketplace environments for testing:
-
-```bash
-# Switch to Demo Environment
-.\scripts\switch-env.ps1 Demo
-
-# Switch to Production Environment  
-.\scripts\switch-env.ps1 Production
-```
-
-**Demo Environment:**
-- For testing and development
-- Uses JetBrains Demo Marketplace
-- Requires separate plugin registration
-
-**Production Environment:**
-- For public release
-- Uses JetBrains Production Marketplace
-- Requires production plugin registration
-
-#### License Configuration
-
-The plugin uses JetBrains licensing with product code `PJAKARTAMIGRATI`. For development:
-
-1. **Register Plugin in Demo Marketplace:**
-   - Go to JetBrains Demo Marketplace portal
-   - Register plugin with product code `PJAKARTAMIGRATI`
-   - Use your JetBrains account email
-
-2. **Plugin Configuration:**
-   - Product Code: `PJAKARTAMIGRATI`
-   - Vendor Email: Must match your JetBrains account
-   - Plugin ID: `com.adrianmikula.jakarta-migration`
-
-3. **Troubleshooting License Issues:**
-   - Ensure vendor email matches JetBrains account
-   - Clear IntelliJ cache if license errors persist
-   - Verify plugin registration in correct marketplace
-
-#### Development Mode
-
-For local development without licensing checks:
-
-```bash
-# Run IDE in dev mode (skips all licensing)
-./gradlew :premium-intellij-plugin:runIdeDev
-
-# Run IDE in demo marketplace mode
-./gradlew :premium-intellij-plugin:runIdeDemo
-
-# Run IDE in production marketplace mode
-./gradlew :premium-intellij-plugin:runIdeProd
-
-# Build and run in dev mode
-./gradlew :premium-intellij-plugin:buildDevPlugin
-
-# Build and run in demo marketplace mode
-./gradlew :premium-intellij-plugin:buildDemoPlugin
-
-# Build and run in production mode
-./gradlew :premium-intellij-plugin:buildProductionPlugin
-```
-
-**Benefits:**
-- No license validation delays
-- Instant plugin startup
-- Full feature access for development
-- Faster development iteration
-
-## 📋 What It Does
-
-The Jakarta Migration MCP Server enables your AI coding assistant to:
-
-- **🔍 Analyze Jakarta Readiness** - Assess Java projects for migration readiness with detailed dependency analysis
-- **🚫 Detect Blockers** - Identify dependencies and code patterns that prevent Jakarta migration
-- **📦 Recommend Versions** - Suggest Jakarta-compatible versions for existing dependencies
-- **📋 Create Migration Plans** - Generate comprehensive, phased migration plans with risk assessment
-- **📊 Analyze Migration Impact** - Comprehensive impact analysis combining dependency analysis and source code scanning
-- **✅ Verify Runtime** - Test migrated applications to ensure they run correctly after migration
-
-### The Problem It Solves
-
-Migrating from Java EE 8 (`javax.*`) to Jakarta EE 9+ (`jakarta.*`) is complex because:
-
-- **Dependency Hell**: Many libraries haven't migrated, creating transitive conflicts
-- **Binary Incompatibility**: Compiled JARs may reference `javax.*` internally
-- **Hidden Dependencies**: `javax.*` usage in XML configs, annotations, and dynamic loading
-- **Risk Assessment**: Need to understand migration impact before starting
-
-This MCP server provides AI assistants with the specialized knowledge and tools to navigate these challenges effectively.
-
-## 🔒 Security & Privacy
-
-Your code and project data are handled with the utmost care. We understand that Java developers working with enterprise codebases need complete confidence in the security and privacy of their intellectual property.
-
-### Stateless Architecture
-
-✅ **No Data Persistence** - The service is completely stateless. Your project files, source code, and analysis results are never stored, logged, or persisted on our servers.
-
-✅ **No Data Collection** - We don't collect, track, or analyze your code. Each request is processed independently with no memory of previous requests.
-
-✅ **Local Execution Option** - For maximum privacy, you can run the entire service locally using the [Local Setup](#local-setup-stdio) option. Your code never leaves your machine.
-
-### Privacy Guarantees
-
-- **Zero Code Storage**: Project files are only read during analysis and immediately discarded
-- **No Telemetry**: No usage tracking, analytics, or code scanning for any purpose other than migration analysis
-- **Open Source**: The core service is open source, so you can audit exactly what it does
-- **Enterprise Ready**: Safe for use with proprietary and sensitive codebases
-
-### Local Service
-
-When running locally via STDIO:
-- **100% Local** - Everything runs on your machine
-- **No Network Calls** - No external requests are made
-- **Complete Control** - You have full visibility and control over the process
-
-**For maximum security and privacy, we recommend using the local STDIO setup for sensitive projects.**
-
-## 🔧 Setup Instructions
-
-### Local Setup (STDIO)
-
-For local development, use STDIO transport which works with **Cursor, Claude Code, and Antigravity**. This is the recommended approach for maximum privacy and performance.
-
-#### Prerequisites
-
-- **Java 21+** - [Download from Adoptium](https://adoptium.net/)
-  - Verify installation: `java -version`
-  - Should show Java 21 or higher
-- **Node.js 18+** - [Download from nodejs.org](https://nodejs.org/)
-  - Verify installation: `node --version`
-  - Should show v18.0.0 or higher
-
-#### Installation Methods
-
-**Option 1: Global Install (Recommended)**
-
-Install the package globally for system-wide access:
-
-```bash
-npm install -g @jakarta-migration/mcp-server
-```
-
-After installation:
-- The JAR file will be automatically downloaded from GitHub releases on first use
-- JAR is cached in your home directory for faster subsequent runs
-- You can use the command directly: `jakarta-migration-mcp`
-
-**Option 2: npx (No Installation)**
-
-Use `npx` to run without installing:
-
-```bash
-npx -y @jakarta-migration/mcp-server
-```
-
-The `-y` flag automatically accepts the package download. The JAR will be downloaded and cached on first use.
-
-**Option 3: Local Development Build**
-
-If you're building from source or want to use a local JAR:
-
-```bash
-# Build the JAR
-./gradlew bootJar
-
-# Set environment variable to use local JAR
-export JAKARTA_MCP_JAR_PATH=/path/to/build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar
-
-# Run via npm wrapper
-npx -y @jakarta-migration/mcp-server
-```
-
-**Windows (PowerShell):**
-```powershell
-# Build the JAR
-.\gradlew.bat bootJar
-
-# Set environment variable
-$env:JAKARTA_MCP_JAR_PATH = "E:\Source\JakartaMigrationMCP\build\libs\jakarta-migration-mcp-1.0.0-SNAPSHOT.jar"
-
-# Run via npm wrapper
-npx -y @jakarta-migration/mcp-server
-```
-
-#### How the npm Package Works
-
-The npm package is a lightweight Node.js wrapper that:
-
-1. **Downloads the JAR** from GitHub releases (if not already cached)
-2. **Caches the JAR** in your home directory:
-   - **Windows**: `%USERPROFILE%\AppData\.cache\jakarta-migration-mcp\`
-   - **Linux/macOS**: `~/.cache/jakarta-migration-mcp/`
-3. **Starts the Java process** with correct MCP arguments
-4. **Handles stdio communication** for MCP protocol
-
-**Pre-download the JAR:**
-
-You can pre-download the JAR without starting the server:
-
-```bash
-npx -y @jakarta-migration/mcp-server --download-only
-```
-
-This is useful for:
-- Testing the download process
-- Pre-caching the JAR before first use
-- Verifying network connectivity
-
-**Verify Installation:**
-
-After installing, verify everything works:
-
-```bash
-# Test the wrapper can find Java and download JAR
-npx -y @jakarta-migration/mcp-server --download-only
-
-# Check if command is available (if installed globally)
-jakarta-migration-mcp --download-only
-```
-
-You should see:
-- Java version detection
-- JAR download or cache confirmation
-- No errors
-
-#### Optional configuration
-
-To use a custom JAR path or override transport, see [NPM Installation Configuration](docs/setup/NPM_INSTALLATION_CONFIG.md).
-
-##### Cursor IDE
-
-1. Open Cursor Settings (`Ctrl+,` or `Cmd+,`)
-2. Navigate to **Features** → **MCP**
-3. Add configuration:
-
-**Windows:**
-```json
-{
-  "mcpServers": {
-    "jakarta-migration": {
-      "command": "npx",
-      "args": ["-y", "@jakarta-migration/mcp-server"]
-    }
-  }
-}
-```
-
-**Mac/Linux:**
-```json
-{
-  "mcpServers": {
-    "jakarta-migration": {
-      "command": "npx",
-      "args": ["-y", "@jakarta-migration/mcp-server"]
-    }
-  }
-}
-```
-
-4. **Restart Cursor** completely
-
-##### Claude Code (VS Code Extension)
-
-1. Open VS Code Settings
-2. Navigate to **Claude Code** → **MCP Settings**
-3. Add the same configuration as Cursor
-4. Restart VS Code
-
-##### Antigravity
-
-1. Open Antigravity Settings
-2. Navigate to **MCP Configuration**
-3. Add:
-
-```json
-{
-  "name": "jakarta-migration",
-  "command": "npx",
-  "args": ["-y", "@jakarta-migration/mcp-server"]
-}
-```
-
-#### Alternative: Run from JAR Directly
-
-If you've built the project locally and want to bypass the npm wrapper:
-
-**Windows:**
-```json
-{
-  "mcpServers": {
-    "jakarta-migration": {
-      "command": "java",
-      "args": [
-        "-jar",
-        "C:\\path\\to\\jakarta-migration-mcp-1.0.0-SNAPSHOT.jar",
-        "--spring.profiles.active=mcp-stdio",
-        "--spring.ai.mcp.server.transport=stdio",
-        "--spring.main.web-application-type=none"
-      ]
-    }
-  }
-}
-```
-
-**Mac/Linux:**
-```json
-{
-  "mcpServers": {
-    "jakarta-migration": {
-      "command": "java",
-      "args": [
-        "-jar",
-        "/path/to/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar",
-        "--spring.profiles.active=mcp-stdio",
-        "--spring.ai.mcp.server.transport=stdio",
-        "--spring.main.web-application-type=none"
-      ]
-    }
-  }
-}
-```
-
-> **Note**: Using the npm wrapper is recommended as it handles JAR downloads, caching, and argument configuration automatically.
-
-### Local HTTP Setup (Streamable HTTP or SSE)
-
-For local HTTP-based testing or development:
-
-1. **Build the project:**
-   ```bash
-   ./gradlew bootJar
-   ```
-
-2. **Start server with Streamable HTTP:**
-
-   **Windows (PowerShell):**
-   ```powershell
-   java -jar build\libs\jakarta-migration-mcp-1.0.0-SNAPSHOT.jar --spring.profiles.active=mcp-streamable-http
-   ```
-
-   **Mac/Linux:**
-   ```bash
-   java -jar build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar \
-     --spring.profiles.active=mcp-streamable-http
-   ```
-
-   **Or with SSE (legacy):**
-
-   **Windows (PowerShell):**
-   ```powershell
-   java -jar build\libs\jakarta-migration-mcp-1.0.0-SNAPSHOT.jar --spring.profiles.active=mcp-sse
-   ```
-
-   **Mac/Linux:**
-   ```bash
-   java -jar build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar \
-     --spring.profiles.active=mcp-sse
-   ```
-
-3. **Test the endpoint:**
-
-   **Windows (PowerShell):**
-   ```powershell
-   # Streamable HTTP (recommended)
-   curl.exe -X POST http://localhost:8080/mcp/streamable-http `
-     -H "Content-Type: application/json" `
-     -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}'
-   
-   # Or SSE (legacy)
-   curl.exe -X POST http://localhost:8080/mcp/sse `
-     -H "Content-Type: application/json" `
-     -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}'
-   ```
-
-   **Mac/Linux:**
-   ```bash
-   # Streamable HTTP (recommended)
-   curl -X POST http://localhost:8080/mcp/streamable-http \
-     -H "Content-Type: application/json" \
-     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
-   
-   # Or SSE (legacy)
-   curl -X POST http://localhost:8080/mcp/sse \
-     -H "Content-Type: application/json" \
-     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
-   ```
-
-4. **Configure MCP client** to use `http://localhost:8080/mcp/streamable-http` (or `/mcp/sse` for SSE)
-
-## 💬 Usage Examples
-
-Once configured, you can use the MCP tools in your AI assistant:
-
-### Analyze Project Readiness
-
-```
-Analyze the Jakarta readiness of my project at /path/to/my-project
-```
-
-### Detect Migration Blockers
-
-```
-Detect any blockers for Jakarta migration in my project
-```
-
-### Get Version Recommendations
-
-```
-Recommend Jakarta-compatible versions for my dependencies
-```
-
-### Create Migration Plan
-
-```
-Create a migration plan for migrating my project to Jakarta EE
-```
-
-### Verify Runtime
-
-```
-Verify the runtime of my migrated application at /path/to/app.jar
-```
-
-## 🛠️ Available Tools
-
-| Tool | Description |
-|------|-------------|
-| `analyzeJakartaReadiness` | Comprehensive project analysis with readiness score |
-| `detectBlockers` | Find dependencies and patterns that prevent migration |
-| `recommendVersions` | Get Jakarta-compatible version recommendations |
-| `createMigrationPlan` | Generate phased migration plan with risk assessment |
-| `analyzeMigrationImpact` | Analyze full migration impact combining dependency analysis and source code scanning |
-| `verifyRuntime` | Test migrated application execution |
-
-See [MCP Tools Documentation](docs/mcp/MCP_TOOLS_IMPLEMENTATION.md) for detailed tool descriptions and parameters.
-
-## 🐛 Troubleshooting
-
-### Tools Not Appearing
-
-1. **Restart your IDE completely** - MCP servers load on startup
-2. **Check MCP server status** - Look for errors in IDE logs
-3. **Verify configuration** - Ensure JSON syntax is correct
-4. **Check prerequisites** - Java 21+ and Node.js 18+ must be installed
-
-### Connection Issues
-
-**For Local (STDIO):**
-- Verify Java is installed: `java -version` (should show Java 21+)
-- Verify Node.js is installed: `node --version` (should show v18+)
-- Try running manually: `npx -y @jakarta-migration/mcp-server`
-- Check JAR download: `npx -y @jakarta-migration/mcp-server --download-only`
-- Verify JAR cache location:
-  - **Windows**: `%USERPROFILE%\AppData\.cache\jakarta-migration-mcp\`
-  - **Linux/macOS**: `~/.cache/jakarta-migration-mcp/`
-- If JAR download fails, check:
-  - Internet connectivity
-  - GitHub releases are accessible
-  - Version matches package.json version
-- For local development, set `JAKARTA_MCP_JAR_PATH` environment variable to point to your local JAR file
-
-### IntelliJ Plugin License Issues
-
-**"Unknown product code" Error:**
-1. **Check Environment**: Ensure you're in the correct marketplace (Demo vs Production)
-2. **Verify Registration**: Plugin must be registered in the same marketplace you're using
-3. **Email Mismatch**: Vendor email in plugin.xml must match your JetBrains account email
-4. **Product Code**: Ensure product code `PJAKARTAMIGRATI` is correctly registered
-
-**"License fetching failed" Error:**
-1. **Clear IntelliJ Cache**: Delete IntelliJ cache and config directories
-2. **Restart IntelliJ**: Complete restart after cache clearing
-3. **Check Network**: Ensure JetBrains Marketplace is accessible
-4. **Verify Account**: Confirm your JetBrains account is in good standing
-
-**Environment Switching Issues:**
-1. **Script Permissions**: Ensure PowerShell script can execute
-2. **Configuration File**: Check `.env` file exists and is readable
-3. **IntelliJ Restart**: Required after environment switching
-
-**Common Solutions:**
-```bash
-# Clear IntelliJ cache (Windows)
-rmdir /s "%USERPROFILE%\AppData\Local\JetBrains\IntelliJIdea*"
-rmdir /s "%USERPROFILE%\AppData\Roaming\JetBrains\IntelliJIdea*"
-
-# Switch environment and restart
-.\scripts\switch-env.ps1 Demo
-# Then restart IntelliJ completely
-```
-
-### Platform-Specific Issues
-
-**Windows:**
-- Use forward slashes in paths: `C:/path/to/file.jar`
-- Ensure Java is in your PATH
-
-**Mac/Linux:**
-- Ensure execute permissions: `chmod +x gradlew`
-- Use absolute paths in configuration
-
-## 📚 Documentation
-
-### For Users
-
-- **[Installation Guide](docs/setup/INSTALLATION.md)** - Build and installation
-- **[MCP Tools Reference](docs/mcp/MCP_TOOLS_IMPLEMENTATION.md)** - Complete tool documentation
-- **[Transport Configuration](docs/setup/MCP_TRANSPORT_CONFIGURATION.md)** - STDIO vs SSE explained
-
-### For Developers
-
-- **[Development Setup](docs/setup/INSTALLATION.md)** - Build and development environment
-- **[Architecture](docs/architecture/core-modules-design.md)** - System design and modules
-- **[Testing Guide](docs/testing/README.md)** - Testing standards and practices
-- **[Contributing](CONTRIBUTING.md)** - How to contribute to the project
-
-## 🔗 Resources
-
-- **MCP Documentation**: [modelcontextprotocol.io](https://modelcontextprotocol.io)
-- **Spring AI**: [docs.spring.io/spring-ai](https://docs.spring.io/spring-ai/reference/)
-- **Jakarta EE**: [jakarta.ee](https://jakarta.ee/)
-
-## 📄 License
-
-This repository uses a **dual-licensing** model:
-
-### Root License (Proprietary)
-
-The root `LICENSE` file contains the proprietary license for the overall project repository.
-
-### Community Modules (Apache 2.0)
-
-The following modules are licensed under **Apache License 2.0**:
-- `community-core-engine` - Core migration logic and analysis
-- `community-mcp-server` - Model Context Protocol server
-- `community-intellij-plugin` - IntelliJ IDEA plugin
-
-See [`docs/community/LICENSE`](docs/community/LICENSE) for details.
-
-### Premium Modules (Proprietary)
-
-The following modules are **proprietary** and require a commercial license:
-- `premium-core-engine` - Advanced migration features
-- `premium-mcp-server` - Premium MCP server features
-- `premium-intellij-plugin` - Premium IntelliJ plugin features
-
-See [`docs/premium/LICENSE`](docs/premium/LICENSE) for details.
-
-## 🙏 Acknowledgments
-
-Built with ❤️ for the Java community. Special thanks to:
-- Spring AI team for MCP framework
-- OpenRewrite for migration recipes
+* Apply OpenRewrite-powered refactoring recipes
+* Automatically transform `javax.*` → `jakarta.*`
+* Undo changes with built-in history
 
 ---
 
-**Need help?** [Open an issue](https://github.com/your-repo/issues) or check our [documentation](docs/).
+## 🤖 AI-Powered Capabilities
+
+* MCP tools integrated with JetBrains AI Assistant
+* Assist with migration decisions and code changes
+
+---
+
+## 🧪 Experimental Features
+
+* **Runtime Analysis** – Detect runtime issues and suggest fixes
+* **Reports** – Export migration analysis as PDF
+
+---
+
+## 🧰 Supported Technologies
+
+* **Java:** 11, 17, 21, 25
+* **Build Tools:** Maven, Gradle
+* **Frameworks:** Spring Boot 3+, Spring Framework 6+, Jakarta EE 9+
+* **Application Servers:**
+  Tomcat 10+, WildFly 27+, Jetty 12+, Open Liberty 23+, Payara 7+, JBoss EAP 8+, WebSphere, WebLogic
+* **Jakarta APIs:**
+  Servlet, JSP, JPA, CDI, Bean Validation, JAX-RS, JAX-WS, JMS, WebSocket, JSON-B, JSON-P
+
+---
+
+## 🚀 Getting Started
+
+1. **Run Analysis** – Scan your project for `javax.*` usage
+2. **Review Results** – Understand risks and migration effort
+3. **Plan Strategy** – Choose the best migration approach
+4. **Refactor** – Apply automated OpenRewrite recipes
+5. **Verify** – Re-run analysis to confirm migration success
+
+---
+
+## ⚙️ Technical Details
+
+* Built on the IntelliJ Platform
+* Uses OpenRewrite for safe, automated transformations
+* Performs static analysis across source code, dependencies, and configs
+* Compatible with IntelliJ IDEA 2023.3+ (Community & Ultimate)
+
+---
+
+## 💡 Free vs Premium
+
+**Free**
+
+* Migration risk analysis
+* Dependency scans
+* Version recommendations
+* Migration strategy insights
+
+**Premium**
+
+* One-click refactoring
+* Platform detection (frameworks, app servers)
+* Advanced scans and analysis
+* PDF reports
+* AI-assisted migration tools
+
+---
+
+## 🎯 Who This Is For
+
+* Enterprise Java teams upgrading to Jakarta EE
+* Developers maintaining legacy Java EE systems
+* Teams migrating to Spring Boot 3+ or modern app servers
+
+## Technical Documentation
+
+**[View the Github Wiki →](https://github.com/adrianmikula/JakartaMigrationMCP/wiki)**
+
+## Screenshots
+
+<style>
+  .gallery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+  .gallery-item {
+    width: 25%; /* Adjust based on desired columns */
+    box-sizing: border-box;
+  }
+  .gallery-item img {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+  @media (max-width: 768px) {
+    .gallery-item {
+      width: 50%;
+    }
+  }
+  @media (max-width: 480px) {
+    .gallery-item {
+      width: 100%;
+    }
+  }
+</style>
+
+<div class="gallery">
+  <div class="gallery-item">
+    <img src="assets/screenshots/risk-score.png" alt="Image 1">
+  </div>
+  <div class="gallery-item">
+    <img src="assets/screenshots/dependencies.png" alt="Image 2">
+  </div>
+  <div class="gallery-item">
+    <img src="assets/screenshots/dependency-graph.png" alt="Image 3">
+  </div>
+  <div class="gallery-item">
+    <img src="assets/screenshots/advanced-scans.png" alt="Image 4">
+  </div>
+  <div class="gallery-item">
+    <img src="assets/screenshots/platform-scan.png" alt="Image 4">
+  </div>
+  <div class="gallery-item">
+    <img src="assets/screenshots/migration-strategy.png" alt="Image 4">
+  </div>
+  <div class="gallery-item">
+    <img src="assets/screenshots/refactor-recipes.png" alt="Image 4">
+  </div>
+  <div class="gallery-item">
+    <img src="assets/screenshots/history.png" alt="Image 4">
+  </div>
+</div>

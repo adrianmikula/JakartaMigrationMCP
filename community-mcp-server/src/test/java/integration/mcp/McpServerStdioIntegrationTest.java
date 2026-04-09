@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -328,5 +329,6 @@ class McpServerStdioIntegrationTest {
             }
         }
     }
+}
 
 

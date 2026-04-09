@@ -339,5 +339,4 @@ class CheckLicenseRegistrationTest {
         assertThat(endTime - startTime).isLessThan(1000); // Under 1 second for 100 requests
         verify(mockRegisterAction, times(100)).actionPerformed(any());
     }
-
-    }
+}

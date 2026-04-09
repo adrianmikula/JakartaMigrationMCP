@@ -1,7 +1,11 @@
 package adrianmikula.jakartamigration.intellij.license;
 
 import adrianmikula.jakartamigration.intellij.ui.SupportComponent;
-import com.intellij.openapi.actionSystem.*;
+import com.intellij.openapi.actionSystem.ActionPlaces;
+import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.DataContext;
+import com.intellij.openapi.actionSystem.Presentation;
 import com.intellij.openapi.actionSystem.ex.ActionUtil;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ModalityState;
@@ -385,8 +389,9 @@ public class CheckLicense {
             registerAction = actionManager.getAction("Register");
         }
         if (registerAction != null) {
-            // Use the older API for compatibility with IntelliJ 2023.3
-            registerAction.actionPerformed(AnActionEvent.createFromDataContext("", new Presentation(), asDataContext(productCode, message)));
+            // Use ActionUtil to perform the action correctly
+            ActionUtil.performActionDumbAware(registerAction,
+                    AnActionEvent.createFromAnAction(registerAction, null, ActionPlaces.UNKNOWN, asDataContext(productCode, message)));
         }
     }
 

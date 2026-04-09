@@ -62,6 +62,11 @@ public class DashboardComponent {
     private JBLabel devTeamSizeValueLabel;
     private static final int DEFAULT_TEAM_SIZE = 5;
     
+    // Test Coverage Slider
+    private JSlider testCoverageSlider;
+    private JBLabel testCoverageValueLabel;
+    private static final int DEFAULT_TEST_COVERAGE = 50;
+    
     // Test coverage display
     private JBLabel testCoverageLabel;
     
@@ -176,7 +181,7 @@ public class DashboardComponent {
     }
 
     private void initializeComponent() {
-        // Main content panel with vertical layout
+        // Main content panel with vertical layout - wrapped in scroll pane
         JPanel contentPanel = new JBPanel<>(new BorderLayout());
         contentPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
@@ -185,7 +190,7 @@ public class DashboardComponent {
         JLabel titleLabel = new JLabel("Migration Dashboard", SwingConstants.LEFT);
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 14f));
         titlePanel.add(titleLabel);
-        
+
         // Add version - show we're using the latest build
         JLabel versionLabel = new JLabel("(timestamp build)");
         versionLabel.setForeground(new Color(100, 100, 100));
@@ -193,28 +198,38 @@ public class DashboardComponent {
         titlePanel.add(versionLabel);
         contentPanel.add(titlePanel, BorderLayout.NORTH);
 
-        // Main dashboard content with multiple sections
-        JPanel mainPanel = new JBPanel<>(new BorderLayout());
-        
+        // Main dashboard content with multiple sections using BoxLayout for vertical stacking
+        JPanel mainPanel = new JBPanel<>();
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+
         // Top: Gauges (Risk Assessment)
         gaugesPanel = createGaugesPanel();
-        mainPanel.add(gaugesPanel, BorderLayout.NORTH);
-        
+        gaugesPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.add(gaugesPanel);
+
         // Middle: Progress Panel (Scan Progress Bar)
         progressPanel = createProgressPanel();
-        mainPanel.add(progressPanel, BorderLayout.CENTER);
-        
+        progressPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.add(progressPanel);
+
         // Bottom: Results Panel (Comprehensive Scan Summary with sub-panels)
         JPanel resultsPanel = createResultsPanel();
-        mainPanel.add(resultsPanel, BorderLayout.SOUTH);
-        
+        resultsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.add(resultsPanel);
+
         contentPanel.add(mainPanel, BorderLayout.CENTER);
 
         // Actions panel with Analyse button
         JPanel actionsPanel = createActionsPanel();
+        contentPanel.add(actionsPanel, BorderLayout.SOUTH);
 
-        panel.add(contentPanel, BorderLayout.CENTER);
-        panel.add(actionsPanel, BorderLayout.SOUTH);
+        // Wrap content in scroll pane for vertical scrolling
+        JBScrollPane scrollPane = new JBScrollPane(contentPanel);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+
+        panel.add(scrollPane, BorderLayout.CENTER);
     }
 
     /**
@@ -485,6 +500,19 @@ private void resetAdvancedScanCounts() {
         return label;
     }
 
+    /**
+     * Creates a titled border with transparent border lines.
+     * Keeps the title text but makes the border itself invisible.
+     */
+    private javax.swing.border.Border createTransparentTitledBorder(String title) {
+        // Create an empty border (no visible lines)
+        javax.swing.border.Border emptyBorder = BorderFactory.createEmptyBorder(5, 5, 5, 5);
+        // Create a titled border with the empty border
+        javax.swing.border.TitledBorder titledBorder = BorderFactory.createTitledBorder(emptyBorder, title);
+        titledBorder.setTitleFont(titledBorder.getTitleFont().deriveFont(Font.BOLD, 12f));
+        return titledBorder;
+    }
+
     private JPanel createActionsPanel() {
         // Use BorderLayout to separate analyse button (left) from trial/upgrade buttons (right)
         JPanel actionsPanel = new JBPanel<>(new BorderLayout());
@@ -595,53 +623,61 @@ private void resetAdvancedScanCounts() {
     private JPanel createGaugesPanel() {
         JPanel panel = new JBPanel<>(new BorderLayout());
         panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder("Risk Assessment"),
+                createTransparentTitledBorder("Risk Assessment"),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
 
-        JPanel gaugesContainer = new JBPanel<>(new FlowLayout(FlowLayout.CENTER, 20, 10));
-        
+        JPanel gaugesContainer = new JBPanel<>(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 15, 10, 15);
+        gbc.anchor = GridBagConstraints.CENTER;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
         // Migration Effort Label (Indicator 1) - shows estimated weeks
         JPanel effortPanel = new JBPanel<>(new BorderLayout());
-        effortPanel.setPreferredSize(new java.awt.Dimension(200, 150));
-        
+        effortPanel.setMinimumSize(new java.awt.Dimension(180, 120));
+
         JLabel effortTitle = new JBLabel("Migration Effort", SwingConstants.CENTER);
         effortTitle.setFont(effortTitle.getFont().deriveFont(Font.BOLD, 12f));
         effortPanel.add(effortTitle, BorderLayout.NORTH);
-        
+
         migrationEffortLabel = new JBLabel("Calculating...", SwingConstants.CENTER);
         migrationEffortLabel.setFont(migrationEffortLabel.getFont().deriveFont(Font.BOLD, 24f));
         migrationEffortLabel.setForeground(new Color(59, 130, 246)); // Blue color
         effortPanel.add(migrationEffortLabel, BorderLayout.CENTER);
-        
+
         JLabel effortSubtitle = new JBLabel("estimated weeks", SwingConstants.CENTER);
         effortSubtitle.setFont(effortSubtitle.getFont().deriveFont(Font.ITALIC, 10f));
         effortPanel.add(effortSubtitle, BorderLayout.SOUTH);
-        
-        gaugesContainer.add(effortPanel);
-        
+
+        gbc.gridx = 0; gbc.gridy = 0;
+        gaugesContainer.add(effortPanel, gbc);
+
         // Migration Risk Gauge (Indicator 2)
         migrationRiskGauge = new RiskGauge("Migration Risk");
-        gaugesContainer.add(migrationRiskGauge);
-        
+        gbc.gridx = 1;
+        gaugesContainer.add(migrationRiskGauge, gbc);
+
         // Test Coverage Estimate (Indicator 3)
         JPanel coveragePanel = new JBPanel<>(new BorderLayout());
-        coveragePanel.setPreferredSize(new java.awt.Dimension(150, 150));
-        
+        coveragePanel.setMinimumSize(new java.awt.Dimension(140, 120));
+
         JLabel coverageTitle = new JBLabel("Est. Test Coverage", SwingConstants.CENTER);
         coverageTitle.setFont(coverageTitle.getFont().deriveFont(Font.BOLD, 12f));
         coveragePanel.add(coverageTitle, BorderLayout.NORTH);
-        
+
         testCoverageLabel = new JBLabel("Calculating...", SwingConstants.CENTER);
         testCoverageLabel.setFont(testCoverageLabel.getFont().deriveFont(Font.BOLD, 24f));
         testCoverageLabel.setForeground(new Color(100, 100, 100));
         coveragePanel.add(testCoverageLabel, BorderLayout.CENTER);
-        
+
         JLabel coverageSubtitle = new JBLabel("based on test file ratio", SwingConstants.CENTER);
         coverageSubtitle.setFont(coverageSubtitle.getFont().deriveFont(Font.ITALIC, 9f));
         coveragePanel.add(coverageSubtitle, BorderLayout.SOUTH);
-        
-        gaugesContainer.add(coveragePanel);
+
+        gbc.gridx = 2;
+        gaugesContainer.add(coveragePanel, gbc);
 
         panel.add(gaugesContainer, BorderLayout.CENTER);
 
@@ -674,13 +710,15 @@ private void resetAdvancedScanCounts() {
         devTeamSizeSlider.setMajorTickSpacing(5);
         devTeamSizeSlider.setMinorTickSpacing(1);
         devTeamSizeSlider.setPaintTicks(true);
-        devTeamSizeSlider.setPreferredSize(new Dimension(150, 40));
         gbc.gridx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
         panel.add(devTeamSizeSlider, gbc);
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.weightx = 0.0;
 
         devTeamSizeValueLabel = new JBLabel(String.valueOf(DEFAULT_TEAM_SIZE));
         devTeamSizeValueLabel.setFont(devTeamSizeValueLabel.getFont().deriveFont(Font.BOLD, 11f));
-        devTeamSizeValueLabel.setPreferredSize(new Dimension(25, 20));
         gbc.gridx = 2;
         panel.add(devTeamSizeValueLabel, gbc);
 
@@ -693,6 +731,66 @@ private void resetAdvancedScanCounts() {
             }
         });
 
+        // Test Coverage Slider
+        gbc.gridx = 0; gbc.gridy = 1;
+        JLabel coverageSliderLabel = new JLabel("Test Coverage:");
+        coverageSliderLabel.setFont(coverageSliderLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        panel.add(coverageSliderLabel, gbc);
+
+        testCoverageSlider = new JSlider(JSlider.HORIZONTAL, 0, 100, DEFAULT_TEST_COVERAGE);
+        testCoverageSlider.setMajorTickSpacing(20);
+        testCoverageSlider.setMinorTickSpacing(5);
+        testCoverageSlider.setPaintTicks(true);
+        gbc.gridx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        panel.add(testCoverageSlider, gbc);
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.weightx = 0.0;
+
+        testCoverageValueLabel = new JBLabel(DEFAULT_TEST_COVERAGE + "%");
+        testCoverageValueLabel.setFont(testCoverageValueLabel.getFont().deriveFont(Font.BOLD, 11f));
+        gbc.gridx = 2;
+        panel.add(testCoverageValueLabel, gbc);
+
+        // Add change listener to update risk score calculation
+        testCoverageSlider.addChangeListener(e -> {
+            if (!testCoverageSlider.getValueIsAdjusting()) {
+                int value = testCoverageSlider.getValue();
+                testCoverageValueLabel.setText(value + "%");
+                updateGauges();
+            }
+        });
+
+        // Project Size and Complexity - displayed below the slider
+        gbc.gridx = 0; gbc.gridy = 2;
+        JLabel projectSizeLabel = new JLabel("Project Size:");
+        projectSizeLabel.setFont(projectSizeLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        panel.add(projectSizeLabel, gbc);
+
+        projectSizeValue = createValueLabel("-");
+        gbc.gridx = 1;
+        panel.add(projectSizeValue, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 3;
+        JLabel complexityLabel = new JLabel("Project Complexity:");
+        complexityLabel.setFont(complexityLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        panel.add(complexityLabel, gbc);
+
+        JBLabel complexityValue = createValueLabel("-");
+        gbc.gridx = 1;
+        panel.add(complexityValue, gbc);
+
+        // Test Coverage Estimate - also in this section
+        gbc.gridx = 0; gbc.gridy = 4;
+        JLabel coverageLabel = new JLabel("Est. Test Coverage:");
+        coverageLabel.setFont(coverageLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        panel.add(coverageLabel, gbc);
+
+        basicTestCoverageValue = createValueLabel("-");
+        gbc.gridx = 1;
+        panel.add(basicTestCoverageValue, gbc);
+
         return panel;
     }
 
@@ -702,26 +800,25 @@ private void resetAdvancedScanCounts() {
     private JPanel createProgressPanel() {
         JPanel panel = new JBPanel<>(new BorderLayout());
         panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder("Scan Progress"),
+                createTransparentTitledBorder("Scan Progress"),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
-        panel.setPreferredSize(new Dimension(0, 80)); // Fixed height to ensure visibility
 
         JPanel progressContainer = new JBPanel<>(new BorderLayout(10, 0));
-        
+
         // Progress bar
         mainScanProgressBar = new JProgressBar(0, 100);
         mainScanProgressBar.setValue(0);
         mainScanProgressBar.setStringPainted(true);
         mainScanProgressBar.setString("0%");
-        mainScanProgressBar.setPreferredSize(new Dimension(0, 25)); // Taller progress bar
+        mainScanProgressBar.setMinimumSize(new Dimension(100, 25));
         progressContainer.add(mainScanProgressBar, BorderLayout.CENTER);
-        
+
         // Progress label
         mainScanProgressLabel = new JBLabel("Ready to scan");
         mainScanProgressLabel.setFont(mainScanProgressLabel.getFont().deriveFont(Font.PLAIN, 11f));
         progressContainer.add(mainScanProgressLabel, BorderLayout.EAST);
-        
+
         panel.add(progressContainer, BorderLayout.CENTER);
         return panel;
     }
@@ -730,29 +827,51 @@ private void resetAdvancedScanCounts() {
      * Creates the results panel container with basic, platform, and advanced sub-panels.
      */
     private JPanel createResultsPanel() {
-        JPanel panel = new JBPanel<>(new BorderLayout());
+        JPanel panel = new JBPanel<>(new GridBagLayout());
         panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder("Comprehensive Scan Summary"),
+                createTransparentTitledBorder("Comprehensive Scan Summary"),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
 
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.anchor = GridBagConstraints.NORTHWEST;
+
         // Top section: Basic and Platform panels side by side
-        JPanel topSection = new JBPanel<>(new BorderLayout());
-        
-        // Basic Results (WEST - takes more space for the table)
+        JPanel topSection = new JBPanel<>(new GridBagLayout());
+        GridBagConstraints topGbc = new GridBagConstraints();
+        topGbc.insets = new Insets(0, 0, 0, 5);
+        topGbc.fill = GridBagConstraints.BOTH;
+        topGbc.anchor = GridBagConstraints.NORTHWEST;
+
+        // Basic Results (takes more space)
         basicResultsPanel = createBasicResultsPanel();
-        topSection.add(basicResultsPanel, BorderLayout.WEST);
-        
-        // Platform Results (EAST)
+        topGbc.gridx = 0;
+        topGbc.gridy = 0;
+        topGbc.weightx = 0.6;
+        topGbc.weighty = 1.0;
+        topSection.add(basicResultsPanel, topGbc);
+
+        // Platform Results
         platformResultsPanel = createPlatformResultsPanel();
-        topSection.add(platformResultsPanel, BorderLayout.EAST);
-        
-        panel.add(topSection, BorderLayout.NORTH);
-        
-        // Bottom section: Advanced Results (SOUTH)
+        topGbc.gridx = 1;
+        topGbc.weightx = 0.4;
+        topGbc.insets = new Insets(0, 5, 0, 0);
+        topSection.add(platformResultsPanel, topGbc);
+
+        gbc.gridx = 0; gbc.gridy = 0;
+        gbc.weightx = 1.0;
+        gbc.weighty = 0.5;
+        panel.add(topSection, gbc);
+
+        // Bottom section: Advanced Results
         advancedResultsPanel = createAdvancedResultsPanel();
-        panel.add(advancedResultsPanel, BorderLayout.SOUTH);
-        
+        gbc.gridy = 1;
+        gbc.weighty = 0.5;
+        gbc.insets = new Insets(10, 5, 5, 5);
+        panel.add(advancedResultsPanel, gbc);
+
         return panel;
     }
 
@@ -762,10 +881,10 @@ private void resetAdvancedScanCounts() {
     private JPanel createBasicResultsPanel() {
         JPanel panel = new JBPanel<>(new BorderLayout());
         panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder("Basic Scan Results"),
+                createTransparentTitledBorder("Basic Scan Results"),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
-        panel.setPreferredSize(new Dimension(400, 300));
+        panel.setMinimumSize(new Dimension(300, 200));
 
         // Top: Summary counts
         JPanel summaryGrid = new JBPanel<>(new GridBagLayout());
@@ -894,10 +1013,10 @@ private void resetAdvancedScanCounts() {
     private JPanel createPlatformResultsPanel() {
         JPanel panel = new JBPanel<>(new BorderLayout());
         panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder("Platform Scan Results"),
+                createTransparentTitledBorder("Platform Scan Results"),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
-        panel.setPreferredSize(new Dimension(250, 300));
+        panel.setMinimumSize(new Dimension(200, 200));
 
         JPanel platformGrid = new JBPanel<>(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
@@ -979,9 +1098,10 @@ private void resetAdvancedScanCounts() {
     private JPanel createAdvancedResultsPanel() {
         JPanel panel = new JBPanel<>(new BorderLayout());
         panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder("Advanced Scan Results"),
+                createTransparentTitledBorder("Advanced Scan Results"),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
+        panel.setMinimumSize(new Dimension(300, 150));
 
         // Use 3-column grid for compact layout
         JPanel scanGrid = new JBPanel<>(new GridBagLayout());
@@ -1169,7 +1289,9 @@ private void resetAdvancedScanCounts() {
         // Calculate risk score (with caching to prevent unnecessary recalculations)
         int totalFileCount = getTotalFileCount();
         double platformRiskScore = getPlatformRiskScore();
-        RiskScoringService.RiskScore riskScore = riskScoringService.calculateRiskScore(scanFindings, depIssues, totalFileCount, platformRiskScore);
+        // Use test coverage from slider for risk calculation
+        double testCoverage = (testCoverageSlider != null) ? testCoverageSlider.getValue() : DEFAULT_TEST_COVERAGE;
+        RiskScoringService.RiskScore riskScore = riskScoringService.calculateRiskScore(scanFindings, depIssues, totalFileCount, platformRiskScore, testCoverage);
         int newScore = (int) Math.round(riskScore.totalScore());
         
         // Only update gauge if score actually changed
@@ -1378,8 +1500,10 @@ private void resetAdvancedScanCounts() {
                     scanFindings.put("basic", createRiskFindings(basicCount, "basic"));
                 }
 
+                // Get test coverage from slider for risk calculation
+                double testCoverage = (testCoverageSlider != null) ? testCoverageSlider.getValue() : DEFAULT_TEST_COVERAGE;
                 RiskScoringService.RiskScore currentScore = riskScoringService.calculateRiskScore(
-                    scanFindings, depIssues, getTotalFileCount(), getPlatformRiskScore());
+                    scanFindings, depIssues, getTotalFileCount(), getPlatformRiskScore(), testCoverage);
                 currentRiskScore = currentScore.totalScore();
             } catch (Exception e) {
                 LOG.warn("Could not calculate current risk score for effort calculation: " + e.getMessage());

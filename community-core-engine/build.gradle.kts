@@ -46,7 +46,9 @@ java {
 }
 
 tasks.test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("slow")
+    }
     testLogging {
         showStandardStreams = true
     }

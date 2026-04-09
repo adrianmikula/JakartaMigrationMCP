@@ -293,10 +293,11 @@ dependencyRisks:
 riskCalculation:
   # Weights for different components in overall score
   componentWeights:
-    scanFindings: 0.3      # 30% from scan findings
-    dependencyIssues: 0.3   # 30% from dependency issues
-    codeComplexity: 0.2     # 20% from code complexity
-    platformRisk: 0.2      # 20% from platform compatibility
+    scanFindings: 0.25      # 30% from scan findings
+    dependencyIssues: 0.25   # 30% from dependency issues
+    codeComplexity: 0.25     # 20% from code complexity
+    platformRisk: 0.25      # 10% from platform compatibility
+    testCoverage: 0.1       # 10% from test coverage (lower coverage = higher risk)
     
   # Minimum scan threshold to include in scoring
   minScanThreshold: 0.5
@@ -306,3 +307,59 @@ riskCalculation:
   
   # Score normalization to ensure 0-100 scale
   maxTotalScore: 100.0
+
+# Scan calculation multipliers (previously hardcoded in Java)
+scanCalculation:
+  # Base weight normalization divisor (line 207 in RiskScoringService)
+  baseWeightDivisor: 10.0
+  # Maximum findings to score per scan type
+  maxFindingsPerScan: 5
+  # Minimum scan threshold to include in scoring
+  minScanThreshold: 0.5
+
+# Test coverage multiplier formula (previously hardcoded in Java lines 256-264)
+# Formula: coverage <= 50%: multiplier = maxMultiplier - (coverage / 50%) * (maxMultiplier - midMultiplier)
+#          coverage > 50%: multiplier = midMultiplier - ((coverage - 50%) / 50%) * (midMultiplier - minMultiplier)
+coverageMultiplier:
+  maxMultiplier: 2.0      # At 0% coverage
+  midMultiplier: 1.0      # At 50% coverage
+  minMultiplier: 0.5      # At 100% coverage
+  referenceCoverageLow: 50.0
+  referenceCoverageHigh: 50.0
+
+# Simplified PDF report formula weights (previously hardcoded in RiskScoringService lines 294-309)
+pdfFormula:
+  pointsPerBlocker: 10
+  pointsPerNonCompatibleDep: 2
+  pointsPerIssue: 0.5
+  pointsPerCriticalIssue: 5
+  maxScoreCap: 100.0
+
+# Code complexity scoring (previously hardcoded in RiskScoringService lines 427-443)
+complexityScoring:
+  # Logarithmic scale normalization: log10(fileCount) / logScaleDivisor * maxScore
+  logScaleDivisor: 5.0    # log10(100000) = 5
+  maxScore: 10.0          # Cap at 10 points maximum
+
+# Platform-specific base risks (previously hardcoded in RiskScoringConfig)
+platformRisks:
+  baseScores:
+    websphere: 25
+    liberty: 25
+    wildfly: 20
+    jboss: 20
+    tomcat: 15
+    jetty: 18
+    default: 12
+
+# Deployment artifact risk weights (previously hardcoded in RiskScoringConfig)
+deploymentArtifacts:
+  ear: 4
+  war: 2
+  jar: 1
+
+# Legacy base calculation values (previously hardcoded in RiskScoringConfig)
+legacyCalculations:
+  platformMultiplier: 15
+  maxPlatformRisk: 60
+  maxTotalRisk: 100
