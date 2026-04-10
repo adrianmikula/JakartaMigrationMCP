@@ -4,6 +4,8 @@ import adrianmikula.jakartamigration.advancedscanning.domain.*;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.analysis.persistence.ObjectMapperService;
+import adrianmikula.jakartamigration.intellij.ui.components.TruncationHelper;
+import adrianmikula.jakartamigration.intellij.ui.components.TruncationNoticePanel;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
@@ -24,7 +26,7 @@ import java.util.List;
 /**
  * UI component for displaying advanced scanning results (JPA, Bean Validation,
  * Servlet/JSP).
- * This is a premium feature that shows detailed annotation-level analysis.
+ * Available for all users - free users are limited by advanced scan credits.
  */
 public class AdvancedScansComponent {
     private static final Logger LOG = Logger.getInstance(AdvancedScansComponent.class);
@@ -70,12 +72,30 @@ public class AdvancedScansComponent {
 
     private final CentralMigrationAnalysisStore store;
     private final ObjectMapperService objectMapper;
+    private final TruncationHelper truncationHelper;
+
+    // Truncation notice panels for each sub-tab
+    private TruncationNoticePanel jpaTruncationNotice;
+    private TruncationNoticePanel beanValidationTruncationNotice;
+    private TruncationNoticePanel servletJspTruncationNotice;
+    private TruncationNoticePanel buildConfigTruncationNotice;
+    private TruncationNoticePanel configFileTruncationNotice;
+    private TruncationNoticePanel deprecatedApiTruncationNotice;
+    private TruncationNoticePanel cdiInjectionTruncationNotice;
+    private TruncationNoticePanel restSoapTruncationNotice;
+    private TruncationNoticePanel securityApiTruncationNotice;
+    private TruncationNoticePanel jmsMessagingTruncationNotice;
+    private TruncationNoticePanel classloaderModuleTruncationNotice;
+    private TruncationNoticePanel loggingMetricsTruncationNotice;
+    private TruncationNoticePanel serializationCacheTruncationNotice;
+    private TruncationNoticePanel thirdPartyLibTruncationNotice;
 
     public AdvancedScansComponent(Project project, AdvancedScanningService scanningService) {
         this.project = project;
         this.scanningService = scanningService;
         this.store = new CentralMigrationAnalysisStore();
         this.objectMapper = new ObjectMapperService();
+        this.truncationHelper = new TruncationHelper();
         this.mainPanel = new JPanel(new BorderLayout());
         initializeUI();
         loadInitialState();
@@ -187,8 +207,13 @@ public class AdvancedScansComponent {
         });
         setupTable(jpaTable);
 
+        // Truncation notice
+        jpaTruncationNotice = new TruncationNoticePanel();
+        jpaTruncationNotice.setVisible(false);
+
         panel.add(jpaStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(jpaTable), BorderLayout.CENTER);
+        panel.add(jpaTruncationNotice, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -211,8 +236,13 @@ public class AdvancedScansComponent {
         });
         setupTable(beanValidationTable);
 
+        // Truncation notice
+        beanValidationTruncationNotice = new TruncationNoticePanel();
+        beanValidationTruncationNotice.setVisible(false);
+
         panel.add(beanValidationStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(beanValidationTable), BorderLayout.CENTER);
+        panel.add(beanValidationTruncationNotice, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -235,8 +265,13 @@ public class AdvancedScansComponent {
         });
         setupTable(servletJspTable);
 
+        // Truncation notice
+        servletJspTruncationNotice = new TruncationNoticePanel();
+        servletJspTruncationNotice.setVisible(false);
+
         panel.add(servletJspStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(servletJspTable), BorderLayout.CENTER);
+        panel.add(servletJspTruncationNotice, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -260,8 +295,13 @@ public class AdvancedScansComponent {
         });
         setupTable(buildConfigTable);
 
+        // Truncation notice
+        buildConfigTruncationNotice = new TruncationNoticePanel();
+        buildConfigTruncationNotice.setVisible(false);
+
         panel.add(buildConfigStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(buildConfigTable), BorderLayout.CENTER);
+        panel.add(buildConfigTruncationNotice, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -284,8 +324,13 @@ public class AdvancedScansComponent {
         });
         setupTable(configFileTable);
 
+        // Truncation notice
+        configFileTruncationNotice = new TruncationNoticePanel();
+        configFileTruncationNotice.setVisible(false);
+
         panel.add(configFileStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(configFileTable), BorderLayout.CENTER);
+        panel.add(configFileTruncationNotice, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -308,8 +353,13 @@ public class AdvancedScansComponent {
         });
         setupTable(deprecatedApiTable);
 
+        // Truncation notice
+        deprecatedApiTruncationNotice = new TruncationNoticePanel();
+        deprecatedApiTruncationNotice.setVisible(false);
+
         panel.add(deprecatedApiStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(deprecatedApiTable), BorderLayout.CENTER);
+        panel.add(deprecatedApiTruncationNotice, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -332,8 +382,13 @@ public class AdvancedScansComponent {
         });
         setupTable(cdiInjectionTable);
 
+        // Truncation notice
+        cdiInjectionTruncationNotice = new TruncationNoticePanel();
+        cdiInjectionTruncationNotice.setVisible(false);
+
         panel.add(cdiInjectionStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(cdiInjectionTable), BorderLayout.CENTER);
+        panel.add(cdiInjectionTruncationNotice, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -356,8 +411,13 @@ public class AdvancedScansComponent {
         });
         setupTable(restSoapTable);
 
+        // Truncation notice
+        restSoapTruncationNotice = new TruncationNoticePanel();
+        restSoapTruncationNotice.setVisible(false);
+
         panel.add(restSoapStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(restSoapTable), BorderLayout.CENTER);
+        panel.add(restSoapTruncationNotice, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -380,8 +440,13 @@ public class AdvancedScansComponent {
         });
         setupTable(securityApiTable);
 
+        // Truncation notice
+        securityApiTruncationNotice = new TruncationNoticePanel();
+        securityApiTruncationNotice.setVisible(false);
+
         panel.add(securityApiStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(securityApiTable), BorderLayout.CENTER);
+        panel.add(securityApiTruncationNotice, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -404,8 +469,13 @@ public class AdvancedScansComponent {
         });
         setupTable(jmsMessagingTable);
 
+        // Truncation notice
+        jmsMessagingTruncationNotice = new TruncationNoticePanel();
+        jmsMessagingTruncationNotice.setVisible(false);
+
         panel.add(jmsMessagingStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(jmsMessagingTable), BorderLayout.CENTER);
+        panel.add(jmsMessagingTruncationNotice, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -428,8 +498,13 @@ public class AdvancedScansComponent {
         });
         setupTable(classloaderModuleTable);
 
+        // Truncation notice
+        classloaderModuleTruncationNotice = new TruncationNoticePanel();
+        classloaderModuleTruncationNotice.setVisible(false);
+
         panel.add(classloaderModuleStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(classloaderModuleTable), BorderLayout.CENTER);
+        panel.add(classloaderModuleTruncationNotice, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -452,8 +527,13 @@ public class AdvancedScansComponent {
         });
         setupTable(loggingMetricsTable);
 
+        // Truncation notice
+        loggingMetricsTruncationNotice = new TruncationNoticePanel();
+        loggingMetricsTruncationNotice.setVisible(false);
+
         panel.add(loggingMetricsStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(loggingMetricsTable), BorderLayout.CENTER);
+        panel.add(loggingMetricsTruncationNotice, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -476,8 +556,13 @@ public class AdvancedScansComponent {
         });
         setupTable(serializationCacheTable);
 
+        // Truncation notice
+        serializationCacheTruncationNotice = new TruncationNoticePanel();
+        serializationCacheTruncationNotice.setVisible(false);
+
         panel.add(serializationCacheStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(serializationCacheTable), BorderLayout.CENTER);
+        panel.add(serializationCacheTruncationNotice, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -500,13 +585,19 @@ public class AdvancedScansComponent {
         });
         setupTable(thirdPartyLibTable);
 
+        // Truncation notice
+        thirdPartyLibTruncationNotice = new TruncationNoticePanel();
+        thirdPartyLibTruncationNotice.setVisible(false);
+
         panel.add(thirdPartyLibStatusLabel, BorderLayout.NORTH);
         panel.add(new JScrollPane(thirdPartyLibTable), BorderLayout.CENTER);
+        panel.add(thirdPartyLibTruncationNotice, BorderLayout.SOUTH);
 
         return panel;
     }
 
     private void runScans() {
+        // Advanced scans are now 100% free - truncation mode applies when credits exhausted
         String projectPathStr = project.getBasePath();
         if (projectPathStr == null) {
             projectPathStr = project.getProjectFilePath();
@@ -731,24 +822,41 @@ public class AdvancedScansComponent {
         model.setRowCount(0);
 
         if (result.hasIssues()) {
-            jpaStatusLabel.setText(String.format("Found %d annotations in %d files",
-                    result.totalIssuesFound(), result.filesWithIssues()));
-            jpaStatusLabel.setForeground(new Color(200, 100, 0));
+            boolean shouldTruncate = truncationHelper.shouldTruncateResults();
+            int truncationLimit = shouldTruncate ? truncationHelper.getAdvancedScanTruncationLimit() : Integer.MAX_VALUE;
+            int addedCount = 0;
 
             for (var fileResult : result.fileResults()) {
                 for (var annotation : fileResult.usages()) {
-                    model.addRow(new Object[] {
-                            fileResult.filePath().getFileName(),
-                            annotation.lineNumber(),
-                            annotation.annotationName(),
-                            annotation.jakartaEquivalent(),
-                            fileResult.filePath().toString()
-                    });
+                    if (addedCount < truncationLimit) {
+                        model.addRow(new Object[] {
+                                fileResult.filePath().getFileName(),
+                                annotation.lineNumber(),
+                                annotation.annotationName(),
+                                annotation.jakartaEquivalent(),
+                                fileResult.filePath().toString()
+                        });
+                        addedCount++;
+                    }
                 }
             }
+
+            // Update status label with truncation info
+            int totalCount = result.totalIssuesFound();
+            if (shouldTruncate && totalCount > truncationLimit) {
+                jpaStatusLabel.setText(String.format("Found %d of %d annotations in %d files",
+                        addedCount, totalCount, result.filesWithIssues()));
+                jpaTruncationNotice.updateMessage(addedCount, totalCount, "annotations");
+            } else {
+                jpaStatusLabel.setText(String.format("Found %d annotations in %d files",
+                        totalCount, result.filesWithIssues()));
+                jpaTruncationNotice.setVisible(false);
+            }
+            jpaStatusLabel.setForeground(new Color(200, 100, 0));
         } else {
             jpaStatusLabel.setText("No javax.persistence.* usage found");
             jpaStatusLabel.setForeground(new Color(0, 150, 0));
+            jpaTruncationNotice.setVisible(false);
         }
     }
 
@@ -757,24 +865,41 @@ public class AdvancedScansComponent {
         model.setRowCount(0);
 
         if (result.hasIssues()) {
-            beanValidationStatusLabel.setText(String.format("Found %d constraints in %d files",
-                    result.totalIssuesFound(), result.filesWithIssues()));
-            beanValidationStatusLabel.setForeground(new Color(200, 100, 0));
+            boolean shouldTruncate = truncationHelper.shouldTruncateResults();
+            int truncationLimit = shouldTruncate ? truncationHelper.getAdvancedScanTruncationLimit() : Integer.MAX_VALUE;
+            int addedCount = 0;
 
             for (var fileResult : result.fileResults()) {
                 for (var usage : fileResult.usages()) {
-                    model.addRow(new Object[] {
-                            fileResult.filePath().getFileName(),
-                            usage.lineNumber(),
-                            usage.className(),
-                            usage.jakartaEquivalent(),
-                            fileResult.filePath().toString()
-                    });
+                    if (addedCount < truncationLimit) {
+                        model.addRow(new Object[] {
+                                fileResult.filePath().getFileName(),
+                                usage.lineNumber(),
+                                usage.className(),
+                                usage.jakartaEquivalent(),
+                                fileResult.filePath().toString()
+                        });
+                        addedCount++;
+                    }
                 }
             }
+
+            // Update status label with truncation info
+            int totalCount = result.totalIssuesFound();
+            if (shouldTruncate && totalCount > truncationLimit) {
+                beanValidationStatusLabel.setText(String.format("Found %d of %d constraints in %d files",
+                        addedCount, totalCount, result.filesWithIssues()));
+                beanValidationTruncationNotice.updateMessage(addedCount, totalCount, "constraints");
+            } else {
+                beanValidationStatusLabel.setText(String.format("Found %d constraints in %d files",
+                        totalCount, result.filesWithIssues()));
+                beanValidationTruncationNotice.setVisible(false);
+            }
+            beanValidationStatusLabel.setForeground(new Color(200, 100, 0));
         } else {
             beanValidationStatusLabel.setText("No javax.validation.* usage found");
             beanValidationStatusLabel.setForeground(new Color(0, 150, 0));
+            beanValidationTruncationNotice.setVisible(false);
         }
     }
 
@@ -783,25 +908,42 @@ public class AdvancedScansComponent {
         model.setRowCount(0);
 
         if (result.hasIssues()) {
-            servletJspStatusLabel.setText(String.format("Found %d usages in %d files",
-                    result.totalIssuesFound(), result.filesWithIssues()));
-            servletJspStatusLabel.setForeground(new Color(200, 100, 0));
+            boolean shouldTruncate = truncationHelper.shouldTruncateResults();
+            int truncationLimit = shouldTruncate ? truncationHelper.getAdvancedScanTruncationLimit() : Integer.MAX_VALUE;
+            int addedCount = 0;
 
             for (var fileResult : result.fileResults()) {
                 for (var usage : fileResult.usages()) {
-                    model.addRow(new Object[] {
-                            fileResult.filePath().getFileName(),
-                            usage.lineNumber(),
-                            usage.className(),
-                            usage.usageType(),
-                            usage.jakartaEquivalent(),
-                            fileResult.filePath().toString()
-                    });
+                    if (addedCount < truncationLimit) {
+                        model.addRow(new Object[] {
+                                fileResult.filePath().getFileName(),
+                                usage.lineNumber(),
+                                usage.className(),
+                                usage.usageType(),
+                                usage.jakartaEquivalent(),
+                                fileResult.filePath().toString()
+                        });
+                        addedCount++;
+                    }
                 }
             }
+
+            // Update status label with truncation info
+            int totalCount = result.totalIssuesFound();
+            if (shouldTruncate && totalCount > truncationLimit) {
+                servletJspStatusLabel.setText(String.format("Found %d of %d usages in %d files",
+                        addedCount, totalCount, result.filesWithIssues()));
+                servletJspTruncationNotice.updateMessage(addedCount, totalCount, "usages");
+            } else {
+                servletJspStatusLabel.setText(String.format("Found %d usages in %d files",
+                        totalCount, result.filesWithIssues()));
+                servletJspTruncationNotice.setVisible(false);
+            }
+            servletJspStatusLabel.setForeground(new Color(200, 100, 0));
         } else {
             servletJspStatusLabel.setText("No javax.servlet.* usage found");
             servletJspStatusLabel.setForeground(new Color(0, 150, 0));
+            servletJspTruncationNotice.setVisible(false);
         }
     }
 
@@ -810,24 +952,41 @@ public class AdvancedScansComponent {
         model.setRowCount(0);
 
         if (result.hasIssues()) {
-            buildConfigStatusLabel.setText(String.format("Found %d dependencies in %d files",
-                    result.totalIssuesFound(), result.filesWithIssues()));
-            buildConfigStatusLabel.setForeground(new Color(200, 100, 0));
+            boolean shouldTruncate = truncationHelper.shouldTruncateResults();
+            int truncationLimit = shouldTruncate ? truncationHelper.getAdvancedScanTruncationLimit() : Integer.MAX_VALUE;
+            int addedCount = 0;
 
             for (var fileResult : result.fileResults()) {
                 for (var usage : fileResult.usages()) {
-                    model.addRow(new Object[] {
-                            fileResult.filePath().getFileName(),
-                            usage.lineNumber(),
-                            usage.groupId() + ":" + usage.artifactId(),
-                            usage.jakartaGroupId() + ":" + usage.jakartaArtifactId(),
-                            fileResult.filePath().toString()
-                    });
+                    if (addedCount < truncationLimit) {
+                        model.addRow(new Object[] {
+                                fileResult.filePath().getFileName(),
+                                usage.lineNumber(),
+                                usage.groupId() + ":" + usage.artifactId(),
+                                usage.jakartaGroupId() + ":" + usage.jakartaArtifactId(),
+                                fileResult.filePath().toString()
+                        });
+                        addedCount++;
+                    }
                 }
             }
+
+            // Update status label with truncation info
+            int totalCount = result.totalIssuesFound();
+            if (shouldTruncate && totalCount > truncationLimit) {
+                buildConfigStatusLabel.setText(String.format("Found %d of %d dependencies in %d files",
+                        addedCount, totalCount, result.filesWithIssues()));
+                buildConfigTruncationNotice.updateMessage(addedCount, totalCount, "dependencies");
+            } else {
+                buildConfigStatusLabel.setText(String.format("Found %d dependencies in %d files",
+                        totalCount, result.filesWithIssues()));
+                buildConfigTruncationNotice.setVisible(false);
+            }
+            buildConfigStatusLabel.setForeground(new Color(200, 100, 0));
         } else {
             buildConfigStatusLabel.setText("No javax.* build configuration found");
             buildConfigStatusLabel.setForeground(new Color(0, 150, 0));
+            buildConfigTruncationNotice.setVisible(false);
         }
     }
 
@@ -836,24 +995,41 @@ public class AdvancedScansComponent {
         model.setRowCount(0);
 
         if (result.hasJavaxUsage()) {
-            configFileStatusLabel.setText(String.format("Found %d usages in %d files",
-                    result.getTotalJavaxUsages(), result.getFilesWithJavaxUsage()));
-            configFileStatusLabel.setForeground(new Color(200, 100, 0));
+            boolean shouldTruncate = truncationHelper.shouldTruncateResults();
+            int truncationLimit = shouldTruncate ? truncationHelper.getAdvancedScanTruncationLimit() : Integer.MAX_VALUE;
+            int addedCount = 0;
 
             for (var fileResult : result.getFileResults()) {
                 for (var usage : fileResult.getUsages()) {
-                    model.addRow(new Object[] {
-                            fileResult.getFilePath().getFileName(),
-                            usage.getLineNumber(),
-                            usage.getJavaxReference(),
-                            usage.getReplacement(),
-                            fileResult.getFilePath().toString()
-                    });
+                    if (addedCount < truncationLimit) {
+                        model.addRow(new Object[] {
+                                fileResult.getFilePath().getFileName(),
+                                usage.getLineNumber(),
+                                usage.getJavaxReference(),
+                                usage.getReplacement(),
+                                fileResult.getFilePath().toString()
+                        });
+                        addedCount++;
+                    }
                 }
             }
+
+            // Update status label with truncation info
+            int totalCount = result.getTotalJavaxUsages();
+            if (shouldTruncate && totalCount > truncationLimit) {
+                configFileStatusLabel.setText(String.format("Found %d of %d usages in %d files",
+                        addedCount, totalCount, result.getFilesWithJavaxUsage()));
+                configFileTruncationNotice.updateMessage(addedCount, totalCount, "usages");
+            } else {
+                configFileStatusLabel.setText(String.format("Found %d usages in %d files",
+                        totalCount, result.getFilesWithJavaxUsage()));
+                configFileTruncationNotice.setVisible(false);
+            }
+            configFileStatusLabel.setForeground(new Color(200, 100, 0));
         } else {
             configFileStatusLabel.setText("No javax.* configuration found");
             configFileStatusLabel.setForeground(new Color(0, 150, 0));
+            configFileTruncationNotice.setVisible(false);
         }
     }
 
@@ -862,26 +1038,43 @@ public class AdvancedScansComponent {
         model.setRowCount(0);
 
         if (result.hasDeprecatedApiUsage()) {
-            deprecatedApiStatusLabel.setText(String.format("Found %d usages in %d files",
-                    result.totalUsagesFound(), result.totalFilesWithDeprecatedApi()));
-            deprecatedApiStatusLabel.setForeground(new Color(200, 100, 0));
+            boolean shouldTruncate = truncationHelper.shouldTruncateResults();
+            int truncationLimit = shouldTruncate ? truncationHelper.getAdvancedScanTruncationLimit() : Integer.MAX_VALUE;
+            int addedCount = 0;
 
             for (var fileResult : result.fileResults()) {
                 for (var usage : fileResult.usages()) {
-                    model.addRow(new Object[] {
-                            fileResult.filePath().getFileName(),
-                            usage.lineNumber(),
-                            usage.className() + (usage.methodName() != null && !usage.methodName().isEmpty()
-                                    ? "." + usage.methodName()
-                                    : ""),
-                            usage.jakartaEquivalent(),
-                            fileResult.filePath().toString()
-                    });
+                    if (addedCount < truncationLimit) {
+                        model.addRow(new Object[] {
+                                fileResult.filePath().getFileName(),
+                                usage.lineNumber(),
+                                usage.className() + (usage.methodName() != null && !usage.methodName().isEmpty()
+                                        ? "." + usage.methodName()
+                                        : ""),
+                                usage.jakartaEquivalent(),
+                                fileResult.filePath().toString()
+                        });
+                        addedCount++;
+                    }
                 }
             }
+
+            // Update status label with truncation info
+            int totalCount = result.totalUsagesFound();
+            if (shouldTruncate && totalCount > truncationLimit) {
+                deprecatedApiStatusLabel.setText(String.format("Found %d of %d usages in %d files",
+                        addedCount, totalCount, result.totalFilesWithDeprecatedApi()));
+                deprecatedApiTruncationNotice.updateMessage(addedCount, totalCount, "usages");
+            } else {
+                deprecatedApiStatusLabel.setText(String.format("Found %d usages in %d files",
+                        totalCount, result.totalFilesWithDeprecatedApi()));
+                deprecatedApiTruncationNotice.setVisible(false);
+            }
+            deprecatedApiStatusLabel.setForeground(new Color(200, 100, 0));
         } else {
             deprecatedApiStatusLabel.setText("No deprecated javax.* API found");
             deprecatedApiStatusLabel.setForeground(new Color(0, 150, 0));
+            deprecatedApiTruncationNotice.setVisible(false);
         }
     }
 
@@ -890,24 +1083,41 @@ public class AdvancedScansComponent {
         model.setRowCount(0);
 
         if (result.hasIssues()) {
-            cdiInjectionStatusLabel.setText(String.format("Found %d usages in %d files",
-                    result.totalIssuesFound(), result.filesWithIssues()));
-            cdiInjectionStatusLabel.setForeground(new Color(200, 100, 0));
+            boolean shouldTruncate = truncationHelper.shouldTruncateResults();
+            int truncationLimit = shouldTruncate ? truncationHelper.getAdvancedScanTruncationLimit() : Integer.MAX_VALUE;
+            int addedCount = 0;
 
             for (var fileResult : result.fileResults()) {
                 for (var usage : fileResult.usages()) {
-                    model.addRow(new Object[] {
-                            fileResult.filePath().getFileName(),
-                            usage.lineNumber(),
-                            usage.className(),
-                            usage.jakartaEquivalent(),
-                            fileResult.filePath().toString()
-                    });
+                    if (addedCount < truncationLimit) {
+                        model.addRow(new Object[] {
+                                fileResult.filePath().getFileName(),
+                                usage.lineNumber(),
+                                usage.className(),
+                                usage.jakartaEquivalent(),
+                                fileResult.filePath().toString()
+                        });
+                        addedCount++;
+                    }
                 }
             }
+
+            // Update status label with truncation info
+            int totalCount = result.totalIssuesFound();
+            if (shouldTruncate && totalCount > truncationLimit) {
+                cdiInjectionStatusLabel.setText(String.format("Found %d of %d usages in %d files",
+                        addedCount, totalCount, result.filesWithIssues()));
+                cdiInjectionTruncationNotice.updateMessage(addedCount, totalCount, "usages");
+            } else {
+                cdiInjectionStatusLabel.setText(String.format("Found %d usages in %d files",
+                        totalCount, result.filesWithIssues()));
+                cdiInjectionTruncationNotice.setVisible(false);
+            }
+            cdiInjectionStatusLabel.setForeground(new Color(200, 100, 0));
         } else {
             cdiInjectionStatusLabel.setText("No javax.inject.* usage found");
             cdiInjectionStatusLabel.setForeground(new Color(0, 150, 0));
+            cdiInjectionTruncationNotice.setVisible(false);
         }
     }
 
@@ -916,24 +1126,41 @@ public class AdvancedScansComponent {
         model.setRowCount(0);
 
         if (result.hasIssues()) {
-            restSoapStatusLabel.setText(String.format("Found %d usages in %d files",
-                    result.totalIssuesFound(), result.filesWithIssues()));
-            restSoapStatusLabel.setForeground(new Color(200, 100, 0));
+            boolean shouldTruncate = truncationHelper.shouldTruncateResults();
+            int truncationLimit = shouldTruncate ? truncationHelper.getAdvancedScanTruncationLimit() : Integer.MAX_VALUE;
+            int addedCount = 0;
 
             for (var fileResult : result.fileResults()) {
                 for (var usage : fileResult.usages()) {
-                    model.addRow(new Object[] {
-                            fileResult.filePath().getFileName(),
-                            usage.lineNumber(),
-                            usage.className(),
-                            usage.jakartaEquivalent(),
-                            fileResult.filePath().toString()
-                    });
+                    if (addedCount < truncationLimit) {
+                        model.addRow(new Object[] {
+                                fileResult.filePath().getFileName(),
+                                usage.lineNumber(),
+                                usage.className(),
+                                usage.jakartaEquivalent(),
+                                fileResult.filePath().toString()
+                        });
+                        addedCount++;
+                    }
                 }
             }
+
+            // Update status label with truncation info
+            int totalCount = result.totalIssuesFound();
+            if (shouldTruncate && totalCount > truncationLimit) {
+                restSoapStatusLabel.setText(String.format("Found %d of %d usages in %d files",
+                        addedCount, totalCount, result.filesWithIssues()));
+                restSoapTruncationNotice.updateMessage(addedCount, totalCount, "usages");
+            } else {
+                restSoapStatusLabel.setText(String.format("Found %d usages in %d files",
+                        totalCount, result.filesWithIssues()));
+                restSoapTruncationNotice.setVisible(false);
+            }
+            restSoapStatusLabel.setForeground(new Color(200, 100, 0));
         } else {
             restSoapStatusLabel.setText("No javax.jws.* or javax.ws.* usage found");
             restSoapStatusLabel.setForeground(new Color(0, 150, 0));
+            restSoapTruncationNotice.setVisible(false);
         }
     }
 
@@ -942,24 +1169,41 @@ public class AdvancedScansComponent {
         model.setRowCount(0);
 
         if (result.hasJavaxUsage()) {
-            securityApiStatusLabel.setText(String.format("Found %d usages in %d files",
-                    result.getTotalJavaxUsages(), result.getFilesWithJavaxUsage()));
-            securityApiStatusLabel.setForeground(new Color(200, 100, 0));
+            boolean shouldTruncate = truncationHelper.shouldTruncateResults();
+            int truncationLimit = shouldTruncate ? truncationHelper.getAdvancedScanTruncationLimit() : Integer.MAX_VALUE;
+            int addedCount = 0;
 
             for (var fileResult : result.getFileResults()) {
                 for (var usage : fileResult.getUsages()) {
-                    model.addRow(new Object[] {
-                            fileResult.getFilePath().getFileName(),
-                            usage.getLineNumber(),
-                            usage.getJavaxClass(),
-                            usage.getJakartaEquivalent(),
-                            fileResult.getFilePath().toString()
-                    });
+                    if (addedCount < truncationLimit) {
+                        model.addRow(new Object[] {
+                                fileResult.getFilePath().getFileName(),
+                                usage.getLineNumber(),
+                                usage.getJavaxClass(),
+                                usage.getJakartaEquivalent(),
+                                fileResult.getFilePath().toString()
+                        });
+                        addedCount++;
+                    }
                 }
             }
+
+            // Update status label with truncation info
+            int totalCount = result.getTotalJavaxUsages();
+            if (shouldTruncate && totalCount > truncationLimit) {
+                securityApiStatusLabel.setText(String.format("Found %d of %d usages in %d files",
+                        addedCount, totalCount, result.getFilesWithJavaxUsage()));
+                securityApiTruncationNotice.updateMessage(addedCount, totalCount, "usages");
+            } else {
+                securityApiStatusLabel.setText(String.format("Found %d usages in %d files",
+                        totalCount, result.getFilesWithJavaxUsage()));
+                securityApiTruncationNotice.setVisible(false);
+            }
+            securityApiStatusLabel.setForeground(new Color(200, 100, 0));
         } else {
             securityApiStatusLabel.setText("No javax.security.* usage found");
             securityApiStatusLabel.setForeground(new Color(0, 150, 0));
+            securityApiTruncationNotice.setVisible(false);
         }
     }
 
@@ -968,24 +1212,41 @@ public class AdvancedScansComponent {
         model.setRowCount(0);
 
         if (result.hasJavaxUsage()) {
-            jmsMessagingStatusLabel.setText(String.format("Found %d usages in %d files",
-                    result.getTotalJavaxUsages(), result.getFilesWithJavaxUsage()));
-            jmsMessagingStatusLabel.setForeground(new Color(200, 100, 0));
+            boolean shouldTruncate = truncationHelper.shouldTruncateResults();
+            int truncationLimit = shouldTruncate ? truncationHelper.getAdvancedScanTruncationLimit() : Integer.MAX_VALUE;
+            int addedCount = 0;
 
             for (var fileResult : result.getFileResults()) {
                 for (var usage : fileResult.getUsages()) {
-                    model.addRow(new Object[] {
-                            fileResult.getFilePath().getFileName(),
-                            usage.getLineNumber(),
-                            usage.getJavaxClass(),
-                            usage.getJakartaEquivalent(),
-                            fileResult.getFilePath().toString()
-                    });
+                    if (addedCount < truncationLimit) {
+                        model.addRow(new Object[] {
+                                fileResult.getFilePath().getFileName(),
+                                usage.getLineNumber(),
+                                usage.getJavaxClass(),
+                                usage.getJakartaEquivalent(),
+                                fileResult.getFilePath().toString()
+                        });
+                        addedCount++;
+                    }
                 }
             }
+
+            // Update status label with truncation info
+            int totalCount = result.getTotalJavaxUsages();
+            if (shouldTruncate && totalCount > truncationLimit) {
+                jmsMessagingStatusLabel.setText(String.format("Found %d of %d usages in %d files",
+                        addedCount, totalCount, result.getFilesWithJavaxUsage()));
+                jmsMessagingTruncationNotice.updateMessage(addedCount, totalCount, "usages");
+            } else {
+                jmsMessagingStatusLabel.setText(String.format("Found %d usages in %d files",
+                        totalCount, result.getFilesWithJavaxUsage()));
+                jmsMessagingTruncationNotice.setVisible(false);
+            }
+            jmsMessagingStatusLabel.setForeground(new Color(200, 100, 0));
         } else {
             jmsMessagingStatusLabel.setText("No javax.jms.* usage found");
             jmsMessagingStatusLabel.setForeground(new Color(0, 150, 0));
+            jmsMessagingTruncationNotice.setVisible(false);
         }
     }
 
@@ -994,24 +1255,41 @@ public class AdvancedScansComponent {
         model.setRowCount(0);
 
         if (result.hasJavaxUsage()) {
-            classloaderModuleStatusLabel.setText(String.format("Found %d usages in %d files",
-                    result.getTotalJavaxUsages(), result.getFilesWithJavaxUsage()));
-            classloaderModuleStatusLabel.setForeground(new Color(200, 100, 0));
+            boolean shouldTruncate = truncationHelper.shouldTruncateResults();
+            int truncationLimit = shouldTruncate ? truncationHelper.getAdvancedScanTruncationLimit() : Integer.MAX_VALUE;
+            int addedCount = 0;
 
             for (var fileResult : result.getFileResults()) {
                 for (var usage : fileResult.getUsages()) {
-                    model.addRow(new Object[] {
-                            fileResult.getFilePath().getFileName(),
-                            usage.getLineNumber(),
-                            usage.getJavaxClass(),
-                            usage.getReplacement(),
-                            fileResult.getFilePath().toString()
-                    });
+                    if (addedCount < truncationLimit) {
+                        model.addRow(new Object[] {
+                                fileResult.getFilePath().getFileName(),
+                                usage.getLineNumber(),
+                                usage.getJavaxClass(),
+                                usage.getReplacement(),
+                                fileResult.getFilePath().toString()
+                        });
+                        addedCount++;
+                    }
                 }
             }
+
+            // Update status label with truncation info
+            int totalCount = result.getTotalJavaxUsages();
+            if (shouldTruncate && totalCount > truncationLimit) {
+                classloaderModuleStatusLabel.setText(String.format("Found %d of %d usages in %d files",
+                        addedCount, totalCount, result.getFilesWithJavaxUsage()));
+                classloaderModuleTruncationNotice.updateMessage(addedCount, totalCount, "usages");
+            } else {
+                classloaderModuleStatusLabel.setText(String.format("Found %d usages in %d files",
+                        totalCount, result.getFilesWithJavaxUsage()));
+                classloaderModuleTruncationNotice.setVisible(false);
+            }
+            classloaderModuleStatusLabel.setForeground(new Color(200, 100, 0));
         } else {
             classloaderModuleStatusLabel.setText("No javax.* classloader/module usage found");
             classloaderModuleStatusLabel.setForeground(new Color(0, 150, 0));
+            classloaderModuleTruncationNotice.setVisible(false);
         }
     }
 
@@ -1020,24 +1298,41 @@ public class AdvancedScansComponent {
         model.setRowCount(0);
 
         if (result.hasFindings()) {
-            loggingMetricsStatusLabel.setText(String.format("Found %d usages in %d files",
-                    result.getTotalFindings(), result.getTotalFilesScanned()));
-            loggingMetricsStatusLabel.setForeground(new Color(200, 100, 0));
+            boolean shouldTruncate = truncationHelper.shouldTruncateResults();
+            int truncationLimit = shouldTruncate ? truncationHelper.getAdvancedScanTruncationLimit() : Integer.MAX_VALUE;
+            int addedCount = 0;
 
             for (var fileResult : result.getFileResults()) {
                 for (var usage : fileResult.getUsages()) {
-                    model.addRow(new Object[] {
-                            Path.of(fileResult.getFilePath()).getFileName(),
-                            usage.getLineNumber(),
-                            usage.getUsageType(),
-                            usage.getReplacement(),
-                            fileResult.getFilePath()
-                    });
+                    if (addedCount < truncationLimit) {
+                        model.addRow(new Object[] {
+                                Path.of(fileResult.getFilePath()).getFileName(),
+                                usage.getLineNumber(),
+                                usage.getUsageType(),
+                                usage.getReplacement(),
+                                fileResult.getFilePath()
+                        });
+                        addedCount++;
+                    }
                 }
             }
+
+            // Update status label with truncation info
+            int totalCount = result.getTotalFindings();
+            if (shouldTruncate && totalCount > truncationLimit) {
+                loggingMetricsStatusLabel.setText(String.format("Found %d of %d usages in %d files",
+                        addedCount, totalCount, result.getTotalFilesScanned()));
+                loggingMetricsTruncationNotice.updateMessage(addedCount, totalCount, "usages");
+            } else {
+                loggingMetricsStatusLabel.setText(String.format("Found %d usages in %d files",
+                        totalCount, result.getTotalFilesScanned()));
+                loggingMetricsTruncationNotice.setVisible(false);
+            }
+            loggingMetricsStatusLabel.setForeground(new Color(200, 100, 0));
         } else {
             loggingMetricsStatusLabel.setText("No javax.* logging/metrics usage found");
             loggingMetricsStatusLabel.setForeground(new Color(0, 150, 0));
+            loggingMetricsTruncationNotice.setVisible(false);
         }
     }
 
@@ -1046,26 +1341,43 @@ public class AdvancedScansComponent {
         model.setRowCount(0);
 
         if (result.hasFindings()) {
-            serializationCacheStatusLabel.setText(String.format("Found %d usages in %d files",
-                    result.getTotalFindings(), result.getTotalFilesScanned()));
-            serializationCacheStatusLabel.setForeground(new Color(200, 100, 0));
+            boolean shouldTruncate = truncationHelper.shouldTruncateResults();
+            int truncationLimit = shouldTruncate ? truncationHelper.getAdvancedScanTruncationLimit() : Integer.MAX_VALUE;
+            int addedCount = 0;
 
             for (var fileResult : result.getFileResults()) {
                 boolean firstRow = true;
                 for (var usage : fileResult.getUsages()) {
-                    model.addRow(new Object[] {
-                            firstRow ? Path.of(fileResult.getFilePath()).getFileName() : "",
-                            usage.getLineNumber(),
-                            usage.getUsageType(),
-                            usage.getRiskAssessment(),
-                            fileResult.getFilePath()
-                    });
+                    if (addedCount < truncationLimit) {
+                        model.addRow(new Object[] {
+                                firstRow ? Path.of(fileResult.getFilePath()).getFileName() : "",
+                                usage.getLineNumber(),
+                                usage.getUsageType(),
+                                usage.getRiskAssessment(),
+                                fileResult.getFilePath()
+                        });
+                        addedCount++;
+                    }
                     firstRow = false;
                 }
             }
+
+            // Update status label with truncation info
+            int totalCount = result.getTotalFindings();
+            if (shouldTruncate && totalCount > truncationLimit) {
+                serializationCacheStatusLabel.setText(String.format("Found %d of %d usages in %d files",
+                        addedCount, totalCount, result.getTotalFilesScanned()));
+                serializationCacheTruncationNotice.updateMessage(addedCount, totalCount, "usages");
+            } else {
+                serializationCacheStatusLabel.setText(String.format("Found %d usages in %d files",
+                        totalCount, result.getTotalFilesScanned()));
+                serializationCacheTruncationNotice.setVisible(false);
+            }
+            serializationCacheStatusLabel.setForeground(new Color(200, 100, 0));
         } else {
             serializationCacheStatusLabel.setText("No javax.* serialization/cache usage found");
             serializationCacheStatusLabel.setForeground(new Color(0, 150, 0));
+            serializationCacheTruncationNotice.setVisible(false);
         }
     }
 
@@ -1116,22 +1428,39 @@ public class AdvancedScansComponent {
         model.setRowCount(0);
 
         if (result.hasFindings()) {
-            thirdPartyLibStatusLabel.setText(String.format("Found %d incompatible libraries",
-                    result.getTotalLibraries()));
-            thirdPartyLibStatusLabel.setForeground(new Color(200, 100, 0));
+            boolean shouldTruncate = truncationHelper.shouldTruncateResults();
+            int truncationLimit = shouldTruncate ? truncationHelper.getAdvancedScanTruncationLimit() : Integer.MAX_VALUE;
+            int addedCount = 0;
 
             for (var usage : result.getLibraries()) {
-                model.addRow(new Object[] {
-                        usage.getLibraryName(),
-                        usage.getGroupId() + ":" + usage.getArtifactId(),
-                        usage.getIssueType(),
-                        usage.getSuggestedReplacement(),
-                        "" // No file path for libraries
-                });
+                if (addedCount < truncationLimit) {
+                    model.addRow(new Object[] {
+                            usage.getLibraryName(),
+                            usage.getGroupId() + ":" + usage.getArtifactId(),
+                            usage.getIssueType(),
+                            usage.getSuggestedReplacement(),
+                            "" // No file path for libraries
+                    });
+                    addedCount++;
+                }
             }
+
+            // Update status label with truncation info
+            int totalCount = result.getTotalLibraries();
+            if (shouldTruncate && totalCount > truncationLimit) {
+                thirdPartyLibStatusLabel.setText(String.format("Found %d of %d incompatible libraries",
+                        addedCount, totalCount));
+                thirdPartyLibTruncationNotice.updateMessage(addedCount, totalCount, "libraries");
+            } else {
+                thirdPartyLibStatusLabel.setText(String.format("Found %d incompatible libraries",
+                        totalCount));
+                thirdPartyLibTruncationNotice.setVisible(false);
+            }
+            thirdPartyLibStatusLabel.setForeground(new Color(200, 100, 0));
         } else {
             thirdPartyLibStatusLabel.setText("No incompatible third-party libraries found");
             thirdPartyLibStatusLabel.setForeground(new Color(0, 150, 0));
+            thirdPartyLibTruncationNotice.setVisible(false);
         }
     }
 

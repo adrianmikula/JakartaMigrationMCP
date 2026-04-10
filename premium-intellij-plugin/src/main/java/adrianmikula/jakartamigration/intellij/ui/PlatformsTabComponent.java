@@ -26,30 +26,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * UI component for the Platforms tab (premium feature)
+ * UI component for the Platforms tab (100% free - no credit limitations)
  */
 public class PlatformsTabComponent {
     private static final Logger log = LoggerFactory.getLogger(PlatformsTabComponent.class);
     private final Project project;
     private final SimplifiedPlatformDetectionService detectionService;
     private final PlatformConfigLoader configLoader;
-    
+
     // Main UI components
     private JPanel mainPanel;
     private JButton scanButton;
     private JPanel resultsPanel;
     private JScrollPane resultsScrollPane;
-    
-    // Premium controls
-    private JPanel premiumPanel;
-    private JLabel lockIcon;
-    private JButton upgradeButton;
-    private JButton trialButton;
-    
+
     // Results display
     private List<JPanel> platformPanels;
     private EnhancedPlatformScanResult currentScanResult;
-    
+
     public PlatformsTabComponent(Project project) {
         this.project = project;
         this.configLoader = new PlatformConfigLoader();
@@ -85,40 +79,19 @@ public class PlatformsTabComponent {
         resultsScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         resultsScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         mainPanel.add(resultsScrollPane, BorderLayout.CENTER);
-        
-        mainPanel.add(createPremiumPanel(), BorderLayout.SOUTH);
-        updatePremiumControls();
     }
-    
+
     /**
-     * Creates the premium controls panel
-     */
-    private JPanel createPremiumPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        
-        lockIcon = new JBLabel("🔒 Premium Feature");
-        lockIcon.setFont(lockIcon.getFont().deriveFont(Font.ITALIC, 12f));
-        lockIcon.setForeground(Color.GRAY);
-        panel.add(lockIcon);
-        
-        upgradeButton = new JButton("Upgrade to Premium");
-        trialButton = new JButton("Start Free Trial");
-        
-        panel.add(upgradeButton);
-        panel.add(trialButton);
-        
-        return panel;
-    }
-    
-    /**
-     * Scans the project for application servers with deployment artifact counting
+     * Scans the project for application servers with deployment artifact counting.
+     * 100% free - no credit limitations.
      */
     public void scanProject() {
         System.out.println("[DEBUG] Starting enhanced platform scan for project: " + project.getBasePath());
         log.debug("Starting enhanced platform scan for project: {}", project.getBasePath());
+
         scanButton.setEnabled(false);
         scanButton.setText("Scanning...");
-        
+
         SwingWorker<EnhancedPlatformScanResult, Void> worker = new SwingWorker<>() {
             @Override
             protected EnhancedPlatformScanResult doInBackground() throws Exception {
@@ -127,15 +100,15 @@ public class PlatformsTabComponent {
                 System.out.println("[DEBUG] Scan completed. Found platforms: " + result.getDetectedPlatforms());
                 return result;
             }
-            
+
             @Override
             protected void done() {
                 try {
                     EnhancedPlatformScanResult scanResult = get();
                     System.out.println("[DEBUG] SwingWorker done. Found " + scanResult.getDetectedPlatforms().size() + " platforms");
-                    log.debug("Enhanced platform scan completed. Found {} platforms, WARs: {}, EARs: {}", 
-                             scanResult.getDetectedPlatforms().size(), 
-                             scanResult.getWarCount(), 
+                    log.debug("Enhanced platform scan completed. Found {} platforms, WARs: {}, EARs: {}",
+                             scanResult.getDetectedPlatforms().size(),
+                             scanResult.getWarCount(),
                              scanResult.getEarCount());
                     displayEnhancedResults(scanResult);
                     scanButton.setEnabled(true);
@@ -149,7 +122,7 @@ public class PlatformsTabComponent {
                 }
             }
         };
-        
+
         worker.execute();
     }
     
@@ -455,49 +428,6 @@ public class PlatformsTabComponent {
     }
     
     /**
-     * Updates premium controls based on premium status
-     */
-    public void updatePremiumControls() {
-        boolean isPremium = adrianmikula.jakartamigration.intellij.ui.SupportComponent.isPremiumActive();
-        System.out.println("DEBUG: PlatformsTabComponent.updatePremiumControls() - isPremiumActive: " + isPremium);
-        
-        lockIcon.setVisible(!isPremium);
-        upgradeButton.setVisible(!isPremium);
-        trialButton.setVisible(!isPremium);
-        
-        if (!isPremium) {
-            // Disable scan functionality for non-premium users
-            scanButton.setEnabled(false);
-            scanButton.setToolTipText("Upgrade to Premium to enable platform scanning");
-            System.out.println("DEBUG: Platforms scan button DISABLED");
-        } else {
-            scanButton.setEnabled(true);
-            scanButton.setToolTipText(null);
-            System.out.println("DEBUG: Platforms scan button ENABLED");
-        }
-    }
-    
-    /**
-     * Shows upgrade dialog
-     */
-    private void showUpgradeDialog() {
-        JOptionPane.showMessageDialog(mainPanel,
-            "Upgrade to Premium to unlock Application Server Detection and other advanced features.",
-            "Upgrade to Premium",
-            JOptionPane.INFORMATION_MESSAGE);
-    }
-    
-    /**
-     * Shows trial dialog
-     */
-    private void showTrialDialog() {
-        JOptionPane.showMessageDialog(mainPanel,
-            "Start a free trial to test all premium features for 14 days.",
-            "Free Trial",
-            JOptionPane.INFORMATION_MESSAGE);
-    }
-    
-    /**
      * Displays error message
      */
     private void displayError(String message) {
@@ -506,13 +436,12 @@ public class PlatformsTabComponent {
                 "Error",
                 JOptionPane.ERROR_MESSAGE);
     }
-    
+
     /**
-     * Refreshes the UI when trial status changes
+     * Refreshes the UI
      */
     public void refreshUI() {
         System.out.println("DEBUG: PlatformsTabComponent.refreshUI() called");
-        updatePremiumControls();
         resultsPanel.revalidate();
         resultsPanel.repaint();
     }

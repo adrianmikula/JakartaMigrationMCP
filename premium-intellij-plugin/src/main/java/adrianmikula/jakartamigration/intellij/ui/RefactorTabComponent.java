@@ -3,7 +3,11 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.coderefactoring.domain.*;
 import adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition.RecipeStatus;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
+import adrianmikula.jakartamigration.credits.CreditType;
+import adrianmikula.jakartamigration.credits.CreditsService;
+import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBLabel;
@@ -18,6 +22,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class RefactorTabComponent {
+    private static final Logger LOG = Logger.getInstance(RefactorTabComponent.class);
 
     private final JPanel panel;
     private final Project project;
@@ -38,7 +43,14 @@ public class RefactorTabComponent {
     // Callback to notify other tabs (e.g. history) after a recipe runs
     private Runnable onRecipeExecuted;
 
+    // Callback to notify UI to refresh credits display
+    private Runnable onCreditUsed;
+
+    // Credits service for freemium model
+    private final CreditsService creditsService;
+
     public RefactorTabComponent(@NotNull Project project, RecipeService recipeService) {
+        this.creditsService = new CreditsService();
         this.project = project;
         this.recipeService = recipeService;
         this.panel = new JBPanel<>(new BorderLayout());
@@ -58,6 +70,16 @@ public class RefactorTabComponent {
 
     public void setOnRecipeExecuted(Runnable callback) {
         this.onRecipeExecuted = callback;
+    }
+
+    public void setOnCreditUsed(Runnable callback) {
+        this.onCreditUsed = callback;
+    }
+
+    private void notifyCreditUsed() {
+        if (onCreditUsed != null) {
+            onCreditUsed.run();
+        }
     }
 
     private void initializeComponent() {
@@ -346,11 +368,40 @@ public class RefactorTabComponent {
     }
 
     private void handleApplyRecipe(RecipeDefinition recipe) {
+        // Check if user is free tier and has refactor credits
+        boolean isPremium = CheckLicense.isLicensed() != null && CheckLicense.isLicensed();
+        if (!isPremium) {
+            if (!creditsService.hasCredits(CreditType.ACTIONS)) {
+                int result = Messages.showYesNoDialog(project,
+                        "You've used all your action credits.\n\n" +
+                        "Upgrade to Premium for unlimited refactors and undo operations.",
+                        "Credits Exhausted",
+                        "Upgrade to Premium",
+                        "Cancel",
+                        Messages.getWarningIcon());
+                if (result == Messages.YES) {
+                    openMarketplace();
+                }
+                return;
+            }
+        }
+
         int confirm = Messages.showYesNoDialog(project,
                 "Apply recipe '" + recipe.getName() + "'?\n\nThis will modify source files.",
                 "Apply Recipe", Messages.getQuestionIcon());
 
         if (confirm == Messages.YES) {
+            // Use credit if free tier
+            if (!isPremium) {
+                boolean creditUsed = creditsService.useCredit(CreditType.ACTIONS);
+                if (creditUsed) {
+                    LOG.info("Credit deducted for applying recipe: " + recipe.getName() +
+                        ". Remaining: " + creditsService.getRemainingCredits(CreditType.ACTIONS));
+                    notifyCreditUsed(); // Refresh UI
+                } else {
+                    LOG.warn("Failed to deduct credit for recipe: " + recipe.getName());
+                }
+            }
             java.nio.file.Path projectPath = java.nio.file.Paths.get(project.getBasePath());
             setRunning(true);
             CompletableFuture.supplyAsync(() -> recipeService.applyRecipe(recipe.getName(), projectPath))
@@ -378,6 +429,24 @@ public class RefactorTabComponent {
     }
 
     private void handleUndo(RecipeDefinition recipe) {
+        // Check if user is free tier and has refactor credits
+        boolean isPremium = CheckLicense.isLicensed() != null && CheckLicense.isLicensed();
+        if (!isPremium) {
+            if (!creditsService.hasCredits(CreditType.ACTIONS)) {
+                int result = Messages.showYesNoDialog(project,
+                        "You've used all your action credits.\n\n" +
+                        "Undo operations require credits. Upgrade to Premium for unlimited undo.",
+                        "Credits Exhausted",
+                        "Upgrade to Premium",
+                        "Cancel",
+                        Messages.getWarningIcon());
+                if (result == Messages.YES) {
+                    openMarketplace();
+                }
+                return;
+            }
+        }
+
         java.nio.file.Path projectPath = java.nio.file.Paths.get(project.getBasePath());
 
         Optional<RecipeExecutionHistory> lastExec = recipeService.getHistory(projectPath).stream()
@@ -399,6 +468,17 @@ public class RefactorTabComponent {
                 Messages.getQuestionIcon());
 
         if (confirm == Messages.YES) {
+            // Use credit if free tier
+            if (!isPremium) {
+                boolean creditUsed = creditsService.useCredit(CreditType.ACTIONS);
+                if (creditUsed) {
+                    LOG.info("Credit deducted for undoing recipe: " + recipe.getName() +
+                        ". Remaining: " + creditsService.getRemainingCredits(CreditType.ACTIONS));
+                    notifyCreditUsed(); // Refresh UI
+                } else {
+                    LOG.warn("Failed to deduct credit for undo: " + recipe.getName());
+                }
+            }
             setRunning(true);
             CompletableFuture.supplyAsync(() -> recipeService.undoRecipe(executionId, projectPath))
                     .thenAccept(result -> {
@@ -416,6 +496,19 @@ public class RefactorTabComponent {
                             }
                         });
                     });
+        }
+    }
+
+    /**
+     * Opens the JetBrains Marketplace to purchase/upgrade.
+     */
+    private void openMarketplace() {
+        try {
+            java.awt.Desktop.getDesktop().browse(new java.net.URI("https://plugins.jetbrains.com/plugin/30093-jakarta-migration"));
+        } catch (Exception ex) {
+            Messages.showInfoMessage(project,
+                    "Please visit: https://plugins.jetbrains.com/plugin/30093-jakarta-migration",
+                    "Upgrade to Premium");
         }
     }
 

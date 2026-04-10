@@ -58,7 +58,6 @@ public class FeatureFlagsProperties {
             // Fallback to default values on error
             props.setProperty("jakarta.migration.pricing.monthly.usd", "?");
             props.setProperty("jakarta.migration.pricing.yearly.usd", "?");
-            props.setProperty("jakarta.migration.trial.days", "?");
         }
         return props;
     }
@@ -69,19 +68,12 @@ public class FeatureFlagsProperties {
     public static double getMonthlyPriceUsd() {
         return Double.parseDouble(PRICING_PROPERTIES.getProperty("jakarta.migration.pricing.monthly.usd", "5.0"));
     }
-    
+
     /**
      * Get yearly subscription price in USD from pricing.properties
      */
     public static double getYearlyPriceUsd() {
         return Double.parseDouble(PRICING_PROPERTIES.getProperty("jakarta.migration.pricing.yearly.usd", "50.0"));
-    }
-    
-    /**
-     * Get free trial duration in days from pricing.properties
-     */
-    public static int getFreeTrialDays() {
-        return Integer.parseInt(PRICING_PROPERTIES.getProperty("jakarta.migration.trial.days", "7"));
     }
 
     /**
@@ -103,12 +95,6 @@ public class FeatureFlagsProperties {
     private String licenseKey = "";
 
     /**
-     * Trial end timestamp (milliseconds) for configurable free trial.
-     * Set when user activates trial via JetBrains Marketplace.
-     */
-    private Long trialEndTimestamp = null;
-
-    /**
      * Per-feature overrides.
      * Allows enabling/disabling specific features regardless of tier.
      * Useful for testing or gradual rollouts.
@@ -123,7 +109,7 @@ public class FeatureFlagsProperties {
     public enum LicenseTier {
         /**
          * Community/Free tier.
-         * Basic features: scanning, identification, analysis.
+         * Basic features with limited credits: 10 basic scans, 50 advanced scans, 5 refactors.
          * Available to all users without license.
          */
         COMMUNITY,
@@ -132,42 +118,8 @@ public class FeatureFlagsProperties {
          * Premium/Paid tier.
          * All features including auto-fixes, one-click refactor, binary fixes.
          * Requires active JetBrains Marketplace subscription ($49/month or $399/year).
-         * Includes configurable free trial for new users.
          */
         PREMIUM
-    }
-
-    /**
-     * Check if the user has an active premium subscription.
-     * Considers both paid subscription and active trial period.
-     */
-    public boolean hasActiveSubscription() {
-        // Check if premium tier
-        if (defaultTier == LicenseTier.PREMIUM) {
-            return true;
-        }
-        
-        // Check if trial is still active
-        if (trialEndTimestamp != null) {
-            return System.currentTimeMillis() < trialEndTimestamp;
-        }
-        
-        return false;
-    }
-
-    /**
-     * Get remaining trial days.
-     * Returns 0 if no active trial.
-     */
-    public int getRemainingTrialDays() {
-        if (trialEndTimestamp == null) {
-            return 0;
-        }
-        long remainingMs = trialEndTimestamp - System.currentTimeMillis();
-        if (remainingMs <= 0) {
-            return 0;
-        }
-        return (int) Math.ceil(remainingMs / (1000.0 * 60 * 60 * 24));
     }
 
     /**

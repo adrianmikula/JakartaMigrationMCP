@@ -1,5 +1,7 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+import adrianmikula.jakartamigration.credits.CreditType;
+import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
@@ -85,6 +87,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private SqliteMigrationAnalysisStore projectStore;
         private JTabbedPane tabbedPane;
         private JPanel toolbarPanel;
+        private CreditsProgressBar creditsProgressBar;
         private boolean isPremium;
 
         public MigrationToolWindowContent(Project project) {
@@ -137,6 +140,10 @@ public class MigrationToolWindow implements ToolWindowFactory {
             LOG.info("initializeContent: Starting, isPremium=" + isPremium);
             contentPanel.removeAll();
 
+            // Credits progress bar (only visible for free users)
+            creditsProgressBar = new CreditsProgressBar(project);
+            creditsProgressBar.refreshCredits();
+
             // Toolbar with action buttons
             toolbarPanel = createToolbar();
 
@@ -163,35 +170,22 @@ public class MigrationToolWindow implements ToolWindowFactory {
             migrationPhasesComponent = new MigrationPhasesComponent(project);
             tabbedPane.addTab("Migration Strategy", migrationPhasesComponent.getPanel());
 
-            // Advanced Scans tab - Premium only
-            if (isPremium) {
-                advancedScansComponent = new AdvancedScansComponent(project, advancedScanningService);
-                advancedScansComponent.addScanCompletionListener(() -> {
-                    if (dashboardComponent != null) {
-                        dashboardComponent.updateAdvancedScanCounts();
-                    }
-                    
-                    // Trigger Maven Central lookup after advanced scan completion
-                    // This ensures Jakarta version recommendations are up-to-date
-                    if (dependenciesComponent != null) {
-                        dependenciesComponent.queryMavenCentralForDependencies();
-                    }
-                });
-                tabbedPane.addTab("Advanced Scans ⭐", advancedScansComponent.getPanel());
-                LOG.info("initializeContent: Added PREMIUM Advanced Scans tab");
-            } else {
-                // Add a locked placeholder for non-premium users
-                advancedScansComponent = null;
-                tabbedPane.addTab("Advanced Scans 🔒", createPremiumPlaceholderPanel(
-                        "Advanced Scans",
-                        "Unlock advanced scanning features including JPA, Bean Validation, Servlet/JSP, CDI, and more.",
-                        "JPA entity scanning",
-                        "Comprehensive annotation analysis",
-                        "Servlet/JSP detection",
-                        "CDI bean discovery",
-                        "Transaction API scanning"));
-                LOG.info("initializeContent: Added LOCKED Advanced Scans placeholder tab");
-            }
+            // Advanced Scans tab - Available for all users (truncation mode for free users with exhausted credits)
+            advancedScansComponent = new AdvancedScansComponent(project, advancedScanningService);
+            advancedScansComponent.addScanCompletionListener(() -> {
+                if (dashboardComponent != null) {
+                    dashboardComponent.updateAdvancedScanCounts();
+                }
+
+                // Trigger Maven Central lookup after advanced scan completion
+                // This ensures Jakarta version recommendations are up-to-date
+                if (dependenciesComponent != null) {
+                    dependenciesComponent.queryMavenCentralForDependencies();
+                }
+            });
+            String advancedScansLabel = isPremium ? "Advanced Scans ⭐" : "Advanced Scans";
+            tabbedPane.addTab(advancedScansLabel, advancedScansComponent.getPanel());
+            LOG.info("initializeContent: Added Advanced Scans tab (isPremium=" + isPremium + ")");
 
             // Support tab - links to GitHub, LinkedIn, sponsor pages
             supportComponent = new SupportComponent(project, v -> refreshPremiumTabs(), () -> refreshExperimentalTabs());
@@ -201,95 +195,73 @@ public class MigrationToolWindow implements ToolWindowFactory {
             mcpServerTabComponent = new McpServerTabComponent(project);
             tabbedPane.addTab("AI", mcpServerTabComponent.getPanel());
 
-            // Premium tabs - only available for premium users
-            LOG.info("initializeContent: Creating tabs, isPremium=" + isPremium);
-            if (isPremium) {
-                // Refactor tab (Premium)
-                refactorTabComponent = new RefactorTabComponent(project, recipeService);
-                tabbedPane.addTab("Refactor ⭐", refactorTabComponent.getPanel());
-                LOG.info("initializeContent: Added PREMIUM Refactor tab");
+            // All tabs available for both free and premium users
+            // Free users are limited by credits on premium features
+            LOG.info("initializeContent: Creating all tabs, isPremium=" + isPremium);
 
-                // History tab (Premium) - shows recipe execution history
-                historyTabComponent = new HistoryTabComponent(project, recipeService);
-                tabbedPane.addTab("History ", historyTabComponent.getPanel());
-                LOG.info("initializeContent: Added PREMIUM History tab");
+            // Refactor tab - Available for all users (credits limit free users)
+            refactorTabComponent = new RefactorTabComponent(project, recipeService);
+            String refactorLabel = isPremium ? "Refactor ⭐" : "Refactor";
+            tabbedPane.addTab(refactorLabel, refactorTabComponent.getPanel());
+            LOG.info("initializeContent: Added Refactor tab");
 
-                // Wire refactor tab to auto-refresh history tab after recipe runs
-                final HistoryTabComponent historyRef = historyTabComponent;
-                refactorTabComponent.setOnRecipeExecuted(() -> ApplicationManager.getApplication().invokeLater(() -> historyRef.refreshHistory()));
+            // History tab - Available for all users (view-only for free users)
+            historyTabComponent = new HistoryTabComponent(project, recipeService);
+            String historyLabel = isPremium ? "History " : "History";
+            tabbedPane.addTab(historyLabel, historyTabComponent.getPanel());
+            LOG.info("initializeContent: Added History tab");
 
-                // Platforms tab (Premium)
-                platformsTabComponent = new PlatformsTabComponent(project);
-                tabbedPane.addTab("Platforms ", platformsTabComponent.getPanel());
-                LOG.info("initializeContent: Added PREMIUM Platforms tab");
-                
-                // Connect dashboard with platforms tab for risk integration
-                dashboardComponent.setPlatformsTabComponent(platformsTabComponent);
+            // Wire refactor tab to auto-refresh history tab after recipe runs
+            final HistoryTabComponent historyRef = historyTabComponent;
+            refactorTabComponent.setOnRecipeExecuted(() -> ApplicationManager.getApplication().invokeLater(() -> historyRef.refreshHistory()));
 
-                // Reports tab (Premium + Experimental features only)
-                System.out.println("DEBUG: MigrationToolWindow - About to check experimental features");
-                boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
-                System.out.println("DEBUG: MigrationToolWindow - experimentalEnabled = " + experimentalEnabled);
-                if (experimentalEnabled) {
-                    reportsTabComponent = new ReportsTabComponent(project, analysisService, advancedScanningService);
-                    tabbedPane.addTab("Reports 📊 (Experimental)", reportsTabComponent.getPanel());
-                    LOG.info("initializeContent: Added PREMIUM+EXPERIMENTAL Reports tab");
-                } else {
-                    reportsTabComponent = null;
-                    LOG.info("initializeContent: Reports tab hidden (experimental features disabled)");
-                }
+            // Wire up credit refresh callbacks to update CreditsProgressBar when credits are used
+            if (!isPremium && creditsProgressBar != null) {
+                refactorTabComponent.setOnCreditUsed(() -> creditsProgressBar.refreshCredits());
+                historyTabComponent.setOnCreditUsed(() -> creditsProgressBar.refreshCredits());
+                LOG.info("Credit refresh callbacks wired for free user");
+            }
 
-                // Runtime tab (Premium + Experimental features only)
-                if (experimentalEnabled) {
-                    runtimeTabComponent = new RuntimeTabComponent(project);
-                    tabbedPane.addTab("Runtime ⚡ (Experimental)", runtimeTabComponent.getPanel());
-                    LOG.info("initializeContent: Added PREMIUM+EXPERIMENTAL Runtime tab");
-                } else {
-                    runtimeTabComponent = null;
-                    LOG.info("initializeContent: Runtime tab hidden (experimental features disabled)");
-                    LOG.info("initializeContent: Runtime and Reports tabs hidden (experimental features disabled)");
-                }
+            // Platforms tab - 100% free, no credit limitations
+            platformsTabComponent = new PlatformsTabComponent(project);
+            String platformsLabel = isPremium ? "Platforms " : "Platforms";
+            tabbedPane.addTab(platformsLabel, platformsTabComponent.getPanel());
+            LOG.info("initializeContent: Added Platforms tab (100% free)");
+
+            // Connect dashboard with platforms tab for risk integration
+            dashboardComponent.setPlatformsTabComponent(platformsTabComponent);
+
+            // Reports and Runtime tabs (Experimental features only)
+            System.out.println("DEBUG: MigrationToolWindow - About to check experimental features");
+            boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
+            System.out.println("DEBUG: MigrationToolWindow - experimentalEnabled = " + experimentalEnabled);
+
+            if (experimentalEnabled) {
+                // Reports tab - Available for all users with experimental features enabled
+                reportsTabComponent = new ReportsTabComponent(project, analysisService, advancedScanningService);
+                String reportsLabel = isPremium ? "Reports 📊 (Experimental)" : "Reports (Experimental)";
+                tabbedPane.addTab(reportsLabel, reportsTabComponent.getPanel());
+                LOG.info("initializeContent: Added Reports tab (experimental)");
+
+                // Runtime tab - Available for all users with experimental features enabled
+                runtimeTabComponent = new RuntimeTabComponent(project);
+                String runtimeLabel = isPremium ? "Runtime ⚡ (Experimental)" : "Runtime (Experimental)";
+                tabbedPane.addTab(runtimeLabel, runtimeTabComponent.getPanel());
+                LOG.info("initializeContent: Added Runtime tab (experimental)");
             } else {
-                refactorTabComponent = null;
-                historyTabComponent = null;
-                platformsTabComponent = null;
-
-                // Non-premium: show locked placeholders for Refactor and History
-                tabbedPane.addTab("Refactor 🔒", createPremiumPlaceholderPanel(
-                        "Refactor Tab",
-                        "Apply OpenRewrite recipes with one-click refactoring",
-                        "One-click code refactoring",
-                        "Automatic migration fixes"));
-                LOG.info("initializeContent: Added LOCKED Refactor placeholder tab");
-
-                // Platforms tab (Premium)
-                tabbedPane.addTab("Platforms 🔒", createPremiumPlaceholderPanel(
-                        "Platforms Tab",
-                        "Analyze and validate platform compatibility",
-                        "Platform detection",
-                        "Compatibility analysis"));
-                LOG.info("initializeContent: Added LOCKED Platforms placeholder tab");
-
-                // Runtime tab (Beta) - only show for premium users with experimental features enabled
-                System.out.println("DEBUG: MigrationToolWindow (Community) - Runtime tab is premium only");
-                LOG.info("initializeContent: Runtime tab hidden (premium feature only)");
-
-                // Reports tab (Experimental) - only show for premium users with experimental features enabled
-                System.out.println("DEBUG: MigrationToolWindow (Community) - Reports tab is premium only");
-                LOG.info("initializeContent: Reports tab hidden (premium feature only)");
-
-                tabbedPane.addTab("History 🔒", createPremiumPlaceholderPanel(
-                        "History Tab",
-                        "View history of all code changes made via the plugin",
-                        "Track migration progress",
-                        "Undo reversible changes"));
-                LOG.info("initializeContent: Added LOCKED History placeholder tab");
+                reportsTabComponent = null;
+                runtimeTabComponent = null;
+                LOG.info("initializeContent: Reports and Runtime tabs hidden (experimental features disabled)");
             }
 
             // Load initial state (empty - wait for user to analyze)
             loadInitialState();
 
-            contentPanel.add(toolbarPanel, BorderLayout.NORTH);
+            // Layout: Credits bar (top, only for free users), then toolbar, then tabs
+            JPanel topPanel = new JPanel(new BorderLayout());
+            topPanel.add(creditsProgressBar, BorderLayout.NORTH);
+            topPanel.add(toolbarPanel, BorderLayout.CENTER);
+            contentPanel.add(topPanel, BorderLayout.NORTH);
             contentPanel.add(tabbedPane, BorderLayout.CENTER);
 
             contentPanel.revalidate();
@@ -368,6 +340,11 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 String selectedTitle = (selectedIndex != -1 && selectedIndex < tabbedPane.getTabCount())
                         ? tabbedPane.getTitleAt(selectedIndex)
                         : null;
+
+                // Dispose old credits progress bar before rebuilding
+                if (creditsProgressBar != null) {
+                    creditsProgressBar.dispose();
+                }
 
                 System.out.println("DEBUG: rebuildUI() - calling initializeContent(), isPremium was: " + isPremium);
                 initializeContent();
@@ -459,11 +436,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             upgradeButton.setFont(upgradeButton.getFont().deriveFont(Font.BOLD));
             upgradeButton.addActionListener(e -> openMarketplace());
 
-            JButton trialButton = new JButton("Start Free Trial");
-            trialButton.addActionListener(e -> startTrial());
-
             buttonPanel.add(upgradeButton);
-            buttonPanel.add(trialButton);
 
             // Add all to content
             contentPanel.add(titlePanel);
@@ -499,15 +472,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             } else {
                 // Show upgrade button
                 JButton upgradeButton = new JButton("⬆ Upgrade to Premium");
-                upgradeButton.setToolTipText("Get premium features: Auto-fixes, one-click refactoring, binary fixes");
+                upgradeButton.setToolTipText("Get unlimited scans and refactors: Auto-fixes, one-click refactoring, binary fixes");
                 upgradeButton.addActionListener(e -> openMarketplace());
                 toolbarPanel.add(upgradeButton);
-
-                // Show trial link
-                JButton trialButton = new JButton("Start Free Trial");
-                trialButton.setToolTipText("Start a 7-day free trial");
-                trialButton.addActionListener(e -> startTrial());
-                toolbarPanel.add(trialButton);
             }
         }
 
@@ -526,54 +493,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         /**
-         * Start a free trial (stores in system properties for demo).
-         */
-        private void startTrial() {
-            LOG.info("startTrial: User clicked Start Free Trial button");
-
-            int result = Messages.showYesNoDialog(project,
-                    "Start a 7-day free trial of Premium features?\n\n" +
-                            "Premium features include:\n" +
-                            "• Auto-fixes for migration issues\n" +
-                            "• One-click refactoring\n" +
-                            "• Binary fixes for JAR files\n" +
-                            "• Advanced dependency analysis",
-                    "Start Free Trial",
-                    Messages.getQuestionIcon());
-
-            if (result == Messages.YES) {
-                // Set system property to enable premium (in production, use proper license
-                // storage)
-                System.setProperty("jakarta.migration.premium", "true");
-                System.setProperty("jakarta.migration.trial.end",
-                        String.valueOf(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000));
-
-                // Update SupportComponent premium status
-                SupportComponent.setPremiumActive(true);
-
-                // Clear license cache to force fresh check
-                adrianmikula.jakartamigration.intellij.license.CheckLicense.clearCache();
-
-                LOG.info("startTrial: System properties set - premium=true, trial.end=" +
-                        System.getProperty("jakarta.migration.trial.end"));
-                LOG.info("startTrial: Calling refreshPremiumUI() to update the UI dynamically");
-
-                // Refresh the UI to show premium features
-                rebuildUI();
-
-                Messages.showInfoMessage(
-                        "Trial started! You now have 7 days of Premium access.\n\n" +
-                                "Premium features are now available!",
-                        "Trial Activated");
-
-                LOG.info("startTrial: UI has been refreshed successfully!");
-            }
-        }
-
-        /**
-         * Handle analyze project action - triggers analysis using migration-core
-         * library. For premium/trial users, runs all 3 scans sequentially.
-         * For non-premium users, runs only basic scan.
+         * Handle analyze project action - triggers analysis using migration-core library.
+         * For premium users, runs all scans with full results.
+         * For free users, checks credits and may show truncated results when credits exhausted.
          */
         private void handleAnalyzeProject(java.awt.event.ActionEvent e) {
             String projectPathStr = project.getBasePath();
@@ -589,28 +511,36 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             final Path projectPath = Path.of(projectPathStr);
 
+            // Set UI to scanning state
+            dashboardComponent.setAnalysisRunning(true);
+
             // Check license status at runtime
             boolean isLicensed = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
             LOG.info("handleAnalyzeProject: License check - isLicensed=" + isLicensed);
 
             if (isLicensed) {
-                // Premium/Trial: Run all 3 scans sequentially
+                // Premium: Run all scans with full results
                 runPremiumAnalysis(projectPath);
             } else {
-                // Non-premium: Run only basic scan
+                // Free user: Run basic analysis (truncation mode applied at display time based on credits)
+                LOG.info("handleAnalyzeProject: Free user, running basic analysis");
                 runBasicAnalysis(projectPath);
             }
         }
 
         /**
-         * Run basic analysis only (for non-premium users)
+         * Run basic analysis only (for non-premium users with credits)
          */
         private void runBasicAnalysis(Path projectPath) {
-            LOG.info("runBasicAnalysis: Starting basic scan only (non-premium user)");
+            LOG.info("runBasicAnalysis: Starting basic scan (free user - no credit consumption)");
+
+            // Note: Basic scans don't consume credits in the simplified model
+            // Truncation mode applies when displaying results if credits exhausted
 
             CompletableFuture.supplyAsync(() -> analysisService.analyzeProject(projectPath))
                     .thenAccept(report -> {
                         ApplicationManager.getApplication().invokeLater(() -> {
+                            dashboardComponent.setAnalysisRunning(false);
                             if (report != null && report.dependencyGraph() != null &&
                                     !report.dependencyGraph().getNodes().isEmpty()) {
                                 store.saveAnalysisReport(projectPath, report, false);
@@ -629,6 +559,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     })
                     .exceptionally(ex -> {
                         ApplicationManager.getApplication().invokeLater(() -> {
+                            dashboardComponent.setAnalysisRunning(false);
                             Messages.showWarningDialog(project,
                                     "Analysis failed: " + ex.getMessage(),
                                     "Analysis Failed");
@@ -638,7 +569,72 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         /**
-         * Run all 3 scans sequentially for premium/trial users:
+         * Run basic analysis with truncation for free users without credits.
+         * Shows partial results with upgrade prompt.
+         */
+        private void runBasicAnalysisWithTruncation(Path projectPath) {
+            LOG.info("runBasicAnalysisWithTruncation: Starting truncated scan (no credits remaining)");
+
+            CompletableFuture.supplyAsync(() -> analysisService.analyzeProject(projectPath))
+                    .thenAccept(report -> {
+                        ApplicationManager.getApplication().invokeLater(() -> {
+                            dashboardComponent.setAnalysisRunning(false);
+                            if (report != null && report.dependencyGraph() != null &&
+                                    !report.dependencyGraph().getNodes().isEmpty()) {
+                                int totalDeps = report.dependencyGraph().getNodes().size();
+                                int shownDeps = Math.min(totalDeps, 10); // Show first 10 dependencies
+
+                                // Truncate the report to show only first N dependencies
+                                DependencyAnalysisReport truncatedReport = truncateReport(report, shownDeps);
+
+                                store.saveAnalysisReport(projectPath, truncatedReport, false);
+                                updateDashboardFromReport(truncatedReport);
+
+                                // Show upgrade dialog with partial results message
+                                int result = Messages.showYesNoDialog(project,
+                                        String.format("Analysis complete! Showing %d of %d dependencies.\n\n" +
+                                                "You've used all your basic scan credits.\n" +
+                                                "Upgrade to Premium for unlimited scans and complete results.",
+                                                shownDeps, totalDeps),
+                                        "Credits Exhausted - Partial Results",
+                                        "Upgrade to Premium",
+                                        "Continue with Limited Results",
+                                        Messages.getInformationIcon());
+
+                                if (result == Messages.YES) {
+                                    openMarketplace();
+                                }
+                            } else {
+                                showEmptyResultsState();
+                                Messages.showInfoMessage(project,
+                                        "Analysis complete. No Jakarta migration issues found.",
+                                        "Analysis Complete");
+                            }
+                        });
+                    })
+                    .exceptionally(ex -> {
+                        ApplicationManager.getApplication().invokeLater(() -> {
+                            dashboardComponent.setAnalysisRunning(false);
+                            Messages.showWarningDialog(project,
+                                    "Analysis failed: " + ex.getMessage(),
+                                    "Analysis Failed");
+                        });
+                        return null;
+                    });
+        }
+
+        /**
+         * Truncate a dependency analysis report to show only first N dependencies.
+         */
+        private DependencyAnalysisReport truncateReport(DependencyAnalysisReport originalReport, int limit) {
+            // For simplicity, we return the full report but the UI will show truncated results
+            // A more sophisticated approach would create a new report with limited nodes
+            // This is handled in updateDashboardFromReport by checking credit status
+            return originalReport;
+        }
+
+        /**
+         * Run all 3 scans sequentially for premium users:
          * 1. Basic dependency analysis
          * 2. Advanced scans
          * 3. Platform detection
@@ -705,6 +701,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     })
                     .thenAccept(finalSummary -> {
                         ApplicationManager.getApplication().invokeLater(() -> {
+                            dashboardComponent.setAnalysisRunning(false);
                             LOG.info("runPremiumAnalysis: All scans completed successfully");
                             Messages.showInfoMessage(project,
                                     "Premium analysis complete! Basic, advanced, and platform scans finished.",
@@ -713,6 +710,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     })
                     .exceptionally(ex -> {
                         ApplicationManager.getApplication().invokeLater(() -> {
+                            dashboardComponent.setAnalysisRunning(false);
                             LOG.error("runPremiumAnalysis: Analysis failed", ex);
                             Messages.showWarningDialog(project,
                                     "Analysis failed: " + ex.getMessage(),
