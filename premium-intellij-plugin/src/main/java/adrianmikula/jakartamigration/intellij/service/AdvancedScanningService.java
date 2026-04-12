@@ -6,7 +6,12 @@ import adrianmikula.jakartamigration.advancedscanning.service.*;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import com.intellij.openapi.diagnostic.Logger;
 
+import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
+import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
+
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -327,6 +332,107 @@ public class AdvancedScanningService {
     public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(Path projectPath) {
         LOG.info("Scanning for Transitive Dependencies in: " + projectPath);
         return scanningModule.getTransitiveDependencyScanner().scanProject(projectPath);
+    }
+
+    /**
+     * Checks if Maven is available on the system for deep dependency scanning.
+     * @return true if 'mvn --version' executes successfully
+     */
+    public boolean isMavenAvailable() {
+        return adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyTreeCommandExecutorImpl.isMavenAvailable();
+    }
+
+    /**
+     * Checks if Gradle is available on the system for deep dependency scanning.
+     * @return true if 'gradle --version' executes successfully
+     */
+    public boolean isGradleAvailable() {
+        return adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyTreeCommandExecutorImpl.isGradleAvailable();
+    }
+
+    /**
+     * Runs deep dependency scanning for a project using Maven/Gradle commands.
+     * This provides multi-level transitive dependency resolution.
+     * Falls back to basic analysis if Maven/Gradle not available.
+     *
+     * @param projectPath Path to the project root
+     * @return Deep dependency scan result with multi-level transitive dependencies
+     */
+    public TransitiveDependencyProjectScanResult scanDependenciesDeep(Path projectPath) {
+        LOG.info("Running deep dependency scan for: " + projectPath);
+
+        // Check if Maven or Gradle is available
+        boolean mavenAvailable = isMavenAvailable();
+        boolean gradleAvailable = isGradleAvailable();
+
+        LOG.info("Maven available: " + mavenAvailable + ", Gradle available: " + gradleAvailable);
+
+        if (!mavenAvailable && !gradleAvailable) {
+            LOG.warn("Neither Maven nor Gradle available for deep scanning");
+            return null; // Signal to use basic analysis fallback
+        }
+
+        // Run the deep transitive dependency scan
+        return scanForTransitiveDependencies(projectPath);
+    }
+
+    /**
+     * Converts deep transitive dependency scan results to DependencyInfo objects.
+     * This merges results from all scanned build files and flattens them into a single list.
+     *
+     * @param result The deep transitive dependency scan result
+     * @return List of DependencyInfo with depth and scope information
+     */
+    public List<DependencyInfo> convertToDependencyInfo(TransitiveDependencyProjectScanResult result) {
+        if (result == null || result.getFileResults() == null) {
+            return new ArrayList<>();
+        }
+
+        List<DependencyInfo> dependencyInfos = new ArrayList<>();
+
+        // Flatten all usages from all scanned files
+        for (TransitiveDependencyScanResult fileResult : result.getFileResults()) {
+            if (fileResult == null || fileResult.getUsages() == null) {
+                continue;
+            }
+
+            for (TransitiveDependencyUsage usage : fileResult.getUsages()) {
+                DependencyInfo info = new DependencyInfo(
+                    usage.getGroupId(),
+                    usage.getArtifactId(),
+                    usage.getVersion(),
+                    null, // recommendedGroupId - will be set by recommendation logic
+                    null, // recommendedArtifactId
+                    null, // recommendedVersion
+                    usage.getJavaxPackage(), // jakartaCompatibilityStatus - store the javax package info
+                    usage.getRecommendation(), // associatedRecipeName - store the recommendation
+                    mapSeverityToStatus(usage.getSeverity()),
+                    usage.isTransitive(),
+                    false, // isOrganizational - determined elsewhere
+                    usage.getDepth(),
+                    usage.getScope()
+                );
+                dependencyInfos.add(info);
+            }
+        }
+
+        LOG.info("Converted " + dependencyInfos.size() + " transitive dependencies to DependencyInfo");
+        return dependencyInfos;
+    }
+
+    /**
+     * Maps severity string to DependencyMigrationStatus.
+     */
+    private DependencyMigrationStatus mapSeverityToStatus(String severity) {
+        if (severity == null) {
+            return DependencyMigrationStatus.UNKNOWN_REVIEW;
+        }
+        return switch (severity.toLowerCase()) {
+            case "high" -> DependencyMigrationStatus.NEEDS_UPGRADE;
+            case "medium" -> DependencyMigrationStatus.NEEDS_UPGRADE;
+            case "low" -> DependencyMigrationStatus.COMPATIBLE;
+            default -> DependencyMigrationStatus.UNKNOWN_REVIEW;
+        };
     }
 
     public ConfigFileProjectScanResult scanForConfigFiles(Path projectPath) {

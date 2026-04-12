@@ -108,6 +108,7 @@ public class DashboardComponent {
     private JBLabel jakartaUpgradeValue;
     private JBLabel jakartaCompatibleValue;
     private JBLabel unknownReviewValue;
+    private JBLabel transitiveDepsValue;
     
     // Project Size and Test Coverage Components
     private JBLabel projectSizeValue;
@@ -979,8 +980,15 @@ private void resetAdvancedScanCounts() {
         unknownReviewValue = createValueLabel("0");
         summaryGrid.add(unknownReviewValue, gbc);
 
+        // Transitive Dependencies
+        gbc.gridx = 0; gbc.gridy = 9;
+        summaryGrid.add(createKeyLabel("Transitive Dependencies:"), gbc);
+        gbc.gridx = 1;
+        transitiveDepsValue = createValueLabel("0");
+        summaryGrid.add(transitiveDepsValue, gbc);
+
         // Separator before grand total
-        gbc.gridx = 0; gbc.gridy = 9; gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = 10; gbc.gridwidth = 2;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(10, 5, 5, 5);
         JSeparator separator = new JSeparator();
@@ -991,7 +999,7 @@ private void resetAdvancedScanCounts() {
         gbc.insets = new Insets(5, 5, 5, 5);
 
         // Grand Total across all scan types
-        gbc.gridx = 0; gbc.gridy = 10;
+        gbc.gridx = 0; gbc.gridy = 12;
         JBLabel grandTotalLabel = createKeyLabel("GRAND TOTAL:");
         grandTotalLabel.setFont(grandTotalLabel.getFont().deriveFont(Font.BOLD, 13f));
         grandTotalLabel.setForeground(new Color(0, 100, 200));
@@ -1359,12 +1367,14 @@ private void resetAdvancedScanCounts() {
                 int jakartaUpgrade = depSummary.getJakartaUpgradeCount() != null ? depSummary.getJakartaUpgradeCount() : 0;
                 int jakartaCompatible = depSummary.getJakartaCompatibleCount() != null ? depSummary.getJakartaCompatibleCount() : 0;
                 int unknownReview = depSummary.getUnknownReviewCount() != null ? depSummary.getUnknownReviewCount() : 0;
+                int transitiveDeps = depSummary.getTransitiveDependencies() != null ? depSummary.getTransitiveDependencies() : 0;
                 
                 organisationalDepsValue.setText(String.valueOf(orgDeps));
                 noJakartaEquivalentValue.setText(String.valueOf(noJakartaEquiv));
                 jakartaUpgradeValue.setText(String.valueOf(jakartaUpgrade));
                 jakartaCompatibleValue.setText(String.valueOf(jakartaCompatible));
                 unknownReviewValue.setText(String.valueOf(unknownReview));
+                transitiveDepsValue.setText(String.valueOf(transitiveDeps));
                 
                 // Apply color coding based on values
                 organisationalDepsValue.setForeground(orgDeps > 0 ? Color.ORANGE : Color.GREEN);
@@ -1372,6 +1382,7 @@ private void resetAdvancedScanCounts() {
                 jakartaUpgradeValue.setForeground(jakartaUpgrade > 0 ? Color.ORANGE : Color.GREEN);
                 jakartaCompatibleValue.setForeground(jakartaCompatible > 0 ? Color.GREEN : Color.GRAY);
                 unknownReviewValue.setForeground(unknownReview > 0 ? Color.ORANGE : Color.GREEN);
+                transitiveDepsValue.setForeground(transitiveDeps > 0 ? Color.ORANGE : Color.GREEN);
             } else {
                 dependenciesFoundValue.setText("-");
                 basicDependenciesValue.setText("-");
@@ -1380,6 +1391,7 @@ private void resetAdvancedScanCounts() {
                 jakartaUpgradeValue.setText("0");
                 jakartaCompatibleValue.setText("0");
                 unknownReviewValue.setText("0");
+                transitiveDepsValue.setText("0");
                 projectSizeValue.setText("-");
                 projectSizeValue.setForeground(Color.GRAY);
                 basicTestCoverageValue.setText("-");

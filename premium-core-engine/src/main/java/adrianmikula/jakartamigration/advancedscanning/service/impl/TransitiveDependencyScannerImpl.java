@@ -1,15 +1,19 @@
 package adrianmikula.jakartamigration.advancedscanning.service.impl;
 
+import adrianmikula.jakartamigration.advancedscanning.domain.DependencyTreeResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyProjectScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage;
+import adrianmikula.jakartamigration.advancedscanning.service.DependencyDeduplicationService;
+import adrianmikula.jakartamigration.advancedscanning.service.DependencyTreeCommandExecutor;
 import adrianmikula.jakartamigration.advancedscanning.service.TransitiveDependencyScanner;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -21,6 +25,22 @@ import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 public class TransitiveDependencyScannerImpl implements TransitiveDependencyScanner {
 
     private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
+    private final DependencyTreeCommandExecutor commandExecutor;
+    private final DependencyDeduplicationService deduplicationService;
+
+    // Scopes to include in transitive dependency scanning
+    private static final Set<String> MAVEN_SCOPES = Set.of("compile", "provided", "runtime", "test");
+    private static final Set<String> GRADLE_SCOPES = Set.of("compileClasspath", "runtimeClasspath", "testCompileClasspath");
+
+    public TransitiveDependencyScannerImpl() {
+        this(new DependencyTreeCommandExecutorImpl(), new DependencyDeduplicationServiceImpl());
+    }
+
+    public TransitiveDependencyScannerImpl(DependencyTreeCommandExecutor commandExecutor,
+                                          DependencyDeduplicationService deduplicationService) {
+        this.commandExecutor = commandExecutor;
+        this.deduplicationService = deduplicationService;
+    }
 
     // Known artifacts that contain javax packages and need Jakarta equivalents
     private static final Map<String, TransitiveDependencyInfo> KNOWN_JAVAX_DEPENDENCIES = new HashMap<>();
@@ -72,12 +92,8 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
     private record TransitiveDependencyInfo(String jakartaEquivalent, String severity, String recommendation) {
     }
 
-    // Parallelism configuration - can be overridden via system property
     private static final int MAX_PARALLELISM = Integer.parseInt(
             System.getProperty("advanced.scan.parallelism", "4"));
-
-    // Memory threshold for sequential fallback (100MB)
-    private static final long MEMORY_THRESHOLD_BYTES = 100 * 1024 * 1024;
 
     // Patterns for Maven pom.xml
     private static final Pattern MAVEN_DEPENDENCY_PATTERN = Pattern.compile(
@@ -100,50 +116,16 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
             if (buildFiles.isEmpty())
                 return TransitiveDependencyProjectScanResult.empty();
 
-            // Check available memory and determine parallelism
-            Runtime runtime = Runtime.getRuntime();
-            long maxMemory = runtime.maxMemory();
-            long usedMemory = runtime.totalMemory() - runtime.freeMemory();
-            long availableMemory = maxMemory - usedMemory;
-
             AtomicInteger totalScanned = new AtomicInteger(0);
-            List<TransitiveDependencyScanResult> results;
+            int parallelism = Math.min(MAX_PARALLELISM, buildFiles.size());
 
-            // Use sequential processing if low on memory, otherwise use bounded parallelism
-            if (availableMemory < MEMORY_THRESHOLD_BYTES) {
-                log.info("Low memory detected ({} MB available), using sequential processing for Transitive Dependency scan",
-                        availableMemory / (1024 * 1024));
-                results = buildFiles.stream()
-                        .map(file -> scanFileWithTracking(file, totalScanned))
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-            } else {
-                // Use bounded parallelism with custom ForkJoinPool
-                int parallelism = Math.min(MAX_PARALLELISM, buildFiles.size());
-                log.debug("Using parallel processing with parallelism={} for Transitive Dependency scan", parallelism);
+            List<TransitiveDependencyScanResult> results = buildFiles.parallelStream()
+                    .map(file -> scanFileWithTracking(file, totalScanned))
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
 
-                ForkJoinPool customPool = new ForkJoinPool(parallelism);
-                try {
-                    results = customPool.submit(() ->
-                            buildFiles.parallelStream()
-                                    .map(file -> scanFileWithTracking(file, totalScanned))
-                                    .filter(Objects::nonNull)
-                                    .collect(Collectors.toList())
-                    ).get();
-                } catch (Exception e) {
-                    log.warn("Parallel scan failed for Transitive Dependency, falling back to sequential: {}", e.getMessage());
-                    results = buildFiles.stream()
-                            .map(file -> scanFileWithTracking(file, totalScanned))
-                            .filter(Objects::nonNull)
-                            .collect(Collectors.toList());
-                } finally {
-                    customPool.shutdown();
-                }
-            }
-
-            int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
-
-            return new TransitiveDependencyProjectScanResult(results, totalScanned.get(), results.size(), totalUsages);
+            return new TransitiveDependencyProjectScanResult(results, totalScanned.get(), results.size(),
+                    results.stream().mapToInt(r -> r.getUsages().size()).sum());
         } catch (Exception e) {
             log.error("Error scanning project for transitive dependencies", e);
             return TransitiveDependencyProjectScanResult.empty();
@@ -156,22 +138,86 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
             return TransitiveDependencyScanResult.empty(filePath);
         }
 
+        String fileName = filePath.getFileName().toString().toLowerCase();
+        boolean isMaven = fileName.equals("pom.xml");
+        boolean isGradle = fileName.endsWith(".gradle") || fileName.endsWith(".gradle.kts");
+
+        if (!isMaven && !isGradle) return TransitiveDependencyScanResult.empty(filePath);
+
+        try {
+            var future = isMaven
+                ? commandExecutor.executeMavenDependencyTreeAsync(filePath, MAVEN_SCOPES)
+                : commandExecutor.executeGradleDependenciesAsync(filePath, GRADLE_SCOPES);
+
+            var result = future.get(DependencyTreeCommandExecutor.DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            if (!result.isSuccess() || result.getDependencies().isEmpty()) {
+                throw new RuntimeException("Command failed or returned no dependencies");
+            }
+            return convertTreeResult(filePath, isMaven ? "Maven" : "Gradle", result);
+        } catch (Exception e) {
+            log.warn("Async scanning failed for {}, falling back to regex: {}", filePath, e.getMessage());
+            return scanFileFallback(filePath);
+        }
+    }
+
+    /**
+     * Converts dependency tree result to scan result with deduplication and categorization.
+     */
+    private TransitiveDependencyScanResult convertTreeResult(Path filePath, String buildFileType,
+                                                               DependencyTreeResult treeResult) {
+        List<TransitiveDependencyUsage> usages = new ArrayList<>();
+
+        for (DependencyTreeResult.DependencyNode node : treeResult.getDependencies()) {
+            String artifactKey = node.getArtifactKey();
+
+            // Check against known javax dependencies
+            TransitiveDependencyInfo info = KNOWN_JAVAX_DEPENDENCIES.get(artifactKey);
+            String severity = info != null ? info.severity() : null;
+            String recommendation = info != null ? info.recommendation() : null;
+            String javaxPackage = info != null ? artifactKey : null;
+
+            // Also flag any javax.* artifacts
+            if (node.getGroupId().contains("javax") || node.getArtifactId().contains("javax")) {
+                severity = "high";
+                recommendation = recommendation != null ? recommendation : "Replace javax with jakarta";
+                javaxPackage = javaxPackage != null ? javaxPackage : artifactKey;
+            }
+
+            if (severity != null) {
+                usages.add(new TransitiveDependencyUsage(
+                        node.getArtifactId(),
+                        node.getGroupId(),
+                        node.getVersion(),
+                        javaxPackage,
+                        severity,
+                        recommendation,
+                        node.getScope(),
+                        node.isTransitive(),
+                        node.getDepth()
+                ));
+            }
+        }
+
+        // Deduplicate results
+        List<TransitiveDependencyUsage> deduplicated = deduplicationService.deduplicate(usages);
+
+        return new TransitiveDependencyScanResult(filePath, deduplicated, buildFileType, treeResult.getScopes());
+    }
+
+    private TransitiveDependencyScanResult scanFileFallback(Path filePath) {
         try {
             String content = Files.readString(filePath);
             String fileName = filePath.getFileName().toString().toLowerCase();
 
-            String buildFileType = null;
-            List<TransitiveDependencyUsage> usages = new ArrayList<>();
-
             if (fileName.equals("pom.xml")) {
-                buildFileType = "Maven";
-                usages = parseMavenDependencies(content);
-            } else if (fileName.endsWith(".gradle") || fileName.endsWith(".gradle.kts")) {
-                buildFileType = "Gradle";
-                usages = parseGradleDependencies(content);
+                return new TransitiveDependencyScanResult(filePath,
+                    parseDependencies(content, MAVEN_DEPENDENCY_PATTERN, 0), "Maven");
             }
-
-            return new TransitiveDependencyScanResult(filePath, usages, buildFileType);
+            if (fileName.endsWith(".gradle") || fileName.endsWith(".gradle.kts")) {
+                return new TransitiveDependencyScanResult(filePath,
+                    parseDependencies(content, GRADLE_DEPENDENCY_PATTERN, 3), "Gradle");
+            }
+            return TransitiveDependencyScanResult.empty(filePath);
         } catch (Exception e) {
             return TransitiveDependencyScanResult.empty(filePath);
         }
@@ -184,56 +230,22 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         });
     }
 
-    private List<TransitiveDependencyUsage> parseMavenDependencies(String content) {
+    private List<TransitiveDependencyUsage> parseDependencies(String content, Pattern pattern, int versionGroup) {
         List<TransitiveDependencyUsage> usages = new ArrayList<>();
-
-        Matcher matcher = MAVEN_DEPENDENCY_PATTERN.matcher(content);
+        Matcher matcher = pattern.matcher(content);
         while (matcher.find()) {
             String groupId = matcher.group(1).trim();
             String artifactId = matcher.group(2).trim();
-
+            String version = versionGroup > 0 ? matcher.group(versionGroup).trim() : null;
             String key = groupId + ":" + artifactId;
+
             TransitiveDependencyInfo info = KNOWN_JAVAX_DEPENDENCIES.get(key);
-
-            if (info != null) {
-                usages.add(new TransitiveDependencyUsage(artifactId, groupId, null, key, info.severity(),
-                        info.recommendation()));
-            }
-
-            // Also check for any javax. in groupId or artifactId
-            if (groupId.contains("javax") || artifactId.contains("javax")) {
-                usages.add(new TransitiveDependencyUsage(artifactId, groupId, null, key, "high",
-                        "Replace javax with jakarta"));
+            if (info != null || groupId.contains("javax") || artifactId.contains("javax")) {
+                String severity = info != null ? info.severity() : "high";
+                String recommendation = info != null ? info.recommendation() : "Replace javax with jakarta";
+                usages.add(new TransitiveDependencyUsage(artifactId, groupId, version, key, severity, recommendation));
             }
         }
-
-        return usages;
-    }
-
-    private List<TransitiveDependencyUsage> parseGradleDependencies(String content) {
-        List<TransitiveDependencyUsage> usages = new ArrayList<>();
-
-        Matcher matcher = GRADLE_DEPENDENCY_PATTERN.matcher(content);
-        while (matcher.find()) {
-            String groupId = matcher.group(1).trim();
-            String artifactId = matcher.group(2).trim();
-            String version = matcher.group(3).trim();
-
-            String key = groupId + ":" + artifactId;
-            TransitiveDependencyInfo info = KNOWN_JAVAX_DEPENDENCIES.get(key);
-
-            if (info != null) {
-                usages.add(new TransitiveDependencyUsage(artifactId, groupId, version, key, info.severity(),
-                        info.recommendation()));
-            }
-
-            // Also check for any javax. in groupId or artifactId
-            if (groupId.contains("javax") || artifactId.contains("javax")) {
-                usages.add(new TransitiveDependencyUsage(artifactId, groupId, version, key, "high",
-                        "Replace javax with jakarta"));
-            }
-        }
-
         return usages;
     }
 

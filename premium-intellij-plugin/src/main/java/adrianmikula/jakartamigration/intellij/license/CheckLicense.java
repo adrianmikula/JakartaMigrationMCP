@@ -3,10 +3,6 @@ package adrianmikula.jakartamigration.intellij.license;
 import adrianmikula.jakartamigration.intellij.ui.SupportComponent;
 import com.intellij.openapi.actionSystem.ActionPlaces;
 import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.DataContext;
-import com.intellij.openapi.actionSystem.Presentation;
-import com.intellij.openapi.actionSystem.ex.ActionUtil;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.diagnostic.Logger;
@@ -349,26 +345,10 @@ public class CheckLicense {
             registerAction = actionManager.getAction("Register");
         }
         if (registerAction != null) {
-            // Use ActionUtil to perform the action correctly
-            ActionUtil.performActionDumbAware(registerAction,
-                    AnActionEvent.createFromAnAction(registerAction, null, ActionPlaces.UNKNOWN, asDataContext(productCode, message)));
+            // Use ActionManager.tryToExecute() to properly invoke the action (ActionUtil.performActionDumbAware removed in 2025.1)
+            // Note: InputEvent and Component are null as this is a programmatic invocation
+            actionManager.tryToExecute(registerAction, null, null, ActionPlaces.UNKNOWN, true);
         }
-    }
-
-    // This creates a DataContext providing additional information for the license UI
-    // The "Register*" actions show the registration dialog and expect to find this additional data in the DataContext passed to the action
-    // - productCode: the product corresponding to the passed productCode will be pre-selected in the opened dialog
-    // - message: optional message explaining the reason why the dialog has been shown
-    @NotNull
-    private static DataContext asDataContext(final String productCode, @Nullable final String message) {
-        return dataId -> switch (dataId) {
-            // the same code as registered in plugin.xml, 'product-descriptor' tag
-            case "register.product-descriptor.code" -> productCode;
-
-            // optional message to be shown in the registration dialog that appears
-            case "register.message" -> message;
-            default -> null;
-        };
     }
 
     /**

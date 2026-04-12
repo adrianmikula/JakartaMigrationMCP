@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyProjectScanResult;
 import adrianmikula.jakartamigration.credits.CreditType;
 import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
@@ -635,30 +636,19 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
         /**
          * Run all 3 scans sequentially for premium users:
-         * 1. Basic dependency analysis
+         * 1. Deep dependency scanning (or basic analysis as fallback)
          * 2. Advanced scans
          * 3. Platform detection
          */
         private void runPremiumAnalysis(Path projectPath) {
-            LOG.info("runPremiumAnalysis: Starting sequential scan (basic → advanced → platform)");
+            LOG.info("runPremiumAnalysis: Starting sequential scan (deep deps → advanced → platform)");
 
-            // Step 1: Run basic analysis
-            CompletableFuture.supplyAsync(() -> analysisService.analyzeProject(projectPath))
-                    .thenCompose(basicReport -> {
-                        LOG.info("runPremiumAnalysis: Basic scan completed");
+            // Step 1: Run deep dependency scanning (with fallback to basic analysis)
+            CompletableFuture.supplyAsync(() -> runDeepDependencyAnalysis(projectPath))
+                    .thenCompose(deepScanResult -> {
+                        LOG.info("runPremiumAnalysis: Dependency scan completed (deep or basic fallback)");
 
-                        // Update UI with basic results
-                        ApplicationManager.getApplication().invokeLater(() -> {
-                            if (basicReport != null && basicReport.dependencyGraph() != null &&
-                                    !basicReport.dependencyGraph().getNodes().isEmpty()) {
-                                store.saveAnalysisReport(projectPath, basicReport, false);
-                                updateDashboardFromReport(basicReport);
-                            } else {
-                                showEmptyResultsState();
-                            }
-                        });
-
-                        // Step 2: Run advanced scans
+                        // Step 2: Run advanced scans (without transitive dependency scanning)
                         return CompletableFuture.supplyAsync(() -> {
                             LOG.info("runPremiumAnalysis: Starting advanced scans");
                             try {
@@ -670,6 +660,15 @@ public class MigrationToolWindow implements ToolWindowFactory {
                                 LOG.warn("runPremiumAnalysis: Advanced scans failed", ex);
                                 return null; // Continue even if advanced scan fails
                             }
+                        }).thenApply(advancedSummary -> {
+                            // Combine deep dependency results with advanced summary if available
+                            if (deepScanResult != null && !deepScanResult.isEmpty()) {
+                                LOG.info("runPremiumAnalysis: Using deep dependency scan results with " +
+                                         deepScanResult.size() + " dependencies");
+                                // Store the deep scan results for display
+                                storeDeepDependencyResults(projectPath, deepScanResult);
+                            }
+                            return advancedSummary;
                         });
                     })
                     .thenCompose(advancedSummary -> {
@@ -718,6 +717,135 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         });
                         return null;
                     });
+        }
+
+        /**
+         * Runs deep dependency analysis using Maven/Gradle commands.
+         * Falls back to basic analysis if Maven/Gradle are not available.
+         *
+         * @param projectPath Path to the project root
+         * @return List of DependencyInfo with deep transitive dependencies, or null if failed
+         */
+        private List<DependencyInfo> runDeepDependencyAnalysis(Path projectPath) {
+            LOG.info("runDeepDependencyAnalysis: Starting deep dependency scan");
+
+            // Check if Maven or Gradle is available
+            boolean mavenAvailable = advancedScanningService.isMavenAvailable();
+            boolean gradleAvailable = advancedScanningService.isGradleAvailable();
+
+            LOG.info("runDeepDependencyAnalysis: Maven available=" + mavenAvailable +
+                     ", Gradle available=" + gradleAvailable);
+
+            if (!mavenAvailable && !gradleAvailable) {
+                LOG.warn("runDeepDependencyAnalysis: Neither Maven nor Gradle available, falling back to basic analysis");
+
+                // Fall back to basic analysis
+                ApplicationManager.getApplication().invokeLater(() -> {
+                    Messages.showInfoMessage(project,
+                            "Deep dependency analysis unavailable (Maven/Gradle not found).\n" +
+                            "Falling back to declared dependencies only.",
+                            "Limited Dependency Analysis");
+                });
+
+                // Run basic analysis and convert results
+                try {
+                    DependencyAnalysisReport report = analysisService.analyzeProject(projectPath);
+                    if (report != null && report.dependencyGraph() != null) {
+                        updateDashboardFromReport(report);
+                        return convertBasicReportToDependencyInfo(report);
+                    }
+                } catch (Exception e) {
+                    LOG.error("runDeepDependencyAnalysis: Basic analysis fallback failed", e);
+                }
+                return new ArrayList<>();
+            }
+
+            // Run deep transitive dependency scan
+            try {
+                TransitiveDependencyProjectScanResult deepResult =
+                        advancedScanningService.scanDependenciesDeep(projectPath);
+
+                if (deepResult == null) {
+                    LOG.warn("runDeepDependencyAnalysis: Deep scan returned null");
+                    return new ArrayList<>();
+                }
+
+                // Convert to DependencyInfo list
+                List<DependencyInfo> dependencyInfos = advancedScanningService.convertToDependencyInfo(deepResult);
+
+                LOG.info("runDeepDependencyAnalysis: Deep scan completed with " + dependencyInfos.size() + " dependencies");
+
+                // Update UI with deep results
+                ApplicationManager.getApplication().invokeLater(() -> {
+                    if (!dependencyInfos.isEmpty()) {
+                        dependenciesComponent.setDependencies(dependencyInfos);
+                        LOG.info("runDeepDependencyAnalysis: Updated Dependencies table with deep scan results");
+                    }
+                });
+
+                return dependencyInfos;
+
+            } catch (Exception e) {
+                LOG.error("runDeepDependencyAnalysis: Deep scan failed", e);
+
+                // Fall back to basic analysis
+                try {
+                    DependencyAnalysisReport report = analysisService.analyzeProject(projectPath);
+                    if (report != null && report.dependencyGraph() != null) {
+                        ApplicationManager.getApplication().invokeLater(() -> {
+                            Messages.showWarningDialog(project,
+                                    "Deep dependency scanning failed: " + e.getMessage() + "\n" +
+                                    "Falling back to declared dependencies only.",
+                                    "Deep Scan Failed");
+                            updateDashboardFromReport(report);
+                        });
+                        return convertBasicReportToDependencyInfo(report);
+                    }
+                } catch (Exception fallbackEx) {
+                    LOG.error("runDeepDependencyAnalysis: Basic analysis fallback also failed", fallbackEx);
+                }
+
+                return new ArrayList<>();
+            }
+        }
+
+        /**
+         * Converts basic analysis report to DependencyInfo list.
+         */
+        private List<DependencyInfo> convertBasicReportToDependencyInfo(DependencyAnalysisReport report) {
+            List<DependencyInfo> deps = new ArrayList<>();
+            if (report == null || report.dependencyGraph() == null) {
+                return deps;
+            }
+
+            for (Artifact artifact : report.dependencyGraph().getNodes()) {
+                DependencyInfo info = new DependencyInfo();
+                info.setArtifactId(artifact.artifactId());
+                info.setGroupId(artifact.groupId());
+                info.setCurrentVersion(artifact.version());
+                info.setTransitive(artifact.transitive());
+                info.setDepth(artifact.transitive() ? 1 : 0); // Basic analysis only knows direct vs transitive
+                info.setScope(artifact.scope());
+                deps.add(info);
+            }
+
+            return deps;
+        }
+
+        /**
+         * Stores deep dependency results and updates the UI.
+         */
+        private void storeDeepDependencyResults(Path projectPath, List<DependencyInfo> deepScanResult) {
+            LOG.info("storeDeepDependencyResults: Storing " + deepScanResult.size() + " dependencies");
+
+            // Update Dependencies table
+            dependenciesComponent.setDependencies(deepScanResult);
+
+            // Update Dependency Graph (if component supports DependencyInfo)
+            // Note: dependencyGraphComponent currently uses DependencyGraph, may need adaptation
+
+            // Store in cache/database if needed
+            // store.saveDeepDependencyResults(projectPath, deepScanResult);
         }
 
         /**

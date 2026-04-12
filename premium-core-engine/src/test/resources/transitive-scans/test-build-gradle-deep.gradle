@@ -1,0 +1,48 @@
+plugins {
+    id 'java'
+    id 'war'
+    id 'maven-publish'
+}
+
+group = 'com.test'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Direct dependency (depth 0) - javax.servlet
+    providedCompile 'javax.servlet:javax.servlet-api:4.0.1'
+
+    // Direct dependency (depth 0) - Spring Framework
+    implementation 'org.springframework:spring-context:5.3.21'
+
+    // Direct dependency (depth 0) - Hibernate
+    implementation 'org.hibernate:hibernate-core:5.6.14.Final'
+
+    // Direct dependency (depth 0) - JAXB API
+    implementation 'javax.xml.bind:jaxb-api:2.3.1'
+
+    // Direct dependency (depth 0) - Java EE API
+    providedCompile 'javax:javaee-api:8.0.1'
+
+    // Direct dependency (depth 0) - JPA API
+    implementation 'javax.persistence:javax.persistence-api:2.2'
+
+    // Test dependencies
+    testImplementation 'junit:junit:4.13.2'
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+        }
+    }
+}

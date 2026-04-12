@@ -146,8 +146,8 @@ tasks.named<org.jetbrains.intellij.tasks.PrepareSandboxTask>("prepareSandbox") {
     exclude { entry ->
         // Exclude org.jetbrains.concurrency package to prevent bundling
         // This package is provided by IntelliJ platform and bundling it causes compatibility issues
-        entry.name.startsWith("org/jetbrains/concurrency/") ||
-        entry.name.contains("/org/jetbrains/concurrency/")
+        entry.name.contains("org/jetbrains/concurrency/") ||
+        entry.name.contains("org/jetbrains/util/")
     }
 }
 
@@ -220,20 +220,38 @@ tasks.named<Jar>("jar") {
     
     // Include community-core-engine classes
     val communityCoreEngine = project(":community-core-engine")
-    from(communityCoreEngine.sourceSets.main.get().output)
+    from(communityCoreEngine.sourceSets.main.get().output) {
+        // Exclude IDE-provided packages that should not be bundled
+        exclude("org/jetbrains/concurrency/**")
+        exclude("org/jetbrains/util/**")
+    }
     
     // Also include premium-core-engine classes
     val premiumCoreEngine = project(":premium-core-engine")
-    from(premiumCoreEngine.sourceSets.main.get().output)
+    from(premiumCoreEngine.sourceSets.main.get().output) {
+        // Exclude IDE-provided packages that should not be bundled
+        exclude("org/jetbrains/concurrency/**")
+        exclude("org/jetbrains/util/**")
+    }
+    
+    // Exclude IDE-provided packages from the main source set as well
+    from(sourceSets.main.get().output) {
+        exclude("org/jetbrains/concurrency/**")
+        exclude("org/jetbrains/util/**")
+    }
     
     // Include build info from generateBuildInfo (now in build directory)
     from(layout.buildDirectory.file("build-info.properties"))
 }
 
-// Ensure instrumentedJar task depends on generateBuildInfo
+// Ensure instrumentedJar task depends on generateBuildInfo and excludes IDE packages
 tasks.withType<Jar> {
     if (name == "instrumentedJar") {
         dependsOn("generateBuildInfo")
+        
+        // Exclude IDE-provided packages from instrumented JAR
+        exclude("org/jetbrains/concurrency/**")
+        exclude("org/jetbrains/util/**")
     }
 }
 
