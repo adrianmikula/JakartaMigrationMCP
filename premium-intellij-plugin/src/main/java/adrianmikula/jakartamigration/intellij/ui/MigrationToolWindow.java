@@ -515,18 +515,10 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Set UI to scanning state
             dashboardComponent.setAnalysisRunning(true);
 
-            // Check license status at runtime
-            boolean isLicensed = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
-            LOG.info("handleAnalyzeProject: License check - isLicensed=" + isLicensed);
-
-            if (isLicensed) {
-                // Premium: Run all scans with full results
-                runPremiumAnalysis(projectPath);
-            } else {
-                // Free user: Run basic analysis (truncation mode applied at display time based on credits)
-                LOG.info("handleAnalyzeProject: Free user, running basic analysis");
-                runBasicAnalysis(projectPath);
-            }
+            // Run full analysis for all users (deep scan with transitive dependencies)
+            // Display truncation for free users is handled by DependenciesTableComponent
+            LOG.info("handleAnalyzeProject: Running full analysis (deep scan with transitive dependencies)");
+            runFullAnalysis(projectPath);
         }
 
         /**
@@ -635,35 +627,38 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         /**
-         * Run all 3 scans sequentially for premium users:
+         * Run all 3 scans sequentially for all users:
          * 1. Deep dependency scanning (or basic analysis as fallback)
          * 2. Advanced scans
          * 3. Platform detection
+         *
+         * Display truncation for free users is handled at the UI level by DependenciesTableComponent
+         * which limits results to 10 rows for non-premium users.
          */
-        private void runPremiumAnalysis(Path projectPath) {
-            LOG.info("runPremiumAnalysis: Starting sequential scan (deep deps → advanced → platform)");
+        private void runFullAnalysis(Path projectPath) {
+            LOG.info("runFullAnalysis: Starting sequential scan (deep deps → advanced → platform)");
 
             // Step 1: Run deep dependency scanning (with fallback to basic analysis)
             CompletableFuture.supplyAsync(() -> runDeepDependencyAnalysis(projectPath))
                     .thenCompose(deepScanResult -> {
-                        LOG.info("runPremiumAnalysis: Dependency scan completed (deep or basic fallback)");
+                        LOG.info("runFullAnalysis: Dependency scan completed (deep or basic fallback)");
 
                         // Step 2: Run advanced scans (without transitive dependency scanning)
                         return CompletableFuture.supplyAsync(() -> {
-                            LOG.info("runPremiumAnalysis: Starting advanced scans");
+                            LOG.info("runFullAnalysis: Starting advanced scans");
                             try {
                                 AdvancedScanningService.AdvancedScanSummary advancedSummary =
                                         advancedScanningService.scanAll(projectPath);
-                                LOG.info("runPremiumAnalysis: Advanced scans completed");
+                                LOG.info("runFullAnalysis: Advanced scans completed");
                                 return advancedSummary;
                             } catch (Exception ex) {
-                                LOG.warn("runPremiumAnalysis: Advanced scans failed", ex);
+                                LOG.warn("runFullAnalysis: Advanced scans failed", ex);
                                 return null; // Continue even if advanced scan fails
                             }
                         }).thenApply(advancedSummary -> {
                             // Combine deep dependency results with advanced summary if available
                             if (deepScanResult != null && !deepScanResult.isEmpty()) {
-                                LOG.info("runPremiumAnalysis: Using deep dependency scan results with " +
+                                LOG.info("runFullAnalysis: Using deep dependency scan results with " +
                                          deepScanResult.size() + " dependencies");
                                 // Store the deep scan results for display
                                 storeDeepDependencyResults(projectPath, deepScanResult);
@@ -672,7 +667,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         });
                     })
                     .thenCompose(advancedSummary -> {
-                        LOG.info("runPremiumAnalysis: Advanced scan step completed");
+                        LOG.info("runFullAnalysis: Advanced scan step completed");
 
                         // Update UI with advanced results
                         ApplicationManager.getApplication().invokeLater(() -> {
@@ -683,17 +678,17 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
                         // Step 3: Run platform scan
                         return CompletableFuture.supplyAsync(() -> {
-                            LOG.info("runPremiumAnalysis: Starting platform scan");
+                            LOG.info("runFullAnalysis: Starting platform scan");
                             try {
                                 if (platformsTabComponent != null) {
                                     platformsTabComponent.scanProject();
-                                    LOG.info("runPremiumAnalysis: Platform scan completed");
+                                    LOG.info("runFullAnalysis: Platform scan completed");
                                 } else {
-                                    LOG.warn("runPremiumAnalysis: platformsTabComponent is null");
+                                    LOG.warn("runFullAnalysis: platformsTabComponent is null");
                                 }
                                 return true;
                             } catch (Exception ex) {
-                                LOG.warn("runPremiumAnalysis: Platform scan failed", ex);
+                                LOG.warn("runFullAnalysis: Platform scan failed", ex);
                                 return false; // Continue even if platform scan fails
                             }
                         }).thenApply(platformSuccess -> advancedSummary);
@@ -701,16 +696,25 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     .thenAccept(finalSummary -> {
                         ApplicationManager.getApplication().invokeLater(() -> {
                             dashboardComponent.setAnalysisRunning(false);
-                            LOG.info("runPremiumAnalysis: All scans completed successfully");
-                            Messages.showInfoMessage(project,
-                                    "Premium analysis complete! Basic, advanced, and platform scans finished.",
-                                    "Analysis Complete");
+                            LOG.info("runFullAnalysis: All scans completed successfully");
+                            boolean isPremium = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
+                            if (isPremium) {
+                                Messages.showInfoMessage(project,
+                                        "Analysis complete! Deep dependency, advanced, and platform scans finished.",
+                                        "Analysis Complete");
+                            } else {
+                                Messages.showInfoMessage(project,
+                                        "Analysis complete! Showing all dependencies found.\n\n" +
+                                        "Note: Free users see first 10 dependencies in the Dependencies tab. " +
+                                        "Upgrade to Premium for unlimited access.",
+                                        "Analysis Complete");
+                            }
                         });
                     })
                     .exceptionally(ex -> {
                         ApplicationManager.getApplication().invokeLater(() -> {
                             dashboardComponent.setAnalysisRunning(false);
-                            LOG.error("runPremiumAnalysis: Analysis failed", ex);
+                            LOG.error("runFullAnalysis: Analysis failed", ex);
                             Messages.showWarningDialog(project,
                                     "Analysis failed: " + ex.getMessage(),
                                     "Analysis Failed");

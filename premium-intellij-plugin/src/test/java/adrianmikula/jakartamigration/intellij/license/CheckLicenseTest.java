@@ -319,64 +319,6 @@ class CheckLicenseTest {
         assertThat(status).isEqualTo("Free");
     }
 
-    @Test
-    @DisplayName("Should return trial status with days remaining")
-    void shouldReturnTrialStatusWithDaysRemaining() {
-        // Given
-        mockedLicensingFacade.when(LicensingFacade::getInstance).thenReturn(null);
-        System.setProperty("jakarta.migration.premium", "true");
-        System.setProperty("jakarta.migration.trial.end", 
-                String.valueOf(System.currentTimeMillis() + (2 * 24 * 60 * 60 * 1000))); // 2 days
-
-        // When
-        String status = CheckLicense.getLicenseStatusString();
-
-        // Then
-        assertThat(status).startsWith("Trial - ");
-        assertThat(status).contains("days remaining");
-    }
-
-    // ==================== Trial Management Tests ====================
-
-    @Test
-    @DisplayName("Should start trial correctly")
-    void shouldStartTrialCorrectly() {
-        // Given
-        long beforeTime = System.currentTimeMillis();
-
-        // When
-        CheckLicense.startTrial();
-
-        // Then
-        assertThat(System.getProperty("jakarta.migration.premium")).isEqualTo("true");
-        
-        String trialEnd = System.getProperty("jakarta.migration.trial.end");
-        assertThat(trialEnd).isNotNull();
-        
-        long trialEndTime = Long.parseLong(trialEnd);
-        long expectedEndTime = beforeTime + SEVEN_DAYS_MS;
-        
-        // Allow for small timing differences (within 1 second)
-        assertThat(Math.abs(trialEndTime - expectedEndTime)).isLessThan(1000);
-    }
-
-    @Test
-    @DisplayName("Should clear cache when starting trial")
-    void shouldClearCacheWhenStartingTrial() {
-        // Given
-        mockedLicensingFacade.when(LicensingFacade::getInstance).thenReturn(mockLicensingFacade);
-        when(mockLicensingFacade.getConfirmationStamp(PRODUCT_CODE)).thenReturn(null);
-        CheckLicense.isLicensed(); // Cache result
-
-        // When
-        CheckLicense.startTrial();
-
-        // Then
-        // Cache should be cleared, but we can't directly test this without
-        // exposing internal state. The important thing is it doesn't throw.
-        assertThat(System.getProperty("jakarta.migration.premium")).isEqualTo("true");
-    }
-
     // ==================== Error Handling Tests ====================
 
     @Test

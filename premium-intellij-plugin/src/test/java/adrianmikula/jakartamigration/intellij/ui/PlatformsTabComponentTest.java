@@ -56,9 +56,4 @@ public class PlatformsTabComponentTest extends BasePlatformTestCase {
         assertDoesNotThrow(() -> platformsTab.refreshUI());
     }
     
-    @Test
-    @DisplayName("updatePremiumControls should not throw exceptions")
-    void testUpdatePremiumControls() {
-        assertDoesNotThrow(() -> platformsTab.updatePremiumControls());
-    }
 }

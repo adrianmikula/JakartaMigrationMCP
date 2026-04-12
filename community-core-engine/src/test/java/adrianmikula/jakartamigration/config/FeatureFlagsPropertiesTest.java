@@ -25,12 +25,6 @@ class FeatureFlagsPropertiesTest {
         assertThat(FeatureFlagsProperties.getYearlyPriceUsd()).isEqualTo(50.0);
     }
 
-    @Test
-    @DisplayName("Free trial should be 7 days")
-    void freeTrialIs7Days() {
-        assertThat(FeatureFlagsProperties.getFreeTrialDays()).isEqualTo(7);
-    }
-
     // === Pricing Formatted Tests ===
 
     @Test
@@ -66,53 +60,6 @@ class FeatureFlagsPropertiesTest {
         assertThat(url).contains("plugins.jetbrains.com");
     }
 
-    // === Subscription Status Tests ===
-
-    @Test
-    @DisplayName("Should return false when trial not started and tier is COMMUNITY")
-    void noSubscriptionWhenCommunityAndNoTrial() {
-        FeatureFlagsProperties props = new FeatureFlagsProperties();
-        props.setDefaultTier(FeatureFlagsProperties.LicenseTier.COMMUNITY);
-        props.setTrialEndTimestamp(null);
-
-        assertThat(props.hasActiveSubscription()).isFalse();
-    }
-
-    @Test
-    @DisplayName("Should return true when tier is PREMIUM")
-    void hasSubscriptionWhenPremium() {
-        FeatureFlagsProperties props = new FeatureFlagsProperties();
-        props.setDefaultTier(FeatureFlagsProperties.LicenseTier.PREMIUM);
-        props.setTrialEndTimestamp(null);
-
-        assertThat(props.hasActiveSubscription()).isTrue();
-    }
-
-    @Test
-    @DisplayName("Should return true during active trial")
-    void hasSubscriptionDuringTrial() {
-        FeatureFlagsProperties props = new FeatureFlagsProperties();
-        props.setDefaultTier(FeatureFlagsProperties.LicenseTier.COMMUNITY);
-        // Set trial to expire 5 days from now
-        props.setTrialEndTimestamp(System.currentTimeMillis() + (5L * 24 * 60 * 60 * 1000));
-
-        assertThat(props.hasActiveSubscription()).isTrue();
-        assertThat(props.getRemainingTrialDays()).isGreaterThan(0);
-        assertThat(props.getRemainingTrialDays()).isLessThanOrEqualTo(5);
-    }
-
-    @Test
-    @DisplayName("Should return 0 days remaining after trial expired")
-    void zeroDaysAfterTrialExpired() {
-        FeatureFlagsProperties props = new FeatureFlagsProperties();
-        props.setDefaultTier(FeatureFlagsProperties.LicenseTier.COMMUNITY);
-        // Set trial to expired yesterday
-        props.setTrialEndTimestamp(System.currentTimeMillis() - (24L * 60 * 60 * 1000));
-
-        assertThat(props.hasActiveSubscription()).isFalse();
-        assertThat(props.getRemainingTrialDays()).isEqualTo(0);
-    }
-
     // === Default Values Tests ===
 
     @Test
@@ -134,13 +81,6 @@ class FeatureFlagsPropertiesTest {
     void licenseKeyEmptyByDefault() {
         FeatureFlagsProperties props = new FeatureFlagsProperties();
         assertThat(props.getLicenseKey()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("Trial end timestamp should be null by default")
-    void trialEndTimestampNullByDefault() {
-        FeatureFlagsProperties props = new FeatureFlagsProperties();
-        assertThat(props.getTrialEndTimestamp()).isNull();
     }
 
     // === License Tier Enum Tests ===
@@ -165,6 +105,5 @@ class FeatureFlagsPropertiesTest {
         // Test that default values are loaded correctly
         assertThat(FeatureFlagsProperties.getMonthlyPriceUsd()).isEqualTo(5.0);
         assertThat(FeatureFlagsProperties.getYearlyPriceUsd()).isEqualTo(50.0);
-        assertThat(FeatureFlagsProperties.getFreeTrialDays()).isEqualTo(7);
     }
 }

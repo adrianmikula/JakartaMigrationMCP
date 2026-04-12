@@ -43,24 +43,19 @@ public class ProjectFileSystemScanner {
      */
     public List<Path> findFiles(Path projectPath, Predicate<Path> filter) {
         List<Path> matchingFiles = new ArrayList<>();
-        
-        System.out.println("[DEBUG] Scanner scanning: " + projectPath);
 
         try {
             Files.walkFileTree(projectPath, new SimpleFileVisitor<Path>() {
                 @Override
                 public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
                     if (isIgnored(dir)) {
-                        System.out.println("[DEBUG] Ignoring directory: " + dir);
                         return FileVisitResult.SKIP_SUBTREE;
                     }
-                    System.out.println("[DEBUG] Visiting directory: " + dir);
                     return FileVisitResult.CONTINUE;
                 }
 
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                    System.out.println("[DEBUG] Visiting file: " + file + " matches=" + filter.test(file));
                     if (filter.test(file)) {
                         matchingFiles.add(file);
                     }

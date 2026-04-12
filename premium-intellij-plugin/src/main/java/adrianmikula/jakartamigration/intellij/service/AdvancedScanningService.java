@@ -331,7 +331,14 @@ public class AdvancedScanningService {
 
     public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(Path projectPath) {
         LOG.info("Scanning for Transitive Dependencies in: " + projectPath);
-        return scanningModule.getTransitiveDependencyScanner().scanProject(projectPath);
+        TransitiveDependencyProjectScanResult result = scanningModule.getTransitiveDependencyScanner().scanProject(projectPath);
+        int fileCount = result.getFileResults().size();
+        int totalUsages = result.getFileResults().stream().mapToInt(r -> r.getUsages().size()).sum();
+        LOG.info("[DEBUG] Scan result: " + fileCount + " files, " + totalUsages + " total usages");
+        for (TransitiveDependencyScanResult fileResult : result.getFileResults()) {
+            LOG.info("[DEBUG] File result: " + fileResult.toString());
+        }
+        return result;
     }
 
     /**

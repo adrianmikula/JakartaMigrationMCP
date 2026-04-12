@@ -330,25 +330,25 @@ class TransitiveDependencyScannerIntegrationTest {
 
         TransitiveDependencyScanResult fileResult = result.getFileResults().get(0);
 
-        // Should find 5 javax dependencies, not the jakarta one
-        assertEquals(5, fileResult.getUsages().size());
+        // Should find all 6 dependencies (5 javax with high severity + 1 jakarta with low severity)
+        assertEquals(6, fileResult.getUsages().size());
         assertTrue(fileResult.hasJavaxUsage());
 
-        // Verify all javax packages are detected
+        // Verify all javax packages are detected with high severity
         assertTrue(fileResult.getUsages().stream()
-                .anyMatch(u -> u.getGroupId().equals("javax.servlet")));
+                .anyMatch(u -> u.getGroupId().equals("javax.servlet") && "high".equals(u.getSeverity())));
         assertTrue(fileResult.getUsages().stream()
-                .anyMatch(u -> u.getGroupId().equals("javax.jms")));
+                .anyMatch(u -> u.getGroupId().equals("javax.jms") && "high".equals(u.getSeverity())));
         assertTrue(fileResult.getUsages().stream()
-                .anyMatch(u -> u.getGroupId().equals("javax.xml.bind")));
+                .anyMatch(u -> u.getGroupId().equals("javax.xml.bind") && "high".equals(u.getSeverity())));
         assertTrue(fileResult.getUsages().stream()
-                .anyMatch(u -> u.getGroupId().equals("javax.persistence")));
+                .anyMatch(u -> u.getGroupId().equals("javax.persistence") && "high".equals(u.getSeverity())));
         assertTrue(fileResult.getUsages().stream()
-                .anyMatch(u -> u.getGroupId().equals("javax.validation")));
+                .anyMatch(u -> u.getGroupId().equals("javax.validation") && "high".equals(u.getSeverity())));
 
-        // Verify jakarta is NOT in results
-        assertFalse(fileResult.getUsages().stream()
-                .anyMatch(u -> u.getGroupId().equals("jakarta.servlet")));
+        // Verify jakarta is included with low severity (not a javax dependency)
+        assertTrue(fileResult.getUsages().stream()
+                .anyMatch(u -> u.getGroupId().equals("jakarta.servlet") && "low".equals(u.getSeverity())));
     }
 
     @Test
