@@ -293,11 +293,10 @@ dependencyRisks:
 riskCalculation:
   # Weights for different components in overall score
   componentWeights:
-    scanFindings: 0.25      # 30% from scan findings
-    dependencyIssues: 0.25   # 30% from dependency issues
-    codeComplexity: 0.25     # 20% from code complexity
-    platformRisk: 0.25      # 10% from platform compatibility
-    testCoverage: 0.1       # 10% from test coverage (lower coverage = higher risk)
+    scanFindings: 0.25      # 25% from scan findings
+    dependencyIssues: 0.25   # 25% from dependency issues
+    codeComplexity: 0.25     # 25% from code complexity
+    platformRisk: 0.25      # 25% from platform compatibility
     
   # Minimum scan threshold to include in scoring
   minScanThreshold: 0.5
@@ -316,16 +315,6 @@ scanCalculation:
   maxFindingsPerScan: 5
   # Minimum scan threshold to include in scoring
   minScanThreshold: 0.5
-
-# Test coverage multiplier formula (previously hardcoded in Java lines 256-264)
-# Formula: coverage <= 50%: multiplier = maxMultiplier - (coverage / 50%) * (maxMultiplier - midMultiplier)
-#          coverage > 50%: multiplier = midMultiplier - ((coverage - 50%) / 50%) * (midMultiplier - minMultiplier)
-coverageMultiplier:
-  maxMultiplier: 2.0      # At 0% coverage
-  midMultiplier: 1.0      # At 50% coverage
-  minMultiplier: 0.5      # At 100% coverage
-  referenceCoverageLow: 50.0
-  referenceCoverageHigh: 50.0
 
 # Simplified PDF report formula weights (previously hardcoded in RiskScoringService lines 294-309)
 pdfFormula:

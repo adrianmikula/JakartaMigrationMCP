@@ -64,18 +64,9 @@ public class DashboardComponent {
     private ConfidenceGauge confidenceScoreGauge;
     private RiskGauge migrationRiskGauge;
     
-    // UI Components for effort estimation sliders
-    private JSlider devTeamSizeSlider;
-    private JBLabel devTeamSizeValueLabel;
+    // Default values for calculations (previously configured via sliders)
     private static final int DEFAULT_TEAM_SIZE = 5;
-    
-    // Test Coverage Slider
-    private JSlider testCoverageSlider;
-    private JBLabel testCoverageValueLabel;
     private static final int DEFAULT_TEST_COVERAGE = 50;
-    
-    // Test coverage display
-    private JBLabel testCoverageLabel;
     
     // UI Components for progress section (middle)
     private JPanel progressPanel;
@@ -90,7 +81,6 @@ public class DashboardComponent {
     private JBLabel scanProgressValue;
     private JBLabel dependenciesFoundValue;
     private JBLabel basicDependenciesValue;
-    private JBLabel refactorRecipesValue;
     private JBLabel detectedPlatformsValue;
     
     // Comprehensive Summary Components
@@ -111,9 +101,8 @@ public class DashboardComponent {
     private JBLabel unknownReviewValue;
     private JBLabel transitiveDepsValue;
     
-    // Project Size and Test Coverage Components
+    // Project Size Component
     private JBLabel projectSizeValue;
-    private JBLabel basicTestCoverageValue;
     
     // UI Components for scan results table (removed - was integrated into basicResultsPanel)
     // Note: scan results now displayed directly in basicResultsPanel as count labels
@@ -666,26 +655,6 @@ private void resetAdvancedScanCounts() {
         gbc.gridx = 1;
         gaugesContainer.add(migrationRiskGauge, gbc);
 
-        // Test Coverage Estimate (Indicator 3)
-        JPanel coveragePanel = new JBPanel<>(new BorderLayout());
-        coveragePanel.setMinimumSize(new java.awt.Dimension(140, 120));
-
-        JLabel coverageTitle = new JBLabel("Est. Test Coverage", SwingConstants.CENTER);
-        coverageTitle.setFont(coverageTitle.getFont().deriveFont(Font.BOLD, 12f));
-        coveragePanel.add(coverageTitle, BorderLayout.NORTH);
-
-        testCoverageLabel = new JBLabel("Calculating...", SwingConstants.CENTER);
-        testCoverageLabel.setFont(testCoverageLabel.getFont().deriveFont(Font.BOLD, 24f));
-        testCoverageLabel.setForeground(new Color(100, 100, 100));
-        coveragePanel.add(testCoverageLabel, BorderLayout.CENTER);
-
-        JLabel coverageSubtitle = new JBLabel("based on test file ratio", SwingConstants.CENTER);
-        coverageSubtitle.setFont(coverageSubtitle.getFont().deriveFont(Font.ITALIC, 9f));
-        coveragePanel.add(coverageSubtitle, BorderLayout.SOUTH);
-
-        gbc.gridx = 2;
-        gaugesContainer.add(coveragePanel, gbc);
-
         panel.add(gaugesContainer, BorderLayout.CENTER);
 
         // Slider panel for effort estimation inputs
@@ -696,8 +665,7 @@ private void resetAdvancedScanCounts() {
     }
 
     /**
-     * Creates the sliders panel for dev team size and environment count.
-     * These inputs affect the migration effort calculation.
+     * Creates the project info panel showing project metadata.
      */
     private JPanel createSlidersPanel() {
         JPanel panel = new JBPanel<>(new GridBagLayout());
@@ -707,70 +675,8 @@ private void resetAdvancedScanCounts() {
         gbc.insets = new Insets(5, 10, 5, 10);
         gbc.anchor = GridBagConstraints.WEST;
 
-        // Dev Team Size Slider
+        // Project Size
         gbc.gridx = 0; gbc.gridy = 0;
-        JLabel teamLabel = new JLabel("Dev Team Size:");
-        teamLabel.setFont(teamLabel.getFont().deriveFont(Font.PLAIN, 11f));
-        panel.add(teamLabel, gbc);
-
-        devTeamSizeSlider = new JSlider(JSlider.HORIZONTAL, 1, 20, DEFAULT_TEAM_SIZE);
-        devTeamSizeSlider.setMajorTickSpacing(5);
-        devTeamSizeSlider.setMinorTickSpacing(1);
-        devTeamSizeSlider.setPaintTicks(true);
-        gbc.gridx = 1;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1.0;
-        panel.add(devTeamSizeSlider, gbc);
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.weightx = 0.0;
-
-        devTeamSizeValueLabel = new JBLabel(String.valueOf(DEFAULT_TEAM_SIZE));
-        devTeamSizeValueLabel.setFont(devTeamSizeValueLabel.getFont().deriveFont(Font.BOLD, 11f));
-        gbc.gridx = 2;
-        panel.add(devTeamSizeValueLabel, gbc);
-
-        // Add change listener to update effort calculation
-        devTeamSizeSlider.addChangeListener(e -> {
-            if (!devTeamSizeSlider.getValueIsAdjusting()) {
-                int value = devTeamSizeSlider.getValue();
-                devTeamSizeValueLabel.setText(String.valueOf(value));
-                updateGauges();
-            }
-        });
-
-        // Test Coverage Slider
-        gbc.gridx = 0; gbc.gridy = 1;
-        JLabel coverageSliderLabel = new JLabel("Test Coverage:");
-        coverageSliderLabel.setFont(coverageSliderLabel.getFont().deriveFont(Font.PLAIN, 11f));
-        panel.add(coverageSliderLabel, gbc);
-
-        testCoverageSlider = new JSlider(JSlider.HORIZONTAL, 0, 100, DEFAULT_TEST_COVERAGE);
-        testCoverageSlider.setMajorTickSpacing(20);
-        testCoverageSlider.setMinorTickSpacing(5);
-        testCoverageSlider.setPaintTicks(true);
-        gbc.gridx = 1;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1.0;
-        panel.add(testCoverageSlider, gbc);
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.weightx = 0.0;
-
-        testCoverageValueLabel = new JBLabel(DEFAULT_TEST_COVERAGE + "%");
-        testCoverageValueLabel.setFont(testCoverageValueLabel.getFont().deriveFont(Font.BOLD, 11f));
-        gbc.gridx = 2;
-        panel.add(testCoverageValueLabel, gbc);
-
-        // Add change listener to update risk score calculation
-        testCoverageSlider.addChangeListener(e -> {
-            if (!testCoverageSlider.getValueIsAdjusting()) {
-                int value = testCoverageSlider.getValue();
-                testCoverageValueLabel.setText(value + "%");
-                updateGauges();
-            }
-        });
-
-        // Project Size - displayed below the sliders
-        gbc.gridx = 0; gbc.gridy = 2;
         JLabel projectSizeLabel = new JLabel("Project Size:");
         projectSizeLabel.setFont(projectSizeLabel.getFont().deriveFont(Font.PLAIN, 11f));
         panel.add(projectSizeLabel, gbc);
@@ -778,26 +684,6 @@ private void resetAdvancedScanCounts() {
         projectSizeValue = createValueLabel("-");
         gbc.gridx = 1;
         panel.add(projectSizeValue, gbc);
-
-        // Refactor Recipes - displayed below project size
-        gbc.gridx = 0; gbc.gridy = 3;
-        JLabel refactorRecipesLabel = new JLabel("Refactor Recipes:");
-        refactorRecipesLabel.setFont(refactorRecipesLabel.getFont().deriveFont(Font.PLAIN, 11f));
-        panel.add(refactorRecipesLabel, gbc);
-
-        refactorRecipesValue = createValueLabel("-");
-        gbc.gridx = 1;
-        panel.add(refactorRecipesValue, gbc);
-
-        // Basic Test Coverage - displayed below refactor recipes
-        gbc.gridx = 0; gbc.gridy = 4;
-        JLabel basicTestCoverageLabel = new JLabel("Basic Test Coverage:");
-        basicTestCoverageLabel.setFont(basicTestCoverageLabel.getFont().deriveFont(Font.PLAIN, 11f));
-        panel.add(basicTestCoverageLabel, gbc);
-
-        basicTestCoverageValue = createValueLabel("-");
-        gbc.gridx = 1;
-        panel.add(basicTestCoverageValue, gbc);
 
         return panel;
     }
@@ -1220,7 +1106,8 @@ private void resetAdvancedScanCounts() {
             int noSupport = depSummary.getNoJakartaSupportCount() != null ? depSummary.getNoJakartaSupportCount() : 0;
             int affected = depSummary.getAffectedDependencies() != null ? depSummary.getAffectedDependencies() : 0;
             int blockers = depSummary.getBlockerDependencies() != null ? depSummary.getBlockerDependencies() : 0;
-            
+            int transitiveDeps = depSummary.getTransitiveDependencies() != null ? depSummary.getTransitiveDependencies() : 0;
+
             if (noSupport > 0) {
                 depIssues.put("noJakartaVersion", noSupport * 25);
             }
@@ -1229,6 +1116,9 @@ private void resetAdvancedScanCounts() {
             }
             if (affected > 0) {
                 depIssues.put("directDependency", affected * 10);
+            }
+            if (transitiveDeps > 0) {
+                depIssues.put("transitiveDependency", (int) Math.round(transitiveDeps * 0.1));
             }
         }
         
@@ -1264,9 +1154,8 @@ private void resetAdvancedScanCounts() {
         // Calculate risk score (with caching to prevent unnecessary recalculations)
         int totalFileCount = getTotalFileCount();
         double platformRiskScore = getPlatformRiskScore();
-        // Use test coverage from slider for risk calculation
-        double testCoverage = (testCoverageSlider != null) ? testCoverageSlider.getValue() : DEFAULT_TEST_COVERAGE;
-        RiskScoringService.RiskScore riskScore = riskScoringService.calculateRiskScore(scanFindings, depIssues, totalFileCount, platformRiskScore, testCoverage);
+        // Use default test coverage for risk calculation (slider removed)
+        RiskScoringService.RiskScore riskScore = riskScoringService.calculateRiskScore(scanFindings, depIssues, totalFileCount, platformRiskScore);
         int newScore = (int) Math.round(riskScore.totalScore());
         
         // Only update gauge if score actually changed
@@ -1307,19 +1196,6 @@ private void resetAdvancedScanCounts() {
             int totalFiles = getTotalFileCount();
             projectSizeValue.setText(String.valueOf(totalFiles));
             projectSizeValue.setForeground(totalFiles > 0 ? new Color(100, 100, 200) : Color.GRAY);
-
-            // Update test coverage estimate
-            double testCoverage = calculateTestCoverageEstimate();
-            basicTestCoverageValue.setText(String.format("%.0f%%", testCoverage));
-            if (testCoverage >= 80) {
-                basicTestCoverageValue.setForeground(new Color(40, 167, 69)); // Green
-            } else if (testCoverage >= 50) {
-                basicTestCoverageValue.setForeground(new Color(255, 193, 7)); // Yellow
-            } else if (testCoverage > 0) {
-                basicTestCoverageValue.setForeground(new Color(220, 53, 69)); // Red
-            } else {
-                basicTestCoverageValue.setForeground(Color.GRAY);
-            }
 
             // Update dependencies found
             DependencySummary depSummary = dashboard.getDependencySummary();
@@ -1371,16 +1247,11 @@ private void resetAdvancedScanCounts() {
                 transitiveDepsValue.setText("0");
                 projectSizeValue.setText("-");
                 projectSizeValue.setForeground(Color.GRAY);
-                basicTestCoverageValue.setText("-");
-                basicTestCoverageValue.setForeground(Color.GRAY);
             }
             
             // Update comprehensive summary - Basic Issues
             updateScanCountWithColor(totalBasicIssuesValue, totalBasicIssues);
 
-            // Update refactor recipes (this would need integration with recipe service)
-            refactorRecipesValue.setText("Calculating...");
-            
             // Update advanced scan totals
             int totalAdvancedIssues = 0;
             if (advancedScanningService != null && advancedScanningService.hasCachedResults()) {
@@ -1524,10 +1395,12 @@ private void resetAdvancedScanCounts() {
                     int noSupport = depSummary.getNoJakartaSupportCount() != null ? depSummary.getNoJakartaSupportCount() : 0;
                     int affected = depSummary.getAffectedDependencies() != null ? depSummary.getAffectedDependencies() : 0;
                     int blockers = depSummary.getBlockerDependencies() != null ? depSummary.getBlockerDependencies() : 0;
+                    int transitiveDeps = depSummary.getTransitiveDependencies() != null ? depSummary.getTransitiveDependencies() : 0;
 
                     if (noSupport > 0) depIssues.put("noJakartaVersion", noSupport * 25);
                     if (affected > 0) depIssues.put("affectedDependencies", affected * 10);
                     if (blockers > 0) depIssues.put("blockerDependencies", blockers * 50);
+                    if (transitiveDeps > 0) depIssues.put("transitiveDependency", (int) Math.round(transitiveDeps * 0.1));
                 }
 
                 // Add basic scan findings
@@ -1536,10 +1409,9 @@ private void resetAdvancedScanCounts() {
                     scanFindings.put("basic", createRiskFindings(basicCount, "basic"));
                 }
 
-                // Get test coverage from slider for risk calculation
-                double testCoverage = (testCoverageSlider != null) ? testCoverageSlider.getValue() : DEFAULT_TEST_COVERAGE;
+                // Use default test coverage for risk calculation (slider removed)
                 RiskScoringService.RiskScore currentScore = riskScoringService.calculateRiskScore(
-                    scanFindings, depIssues, getTotalFileCount(), getPlatformRiskScore(), testCoverage);
+                    scanFindings, depIssues, getTotalFileCount(), getPlatformRiskScore());
                 currentRiskScore = currentScore.totalScore();
             } catch (Exception e) {
                 LOG.warn("Could not calculate current risk score for effort calculation: " + e.getMessage());
@@ -1547,8 +1419,8 @@ private void resetAdvancedScanCounts() {
             }
         }
 
-        // Use team size from slider, default to 1 environment (environments removed from formula)
-        int teamSize = (devTeamSizeSlider != null) ? devTeamSizeSlider.getValue() : DEFAULT_TEAM_SIZE;
+        // Use default team size (slider removed), default to 1 environment
+        int teamSize = DEFAULT_TEAM_SIZE;
 
         // Calculate test coverage estimate
         double testCoverage = calculateTestCoverageEstimate();
@@ -1562,28 +1434,6 @@ private void resetAdvancedScanCounts() {
 
         // Apply coverage factor to effort
         int effortWeeks = (int) Math.ceil(baseEffortWeeks * coverageFactor);
-
-        // DEBUG: Log effort calculation
-        System.out.println("DEBUG: Effort calculation - Risk Score: " + currentRiskScore +
-                          ", Team Size: " + teamSize +
-                          ", Test Coverage: " + String.format("%.1f%%", testCoverage) +
-                          ", Coverage Factor: " + String.format("%.2f", coverageFactor) +
-                          ", Weeks: " + effortWeeks + " (base: " + baseEffortWeeks + ")");
-
-        // Update test coverage label
-        if (testCoverageLabel != null) {
-            SwingUtilities.invokeLater(() -> {
-                testCoverageLabel.setText(String.format("%.0f%%", testCoverage));
-                // Color code based on coverage level
-                if (testCoverage >= 80) {
-                    testCoverageLabel.setForeground(new Color(40, 167, 69)); // Green - good coverage
-                } else if (testCoverage >= 50) {
-                    testCoverageLabel.setForeground(new Color(255, 193, 7)); // Yellow - moderate
-                } else {
-                    testCoverageLabel.setForeground(new Color(220, 53, 69)); // Red - low coverage
-                }
-            });
-        }
 
         return effortWeeks;
     }

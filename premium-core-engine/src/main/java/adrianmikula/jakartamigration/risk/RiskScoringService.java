@@ -18,7 +18,6 @@ public class RiskScoringService {
     private final Map<String, CategoryConfig> categoryConfigs;
     private final Map<String, Object> calculationConfig;
     private final Map<String, Object> scanCalculationConfig;
-    private final Map<String, Object> coverageMultiplierConfig;
     private final Map<String, Object> pdfFormulaConfig;
     private final Map<String, Object> complexityScoringConfig;
 
@@ -72,7 +71,6 @@ public class RiskScoringService {
         categoryConfigs = new ConcurrentHashMap<>();
         calculationConfig = new HashMap<>();
         scanCalculationConfig = new HashMap<>();
-        coverageMultiplierConfig = new HashMap<>();
         pdfFormulaConfig = new HashMap<>();
         complexityScoringConfig = new HashMap<>();
         loadConfiguration();
@@ -146,11 +144,6 @@ public class RiskScoringService {
                 scanCalculationConfig.putAll((Map<String, Object>) config.get("scanCalculation"));
             }
 
-            // Load coverage multiplier formula config
-            if (config.containsKey("coverageMultiplier")) {
-                coverageMultiplierConfig.putAll((Map<String, Object>) config.get("coverageMultiplier"));
-            }
-
             // Load PDF formula weights
             if (config.containsKey("pdfFormula")) {
                 pdfFormulaConfig.putAll((Map<String, Object>) config.get("pdfFormula"));
@@ -174,7 +167,7 @@ public class RiskScoringService {
             Map<String, List<RiskFinding>> scanFindings,
             Map<String, Integer> dependencyIssues) {
 
-        return calculateRiskScore(scanFindings, dependencyIssues, 0, 0.0, 50.0);
+        return calculateRiskScore(scanFindings, dependencyIssues, 0, 0.0);
     }
 
     /**
@@ -190,24 +183,6 @@ public class RiskScoringService {
             Map<String, Integer> dependencyIssues,
             int totalFileCount,
             double platformRiskScore) {
-        return calculateRiskScore(scanFindings, dependencyIssues, totalFileCount, platformRiskScore, 50.0);
-    }
-
-    /**
-     * Calculates overall risk score based on scan findings, dependency issues, and project metrics.
-     *
-     * @param scanFindings Map of scan type to list of risk findings
-     * @param dependencyIssues Map of dependency issue types to scores
-     * @param totalFileCount Total number of files in the project
-     * @param platformRiskScore Platform compatibility risk score (0-10)
-     * @param testCoverage Test coverage percentage (0-100)
-     */
-    public RiskScore calculateRiskScore(
-            Map<String, List<RiskFinding>> scanFindings,
-            Map<String, Integer> dependencyIssues,
-            int totalFileCount,
-            double platformRiskScore,
-            double testCoverage) {
 
         Map<String, Integer> componentScores = new HashMap<>();
         List<RiskFinding> allFindings = new ArrayList<>();
@@ -286,12 +261,6 @@ public class RiskScoringService {
                 (rawComplexityScore * complexityWeight) +
                 (rawPlatformScore * platformWeight);
 
-        // Apply test coverage multiplier from YAML configuration
-        // Default: 0% = 2x, 50% = 1x, 100% = 0.5x
-        double coverage = Math.min(Math.max(testCoverage, 0.0), 100.0);
-        double coverageMultiplier = calculateCoverageMultiplier(coverage);
-        totalScore = totalScore * coverageMultiplier;
-
         // Normalize to 0-100 scale
         totalScore = Math.min(totalScore, maxTotalScore);
         totalScore = Math.max(totalScore, 0);
@@ -341,36 +310,6 @@ public class RiskScoringService {
 
         // Cap at configured maximum
         return Math.min(score, maxScoreCap.doubleValue());
-    }
-
-    /**
-     * Calculates the coverage multiplier based on YAML configuration.
-     * Default formula: 0% = 2.0x, 50% = 1.0x, 100% = 0.5x
-     *
-     * @param coverage Test coverage percentage (0-100)
-     * @return Multiplier to apply to risk score
-     */
-    private double calculateCoverageMultiplier(double coverage) {
-        // Load coverage multiplier config from YAML with defaults
-        Number maxMultiplier = (Number) coverageMultiplierConfig.getOrDefault("maxMultiplier", 2.0);
-        Number midMultiplier = (Number) coverageMultiplierConfig.getOrDefault("midMultiplier", 1.0);
-        Number minMultiplier = (Number) coverageMultiplierConfig.getOrDefault("minMultiplier", 0.5);
-        Number refCoverageLow = (Number) coverageMultiplierConfig.getOrDefault("referenceCoverageLow", 50.0);
-        Number refCoverageHigh = (Number) coverageMultiplierConfig.getOrDefault("referenceCoverageHigh", 50.0);
-
-        double max = maxMultiplier.doubleValue();
-        double mid = midMultiplier.doubleValue();
-        double min = minMultiplier.doubleValue();
-        double refLow = refCoverageLow.doubleValue();
-        double refHigh = refCoverageHigh.doubleValue();
-
-        if (coverage <= refLow) {
-            // Linear interpolation from max to mid between 0% and refLow%
-            return max - (coverage / refLow) * (max - mid);
-        } else {
-            // Linear interpolation from mid to min between refLow% and 100%
-            return mid - ((coverage - refLow) / (100.0 - refLow)) * (mid - min);
-        }
     }
 
     /**
