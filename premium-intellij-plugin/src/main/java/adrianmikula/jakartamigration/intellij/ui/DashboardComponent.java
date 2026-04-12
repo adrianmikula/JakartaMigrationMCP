@@ -13,6 +13,7 @@ import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.intellij.ui.SupportComponent;
 import adrianmikula.jakartamigration.intellij.ui.components.TruncationHelper;
 import adrianmikula.jakartamigration.intellij.ui.components.RiskGauge;
+import adrianmikula.jakartamigration.intellij.ui.components.ConfidenceGauge;
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -60,7 +61,7 @@ public class DashboardComponent {
 
     // UI Components for gauges (top section)
     private JPanel gaugesPanel;
-    private JBLabel migrationEffortLabel;
+    private ConfidenceGauge confidenceScoreGauge;
     private RiskGauge migrationRiskGauge;
     
     // UI Components for effort estimation sliders
@@ -655,25 +656,10 @@ private void resetAdvancedScanCounts() {
         gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Migration Effort Label (Indicator 1) - shows estimated weeks
-        JPanel effortPanel = new JBPanel<>(new BorderLayout());
-        effortPanel.setMinimumSize(new java.awt.Dimension(180, 120));
-
-        JLabel effortTitle = new JBLabel("Migration Effort", SwingConstants.CENTER);
-        effortTitle.setFont(effortTitle.getFont().deriveFont(Font.BOLD, 12f));
-        effortPanel.add(effortTitle, BorderLayout.NORTH);
-
-        migrationEffortLabel = new JBLabel("Calculating...", SwingConstants.CENTER);
-        migrationEffortLabel.setFont(migrationEffortLabel.getFont().deriveFont(Font.BOLD, 24f));
-        migrationEffortLabel.setForeground(new Color(59, 130, 246)); // Blue color
-        effortPanel.add(migrationEffortLabel, BorderLayout.CENTER);
-
-        JLabel effortSubtitle = new JBLabel("estimated weeks", SwingConstants.CENTER);
-        effortSubtitle.setFont(effortSubtitle.getFont().deriveFont(Font.ITALIC, 10f));
-        effortPanel.add(effortSubtitle, BorderLayout.SOUTH);
-
+        // Confidence Score Gauge (Indicator 1) - shows percentage of known dependencies
+        confidenceScoreGauge = new ConfidenceGauge("Confidence Score");
         gbc.gridx = 0; gbc.gridy = 0;
-        gaugesContainer.add(effortPanel, gbc);
+        gaugesContainer.add(confidenceScoreGauge, gbc);
 
         // Migration Risk Gauge (Indicator 2)
         migrationRiskGauge = new RiskGauge("Migration Risk");
@@ -1212,25 +1198,16 @@ private void resetAdvancedScanCounts() {
     }
 
     /**
-     * Updates the gauges with current risk scores.
+     * Updates the gauges with current risk scores and confidence score.
      */
     public void updateGauges() {
         if (dashboard == null) {
             return;
         }
 
-        // Calculate migration effort score (based on number of items to migrate)
-        int effortWeeks = calculateEffortWeeks();
-        migrationEffortLabel.setText(effortWeeks + " weeks");
-        
-        // Color code the effort text
-        if (effortWeeks <= 4) {
-            migrationEffortLabel.setForeground(new Color(40, 167, 69)); // Green - low effort
-        } else if (effortWeeks <= 12) {
-            migrationEffortLabel.setForeground(new Color(255, 193, 7)); // Yellow - medium effort
-        } else {
-            migrationEffortLabel.setForeground(new Color(220, 53, 69)); // Red - high effort
-        }
+        // Calculate confidence score (percentage of dependencies with known Jakarta status)
+        int confidenceScore = calculateConfidenceScore();
+        confidenceScoreGauge.setScore(confidenceScore);
 
         // Calculate migration risk score (using RiskScoringService)
         RiskScoringService riskScoringService = RiskScoringService.getInstance();
@@ -1485,6 +1462,48 @@ private void resetAdvancedScanCounts() {
     private int getBasicScanCount() {
         if (dashboard == null || dashboard.getDependencySummary() == null) return 0;
         return dashboard.getDependencySummary().getAffectedDependencies();
+    }
+
+    /**
+     * Calculates the confidence score (0-100) based on the percentage of dependencies
+     * with known Jakarta compatibility status vs unknown status.
+     *
+     * Known statuses: COMPATIBLE, NEEDS_UPGRADE, NO_JAKARTA_VERSION, REQUIRES_MANUAL_MIGRATION, MIGRATED
+     * Unknown statuses: UNKNOWN_REVIEW, UNKNOWN
+     *
+     * Includes deep transitive dependencies in the calculation.
+     *
+     * @return Confidence score from 0 to 100
+     */
+    private int calculateConfidenceScore() {
+        if (dashboard == null || dashboard.getDependencySummary() == null) {
+            return 0;
+        }
+
+        DependencySummary depSummary = dashboard.getDependencySummary();
+        int totalDependencies = depSummary.getTotalDependencies() != null ? depSummary.getTotalDependencies() : 0;
+
+        if (totalDependencies == 0) {
+            return 0;
+        }
+
+        // Known statuses: dependencies we have clear information about
+        int jakartaCompatible = depSummary.getJakartaCompatibleCount() != null ? depSummary.getJakartaCompatibleCount() : 0;
+        int jakartaUpgrade = depSummary.getJakartaUpgradeCount() != null ? depSummary.getJakartaUpgradeCount() : 0;
+        int noJakartaSupport = depSummary.getNoJakartaSupportCount() != null ? depSummary.getNoJakartaSupportCount() : 0;
+
+        // Unknown statuses: dependencies requiring manual review
+        int unknownReview = depSummary.getUnknownReviewCount() != null ? depSummary.getUnknownReviewCount() : 0;
+
+        // Known dependencies include those with clear Jakarta status (compatible, upgrade path, or no support)
+        int knownDependencies = jakartaCompatible + jakartaUpgrade + noJakartaSupport;
+
+        // Calculate confidence score as percentage of known dependencies
+        // This includes deep transitive dependencies since depSummary includes all dependencies
+        int confidenceScore = (int) Math.round((knownDependencies * 100.0) / totalDependencies);
+
+        // Ensure score is within 0-100 range
+        return Math.max(0, Math.min(100, confidenceScore));
     }
 
     private int calculateEffortWeeks() {

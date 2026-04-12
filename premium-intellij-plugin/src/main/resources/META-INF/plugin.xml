@@ -27,7 +27,7 @@
     <idea-version since-build="233" />
 
     <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
-    <version>1.0.12</version>
+    <version>1.0.13</version>
 
     <name>Jakarta Migration (javax → jakarta)</name>
     <id>com.adrianmikula.jakarta-migration</id>
@@ -164,6 +164,11 @@
 
 
     <change-notes><![CDATA[
+    <h>1.0.13 - 2026-04-12</h>
+    <ul>
+        <li>Added deep scanning of transitive dependencies</li>
+        <li>Replaced time estimate with confidence score</li>
+    </ul>
     <h>1.0.12 - 2026-04-09</h>
     <ul>
         <li>Removed free trial period</li>
