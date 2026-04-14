@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.risk;
 
+import adrianmikula.jakartamigration.platforms.config.RiskScoringConfig;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.InputStream;
@@ -20,6 +21,7 @@ public class RiskScoringService {
     private final Map<String, Object> scanCalculationConfig;
     private final Map<String, Object> pdfFormulaConfig;
     private final Map<String, Object> complexityScoringConfig;
+    private final RiskScoringConfig riskScoringConfig;
 
     public static class RiskConfig {
         public String displayName;
@@ -73,6 +75,7 @@ public class RiskScoringService {
         scanCalculationConfig = new HashMap<>();
         pdfFormulaConfig = new HashMap<>();
         complexityScoringConfig = new HashMap<>();
+        riskScoringConfig = new RiskScoringConfig();
         loadConfiguration();
     }
 
@@ -492,5 +495,13 @@ public class RiskScoringService {
      */
     public CategoryConfig getCategoryConfig(String category) {
         return categoryConfigs.get(category);
+    }
+
+    /**
+     * Gets the RiskScoringConfig with effort scoring weights and thresholds.
+     * Used by UI components for effort score calculation.
+     */
+    public RiskScoringConfig getRiskScoringConfig() {
+        return riskScoringConfig;
     }
 }

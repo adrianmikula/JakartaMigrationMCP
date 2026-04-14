@@ -232,6 +232,18 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Connect dashboard with platforms tab for risk integration
             dashboardComponent.setPlatformsTabComponent(platformsTabComponent);
 
+            // Set up tab switcher for dashboard explanation panels
+            dashboardComponent.setTabSwitcher(tabName -> {
+                // Find and switch to the requested tab
+                int tabIndex = findTabIndex(tabName);
+                if (tabIndex >= 0) {
+                    tabbedPane.setSelectedIndex(tabIndex);
+                    LOG.info("Switched to tab: " + tabName);
+                } else {
+                    LOG.warn("Tab not found: " + tabName);
+                }
+            });
+
             // Reports and Runtime tabs (Experimental features only)
             System.out.println("DEBUG: MigrationToolWindow - About to check experimental features");
             boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();

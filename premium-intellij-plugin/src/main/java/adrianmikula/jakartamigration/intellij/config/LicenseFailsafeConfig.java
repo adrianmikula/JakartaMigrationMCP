@@ -91,7 +91,12 @@ public class LicenseFailsafeConfig {
         String timeoutProp = System.getProperty(LICENSE_TIMEOUT_PROPERTY);
         if (timeoutProp != null) {
             try {
-                return Long.parseLong(timeoutProp);
+                long value = Long.parseLong(timeoutProp);
+                if (value <= 0) {
+                    LOG.warn("LicenseFailsafeConfig: Negative timeout value: " + timeoutProp + ", using default");
+                    return DEFAULT_LICENSE_TIMEOUT_MS;
+                }
+                return value;
             } catch (NumberFormatException e) {
                 LOG.warn("LicenseFailsafeConfig: Invalid timeout value: " + timeoutProp);
             }
@@ -100,7 +105,12 @@ public class LicenseFailsafeConfig {
         String configTimeout = config.getProperty(LICENSE_TIMEOUT_PROPERTY);
         if (configTimeout != null) {
             try {
-                return Long.parseLong(configTimeout);
+                long value = Long.parseLong(configTimeout);
+                if (value <= 0) {
+                    LOG.warn("LicenseFailsafeConfig: Negative config timeout: " + configTimeout + ", using default");
+                    return DEFAULT_LICENSE_TIMEOUT_MS;
+                }
+                return value;
             } catch (NumberFormatException e) {
                 LOG.warn("LicenseFailsafeConfig: Invalid config timeout: " + configTimeout);
             }
@@ -231,7 +241,7 @@ public class LicenseFailsafeConfig {
             # jakarta.migration.safe=true
             
             # License timeout in milliseconds (default: 5000)
-            jakarta.migration.license.timeout=3000
+            jakarta.migration.license.timeout=5000
             
             # Force async license checks (default: true)
             jakarta.migration.license.async=true

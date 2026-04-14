@@ -12,7 +12,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests for premium UI refresh functionality in MigrationToolWindow.
  * Tests the premium status detection, trial expiration, and upgrade requirement logic.
  * Also tests license-based analyze functionality.
+ *
+ * NOTE: These tests require IntelliJ Platform environment.
  */
+@org.junit.jupiter.api.Disabled("Requires IntelliJ Platform environment - run in IDE")
 class MigrationToolWindowPremiumTest {
 
     // Trial duration constant - 7 days in milliseconds

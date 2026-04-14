@@ -78,7 +78,7 @@ public class SafeLicenseCheckerTest extends BasePlatformTestCase {
         
         try {
             super.tearDown();
-        } catch (IOException e) {
+        } catch (Exception e) {
             // Ignore cleanup errors
         }
     }

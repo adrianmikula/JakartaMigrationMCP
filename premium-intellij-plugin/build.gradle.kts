@@ -197,6 +197,11 @@ tasks {
     // Configure JUnit Jupiter for testing
     test {
         useJUnitPlatform()
+
+        // Exclude UI tests that require full IntelliJ Platform environment
+        exclude("**/ui/UI*Tests.class")
+        exclude("**/ui/UI*TestSuite.class")
+        exclude("**/ui/ComprehensiveJakartaLookupTest.class")
     }
 }
 

@@ -5,6 +5,7 @@ import adrianmikula.jakartamigration.intellij.mcp.JakartaMcpServerProvider;
 import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
+import adrianmikula.jakartamigration.platforms.config.RiskScoringConfig;
 import adrianmikula.jakartamigration.risk.RiskScoringService;
 import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.credits.CreditType;
@@ -14,6 +15,7 @@ import adrianmikula.jakartamigration.intellij.ui.SupportComponent;
 import adrianmikula.jakartamigration.intellij.ui.components.TruncationHelper;
 import adrianmikula.jakartamigration.intellij.ui.components.RiskGauge;
 import adrianmikula.jakartamigration.intellij.ui.components.ConfidenceGauge;
+import adrianmikula.jakartamigration.intellij.ui.components.EffortGauge;
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -63,7 +65,30 @@ public class DashboardComponent {
     private JPanel gaugesPanel;
     private ConfidenceGauge confidenceScoreGauge;
     private RiskGauge migrationRiskGauge;
-    
+    private EffortGauge effortScoreGauge;
+
+    // Explanation panels for grid layout (column 2)
+    private JPanel riskExplanationPanel;
+    private JPanel effortExplanationPanel;
+    private JPanel confidenceExplanationPanel;
+
+    // Clickable bullet labels for explanations
+    private JLabel riskDirectDepsLabel;
+    private JLabel riskTransitiveLabel;
+    private JLabel riskPlatformsLabel;
+    private JLabel riskSourceIssuesLabel;
+    private JLabel riskConfigIssuesLabel;
+
+    private JLabel effortRecipesLabel;
+    private JLabel effortTestCoverageLabel;
+    private JLabel effortOrgDepsLabel;
+
+    private JLabel confidenceScansLabel;
+    private JLabel confidenceUnknownDepsLabel;
+
+    // Tab switcher callback for navigation
+    private Consumer<String> tabSwitcher;
+
     // Default values for calculations (previously configured via sliders)
     private static final int DEFAULT_TEAM_SIZE = 5;
     private static final int DEFAULT_TEST_COVERAGE = 50;
@@ -627,9 +652,13 @@ private void resetAdvancedScanCounts() {
     // ==================== New Dashboard Layout Methods ====================
 
     /**
-     * Creates the top section with two speedometer-style gauges.
-     * Indicator 1: Migration Effort
-     * Indicator 2: Migration Risk
+     * Creates the top section with a 2×3 grid layout.
+     * Column 1: Three speedometer-style gauges (one per row)
+     * Column 2: Explanatory breakdown panels with clickable bullet links
+     *
+     * Row 1: Migration Risk Gauge + Risk Breakdown
+     * Row 2: Migration Effort Gauge + Effort Breakdown
+     * Row 3: Confidence Score Gauge + Confidence Breakdown
      */
     private JPanel createGaugesPanel() {
         JPanel panel = new JBPanel<>(new BorderLayout());
@@ -638,24 +667,47 @@ private void resetAdvancedScanCounts() {
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
 
-        JPanel gaugesContainer = new JBPanel<>(new GridBagLayout());
+        // Main grid container: 2 columns × 3 rows
+        JPanel gridContainer = new JBPanel<>(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 15, 10, 15);
-        gbc.anchor = GridBagConstraints.CENTER;
-        gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Confidence Score Gauge (Indicator 1) - shows percentage of known dependencies
-        confidenceScoreGauge = new ConfidenceGauge("Confidence Score");
+        // Row 1: Migration Risk
         gbc.gridx = 0; gbc.gridy = 0;
-        gaugesContainer.add(confidenceScoreGauge, gbc);
-
-        // Migration Risk Gauge (Indicator 2)
+        gbc.weightx = 0.5;
+        gbc.anchor = GridBagConstraints.CENTER;
         migrationRiskGauge = new RiskGauge("Migration Risk");
-        gbc.gridx = 1;
-        gaugesContainer.add(migrationRiskGauge, gbc);
+        gridContainer.add(migrationRiskGauge, gbc);
 
-        panel.add(gaugesContainer, BorderLayout.CENTER);
+        gbc.gridx = 1;
+        gbc.anchor = GridBagConstraints.NORTHWEST;
+        riskExplanationPanel = createRiskExplanationPanel();
+        gridContainer.add(riskExplanationPanel, gbc);
+
+        // Row 2: Migration Effort
+        gbc.gridx = 0; gbc.gridy = 1;
+        gbc.anchor = GridBagConstraints.CENTER;
+        effortScoreGauge = new EffortGauge("Migration Effort");
+        gridContainer.add(effortScoreGauge, gbc);
+
+        gbc.gridx = 1;
+        gbc.anchor = GridBagConstraints.NORTHWEST;
+        effortExplanationPanel = createEffortExplanationPanel();
+        gridContainer.add(effortExplanationPanel, gbc);
+
+        // Row 3: Confidence Score
+        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.anchor = GridBagConstraints.CENTER;
+        confidenceScoreGauge = new ConfidenceGauge("Confidence Score");
+        gridContainer.add(confidenceScoreGauge, gbc);
+
+        gbc.gridx = 1;
+        gbc.anchor = GridBagConstraints.NORTHWEST;
+        confidenceExplanationPanel = createConfidenceExplanationPanel();
+        gridContainer.add(confidenceExplanationPanel, gbc);
+
+        panel.add(gridContainer, BorderLayout.CENTER);
 
         // Slider panel for effort estimation inputs
         JPanel slidersPanel = createSlidersPanel();
@@ -686,6 +738,174 @@ private void resetAdvancedScanCounts() {
         panel.add(projectSizeValue, gbc);
 
         return panel;
+    }
+
+    /**
+     * Creates the risk explanation panel with clickable bullet links.
+     * Shows breakdown of factors contributing to risk score.
+     */
+    private JPanel createRiskExplanationPanel() {
+        JPanel panel = new JBPanel<>(new GridLayout(5, 1, 2, 2));
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+
+        // Create clickable bullet labels with initial values
+        riskDirectDepsLabel = createClickableBullet("Direct dependencies needing upgrade", "Dependencies", 0);
+        riskTransitiveLabel = createClickableBullet("Transitive dependency issues", "Dependencies", 0);
+        riskPlatformsLabel = createClickableBullet("Platforms needing upgrade", "Platforms", 0);
+        riskSourceIssuesLabel = createClickableBullet("Source code issues", "Advanced Scans", 0);
+        riskConfigIssuesLabel = createClickableBullet("Config/non-source issues", "Advanced Scans", 0);
+
+        panel.add(riskDirectDepsLabel);
+        panel.add(riskTransitiveLabel);
+        panel.add(riskPlatformsLabel);
+        panel.add(riskSourceIssuesLabel);
+        panel.add(riskConfigIssuesLabel);
+
+        return panel;
+    }
+
+    /**
+     * Creates the effort explanation panel with clickable bullet links.
+     * Shows breakdown of factors contributing to effort score.
+     */
+    private JPanel createEffortExplanationPanel() {
+        JPanel panel = new JBPanel<>(new GridLayout(3, 1, 2, 2));
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+
+        // Create clickable bullet labels with initial values
+        effortRecipesLabel = createClickableBullet("Refactors with recipes", "Refactor", 0);
+        effortTestCoverageLabel = createClickableBullet("Estimated test coverage", "Advanced Scans", 0);
+        effortOrgDepsLabel = createClickableBullet("Organisational dependencies", "Dependencies", 0);
+
+        panel.add(effortRecipesLabel);
+        panel.add(effortTestCoverageLabel);
+        panel.add(effortOrgDepsLabel);
+
+        return panel;
+    }
+
+    /**
+     * Creates the confidence explanation panel with clickable bullet links.
+     * Shows breakdown of factors contributing to confidence score.
+     */
+    private JPanel createConfidenceExplanationPanel() {
+        JPanel panel = new JBPanel<>(new GridLayout(2, 1, 2, 2));
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+
+        // Create clickable bullet labels with initial values
+        confidenceScansLabel = createClickableBullet("Scans completed", "Advanced Scans", 0);
+        confidenceUnknownDepsLabel = createClickableBullet("Unknown/review dependencies", "Dependencies", 0);
+
+        panel.add(confidenceScansLabel);
+        panel.add(confidenceUnknownDepsLabel);
+
+        return panel;
+    }
+
+    /**
+     * Creates a clickable bullet label that navigates to a specific tab when clicked.
+     *
+     * @param labelText Base text for the label (value will be appended)
+     * @param targetTab Tab to switch to when clicked
+     * @param initialValue Initial value to display
+     * @return Configured JLabel with click listener
+     */
+    private JLabel createClickableBullet(String labelText, String targetTab, int initialValue) {
+        JLabel label = new JLabel(formatBulletText(labelText, initialValue));
+        label.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        label.setFont(label.getFont().deriveFont(Font.PLAIN, 11f));
+
+        // Add click listener for tab navigation
+        label.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (tabSwitcher != null) {
+                    tabSwitcher.accept(targetTab);
+                }
+            }
+
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                label.setText("<html><u>" + formatBulletText(labelText, extractValue(label.getText())) + "</u></html>");
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                label.setText(formatBulletText(labelText, extractValue(label.getText())));
+            }
+        });
+
+        return label;
+    }
+
+    /**
+     * Formats bullet text with proper HTML styling.
+     */
+    private String formatBulletText(String labelText, int value) {
+        return "<html>&bull; " + labelText + ": " + value + "</html>";
+    }
+
+    /**
+     * Extracts the numeric value from formatted bullet text.
+     */
+    private int extractValue(String text) {
+        if (text == null) return 0;
+        // Remove HTML tags and extract the number after the colon
+        String plainText = text.replaceAll("<[^>]*>", "");
+        String[] parts = plainText.split(":");
+        if (parts.length > 1) {
+            try {
+                return Integer.parseInt(parts[1].trim().replaceAll("\\D", ""));
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Updates a clickable bullet label with new value and color based on severity.
+     *
+     * @param label The label to update
+     * @param baseText The base text (without value)
+     * @param value The value to display
+     * @param color The color to apply based on severity
+     */
+    private void updateBulletLabel(JLabel label, String baseText, int value, Color color) {
+        String text = formatBulletText(baseText, value);
+        label.setText(text);
+        label.setForeground(color);
+    }
+
+    /**
+     * Determines color based on value and thresholds.
+     * Returns appropriate color for severity level.
+     *
+     * @param value The metric value
+     * @param thresholds Array of 3 threshold values: [green/yellow, yellow/orange, orange/red]
+     * @param isPositiveMetric If true, higher values are good (colors inverted)
+     * @return Color based on severity
+     */
+    private Color getColorForMetric(int value, int[] thresholds, boolean isPositiveMetric) {
+        // Define colors
+        Color green = new Color(40, 167, 69);
+        Color yellow = new Color(255, 193, 7);
+        Color orange = new Color(255, 165, 0);
+        Color red = new Color(220, 53, 69);
+
+        if (isPositiveMetric) {
+            // Higher is better (e.g., test coverage)
+            if (value >= thresholds[2]) return green;
+            if (value >= thresholds[1]) return yellow;
+            if (value >= thresholds[0]) return orange;
+            return red;
+        } else {
+            // Lower is better (e.g., issues count)
+            if (value <= thresholds[0]) return green;
+            if (value <= thresholds[1]) return yellow;
+            if (value <= thresholds[2]) return orange;
+            return red;
+        }
     }
 
     /**
@@ -1163,6 +1383,147 @@ private void resetAdvancedScanCounts() {
             lastCalculatedRiskScore = newScore;
             migrationRiskGauge.setScore(newScore);
         }
+
+        // Calculate migration effort score (combining automation potential and test coverage)
+        int effortScore = calculateEffortScore();
+        effortScoreGauge.setScore(effortScore);
+
+        // Update explanation panels with current data and colors
+        updateRiskExplanation();
+        updateEffortExplanation();
+        updateConfidenceExplanation();
+    }
+
+    /**
+     * Updates the risk explanation panel with current data and severity colors.
+     */
+    private void updateRiskExplanation() {
+        if (dashboard == null) return;
+
+        DependencySummary depSummary = dashboard.getDependencySummary();
+        if (depSummary == null) return;
+
+        // Get values for risk factors
+        int affectedDeps = depSummary.getAffectedDependencies() != null ? depSummary.getAffectedDependencies() : 0;
+        int transitiveDeps = depSummary.getTransitiveDependencies() != null ? depSummary.getTransitiveDependencies() : 0;
+        int platformsNeedingUpgrade = getPlatformsNeedingUpgradeCount();
+        int sourceIssues = getSourceCodeIssuesCount();
+        int configIssues = getConfigIssuesCount();
+
+        // Update labels with color coding (thresholds: [green, yellow, orange])
+        updateBulletLabel(riskDirectDepsLabel, "Direct dependencies needing upgrade", affectedDeps,
+            getColorForMetric(affectedDeps, new int[]{0, 5, 10}, false));
+        updateBulletLabel(riskTransitiveLabel, "Transitive dependency issues", transitiveDeps,
+            getColorForMetric(transitiveDeps, new int[]{0, 10, 20}, false));
+        updateBulletLabel(riskPlatformsLabel, "Platforms needing upgrade", platformsNeedingUpgrade,
+            getColorForMetric(platformsNeedingUpgrade, new int[]{0, 1, 2}, false));
+        updateBulletLabel(riskSourceIssuesLabel, "Source code issues", sourceIssues,
+            getColorForMetric(sourceIssues, new int[]{0, 5, 15}, false));
+        updateBulletLabel(riskConfigIssuesLabel, "Config/non-source issues", configIssues,
+            getColorForMetric(configIssues, new int[]{0, 3, 8}, false));
+    }
+
+    /**
+     * Updates the effort explanation panel with current data and severity colors.
+     */
+    private void updateEffortExplanation() {
+        if (dashboard == null) return;
+
+        DependencySummary depSummary = dashboard.getDependencySummary();
+
+        // Get values for effort factors
+        int recipesWithMatches = getRecipesWithMatchesCount();
+        int testCoverage = (int) Math.round(calculateTestCoverageEstimate());
+        int orgDeps = depSummary != null && depSummary.getOrganisationalDependencies() != null
+            ? depSummary.getOrganisationalDependencies() : 0;
+
+        // Update labels with color coding
+        updateBulletLabel(effortRecipesLabel, "Refactors with recipes", recipesWithMatches,
+            getColorForMetric(recipesWithMatches, new int[]{0, 5, 10}, false));
+        updateBulletLabel(effortTestCoverageLabel, "Estimated test coverage (%)", testCoverage,
+            getColorForMetric(testCoverage, new int[]{30, 50, 70}, true));
+        updateBulletLabel(effortOrgDepsLabel, "Organisational dependencies", orgDeps,
+            getColorForMetric(orgDeps, new int[]{0, 3, 8}, false));
+    }
+
+    /**
+     * Updates the confidence explanation panel with current data and severity colors.
+     */
+    private void updateConfidenceExplanation() {
+        if (dashboard == null) return;
+
+        DependencySummary depSummary = dashboard.getDependencySummary();
+
+        // Get values for confidence factors
+        int scansCompleted = calculateOverallScanProgress();
+        int totalDeps = depSummary != null && depSummary.getTotalDependencies() != null
+            ? depSummary.getTotalDependencies() : 0;
+        int unknownDeps = depSummary != null && depSummary.getUnknownReviewCount() != null
+            ? depSummary.getUnknownReviewCount() : 0;
+        int unknownPercentage = totalDeps > 0 ? (unknownDeps * 100) / totalDeps : 0;
+
+        // Update labels with color coding
+        updateBulletLabel(confidenceScansLabel, "Scans completed (%)", scansCompleted,
+            getColorForMetric(scansCompleted, new int[]{25, 50, 80}, true));
+        updateBulletLabel(confidenceUnknownDepsLabel, "Unknown/review dependencies (%)", unknownPercentage,
+            getColorForMetric(unknownPercentage, new int[]{10, 25, 50}, false));
+    }
+
+    /**
+     * Gets the count of platforms needing upgrade.
+     */
+    private int getPlatformsNeedingUpgradeCount() {
+        // This would typically come from the platforms tab component
+        // For now, return 0 or get from platformsTabComponent if available
+        if (platformsTabComponent != null) {
+            // This is a placeholder - actual implementation would depend on
+            // what platformsTabComponent exposes
+            return 0;
+        }
+        return 0;
+    }
+
+    /**
+     * Gets the count of source code issues from advanced scans.
+     */
+    private int getSourceCodeIssuesCount() {
+        if (advancedScanningService == null || !advancedScanningService.hasCachedResults()) {
+            return 0;
+        }
+        AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
+        if (summary == null) return 0;
+
+        // Sum all source code related scan issues
+        return summary.getJpaCount() + summary.getBeanValidationCount() + summary.getServletJspCount()
+            + summary.getCdiInjectionCount() + summary.getRestSoapCount() + summary.getDeprecatedApiCount()
+            + summary.getSecurityApiCount() + summary.getJmsMessagingCount();
+    }
+
+    /**
+     * Gets the count of config/non-source issues from advanced scans.
+     */
+    private int getConfigIssuesCount() {
+        if (advancedScanningService == null || !advancedScanningService.hasCachedResults()) {
+            return 0;
+        }
+        AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
+        if (summary == null) return 0;
+
+        // Sum all config related scan issues
+        return summary.getBuildConfigCount() + summary.getConfigFileCount();
+    }
+
+    /**
+     * Gets the count of issues that have matching refactor recipes.
+     */
+    private int getRecipesWithMatchesCount() {
+        if (advancedScanningService == null || !advancedScanningService.hasCachedResults()) {
+            return 0;
+        }
+        AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
+        if (summary == null) return 0;
+
+        return getIssuesWithMatchingRecipes(summary);
     }
 
     /**
@@ -1375,6 +1736,166 @@ private void resetAdvancedScanCounts() {
 
         // Ensure score is within 0-100 range
         return Math.max(0, Math.min(100, confidenceScore));
+    }
+
+    /**
+     * Calculates the migration effort score (0-100) based on three factors:
+     * 1. Automation potential (33%): percentage of scan issues that have matching refactor recipes
+     * 2. Codebase test coverage (33%): inverse of test file ratio (higher tests = lower effort)
+     * 3. Organisational dependencies (33%): count of organisational/internal dependencies
+     *
+     * Lower score = easier migration (more automation, better tests, fewer org deps)
+     * Higher score = harder migration (less automation, fewer tests, more org deps)
+     *
+     * Weights are loaded from risk-scoring.yaml configuration.
+     *
+     * @return Effort score from 0 to 100
+     */
+    private int calculateEffortScore() {
+        if (dashboard == null) {
+            return 0;
+        }
+
+        // Load weights from configuration (defaults to 0.33 each if not configured)
+        RiskScoringService riskScoringService = RiskScoringService.getInstance();
+        RiskScoringConfig config = riskScoringService.getRiskScoringConfig();
+        double automationWeight = config.getAutomationScoreWeight();
+        double testCoverageWeight = config.getTestCoverageScoreWeight();
+        double orgDepsWeight = config.getOrganisationalDepsScoreWeight();
+
+        // Calculate automation score (percentage of issues WITHOUT recipe matches)
+        int automationScore = calculateAutomationScore();
+
+        // Calculate test coverage component (inverse of test coverage estimate)
+        double testCoverageEstimate = calculateTestCoverageEstimate();
+        int testCoverageScore = (int) Math.round(100 - testCoverageEstimate);
+
+        // Calculate organisational dependencies score (more org deps = higher effort)
+        int orgDepScore = calculateOrganisationalDepsScore(config.getMaxOrganisationalDepsThreshold());
+
+        // Combine scores using weights from configuration
+        int combinedScore = (int) Math.round(
+            (automationScore * automationWeight) +
+            (testCoverageScore * testCoverageWeight) +
+            (orgDepScore * orgDepsWeight)
+        );
+
+        // Ensure score is within 0-100 range
+        return Math.max(0, Math.min(100, combinedScore));
+    }
+
+    /**
+     * Calculates the organisational dependencies score based on the count of
+     * organisational/internal dependencies. More organisational dependencies
+     * means higher effort (harder migration).
+     *
+     * @param maxThreshold Maximum threshold for capping the score
+     * @return Organisational dependencies score from 0 to 100
+     */
+    private int calculateOrganisationalDepsScore(int maxThreshold) {
+        if (dashboard == null || dashboard.getDependencySummary() == null) {
+            return 0;
+        }
+
+        DependencySummary depSummary = dashboard.getDependencySummary();
+        int orgDeps = depSummary.getOrganisationalDependencies() != null
+            ? depSummary.getOrganisationalDependencies()
+            : 0;
+
+        if (orgDeps == 0) {
+            return 0; // No organisational dependencies = low effort
+        }
+
+        // Calculate score: proportional to org deps count, capped at threshold
+        // Score = min(orgDeps / maxThreshold, 1.0) * 100
+        double ratio = Math.min(orgDeps / (double) maxThreshold, 1.0);
+        return (int) Math.round(ratio * 100);
+    }
+
+    /**
+     * Calculates the automation score based on how many scan issues have matching refactor recipes.
+     * Higher score = fewer issues can be automated (more manual effort required)
+     * Lower score = more issues can be automated (less manual effort required)
+     *
+     * @return Automation score from 0 to 100
+     */
+    private int calculateAutomationScore() {
+        if (advancedScanningService == null || !advancedScanningService.hasCachedResults()) {
+            // No scan results available - assume worst case (all manual)
+            return 100;
+        }
+
+        AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
+        if (summary == null) {
+            return 100;
+        }
+
+        // Calculate total issues found across all scan types
+        int totalIssues = summary.getTotalIssuesFound();
+        if (totalIssues == 0) {
+            // No issues found = easy migration (low effort)
+            return 0;
+        }
+
+        // Get recipe recommendations for the scan results
+        int issuesWithRecipes = getIssuesWithMatchingRecipes(summary);
+
+        // Calculate automation score: percentage of issues WITHOUT recipe matches
+        // Higher percentage = more manual work = higher effort score
+        int issuesWithoutRecipes = totalIssues - issuesWithRecipes;
+        int automationScore = (int) Math.round((issuesWithoutRecipes * 100.0) / totalIssues);
+
+        return Math.max(0, Math.min(100, automationScore));
+    }
+
+    /**
+     * Gets the count of scan issues that have matching refactor recipes.
+     * Uses the ScanRecipeRecommendationService to determine which scan types have applicable recipes.
+     *
+     * @param summary The advanced scan summary containing issue counts by type
+     * @return Number of issues that have matching recipes
+     */
+    private int getIssuesWithMatchingRecipes(AdvancedScanningService.AdvancedScanSummary summary) {
+        if (summary == null) {
+            return 0;
+        }
+
+        int issuesWithRecipes = 0;
+
+        // Map of scan types to their recipe availability
+        // These scan types have matching recipes in ScanRecipeRecommendationServiceImpl.SCAN_TO_RECIPE_MAPPING
+        Map<String, Integer> scanTypeCounts = new HashMap<>();
+        scanTypeCounts.put("jpa", summary.getJpaCount());
+        scanTypeCounts.put("beanValidation", summary.getBeanValidationCount());
+        scanTypeCounts.put("servletJsp", summary.getServletJspCount());
+        scanTypeCounts.put("cdiInjection", summary.getCdiInjectionCount());
+        scanTypeCounts.put("restSoap", summary.getRestSoapCount());
+        scanTypeCounts.put("securityApi", summary.getSecurityApiCount());
+        scanTypeCounts.put("jmsMessaging", summary.getJmsMessagingCount());
+        scanTypeCounts.put("buildConfig", summary.getBuildConfigCount());
+        scanTypeCounts.put("configFiles", summary.getConfigFileCount());
+        scanTypeCounts.put("deprecatedApi", summary.getDeprecatedApiCount());
+        scanTypeCounts.put("transitiveDependency", summary.getTransitiveDependencyCount());
+
+        // Scan types with matching recipes (from ScanRecipeRecommendationServiceImpl.SCAN_TO_RECIPE_MAPPING)
+        // These scan types have recipes available, so their issues can be automated
+        String[] scanTypesWithRecipes = {
+            "jpa", "beanValidation", "servletJsp", "cdiInjection", "restSoap",
+            "securityApi", "jmsMessaging", "buildConfig", "configFiles", "deprecatedApi"
+        };
+
+        // Count issues that have matching recipes
+        for (String scanType : scanTypesWithRecipes) {
+            Integer count = scanTypeCounts.get(scanType);
+            if (count != null && count > 0) {
+                issuesWithRecipes += count;
+            }
+        }
+
+        // For transitive dependencies and other scans without direct recipes,
+        // we don't count them as having recipe matches
+
+        return issuesWithRecipes;
     }
 
     private int calculateEffortWeeks() {
@@ -1680,6 +2201,15 @@ private void resetAdvancedScanCounts() {
     public void setPlatformsTabComponent(PlatformsTabComponent platformsTabComponent) {
         this.platformsTabComponent = platformsTabComponent;
         LOG.info("DashboardComponent: PlatformsTabComponent set for risk integration");
+    }
+
+    /**
+     * Sets the tab switcher callback for navigation from explanation bullets.
+     *
+     * @param tabSwitcher Consumer that takes a tab name and switches to that tab
+     */
+    public void setTabSwitcher(Consumer<String> tabSwitcher) {
+        this.tabSwitcher = tabSwitcher;
     }
 
     private int calculateOverallScanProgress() {

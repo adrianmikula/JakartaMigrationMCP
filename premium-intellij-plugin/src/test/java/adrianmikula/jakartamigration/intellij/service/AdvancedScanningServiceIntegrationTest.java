@@ -19,7 +19,10 @@ import static org.mockito.Mockito.mock;
 /**
  * Integration tests for AdvancedScanningService.
  * Tests the service layer integration including deep dependency scanning and conversion.
+ *
+ * NOTE: These tests require external dependencies and proper environment setup.
  */
+@org.junit.jupiter.api.Disabled("Requires external dependencies - run as integration test")
 class AdvancedScanningServiceIntegrationTest {
 
     private AdvancedScanningService scanningService;

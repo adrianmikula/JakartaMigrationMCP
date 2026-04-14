@@ -352,3 +352,13 @@ legacyCalculations:
   platformMultiplier: 15
   maxPlatformRisk: 60
   maxTotalRisk: 100
+
+# Effort scoring configuration (previously hardcoded in DashboardComponent)
+effortScoring:
+  weights:
+    automationScore: 0.33      # 33% - Recipe coverage weight
+    testCoverageScore: 0.33    # 33% - Test file ratio weight
+    organisationalDepsScore: 0.33 # 33% - Organisational dependencies weight
+  thresholds:
+    maxOrganisationalDeps: 100  # Cap for organisational dependency calculation
+    maxTestCoverage: 100        # Maximum test coverage percentage

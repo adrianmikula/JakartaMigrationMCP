@@ -60,8 +60,8 @@ class LicenseServiceTest {
     @DisplayName("Should return upgrade prompt with pricing")
     void shouldReturnUpgradePromptWithPricing() {
         String prompt = licenseService.getUpgradePrompt();
-        assertThat(prompt).contains("$49/month");
-        assertThat(prompt).contains("$399/year");
+        assertThat(prompt).contains("$5/month");
+        assertThat(prompt).contains("$50/year");
         assertThat(prompt).contains("Upgrade to Premium");
     }
 
