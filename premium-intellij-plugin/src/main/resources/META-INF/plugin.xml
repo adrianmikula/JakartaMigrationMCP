@@ -27,7 +27,7 @@
     <idea-version since-build="233" />
 
     <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
-    <version>1.0.13</version>
+    <version>1.0.14</version>
 
     <name>Jakarta Migration (javax → jakarta)</name>
     <id>com.adrianmikula.jakarta-migration</id>
@@ -100,6 +100,10 @@
     <!-- IntelliJ Platform Version Requirements -->
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.java</depends>
+    
+    <!-- Premium module dependency for 2025.3+ unified distribution -->
+    <!-- This ensures premium features are disabled when user lacks active subscription -->
+    <depends optional="true">com.intellij.modules.ultimate</depends>
 
     <!-- Extensions for MCP Integration and Plugin Discoverability -->
     <extensions defaultExtensionNs="com.intellij">

@@ -16,6 +16,7 @@ import adrianmikula.jakartamigration.intellij.ui.components.TruncationHelper;
 import adrianmikula.jakartamigration.intellij.ui.components.RiskGauge;
 import adrianmikula.jakartamigration.intellij.ui.components.ConfidenceGauge;
 import adrianmikula.jakartamigration.intellij.ui.components.EffortGauge;
+import adrianmikula.jakartamigration.intellij.ui.components.ValidationConfidenceGauge;
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -66,11 +67,13 @@ public class DashboardComponent {
     private ConfidenceGauge confidenceScoreGauge;
     private RiskGauge migrationRiskGauge;
     private EffortGauge effortScoreGauge;
+    private ValidationConfidenceGauge validationConfidenceGauge;
 
     // Explanation panels for grid layout (column 2)
     private JPanel riskExplanationPanel;
     private JPanel effortExplanationPanel;
     private JPanel confidenceExplanationPanel;
+    private JPanel validationConfidenceExplanationPanel;
 
     // Clickable bullet labels for explanations
     private JLabel riskDirectDepsLabel;
@@ -80,11 +83,16 @@ public class DashboardComponent {
     private JLabel riskConfigIssuesLabel;
 
     private JLabel effortRecipesLabel;
-    private JLabel effortTestCoverageLabel;
     private JLabel effortOrgDepsLabel;
+    private JLabel effortWithoutRecipesLabel;
+    private JLabel effortProjectSizeLabel;
 
     private JLabel confidenceScansLabel;
     private JLabel confidenceUnknownDepsLabel;
+
+    private JLabel validationUnitTestCoverageLabel;
+    private JLabel validationIntegrationTestsLabel;
+    private JLabel validationCriticalModulesLabel;
 
     // Tab switcher callback for navigation
     private Consumer<String> tabSwitcher;
@@ -667,7 +675,7 @@ private void resetAdvancedScanCounts() {
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
 
-        // Main grid container: 2 columns × 3 rows
+        // Main grid container: 2 columns × 4 rows
         JPanel gridContainer = new JBPanel<>(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 15, 10, 15);
@@ -706,6 +714,17 @@ private void resetAdvancedScanCounts() {
         gbc.anchor = GridBagConstraints.NORTHWEST;
         confidenceExplanationPanel = createConfidenceExplanationPanel();
         gridContainer.add(confidenceExplanationPanel, gbc);
+
+        // Row 4: Validation Confidence
+        gbc.gridx = 0; gbc.gridy = 3;
+        gbc.anchor = GridBagConstraints.CENTER;
+        validationConfidenceGauge = new ValidationConfidenceGauge("Validation Confidence");
+        gridContainer.add(validationConfidenceGauge, gbc);
+
+        gbc.gridx = 1;
+        gbc.anchor = GridBagConstraints.NORTHWEST;
+        validationConfidenceExplanationPanel = createValidationConfidenceExplanationPanel();
+        gridContainer.add(validationConfidenceExplanationPanel, gbc);
 
         panel.add(gridContainer, BorderLayout.CENTER);
 
@@ -769,16 +788,18 @@ private void resetAdvancedScanCounts() {
      * Shows breakdown of factors contributing to effort score.
      */
     private JPanel createEffortExplanationPanel() {
-        JPanel panel = new JBPanel<>(new GridLayout(3, 1, 2, 2));
+        JPanel panel = new JBPanel<>(new GridLayout(4, 1, 2, 2));
         panel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
 
         // Create clickable bullet labels with initial values
         effortRecipesLabel = createClickableBullet("Refactors with recipes", "Refactor", 0);
-        effortTestCoverageLabel = createClickableBullet("Estimated test coverage", "Advanced Scans", 0);
+        effortWithoutRecipesLabel = createClickableBullet("Refactors without recipes", "Refactor", 0);
+        effortProjectSizeLabel = createClickableBullet("Project size", "Dependencies", 0);
         effortOrgDepsLabel = createClickableBullet("Organisational dependencies", "Dependencies", 0);
 
         panel.add(effortRecipesLabel);
-        panel.add(effortTestCoverageLabel);
+        panel.add(effortWithoutRecipesLabel);
+        panel.add(effortProjectSizeLabel);
         panel.add(effortOrgDepsLabel);
 
         return panel;
@@ -798,6 +819,22 @@ private void resetAdvancedScanCounts() {
 
         panel.add(confidenceScansLabel);
         panel.add(confidenceUnknownDepsLabel);
+
+        return panel;
+    }
+
+    private JPanel createValidationConfidenceExplanationPanel() {
+        JPanel panel = new JBPanel<>(new GridLayout(3, 1, 2, 2));
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+
+        // Create clickable bullet labels with initial values
+        validationUnitTestCoverageLabel = createClickableBullet("Unit test coverage below threshold", "Dependencies", 0);
+        validationIntegrationTestsLabel = createClickableBullet("Limited integration tests", "Dependencies", 0);
+        validationCriticalModulesLabel = createClickableBullet("Critical modules lack coverage", "Dependencies", 0);
+
+        panel.add(validationUnitTestCoverageLabel);
+        panel.add(validationIntegrationTestsLabel);
+        panel.add(validationCriticalModulesLabel);
 
         return panel;
     }
@@ -1373,9 +1410,12 @@ private void resetAdvancedScanCounts() {
         
         // Calculate risk score (with caching to prevent unnecessary recalculations)
         int totalFileCount = getTotalFileCount();
+        int testFileCount = getTestFileCount();
         double platformRiskScore = getPlatformRiskScore();
-        // Use default test coverage for risk calculation (slider removed)
-        RiskScoringService.RiskScore riskScore = riskScoringService.calculateRiskScore(scanFindings, depIssues, totalFileCount, platformRiskScore);
+        // Estimate integration tests and critical modules (simplified for now)
+        int integrationTestCount = estimateIntegrationTestCount();
+        int criticalModulesTested = estimateCriticalModulesTested();
+        RiskScoringService.RiskScore riskScore = riskScoringService.calculateRiskScore(scanFindings, depIssues, totalFileCount, platformRiskScore, testFileCount, integrationTestCount, criticalModulesTested);
         int newScore = (int) Math.round(riskScore.totalScore());
         
         // Only update gauge if score actually changed
@@ -1388,10 +1428,17 @@ private void resetAdvancedScanCounts() {
         int effortScore = calculateEffortScore();
         effortScoreGauge.setScore(effortScore);
 
+        // Set validation confidence score from risk calculation components
+        Integer validationConfidenceScore = riskScore.componentScores().get("validationConfidence");
+        if (validationConfidenceScore != null) {
+            validationConfidenceGauge.setScore(validationConfidenceScore);
+        }
+
         // Update explanation panels with current data and colors
         updateRiskExplanation();
         updateEffortExplanation();
         updateConfidenceExplanation();
+        updateValidationConfidenceExplanation();
     }
 
     /**
@@ -1433,15 +1480,12 @@ private void resetAdvancedScanCounts() {
 
         // Get values for effort factors
         int recipesWithMatches = getRecipesWithMatchesCount();
-        int testCoverage = (int) Math.round(calculateTestCoverageEstimate());
         int orgDeps = depSummary != null && depSummary.getOrganisationalDependencies() != null
             ? depSummary.getOrganisationalDependencies() : 0;
 
         // Update labels with color coding
         updateBulletLabel(effortRecipesLabel, "Refactors with recipes", recipesWithMatches,
             getColorForMetric(recipesWithMatches, new int[]{0, 5, 10}, false));
-        updateBulletLabel(effortTestCoverageLabel, "Estimated test coverage (%)", testCoverage,
-            getColorForMetric(testCoverage, new int[]{30, 50, 70}, true));
         updateBulletLabel(effortOrgDepsLabel, "Organisational dependencies", orgDeps,
             getColorForMetric(orgDeps, new int[]{0, 3, 8}, false));
     }
@@ -1467,6 +1511,36 @@ private void resetAdvancedScanCounts() {
             getColorForMetric(scansCompleted, new int[]{25, 50, 80}, true));
         updateBulletLabel(confidenceUnknownDepsLabel, "Unknown/review dependencies (%)", unknownPercentage,
             getColorForMetric(unknownPercentage, new int[]{10, 25, 50}, false));
+    }
+
+    private void updateValidationConfidenceExplanation() {
+        if (dashboard == null) return;
+
+        // Calculate test coverage metrics
+        double testCoverage = calculateTestCoverageEstimate();
+        int integrationTestCount = estimateIntegrationTestCount();
+        int criticalModulesTested = estimateCriticalModulesTested();
+        int totalFiles = getTotalFileCount();
+
+        // Unit test coverage below threshold (threshold 70%)
+        int unitTestCoverageValue = (int) Math.round(testCoverage);
+        boolean belowThreshold = unitTestCoverageValue < 70;
+
+        // Limited integration tests (threshold: at least 5% of files)
+        int integrationTestPercentage = totalFiles > 0 ? (integrationTestCount * 100) / totalFiles : 0;
+        boolean limitedIntegration = integrationTestPercentage < 5;
+
+        // Critical modules lack coverage (threshold: at least 50% tested)
+        int criticalModulesPercentage = totalFiles > 0 ? (criticalModulesTested * 100) / Math.max(totalFiles / 10, 1) : 0;
+        boolean criticalModulesLackCoverage = criticalModulesPercentage < 50;
+
+        // Update labels with color coding (red if issue exists, green if ok)
+        updateBulletLabel(validationUnitTestCoverageLabel, "Unit test coverage below 70% threshold", belowThreshold ? 1 : 0,
+            belowThreshold ? Color.RED : Color.GREEN);
+        updateBulletLabel(validationIntegrationTestsLabel, "Integration tests < 5% of files", limitedIntegration ? 1 : 0,
+            limitedIntegration ? Color.RED : Color.GREEN);
+        updateBulletLabel(validationCriticalModulesLabel, "Critical modules < 50% tested", criticalModulesLackCoverage ? 1 : 0,
+            criticalModulesLackCoverage ? Color.RED : Color.GREEN);
     }
 
     /**
@@ -1756,27 +1830,21 @@ private void resetAdvancedScanCounts() {
             return 0;
         }
 
-        // Load weights from configuration (defaults to 0.33 each if not configured)
+        // Load weights from configuration (defaults updated after removing test coverage)
         RiskScoringService riskScoringService = RiskScoringService.getInstance();
         RiskScoringConfig config = riskScoringService.getRiskScoringConfig();
         double automationWeight = config.getAutomationScoreWeight();
-        double testCoverageWeight = config.getTestCoverageScoreWeight();
         double orgDepsWeight = config.getOrganisationalDepsScoreWeight();
 
         // Calculate automation score (percentage of issues WITHOUT recipe matches)
         int automationScore = calculateAutomationScore();
 
-        // Calculate test coverage component (inverse of test coverage estimate)
-        double testCoverageEstimate = calculateTestCoverageEstimate();
-        int testCoverageScore = (int) Math.round(100 - testCoverageEstimate);
-
         // Calculate organisational dependencies score (more org deps = higher effort)
         int orgDepScore = calculateOrganisationalDepsScore(config.getMaxOrganisationalDepsThreshold());
 
-        // Combine scores using weights from configuration
+        // Combine scores using weights from configuration (test coverage moved to validation confidence)
         int combinedScore = (int) Math.round(
             (automationScore * automationWeight) +
-            (testCoverageScore * testCoverageWeight) +
             (orgDepScore * orgDepsWeight)
         );
 
@@ -1930,9 +1998,13 @@ private void resetAdvancedScanCounts() {
                     scanFindings.put("basic", createRiskFindings(basicCount, "basic"));
                 }
 
-                // Use default test coverage for risk calculation (slider removed)
+                // Calculate risk score with test coverage parameters
+                int testFileCount = getTestFileCount();
+                int integrationTestCount = estimateIntegrationTestCount();
+                int criticalModulesTested = estimateCriticalModulesTested();
                 RiskScoringService.RiskScore currentScore = riskScoringService.calculateRiskScore(
-                    scanFindings, depIssues, getTotalFileCount(), getPlatformRiskScore());
+                    scanFindings, depIssues, getTotalFileCount(), getPlatformRiskScore(),
+                    testFileCount, integrationTestCount, criticalModulesTested);
                 currentRiskScore = currentScore.totalScore();
             } catch (Exception e) {
                 LOG.warn("Could not calculate current risk score for effort calculation: " + e.getMessage());
@@ -2177,6 +2249,26 @@ private void resetAdvancedScanCounts() {
 
         // Cap at 100%
         return Math.min(coverage, 100.0);
+    }
+
+    /**
+     * Estimates the number of integration test files.
+     * For now, assumes 20% of test files are integration tests.
+     */
+    private int estimateIntegrationTestCount() {
+        int testFiles = getTestFileCount();
+        return (int) Math.round(testFiles * 0.2);
+    }
+
+    /**
+     * Estimates the number of critical modules with test coverage.
+     * For now, assumes 30% of modules are critical and tested.
+     */
+    private int estimateCriticalModulesTested() {
+        int totalFiles = getTotalFileCount();
+        // Assume modules are roughly 50 files each
+        int estimatedModules = Math.max(totalFiles / 50, 1);
+        return (int) Math.round(estimatedModules * 0.3);
     }
     
     /**

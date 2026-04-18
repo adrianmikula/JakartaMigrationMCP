@@ -38,10 +38,13 @@ public class RiskScoringServiceTest {
         RiskScoringService service = RiskScoringService.getInstance();
         
         var score = service.calculateRiskScore(
-            Map.of(), 
-            Map.of(), 
+            Map.of(),
+            Map.of(),
             100, // total file count
-            1.0  // platform risk score
+            1.0, // platform risk score
+            10,  // test file count
+            2,   // integration test count
+            5    // critical modules tested
         );
         
         assertThat(score.totalScore()).isGreaterThanOrEqualTo(0);

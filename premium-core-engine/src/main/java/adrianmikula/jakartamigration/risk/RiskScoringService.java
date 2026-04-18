@@ -21,6 +21,7 @@ public class RiskScoringService {
     private final Map<String, Object> scanCalculationConfig;
     private final Map<String, Object> pdfFormulaConfig;
     private final Map<String, Object> complexityScoringConfig;
+    private final Map<String, Object> validationConfidenceConfig;
     private final RiskScoringConfig riskScoringConfig;
 
     public static class RiskConfig {
@@ -75,6 +76,7 @@ public class RiskScoringService {
         scanCalculationConfig = new HashMap<>();
         pdfFormulaConfig = new HashMap<>();
         complexityScoringConfig = new HashMap<>();
+        validationConfidenceConfig = new HashMap<>();
         riskScoringConfig = new RiskScoringConfig();
         loadConfiguration();
     }
@@ -157,6 +159,11 @@ public class RiskScoringService {
                 complexityScoringConfig.putAll((Map<String, Object>) config.get("complexityScoring"));
             }
 
+            // Load validation confidence config
+            if (config.containsKey("validationConfidence")) {
+                validationConfidenceConfig.putAll((Map<String, Object>) config.get("validationConfidence"));
+            }
+
         } catch (Exception e) {
             throw new RuntimeException("CRITICAL: Failed to load risk-scoring.yaml. Risk calculation cannot proceed.",
                     e);
@@ -170,7 +177,7 @@ public class RiskScoringService {
             Map<String, List<RiskFinding>> scanFindings,
             Map<String, Integer> dependencyIssues) {
 
-        return calculateRiskScore(scanFindings, dependencyIssues, 0, 0.0);
+        return calculateRiskScore(scanFindings, dependencyIssues, 0, 0.0, 0, 0, 0);
     }
 
     /**
@@ -180,12 +187,18 @@ public class RiskScoringService {
      * @param dependencyIssues Map of dependency issue types to scores
      * @param totalFileCount Total number of files in the project
      * @param platformRiskScore Platform compatibility risk score (0-10)
+     * @param testFileCount Number of test files in the project
+     * @param integrationTestCount Number of integration test files
+     * @param criticalModulesTested Number of critical modules with test coverage
      */
     public RiskScore calculateRiskScore(
             Map<String, List<RiskFinding>> scanFindings,
             Map<String, Integer> dependencyIssues,
             int totalFileCount,
-            double platformRiskScore) {
+            double platformRiskScore,
+            int testFileCount,
+            int integrationTestCount,
+            int criticalModulesTested) {
 
         Map<String, Integer> componentScores = new HashMap<>();
         List<RiskFinding> allFindings = new ArrayList<>();
@@ -227,6 +240,9 @@ public class RiskScoringService {
         // Platform risk score (already normalized 0-10)
         double rawPlatformScore = platformRiskScore;
 
+        // Calculate validation confidence score (0-100 scale)
+        double rawValidationConfidenceScore = calculateValidationConfidenceScore(totalFileCount, testFileCount, integrationTestCount, criticalModulesTested);
+
         // Get weights from calculation config
         @SuppressWarnings("unchecked")
         Map<String, Double> weights = (Map<String, Double>) calculationConfig.get("componentWeights");
@@ -238,16 +254,18 @@ public class RiskScoringService {
         Number depWeightNum = (Number) weights.get("dependencyIssues");
         Number complexityWeightNum = (Number) weights.get("codeComplexity");
         Number platformWeightNum = (Number) weights.get("platformRisk");
+        Number validationConfidenceWeightNum = (Number) weights.get("validationConfidence");
 
-        if (scanWeightNum == null || depWeightNum == null || complexityWeightNum == null || platformWeightNum == null) {
+        if (scanWeightNum == null || depWeightNum == null || complexityWeightNum == null || platformWeightNum == null || validationConfidenceWeightNum == null) {
             throw new IllegalArgumentException(
-                    "Missing one or more required weights (scanFindings, dependencyIssues, codeComplexity, platformRisk) in risk-scoring.yaml");
+                    "Missing one or more required weights (scanFindings, dependencyIssues, codeComplexity, platformRisk, validationConfidence) in risk-scoring.yaml");
         }
 
         double scanWeight = scanWeightNum.doubleValue();
         double depWeight = depWeightNum.doubleValue();
         double complexityWeight = complexityWeightNum.doubleValue();
         double platformWeight = platformWeightNum.doubleValue();
+        double validationConfidenceWeight = validationConfidenceWeightNum.doubleValue();
 
         // Get max total score for normalization
         Number maxScoreNum = (Number) calculationConfig.get("maxTotalScore");
@@ -257,12 +275,14 @@ public class RiskScoringService {
         componentScores.put("dependencyIssues", (int) rawDepScore);
         componentScores.put("codeComplexity", (int) rawComplexityScore);
         componentScores.put("platformRisk", (int) rawPlatformScore);
+        componentScores.put("validationConfidence", (int) rawValidationConfidenceScore);
 
         // Weighted total (normalized to 0-100 scale)
         double totalScore = (rawScanScore * scanWeight) +
                 (rawDepScore * depWeight) +
                 (rawComplexityScore * complexityWeight) +
-                (rawPlatformScore * platformWeight);
+                (rawPlatformScore * platformWeight) +
+                (rawValidationConfidenceScore * validationConfidenceWeight);
 
         // Normalize to 0-100 scale
         totalScore = Math.min(totalScore, maxTotalScore);
@@ -503,5 +523,79 @@ public class RiskScoringService {
      */
     public RiskScoringConfig getRiskScoringConfig() {
         return riskScoringConfig;
+    }
+
+    /**
+     * Calculates validation confidence score based on test coverage metrics.
+     * Higher scores indicate higher confidence in validation coverage.
+     *
+     * @param totalFileCount Total number of files in the project
+     * @param testFileCount Number of test files
+     * @param integrationTestCount Number of integration test files
+     * @param criticalModulesTested Number of critical modules with adequate test coverage
+     * @return Validation confidence score (0-100)
+     */
+    private double calculateValidationConfidenceScore(int totalFileCount, int testFileCount, int integrationTestCount, int criticalModulesTested) {
+        // Load weights from configuration
+        @SuppressWarnings("unchecked")
+        Map<String, Double> weights = (Map<String, Double>) validationConfidenceConfig.get("weights");
+        if (weights == null) {
+            // Default weights if config not available
+            weights = Map.of(
+                "unitTestCoverage", 0.4,
+                "integrationTestCoverage", 0.3,
+                "criticalModulesCoverage", 0.3
+            );
+        }
+
+        // Load thresholds
+        @SuppressWarnings("unchecked")
+        Map<String, Integer> thresholds = (Map<String, Integer>) validationConfidenceConfig.get("thresholds");
+        if (thresholds == null) {
+            thresholds = Map.of(
+                "minUnitTestCoverage", 70,
+                "minIntegrationTestCoverage", 50,
+                "criticalModulesThreshold", 80
+            );
+        }
+
+        double unitTestCoverageWeight = weights.getOrDefault("unitTestCoverage", 0.4);
+        double integrationTestCoverageWeight = weights.getOrDefault("integrationTestCoverage", 0.3);
+        double criticalModulesCoverageWeight = weights.getOrDefault("criticalModulesCoverage", 0.3);
+
+        int minUnitTestCoverage = thresholds.getOrDefault("minUnitTestCoverage", 70);
+        int minIntegrationTestCoverage = thresholds.getOrDefault("minIntegrationTestCoverage", 50);
+        int criticalModulesThreshold = thresholds.getOrDefault("criticalModulesThreshold", 80);
+
+        // Calculate unit test coverage score (0-100)
+        double unitTestCoverageScore = 0.0;
+        if (totalFileCount > 0) {
+            double testRatio = (double) testFileCount / totalFileCount;
+            // Convert to percentage using the same formula as DashboardComponent
+            unitTestCoverageScore = Math.min(testRatio * 1000.0, 100.0);
+        }
+
+        // Calculate integration test coverage score (0-100)
+        double integrationTestCoverageScore = 0.0;
+        if (totalFileCount > 0) {
+            double integrationRatio = (double) integrationTestCount / totalFileCount;
+            integrationTestCoverageScore = Math.min(integrationRatio * 2000.0, 100.0); // More strict for integration tests
+        }
+
+        // Calculate critical modules coverage score (0-100)
+        double criticalModulesCoverageScore = 0.0;
+        // Assume critical modules are a subset, for now use a simple calculation
+        // In a real implementation, this would analyze which modules are critical
+        if (totalFileCount > 0) {
+            double criticalCoverageRatio = (double) criticalModulesTested / Math.max(totalFileCount / 10, 1); // Assume 10% are critical
+            criticalModulesCoverageScore = Math.min(criticalCoverageRatio * 100.0, 100.0);
+        }
+
+        // Weighted combination
+        double totalScore = (unitTestCoverageScore * unitTestCoverageWeight) +
+                           (integrationTestCoverageScore * integrationTestCoverageWeight) +
+                           (criticalModulesCoverageScore * criticalModulesCoverageWeight);
+
+        return Math.max(0.0, Math.min(100.0, totalScore));
     }
 }

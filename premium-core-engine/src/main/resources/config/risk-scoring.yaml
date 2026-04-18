@@ -293,10 +293,11 @@ dependencyRisks:
 riskCalculation:
   # Weights for different components in overall score
   componentWeights:
-    scanFindings: 0.25      # 25% from scan findings
-    dependencyIssues: 0.25   # 25% from dependency issues
-    codeComplexity: 0.25     # 25% from code complexity
-    platformRisk: 0.25      # 25% from platform compatibility
+    scanFindings: 0.20      # 20% from scan findings
+    dependencyIssues: 0.20   # 20% from dependency issues
+    codeComplexity: 0.20     # 20% from code complexity
+    platformRisk: 0.20      # 20% from platform compatibility
+    validationConfidence: 0.20 # 20% from validation confidence
     
   # Minimum scan threshold to include in scoring
   minScanThreshold: 0.5
@@ -356,9 +357,20 @@ legacyCalculations:
 # Effort scoring configuration (previously hardcoded in DashboardComponent)
 effortScoring:
   weights:
-    automationScore: 0.33      # 33% - Recipe coverage weight
-    testCoverageScore: 0.33    # 33% - Test file ratio weight
-    organisationalDepsScore: 0.33 # 33% - Organisational dependencies weight
+    automationScore: 0.5       # 50% - Recipe coverage weight
+    testCoverageScore: 0.0     # 0% - Moved to validation confidence
+    organisationalDepsScore: 0.5 # 50% - Organisational dependencies weight
   thresholds:
     maxOrganisationalDeps: 100  # Cap for organisational dependency calculation
     maxTestCoverage: 100        # Maximum test coverage percentage
+
+# Validation confidence configuration
+validationConfidence:
+  weights:
+    unitTestCoverage: 0.4      # 40% - Unit test coverage weight
+    integrationTestCoverage: 0.3 # 30% - Integration test coverage weight
+    criticalModulesCoverage: 0.3 # 30% - Critical modules coverage weight
+  thresholds:
+    minUnitTestCoverage: 70     # Minimum acceptable unit test coverage (%)
+    minIntegrationTestCoverage: 50 # Minimum acceptable integration test coverage (%)
+    criticalModulesThreshold: 80 # Minimum coverage for critical modules (%)

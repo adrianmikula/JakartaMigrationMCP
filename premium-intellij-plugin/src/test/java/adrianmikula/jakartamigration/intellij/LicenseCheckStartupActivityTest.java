@@ -36,7 +36,7 @@ public class LicenseCheckStartupActivityTest extends BasePlatformTestCase {
     }
     
     @After
-    public void tearDown() {
+    public void tearDown() throws Exception {
         if (mockedSafeLicenseChecker != null) {
             mockedSafeLicenseChecker.close();
         }
