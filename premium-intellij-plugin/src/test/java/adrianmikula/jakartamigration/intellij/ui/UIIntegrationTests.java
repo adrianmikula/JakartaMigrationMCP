@@ -34,7 +34,6 @@ public class UIIntegrationTests extends BasePlatformTestCase {
     void testAllComponentsInitialization() {
         // Basic test: ensure all major UI components can be created
         assertDoesNotThrow(() -> {
-            new ComprehensiveReportsTabComponent(mockProject);
             new DashboardComponent(mockProject, null, null);
             new DependenciesTableComponent(mockProject);
             new PlatformsTabComponent(mockProject);
@@ -45,9 +44,6 @@ public class UIIntegrationTests extends BasePlatformTestCase {
     @DisplayName("UI components should return non-null panels")
     void testComponentsReturnPanels() {
         // Verify components return valid panels
-        ComprehensiveReportsTabComponent reportsTab = new ComprehensiveReportsTabComponent(mockProject);
-        org.junit.jupiter.api.Assertions.assertNotNull(reportsTab.getPanel(), "Reports tab should return a panel");
-        
         DashboardComponent dashboard = new DashboardComponent(mockProject, null, null);
         org.junit.jupiter.api.Assertions.assertNotNull(dashboard.getPanel(), "Dashboard should return a panel");
         

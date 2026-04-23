@@ -21,6 +21,7 @@ public class ErrorReportingService implements AutoCloseable {
     
     private final UserIdentificationService userIdentificationService;
     private final SupabaseConfig supabaseConfig;
+    private final SupabaseClientWrapper supabaseClient;
     private final BlockingQueue<ErrorReport> errorQueue;
     private final ScheduledExecutorService scheduler;
     private final AtomicBoolean isRunning;
@@ -32,6 +33,7 @@ public class ErrorReportingService implements AutoCloseable {
     public ErrorReportingService(UserIdentificationService userIdentificationService) {
         this.userIdentificationService = userIdentificationService;
         this.supabaseConfig = new SupabaseConfig();
+        this.supabaseClient = new SupabaseClientWrapper(supabaseConfig);
         this.errorQueue = new LinkedBlockingQueue<>();
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "ErrorReportingService-Scheduler");
@@ -156,39 +158,22 @@ public class ErrorReportingService implements AutoCloseable {
     }
     
     /**
-     * Sends error reports to Supabase.
-     * This is a simplified implementation - in production you would use Supabase Java client.
+     * Sends error reports to Supabase using the SupabaseClientWrapper.
      */
     private void sendErrorsToSupabase(java.util.List<ErrorReport> errors) {
-        // TODO: Implement actual Supabase client integration
-        // For now, we'll log errors to demonstrate the structure
-        
-        log.info("Sending {} error reports to Supabase:", errors.size());
-        for (ErrorReport error : errors) {
-            log.info("  Error: {} | User: {} | Tab: {} | Message: {}", 
-                error.getErrorType(),
-                error.getUserId(),
-                error.getCurrentTab(),
-                error.getErrorMessage());
-        }
-        
-        // Implementation would look something like:
-        /*
-        SupabaseClient client = new SupabaseClient(supabaseConfig.getSupabaseUrl(), supabaseConfig.getSupabaseAnonKey());
-        
-        for (ErrorReport error : errors) {
-            Map<String, Object> errorData = new HashMap<>();
-            errorData.put("user_id", error.getUserId());
-            errorData.put("plugin_version", error.getPluginVersion());
-            errorData.put("current_tab", error.getCurrentTab());
-            errorData.put("error_type", error.getErrorType());
-            errorData.put("error_message", error.getErrorMessage());
-            errorData.put("stack_trace", error.getStackTrace());
-            errorData.put("created_at", error.getTimestamp().toString());
+        try {
+            // Ensure user exists before sending error reports
+            for (ErrorReport error : errors) {
+                supabaseClient.ensureUser(error.getUserId(), error.getPluginVersion());
+            }
             
-            client.from("error_reports").insert(errorData);
+            // Send error reports to database
+            supabaseClient.insertErrorReports(errors);
+            
+        } catch (Exception e) {
+            log.error("Failed to send {} error reports to Supabase", errors.size(), e);
+            throw e; // Re-throw to trigger retry logic in processErrors
         }
-        */
     }
     
     /**
@@ -241,6 +226,15 @@ public class ErrorReportingService implements AutoCloseable {
         } catch (InterruptedException e) {
             scheduler.shutdownNow();
             Thread.currentThread().interrupt();
+        }
+        
+        // Close Supabase client
+        if (supabaseClient != null) {
+            try {
+                supabaseClient.close();
+            } catch (Exception e) {
+                log.warn("Error closing Supabase client", e);
+            }
         }
         
         log.info("ErrorReportingService closed");

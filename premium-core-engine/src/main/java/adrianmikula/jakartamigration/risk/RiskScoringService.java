@@ -250,39 +250,55 @@ public class RiskScoringService {
             throw new IllegalArgumentException("Missing 'componentWeights' in risk-scoring.yaml");
         }
 
-        Number scanWeightNum = (Number) weights.get("scanFindings");
+        // New weight distribution: dependencyIssues (50%), codeComplexity (25%), platformRisk (25%)
         Number depWeightNum = (Number) weights.get("dependencyIssues");
         Number complexityWeightNum = (Number) weights.get("codeComplexity");
         Number platformWeightNum = (Number) weights.get("platformRisk");
-        Number validationConfidenceWeightNum = (Number) weights.get("validationConfidence");
 
-        if (scanWeightNum == null || depWeightNum == null || complexityWeightNum == null || platformWeightNum == null || validationConfidenceWeightNum == null) {
+        // Check for required weights (scanFindings and validationConfidence are now optional)
+        if (depWeightNum == null || complexityWeightNum == null || platformWeightNum == null) {
             throw new IllegalArgumentException(
-                    "Missing one or more required weights (scanFindings, dependencyIssues, codeComplexity, platformRisk, validationConfidence) in risk-scoring.yaml");
+                    "Missing one or more required weights (dependencyIssues, codeComplexity, platformRisk) in risk-scoring.yaml");
         }
 
-        double scanWeight = scanWeightNum.doubleValue();
+        // Optional weights for backward compatibility
+        Number scanWeightNum = (Number) weights.get("scanFindings");
+        Number validationConfidenceWeightNum = (Number) weights.get("validationConfidence");
+
         double depWeight = depWeightNum.doubleValue();
         double complexityWeight = complexityWeightNum.doubleValue();
         double platformWeight = platformWeightNum.doubleValue();
-        double validationConfidenceWeight = validationConfidenceWeightNum.doubleValue();
+        double scanWeight = scanWeightNum != null ? scanWeightNum.doubleValue() : 0.0;
+        double validationConfidenceWeight = validationConfidenceWeightNum != null ? validationConfidenceWeightNum.doubleValue() : 0.0;
 
         // Get max total score for normalization
         Number maxScoreNum = (Number) calculationConfig.get("maxTotalScore");
         double maxTotalScore = maxScoreNum != null ? maxScoreNum.doubleValue() : 100.0;
 
-        componentScores.put("scanFindings", (int) rawScanScore);
         componentScores.put("dependencyIssues", (int) rawDepScore);
         componentScores.put("codeComplexity", (int) rawComplexityScore);
         componentScores.put("platformRisk", (int) rawPlatformScore);
-        componentScores.put("validationConfidence", (int) rawValidationConfidenceScore);
+        
+        // Include scan findings and validation confidence only if they have weights
+        if (scanWeight > 0) {
+            componentScores.put("scanFindings", (int) rawScanScore);
+        }
+        if (validationConfidenceWeight > 0) {
+            componentScores.put("validationConfidence", (int) rawValidationConfidenceScore);
+        }
 
-        // Weighted total (normalized to 0-100 scale)
-        double totalScore = (rawScanScore * scanWeight) +
-                (rawDepScore * depWeight) +
+        // Weighted total (normalized to 0-100 scale) - only include weighted components
+        double totalScore = (rawDepScore * depWeight) +
                 (rawComplexityScore * complexityWeight) +
-                (rawPlatformScore * platformWeight) +
-                (rawValidationConfidenceScore * validationConfidenceWeight);
+                (rawPlatformScore * platformWeight);
+        
+        // Add optional components if they have weights
+        if (scanWeight > 0) {
+            totalScore += (rawScanScore * scanWeight);
+        }
+        if (validationConfidenceWeight > 0) {
+            totalScore += (rawValidationConfidenceScore * validationConfidenceWeight);
+        }
 
         // Normalize to 0-100 scale
         totalScore = Math.min(totalScore, maxTotalScore);

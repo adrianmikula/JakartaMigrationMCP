@@ -17,7 +17,6 @@ import java.util.List;
  * Each phase displays a longer text description without subtask tables.
  * Phase data is loaded from property files via UiTextLoader.
  */
-@Deprecated
 public class MigrationPhasesComponent {
     private final JPanel panel;
     private final Project project;
@@ -137,24 +136,34 @@ public class MigrationPhasesComponent {
     private void updatePhasesForStrategy(MigrationStrategy strategy) {
         phaseTabs.removeAll();
         
-        // MigrationStrategy has phases as a String, create tabs based on strategy
-        String strategyPhases = strategy.getPhases();
-        if (strategyPhases != null && !strategyPhases.isEmpty()) {
-            // Split phases by newlines or use single tab for the strategy's phases
-            String[] phaseLines = strategyPhases.split("\n");
-            if (phaseLines.length > 1) {
-                // Multiple phases - create tabs for each
-                for (int i = 0; i < phaseLines.length; i++) {
-                    String phaseLine = phaseLines[i].trim();
-                    if (!phaseLine.isEmpty()) {
-                        JPanel tabContent = createSimplePhaseTabContent("Phase " + (i + 1), phaseLine);
-                        phaseTabs.addTab("Phase " + (i + 1), tabContent);
+        // Use the loaded phase definitions from property files
+        PhaseDefinition[] phases = PHASE_DEFINITIONS.get(strategy);
+        if (phases != null && phases.length > 0) {
+            for (int i = 0; i < phases.length; i++) {
+                PhaseDefinition phase = phases[i];
+                JPanel tabContent = createPhaseTabContent(phase);
+                phaseTabs.addTab(phase.getName(), tabContent);
+            }
+        } else {
+            // Fallback to strategy phases if no phase definitions found
+            String strategyPhases = strategy.getPhases();
+            if (strategyPhases != null && !strategyPhases.isEmpty()) {
+                // Split phases by newlines or use single tab for the strategy's phases
+                String[] phaseLines = strategyPhases.split("\n");
+                if (phaseLines.length > 1) {
+                    // Multiple phases - create tabs for each
+                    for (int i = 0; i < phaseLines.length; i++) {
+                        String phaseLine = phaseLines[i].trim();
+                        if (!phaseLine.isEmpty()) {
+                            JPanel tabContent = createSimplePhaseTabContent("Phase " + (i + 1), phaseLine);
+                            phaseTabs.addTab("Phase " + (i + 1), tabContent);
+                        }
                     }
+                } else {
+                    // Single phase - just show it
+                    JPanel tabContent = createSimplePhaseTabContent(strategy.getDisplayName(), strategyPhases);
+                    phaseTabs.addTab("Migration Plan", tabContent);
                 }
-            } else {
-                // Single phase - just show it
-                JPanel tabContent = createSimplePhaseTabContent(strategy.getDisplayName(), strategyPhases);
-                phaseTabs.addTab("Migration Plan", tabContent);
             }
         }
     }

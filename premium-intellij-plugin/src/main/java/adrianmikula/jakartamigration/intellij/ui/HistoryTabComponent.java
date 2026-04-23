@@ -219,7 +219,7 @@ public class HistoryTabComponent {
         if (confirm == Messages.YES) {
             // Use credit if free tier
             if (!isPremium) {
-                boolean creditUsed = creditsService.useCredit(CreditType.ACTIONS);
+                boolean creditUsed = creditsService.useCredit(CreditType.ACTIONS, "History", "undo_action");
                 if (creditUsed) {
                     LOG.info("Credit deducted for undo in History tab. Remaining: " +
                         creditsService.getRemainingCredits(CreditType.ACTIONS));

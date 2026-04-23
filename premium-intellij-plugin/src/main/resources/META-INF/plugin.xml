@@ -170,12 +170,17 @@
     <change-notes><![CDATA[
     <h>1.0.14 - 2026-04-23</h>
     <ul>
+        <li>Renamed Dashboard tab to Risk tab, and added confidence dial</li>
+        <li>Expanded migration strategy phase descriptions</li>
+        <li>Added error reporting and collection of usage metrics</li>
         <li>Fixed bugs with scan results display</li>
         <li>Fixed performance issues</li>
         <li>Fixed PDF report layout issue</li>
-        <li>Added error reporting and collection of usage metrics</li>
+        <li>Fixed bugs with force-directed dependency graph</li>
         <li>Limited scan results to 5 for free verison</li>
         <li>Limited dependency graph types for free verison</li>
+        <li>Limited report generation for free verison</li>
+        <li>Limited MCP tools for free verison</li>
     </ul>
     <h>1.0.13 - 2026-04-12</h>
     <ul>

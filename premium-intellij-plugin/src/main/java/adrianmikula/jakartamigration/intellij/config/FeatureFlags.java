@@ -295,6 +295,15 @@ public class FeatureFlags {
     }
     
     /**
+     * Sets whether MCP server is premium only.
+     * For testing purposes.
+     */
+    public void setMcpServerPremiumOnly(boolean premiumOnly) {
+        flags.put("mcpServerPremiumOnly", premiumOnly);
+        LOG.info("MCP Server premium-only flag set to: " + premiumOnly);
+    }
+    
+    /**
      * Checks if PDF reports are premium only.
      */
     public boolean isPdfReportsPremiumOnly() {

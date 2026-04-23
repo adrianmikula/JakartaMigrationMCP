@@ -20,6 +20,8 @@ public class UserIdentificationService implements AutoCloseable {
     private static final String USER_ID_KEY = "anonymous.user.id";
     private static final String FIRST_SEEN_KEY = "first.seen.timestamp";
     private static final String LAST_SEEN_KEY = "last.seen.timestamp";
+    private static final String USAGE_METRICS_OPT_OUT_KEY = "usage.metrics.opt.out";
+    private static final String ERROR_REPORTING_OPT_OUT_KEY = "error.reporting.opt.out";
     
     private final Path userIdPath;
     private final String anonymousUserId;
@@ -147,14 +149,50 @@ public class UserIdentificationService implements AutoCloseable {
      * Checks if analytics is properly configured and enabled.
      */
     public boolean isAnalyticsEnabled() {
-        return supabaseConfig.isAnalyticsEnabled() && supabaseConfig.isConfigured();
+        return supabaseConfig.isAnalyticsEnabled() && supabaseConfig.isConfigured() && !isUsageMetricsOptedOut();
     }
     
     /**
      * Checks if error reporting is properly configured and enabled.
      */
     public boolean isErrorReportingEnabled() {
-        return supabaseConfig.isErrorReportingEnabled() && supabaseConfig.isConfigured();
+        return supabaseConfig.isErrorReportingEnabled() && supabaseConfig.isConfigured() && !isErrorReportingOptedOut();
+    }
+    
+    /**
+     * Checks if user has opted out of usage metrics.
+     */
+    public boolean isUsageMetricsOptedOut() {
+        Properties props = loadUserProperties();
+        return Boolean.parseBoolean(props.getProperty(USAGE_METRICS_OPT_OUT_KEY, "false"));
+    }
+    
+    /**
+     * Checks if user has opted out of error reporting.
+     */
+    public boolean isErrorReportingOptedOut() {
+        Properties props = loadUserProperties();
+        return Boolean.parseBoolean(props.getProperty(ERROR_REPORTING_OPT_OUT_KEY, "false"));
+    }
+    
+    /**
+     * Sets the user's preference for usage metrics.
+     */
+    public void setUsageMetricsEnabled(boolean enabled) {
+        Properties props = loadUserProperties();
+        props.setProperty(USAGE_METRICS_OPT_OUT_KEY, String.valueOf(!enabled));
+        saveUserProperties(props);
+        log.info("Usage metrics enabled: {}", enabled);
+    }
+    
+    /**
+     * Sets the user's preference for error reporting.
+     */
+    public void setErrorReportingEnabled(boolean enabled) {
+        Properties props = loadUserProperties();
+        props.setProperty(ERROR_REPORTING_OPT_OUT_KEY, String.valueOf(!enabled));
+        saveUserProperties(props);
+        log.info("Error reporting enabled: {}", enabled);
     }
     
     @Override

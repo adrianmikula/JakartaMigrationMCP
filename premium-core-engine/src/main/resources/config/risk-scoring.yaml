@@ -260,44 +260,68 @@ scanRisks:
       yamlConfig:
         riskLevel: "low"
         description: "YAML configuration file"
+        
+  dockerfiles:
+    displayName: "Docker Files"
+    baseWeight: 0.2
+    findings:
+      dockerfile:
+        riskLevel: "medium"
+        description: "Dockerfile configuration"
+      dockercompose:
+        riskLevel: "medium"
+        description: "Docker Compose configuration"
+      dockerignore:
+        riskLevel: "low"
+        description: "Docker ignore file"
+        
+  cicdScripts:
+    displayName: "CI/CD Scripts"
+    baseWeight: 0.3
+    findings:
+      githubActions:
+        riskLevel: "medium"
+        description: "GitHub Actions workflow"
+      jenkinsfile:
+        riskLevel: "medium"
+        description: "Jenkins pipeline configuration"
+      gitlabCi:
+        riskLevel: "medium"
+        description: "GitLab CI configuration"
+      azureDevops:
+        riskLevel: "medium"
+        description: "Azure DevOps pipeline"
 
 # Dependency risk scoring
 dependencyRisks:
   # Risk factors for Maven/Gradle dependencies
-  noJakartaVersion:
+  noJakartaUpgrade:
     riskLevel: "high"
-    score: 5.0
-    description: "No Jakarta EE version available"
+    score: 25.0
+    description: "No Jakarta EE upgrade available (merged blocker/no_jakarta_upgrade)"
     
   hasMigrationPath:
     riskLevel: "low"
     score: 0.5
     description: "Has clear migration path"
     
-  blockedDependency:
-    riskLevel: "extreme"
-    score: 5.0
-    description: "Migration blocker - no path available"
-    
   directDependency:
     riskLevel: "medium"
-    score: 1.0
-    description: "Direct dependency (higher priority)"
+    score: 10.0
+    description: "Direct dependency needing upgrade (higher priority)"
     
   transitiveDependency:
     riskLevel: "low"
     score: 0.1
-    description: "Transitive dependency"
+    description: "Transitive dependency needing upgrade"
 
 # Overall risk calculation
 riskCalculation:
   # Weights for different components in overall score
   componentWeights:
-    scanFindings: 0.20      # 20% from scan findings
-    dependencyIssues: 0.20   # 20% from dependency issues
-    codeComplexity: 0.20     # 20% from code complexity
-    platformRisk: 0.20      # 20% from platform compatibility
-    validationConfidence: 0.20 # 20% from validation confidence
+    dependencyIssues: 0.50      # 50% from dependency issues
+    codeComplexity: 0.25        # 25% from code complexity
+    platformRisk: 0.25          # 25% from platform compatibility
     
   # Minimum scan threshold to include in scoring
   minScanThreshold: 0.5
@@ -357,14 +381,26 @@ legacyCalculations:
 # Effort scoring configuration (previously hardcoded in DashboardComponent)
 effortScoring:
   weights:
-    automationScore: 0.4       # 40% - Recipe coverage weight
-    testCoverageScore: 0.0     # 0% - Moved to validation confidence
-    organisationalDepsScore: 0.3 # 30% - Organisational dependencies weight
-    projectSizeScore: 0.3      # 30% - Project size weight
+    scanFindingsScore: 0.20      # 20% - Scan findings weight (logarithmic)
+    jakartaUpgradeScore: 0.20    # 20% - Jakarta dependencies to upgrade weight
+    dockerfilesScore: 0.10      # 10% - Docker files weight (conditional)
+    cicdScriptsScore: 0.10      # 10% - CI/CD scripts weight (conditional)
+    automationScore: 0.20        # 20% - Recipe coverage weight
+    projectSizeScore: 0.20       # 20% - Project size weight
+  conditionalWeights:
+    javaMajorVersionChange:
+      dockerfilesWeight: 0.05  # 5% - Only for major Java version changes
+      cicdScriptsWeight: 0.05   # 5% - Only for major Java version changes
+    appserverPlatformChange:
+      dockerfilesWeight: 0.05  # 5% - Only for appserver platform changes
+      cicdScriptsWeight: 0.05   # 5% - Only for appserver platform changes
   thresholds:
-    maxOrganisationalDeps: 100  # Cap for organisational dependency calculation
-    maxTestCoverage: 100        # Maximum test coverage percentage
-    maxProjectFiles: 10000     # Cap for project size calculation
+    maxOrganisationalDeps: 100    # Cap for organisational dependency calculation
+    maxProjectFiles: 10000        # Cap for project size calculation
+    scanFindingsLogDivisor: 3.0   # Log divisor for scan findings (log10(1000) ≈ 3)
+    maxJakartaUpgradeScore: 100   # Cap for jakarta upgrade score
+    maxDockerfilesScore: 100        # Cap for Docker files score
+    maxCicdScriptsScore: 100        # Cap for CI/CD scripts score
 
 # Validation confidence configuration
 validationConfidence:

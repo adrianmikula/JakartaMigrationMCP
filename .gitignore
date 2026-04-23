@@ -64,6 +64,9 @@ npm-debug.log*
 # Release artifacts
 release/
 *.tgz
+*.zip
+*.class
+*.db
 
 # IntelliJ Plugin Build Outputs
 intellij-plugin/build/
@@ -76,3 +79,9 @@ stdout.txt
 
 #Ignore windsurf AI rules
 .windsurfrules
+.kilo
+
+# temp files
+*.backup
+*.disabled
+*.txt

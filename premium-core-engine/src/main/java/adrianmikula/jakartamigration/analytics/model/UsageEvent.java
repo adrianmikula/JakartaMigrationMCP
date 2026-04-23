@@ -75,26 +75,41 @@ public class UsageEvent {
     private String pluginVersion;
     
     /**
-     * Creates a credit usage event.
+     * Creates a credit usage event with context information.
      */
-    public static UsageEvent creditUsed(String userId, String creditType, String pluginVersion) {
+    public static UsageEvent creditUsed(String userId, String creditType, 
+                                      String currentUiTab, String triggerAction, String pluginVersion) {
+        Map<String, Object> eventData = Map.of(
+            "current_ui_tab", currentUiTab,
+            "trigger_action", triggerAction,
+            "plugin_version", pluginVersion
+        );
+        
         return UsageEvent.builder()
             .userId(userId)
             .eventType(EventType.CREDIT_USED)
             .creditType(creditType)
+            .eventData(eventData)
             .pluginVersion(pluginVersion)
             .timestamp(Instant.now())
             .build();
     }
     
     /**
-     * Creates an upgrade clicked event.
+     * Creates an upgrade clicked event with context information.
      */
-    public static UsageEvent upgradeClicked(String userId, String source, String pluginVersion) {
+    public static UsageEvent upgradeClicked(String userId, String source, 
+                                         String currentUiTab, String pluginVersion) {
+        Map<String, Object> eventData = Map.of(
+            "source", source,
+            "current_ui_tab", currentUiTab,
+            "plugin_version", pluginVersion
+        );
+        
         return UsageEvent.builder()
             .userId(userId)
             .eventType(EventType.UPGRADE_CLICKED)
-            .eventData(Map.of("source", source))
+            .eventData(eventData)
             .pluginVersion(pluginVersion)
             .timestamp(Instant.now())
             .build();

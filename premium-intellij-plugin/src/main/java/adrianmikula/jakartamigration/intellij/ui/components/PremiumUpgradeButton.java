@@ -1,5 +1,7 @@
 package adrianmikula.jakartamigration.intellij.ui.components;
 
+import adrianmikula.jakartamigration.analytics.service.UsageService;
+import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 
@@ -30,30 +32,11 @@ public class PremiumUpgradeButton {
      * Creates a standard premium upgrade button with yellow background and border.
      * 
      * @param project the IntelliJ project for error handling
+     * @param currentUiTab the current UI tab where the button is displayed
      * @return a configured JButton with upgrade functionality
      */
-    public static JButton createUpgradeButton(Project project) {
-        JButton upgradeButton = new JButton(UPGRADE_BUTTON_TEXT);
-        upgradeButton.setToolTipText(UPGRADE_TOOLTIP);
-        upgradeButton.setBackground(YELLOW_BACKGROUND);
-        upgradeButton.setForeground(DARK_TEXT);
-        upgradeButton.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(YELLOW_BORDER, 1),
-            BorderFactory.createEmptyBorder(5, 10, 5, 10)
-        ));
-        upgradeButton.setFont(upgradeButton.getFont().deriveFont(Font.BOLD));
-        upgradeButton.setFocusPainted(false);
-        
-        // Add click handler to open marketplace
-        upgradeButton.addActionListener(e -> {
-            try {
-                java.awt.Desktop.getDesktop().browse(new java.net.URI(MARKETPLACE_URL));
-            } catch (Exception ex) {
-                Messages.showErrorDialog(project, "Could not open upgrade URL", "Error");
-            }
-        });
-        
-        return upgradeButton;
+    public static JButton createUpgradeButton(Project project, String currentUiTab) {
+        return createUpgradeButton(project, "premium_button_factory", UPGRADE_BUTTON_TEXT, UPGRADE_TOOLTIP, currentUiTab);
     }
 
     /**
@@ -62,9 +45,24 @@ public class PremiumUpgradeButton {
      * @param project the IntelliJ project for error handling
      * @param buttonText custom text for the button
      * @param tooltip custom tooltip text
+     * @param currentUiTab the current UI tab where the button is displayed
      * @return a configured JButton with upgrade functionality
      */
-    public static JButton createUpgradeButton(Project project, String buttonText, String tooltip) {
+    public static JButton createUpgradeButton(Project project, String buttonText, String tooltip, String currentUiTab) {
+        return createUpgradeButton(project, "premium_button_factory_custom", buttonText, tooltip, currentUiTab);
+    }
+    
+    /**
+     * Creates a premium upgrade button with analytics tracking.
+     * 
+     * @param project the IntelliJ project for error handling
+     * @param analyticsSource the source identifier for analytics tracking
+     * @param buttonText custom text for the button
+     * @param tooltip custom tooltip text
+     * @param currentUiTab the current UI tab where the button is displayed
+     * @return a configured JButton with upgrade functionality
+     */
+    public static JButton createUpgradeButton(Project project, String analyticsSource, String buttonText, String tooltip, String currentUiTab) {
         JButton upgradeButton = new JButton(buttonText);
         upgradeButton.setToolTipText(tooltip);
         upgradeButton.setBackground(YELLOW_BACKGROUND);
@@ -76,8 +74,12 @@ public class PremiumUpgradeButton {
         upgradeButton.setFont(upgradeButton.getFont().deriveFont(Font.BOLD));
         upgradeButton.setFocusPainted(false);
         
-        // Add click handler to open marketplace
+        // Add click handler with analytics tracking
         upgradeButton.addActionListener(e -> {
+            // Track upgrade click analytics
+            trackUpgradeClick(analyticsSource, currentUiTab);
+            
+            // Open marketplace
             try {
                 java.awt.Desktop.getDesktop().browse(new java.net.URI(MARKETPLACE_URL));
             } catch (Exception ex) {
@@ -114,7 +116,7 @@ public class PremiumUpgradeButton {
         boolean isPremium = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
         
         if (!isPremium) {
-            panel.add(createUpgradeButton(project));
+            panel.add(createUpgradeButton(project, "PremiumUpgradePanel"));
         } else {
             panel.add(createPremiumBadge());
         }
@@ -141,7 +143,7 @@ public class PremiumUpgradeButton {
         boolean isPremium = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
         
         if (!isPremium) {
-            panel.add(createUpgradeButton(project));
+            panel.add(createUpgradeButton(project, "UpgradePanelWithComponents"));
         } else {
             panel.add(createPremiumBadge());
         }
@@ -183,5 +185,23 @@ public class PremiumUpgradeButton {
      */
     public static String getMarketplaceUrl() {
         return MARKETPLACE_URL;
+    }
+    
+    /**
+     * Tracks upgrade click analytics for the premium upgrade button with context.
+     * This method is called when the user clicks on any premium upgrade button.
+     * 
+     * @param source the source identifier for analytics tracking
+     * @param currentUiTab the current UI tab where the upgrade button was clicked
+     */
+    private static void trackUpgradeClick(String source, String currentUiTab) {
+        try {
+            UserIdentificationService userIdentificationService = new UserIdentificationService();
+            UsageService usageService = new UsageService(userIdentificationService);
+            usageService.trackUpgradeClick(source, currentUiTab);
+        } catch (Exception e) {
+            // Log error but don't prevent the upgrade action
+            System.err.println("Failed to track upgrade click analytics: " + e.getMessage());
+        }
     }
 }

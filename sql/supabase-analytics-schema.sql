@@ -1,29 +1,13 @@
--- Jakarta Migration Plugin - Supabase Analytics Schema
--- This file contains the SQL schema for tracking usage metrics and error reports
-
--- =============================================================================
--- USERS TABLE
--- Stores anonymous user identification and metadata
--- =============================================================================
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    anonymous_id VARCHAR(255) UNIQUE NOT NULL,
-    plugin_version VARCHAR(50) NOT NULL,
-    first_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Create index for faster lookups by anonymous_id
-CREATE INDEX idx_users_anonymous_id ON users(anonymous_id);
+-- Jakarta Migration Plugin - Supabase Analytics Schema (Simplified)
+-- This file contains SQL schema for tracking usage metrics and error reports without user table dependency
 
 -- =============================================================================
 -- USAGE EVENTS TABLE
--- Tracks user interactions with the plugin
+-- Tracks user interactions with plugin using UUID directly without foreign key constraints
 -- =============================================================================
 CREATE TABLE usage_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    user_id VARCHAR(255) NOT NULL, -- Direct UUID without foreign key constraint
     event_type VARCHAR(50) NOT NULL, -- 'credit_used', 'upgrade_clicked'
     credit_type VARCHAR(50), -- 'basic_scan', 'advanced_scan', 'pdf_report', 'refactor'
     event_data JSONB, -- Additional event-specific data (e.g., upgrade source)
@@ -40,11 +24,11 @@ CREATE INDEX idx_usage_events_event_type ON usage_events(event_type);
 
 -- =============================================================================
 -- ERROR REPORTS TABLE
--- Collects error information for debugging and improvement
+-- Collects error information for debugging and improvement without user table dependency
 -- =============================================================================
 CREATE TABLE error_reports (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    user_id VARCHAR(255) NOT NULL, -- Direct UUID without foreign key constraint
     plugin_version VARCHAR(50) NOT NULL,
     current_tab VARCHAR(100), -- Currently active UI tab when error occurred
     error_type VARCHAR(100) NOT NULL, -- Exception class name
@@ -62,23 +46,20 @@ CREATE INDEX idx_error_reports_error_type ON error_reports(error_type);
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- Enable anonymous access for analytics data
 -- =============================================================================
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE usage_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE error_reports ENABLE ROW LEVEL SECURITY;
 
--- Allow anonymous inserts (for new users and events)
-CREATE POLICY "Allow anonymous insert" ON users FOR INSERT WITH CHECK (true);
+-- Allow anonymous inserts and reads
 CREATE POLICY "Allow anonymous insert" ON usage_events FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow anonymous insert" ON error_reports FOR INSERT WITH CHECK (true);
 
--- Allow anonymous reads (for analytics queries)
-CREATE POLICY "Allow anonymous read" ON users FOR SELECT USING (true);
 CREATE POLICY "Allow anonymous read" ON usage_events FOR SELECT USING (true);
 CREATE POLICY "Allow anonymous read" ON error_reports FOR SELECT USING (true);
 
 -- =============================================================================
--- SAMPLE QUERIES
+-- SAMPLE QUERIES (Updated for simplified schema)
 -- =============================================================================
+
 -- Get usage statistics by event type
 SELECT 
     event_type,
@@ -98,15 +79,27 @@ GROUP BY error_type, plugin_version
 ORDER BY error_count DESC
 LIMIT 10;
 
--- Get user activity summary
+-- Get activity summary by user_id (simplified)
 SELECT 
-    u.anonymous_id,
-    u.first_seen,
-    u.last_seen,
-    COUNT(DISTINCT ue.id) as usage_events_count,
-    COUNT(DISTINCT er.id) as error_reports_count
-FROM users u
-LEFT JOIN usage_events ue ON u.id = ue.user_id
-LEFT JOIN error_reports er ON u.id = er.user_id
-GROUP BY u.id, u.anonymous_id, u.first_seen, u.last_seen
-ORDER BY u.last_seen DESC;
+    user_id,
+    MIN(created_at) as first_event,
+    MAX(created_at) as last_event,
+    COUNT(DISTINCT id) as usage_events_count,
+    COUNT(DISTINCT id) as error_reports_count
+FROM (
+    SELECT user_id, id, created_at FROM usage_events
+    UNION ALL
+    SELECT user_id, id, created_at FROM error_reports
+) combined
+GROUP BY user_id
+ORDER BY last_event DESC;
+
+-- Get usage by credit type
+SELECT 
+    credit_type,
+    COUNT(*) as usage_count,
+    DATE_TRUNC('day', created_at) as usage_date
+FROM usage_events 
+WHERE credit_type IS NOT NULL
+GROUP BY credit_type, DATE_TRUNC('day', created_at)
+ORDER BY usage_date DESC;

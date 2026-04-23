@@ -20,6 +20,7 @@ import adrianmikula.jakartamigration.intellij.ui.components.ConfidenceGauge;
 import adrianmikula.jakartamigration.intellij.ui.components.EffortGauge;
 import adrianmikula.jakartamigration.intellij.ui.components.CombinedConfidenceGauge;
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
+import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -181,6 +182,11 @@ public class DashboardComponent implements ScanProgressListener {
 
     // Analyse button - instance field for external control
     private JButton analyseButton;
+    
+    // External progress components (for updates from MigrationToolWindow)
+    private JProgressBar externalProgressBar;
+    private JLabel externalProgressLabel;
+    private JButton externalAnalyzeButton;
 
     public DashboardComponent(@NotNull Project project, AdvancedScanningService advancedScanningService,
             Consumer<ActionEvent> onAnalyze) {
@@ -192,6 +198,16 @@ public class DashboardComponent implements ScanProgressListener {
         this.enhancedTestCoverageService = EnhancedTestCoverageAnalysisService.getInstance();
         this.panel = new JBPanel<>(new BorderLayout());
         initializeComponent();
+    }
+    
+    /**
+     * Sets external UI components for progress updates.
+     * This allows MigrationToolWindow to control the progress bar and analyze button.
+     */
+    public void setExternalProgressComponents(JProgressBar progressBar, JLabel progressLabel, JButton analyzeButton) {
+        this.externalProgressBar = progressBar;
+        this.externalProgressLabel = progressLabel;
+        this.externalAnalyzeButton = analyzeButton;
     }
     
     /**
@@ -234,12 +250,7 @@ public class DashboardComponent implements ScanProgressListener {
         JPanel mainPanel = new JBPanel<>();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
 
-        // Top: Progress Panel (Scan Progress Bar) - moved to top above gauges
-        progressPanel = createProgressPanel();
-        progressPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        mainPanel.add(progressPanel);
-
-        // Middle: Gauges (Risk Assessment)
+        // Top: Gauges (Risk Assessment)
         gaugesPanel = createGaugesPanel();
         gaugesPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         mainPanel.add(gaugesPanel);
@@ -250,10 +261,6 @@ public class DashboardComponent implements ScanProgressListener {
         mainPanel.add(resultsPanel);
 
         contentPanel.add(mainPanel, BorderLayout.CENTER);
-
-        // Actions panel with Analyse button
-        JPanel actionsPanel = createActionsPanel();
-        contentPanel.add(actionsPanel, BorderLayout.SOUTH);
 
         // Wrap content in scroll pane for vertical scrolling
         JBScrollPane scrollPane = new JBScrollPane(contentPanel);
@@ -450,41 +457,89 @@ private void resetAdvancedScanCounts() {
      */
     public void updateMcpServerStatus() {
         SwingUtilities.invokeLater(() -> {
+            // Check if MCP server is premium-only and user is not premium
+            boolean mcpServerPremiumOnly = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isMcpServerPremiumOnly();
+            boolean isPremium = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
+            
+            if (mcpServerPremiumOnly && !isPremium) {
+                // MCP server is premium-only but user is not premium
+                if (mcpStatusIndicator != null) {
+                    mcpStatusIndicator.setForeground(new Color(255, 140, 0)); // Orange for premium required
+                }
+                if (mcpStatusValue != null) {
+                    mcpStatusValue.setText("Premium Only");
+                    mcpStatusValue.setForeground(new Color(255, 140, 0));
+                }
+                if (mcpToolsValue != null) {
+                    mcpToolsValue.setText("🔒");
+                    mcpToolsValue.setForeground(new Color(255, 140, 0));
+                }
+                if (mcpServerVersionValue != null) {
+                    mcpServerVersionValue.setText("-");
+                }
+                LOG.info("MCP Server Status: Premium Only - user is not premium and MCP server is premium-only feature");
+                return;
+            }
+
             JakartaMcpServerProvider provider = JakartaMcpRegistrationActivity.getServerProvider();
 
             if (provider != null && provider.isReady()) {
                 // MCP is connected and ready
-                mcpStatusIndicator.setForeground(new Color(0, 180, 0));
-                mcpStatusValue.setText("Connected");
-                mcpStatusValue.setForeground(new Color(0, 120, 0));
+                if (mcpStatusIndicator != null) {
+                    mcpStatusIndicator.setForeground(new Color(0, 180, 0));
+                }
+                if (mcpStatusValue != null) {
+                    mcpStatusValue.setText("Connected");
+                    mcpStatusValue.setForeground(new Color(0, 120, 0));
+                }
 
                 int toolCount = provider.getToolCount();
-                mcpToolsValue.setText(String.valueOf(toolCount));
-                mcpToolsValue.setForeground(new Color(0, 100, 200));
+                if (mcpToolsValue != null) {
+                    mcpToolsValue.setText(String.valueOf(toolCount));
+                    mcpToolsValue.setForeground(new Color(0, 100, 200));
+                }
 
-                mcpServerVersionValue.setText(provider.getServerVersion());
+                if (mcpServerVersionValue != null) {
+                    mcpServerVersionValue.setText(provider.getServerVersion());
+                }
 
                 LOG.info("MCP Server Status: Connected with " + toolCount + " tools");
             } else if (provider != null) {
                 // MCP provider exists but not ready
-                mcpStatusIndicator.setForeground(Color.ORANGE);
-                mcpStatusValue.setText("Initializing");
-                mcpStatusValue.setForeground(Color.ORANGE);
+                if (mcpStatusIndicator != null) {
+                    mcpStatusIndicator.setForeground(Color.ORANGE);
+                }
+                if (mcpStatusValue != null) {
+                    mcpStatusValue.setText("Initializing");
+                    mcpStatusValue.setForeground(Color.ORANGE);
+                }
 
-                mcpToolsValue.setText("-");
-                mcpToolsValue.setForeground(Color.GRAY);
+                if (mcpToolsValue != null) {
+                    mcpToolsValue.setText("-");
+                    mcpToolsValue.setForeground(Color.GRAY);
+                }
 
-                mcpServerVersionValue.setText(provider.getServerVersion());
+                if (mcpServerVersionValue != null) {
+                    mcpServerVersionValue.setText(provider.getServerVersion());
+                }
 
                 LOG.info("MCP Server Status: Provider exists but not ready");
             } else {
                 // MCP provider not initialized - check if AI Assistant is available
-                mcpStatusIndicator.setForeground(Color.GRAY);
-                mcpStatusValue.setText("Not Available");
-                mcpStatusValue.setForeground(Color.GRAY);
+                if (mcpStatusIndicator != null) {
+                    mcpStatusIndicator.setForeground(Color.GRAY);
+                }
+                if (mcpStatusValue != null) {
+                    mcpStatusValue.setText("Not Available");
+                    mcpStatusValue.setForeground(Color.GRAY);
+                }
 
-                mcpToolsValue.setText("-");
-                mcpServerVersionValue.setText("1.0.0");
+                if (mcpToolsValue != null) {
+                    mcpToolsValue.setText("-");
+                }
+                if (mcpServerVersionValue != null) {
+                    mcpServerVersionValue.setText("1.0.0");
+                }
 
                 LOG.info("MCP Server Status: Provider not initialized - AI Assistant may not be active");
             }
@@ -545,33 +600,6 @@ private void resetAdvancedScanCounts() {
         return titledBorder;
     }
 
-    private JPanel createActionsPanel() {
-        // Use BorderLayout to separate analyse button (left) from trial/upgrade buttons (right)
-        JPanel actionsPanel = new JBPanel<>(new BorderLayout());
-        actionsPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-
-        // Left: Analyse button
-        JPanel leftPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 10, 5));
-        analyseButton = new JButton("Analyse");
-        analyseButton.setToolTipText("Start migration analysis scan");
-        analyseButton.setBackground(new Color(59, 130, 246)); // Blue background
-        analyseButton.setForeground(Color.WHITE);
-        analyseButton.setFont(analyseButton.getFont().deriveFont(Font.BOLD));
-        analyseButton.addActionListener(e -> {
-            if (onAnalyze != null) {
-                onAnalyze.accept(e);
-            }
-        });
-        leftPanel.add(analyseButton);
-        actionsPanel.add(leftPanel, BorderLayout.WEST);
-
-        // Right: Trial/Upgrade/Premium buttons using shared component
-        JPanel rightPanel = PremiumUpgradeButton.createConditionalUpgradePanel(project);
-
-        actionsPanel.add(rightPanel, BorderLayout.EAST);
-        return actionsPanel;
-    }
-
     
     public JPanel getPanel() {
         return panel;
@@ -585,6 +613,7 @@ private void resetAdvancedScanCounts() {
      */
     public void setAnalysisRunning(boolean running) {
         SwingUtilities.invokeLater(() -> {
+            // Update internal analyze button (if it exists)
             if (analyseButton != null) {
                 analyseButton.setEnabled(!running);
                 if (running) {
@@ -595,15 +624,46 @@ private void resetAdvancedScanCounts() {
                     analyseButton.setBackground(new Color(59, 130, 246)); // Blue when enabled
                 }
             }
+            
+            // Update external analyze button (from MigrationToolWindow)
+            if (externalAnalyzeButton != null) {
+                externalAnalyzeButton.setEnabled(!running);
+                if (running) {
+                    externalAnalyzeButton.setText("Scanning...");
+                    externalAnalyzeButton.setBackground(new Color(156, 163, 175)); // Gray when disabled
+                } else {
+                    externalAnalyzeButton.setText("▶ Analyze Project");
+                    externalAnalyzeButton.setBackground(new Color(59, 130, 246)); // Blue when enabled
+                }
+            }
+            
+            // Update internal progress bar (if it exists)
             if (mainScanProgressBar != null) {
                 mainScanProgressBar.setIndeterminate(running);
                 if (running) {
-                    mainScanProgressBar.setString("Scanning in progress...");
-                    mainScanProgressLabel.setText("Please wait");
+                    mainScanProgressBar.setString("Scanning in progress... Please wait");
+                    mainScanProgressLabel.setText(""); // Clear external label since text is now in progress bar
                 } else {
                     mainScanProgressBar.setValue(100);
-                    mainScanProgressBar.setString("100%");
-                    mainScanProgressLabel.setText("Scan complete");
+                    mainScanProgressBar.setString("Scan complete");
+                    mainScanProgressLabel.setText(""); // Clear external label since text is now in progress bar
+                }
+            }
+            
+            // Update external progress bar (from MigrationToolWindow)
+            if (externalProgressBar != null) {
+                externalProgressBar.setIndeterminate(running);
+                if (running) {
+                    externalProgressBar.setString("Scanning in progress... Please wait");
+                    if (externalProgressLabel != null) {
+                        externalProgressLabel.setText(""); // Clear external label since text is now in progress bar
+                    }
+                } else {
+                    externalProgressBar.setValue(100);
+                    externalProgressBar.setString("Scan complete");
+                    if (externalProgressLabel != null) {
+                        externalProgressLabel.setText(""); // Clear external label since text is now in progress bar
+                    }
                 }
             }
         });
@@ -642,19 +702,37 @@ private void resetAdvancedScanCounts() {
     @Override
     public void onScanPhase(String phase, int completed, int total) {
         SwingUtilities.invokeLater(() -> {
+            // Update internal progress bar (if it exists)
             if (mainScanProgressBar != null && mainScanProgressLabel != null) {
                 if (total > 0) {
                     // Show determinate progress
                     mainScanProgressBar.setIndeterminate(false);
                     int percentage = (completed * 100) / total;
                     mainScanProgressBar.setValue(percentage);
-                    mainScanProgressBar.setString(phase + " (" + completed + "/" + total + ")");
-                    mainScanProgressLabel.setText(phase + " in progress...");
+                    mainScanProgressBar.setString(phase + " (" + completed + "/" + total + ") - " + phase + " in progress...");
+                    mainScanProgressLabel.setText(""); // Clear external label since text is now in progress bar
                 } else {
                     // Show indeterminate progress for unknown total
                     mainScanProgressBar.setIndeterminate(true);
-                    mainScanProgressBar.setString(phase);
-                    mainScanProgressLabel.setText(phase + " in progress...");
+                    mainScanProgressBar.setString(phase + " in progress...");
+                    mainScanProgressLabel.setText(""); // Clear external label since text is now in progress bar
+                }
+            }
+            
+            // Update external progress bar (from MigrationToolWindow)
+            if (externalProgressBar != null && externalProgressLabel != null) {
+                if (total > 0) {
+                    // Show determinate progress
+                    externalProgressBar.setIndeterminate(false);
+                    int percentage = (completed * 100) / total;
+                    externalProgressBar.setValue(percentage);
+                    externalProgressBar.setString(phase + " (" + completed + "/" + total + ") - " + phase + " in progress...");
+                    externalProgressLabel.setText(""); // Clear external label since text is now in progress bar
+                } else {
+                    // Show indeterminate progress for unknown total
+                    externalProgressBar.setIndeterminate(true);
+                    externalProgressBar.setString(phase + " in progress...");
+                    externalProgressLabel.setText(""); // Clear external label since text is now in progress bar
                 }
             }
         });
@@ -688,15 +766,24 @@ private void resetAdvancedScanCounts() {
             // Set analysis running to false to re-enable the button
             setAnalysisRunning(false);
             
-            // Show error in progress label
-            if (mainScanProgressLabel != null) {
-                mainScanProgressLabel.setText("Scan failed");
-            }
-            
+            // Show error in progress bar instead of external label
             if (mainScanProgressBar != null) {
                 mainScanProgressBar.setIndeterminate(false);
                 mainScanProgressBar.setValue(0);
-                mainScanProgressBar.setString("Error");
+                mainScanProgressBar.setString("Scan failed - Error");
+            }
+            if (mainScanProgressLabel != null) {
+                mainScanProgressLabel.setText(""); // Clear external label since error is now in progress bar
+            }
+            
+            // Show error in external progress bar
+            if (externalProgressBar != null) {
+                externalProgressBar.setIndeterminate(false);
+                externalProgressBar.setValue(0);
+                externalProgressBar.setString("Scan failed - Error");
+            }
+            if (externalProgressLabel != null) {
+                externalProgressLabel.setText(""); // Clear external label since error is now in progress bar
             }
             
             // Log the error for debugging
@@ -1011,35 +1098,6 @@ private void resetAdvancedScanCounts() {
             if (value <= thresholds[2]) return orange;
             return red;
         }
-    }
-
-    /**
-     * Creates the progress panel showing the main scan progress bar.
-     */
-    private JPanel createProgressPanel() {
-        JPanel panel = new JBPanel<>(new BorderLayout());
-        panel.setBorder(BorderFactory.createCompoundBorder(
-                createTransparentTitledBorder("Scan Progress"),
-                BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-
-        JPanel progressContainer = new JBPanel<>(new BorderLayout(10, 0));
-
-        // Progress bar
-        mainScanProgressBar = new JProgressBar(0, 100);
-        mainScanProgressBar.setValue(0);
-        mainScanProgressBar.setStringPainted(true);
-        mainScanProgressBar.setString("0%");
-        mainScanProgressBar.setMinimumSize(new Dimension(100, 25));
-        progressContainer.add(mainScanProgressBar, BorderLayout.CENTER);
-
-        // Progress label
-        mainScanProgressLabel = new JBLabel("Ready to scan");
-        mainScanProgressLabel.setFont(mainScanProgressLabel.getFont().deriveFont(Font.PLAIN, 11f));
-        progressContainer.add(mainScanProgressLabel, BorderLayout.EAST);
-
-        panel.add(progressContainer, BorderLayout.CENTER);
-        return panel;
     }
 
     /**
@@ -1425,19 +1483,19 @@ private void resetAdvancedScanCounts() {
         Map<String, List<RiskScoringService.RiskFinding>> scanFindings = new HashMap<>();
         Map<String, Integer> depIssues = new HashMap<>();
         
-        // Build dependency issues map
+        // Build dependency issues map (excluding jakarta-compatible dependencies)
         DependencySummary depSummary = dashboard.getDependencySummary();
         if (depSummary != null) {
             int noSupport = depSummary.getNoJakartaSupportCount() != null ? depSummary.getNoJakartaSupportCount() : 0;
-            int affected = depSummary.getAffectedDependencies() != null ? depSummary.getAffectedDependencies() : 0;
             int blockers = depSummary.getBlockerDependencies() != null ? depSummary.getBlockerDependencies() : 0;
+            int affected = depSummary.getAffectedDependencies() != null ? depSummary.getAffectedDependencies() : 0;
             int transitiveDeps = depSummary.getTransitiveDependencies() != null ? depSummary.getTransitiveDependencies() : 0;
+            int jakartaUpgrade = depSummary.getJakartaUpgradeCount() != null ? depSummary.getJakartaUpgradeCount() : 0;
 
-            if (noSupport > 0) {
-                depIssues.put("noJakartaVersion", noSupport * 25);
-            }
-            if (blockers > 0) {
-                depIssues.put("blockedDependency", blockers * 40);
+            // Merge blocker and no_jakarta_upgrade into single category
+            int mergedNoUpgrade = noSupport + blockers;
+            if (mergedNoUpgrade > 0) {
+                depIssues.put("noJakartaUpgrade", mergedNoUpgrade * 25);
             }
             if (affected > 0) {
                 depIssues.put("directDependency", affected * 10);
@@ -1447,43 +1505,25 @@ private void resetAdvancedScanCounts() {
             }
         }
         
-        // Build scan findings from advanced scans
-        if (advancedScanningService != null && advancedScanningService.hasCachedResults()) {
-            AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
-            if (summary != null) {
-                // Create RiskFinding objects for each scan type
-                List<RiskScoringService.RiskFinding> jpaFindings = createRiskFindings(summary.getJpaCount(), "jpa");
-                List<RiskScoringService.RiskFinding> bvFindings = createRiskFindings(summary.getBeanValidationCount(), "beanValidation");
-                List<RiskScoringService.RiskFinding> sjFindings = createRiskFindings(summary.getServletJspCount(), "servletJsp");
-                List<RiskScoringService.RiskFinding> cdiFindings = createRiskFindings(summary.getCdiInjectionCount(), "cdiInjection");
-                List<RiskScoringService.RiskFinding> bcFindings = createRiskFindings(summary.getBuildConfigCount(), "buildConfig");
-                List<RiskScoringService.RiskFinding> rsFindings = createRiskFindings(summary.getRestSoapCount(), "restSoap");
-                List<RiskScoringService.RiskFinding> daFindings = createRiskFindings(summary.getDeprecatedApiCount(), "deprecatedApi");
-                List<RiskScoringService.RiskFinding> saFindings = createRiskFindings(summary.getSecurityApiCount(), "securityApi");
-                List<RiskScoringService.RiskFinding> jmFindings = createRiskFindings(summary.getJmsMessagingCount(), "jmsMessaging");
-                List<RiskScoringService.RiskFinding> cfFindings = createRiskFindings(summary.getConfigFileCount(), "configFiles");
-                
-                scanFindings.put("jpa", jpaFindings);
-                scanFindings.put("beanValidation", bvFindings);
-                scanFindings.put("servletJsp", sjFindings);
-                scanFindings.put("cdiInjection", cdiFindings);
-                scanFindings.put("buildConfig", bcFindings);
-                scanFindings.put("restSoap", rsFindings);
-                scanFindings.put("deprecatedApi", daFindings);
-                scanFindings.put("securityApi", saFindings);
-                scanFindings.put("jmsMessaging", jmFindings);
-                scanFindings.put("configFiles", cfFindings);
-            }
-        }
-        
-        // Calculate risk score (with caching to prevent unnecessary recalculations)
+        // Note: Scan findings excluded from risk calculation per new formula
+        // Calculate risk score without scan findings and validation confidence
         int totalFileCount = getTotalFileCount();
         int testFileCount = getTestFileCount();
         double platformRiskScore = getPlatformRiskScore();
         // Estimate integration tests and critical modules (simplified for now)
         int integrationTestCount = estimateIntegrationTestCount();
         int criticalModulesTested = estimateCriticalModulesTested();
-        RiskScoringService.RiskScore riskScore = riskScoringService.calculateRiskScore(scanFindings, depIssues, totalFileCount, platformRiskScore, testFileCount, integrationTestCount, criticalModulesTested);
+        
+        // Pass empty scan findings to exclude them from calculation
+        RiskScoringService.RiskScore riskScore = riskScoringService.calculateRiskScore(
+            new HashMap<>(), // Empty scan findings - excluded from risk calculation
+            depIssues, 
+            totalFileCount, 
+            platformRiskScore, 
+            testFileCount, 
+            integrationTestCount, 
+            criticalModulesTested
+        );
         int newScore = (int) Math.round(riskScore.totalScore());
         
         // Only update gauge if score actually changed
@@ -2025,13 +2065,14 @@ private void resetAdvancedScanCounts() {
     }
 
     /**
-     * Calculates the migration effort score (0-100) based on three factors:
-     * 1. Automation potential (33%): percentage of scan issues that have matching refactor recipes
-     * 2. Codebase test coverage (33%): inverse of test file ratio (higher tests = lower effort)
-     * 3. Organisational dependencies (33%): count of organisational/internal dependencies
+     * Calculates the migration effort score (0-100) based on four factors:
+     * 1. Scan findings (25%): logarithmic scale based on total scan findings
+     * 2. Jakarta dependencies to upgrade (25%): jakartaUpgrade count
+     * 3. Automation potential (25%): percentage of scan issues that have matching refactor recipes
+     * 4. Project size (25%): total file count
      *
-     * Lower score = easier migration (more automation, better tests, fewer org deps)
-     * Higher score = harder migration (less automation, fewer tests, more org deps)
+     * Lower score = easier migration (fewer findings, better automation, smaller project)
+     * Higher score = harder migration (more findings, less automation, larger project)
      *
      * Weights are loaded from risk-scoring.yaml configuration.
      *
@@ -2042,26 +2083,64 @@ private void resetAdvancedScanCounts() {
             return 0;
         }
 
-        // Load weights from configuration (defaults updated after removing test coverage)
+        // Load weights from configuration
         RiskScoringService riskScoringService = RiskScoringService.getInstance();
         RiskScoringConfig config = riskScoringService.getRiskScoringConfig();
-        double automationWeight = config.getAutomationScoreWeight();
-        double orgDepsWeight = config.getOrganisationalDepsScoreWeight();
-        double projectSizeWeight = config.getProjectSizeScoreWeight();
+        
+        // Check for conditional weighting based on major version changes
+        boolean hasJavaMajorVersionChange = hasJavaMajorVersionChange();
+        boolean hasAppserverPlatformChange = hasAppserverPlatformChange();
+        
+        // Base weights from YAML
+        double scanFindingsWeight = 0.20;
+        double jakartaUpgradeWeight = 0.20;
+        double dockerfilesWeight = 0.15;
+        double cicdScriptsWeight = 0.15;
+        double automationWeight = 0.15;
+        double projectSizeWeight = 0.15;
+        
+        // Apply conditional weighting if major version changes detected
+        if (hasJavaMajorVersionChange || hasAppserverPlatformChange) {
+            // Use conditional weights (5% each for Docker and CI/CD scripts)
+            dockerfilesWeight = 0.05;
+            cicdScriptsWeight = 0.05;
+            // Reduce other weights to accommodate the conditional weights
+            automationWeight = 0.175; // (0.20 - 0.05 - 0.05) = 0.10
+            projectSizeWeight = 0.175; // (0.20 - 0.05 - 0.05) = 0.10
+        } else {
+            // Normal case: use 0 weight for Docker and CI/CD scripts
+            dockerfilesWeight = 0.0;
+            cicdScriptsWeight = 0.0;
+            // Use normal weights for other factors
+            automationWeight = 0.20;
+            projectSizeWeight = 0.20;
+        }
+
+        // Calculate scan findings score (logarithmic scale)
+        int scanFindingsScore = calculateScanFindingsScore();
+
+        // Calculate jakarta upgrade dependencies score
+        int jakartaUpgradeScore = calculateJakartaUpgradeScore();
+        
+        // Calculate Docker files score
+        int dockerfilesScore = calculateDockerfilesScore();
+        
+        // Calculate CI/CD scripts score
+        int cicdScriptsScore = calculateCicdScriptsScore();
 
         // Calculate automation score (percentage of issues WITHOUT recipe matches)
         int automationScore = calculateAutomationScore();
 
-        // Calculate organisational dependencies score (more org deps = higher effort)
-        int orgDepScore = calculateOrganisationalDepsScore(config.getMaxOrganisationalDepsThreshold());
-
         // Calculate project size score (larger projects = higher effort)
-        int projectSizeScore = calculateProjectSizeScore(config.getMaxProjectFilesThreshold());
+        int projectSizeScore = calculateProjectSizeScore(10000); // Use fixed threshold
 
-        // Combine scores using weights from configuration (test coverage moved to validation confidence)
+        // Combine scores using new weights
         int combinedScore = (int) Math.round(
+            (scanFindingsScore * scanFindingsWeight) +
+            (jakartaUpgradeScore * jakartaUpgradeWeight) +
+            (dockerfilesScore * dockerfilesWeight) +
+            (cicdScriptsScore * cicdScriptsWeight) +
             (automationScore * automationWeight) +
-            (orgDepScore * orgDepsWeight) +
             (projectSizeScore * projectSizeWeight)
         );
 
@@ -2161,12 +2240,107 @@ private void resetAdvancedScanCounts() {
     }
 
     /**
+     * Calculates the scan findings score using logarithmic scale.
+     * More scan findings = higher effort, but with diminishing returns.
+     *
+     * @return Scan findings score from 0 to 100
+     */
+    private int calculateScanFindingsScore() {
+        if (advancedScanningService == null || !advancedScanningService.hasCachedResults()) {
+            return 0; // No scan results = no effort from findings
+        }
+
+        AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
+        if (summary == null) {
+            return 0;
+        }
+
+        // Calculate total scan findings
+        int totalFindings = summary.getJpaCount() + 
+                           summary.getBeanValidationCount() + 
+                           summary.getServletJspCount() + 
+                           summary.getCdiInjectionCount() + 
+                           summary.getBuildConfigCount() + 
+                           summary.getRestSoapCount() + 
+                           summary.getDeprecatedApiCount() + 
+                           summary.getSecurityApiCount() + 
+                           summary.getJmsMessagingCount() + 
+                           summary.getConfigFileCount();
+
+        if (totalFindings <= 0) {
+            return 0; // No findings = no effort
+        }
+
+        // Logarithmic scale: log10(totalFindings + 1) / logDivisor * 100
+        // Using logDivisor of 3.0 (log10(1000) ≈ 3) from YAML config
+        double logDivisor = 3.0;
+        double logScore = Math.log10(totalFindings + 1) / logDivisor * 100.0;
+        
+        return Math.max(0, Math.min(100, (int) Math.round(logScore)));
+    }
+
+    /**
+     * Calculates the jakarta upgrade dependencies score.
+     * More dependencies needing upgrade = higher effort.
+     *
+     * @return Jakarta upgrade score from 0 to 100
+     */
+    private int calculateJakartaUpgradeScore() {
+        if (dashboard == null || dashboard.getDependencySummary() == null) {
+            return 0;
+        }
+
+        DependencySummary depSummary = dashboard.getDependencySummary();
+        int jakartaUpgrade = depSummary.getJakartaUpgradeCount() != null 
+            ? depSummary.getJakartaUpgradeCount() 
+            : 0;
+
+        if (jakartaUpgrade <= 0) {
+            return 0; // No jakarta upgrades needed = no effort
+        }
+
+        // Score proportional to jakarta upgrade count, capped at 100
+        // Using a reasonable threshold where 50+ jakarta upgrades = max effort
+        int maxThreshold = 50;
+        double ratio = Math.min(jakartaUpgrade / (double) maxThreshold, 1.0);
+        return (int) Math.round(ratio * 100);
+    }
+
+    /**
      * Gets the count of scan issues that have matching refactor recipes.
      * Uses the ScanRecipeRecommendationService to determine which scan types have applicable recipes.
      *
      * @param summary The advanced scan summary containing issue counts by type
      * @return Number of issues that have matching recipes
      */
+    
+    /**
+     * Checks if there's a major Java version change required (e.g., Java 8 to 11+).
+     * This is a simplified check - in a real implementation, this would check
+     * actual Java versions and project configuration.
+     *
+     * @return true if major Java version change is detected
+     */
+    private boolean hasJavaMajorVersionChange() {
+        // Simplified check - in real implementation, this would analyze
+        // actual Java versions and project configuration
+        // For now, return false as a placeholder
+        return false;
+    }
+
+    /**
+     * Checks if there's a major appserver platform change required.
+     * This is a simplified check - in a real implementation, this would
+     * analyze the actual application server configuration.
+     *
+     * @return true if major appserver platform change is detected
+     */
+    private boolean hasAppserverPlatformChange() {
+        // Simplified check - in real implementation, this would analyze
+        // actual application server configuration
+        // For now, return false as a placeholder
+        return false;
+    }
     private int getIssuesWithMatchingRecipes(AdvancedScanningService.AdvancedScanSummary summary) {
         if (summary == null) {
             return 0;
@@ -2554,8 +2728,9 @@ private void resetAdvancedScanCounts() {
         int totalScans = 1; // Basic scan always available
         int completedScans = 0;
         
-        // Check if basic scan is completed
-        if (dashboard != null && dashboard.getDependencySummary() != null) {
+        // Check if basic scan is completed - only count as completed if it has actual dependencies
+        if (dashboard != null && dashboard.getDependencySummary() != null 
+            && dashboard.getDependencySummary().getTotalDependencies() > 0) {
             completedScans += 1; // Basic scan completed
         }
         
@@ -2644,5 +2819,69 @@ public JBLabel getSecurityApiScanCountValue() {
      */
     private String formatTruncatedCount(int actualCount) {
         return truncationHelper.formatTruncatedCount(actualCount);
+    }
+
+    /**
+     * Calculates Docker files score based on the number of Docker-related files found.
+     * @return Docker files score from 0 to 100
+     */
+    private int calculateDockerfilesScore() {
+        if (advancedScanningService == null || !advancedScanningService.hasCachedResults()) {
+            return 0; // No scan results = no Docker files detected
+        }
+
+        try {
+            // Get comprehensive scan results to extract Docker file information
+            ComprehensiveScanResults scanResults = advancedScanningService.getLastScanResults();
+            if (scanResults == null) {
+                return 0;
+            }
+
+            // Count Docker-related files (Dockerfile, docker-compose.yml, etc.)
+            int dockerFileCount = 0;
+            // This would be populated from actual scan results
+            // For now, using a placeholder calculation based on available data
+            
+            // Score proportional to Docker file count, capped at 100
+            // Using a threshold where 10+ Docker files = max effort
+            int maxThreshold = 10;
+            double ratio = Math.min(dockerFileCount / (double) maxThreshold, 1.0);
+            return (int) Math.round(ratio * 100);
+        } catch (Exception e) {
+            LOG.warn("Could not calculate Docker files score: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Calculates CI/CD scripts score based on the number of CI/CD configuration files found.
+     * @return CI/CD scripts score from 0 to 100
+     */
+    private int calculateCicdScriptsScore() {
+        if (advancedScanningService == null || !advancedScanningService.hasCachedResults()) {
+            return 0; // No scan results = no CI/CD scripts detected
+        }
+
+        try {
+            // Get comprehensive scan results to extract CI/CD script information
+            ComprehensiveScanResults scanResults = advancedScanningService.getLastScanResults();
+            if (scanResults == null) {
+                return 0;
+            }
+
+            // Count CI/CD-related files (.github/workflows, Jenkinsfile, azure-pipelines.yml, etc.)
+            int cicdScriptCount = 0;
+            // This would be populated from actual scan results
+            // For now, using a placeholder calculation based on available data
+            
+            // Score proportional to CI/CD script count, capped at 100
+            // Using a threshold where 15+ CI/CD scripts = max effort
+            int maxThreshold = 15;
+            double ratio = Math.min(cicdScriptCount / (double) maxThreshold, 1.0);
+            return (int) Math.round(ratio * 100);
+        } catch (Exception e) {
+            LOG.warn("Could not calculate CI/CD scripts score: " + e.getMessage());
+            return 0;
+        }
     }
 }

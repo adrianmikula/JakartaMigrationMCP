@@ -43,15 +43,16 @@
 #### Required Files:
 - [ ] `plugin.xml` - Plugin configuration
 - [ ] `META-INF/plugin.xml` - Embedded in JAR
-- [ ] Icon files (optional but recommended):
-  - `icons/pluginIcon.svg` (24x24)
-  - `icons/pluginIcon_dark.svg` (24x24)
+- [ ] **Icons:** All required icon files generated and packaged (see [Plugin Icon Documentation](../PLUGIN_ICON.md))
 
 #### Plugin Icon Requirements:
-- SVG format preferred
-- 24x24 pixels at minimum
-- Transparent background
-- Not include version number
+- **Primary:** SVG format (preferred by JetBrains)
+- **Fallbacks:** PNG format (transparent background) in multiple sizes:
+  - 13×13 pixels for toolbar/actions (base)
+  - 24×24 for potential marketplace listing display
+  - 128×128 for splash screen (optional)
+- Provide `@2x` HiDPI PNG variants for each size
+- No rounded corners, no text, no version numbers
 
 ### 2. Plugin Configuration (plugin.xml)
 
@@ -298,7 +299,7 @@ git push origin v1.0.0
 |------------|--------|-------|
 | Plugin ID | ✅ | `com.adrianmikula.jakarta-migration` |
 | plugin.xml | ⚠️ | Needs description & change notes |
-| Icons | ❌ | Need to create SVG icons |
+| Icons | ✅ | SVG + PNG variants generated per PLUGIN_ICON.md |
 | Build config | ✅ | Gradle plugin configured |
 | README | ⚠️ | Needs IntelliJ-specific docs |
 | Tests | ✅ | Test coverage exists |

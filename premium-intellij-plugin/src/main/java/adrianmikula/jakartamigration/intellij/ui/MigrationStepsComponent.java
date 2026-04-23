@@ -1,6 +1,7 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
+import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBPanel;
@@ -116,12 +117,16 @@ public class MigrationStepsComponent {
         // Add header info
         int totalDeps = dependencies.size();
         long needsUpgrade = dependencies.stream()
-            .filter(d -> d.getMigrationStatus() != null && 
-                d.getMigrationStatus().name().equals("NEEDS_UPGRADE"))
+            .filter(d -> {
+                DependencyMigrationStatus status = d.getMigrationStatus();
+                return status != null && status.name().equals("NEEDS_UPGRADE");
+            })
             .count();
         long compatible = dependencies.stream()
-            .filter(d -> d.getMigrationStatus() != null && 
-                d.getMigrationStatus().name().equals("COMPATIBLE"))
+            .filter(d -> {
+                DependencyMigrationStatus status = d.getMigrationStatus();
+                return status != null && status.name().equals("COMPATIBLE");
+            })
             .count();
         
         // Base steps for any migration
@@ -147,8 +152,10 @@ public class MigrationStepsComponent {
             
             // Show first few dependencies that need upgrading
             List<DependencyInfo> needsUpgradeDeps = dependencies.stream()
-                .filter(d -> d.getMigrationStatus() != null && 
-                    d.getMigrationStatus().name().equals("NEEDS_UPGRADE"))
+                .filter(d -> {
+                    DependencyMigrationStatus status = d.getMigrationStatus();
+                    return status != null && status.name().equals("NEEDS_UPGRADE");
+                })
                 .limit(10)
                 .toList();
             

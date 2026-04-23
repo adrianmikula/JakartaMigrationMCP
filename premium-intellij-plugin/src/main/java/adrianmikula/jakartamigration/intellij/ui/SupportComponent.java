@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -27,10 +28,13 @@ public class SupportComponent {
     private final Project project;
     private final Consumer<Void> onPremiumActivated;
     private final Runnable onExperimentalFeaturesChanged;
+    private final UserIdentificationService userIdentificationService;
     
     // UI Components
     private JPanel mainPanel;
     JCheckBox experimentalFeaturesCheckbox;
+    JCheckBox usageMetricsCheckbox;
+    JCheckBox errorReportingCheckbox;
     private JBTextArea outputArea;
     private JBScrollPane scrollPane;
     private JPanel compatibilityPanel;
@@ -46,6 +50,7 @@ public class SupportComponent {
         this.project = project;
         this.onPremiumActivated = onPremiumActivated;
         this.onExperimentalFeaturesChanged = onExperimentalFeaturesChanged;
+        this.userIdentificationService = new UserIdentificationService();
         
         // Load support URLs from properties file
         loadSupportUrls();
@@ -184,8 +189,46 @@ public class SupportComponent {
         });
         experimentalPanel.add(experimentalFeaturesCheckbox);
         
-        // Buttons panel - removed trial button, now just experimental features
+        // Usage metrics checkbox
+        JPanel usageMetricsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        usageMetricsCheckbox = new JCheckBox("Enable Usage Metrics");
+        usageMetricsCheckbox.setToolTipText("Allow collection of anonymous usage statistics to improve the plugin");
+        
+        // Initialize checkbox state based on user preference (default to enabled)
+        boolean usageMetricsEnabled = !userIdentificationService.isUsageMetricsOptedOut();
+        usageMetricsCheckbox.setSelected(usageMetricsEnabled);
+        System.out.println("DEBUG: Usage metrics checkbox initialized to: " + usageMetricsEnabled);
+        
+        usageMetricsCheckbox.addActionListener(e -> {
+            boolean enabled = usageMetricsCheckbox.isSelected();
+            System.out.println("DEBUG: Usage metrics checkbox changed to: " + enabled);
+            // Update the user preference
+            userIdentificationService.setUsageMetricsEnabled(enabled);
+        });
+        usageMetricsPanel.add(usageMetricsCheckbox);
+        
+        // Error reporting checkbox
+        JPanel errorReportingPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        errorReportingCheckbox = new JCheckBox("Enable Error Reporting");
+        errorReportingCheckbox.setToolTipText("Allow automatic error reporting to help fix bugs and improve stability");
+        
+        // Initialize checkbox state based on user preference (default to enabled)
+        boolean errorReportingEnabled = !userIdentificationService.isErrorReportingOptedOut();
+        errorReportingCheckbox.setSelected(errorReportingEnabled);
+        System.out.println("DEBUG: Error reporting checkbox initialized to: " + errorReportingEnabled);
+        
+        errorReportingCheckbox.addActionListener(e -> {
+            boolean enabled = errorReportingCheckbox.isSelected();
+            System.out.println("DEBUG: Error reporting checkbox changed to: " + enabled);
+            // Update the user preference
+            userIdentificationService.setErrorReportingEnabled(enabled);
+        });
+        errorReportingPanel.add(errorReportingCheckbox);
+        
+        // Buttons panel - now includes experimental features, usage metrics, and error reporting
         controlPanel.add(experimentalPanel);
+        controlPanel.add(usageMetricsPanel);
+        controlPanel.add(errorReportingPanel);
         
         // Layout components
         mainPanel.add(linksPanel, BorderLayout.CENTER);

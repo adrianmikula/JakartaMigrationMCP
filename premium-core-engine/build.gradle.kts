@@ -27,9 +27,8 @@ dependencies {
     // JavaScript charting library for professional visualizations - commented out for now
     // implementation("org.webjars:chart.js:4.4.0")
 
-    // Supabase Java client for analytics and error reporting - temporarily commented out
-    // implementation("io.supabase:supabase-java:2.0.0")
-    // implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // HTTP client for Supabase API calls
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Test dependencies
     testImplementation(platform("org.junit:junit-bom:5.10.1"))

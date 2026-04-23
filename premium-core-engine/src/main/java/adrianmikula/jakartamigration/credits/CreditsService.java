@@ -200,14 +200,17 @@ public class CreditsService implements AutoCloseable {
         return getRemainingCredits(type) > 0;
     }
 
+        
     /**
-     * Uses one credit of the specified type.
+     * Uses one credit of the specified type with context information for analytics.
      * Returns true if credit was successfully used, false if no credits remaining.
      *
      * @param type the credit type to use
+     * @param currentUiTab the current UI tab where the credit is being used
+     * @param triggerAction the specific action that triggered the credit usage
      * @return true if credit was used successfully
      */
-    public boolean useCredit(CreditType type) {
+    public boolean useCredit(CreditType type, String currentUiTab, String triggerAction) {
         int creditsBefore = getRemainingCredits(type);
         log.info("[CREDIT DEBUG] Attempting to use {} credit. Before: {}, Limit: {}",
             type, creditsBefore, freemiumConfig.getCreditLimit());
@@ -238,8 +241,8 @@ public class CreditsService implements AutoCloseable {
                     log.info("[CREDIT DEBUG] Successfully used 1 {} credit. Before: {}, After: {}, Used: {}",
                         type, creditsBefore, creditsAfter, creditsCache.getOrDefault(type, 0));
                     
-                    // Track usage analytics
-                    usageService.trackCreditUsage(type.getKey());
+                    // Track usage analytics with specific context
+                    usageService.trackCreditUsage(type.getKey(), currentUiTab, triggerAction);
                     
                     return true;
                 } else {

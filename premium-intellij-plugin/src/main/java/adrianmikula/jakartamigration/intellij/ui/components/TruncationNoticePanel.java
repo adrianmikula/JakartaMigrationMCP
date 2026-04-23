@@ -74,9 +74,9 @@ public class TruncationNoticePanel extends JBPanel<TruncationNoticePanel> {
         link.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                // Track upgrade click analytics
+                // Track upgrade click analytics with context
                 if (usageService != null) {
-                    usageService.trackUpgradeClick("truncation_notice");
+                    usageService.trackUpgradeClick("truncation_notice", "TruncationNotice");
                 }
                 openMarketplace();
             }

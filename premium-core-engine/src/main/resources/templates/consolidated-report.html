@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title th:text="${reportTitle}">Jakarta Migration Comprehensive Report</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        
+        h2 {
+            color: #34495e;
+            font-size: 22px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }
+        
+        h3 {
+            color: #2c3e50;
+            font-size: 18px;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+        
+        h4 {
+            color: #34495e;
+            font-size: 16px;
+            margin-top: 20px;
+            margin-bottom: 8px;
+        }
+        
+        .risk-high { color: #e74c3c; font-weight: bold; }
+        .risk-medium { color: #f39c12; font-weight: bold; }
+        .risk-low { color: #27ae60; font-weight: bold; }
+        .risk-critical { color: #c0392b; font-weight: bold; }
+        
+        .summary-box {
+            background: #ecf0f1;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .summary-item {
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        
+        .blocker-item {
+            background: #fdf2f2;
+            border: 1px solid #fecaca;
+            border-left: 4px solid #ef4444;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        
+        .recommendation-item {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-left: 4px solid #0ea5e9;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        
+        .dependency-item {
+            font-family: 'Courier New', monospace;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        .strategy-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .strategy-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .strategy-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            margin-right: 8px;
+            border: 1px solid #ccc;
+        }
+        
+        .strategy-name {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .pros-cons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        .pros, .cons {
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .pros {
+            background: #f0fdf4;
+            border-left: 3px solid #22c55e;
+        }
+        
+        .cons {
+            background: #fef2f2;
+            border-left: 3px solid #ef4444;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        
+        .risk-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .risk-indicator.high { background-color: #e74c3c; }
+        .risk-indicator.medium { background-color: #f39c12; }
+        .risk-indicator.low { background-color: #27ae60; }
+        .risk-indicator.critical { background-color: #c0392b; }
+        
+        .page-break {
+            page-break-before: always;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+            font-size: 12px;
+            color: #7f8c8d;
+            text-align: center;
+        }
+        
+        ul, ol {
+            padding-left: 20px;
+        }
+        
+        li {
+            margin: 8px 0;
+        }
+        
+        .chart-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: #3498db;
+            transition: width 0.3s ease;
+        }
+        
+        .risk-dial {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 8px solid #e9ecef;
+            position: relative;
+            margin: 20px auto;
+        }
+        
+        .risk-dial-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, #27ae60 0deg, #f39c12 90deg, #e74c3c 180deg, #c0392b 270deg);
+            clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 50% 100%);
+            transform-origin: 50% 50%;
+        }
+        
+        .risk-dial-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .scan-category {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .platform-item {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-left: 4px solid #0ea5e9;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 4px;
+        }
+        
+        .timeline-item {
+            background: #f8f9fa;
+            border-left: 3px solid #3498db;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        
+        .timeline-phase {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .timeline-description {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Page 1: Executive Summary -->
+    <div class="container">
+        <h1 th:text="${reportTitle}">Jakarta Migration Comprehensive Report</h1>
+        
+        <div class="summary-box">
+            <div class="summary-item"><strong>Project:</strong> <span th:text="${projectName}">Unknown Project</span></div>
+            <div class="summary-item"><strong>Generated:</strong> <span th:text="${generatedAt}">2024-01-01 12:00:00</span></div>
+            <div class="summary-item">
+                <strong>Overall Risk Level:</strong> 
+                <span class="risk-indicator" th:classappend="${riskLevel}" th:text="${riskLevel}">Medium</span>
+            </div>
+            <div class="summary-item"><strong>Confidence Score:</strong> <span th:text="${confidenceScore}">75</span>%</div>
+            <div class="summary-item"><strong>Recommended Strategy:</strong> <span th:text="${recommendedStrategy}">Incremental</span></div>
+            <div class="summary-item"><strong>Estimated Effort:</strong> <span th:text="${migrationTime}">3-5 weeks</span></div>
+        </div>
+        
+        <!-- Key Statistics -->
+        <div th:if="${totalDependencies}" class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" th:text="${totalDependencies}">0</div>
+                <div class="stat-label">Total Dependencies</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" th:text="${jakartaCompatible}">0</div>
+                <div class="stat-label">Jakarta Compatible</div>
+            </div>
+            <div class="stat-card" th:if="${totalIssues}">
+                <div class="stat-number" th:text="${totalIssues}">0</div>
+                <div class="stat-label">Issues Found</div>
+            </div>
+            <div class="stat-card" th:if="${readinessScore}">
+                <div class="stat-number" th:text="${readinessScore}">0%</div>
+                <div class="stat-label">Readiness Score</div>
+            </div>
+            <div class="stat-card" th:if="${platformRiskScore}">
+                <div class="stat-number" th:text="${platformRiskScore}">0</div>
+                <div class="stat-label">Platform Risk</div>
+            </div>
+        </div>
+        
+        <!-- Migration Feasibility -->
+        <div th:if="${executiveSummary}">
+            <h2>Migration Assessment</h2>
+            <div class="summary-box">
+                <div class="summary-item">
+                    <strong>Migration Feasible:</strong> 
+                    <span th:if="${executiveSummary.migrationFeasible}" style="color: #27ae60;">✔ Yes</span>
+                    <span th:unless="${executiveSummary.migrationFeasible}" style="color: #e74c3c;">❌ Requires significant work</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Requires Updates:</strong> 
+                    <span th:if="${executiveSummary.requiresUpdates}" style="color: #f39c12;">⚠ Yes</span>
+                    <span th:unless="${executiveSummary.requiresUpdates}" style="color: #27ae60;">✔ No</span>
+                </div>
+                <div class="summary-item"><strong>Estimated Effort:</strong> <span th:text="${executiveSummary.estimatedEffort}">Medium (3-7 weeks)</span></div>
+            </div>
+            
+            <!-- Key Findings -->
+            <h3>Key Findings</h3>
+            <ul th:if="${executiveSummary.keyFindings}">
+                <li th:each="finding : ${executiveSummary.keyFindings}" th:text="${finding}">Finding</li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Page 2: Risk Assessment Dashboard -->
+    <div class="container page-break">
+        <h2>Risk Assessment Dashboard</h2>
+        
+        <!-- Risk Score Visualization -->
+        <div th:if="${riskScore}" class="chart-container">
+            <div class="risk-dial">
+                <div class="risk-dial-fill" th:style="'transform: rotate(' + ${riskScore * 3.6} + 'deg)'"></div>
+                <div class="risk-dial-center" th:text="${riskScore}">50</div>
+            </div>
+            <p>Risk Score: <span th:text="${riskScore}">50</span>/100</p>
+        </div>
+        
+        <!-- Component Risk Breakdown -->
+        <div th:if="${componentScores}">
+            <h3>Component Risk Breakdown</h3>
+            <div class="stats-grid">
+                <div th:each="component : ${componentScores}" class="stat-card">
+                    <div class="stat-number" th:text="${component.value}">0</div>
+                    <div class="stat-label" th:text="${component.key}">Component</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Validation Confidence -->
+        <div th:if="${validationMetrics}">
+            <h3>Validation Confidence</h3>
+            <div class="summary-box">
+                <div class="summary-item"><strong>Unit Test Coverage:</strong> <span th:text="${validationMetrics.unitTestCoverage}">0</span>%</div>
+                <div class="summary-item"><strong>Integration Test Coverage:</strong> <span th:text="${validationMetrics.integrationTestCoverage}">0</span>%</div>
+                <div class="summary-item"><strong>Critical Modules Coverage:</strong> <span th:text="${validationMetrics.criticalModulesCoverage}">0</span>%</div>
+                <div class="summary-item"><strong>Overall Confidence:</strong> <span th:text="${validationMetrics.overallConfidence}">0</span>%</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Page 3: Migration Strategy Analysis -->
+    <div class="container page-break">
+        <h2>Migration Strategy Analysis</h2>
+        
+        <!-- Recommended Strategy -->
+        <div th:if="${recommendedStrategyDetails}">
+            <h3>Recommended Strategy: <span th:text="${recommendedStrategyDetails.displayName}">Incremental</span></h3>
+            <div class="strategy-card">
+                <div class="strategy-header">
+                    <div class="strategy-color" th:style="'background-color: ' + ${recommendedStrategyDetails.color} + ';'"></div>
+                    <div class="strategy-name" th:text="${recommendedStrategyDetails.displayName}">Incremental</div>
+                </div>
+                <p th:text="${recommendedStrategyDetails.description}">Migrate one dependency at a time</p>
+                
+                <div class="pros-cons">
+                    <div class="pros">
+                        <h4>✓ Benefits</h4>
+                        <div th:text="${recommendedStrategyDetails.benefits}">Benefits text</div>
+                    </div>
+                    <div class="cons">
+                        <h4>⚠ Risks</h4>
+                        <div th:text="${recommendedStrategyDetails.risks}">Risks text</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Implementation Phases -->
+        <div th:if="${implementationPhases}">
+            <h3>Implementation Phases</h3>
+            <div th:each="phase : ${implementationPhases}" class="timeline-item">
+                <div class="timeline-phase" th:text="${phase.name}">Phase 1: Dependency Updates</div>
+                <div class="timeline-description" th:text="${phase.description}">Description</div>
+            </div>
+        </div>
+        
+        <!-- Strategy Comparison -->
+        <div th:if="${strategyComparison}">
+            <h3>Strategy Comparison</h3>
+            <div th:each="strategy : ${strategyComparison}" class="strategy-card">
+                <div class="strategy-header">
+                    <div class="strategy-color" th:style="'background-color: ' + ${strategy.color} + ';'"></div>
+                    <div class="strategy-name" th:text="${strategy.displayName}">Strategy</div>
+                </div>
+                <p th:text="${strategy.description}">Description</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Page 4: Dependency Analysis -->
+    <div class="container page-break">
+        <h2>Dependency Analysis</h2>
+        
+        <!-- Dependency Summary -->
+        <div th:if="${dependencySummary}">
+            <div class="summary-box">
+                <div class="summary-item"><strong>Total Dependencies:</strong> <span th:text="${dependencySummary.total}">0</span></div>
+                <div class="summary-item"><strong>Jakarta Compatible:</strong> <span th:text="${dependencySummary.compatible}">0</span></div>
+                <div class="summary-item"><strong>Require Migration:</strong> <span th:text="${dependencySummary.requireMigration}">0</span></div>
+                <div class="summary-item"><strong>Blockers:</strong> <span th:text="${dependencySummary.blockers}">0</span></div>
+            </div>
+        </div>
+        
+        <!-- Dependency Details -->
+        <div th:if="${dependencyAnalysis and !#lists.isEmpty(dependencyAnalysis)}">
+            <h3>Dependency Details</h3>
+            <div th:each="dependency : ${dependencyAnalysis}" class="dependency-item">
+                <span th:text="${dependency.name}">javax.servlet:servlet-api</span>
+                <span th:if="${dependency.version}" th:text="' (' + ${dependency.version} + ')'"> (2.5)</span>
+                <span th:if="${dependency.jakartaCompatible}" style="color: #27ae60;"> ✓</span>
+                <span th:unless="${dependency.jakartaCompatible}" style="color: #e74c3c;"> ✗</span>
+                <span th:if="${dependency.blocker}" class="risk-high"> [BLOCKER]</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Page 5: Advanced Scan Results -->
+    <div class="container page-break">
+        <h2>Advanced Scan Results</h2>
+        
+        <div th:if="${advancedScanResults}">
+            <!-- JPA Analysis -->
+            <div th:if="${advancedScanResults.jpa}" class="scan-category">
+                <h3>JPA Analysis</h3>
+                <div class="summary-item">
+                    <strong>Status:</strong> <span th:text="${advancedScanResults.jpa.status}">No issues found</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Findings:</strong> <span th:text="${advancedScanResults.jpa.findings}">0</span> issues detected
+                </div>
+                <div th:if="${advancedScanResults.jpa.details}">
+                    <strong>Details:</strong>
+                    <ul>
+                        <li th:each="detail : ${advancedScanResults.jpa.details}" th:text="${detail}">Detail</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Bean Validation Analysis -->
+            <div th:if="${advancedScanResults.beanValidation}" class="scan-category">
+                <h3>Bean Validation Analysis</h3>
+                <div class="summary-item">
+                    <strong>Status:</strong> <span th:text="${advancedScanResults.beanValidation.status}">No issues found</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Findings:</strong> <span th:text="${advancedScanResults.beanValidation.findings}">0</span> issues detected
+                </div>
+            </div>
+            
+            <!-- Servlet/JSP Analysis -->
+            <div th:if="${advancedScanResults.servletJsp}" class="scan-category">
+                <h3>Servlet/JSP Analysis</h3>
+                <div class="summary-item">
+                    <strong>Status:</strong> <span th:text="${advancedScanResults.servletJsp.status}">No issues found</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Findings:</strong> <span th:text="${advancedScanResults.servletJsp.findings}">0</span> issues detected
+                </div>
+            </div>
+            
+            <!-- Security Analysis -->
+            <div th:if="${advancedScanResults.security}" class="scan-category">
+                <h3>Security Analysis</h3>
+                <div class="summary-item">
+                    <strong>Status:</strong> <span th:text="${advancedScanResults.security.status}">No issues found</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Findings:</strong> <span th:text="${advancedScanResults.security.findings}">0</span> issues detected
+                </div>
+            </div>
+            
+            <!-- CDI Analysis -->
+            <div th:if="${advancedScanResults.cdi}" class="scan-category">
+                <h3>CDI Analysis</h3>
+                <div class="summary-item">
+                    <strong>Status:</strong> <span th:text="${advancedScanResults.cdi.status}">No issues found</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Findings:</strong> <span th:text="${advancedScanResults.cdi.findings}">0</span> issues detected
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Page 6: Platform Analysis -->
+    <div class="container page-break">
+        <h2>Platform Analysis</h2>
+        
+        <div th:if="${platformFindings}">
+            <!-- Detected Platforms -->
+            <div th:if="${platformFindings.detectedPlatforms and !#lists.isEmpty(platformFindings.detectedPlatforms)}">
+                <h3>Detected Platforms</h3>
+                <div th:each="platform : ${platformFindings.detectedPlatforms}" class="platform-item">
+                    <strong th:text="${platform.name}">Platform</strong>
+                    <span th:if="${platform.version}" th:text="' v' + ${platform.version}"> v1.0</span>
+                    <div th:if="${platform.compatibility}" th:text="${platform.compatibility}">Compatibility info</div>
+                </div>
+            </div>
+            
+            <!-- Platform Risk Score -->
+            <div th:if="${platformFindings.totalRiskScore}">
+                <div class="summary-box">
+                    <div class="summary-item">
+                        <strong>Platform Risk Score:</strong> <span th:text="${platformFindings.totalRiskScore}">0</span>/10
+                    </div>
+                    <div class="summary-item">
+                        <strong>Platform Compatibility:</strong> 
+                        <span th:if="${platformFindings.compatibilityScore}" th:text="${platformFindings.compatibilityScore} + '%'">75%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Platform Recommendations -->
+            <div th:if="${platformFindings.recommendations and !#lists.isEmpty(platformFindings.recommendations)}">
+                <h3>Platform Recommendations</h3>
+                <div th:each="rec : ${platformFindings.recommendations}" class="recommendation-item">
+                    <div th:text="${rec}">Recommendation</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Page 7: Top Blockers & Critical Issues -->
+    <div th:if="${topBlockers and !#lists.isEmpty(topBlockers)}" class="container page-break">
+        <h2>Top Blockers & Critical Issues</h2>
+        <p>Critical issues blocking migration, ordered by severity and impact.</p>
+        
+        <div th:each="blocker : ${topBlockers}" class="blocker-item">
+            <strong th:text="${blocker.name}">javax.servlet:servlet-api</strong>
+            <span th:if="${blocker.version}" th:text="' (' + ${blocker.version} + ')'"> (2.5)</span>
+            <span th:if="${blocker.severity}" class="risk-indicator" th:classappend="${blocker.severity}" th:text="${blocker.severity}">HIGH</span>
+            <br>
+            <strong>Impact:</strong> <span th:text="${blocker.impact}">High - Requires Jakarta EE migration</span>
+            <br>
+            <strong>Occurrences:</strong> <span th:text="${blocker.occurrences}">1</span>
+            <div th:if="${blocker.remediation}">
+                <strong>Remediation:</strong> <span th:text="${blocker.remediation}">Update to Jakarta EE equivalent</span>
+            </div>
+        </div>
+        
+        <div th:if="${blockersCount}" class="summary-box">
+            <div class="summary-item"><strong>Total Blockers:</strong> <span th:text="${blockersCount}">0</span></div>
+            <div class="summary-item"><strong>Critical Issues:</strong> <span th:text="${criticalIssuesCount}">0</span></div>
+            <div class="summary-item"><strong>Blocker Resolution Priority:</strong> High - Address these first</div>
+        </div>
+    </div>
+    
+    <!-- Page 8: Recommendations & Next Steps -->
+    <div class="container page-break">
+        <h2>Recommendations & Next Steps</h2>
+        
+        <!-- Primary Recommendations -->
+        <div th:if="${recommendations and !#lists.isEmpty(recommendations)}">
+            <h3>Primary Recommendations</h3>
+            <ol>
+                <li th:each="recommendation : ${recommendations}" class="recommendation-item" th:text="${recommendation}">
+                    Replace javax dependencies with Jakarta EE equivalents
+                </li>
+            </ol>
+        </div>
+        
+        <!-- Implementation Timeline -->
+        <div th:if="${implementationTimeline}">
+            <h3>Implementation Timeline</h3>
+            <div th:each="phase : ${implementationTimeline}" class="timeline-item">
+                <div class="timeline-phase" th:text="${phase.phase}">Phase 1: Preparation</div>
+                <div class="timeline-description">
+                    <strong>Duration:</strong> <span th:text="${phase.duration}">1-2 weeks</span><br>
+                    <strong>Activities:</strong> <span th:text="${phase.activities}">Setup, analysis, planning</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Success Criteria -->
+        <div th:if="${successCriteria}">
+            <h3>Success Criteria</h3>
+            <div class="summary-box">
+                <div th:each="criteria : ${successCriteria}" class="summary-item">
+                    <strong th:text="${criteria.name}">Criteria</strong>: <span th:text="${criteria.description}">Description</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Final Summary -->
+        <div class="summary-box">
+            <h3>Migration Summary</h3>
+            <div class="summary-item">
+                <strong>Approach:</strong> <span th:text="${recommendedStrategy}">Incremental migration</span> with continuous testing
+            </div>
+            <div class="summary-item">
+                <strong>Priority:</strong> Address blockers first, then update remaining dependencies
+            </div>
+            <div class="summary-item">
+                <strong>Testing:</strong> Validate at each migration step to ensure compatibility
+            </div>
+            <div class="summary-item">
+                <strong>Risk Mitigation:</strong> Maintain rollback strategy and comprehensive monitoring
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="container">
+        <div class="footer">
+            Generated by Jakarta Migration Tool v3.0 | HTML-to-PDF Engine: OpenHTMLtoPDF 1.1.7 + Thymeleaf
+        </div>
+    </div>
+</body>
+</html>

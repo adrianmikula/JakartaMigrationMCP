@@ -35,6 +35,11 @@ public class CheckLicense {
     private static final String DEV_MODE = "dev";
     
     /**
+     * System property key for premium simulation in dev mode
+     */
+    private static final String SIMULATE_PREMIUM_KEY = "jakarta.migration.dev.simulate_premium";
+    
+    /**
      * PRODUCT_CODE must be same specified in plugin.xml inside <product-descriptor> tag
      */
     private static final String PRODUCT_CODE = "PJAKARTAMIGRATI";
@@ -44,7 +49,7 @@ public class CheckLicense {
     /**
      * Check if running in development mode (skips all licensing checks)
      */
-    static boolean isDevMode() {
+    public static boolean isDevMode() {
         // Check system property or environment variable
         String mode = System.getProperty("jakarta.migration.mode", "production");
         return DEV_MODE.equals(mode);
@@ -57,6 +62,21 @@ public class CheckLicense {
         return Boolean.getBoolean("jakarta.migration.marketplace.test") ||
                Boolean.getBoolean("dev.license.override") ||
                "demo".equals(System.getProperty("environment"));
+    }
+    
+    /**
+     * Check if premium simulation is enabled in development mode.
+     * Only applies when running in dev mode.
+     */
+    public static boolean isSimulatingPremium() {
+        if (!isDevMode()) {
+            return false;
+        }
+        boolean simulating = Boolean.getBoolean(SIMULATE_PREMIUM_KEY);
+        if (simulating) {
+            LOG.info("CheckLicense: Premium simulation is enabled in dev mode");
+        }
+        return simulating;
     }
 
     /**
@@ -142,6 +162,12 @@ public class CheckLicense {
      */
     @Nullable
     public static Boolean isLicensed() {
+        // Check premium simulation first (only in dev mode)
+        if (isSimulatingPremium()) {
+            LOG.info("CheckLicense: PREMIUM SIMULATION active - returning licensed");
+            return true;
+        }
+
         // Skip all license checks in dev mode or marketplace testing
         if (isDevMode() || isMarketplaceTestMode()) {
             if (isDevMode()) {
@@ -356,6 +382,11 @@ public class CheckLicense {
      */
     @NotNull
     public static String getLicenseStatusString() {
+        // Check premium simulation first
+        if (isSimulatingPremium()) {
+            return "Premium (Simulated)";
+        }
+
         // Check development mode
         if (isDevMode()) {
             return "Development Mode";
@@ -380,12 +411,20 @@ public class CheckLicense {
 
     /**
      * Clears the cached license status to force a fresh check.
-     * Useful when user purchases a license.
+     * Useful when user purchases a license or when premium simulation changes.
      */
     public static void clearCache() {
         cachedLicenseStatus.set(null);
         lastCheckTime = 0;
         LOG.info("CheckLicense: Cache cleared");
+    }
+    
+    /**
+     * Called when premium simulation state changes to ensure UI updates.
+     */
+    public static void onPremiumSimulationChanged() {
+        LOG.info("CheckLicense: Premium simulation state changed, clearing cache");
+        clearCache();
     }
 
 }

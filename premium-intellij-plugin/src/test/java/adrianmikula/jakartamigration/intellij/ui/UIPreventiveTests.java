@@ -46,16 +46,7 @@ public class UIPreventiveTests extends BasePlatformTestCase {
         });
     }
     
-    @Test
-    @DisplayName("ComprehensiveReportsTabComponent should initialize without exceptions")
-    void testComprehensiveReportsTabComponentInitialization() {
-        Project project = getProject();
-        assertDoesNotThrow(() -> {
-            ComprehensiveReportsTabComponent component = new ComprehensiveReportsTabComponent(project);
-            assertNotNull(component.getPanel());
-        });
-    }
-    
+        
     @Test
     @DisplayName("UI components should handle null services gracefully")
     void testNullServiceHandling() {

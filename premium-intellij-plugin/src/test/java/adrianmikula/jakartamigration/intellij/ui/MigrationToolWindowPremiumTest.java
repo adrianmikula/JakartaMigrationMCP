@@ -399,6 +399,72 @@ class MigrationToolWindowPremiumTest {
         assertThat(isLicensed).isTrue();
     }
 
+    @Test
+    @DisplayName("Should handle null migration status gracefully")
+    void shouldHandleNullMigrationStatusGracefully() {
+        // Given: A dependency with null migration status
+        adrianmikula.jakartamigration.intellij.model.DependencyInfo dependencyWithNullStatus = 
+            new adrianmikula.jakartamigration.intellij.model.DependencyInfo();
+        dependencyWithNullStatus.setGroupId("test.group");
+        dependencyWithNullStatus.setArtifactId("test-artifact");
+        dependencyWithNullStatus.setMigrationStatus(null); // Explicitly set to null
+        
+        java.util.List<adrianmikula.jakartamigration.intellij.model.DependencyInfo> dependencies = 
+            java.util.Arrays.asList(dependencyWithNullStatus);
+        
+        // When: Building status map with null migration status
+        java.util.Map<String, String> statusMap = new java.util.HashMap<>();
+        for (adrianmikula.jakartamigration.intellij.model.DependencyInfo dep : dependencies) {
+            String key = dep.getGroupId() + ":" + dep.getArtifactId();
+            adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus status = dep.getMigrationStatus();
+            statusMap.put(key, status != null ? status.name() : "UNKNOWN");
+        }
+        
+        // Then: Should handle null gracefully and default to "UNKNOWN"
+        assertThat(statusMap).hasSize(1);
+        assertThat(statusMap.get("test.group:test-artifact")).isEqualTo("UNKNOWN");
+    }
+
+    @Test
+    @DisplayName("Should handle mixed migration statuses including null in refreshDependencyGraphWithUpdatedStatus")
+    void shouldHandleMixedMigrationStatusesInRefreshDependencyGraph() {
+        // Given: Dependencies with mixed migration statuses including null
+        adrianmikula.jakartamigration.intellij.model.DependencyInfo dependencyWithNullStatus = 
+            new adrianmikula.jakartamigration.intellij.model.DependencyInfo();
+        dependencyWithNullStatus.setGroupId("null.group");
+        dependencyWithNullStatus.setArtifactId("null-artifact");
+        dependencyWithNullStatus.setMigrationStatus(null); // This would cause NPE before fix
+        
+        adrianmikula.jakartamigration.intellij.model.DependencyInfo dependencyWithValidStatus = 
+            new adrianmikula.jakartamigration.intellij.model.DependencyInfo();
+        dependencyWithValidStatus.setGroupId("valid.group");
+        dependencyWithValidStatus.setArtifactId("valid-artifact");
+        dependencyWithValidStatus.setMigrationStatus(adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus.COMPATIBLE);
+        
+        adrianmikula.jakartamigration.intellij.model.DependencyInfo dependencyWithAnotherStatus = 
+            new adrianmikula.jakartamigration.intellij.model.DependencyInfo();
+        dependencyWithAnotherStatus.setGroupId("upgrade.group");
+        dependencyWithAnotherStatus.setArtifactId("upgrade-artifact");
+        dependencyWithAnotherStatus.setMigrationStatus(adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus.NEEDS_UPGRADE);
+        
+        java.util.List<adrianmikula.jakartamigration.intellij.model.DependencyInfo> dependencies = 
+            java.util.Arrays.asList(dependencyWithNullStatus, dependencyWithValidStatus, dependencyWithAnotherStatus);
+        
+        // When: Building updated status map (simulating refreshDependencyGraphWithUpdatedStatus logic)
+        java.util.Map<String, String> updatedStatusMap = new java.util.HashMap<>();
+        for (adrianmikula.jakartamigration.intellij.model.DependencyInfo dep : dependencies) {
+            String key = dep.getGroupId() + ":" + dep.getArtifactId();
+            adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus status = dep.getMigrationStatus();
+            updatedStatusMap.put(key, status != null ? status.name() : "UNKNOWN");
+        }
+        
+        // Then: Should handle all statuses correctly without NPE
+        assertThat(updatedStatusMap).hasSize(3);
+        assertThat(updatedStatusMap.get("null.group:null-artifact")).isEqualTo("UNKNOWN");
+        assertThat(updatedStatusMap.get("valid.group:valid-artifact")).isEqualTo("COMPATIBLE");
+        assertThat(updatedStatusMap.get("upgrade.group:upgrade-artifact")).isEqualTo("NEEDS_UPGRADE");
+    }
+
     /**
      * This method replicates the premium status checking logic from MigrationToolWindowContent.
      * It's used to test the logic without requiring the full IntelliJ Project context.

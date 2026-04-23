@@ -673,7 +673,7 @@ public class AdvancedScansComponent {
 
                     // Consume 1 action credit for free users
                     if (!isPremium) {
-                        boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS);
+                        boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS, "Scanning", "advanced_scan");
                         if (creditConsumed) {
                             LOG.info("Successfully consumed 1 Action credit");
                         } else {

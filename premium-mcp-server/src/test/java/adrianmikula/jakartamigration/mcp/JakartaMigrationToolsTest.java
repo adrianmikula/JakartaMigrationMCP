@@ -3,7 +3,6 @@ package adrianmikula.jakartamigration.mcp;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalysisModule;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
-import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphException;
 import adrianmikula.jakartamigration.config.FeatureFlagsService;
 import adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
@@ -133,38 +132,25 @@ class JakartaMigrationToolsTest {
     @Test
     @DisplayName("Should detect blockers successfully")
     void shouldDetectBlockersSuccessfully() throws Exception {
-        // Given
-        List<Blocker> blockers = List.of(
-                new Blocker(
-                        new Artifact("com.legacy", "legacy-lib", "1.0.0", "compile", false),
-                        BlockerType.NO_JAKARTA_EQUIVALENT,
-                        "No Jakarta equivalent found",
-                        List.of("Find alternative library"),
-                        0.9));
-
-        when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);
-
         // When
         String result = tools.detectBlockers(testProjectPath.toString());
 
-        // Then
-        assertThat(result).contains("\"status\": \"success\"");
-        assertThat(result).contains("\"blockerCount\": 0"); // Mock report has empty blockers
-        verify(dependencyAnalysisModule, times(1)).analyzeProject(any(Path.class));
+        // Then - detectBlockers requires premium license, so should return error
+        assertThat(result).contains("\"status\": \"error\"");
+        assertThat(result).contains("MCP Server features require Premium");
+        verify(dependencyAnalysisModule, never()).analyzeProject(any(Path.class));
     }
 
     @Test
     @DisplayName("Should return empty blockers list when no blockers found")
     void shouldReturnEmptyBlockersListWhenNoBlockersFound() throws Exception {
-        // Given
-        when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);
-
         // When
         String result = tools.detectBlockers(testProjectPath.toString());
 
-        // Then
-        assertThat(result).contains("\"status\": \"success\"");
-        assertThat(result).contains("\"blockerCount\": 0");
+        // Then - detectBlockers requires premium license, so should return error
+        assertThat(result).contains("\"status\": \"error\"");
+        assertThat(result).contains("MCP Server features require Premium");
+        verify(dependencyAnalysisModule, never()).analyzeProject(any(Path.class));
     }
 
     @Test
