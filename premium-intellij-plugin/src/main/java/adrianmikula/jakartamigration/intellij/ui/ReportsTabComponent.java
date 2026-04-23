@@ -1,11 +1,15 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.pdfreporting.service.PdfReportService;
-import adrianmikula.jakartamigration.pdfreporting.service.impl.PdfReportServiceImpl;
+import adrianmikula.jakartamigration.pdfreporting.service.impl.HtmlToPdfReportServiceImpl;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
+import adrianmikula.jakartamigration.credits.CreditType;
+import adrianmikula.jakartamigration.credits.CreditsService;
+import adrianmikula.jakartamigration.intellij.license.CheckLicense;
+import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBLabel;
@@ -34,6 +38,7 @@ public class ReportsTabComponent {
     private final PdfReportService pdfReportService;
     private final MigrationAnalysisService migrationAnalysisService;
     private final AdvancedScanningService advancedScanningService;
+    private final CreditsService creditsService;
     
     // UI Components
     private final JButton generateDependencyReportButton;
@@ -41,12 +46,14 @@ public class ReportsTabComponent {
     private final JButton generateComprehensiveReportButton;
     private final JLabel statusLabel;
     private final JTextArea outputArea;
+    private final JPanel upgradeButtonPanel;
     
     public ReportsTabComponent(Project project, MigrationAnalysisService migrationAnalysisService, AdvancedScanningService advancedScanningService) {
         this.project = project;
-        this.pdfReportService = new PdfReportServiceImpl();
+        this.pdfReportService = new HtmlToPdfReportServiceImpl();
         this.migrationAnalysisService = migrationAnalysisService;
         this.advancedScanningService = advancedScanningService;
+        this.creditsService = new CreditsService();
         
         // Initialize UI components
         generateDependencyReportButton = new JButton("Generate Dependency Report");
@@ -56,6 +63,13 @@ public class ReportsTabComponent {
         outputArea = new JTextArea(10, 40);
         outputArea.setEditable(false);
         outputArea.setFont(JBUI.Fonts.smallFont());
+        
+        // Create upgrade button panel (conditionally shown)
+        upgradeButtonPanel = createUpgradeButtonPanel();
+        
+        // Initially hide upgrade button for premium users
+        boolean isPremium = CheckLicense.isLicensed();
+        upgradeButtonPanel.setVisible(!isPremium);
         
         // Setup main panel
         mainPanel = createMainPanel();
@@ -69,14 +83,15 @@ public class ReportsTabComponent {
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBorder(JBUI.Borders.empty(10));
         
-        JLabel titleLabel = new JBLabel("PDF Reports (Experimental)");
+        JLabel titleLabel = new JBLabel("Professional PDF Reports");
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
         headerPanel.add(titleLabel, BorderLayout.NORTH);
         
         JLabel descriptionLabel = new JBLabel("<html><body style='width: 600px'>" +
-            "Generate comprehensive PDF reports based on your migration analysis. " +
-            "Reports include dependency analysis, scan results, and migration recommendations. " +
-            "This feature requires experimental features to be enabled." +
+            "Generate professional PDF reports with modern HTML-to-PDF rendering. " +
+            "Reports include executive summary, risk assessment, dependency analysis, " +
+            "scan results, and actionable migration recommendations. " +
+            "Features professional styling and layout for enterprise-ready reports." +
             "</body></html>");
         descriptionLabel.setBorder(JBUI.Borders.emptyTop(5));
         headerPanel.add(descriptionLabel, BorderLayout.CENTER);
@@ -113,11 +128,13 @@ public class ReportsTabComponent {
         panel.add(buttonPanel, BorderLayout.CENTER);
         panel.add(statusPanel, BorderLayout.SOUTH);
         
-        // Create form layout
+        // Create form layout with upgrade button panel
         FormBuilder formBuilder = new FormBuilder();
         formBuilder.addComponent(panel);
         formBuilder.addVerticalGap(10);
         formBuilder.addComponent(scrollPane);
+        formBuilder.addVerticalGap(5);
+        formBuilder.addComponent(upgradeButtonPanel); // Add upgrade button panel
         
         return formBuilder.getPanel();
     }
@@ -128,8 +145,68 @@ public class ReportsTabComponent {
         generateComprehensiveReportButton.addActionListener(e -> generateComprehensiveReport());
     }
     
+    private JPanel createUpgradeButtonPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
+        // Create upgrade button with custom message for reports
+        JButton upgradeButton = PremiumUpgradeButton.createUpgradeButton(
+            project, 
+            "⬆ Upgrade to Premium for Unlimited Reports",
+            "Get unlimited PDF reports, advanced scanning, and professional features"
+        );
+        
+        // Add upgrade button to center
+        JPanel buttonWrapper = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        buttonWrapper.add(upgradeButton);
+        panel.add(buttonWrapper, BorderLayout.CENTER);
+        
+        return panel;
+    }
+    
+    private void showUpgradePrompt(String title, String message) {
+        // Update status and output to show upgrade prompt
+        statusLabel.setText(title);
+        outputArea.setText(message + "\n\n");
+        outputArea.append("Upgrade button is available below to unlock premium features.\n");
+        
+        // Make upgrade button panel visible
+        upgradeButtonPanel.setVisible(true);
+        
+        // Scroll to show upgrade button
+        SwingUtilities.invokeLater(() -> {
+            JScrollPane scrollPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, outputArea);
+            if (scrollPane != null) {
+                JScrollBar verticalScrollBar = scrollPane.getVerticalScrollBar();
+                verticalScrollBar.setValue(verticalScrollBar.getMaximum());
+            }
+        });
+    }
+    
     private void generateDependencyReport() {
         try {
+            // Check if user is premium
+            boolean isPremium = CheckLicense.isLicensed();
+            
+            // Check if PDF reports are premium-only feature
+            if (adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isPdfReportsPremiumOnly()) {
+                if (!isPremium) {
+                    showUpgradePrompt("Premium Feature Required", 
+                        "PDF reports require Premium. Upgrade to generate unlimited PDF reports with professional styling.");
+                    return;
+                }
+            } else {
+                // Check credits for free users (if not premium-only)
+                if (!isPremium) {
+                    int remainingCredits = creditsService.getRemainingCredits(CreditType.ACTIONS);
+                    if (remainingCredits <= 0) {
+                        showUpgradePrompt("Action Credits Exhausted", 
+                            "You've used all your action credits. Upgrade to Premium for unlimited PDF reports.");
+                        return;
+                    }
+                }
+            }
+
             statusLabel.setText("Generating dependency report...");
             outputArea.setText("Starting dependency report generation...\n");
             
@@ -154,6 +231,16 @@ public class ReportsTabComponent {
             
             // Generate report
             Path result = pdfReportService.generateDependencyReport(dependencyGraph, outputPath);
+            
+            // Consume 1 action credit for free users (only if not premium-only)
+            if (!isPremium && !adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isPdfReportsPremiumOnly()) {
+                boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS);
+                if (creditConsumed) {
+                    outputArea.append("Action credit consumed successfully\n");
+                } else {
+                    outputArea.append("Warning: Failed to consume Action credit\n");
+                }
+            }
             
             outputArea.append("Dependency report generated successfully!\n");
             outputArea.append("Output file: " + result.toAbsolutePath() + "\n");
@@ -181,6 +268,28 @@ public class ReportsTabComponent {
     
     private void generateScanResultsReport() {
         try {
+            // Check if user is premium
+            boolean isPremium = CheckLicense.isLicensed();
+            
+            // Check if PDF reports are premium-only feature
+            if (adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isPdfReportsPremiumOnly()) {
+                if (!isPremium) {
+                    showUpgradePrompt("Premium Feature Required", 
+                        "PDF reports require Premium. Upgrade to generate unlimited PDF reports with professional styling.");
+                    return;
+                }
+            } else {
+                // Check credits for free users (if not premium-only)
+                if (!isPremium) {
+                    int remainingCredits = creditsService.getRemainingCredits(CreditType.ACTIONS);
+                    if (remainingCredits <= 0) {
+                        showUpgradePrompt("Action Credits Exhausted", 
+                            "You've used all your action credits. Upgrade to Premium for unlimited PDF reports.");
+                        return;
+                    }
+                }
+            }
+
             statusLabel.setText("Generating scan results report...");
             outputArea.setText("Starting scan results report generation...\n");
             
@@ -204,6 +313,16 @@ public class ReportsTabComponent {
             
             // Generate report
             Path result = pdfReportService.generateScanResultsReport(scanResults, outputPath);
+            
+            // Consume 1 action credit for free users (only if not premium-only)
+            if (!isPremium && !adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isPdfReportsPremiumOnly()) {
+                boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS);
+                if (creditConsumed) {
+                    outputArea.append("Action credit consumed successfully\n");
+                } else {
+                    outputArea.append("Warning: Failed to consume Action credit\n");
+                }
+            }
             
             outputArea.append("Scan results report generated successfully!\n");
             outputArea.append("Output file: " + result.toAbsolutePath() + "\n");
@@ -231,6 +350,28 @@ public class ReportsTabComponent {
     
     private void generateComprehensiveReport() {
         try {
+            // Check if user is premium
+            boolean isPremium = CheckLicense.isLicensed();
+            
+            // Check if PDF reports are premium-only feature
+            if (adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isPdfReportsPremiumOnly()) {
+                if (!isPremium) {
+                    showUpgradePrompt("Premium Feature Required", 
+                        "PDF reports require Premium. Upgrade to generate unlimited PDF reports with professional styling.");
+                    return;
+                }
+            } else {
+                // Check credits for free users (if not premium-only)
+                if (!isPremium) {
+                    int remainingCredits = creditsService.getRemainingCredits(CreditType.ACTIONS);
+                    if (remainingCredits <= 0) {
+                        showUpgradePrompt("Action Credits Exhausted", 
+                            "You've used all your action credits. Upgrade to Premium for unlimited PDF reports.");
+                        return;
+                    }
+                }
+            }
+
             statusLabel.setText("Generating comprehensive report...");
             outputArea.setText("Starting comprehensive report generation...\n");
             
@@ -275,6 +416,16 @@ public class ReportsTabComponent {
             );
             
             Path result = pdfReportService.generateComprehensiveReport(request);
+            
+            // Consume 1 action credit for free users (only if not premium-only)
+            if (!isPremium && !adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isPdfReportsPremiumOnly()) {
+                boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS);
+                if (creditConsumed) {
+                    outputArea.append("Action credit consumed successfully\n");
+                } else {
+                    outputArea.append("Warning: Failed to consume Action credit\n");
+                }
+            }
             
             outputArea.append("Comprehensive report generated successfully!\n");
             outputArea.append("Output file: " + result.toAbsolutePath() + "\n");
@@ -425,5 +576,9 @@ public class ReportsTabComponent {
     public void refresh() {
         statusLabel.setText("Ready to generate reports");
         outputArea.setText("");
+        
+        // Update upgrade button visibility based on premium status
+        boolean isPremium = CheckLicense.isLicensed();
+        upgradeButtonPanel.setVisible(!isPremium);
     }
 }

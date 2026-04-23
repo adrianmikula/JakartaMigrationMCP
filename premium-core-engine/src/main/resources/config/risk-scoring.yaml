@@ -357,12 +357,14 @@ legacyCalculations:
 # Effort scoring configuration (previously hardcoded in DashboardComponent)
 effortScoring:
   weights:
-    automationScore: 0.5       # 50% - Recipe coverage weight
+    automationScore: 0.4       # 40% - Recipe coverage weight
     testCoverageScore: 0.0     # 0% - Moved to validation confidence
-    organisationalDepsScore: 0.5 # 50% - Organisational dependencies weight
+    organisationalDepsScore: 0.3 # 30% - Organisational dependencies weight
+    projectSizeScore: 0.3      # 30% - Project size weight
   thresholds:
     maxOrganisationalDeps: 100  # Cap for organisational dependency calculation
     maxTestCoverage: 100        # Maximum test coverage percentage
+    maxProjectFiles: 10000     # Cap for project size calculation
 
 # Validation confidence configuration
 validationConfidence:

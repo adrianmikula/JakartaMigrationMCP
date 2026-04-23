@@ -7,13 +7,13 @@ import java.util.*;
  * Repulsive forces between nodes, attractive forces along edges.
  */
 public class ForceDirectedLayoutStrategy implements GraphLayoutStrategy {
-    private static final double REPULSION_STRENGTH = 8000; // Increased for better separation
+    private static final double REPULSION_STRENGTH = 2500; // Reduced for better spacing
     private static final double ATTRACTION_STRENGTH = 0.01; // Reduced for less clustering
     private static final double DAMPING = 0.85; // Good damping for stability
     private static final int MAX_ITERATIONS = 500; // More iterations for better convergence
     private static final double NODE_WIDTH = 120; // Reasonable node size
     private static final double NODE_HEIGHT = 40; // Reasonable node size
-    private static final double MIN_SEPARATION = 200; // Increased minimum distance between nodes
+    private static final double MIN_SEPARATION = 80; // Reduced minimum distance between nodes
 
     @Override
     public void layout(List<GraphNode> nodes, List<GraphEdge> edges, int canvasWidth, int canvasHeight) {
@@ -76,8 +76,8 @@ public class ForceDirectedLayoutStrategy implements GraphLayoutStrategy {
             GraphNode node = nodes.get(i);
             int col = i % cols;
             int row = i / cols;
-            node.setX(startX + col * 200);
-            node.setY(startY + row * 100);
+            node.setX(startX + col * 150); // Reduced from 200 to match new separation
+            node.setY(startY + row * 80);  // Reduced from 100 to match new separation
             node.setWidth(NODE_WIDTH);
             node.setHeight(NODE_HEIGHT);
         }
@@ -89,7 +89,7 @@ public class ForceDirectedLayoutStrategy implements GraphLayoutStrategy {
         double dy = n2.getCenterY() - n1.getCenterY();
         double distSq = dx * dx + dy * dy;
         
-        // Enhanced repulsive force calculation with exponential falloff for better separation
+        // Use gentler repulsive force calculation with better falloff
         double minDistSq = MIN_SEPARATION * MIN_SEPARATION;
         if (distSq < minDistSq) {
             distSq = minDistSq;
@@ -97,12 +97,12 @@ public class ForceDirectedLayoutStrategy implements GraphLayoutStrategy {
         
         double dist = Math.sqrt(distSq);
         
-        // Use exponential falloff for better node separation
-        double force = REPULSION_STRENGTH * Math.exp(-dist / (2 * MIN_SEPARATION));
+        // Use gentler exponential falloff for more natural spacing
+        double force = REPULSION_STRENGTH * Math.exp(-dist / (3 * MIN_SEPARATION));
         
-        // Additional force if nodes are too close
-        if (dist < MIN_SEPARATION * 1.5) {
-            force += REPULSION_STRENGTH * (MIN_SEPARATION * 1.5 - dist) / MIN_SEPARATION;
+        // Reduced additional force for nodes that are very close
+        if (dist < MIN_SEPARATION * 1.2) {
+            force += REPULSION_STRENGTH * 0.3 * (MIN_SEPARATION * 1.2 - dist) / MIN_SEPARATION;
         }
         
         double fx = (dx / dist) * force;

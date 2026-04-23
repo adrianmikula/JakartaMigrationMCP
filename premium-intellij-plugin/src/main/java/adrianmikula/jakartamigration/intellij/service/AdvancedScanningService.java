@@ -4,6 +4,7 @@ import adrianmikula.jakartamigration.advancedscanning.domain.*;
 import adrianmikula.jakartamigration.advancedscanning.service.AdvancedScanningModule;
 import adrianmikula.jakartamigration.advancedscanning.service.*;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
+import adrianmikula.jakartamigration.intellij.ui.ScanProgressListener;
 import com.intellij.openapi.diagnostic.Logger;
 
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
@@ -54,6 +55,18 @@ public class AdvancedScanningService {
      * @return AdvancedScanSummary containing combined results
      */
     public AdvancedScanSummary scanAll(Path projectPath) {
+        return scanAll(projectPath, null);
+    }
+
+    /**
+     * Scans a project for all advanced scanning types in parallel with progress reporting.
+     * Results are cached for 5 minutes using SoftReferences.
+     *
+     * @param projectPath Path to the project root directory
+     * @param progressListener Optional listener for progress updates
+     * @return AdvancedScanSummary containing combined results
+     */
+    public AdvancedScanSummary scanAll(Path projectPath, ScanProgressListener progressListener) {
         LOG.info("=== Starting Advanced Scan ===");
         LOG.info("Project path: " + projectPath);
         
@@ -86,7 +99,7 @@ public class AdvancedScanningService {
             // If very low memory, run sequentially
             if (availableMemory < 100 * 1024 * 1024) { // Less than 100MB available
                 LOG.info("Low memory detected, running scans sequentially");
-                return runScansSequentially(projectPath);
+                return runScansSequentially(projectPath, progressListener);
             }
             
             // Execute scans in batches to control memory usage
@@ -94,25 +107,57 @@ public class AdvancedScanningService {
             
             // Batch 1: Core scans
             LOG.info("=== Starting Batch 1: Core Scans ===");
+            if (progressListener != null) {
+                progressListener.onScanPhase("Advanced Scans (Batch 1/3)", 0, 3);
+            }
+            
             CompletableFuture<ProjectScanResult<FileScanResult<JpaAnnotationUsage>>> jpaFuture = CompletableFuture
                     .supplyAsync(() -> {
                         LOG.info("Starting JPA scan...");
-                        return scanForJpaAnnotations(projectPath);
+                        ProjectScanResult<FileScanResult<JpaAnnotationUsage>> result = scanForJpaAnnotations(projectPath);
+                        if (progressListener != null && result != null && !result.fileResults().isEmpty()) {
+                            int totalFindings = result.fileResults().stream()
+                                .mapToInt(fileScan -> fileScan.usages().size())
+                                .sum();
+                            progressListener.onSubScanComplete("JPA", totalFindings);
+                        }
+                        return result;
                     }, scanExecutor);
             CompletableFuture<ProjectScanResult<FileScanResult<JavaxUsage>>> bvFuture = CompletableFuture
                     .supplyAsync(() -> {
                         LOG.info("Starting Bean Validation scan...");
-                        return scanForBeanValidation(projectPath);
+                        ProjectScanResult<FileScanResult<JavaxUsage>> result = scanForBeanValidation(projectPath);
+                        if (progressListener != null && result != null && !result.fileResults().isEmpty()) {
+                            int totalFindings = result.fileResults().stream()
+                                .mapToInt(fileScan -> fileScan.usages().size())
+                                .sum();
+                            progressListener.onSubScanComplete("Bean Validation", totalFindings);
+                        }
+                        return result;
                     }, scanExecutor);
             CompletableFuture<ProjectScanResult<FileScanResult<ServletJspUsage>>> sjFuture = CompletableFuture
                     .supplyAsync(() -> {
                         LOG.info("Starting Servlet/JSP scan...");
-                        return scanForServletJsp(projectPath);
+                        ProjectScanResult<FileScanResult<ServletJspUsage>> result = scanForServletJsp(projectPath);
+                        if (progressListener != null && result != null && !result.fileResults().isEmpty()) {
+                            int totalFindings = result.fileResults().stream()
+                                .mapToInt(fileScan -> fileScan.usages().size())
+                                .sum();
+                            progressListener.onSubScanComplete("Servlet/JSP", totalFindings);
+                        }
+                        return result;
                     }, scanExecutor);
             CompletableFuture<ProjectScanResult<FileScanResult<JavaxUsage>>> cdiFuture = CompletableFuture
                     .supplyAsync(() -> {
                         LOG.info("Starting CDI scan...");
-                        return scanForCdiInjection(projectPath);
+                        ProjectScanResult<FileScanResult<JavaxUsage>> result = scanForCdiInjection(projectPath);
+                        if (progressListener != null && result != null && !result.fileResults().isEmpty()) {
+                            int totalFindings = result.fileResults().stream()
+                                .mapToInt(fileScan -> fileScan.usages().size())
+                                .sum();
+                            progressListener.onSubScanComplete("CDI Injection", totalFindings);
+                        }
+                        return result;
                     }, scanExecutor);
             
             // Wait for first batch
@@ -120,11 +165,33 @@ public class AdvancedScanningService {
             CompletableFuture.allOf(jpaFuture, bvFuture, sjFuture, cdiFuture).join();
             LOG.info("Batch 1 completed");
             
+            if (progressListener != null) {
+                progressListener.onScanPhase("Advanced Scans (Batch 2/3)", 1, 3);
+            }
+            
             // Batch 2: Additional scans
             CompletableFuture<ProjectScanResult<FileScanResult<BuildConfigUsage>>> bcFuture = CompletableFuture
-                    .supplyAsync(() -> scanForBuildConfig(projectPath), scanExecutor);
+                    .supplyAsync(() -> {
+                        ProjectScanResult<FileScanResult<BuildConfigUsage>> result = scanForBuildConfig(projectPath);
+                        if (progressListener != null && result != null && !result.fileResults().isEmpty()) {
+                            int totalFindings = result.fileResults().stream()
+                                .mapToInt(fileScan -> fileScan.usages().size())
+                                .sum();
+                            progressListener.onSubScanComplete("Build Config", totalFindings);
+                        }
+                        return result;
+                    }, scanExecutor);
             CompletableFuture<ProjectScanResult<FileScanResult<JavaxUsage>>> rsFuture = CompletableFuture
-                    .supplyAsync(() -> scanForRestSoap(projectPath), scanExecutor);
+                    .supplyAsync(() -> {
+                        ProjectScanResult<FileScanResult<JavaxUsage>> result = scanForRestSoap(projectPath);
+                        if (progressListener != null && result != null && !result.fileResults().isEmpty()) {
+                            int totalFindings = result.fileResults().stream()
+                                .mapToInt(fileScan -> fileScan.usages().size())
+                                .sum();
+                            progressListener.onSubScanComplete("REST/SOAP", totalFindings);
+                        }
+                        return result;
+                    }, scanExecutor);
             CompletableFuture<DeprecatedApiProjectScanResult> daFuture = CompletableFuture
                     .supplyAsync(() -> scanForDeprecatedApi(projectPath), scanExecutor);
             CompletableFuture<SecurityApiProjectScanResult> saFuture = CompletableFuture
@@ -132,6 +199,11 @@ public class AdvancedScanningService {
             
             // Wait for second batch
             CompletableFuture.allOf(bcFuture, rsFuture, daFuture, saFuture).join();
+            LOG.info("Batch 2 completed");
+            
+            if (progressListener != null) {
+                progressListener.onScanPhase("Advanced Scans (Batch 3/3)", 2, 3);
+            }
             
             // Batch 3: Final scans
             CompletableFuture<JmsMessagingProjectScanResult> jmFuture = CompletableFuture
@@ -153,6 +225,7 @@ public class AdvancedScanningService {
 
             // Wait for final batch
             CompletableFuture.allOf(jmFuture, tdFuture, cfFuture, clFuture, lmFuture, scFuture, ruFuture, tpFuture).join();
+            LOG.info("Batch 3 completed");
 
             // Get individual scan results
             ProjectScanResult<FileScanResult<JpaAnnotationUsage>> jpaResult = jpaFuture.join();
@@ -231,17 +304,64 @@ public class AdvancedScanningService {
     /**
      * Runs scans sequentially for low memory situations using optimized resource management.
      */
-    private AdvancedScanSummary runScansSequentially(Path projectPath) {
+    private AdvancedScanSummary runScansSequentially(Path projectPath, ScanProgressListener progressListener) {
         LOG.info("Running scans sequentially to conserve memory");
         
         try {
+            // Report progress for sequential scans
+            if (progressListener != null) {
+                progressListener.onScanPhase("Advanced Scans (Sequential)", 0, 1);
+            }
+            
             // Use try-with-resources for automatic resource management
             ProjectScanResult<FileScanResult<JpaAnnotationUsage>> jpaResult = scanForJpaAnnotations(projectPath);
+            if (progressListener != null && jpaResult != null && !jpaResult.fileResults().isEmpty()) {
+                int totalFindings = jpaResult.fileResults().stream()
+                    .mapToInt(fileScan -> fileScan.usages().size())
+                    .sum();
+                progressListener.onSubScanComplete("JPA", totalFindings);
+            }
+            
             ProjectScanResult<FileScanResult<JavaxUsage>> beanValidationResult = scanForBeanValidation(projectPath);
+            if (progressListener != null && beanValidationResult != null && !beanValidationResult.fileResults().isEmpty()) {
+                int totalFindings = beanValidationResult.fileResults().stream()
+                    .mapToInt(fileScan -> fileScan.usages().size())
+                    .sum();
+                progressListener.onSubScanComplete("Bean Validation", totalFindings);
+            }
+            
             ProjectScanResult<FileScanResult<ServletJspUsage>> servletJspResult = scanForServletJsp(projectPath);
+            if (progressListener != null && servletJspResult != null && !servletJspResult.fileResults().isEmpty()) {
+                int totalFindings = servletJspResult.fileResults().stream()
+                    .mapToInt(fileScan -> fileScan.usages().size())
+                    .sum();
+                progressListener.onSubScanComplete("Servlet/JSP", totalFindings);
+            }
+            
             ProjectScanResult<FileScanResult<JavaxUsage>> cdiInjectionResult = scanForCdiInjection(projectPath);
+            if (progressListener != null && cdiInjectionResult != null && !cdiInjectionResult.fileResults().isEmpty()) {
+                int totalFindings = cdiInjectionResult.fileResults().stream()
+                    .mapToInt(fileScan -> fileScan.usages().size())
+                    .sum();
+                progressListener.onSubScanComplete("CDI Injection", totalFindings);
+            }
+            
             ProjectScanResult<FileScanResult<BuildConfigUsage>> buildConfigResult = scanForBuildConfig(projectPath);
+            if (progressListener != null && buildConfigResult != null && !buildConfigResult.fileResults().isEmpty()) {
+                int totalFindings = buildConfigResult.fileResults().stream()
+                    .mapToInt(fileScan -> fileScan.usages().size())
+                    .sum();
+                progressListener.onSubScanComplete("Build Config", totalFindings);
+            }
+            
             ProjectScanResult<FileScanResult<JavaxUsage>> restSoapResult = scanForRestSoap(projectPath);
+            if (progressListener != null && restSoapResult != null && !restSoapResult.fileResults().isEmpty()) {
+                int totalFindings = restSoapResult.fileResults().stream()
+                    .mapToInt(fileScan -> fileScan.usages().size())
+                    .sum();
+                progressListener.onSubScanComplete("REST/SOAP", totalFindings);
+            }
+            
             DeprecatedApiProjectScanResult deprecatedApiResult = scanForDeprecatedApi(projectPath);
             SecurityApiProjectScanResult securityApiResult = scanForSecurityApi(projectPath);
             JmsMessagingProjectScanResult jmsMessagingResult = scanForJmsMessaging(projectPath);

@@ -3,7 +3,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.pdfreporting.service.PdfReportService;
-import adrianmikula.jakartamigration.pdfreporting.service.impl.PdfReportServiceImpl;
+import adrianmikula.jakartamigration.pdfreporting.service.impl.HtmlToPdfReportServiceImpl;
 import adrianmikula.jakartamigration.pdfreporting.domain.ReportTemplate;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults.ScanSummary;
@@ -48,7 +48,7 @@ public class ComprehensiveReportsTabComponent {
     
     public ComprehensiveReportsTabComponent(@NotNull Project project) {
         this.project = project;
-        this.reportService = new PdfReportServiceImpl();
+        this.reportService = new HtmlToPdfReportServiceImpl();
         
         createUI();
         initializeComponent();

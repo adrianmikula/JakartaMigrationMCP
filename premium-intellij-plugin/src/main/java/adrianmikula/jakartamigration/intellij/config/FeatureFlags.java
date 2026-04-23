@@ -60,7 +60,9 @@ public class FeatureFlags {
         flags.put("mcpServerTab", true);
         flags.put("advancedScans", false);
         flags.put("platformsTab", false); // Add platforms tab flag
-        flags.put("experimental_features", true); // Enable experimental features by default for testing
+        flags.put("experimental_features", false); // Experimental features disabled by default
+        flags.put("mcpServerPremiumOnly", true); // MCP server premium only
+        flags.put("pdfReportsPremiumOnly", true); // PDF reports premium only
         
         // Feature configurations
         FeatureConfig runtimeConfig = new FeatureConfig();
@@ -283,6 +285,20 @@ public class FeatureFlags {
     public void setAdvancedScansEnabled(boolean enabled) {
         flags.put("advancedScans", enabled);
         LOG.info("Advanced scans feature enabled: " + enabled);
+    }
+    
+    /**
+     * Checks if MCP server is premium only.
+     */
+    public boolean isMcpServerPremiumOnly() {
+        return flags.getOrDefault("mcpServerPremiumOnly", true);
+    }
+    
+    /**
+     * Checks if PDF reports are premium only.
+     */
+    public boolean isPdfReportsPremiumOnly() {
+        return flags.getOrDefault("pdfReportsPremiumOnly", true);
     }
     
     /**

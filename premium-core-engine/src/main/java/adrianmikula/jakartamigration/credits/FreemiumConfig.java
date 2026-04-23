@@ -67,6 +67,8 @@ public class FreemiumConfig {
     private void overrideFromSystemProperties(Properties props) {
         String[] keys = {
             "freemium.credits.actions.limit",
+            "freemium.credits.advanced_scan.limit",
+            "freemium.credits.pdf_report.limit",
             "freemium.truncation.enabled",
             "freemium.truncation.dashboard.limit",
             "freemium.truncation.dependencies.limit",
@@ -85,10 +87,28 @@ public class FreemiumConfig {
     /**
      * Gets the credit limit for actions.
      *
-     * @return the maximum number of actions for free users
+     * @return maximum number of actions for free users
      */
     public int getCreditLimit() {
         return getIntProperty("freemium.credits.actions.limit", DEFAULT_CREDIT_LIMIT);
+    }
+
+    /**
+     * Gets the credit limit for advanced scans.
+     *
+     * @return maximum number of advanced scans for free users
+     */
+    public int getAdvancedScanCreditLimit() {
+        return getIntProperty("freemium.credits.advanced_scan.limit", DEFAULT_CREDIT_LIMIT);
+    }
+
+    /**
+     * Gets the credit limit for PDF reports.
+     *
+     * @return maximum number of PDF reports for free users
+     */
+    public int getPdfReportCreditLimit() {
+        return getIntProperty("freemium.credits.pdf_report.limit", DEFAULT_CREDIT_LIMIT);
     }
 
     /**

@@ -7,6 +7,7 @@ import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.platforms.config.RiskScoringConfig;
 import adrianmikula.jakartamigration.risk.RiskScoringService;
+import adrianmikula.jakartamigration.risk.EnhancedTestCoverageAnalysisService;
 import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.credits.CreditType;
 import adrianmikula.jakartamigration.credits.FreemiumConfig;
@@ -14,9 +15,10 @@ import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.intellij.ui.SupportComponent;
 import adrianmikula.jakartamigration.intellij.ui.components.TruncationHelper;
 import adrianmikula.jakartamigration.intellij.ui.components.RiskGauge;
+import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
 import adrianmikula.jakartamigration.intellij.ui.components.ConfidenceGauge;
 import adrianmikula.jakartamigration.intellij.ui.components.EffortGauge;
-import adrianmikula.jakartamigration.intellij.ui.components.ValidationConfidenceGauge;
+import adrianmikula.jakartamigration.intellij.ui.components.CombinedConfidenceGauge;
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -47,7 +49,7 @@ import java.util.stream.Collectors;
  * Dashboard component with text-based key:value table and MCP server status.
  * Shows migration summary and AI assistant integration status.
  */
-public class DashboardComponent {
+public class DashboardComponent implements ScanProgressListener {
     private static final Logger LOG = Logger.getInstance(DashboardComponent.class);
 
     private final JPanel panel;
@@ -57,6 +59,7 @@ public class DashboardComponent {
     private final AdvancedScanningService advancedScanningService;
     private final CreditsService creditsService;
     private final TruncationHelper truncationHelper;
+    private final EnhancedTestCoverageAnalysisService enhancedTestCoverageService;
     private PlatformsTabComponent platformsTabComponent;
     
     // Cache for preventing unnecessary updates
@@ -64,16 +67,14 @@ public class DashboardComponent {
 
     // UI Components for gauges (top section)
     private JPanel gaugesPanel;
-    private ConfidenceGauge confidenceScoreGauge;
+    private CombinedConfidenceGauge confidenceGauge;
     private RiskGauge migrationRiskGauge;
     private EffortGauge effortScoreGauge;
-    private ValidationConfidenceGauge validationConfidenceGauge;
 
     // Explanation panels for grid layout (column 2)
     private JPanel riskExplanationPanel;
     private JPanel effortExplanationPanel;
     private JPanel confidenceExplanationPanel;
-    private JPanel validationConfidenceExplanationPanel;
 
     // Clickable bullet labels for explanations
     private JLabel riskDirectDepsLabel;
@@ -84,15 +85,18 @@ public class DashboardComponent {
 
     private JLabel effortRecipesLabel;
     private JLabel effortOrgDepsLabel;
-    private JLabel effortWithoutRecipesLabel;
+    
     private JLabel effortProjectSizeLabel;
 
     private JLabel confidenceScansLabel;
     private JLabel confidenceUnknownDepsLabel;
-
+    
+    // Validation confidence labels
     private JLabel validationUnitTestCoverageLabel;
     private JLabel validationIntegrationTestsLabel;
     private JLabel validationCriticalModulesLabel;
+
+    
 
     // Tab switcher callback for navigation
     private Consumer<String> tabSwitcher;
@@ -185,6 +189,7 @@ public class DashboardComponent {
         this.advancedScanningService = advancedScanningService;
         this.creditsService = new CreditsService();
         this.truncationHelper = new TruncationHelper();
+        this.enhancedTestCoverageService = EnhancedTestCoverageAnalysisService.getInstance();
         this.panel = new JBPanel<>(new BorderLayout());
         initializeComponent();
     }
@@ -560,33 +565,8 @@ private void resetAdvancedScanCounts() {
         leftPanel.add(analyseButton);
         actionsPanel.add(leftPanel, BorderLayout.WEST);
 
-        // Right: Trial/Upgrade/Premium buttons
-        JPanel rightPanel = new JBPanel<>(new FlowLayout(FlowLayout.RIGHT, 10, 5));
-        
-        // Check if premium is already active
-        boolean isPremium = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
-        
-        if (!isPremium) {
-            // Add upgrade button for non-premium users (credits system handles free tier)
-            JButton upgradeButton = new JButton("⬆ Upgrade to Premium");
-            upgradeButton.setToolTipText("Get Premium features: Auto-fixes, one-click refactoring, binary fixes");
-            upgradeButton.setBackground(new Color(255, 215, 0));
-            upgradeButton.setForeground(new Color(80, 60, 0));
-            upgradeButton.addActionListener(e -> {
-                try {
-                    java.awt.Desktop.getDesktop().browse(new java.net.URI("https://plugins.jetbrains.com/plugin/30093-jakarta-migration"));
-                } catch (Exception ex) {
-                    Messages.showErrorDialog(project, "Could not open URL", "Error");
-                }
-            });
-            rightPanel.add(upgradeButton);
-        } else {
-            // Show premium badge
-            JLabel premiumBadge = new JLabel("⭐ Premium Active");
-            premiumBadge.setForeground(new Color(255, 215, 0));
-            premiumBadge.setToolTipText("Premium license active");
-            rightPanel.add(premiumBadge);
-        }
+        // Right: Trial/Upgrade/Premium buttons using shared component
+        JPanel rightPanel = PremiumUpgradeButton.createConditionalUpgradePanel(project);
 
         actionsPanel.add(rightPanel, BorderLayout.EAST);
         return actionsPanel;
@@ -657,6 +637,116 @@ private void resetAdvancedScanCounts() {
         return restSoapScanCountValue;
     }
 
+    // ==================== ScanProgressListener Implementation ====================
+
+    @Override
+    public void onScanPhase(String phase, int completed, int total) {
+        SwingUtilities.invokeLater(() -> {
+            if (mainScanProgressBar != null && mainScanProgressLabel != null) {
+                if (total > 0) {
+                    // Show determinate progress
+                    mainScanProgressBar.setIndeterminate(false);
+                    int percentage = (completed * 100) / total;
+                    mainScanProgressBar.setValue(percentage);
+                    mainScanProgressBar.setString(phase + " (" + completed + "/" + total + ")");
+                    mainScanProgressLabel.setText(phase + " in progress...");
+                } else {
+                    // Show indeterminate progress for unknown total
+                    mainScanProgressBar.setIndeterminate(true);
+                    mainScanProgressBar.setString(phase);
+                    mainScanProgressLabel.setText(phase + " in progress...");
+                }
+            }
+        });
+    }
+
+    @Override
+    public void onScanComplete() {
+        SwingUtilities.invokeLater(() -> {
+            LOG.info("DashboardComponent: Scan completed, updating UI");
+            
+            // Set analysis running to false to re-enable the button
+            setAnalysisRunning(false);
+            
+            // Update all dashboard components with latest data
+            updateGauges();
+            updateSummary();
+            updateAdvancedScanCounts();
+            
+            // Update MCP server status
+            updateMcpServerStatus();
+            
+            LOG.info("DashboardComponent: UI update completed");
+        });
+    }
+
+    @Override
+    public void onScanError(Exception error) {
+        SwingUtilities.invokeLater(() -> {
+            LOG.error("DashboardComponent: Scan failed", error);
+            
+            // Set analysis running to false to re-enable the button
+            setAnalysisRunning(false);
+            
+            // Show error in progress label
+            if (mainScanProgressLabel != null) {
+                mainScanProgressLabel.setText("Scan failed");
+            }
+            
+            if (mainScanProgressBar != null) {
+                mainScanProgressBar.setIndeterminate(false);
+                mainScanProgressBar.setValue(0);
+                mainScanProgressBar.setString("Error");
+            }
+            
+            // Log the error for debugging
+            LOG.error("Scan error details:", error);
+        });
+    }
+
+    @Override
+    public void onSubScanComplete(String scanType, int resultCount) {
+        SwingUtilities.invokeLater(() -> {
+            // Update specific scan count if the label exists
+            switch (scanType) {
+                case "JPA":
+                    if (jpaScanCountValue != null) {
+                        updateScanCountWithColor(jpaScanCountValue, resultCount);
+                    }
+                    break;
+                case "Bean Validation":
+                    if (beanValidationScanCountValue != null) {
+                        updateScanCountWithColor(beanValidationScanCountValue, resultCount);
+                    }
+                    break;
+                case "Servlet/JSP":
+                    if (servletJspScanCountValue != null) {
+                        updateScanCountWithColor(servletJspScanCountValue, resultCount);
+                    }
+                    break;
+                case "CDI Injection":
+                    if (cdiInjectionScanCountValue != null) {
+                        updateScanCountWithColor(cdiInjectionScanCountValue, resultCount);
+                    }
+                    break;
+                case "Build Config":
+                    if (buildConfigScanCountValue != null) {
+                        updateScanCountWithColor(buildConfigScanCountValue, resultCount);
+                    }
+                    break;
+                case "REST/SOAP":
+                    if (restSoapScanCountValue != null) {
+                        updateScanCountWithColor(restSoapScanCountValue, resultCount);
+                    }
+                    break;
+                default:
+                    // For other scan types, just log the completion
+                    LOG.info("Sub-scan completed: " + scanType + " with " + resultCount + " results");
+                    break;
+            }
+        });
+    }
+
     // ==================== New Dashboard Layout Methods ====================
 
     /**
@@ -679,7 +769,7 @@ private void resetAdvancedScanCounts() {
         JPanel gridContainer = new JBPanel<>(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 15, 10, 15);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.fill = GridBagConstraints.NONE;
 
         // Row 1: Migration Risk
         gbc.gridx = 0; gbc.gridy = 0;
@@ -707,24 +797,18 @@ private void resetAdvancedScanCounts() {
         // Row 3: Confidence Score
         gbc.gridx = 0; gbc.gridy = 2;
         gbc.anchor = GridBagConstraints.CENTER;
-        confidenceScoreGauge = new ConfidenceGauge("Confidence Score");
-        gridContainer.add(confidenceScoreGauge, gbc);
+        confidenceGauge = new CombinedConfidenceGauge("Confidence");
+        gridContainer.add(confidenceGauge, gbc);
 
         gbc.gridx = 1;
         gbc.anchor = GridBagConstraints.NORTHWEST;
-        confidenceExplanationPanel = createConfidenceExplanationPanel();
+        confidenceExplanationPanel = createCombinedConfidenceExplanationPanel();
         gridContainer.add(confidenceExplanationPanel, gbc);
 
         // Row 4: Validation Confidence
         gbc.gridx = 0; gbc.gridy = 3;
         gbc.anchor = GridBagConstraints.CENTER;
-        validationConfidenceGauge = new ValidationConfidenceGauge("Validation Confidence");
-        gridContainer.add(validationConfidenceGauge, gbc);
-
-        gbc.gridx = 1;
-        gbc.anchor = GridBagConstraints.NORTHWEST;
-        validationConfidenceExplanationPanel = createValidationConfidenceExplanationPanel();
-        gridContainer.add(validationConfidenceExplanationPanel, gbc);
+        
 
         panel.add(gridContainer, BorderLayout.CENTER);
 
@@ -788,17 +872,15 @@ private void resetAdvancedScanCounts() {
      * Shows breakdown of factors contributing to effort score.
      */
     private JPanel createEffortExplanationPanel() {
-        JPanel panel = new JBPanel<>(new GridLayout(4, 1, 2, 2));
+        JPanel panel = new JBPanel<>(new GridLayout(3, 1, 2, 2));
         panel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
 
         // Create clickable bullet labels with initial values
         effortRecipesLabel = createClickableBullet("Refactors with recipes", "Refactor", 0);
-        effortWithoutRecipesLabel = createClickableBullet("Refactors without recipes", "Refactor", 0);
-        effortProjectSizeLabel = createClickableBullet("Project size", "Dependencies", 0);
+        effortProjectSizeLabel = createClickableBullet("Project complexity (files)", "Dependencies", 0);
         effortOrgDepsLabel = createClickableBullet("Organisational dependencies", "Dependencies", 0);
 
         panel.add(effortRecipesLabel);
-        panel.add(effortWithoutRecipesLabel);
         panel.add(effortProjectSizeLabel);
         panel.add(effortOrgDepsLabel);
 
@@ -809,7 +891,7 @@ private void resetAdvancedScanCounts() {
      * Creates the confidence explanation panel with clickable bullet links.
      * Shows breakdown of factors contributing to confidence score.
      */
-    private JPanel createConfidenceExplanationPanel() {
+    private JPanel createCombinedConfidenceExplanationPanel() {
         JPanel panel = new JBPanel<>(new GridLayout(2, 1, 2, 2));
         panel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
 
@@ -823,21 +905,7 @@ private void resetAdvancedScanCounts() {
         return panel;
     }
 
-    private JPanel createValidationConfidenceExplanationPanel() {
-        JPanel panel = new JBPanel<>(new GridLayout(3, 1, 2, 2));
-        panel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-
-        // Create clickable bullet labels with initial values
-        validationUnitTestCoverageLabel = createClickableBullet("Unit test coverage below threshold", "Dependencies", 0);
-        validationIntegrationTestsLabel = createClickableBullet("Limited integration tests", "Dependencies", 0);
-        validationCriticalModulesLabel = createClickableBullet("Critical modules lack coverage", "Dependencies", 0);
-
-        panel.add(validationUnitTestCoverageLabel);
-        panel.add(validationIntegrationTestsLabel);
-        panel.add(validationCriticalModulesLabel);
-
-        return panel;
-    }
+    
 
     /**
      * Creates a clickable bullet label that navigates to a specific tab when clicked.
@@ -1350,7 +1418,7 @@ private void resetAdvancedScanCounts() {
 
         // Calculate confidence score (percentage of dependencies with known Jakarta status)
         int confidenceScore = calculateConfidenceScore();
-        confidenceScoreGauge.setScore(confidenceScore);
+        confidenceGauge.setScore(confidenceScore);
 
         // Calculate migration risk score (using RiskScoringService)
         RiskScoringService riskScoringService = RiskScoringService.getInstance();
@@ -1428,17 +1496,68 @@ private void resetAdvancedScanCounts() {
         int effortScore = calculateEffortScore();
         effortScoreGauge.setScore(effortScore);
 
-        // Set validation confidence score from risk calculation components
-        Integer validationConfidenceScore = riskScore.componentScores().get("validationConfidence");
-        if (validationConfidenceScore != null) {
-            validationConfidenceGauge.setScore(validationConfidenceScore);
-        }
+        // Calculate enhanced validation confidence using test coverage analysis
+        int validationConfidenceScore = calculateEnhancedValidationConfidence(riskScore);
+        
 
         // Update explanation panels with current data and colors
         updateRiskExplanation();
         updateEffortExplanation();
         updateConfidenceExplanation();
-        updateValidationConfidenceExplanation();
+        
+    }
+
+    /**
+     * Calculates enhanced validation confidence using comprehensive test coverage analysis.
+     */
+    private int calculateEnhancedValidationConfidence(RiskScoringService.RiskScore riskScore) {
+        try {
+            if (project != null && project.getBasePath() != null) {
+                // Gather migration issues for correlation analysis
+                Map<String, List<String>> migrationIssues = collectMigrationIssues();
+
+                // Perform enhanced test coverage analysis
+                var analysis = enhancedTestCoverageService.analyzeTestCoverage(
+                    project.getBasePath(), migrationIssues);
+
+                // Return the validation confidence score
+                return (int) Math.round(analysis.validationConfidenceScore);
+            }
+        } catch (Exception e) {
+            LOG.warn("Failed to calculate enhanced validation confidence, falling back to basic score", e);
+        }
+
+        // Fallback to basic score from risk calculation
+        Integer basicScore = riskScore.componentScores().get("validationConfidence");
+        return basicScore != null ? basicScore : 50;
+    }
+
+    /**
+     * Collects migration issues from the current dashboard data for correlation analysis.
+     */
+    private Map<String, List<String>> collectMigrationIssues() {
+        Map<String, List<String>> issues = new HashMap<>();
+
+        if (dashboard != null && dashboard.getDependencySummary() != null) {
+            DependencySummary depSummary = dashboard.getDependencySummary();
+            List<String> mainIssues = new ArrayList<>();
+
+            if (depSummary.getNoJakartaSupportCount() != null && depSummary.getNoJakartaSupportCount() > 0) {
+                mainIssues.add("javax.servlet usage - no Jakarta equivalent");
+            }
+            if (depSummary.getBlockerDependencies() != null && depSummary.getBlockerDependencies() > 0) {
+                mainIssues.add("blocked dependencies requiring manual intervention");
+            }
+            if (depSummary.getAffectedDependencies() != null && depSummary.getAffectedDependencies() > 0) {
+                mainIssues.add("dependencies needing javax to jakarta migration");
+            }
+
+            if (!mainIssues.isEmpty()) {
+                issues.put("main", mainIssues);
+            }
+        }
+
+        return issues;
     }
 
     /**
@@ -1480,12 +1599,15 @@ private void resetAdvancedScanCounts() {
 
         // Get values for effort factors
         int recipesWithMatches = getRecipesWithMatchesCount();
+        int projectFiles = getTotalFileCount();
         int orgDeps = depSummary != null && depSummary.getOrganisationalDependencies() != null
             ? depSummary.getOrganisationalDependencies() : 0;
 
         // Update labels with color coding
         updateBulletLabel(effortRecipesLabel, "Refactors with recipes", recipesWithMatches,
             getColorForMetric(recipesWithMatches, new int[]{0, 5, 10}, false));
+        updateBulletLabel(effortProjectSizeLabel, "Project complexity (files)", projectFiles,
+            getColorForMetric(projectFiles, new int[]{100, 1000, 5000}, true));
         updateBulletLabel(effortOrgDepsLabel, "Organisational dependencies", orgDeps,
             getColorForMetric(orgDeps, new int[]{0, 3, 8}, false));
     }
@@ -1499,23 +1621,106 @@ private void resetAdvancedScanCounts() {
         DependencySummary depSummary = dashboard.getDependencySummary();
 
         // Get values for confidence factors
-        int scansCompleted = calculateOverallScanProgress();
         int totalDeps = depSummary != null && depSummary.getTotalDependencies() != null
             ? depSummary.getTotalDependencies() : 0;
-        int unknownDeps = depSummary != null && depSummary.getUnknownReviewCount() != null
-            ? depSummary.getUnknownReviewCount() : 0;
-        int unknownPercentage = totalDeps > 0 ? (unknownDeps * 100) / totalDeps : 0;
+        
+        // Calculate dependency knowledge percentage
+        int knownPercentage = 0;
+        if (totalDeps > 0) {
+            int jakartaCompatible = depSummary.getJakartaCompatibleCount() != null ? depSummary.getJakartaCompatibleCount() : 0;
+            int jakartaUpgrade = depSummary.getJakartaUpgradeCount() != null ? depSummary.getJakartaUpgradeCount() : 0;
+            int noJakartaSupport = depSummary.getNoJakartaSupportCount() != null ? depSummary.getNoJakartaSupportCount() : 0;
+            int knownDependencies = jakartaCompatible + jakartaUpgrade + noJakartaSupport;
+            knownPercentage = (int) Math.round((knownDependencies * 100.0) / totalDeps);
+        }
+        
+        // Calculate test coverage percentage
+        int testCoveragePercentage = 50; // Default fallback
+        try {
+            if (project != null && project.getBasePath() != null) {
+                Map<String, List<String>> migrationIssues = collectMigrationIssues();
+                var analysis = enhancedTestCoverageService.analyzeTestCoverage(
+                    project.getBasePath(), migrationIssues);
+                testCoveragePercentage = (int) Math.round(analysis.validationConfidenceScore);
+            }
+        } catch (Exception e) {
+            // Use fallback value on error
+        }
 
         // Update labels with color coding
-        updateBulletLabel(confidenceScansLabel, "Scans completed (%)", scansCompleted,
-            getColorForMetric(scansCompleted, new int[]{25, 50, 80}, true));
-        updateBulletLabel(confidenceUnknownDepsLabel, "Unknown/review dependencies (%)", unknownPercentage,
-            getColorForMetric(unknownPercentage, new int[]{10, 25, 50}, false));
+        updateBulletLabel(confidenceScansLabel, "Dependencies with known status", knownPercentage,
+            getColorForMetric(knownPercentage, new int[]{50, 70, 90}, true));
+        updateBulletLabel(confidenceUnknownDepsLabel, "Test coverage for migration risk", testCoveragePercentage,
+            getColorForMetric(testCoveragePercentage, new int[]{50, 70, 90}, true));
     }
 
     private void updateValidationConfidenceExplanation() {
         if (dashboard == null) return;
 
+        try {
+            // Use enhanced test coverage analysis if available
+            if (project != null && project.getBasePath() != null) {
+                Map<String, List<String>> migrationIssues = collectMigrationIssues();
+                var analysis = enhancedTestCoverageService.analyzeTestCoverage(
+                    project.getBasePath(), migrationIssues);
+
+                // Update with detailed analysis results
+                updateValidationConfidenceFromAnalysis(analysis);
+                return;
+            }
+        } catch (Exception e) {
+            LOG.warn("Failed to use enhanced validation confidence analysis, falling back to basic", e);
+        }
+
+        // Fallback to basic calculation
+        updateBasicValidationConfidenceExplanation();
+    }
+
+    /**
+     * Updates validation confidence explanation using enhanced analysis results.
+     */
+    private void updateValidationConfidenceFromAnalysis(
+            EnhancedTestCoverageAnalysisService.EnhancedTestCoverageAnalysis analysis) {
+
+        var metrics = analysis.detailedMetrics;
+
+        // Unit test coverage (effective coverage excluding mocked tests)
+        float effectiveUnitCoverage = Math.max(0, metrics.unitTestCoverage - metrics.mockedTestCoverage);
+        boolean lowUnitCoverage = effectiveUnitCoverage < 70.0f;
+
+        // Integration/component/E2E coverage (most valuable for migration)
+        float realIntegrationCoverage = metrics.integrationTestCoverage +
+                                      metrics.componentTestCoverage +
+                                      metrics.endToEndTestCoverage;
+        boolean lowRealIntegrationCoverage = realIntegrationCoverage < 20.0f; // Stricter threshold
+
+        // Migration risk coverage specifically
+        boolean lowMigrationRiskCoverage = metrics.migrationRiskCoverage < 30.0f;
+
+        // Update labels with enhanced information
+        String unitText = String.format("Effective unit test coverage: %.1f%% (excl. mocks)", effectiveUnitCoverage);
+        updateBulletLabel(validationUnitTestCoverageLabel, unitText, lowUnitCoverage ? 1 : 0,
+            lowUnitCoverage ? Color.RED : Color.GREEN);
+
+        String integrationText = String.format("Real integration coverage: %.1f%% (valuable for migration)", realIntegrationCoverage);
+        updateBulletLabel(validationIntegrationTestsLabel, integrationText, lowRealIntegrationCoverage ? 1 : 0,
+            lowRealIntegrationCoverage ? new Color(255, 165, 0) : Color.GREEN); // Orange for medium priority
+
+        String criticalText = String.format("Migration-risk test coverage: %.1f%%", metrics.migrationRiskCoverage);
+        updateBulletLabel(validationCriticalModulesLabel, criticalText, lowMigrationRiskCoverage ? 1 : 0,
+            lowMigrationRiskCoverage ? Color.RED : Color.GREEN);
+
+        // Show critical risk zones if any exist
+        if (!analysis.criticalRiskZones.isEmpty()) {
+            LOG.info("Found " + analysis.criticalRiskZones.size() + " critical risk zones with low test coverage");
+            // Could add additional UI indicators here
+        }
+    }
+
+    /**
+     * Fallback method for basic validation confidence explanation.
+     */
+    private void updateBasicValidationConfidenceExplanation() {
         // Calculate test coverage metrics
         double testCoverage = calculateTestCoverageEstimate();
         int integrationTestCount = estimateIntegrationTestCount();
@@ -1786,30 +1991,37 @@ private void resetAdvancedScanCounts() {
             return 0;
         }
 
+        // Calculate dependency knowledge score (50% weight)
         DependencySummary depSummary = dashboard.getDependencySummary();
         int totalDependencies = depSummary.getTotalDependencies() != null ? depSummary.getTotalDependencies() : 0;
-
-        if (totalDependencies == 0) {
-            return 0;
+        
+        int dependencyScore = 0;
+        if (totalDependencies > 0) {
+            int jakartaCompatible = depSummary.getJakartaCompatibleCount() != null ? depSummary.getJakartaCompatibleCount() : 0;
+            int jakartaUpgrade = depSummary.getJakartaUpgradeCount() != null ? depSummary.getJakartaUpgradeCount() : 0;
+            int noJakartaSupport = depSummary.getNoJakartaSupportCount() != null ? depSummary.getNoJakartaSupportCount() : 0;
+            int knownDependencies = jakartaCompatible + jakartaUpgrade + noJakartaSupport;
+            dependencyScore = (int) Math.round((knownDependencies * 100.0) / totalDependencies);
         }
-
-        // Known statuses: dependencies we have clear information about
-        int jakartaCompatible = depSummary.getJakartaCompatibleCount() != null ? depSummary.getJakartaCompatibleCount() : 0;
-        int jakartaUpgrade = depSummary.getJakartaUpgradeCount() != null ? depSummary.getJakartaUpgradeCount() : 0;
-        int noJakartaSupport = depSummary.getNoJakartaSupportCount() != null ? depSummary.getNoJakartaSupportCount() : 0;
-
-        // Unknown statuses: dependencies requiring manual review
-        int unknownReview = depSummary.getUnknownReviewCount() != null ? depSummary.getUnknownReviewCount() : 0;
-
-        // Known dependencies include those with clear Jakarta status (compatible, upgrade path, or no support)
-        int knownDependencies = jakartaCompatible + jakartaUpgrade + noJakartaSupport;
-
-        // Calculate confidence score as percentage of known dependencies
-        // This includes deep transitive dependencies since depSummary includes all dependencies
-        int confidenceScore = (int) Math.round((knownDependencies * 100.0) / totalDependencies);
-
+        
+        // Calculate test coverage score (50% weight)
+        int testCoverageScore = 50; // Default fallback
+        try {
+            if (project != null && project.getBasePath() != null) {
+                Map<String, List<String>> migrationIssues = collectMigrationIssues();
+                var analysis = enhancedTestCoverageService.analyzeTestCoverage(
+                    project.getBasePath(), migrationIssues);
+                testCoverageScore = (int) Math.round(analysis.validationConfidenceScore);
+            }
+        } catch (Exception e) {
+            // Use fallback value on error
+        }
+        
+        // Combine scores: 50% dependency knowledge + 50% test coverage
+        int combinedScore = (int) Math.round((dependencyScore * 0.5) + (testCoverageScore * 0.5));
+        
         // Ensure score is within 0-100 range
-        return Math.max(0, Math.min(100, confidenceScore));
+        return Math.max(0, Math.min(100, combinedScore));
     }
 
     /**
@@ -1835,6 +2047,7 @@ private void resetAdvancedScanCounts() {
         RiskScoringConfig config = riskScoringService.getRiskScoringConfig();
         double automationWeight = config.getAutomationScoreWeight();
         double orgDepsWeight = config.getOrganisationalDepsScoreWeight();
+        double projectSizeWeight = config.getProjectSizeScoreWeight();
 
         // Calculate automation score (percentage of issues WITHOUT recipe matches)
         int automationScore = calculateAutomationScore();
@@ -1842,10 +2055,14 @@ private void resetAdvancedScanCounts() {
         // Calculate organisational dependencies score (more org deps = higher effort)
         int orgDepScore = calculateOrganisationalDepsScore(config.getMaxOrganisationalDepsThreshold());
 
+        // Calculate project size score (larger projects = higher effort)
+        int projectSizeScore = calculateProjectSizeScore(config.getMaxProjectFilesThreshold());
+
         // Combine scores using weights from configuration (test coverage moved to validation confidence)
         int combinedScore = (int) Math.round(
             (automationScore * automationWeight) +
-            (orgDepScore * orgDepsWeight)
+            (orgDepScore * orgDepsWeight) +
+            (projectSizeScore * projectSizeWeight)
         );
 
         // Ensure score is within 0-100 range
@@ -1877,6 +2094,33 @@ private void resetAdvancedScanCounts() {
         // Calculate score: proportional to org deps count, capped at threshold
         // Score = min(orgDeps / maxThreshold, 1.0) * 100
         double ratio = Math.min(orgDeps / (double) maxThreshold, 1.0);
+        return (int) Math.round(ratio * 100);
+    }
+
+    /**
+     * Calculates the project size score based on the total number of files in the project.
+     * Larger projects mean higher effort (more files to migrate).
+     *
+     * @param maxThreshold Maximum threshold for capping the score
+     * @return Project size score from 0 to 100
+     */
+    private int calculateProjectSizeScore(int maxThreshold) {
+        if (dashboard == null || dashboard.getDependencySummary() == null) {
+            return 0;
+        }
+
+        DependencySummary depSummary = dashboard.getDependencySummary();
+        int totalFiles = depSummary.getTotalDependencies() != null
+            ? depSummary.getTotalDependencies()
+            : 0;
+
+        if (totalFiles == 0) {
+            return 0; // No files = low effort
+        }
+
+        // Calculate score: proportional to file count, capped at threshold
+        // Score = min(totalFiles / maxThreshold, 1.0) * 100
+        double ratio = Math.min(totalFiles / (double) maxThreshold, 1.0);
         return (int) Math.round(ratio * 100);
     }
 

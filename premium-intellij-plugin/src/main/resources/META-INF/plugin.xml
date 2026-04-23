@@ -1,4 +1,4 @@
-<idea-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/schemas/plugin/2/plugin.xsd" icon="/icons/pluginIcon.svg">
+<idea-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/schemas/plugin/2/plugin.xsd" icon="pluginIcon.svg">
     <!-- Freemium Monetization Parameters in product-descriptor  element: -->
 
     <!-- code: Your Product Code must:
@@ -151,7 +151,7 @@
                 class="adrianmikula.jakartamigration.intellij.JakartaMigrationAction"
                 text="Jakarta Migration"
                 description="Analyze and migrate to Jakarta EE"
-                icon="icons/pluginIcon.svg">
+                icon="pluginIcon.svg">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift J"/>
         </action>
@@ -161,13 +161,22 @@
                 class="adrianmikula.jakartamigration.intellij.JakartaMigrationAction"
                 text="Analyze with AI Assistant"
                 description="Analyze project with Jakarta Migration AI Assistant"
-                icon="icons/pluginIcon.svg">
+                icon="pluginIcon.svg">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>
     </actions>
 
 
     <change-notes><![CDATA[
+    <h>1.0.14 - 2026-04-23</h>
+    <ul>
+        <li>Fixed bugs with scan results display</li>
+        <li>Fixed performance issues</li>
+        <li>Fixed PDF report layout issue</li>
+        <li>Added error reporting and collection of usage metrics</li>
+        <li>Limited scan results to 5 for free verison</li>
+        <li>Limited dependency graph types for free verison</li>
+    </ul>
     <h>1.0.13 - 2026-04-12</h>
     <ul>
         <li>Added deep scanning of transitive dependencies</li>

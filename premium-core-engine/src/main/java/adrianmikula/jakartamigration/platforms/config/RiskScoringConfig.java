@@ -154,14 +154,16 @@ public class RiskScoringConfig {
         if (!baseCalculations.containsKey("maxPlatformRisk")) baseCalculations.put("maxPlatformRisk", 60);
         if (!baseCalculations.containsKey("maxTotalRisk")) baseCalculations.put("maxTotalRisk", 100);
 
-        // Effort scoring defaults (equal 33% weights)
-        if (!effortScoringWeights.containsKey("automationScore")) effortScoringWeights.put("automationScore", 0.33);
-        if (!effortScoringWeights.containsKey("testCoverageScore")) effortScoringWeights.put("testCoverageScore", 0.33);
-        if (!effortScoringWeights.containsKey("organisationalDepsScore")) effortScoringWeights.put("organisationalDepsScore", 0.33);
+        // Effort scoring defaults (updated for new weights)
+        if (!effortScoringWeights.containsKey("automationScore")) effortScoringWeights.put("automationScore", 0.4);
+        if (!effortScoringWeights.containsKey("testCoverageScore")) effortScoringWeights.put("testCoverageScore", 0.0);
+        if (!effortScoringWeights.containsKey("organisationalDepsScore")) effortScoringWeights.put("organisationalDepsScore", 0.3);
+        if (!effortScoringWeights.containsKey("projectSizeScore")) effortScoringWeights.put("projectSizeScore", 0.3);
 
         // Effort scoring thresholds
         if (!effortScoringThresholds.containsKey("maxOrganisationalDeps")) effortScoringThresholds.put("maxOrganisationalDeps", 100);
         if (!effortScoringThresholds.containsKey("maxTestCoverage")) effortScoringThresholds.put("maxTestCoverage", 100);
+        if (!effortScoringThresholds.containsKey("maxProjectFiles")) effortScoringThresholds.put("maxProjectFiles", 10000);
     }
 
     // Getters for all configuration values
@@ -214,7 +216,11 @@ public class RiskScoringConfig {
     }
 
     public double getOrganisationalDepsScoreWeight() {
-        return effortScoringWeights.getOrDefault("organisationalDepsScore", 0.33);
+        return effortScoringWeights.getOrDefault("organisationalDepsScore", 0.3);
+    }
+
+    public double getProjectSizeScoreWeight() {
+        return effortScoringWeights.getOrDefault("projectSizeScore", 0.3);
     }
 
     public int getMaxOrganisationalDepsThreshold() {
@@ -223,5 +229,9 @@ public class RiskScoringConfig {
 
     public int getMaxTestCoverage() {
         return effortScoringThresholds.getOrDefault("maxTestCoverage", 100);
+    }
+
+    public int getMaxProjectFilesThreshold() {
+        return effortScoringThresholds.getOrDefault("maxProjectFiles", 10000);
     }
 }

@@ -15,18 +15,50 @@ import java.awt.BasicStroke;
  * - Score interpretation (getScoreLabel, getScoreCategoryColor)
  */
 public abstract class ScoreGauge extends JPanel {
-    protected static final int GAUGE_SIZE = 150;
-    protected static final int GAUGE_THICKNESS = 20;
-    protected static final int NEEDLE_LENGTH = 60;
+    protected static final int DEFAULT_GAUGE_SIZE = 150;
+    protected static final int GAUGE_THICKNESS_RATIO = 20; // Ratio relative to gauge size
+    protected static final int NEEDLE_LENGTH_RATIO = 60; // Ratio relative to gauge size
     protected static final int NEEDLE_WIDTH = 3;
+    protected static final int MIN_GAUGE_SIZE = 80; // Minimum size to maintain readability
 
     protected int score = 0;
     protected String title;
 
     public ScoreGauge(String title) {
         this.title = title;
-        setPreferredSize(new Dimension(GAUGE_SIZE, GAUGE_SIZE + 30)); // Extra space for title
+        setPreferredSize(new Dimension(DEFAULT_GAUGE_SIZE, DEFAULT_GAUGE_SIZE + 30)); // Extra space for title
+        setMinimumSize(new Dimension(MIN_GAUGE_SIZE, MIN_GAUGE_SIZE + 20));
         setBackground(Color.WHITE);
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+        Dimension parentSize = getParent() != null ? getParent().getSize() : new Dimension(DEFAULT_GAUGE_SIZE, DEFAULT_GAUGE_SIZE);
+        int availableWidth = parentSize.width;
+        int availableHeight = parentSize.height;
+        
+        // Calculate optimal size based on available space while maintaining aspect ratio
+        int optimalSize = Math.min(availableWidth - 40, Math.min(availableHeight - 60, DEFAULT_GAUGE_SIZE));
+        optimalSize = Math.max(optimalSize, MIN_GAUGE_SIZE);
+        
+        return new Dimension(optimalSize, optimalSize + 30);
+    }
+    
+    @Override
+    public Dimension getMinimumSize() {
+        return new Dimension(MIN_GAUGE_SIZE, MIN_GAUGE_SIZE + 20);
+    }
+    
+    protected int getGaugeSize() {
+        return Math.max(getWidth() - 20, Math.max(getHeight() - 50, MIN_GAUGE_SIZE));
+    }
+    
+    protected int getGaugeThickness() {
+        return Math.max(getGaugeSize() * GAUGE_THICKNESS_RATIO / DEFAULT_GAUGE_SIZE, 8);
+    }
+    
+    protected int getNeedleLength() {
+        return getGaugeSize() * NEEDLE_LENGTH_RATIO / DEFAULT_GAUGE_SIZE;
     }
 
     public void setScore(int score) {
@@ -72,6 +104,10 @@ public abstract class ScoreGauge extends JPanel {
         // Center point of the gauge
         int centerX = getWidth() / 2;
         int centerY = getHeight() / 2 - 15; // Adjust for title space
+        
+        // Get dynamic gauge dimensions
+        int gaugeSize = getGaugeSize();
+        int gaugeThickness = getGaugeThickness();
 
         // Draw the colored arc segments
         drawGaugeArcs(g2d, centerX, centerY);
@@ -92,6 +128,10 @@ public abstract class ScoreGauge extends JPanel {
     }
 
     private void drawGaugeArcs(Graphics2D g2d, int centerX, int centerY) {
+        // Get dynamic dimensions
+        int gaugeSize = getGaugeSize();
+        int gaugeThickness = getGaugeThickness();
+        
         // Draw four arc segments (0-25, 26-50, 51-75, 76-100)
         // Each segment is 45 degrees
         int[] startAngles = {135, 90, 45, 0};
@@ -100,8 +140,8 @@ public abstract class ScoreGauge extends JPanel {
         for (int i = 0; i < 4; i++) {
             g2d.setColor(getArcColorForRange(i));
             g2d.fill(new Arc2D.Double(
-                centerX - GAUGE_SIZE/2, centerY - GAUGE_SIZE/2,
-                GAUGE_SIZE, GAUGE_SIZE,
+                centerX - gaugeSize/2, centerY - gaugeSize/2,
+                gaugeSize, gaugeSize,
                 startAngles[i], arcExtent, Arc2D.PIE
             ));
         }
@@ -109,10 +149,10 @@ public abstract class ScoreGauge extends JPanel {
         // Draw the inner circle to create the gauge effect
         g2d.setColor(getBackground());
         g2d.fill(new Ellipse2D.Double(
-            centerX - (GAUGE_SIZE/2 - GAUGE_THICKNESS),
-            centerY - (GAUGE_SIZE/2 - GAUGE_THICKNESS),
-            GAUGE_SIZE - 2*GAUGE_THICKNESS,
-            GAUGE_SIZE - 2*GAUGE_THICKNESS
+            centerX - (gaugeSize/2 - gaugeThickness),
+            centerY - (gaugeSize/2 - gaugeThickness),
+            gaugeSize - 2*gaugeThickness,
+            gaugeSize - 2*gaugeThickness
         ));
 
         // Draw tick marks
@@ -122,14 +162,18 @@ public abstract class ScoreGauge extends JPanel {
     private void drawTickMarks(Graphics2D g2d, int centerX, int centerY) {
         g2d.setColor(Color.DARK_GRAY);
         g2d.setStroke(new BasicStroke(1));
+        
+        // Get dynamic dimensions
+        int gaugeSize = getGaugeSize();
+        int gaugeThickness = getGaugeThickness();
 
         // Draw tick marks for 0, 25, 50, 75, 100 at the specified angles
         int[] angles = {180, 225, 270, 315, 360};
 
         for (int angle : angles) {
             double radians = Math.toRadians(angle);
-            int innerRadius = GAUGE_SIZE/2 - GAUGE_THICKNESS - 5;
-            int outerRadius = GAUGE_SIZE/2 - 5;
+            int innerRadius = gaugeSize/2 - gaugeThickness - 5;
+            int outerRadius = gaugeSize/2 - 5;
 
             int x1 = centerX + (int) (innerRadius * Math.cos(radians));
             int y1 = centerY + (int) (innerRadius * Math.sin(radians));
@@ -152,10 +196,13 @@ public abstract class ScoreGauge extends JPanel {
     private void drawNeedle(Graphics2D g2d, int centerX, int centerY) {
         double angle = calculateNeedleAngle(score);
         double radians = Math.toRadians(angle);
+        
+        // Get dynamic needle length
+        int needleLength = getNeedleLength();
 
         // Calculate needle endpoint
-        int needleX = centerX + (int) (NEEDLE_LENGTH * Math.cos(radians));
-        int needleY = centerY + (int) (NEEDLE_LENGTH * Math.sin(radians));
+        int needleX = centerX + (int) (needleLength * Math.cos(radians));
+        int needleY = centerY + (int) (needleLength * Math.sin(radians));
 
         // Draw needle shadow
         g2d.setColor(new Color(0, 0, 0, 50));
@@ -177,7 +224,9 @@ public abstract class ScoreGauge extends JPanel {
 
     private void drawTitle(Graphics2D g2d, int centerX, int y) {
         g2d.setColor(Color.BLACK);
-        Font titleFont = new Font("Arial", Font.BOLD, 12);
+        int gaugeSize = getGaugeSize();
+        int titleFontSize = Math.max(10, gaugeSize / 12); // Scale font size with gauge
+        Font titleFont = new Font("Arial", Font.BOLD, titleFontSize);
         g2d.setFont(titleFont);
         FontMetrics fm = g2d.getFontMetrics();
         int titleWidth = fm.stringWidth(title);
@@ -185,20 +234,24 @@ public abstract class ScoreGauge extends JPanel {
     }
 
     private void drawScoreAndLabel(Graphics2D g2d, int centerX, int centerY) {
-        // Draw score
+        int gaugeSize = getGaugeSize();
+        
+        // Draw score with dynamic font size
         g2d.setColor(getScoreColor());
-        Font scoreFont = new Font("Arial", Font.BOLD, 16);
+        int scoreFontSize = Math.max(12, gaugeSize / 8); // Scale font size with gauge
+        Font scoreFont = new Font("Arial", Font.BOLD, scoreFontSize);
         g2d.setFont(scoreFont);
         FontMetrics fm = g2d.getFontMetrics();
         String scoreText = String.valueOf(score);
         int scoreWidth = fm.stringWidth(scoreText);
         g2d.drawString(scoreText, centerX - scoreWidth/2, centerY + 25);
 
-        // Draw label if available
+        // Draw label if available with dynamic font size
         String label = getScoreLabel();
         if (label != null && !label.isEmpty()) {
             g2d.setColor(Color.DARK_GRAY);
-            Font categoryFont = new Font("Arial", Font.PLAIN, 10);
+            int labelFontSize = Math.max(8, gaugeSize / 15); // Scale font size with gauge
+            Font categoryFont = new Font("Arial", Font.PLAIN, labelFontSize);
             g2d.setFont(categoryFont);
             fm = g2d.getFontMetrics();
             int labelWidth = fm.stringWidth(label);

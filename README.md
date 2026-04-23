@@ -48,6 +48,18 @@ This plugin helps you **identify risks early and migrate systematically**.
 
 * Compare migration strategies
 * Identify required platform upgrades (Spring, app servers, etc.)
+
+### ✅ Validate Migration Readiness
+
+* **Enhanced Test Coverage Analysis**: Detects integration tests that actually validate javax/jakarta compatibility
+* **Critical Risk Zone Detection**: Identifies modules with migration issues AND insufficient test coverage
+* **Migration-Aware Confidence Scoring**: Prioritizes tests that catch real migration issues over mocked unit tests
+
+### 📄 Generate Professional Reports
+
+* **HTML-to-PDF Reports**: Beautiful, professional reports with executive summaries
+* **Multiple Templates**: Professional, Technical, and Minimal report styles
+* **Comprehensive Analysis**: Dependencies, platforms, advanced scanning, and recommendations
 * Make informed decisions before changing code
 
 ### ⚡ Refactor with Confidence

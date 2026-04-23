@@ -1,5 +1,7 @@
 package adrianmikula.jakartamigration.credits;
 
+import adrianmikula.jakartamigration.analytics.service.UsageService;
+import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -27,6 +29,8 @@ public class CreditsService implements AutoCloseable {
     private final Path dbPath;
     private final ThreadLocal<Connection> connectionHolder = new ThreadLocal<>();
     private final FreemiumConfig freemiumConfig;
+    private final UserIdentificationService userIdentificationService;
+    private final UsageService usageService;
 
     // In-memory cache for credits to avoid repeated DB queries
     private final ConcurrentHashMap<CreditType, Integer> creditsCache = new ConcurrentHashMap<>();
@@ -49,6 +53,11 @@ public class CreditsService implements AutoCloseable {
     public CreditsService(Path storagePath) {
         this.freemiumConfig = new FreemiumConfig();
         this.dbPath = storagePath.resolve(DB_FILE);
+        
+        // Initialize analytics services
+        this.userIdentificationService = new UserIdentificationService();
+        this.usageService = new UsageService(userIdentificationService);
+        
         try {
             Files.createDirectories(storagePath);
         } catch (IOException e) {
@@ -228,6 +237,10 @@ public class CreditsService implements AutoCloseable {
                     int creditsAfter = getRemainingCredits(type);
                     log.info("[CREDIT DEBUG] Successfully used 1 {} credit. Before: {}, After: {}, Used: {}",
                         type, creditsBefore, creditsAfter, creditsCache.getOrDefault(type, 0));
+                    
+                    // Track usage analytics
+                    usageService.trackCreditUsage(type.getKey());
+                    
                     return true;
                 } else {
                     log.error("[CREDIT DEBUG] Database update failed for {} credit - no rows updated", type);
@@ -318,6 +331,18 @@ public class CreditsService implements AutoCloseable {
             log.warn("Error closing credits database connection", e);
         } finally {
             connectionHolder.remove();
+        }
+        
+        // Close analytics services
+        try {
+            if (usageService != null) {
+                usageService.close();
+            }
+            if (userIdentificationService != null) {
+                userIdentificationService.close();
+            }
+        } catch (Exception e) {
+            log.warn("Error closing analytics services", e);
         }
     }
 }

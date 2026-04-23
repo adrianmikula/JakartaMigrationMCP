@@ -1,12 +1,12 @@
 package adrianmikula.jakartamigration.credits;
 
 /**
- * Enum representing the credit type available in the freemium model.
- * Simplified to a single credit type for all premium actions.
+ * Enum representing credit type available in freemium model.
+ * Unified credit system - single credit type for all premium operations.
  */
 public enum CreditType {
     /**
-     * Actions credits - used for all premium operations (refactor, undo, re-run from history).
+     * Actions credits - used for all premium operations (scans, advanced scans, refactoring, reports).
      * Free users get a limited number of action credits (default: 10).
      * When exhausted, users are prompted to upgrade.
      */

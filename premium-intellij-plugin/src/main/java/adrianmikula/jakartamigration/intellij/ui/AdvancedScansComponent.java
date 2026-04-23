@@ -4,6 +4,9 @@ import adrianmikula.jakartamigration.advancedscanning.domain.*;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.analysis.persistence.ObjectMapperService;
+import adrianmikula.jakartamigration.credits.CreditType;
+import adrianmikula.jakartamigration.credits.CreditsService;
+import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.intellij.ui.components.TruncationHelper;
 import adrianmikula.jakartamigration.intellij.ui.components.TruncationNoticePanel;
 import com.intellij.openapi.diagnostic.Logger;
@@ -73,6 +76,7 @@ public class AdvancedScansComponent {
     private final CentralMigrationAnalysisStore store;
     private final ObjectMapperService objectMapper;
     private final TruncationHelper truncationHelper;
+    private final CreditsService creditsService;
 
     // Truncation notice panels for each sub-tab
     private TruncationNoticePanel jpaTruncationNotice;
@@ -96,6 +100,7 @@ public class AdvancedScansComponent {
         this.store = new CentralMigrationAnalysisStore();
         this.objectMapper = new ObjectMapperService();
         this.truncationHelper = new TruncationHelper();
+        this.creditsService = new CreditsService();
         this.mainPanel = new JPanel(new BorderLayout());
         initializeUI();
         loadInitialState();
@@ -597,7 +602,23 @@ public class AdvancedScansComponent {
     }
 
     private void runScans() {
-        // Advanced scans are now 100% free - truncation mode applies when credits exhausted
+        // Check if user is premium
+        boolean isPremium = CheckLicense.isLicensed();
+        
+        // Check credits for free users
+        if (!isPremium) {
+            int remainingCredits = creditsService.getRemainingCredits(CreditType.ACTIONS);
+            if (remainingCredits <= 0) {
+                JOptionPane.showMessageDialog(mainPanel,
+                        "You've used all your action credits. Upgrade to Premium to continue running advanced scans.\n\n" +
+                        "Credits remaining: " + remainingCredits + "\n" +
+                        "Upgrade to Premium for unlimited advanced scans.",
+                        "Action Credits Exhausted",
+                        JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+        }
+
         String projectPathStr = project.getBasePath();
         if (projectPathStr == null) {
             projectPathStr = project.getProjectFilePath();
@@ -649,6 +670,16 @@ public class AdvancedScansComponent {
                     // Save to database
                     String stateJson = objectMapper.toJson(summary);
                     store.savePluginState(projectPath, "advancedScansSummary", stateJson);
+
+                    // Consume 1 action credit for free users
+                    if (!isPremium) {
+                        boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS);
+                        if (creditConsumed) {
+                            LOG.info("Successfully consumed 1 Action credit");
+                        } else {
+                            LOG.warn("Failed to consume Action credit");
+                        }
+                    }
 
                     progressBar.setValue(totalScans);
                     progressBar.setString("Complete!");
@@ -1522,6 +1553,23 @@ public class AdvancedScansComponent {
     private void notifyScanComplete() {
         for (ScanCompletionListener listener : listeners) {
             listener.onScanComplete();
+        }
+    }
+
+    /**
+     * Refreshes the component to display results from the cached scanning service data.
+     * This method should be called after scans are completed from other components (e.g., dashboard).
+     * Handles truncation for non-premium users by showing only the first 10 rows.
+     */
+    public void refreshFromCachedResults() {
+        if (scanningService.hasCachedResults()) {
+            AdvancedScanningService.AdvancedScanSummary summary = scanningService.getCachedSummary();
+            if (summary != null) {
+                LOG.info("AdvancedScansComponent: Refreshing from cached results");
+                displayResults(summary);
+            }
+        } else {
+            LOG.info("AdvancedScansComponent: No cached results available to refresh");
         }
     }
 

@@ -89,6 +89,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private JTabbedPane tabbedPane;
         private JPanel toolbarPanel;
         private CreditsProgressBar creditsProgressBar;
+        private CreditsService creditsService;
         private boolean isPremium;
 
         public MigrationToolWindowContent(Project project) {
@@ -104,6 +105,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             
             // Initialize advanced scanning service with recipe service
             this.advancedScanningService = new AdvancedScanningService(this.recipeService);
+            
+            // Initialize credits service
+            this.creditsService = new CreditsService();
 
             this.contentPanel = new JPanel(new BorderLayout());
 
@@ -152,7 +156,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Dashboard tab
             dashboardComponent = new DashboardComponent(project, advancedScanningService, this::handleAnalyzeProject);
-            tabbedPane.addTab("Dashboard", dashboardComponent.getPanel());
+            tabbedPane.addTab("Risk", dashboardComponent.getPanel());
 
             // Dependencies tab
             dependenciesComponent = new DependenciesTableComponent(project);
@@ -190,7 +194,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Support tab - links to GitHub, LinkedIn, sponsor pages
             supportComponent = new SupportComponent(project, v -> refreshPremiumTabs(), () -> refreshExperimentalTabs());
-            tabbedPane.addTab("Support", supportComponent.getPanel());
+            tabbedPane.addTab("About", supportComponent.getPanel());
 
             // AI tab - always visible (formerly MCP Server)
             mcpServerTabComponent = new McpServerTabComponent(project);
@@ -524,6 +528,32 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             final Path projectPath = Path.of(projectPathStr);
 
+            // Check credits for free users
+            if (!isPremium) {
+                // Check if user has remaining action credits
+                if (!creditsService.hasCredits(CreditType.ACTIONS)) {
+                    Messages.showWarningDialog(project, 
+                        "You've used all your free action credits. Upgrade to Premium to continue scanning projects.\n\n" +
+                        "Premium includes:\n" +
+                        "• Unlimited action credits\n" +
+                        "• Advanced scanning features\n" +
+                        "• PDF report generation\n" +
+                        "• Code refactoring tools",
+                        "Credits Exhausted");
+                    return;
+                }
+                
+                // Consume one action credit for the scan
+                boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS);
+                if (!creditConsumed) {
+                    Messages.showErrorDialog(project, "Failed to consume action credit. Please try again.", "Credit Error");
+                    return;
+                }
+                
+                int remainingCredits = creditsService.getRemainingCredits(CreditType.ACTIONS);
+                LOG.info("handleAnalyzeProject: Consumed 1 action credit for free user. Remaining: " + remainingCredits);
+            }
+
             // Set UI to scanning state
             dashboardComponent.setAnalysisRunning(true);
 
@@ -648,23 +678,30 @@ public class MigrationToolWindow implements ToolWindowFactory {
          * which limits results to 10 rows for non-premium users.
          */
         private void runFullAnalysis(Path projectPath) {
-            LOG.info("runFullAnalysis: Starting sequential scan (deep deps → advanced → platform)");
+            LOG.info("runFullAnalysis: Starting sequential scan (deep deps -> advanced -> platform)");
+
+            // Report initial progress
+            dashboardComponent.onScanPhase("Deep Dependency Analysis", 0, 3);
 
             // Step 1: Run deep dependency scanning (with fallback to basic analysis)
             CompletableFuture.supplyAsync(() -> runDeepDependencyAnalysis(projectPath))
                     .thenCompose(deepScanResult -> {
                         LOG.info("runFullAnalysis: Dependency scan completed (deep or basic fallback)");
+                        
+                        // Report progress after dependency analysis
+                        dashboardComponent.onScanPhase("Advanced Scans", 1, 3);
 
                         // Step 2: Run advanced scans (without transitive dependency scanning)
                         return CompletableFuture.supplyAsync(() -> {
                             LOG.info("runFullAnalysis: Starting advanced scans");
                             try {
                                 AdvancedScanningService.AdvancedScanSummary advancedSummary =
-                                        advancedScanningService.scanAll(projectPath);
+                                        advancedScanningService.scanAll(projectPath, dashboardComponent);
                                 LOG.info("runFullAnalysis: Advanced scans completed");
                                 return advancedSummary;
                             } catch (Exception ex) {
                                 LOG.warn("runFullAnalysis: Advanced scans failed", ex);
+                                dashboardComponent.onScanError(ex);
                                 return null; // Continue even if advanced scan fails
                             }
                         }).thenApply(advancedSummary -> {
@@ -681,10 +718,17 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     .thenCompose(advancedSummary -> {
                         LOG.info("runFullAnalysis: Advanced scan step completed");
 
+                        // Report progress for platform scan
+                        dashboardComponent.onScanPhase("Platform Detection", 2, 3);
+
                         // Update UI with advanced results
                         ApplicationManager.getApplication().invokeLater(() -> {
                             if (advancedSummary != null) {
                                 dashboardComponent.updateAdvancedScanCounts();
+                                // Refresh Advanced Scans tab to display the new results
+                                if (advancedScansComponent != null) {
+                                    advancedScansComponent.refreshFromCachedResults();
+                                }
                             }
                         });
 
@@ -706,8 +750,10 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         }).thenApply(platformSuccess -> advancedSummary);
                     })
                     .thenAccept(finalSummary -> {
+                        // Report completion
+                        dashboardComponent.onScanComplete();
+                        
                         ApplicationManager.getApplication().invokeLater(() -> {
-                            dashboardComponent.setAnalysisRunning(false);
                             LOG.info("runFullAnalysis: All scans completed successfully");
                             boolean isPremium = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
                             if (isPremium) {
@@ -724,6 +770,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         });
                     })
                     .exceptionally(ex -> {
+                        Exception exception = ex instanceof Exception ? (Exception) ex : new RuntimeException(ex);
+                        dashboardComponent.onScanError(exception);
                         ApplicationManager.getApplication().invokeLater(() -> {
                             dashboardComponent.setAnalysisRunning(false);
                             LOG.error("runFullAnalysis: Analysis failed", ex);
@@ -1247,6 +1295,22 @@ public class MigrationToolWindow implements ToolWindowFactory {
         public void testPlatformsTabRefresh() {
             System.out.println("DEBUG: testPlatformsTabRefresh() called - simplified component handles refresh internally");
             // SimplePlatformsTabComponent handles state internally
+        }
+        
+        /**
+         * Dispose method to clean up resources
+         */
+        public void dispose() {
+            try {
+                if (creditsService != null) {
+                    creditsService.close();
+                }
+                if (creditsProgressBar != null) {
+                    creditsProgressBar.dispose();
+                }
+            } catch (Exception e) {
+                LOG.warn("Error disposing resources", e);
+            }
         }
     }
 }
