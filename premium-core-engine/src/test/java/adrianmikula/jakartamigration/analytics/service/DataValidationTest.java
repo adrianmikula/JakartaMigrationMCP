@@ -64,28 +64,26 @@ class DataValidationTest {
     }
 
     @Test
-    void shouldValidateCreditTypeInput() {
+    void shouldValidateTriggerActionInput() {
         // Given
-        String[] validTypes = {"basic_scan", "advanced_scan", "pdf_report", "refactor"};
-        String[] invalidTypes = {
-            "scan'; DROP TABLE users; --",
-            "scan\"; DELETE FROM usage_events; --",
-            "scan' OR '1'='1",
-            "scan\"; SELECT * FROM users; --"
+        String[] validActions = {"scan_button", "export_button", "refresh_button", "settings_button"};
+        String[] invalidActions = {
+            "action'; DROP TABLE users; --",
+            "action\"; DELETE FROM usage_events; --",
+            "action' OR '1'='1",
+            "action\"; SELECT * FROM users; --"
         };
 
         // When/Then
-        for (String validType : validTypes) {
-            // Should not throw exception for valid types
-            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage(validType));
+        for (String validAction : validActions) {
+            // Should not throw exception for valid actions
+            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage("Dependencies", validAction));
         }
 
-        for (String invalidType : invalidTypes) {
+        for (String invalidAction : invalidActions) {
             // Should handle SQL injection attempts gracefully
-            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage(invalidType));
+            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage("Dependencies", invalidAction));
         }
-
-        waitForQueuesToEmpty(5);
     }
 
     @Test
@@ -102,12 +100,12 @@ class DataValidationTest {
         // When/Then
         for (String validSource : validSources) {
             // Should not throw exception for valid sources
-            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(validSource));
+            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(validSource, "Dependencies"));
         }
 
         for (String invalidSource : invalidSources) {
             // Should handle XSS and SQL injection attempts gracefully
-            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(invalidSource));
+            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(invalidSource, "Dependencies"));
         }
 
         waitForQueuesToEmpty(5);
@@ -122,9 +120,9 @@ class DataValidationTest {
 
         // When/Then
         // Should handle very long inputs without crashing
-        assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage(longCreditType));
+        assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage("Dependencies",longCreditType));
         
-        assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(longUpgradeSource));
+        assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(longUpgradeSource, "Dependencies"));
 
         assertThatNoException().isThrownBy(() -> errorReportingService.reportError(new RuntimeException(longErrorMessage)));
 
@@ -150,9 +148,9 @@ class DataValidationTest {
         // When/Then
         for (String input : specialCharInputs) {
             // Should handle special characters gracefully
-            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage(input));
+            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage("Dependencies",input));
             
-            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(input));
+            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(input, "Dependencies"));
         }
 
         waitForQueuesToEmpty(5);
@@ -177,9 +175,9 @@ class DataValidationTest {
         // When/Then
         for (String input : unicodeInputs) {
             // Should handle Unicode correctly
-            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage(input));
+            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage("Dependencies",input));
             
-            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(input));
+            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(input, "Dependencies"));
         }
 
         waitForQueuesToEmpty(5);
@@ -189,9 +187,9 @@ class DataValidationTest {
     void shouldHandleNullInputs() {
         // When/Then
         // Should handle null inputs gracefully
-        assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage(null));
+        assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage("Dependencies",null));
         
-        assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(null));
+        assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(null, "Dependencies"));
         
         assertThatNoException().isThrownBy(() -> errorReportingService.reportError(null));
         
@@ -206,9 +204,9 @@ class DataValidationTest {
     void shouldHandleEmptyInputs() {
         // When/Then
         // Should handle empty inputs gracefully
-        assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage(""));
+        assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage("Dependencies",""));
         
-        assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(""));
+        assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick("", "Dependencies"));
         
         assertThatNoException().isThrownBy(() -> errorReportingService.reportError(new RuntimeException("test"), ""));
         
@@ -231,9 +229,9 @@ class DataValidationTest {
         // When/Then
         for (String input : whitespaceInputs) {
             // Should trim or handle whitespace appropriately
-            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage(input));
+            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage("Dependencies",input));
             
-            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(input));
+            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(input, "Dependencies"));
         }
 
         waitForQueuesToEmpty(5);
@@ -256,9 +254,9 @@ class DataValidationTest {
         // When/Then
         for (String input : htmlInjectionInputs) {
             // Should handle HTML injection attempts gracefully
-            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage(input));
+            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage("Dependencies",input));
             
-            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(input));
+            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(input, "Dependencies"));
         }
 
         waitForQueuesToEmpty(5);
@@ -280,9 +278,9 @@ class DataValidationTest {
         // When/Then
         for (String input : commandInjectionInputs) {
             // Should handle command injection attempts gracefully
-            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage(input));
+            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage("Dependencies",input));
             
-            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(input));
+            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(input, "Dependencies"));
         }
 
         waitForQueuesToEmpty(5);
@@ -302,9 +300,9 @@ class DataValidationTest {
         // When/Then
         for (String input : jsonLikeInputs) {
             // Should handle JSON-like inputs gracefully
-            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage(input));
+            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage("Dependencies",input));
             
-            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(input));
+            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(input, "Dependencies"));
         }
 
         waitForQueuesToEmpty(5);
@@ -324,9 +322,9 @@ class DataValidationTest {
         // When/Then
         for (String input : encodedInputs) {
             // Should handle encoded inputs appropriately
-            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage(input));
+            assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage("Dependencies",input));
             
-            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(input));
+            assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(input, "Dependencies"));
         }
 
         waitForQueuesToEmpty(5);
@@ -411,8 +409,8 @@ class DataValidationTest {
         assertThatCode(() -> {
             ConcurrencyTestHelper.runConcurrentConsumer(threadCount, (threadIndex) -> {
                 String input = maliciousInputs[threadIndex % maliciousInputs.length];
-                usageService.trackCreditUsage(input);
-                usageService.trackUpgradeClick(input);
+                usageService.trackCreditUsage("Dependencies",input);
+                usageService.trackUpgradeClick(input, "Dependencies");
                 errorReportingService.reportError(new RuntimeException("Error: " + input));
             });
         }).doesNotThrowAnyException();
@@ -432,7 +430,7 @@ class DataValidationTest {
         String maliciousInput = "scan'; DROP TABLE users; --";
 
         // When - track usage with malicious input, should be handled safely
-        assertThatCode(() -> usageService.trackCreditUsage(maliciousInput))
+        assertThatCode(() -> usageService.trackCreditUsage("Dependencies",maliciousInput))
             .doesNotThrowAnyException();
 
         // Then
@@ -440,7 +438,7 @@ class DataValidationTest {
         waitForQueuesToEmpty(5);
         
         // Service should still be functional
-        assertThatCode(() -> usageService.trackCreditUsage("recovery_test"))
+        assertThatCode(() -> usageService.trackCreditUsage("Dependencies","recovery_test"))
             .doesNotThrowAnyException();
     }
 
@@ -453,13 +451,13 @@ class DataValidationTest {
 
         // When/Then
         // Should handle near-max inputs
-        assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage(nearMaxInput));
+        assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage("Dependencies",nearMaxInput));
         
         // Should handle max inputs
-        assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(maxInput));
+        assertThatNoException().isThrownBy(() -> usageService.trackUpgradeClick(maxInput, "Dependencies"));
         
         // Should handle over-max inputs gracefully
-        assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage(overMaxInput));
+        assertThatNoException().isThrownBy(() -> usageService.trackCreditUsage("Dependencies",overMaxInput));
 
         waitForQueuesToEmpty(5);
     }

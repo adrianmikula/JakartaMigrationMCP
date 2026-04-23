@@ -242,7 +242,7 @@ public class CreditsService implements AutoCloseable {
                         type, creditsBefore, creditsAfter, creditsCache.getOrDefault(type, 0));
                     
                     // Track usage analytics with specific context
-                    usageService.trackCreditUsage(type.getKey(), currentUiTab, triggerAction);
+                    usageService.trackCreditUsage(currentUiTab, triggerAction);
                     
                     return true;
                 } else {

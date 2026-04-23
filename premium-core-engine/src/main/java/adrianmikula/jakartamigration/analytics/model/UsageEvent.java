@@ -55,9 +55,19 @@ public class UsageEvent {
     private EventType eventType;
     
     /**
-     * Credit type (for credit usage events).
+     * Currently active UI tab when event occurred.
      */
-    private String creditType;
+    private String currentUiTab;
+    
+    /**
+     * Plugin version when the event occurred.
+     */
+    private String pluginVersion;
+    
+    /**
+     * Action that triggered the event.
+     */
+    private String triggerAction;
     
     /**
      * Additional event-specific data.
@@ -70,26 +80,16 @@ public class UsageEvent {
     private Instant timestamp;
     
     /**
-     * Plugin version when the event occurred.
-     */
-    private String pluginVersion;
-    
-    /**
      * Creates a credit usage event with context information.
      */
-    public static UsageEvent creditUsed(String userId, String creditType, 
-                                      String currentUiTab, String triggerAction, String pluginVersion) {
-        Map<String, Object> eventData = Map.of(
-            "current_ui_tab", currentUiTab,
-            "trigger_action", triggerAction,
-            "plugin_version", pluginVersion
-        );
+    public static UsageEvent creditUsed(String userId, String currentUiTab, 
+                                      String triggerAction, String pluginVersion) {
         
         return UsageEvent.builder()
             .userId(userId)
             .eventType(EventType.CREDIT_USED)
-            .creditType(creditType)
-            .eventData(eventData)
+            .currentUiTab(currentUiTab)
+            .triggerAction(triggerAction)
             .pluginVersion(pluginVersion)
             .timestamp(Instant.now())
             .build();
@@ -101,16 +101,15 @@ public class UsageEvent {
     public static UsageEvent upgradeClicked(String userId, String source, 
                                          String currentUiTab, String pluginVersion) {
         Map<String, Object> eventData = Map.of(
-            "source", source,
-            "current_ui_tab", currentUiTab,
-            "plugin_version", pluginVersion
+            "source", source
         );
         
         return UsageEvent.builder()
             .userId(userId)
             .eventType(EventType.UPGRADE_CLICKED)
-            .eventData(eventData)
+            .currentUiTab(currentUiTab)
             .pluginVersion(pluginVersion)
+            .eventData(eventData)
             .timestamp(Instant.now())
             .build();
     }

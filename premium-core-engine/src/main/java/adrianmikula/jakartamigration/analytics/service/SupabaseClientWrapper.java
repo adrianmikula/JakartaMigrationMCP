@@ -68,7 +68,9 @@ public class SupabaseClientWrapper implements AutoCloseable {
                     eventsJson.append("{");
                     eventsJson.append("\"user_id\":\"").append(escapeJson(event.getUserId())).append("\",");
                     eventsJson.append("\"event_type\":\"").append(escapeJson(event.getEventType().getValue())).append("\",");
-                    eventsJson.append("\"credit_type\":").append(event.getCreditType() != null ? "\"" + escapeJson(event.getCreditType()) + "\"" : "null").append(",");
+                    eventsJson.append("\"current_ui_tab\":").append(event.getCurrentUiTab() != null ? "\"" + escapeJson(event.getCurrentUiTab()) + "\"" : "null").append(",");
+                    eventsJson.append("\"plugin_version\":").append(event.getPluginVersion() != null ? "\"" + escapeJson(event.getPluginVersion()) + "\"" : "null").append(",");
+                    eventsJson.append("\"trigger_action\":").append(event.getTriggerAction() != null ? "\"" + escapeJson(event.getTriggerAction()) + "\"" : "null").append(",");
                     
                     // Add event_data if present
                     if (event.getEventData() != null && !event.getEventData().isEmpty()) {
@@ -261,60 +263,17 @@ public class SupabaseClientWrapper implements AutoCloseable {
     }
     
     /**
-     * Ensures user exists in the users table.
-     * Creates user if not exists, updates last_seen if exists.
+     * Logs user activity without requiring a separate users table.
+     * The simplified schema stores user_id directly in usage_events and error_reports tables.
      */
-    public void ensureUser(String userId, String pluginVersion) {
+    public void logUserActivity(String userId, String pluginVersion) {
         if (!isConfigured) {
-            log.debug("Would ensure user {} exists in database (not configured)", maskUserId(userId));
+            log.debug("Would log user {} activity with version {} (not configured)", maskUserId(userId), pluginVersion);
             return;
         }
         
-        try {
-            // Create or update user in database using UPSERT operation
-            String supabaseUrl = config.getSupabaseUrl() + "/rest/v1/users";
-            String apiKey = config.getSupabaseAnonKey();
-            
-            // Build user JSON for UPSERT
-            String userJson = String.format(
-                "{\"id\":\"%s\",\"plugin_version\":\"%s\",\"last_seen\":\"%s\"}",
-                escapeJson(userId),
-                escapeJson(pluginVersion),
-                formatTimestamp(java.time.Instant.now())
-            );
-            
-            URL url = new URL(supabaseUrl);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            
-            try {
-                connection.setRequestMethod("POST");
-                connection.setRequestProperty("Content-Type", "application/json");
-                connection.setRequestProperty("apikey", apiKey);
-                connection.setRequestProperty("Authorization", "Bearer " + apiKey);
-                connection.setRequestProperty("Prefer", "resolution=merge-duplicates");
-                connection.setDoOutput(true);
-                
-                // Send the user data
-                byte[] input = userJson.getBytes(StandardCharsets.UTF_8);
-                connection.getOutputStream().write(input);
-                
-                // Check response
-                int responseCode = connection.getResponseCode();
-                if (responseCode >= 200 && responseCode < 300) {
-                    log.info("Successfully ensured user {} exists with version {}", maskUserId(userId), pluginVersion);
-                    log.debug("User creation response code: {}", responseCode);
-                } else {
-                    String errorResponse = new String(connection.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
-                    log.error("Failed to ensure user {} exists. HTTP {}: {}", maskUserId(userId), responseCode, errorResponse);
-                }
-            } finally {
-                connection.disconnect();
-            }
-            
-        } catch (Exception e) {
-            log.error("Failed to ensure user {} exists. Exception: {}", maskUserId(userId), e.getClass().getSimpleName(), e);
-            log.error("Error message: {}", e.getMessage());
-        }
+        log.info("User {} activity logged with version {} (simplified schema - no separate users table)", 
+            maskUserId(userId), pluginVersion);
     }
     
     /**
@@ -365,10 +324,12 @@ public class SupabaseClientWrapper implements AutoCloseable {
         log.info("Logging {} usage events (database not available):", events.size());
         log.info("Supabase configured: {}, URL: {}", isConfigured, maskUrl(config.getSupabaseUrl()));
         for (UsageEvent event : events) {
-            log.info("  Event: {} | User: {} | Type: {} | Timestamp: {} | Data: {}", 
+            log.info("  Event: {} | User: {} | Tab: {} | Action: {} | Version: {} | Timestamp: {} | Data: {}", 
                 event.getEventType(),
                 maskUserId(event.getUserId()),
-                event.getCreditType() != null ? event.getCreditType() : "N/A",
+                event.getCurrentUiTab() != null ? event.getCurrentUiTab() : "N/A",
+                event.getTriggerAction() != null ? event.getTriggerAction() : "N/A",
+                event.getPluginVersion() != null ? event.getPluginVersion() : "N/A",
                 event.getTimestamp(),
                 event.getEventData() != null ? event.getEventData() : "none");
         }

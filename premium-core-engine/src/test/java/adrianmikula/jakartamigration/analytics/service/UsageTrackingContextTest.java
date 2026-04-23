@@ -34,7 +34,7 @@ public class UsageTrackingContextTest {
     @Test
     void testTrackCreditUsageWithContext() {
         // Test the new context-aware method
-        usageService.trackCreditUsage("actions", "Reports", "generate_dependency_report");
+        usageService.trackCreditUsage("Reports", "generate_dependency_report");
         
         // Force flush to process the event
         usageService.flush();
@@ -60,17 +60,15 @@ public class UsageTrackingContextTest {
         // Test the UsageEvent factory methods directly
         UsageEvent creditEvent = UsageEvent.creditUsed(
             "test-user", 
-            "actions", 
-            "1.0.0", 
             "Reports", 
-            "generate_dependency_report"
+            "generate_dependency_report", 
+            "1.0.0"
         );
         
         assertEquals("credit_used", creditEvent.getEventType().getValue());
-        assertEquals("actions", creditEvent.getCreditType());
-        assertNotNull(creditEvent.getEventData());
-        assertEquals("Reports", creditEvent.getEventData().get("current_ui_tab"));
-        assertEquals("generate_dependency_report", creditEvent.getEventData().get("trigger_action"));
+        assertEquals("Reports", creditEvent.getCurrentUiTab());
+        assertEquals("generate_dependency_report", creditEvent.getTriggerAction());
+        assertEquals("1.0.0", creditEvent.getPluginVersion());
         
         UsageEvent upgradeEvent = UsageEvent.upgradeClicked(
             "test-user", 
@@ -87,9 +85,9 @@ public class UsageTrackingContextTest {
 
     @Test
     void testBackwardCompatibility() {
-        // Test that existing methods still work
-        assertDoesNotThrow(() -> usageService.trackCreditUsage("actions"));
-        assertDoesNotThrow(() -> usageService.trackUpgradeClick("premium_button"));
+        // Test that existing methods still work with new signatures
+        assertDoesNotThrow(() -> usageService.trackCreditUsage("Reports", "scan_button"));
+        assertDoesNotThrow(() -> usageService.trackUpgradeClick("premium_button", "Reports"));
         
         // Force flush to process events
         usageService.flush();
@@ -102,7 +100,7 @@ public class UsageTrackingContextTest {
         when(userIdentificationService.isAnalyticsEnabled()).thenReturn(false);
         
         // Events should be ignored when analytics is disabled
-        usageService.trackCreditUsage("actions", "Reports", "generate_dependency_report");
+        usageService.trackCreditUsage("Reports", "generate_dependency_report");
         usageService.trackUpgradeClick("premium_button", "Reports");
         
         assertEquals(0, usageService.getQueueSize(), "No events should be queued when analytics disabled");

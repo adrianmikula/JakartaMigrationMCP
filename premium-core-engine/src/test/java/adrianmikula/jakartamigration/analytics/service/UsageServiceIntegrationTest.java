@@ -89,7 +89,7 @@ class UsageServiceIntegrationTest {
         // When
 
         // When
-        usageService.trackCreditUsage("basic_scan");
+        usageService.trackCreditUsage("Dependencies","basic_scan");
         usageService.flush();
 
         // Then
@@ -121,9 +121,9 @@ class UsageServiceIntegrationTest {
         // When
         for (UsageEvent event : events) {
             if (event.getEventType() == UsageEvent.EventType.CREDIT_USED) {
-                usageService.trackCreditUsage(event.getCreditType());
+                usageService.trackCreditUsage(event.getCurrentUiTab(), event.getTriggerAction());
             } else {
-                usageService.trackUpgradeClick(event.getEventData().get("source").toString());
+                usageService.trackUpgradeClick(event.getEventData().get("source").toString(), event.getCurrentUiTab());
             }
         }
 
@@ -138,7 +138,7 @@ class UsageServiceIntegrationTest {
                       .withMaxFailures(2);
 
         // When
-        usageService.trackCreditUsage("basic_scan");
+        usageService.trackCreditUsage("Dependencies","basic_scan");
         usageService.flush();
 
         // Then
@@ -153,7 +153,7 @@ class UsageServiceIntegrationTest {
                       .withMaxFailures(1);
 
         // When
-        usageService.trackCreditUsage("advanced_scan");
+        usageService.trackCreditUsage("Dependencies","advanced_scan");
         usageService.flush();
 
         // Then
@@ -167,9 +167,9 @@ class UsageServiceIntegrationTest {
     @Test
     void shouldMaintainEventOrder() {
         // When
-        usageService.trackCreditUsage("basic_scan");
-        usageService.trackUpgradeClick("test_source");
-        usageService.trackCreditUsage("advanced_scan");
+        usageService.trackCreditUsage("Dependencies","basic_scan");
+        usageService.trackUpgradeClick("test_source", "Dependencies");
+        usageService.trackCreditUsage("Dependencies","advanced_scan");
         
         // Wait for events to be processed
         waitForQueueToEmpty(5);
@@ -204,7 +204,7 @@ class UsageServiceIntegrationTest {
 
         // When
         for (int i = 0; i < largeEventCount; i++) {
-            usageService.trackCreditUsage("basic_scan");
+            usageService.trackCreditUsage("Dependencies","basic_scan");
         }
 
         // Then
@@ -221,7 +221,7 @@ class UsageServiceIntegrationTest {
         ConcurrencyTestHelper.runConcurrentConsumer(threadCount, (threadIndex) -> {
             for (int i = 0; i < eventsPerThread; i++) {
                 String creditType = "scan_" + threadIndex + "_" + i;
-                usageService.trackCreditUsage(creditType);
+                usageService.trackCreditUsage("Dependencies",creditType);
             }
         });
 
@@ -236,7 +236,7 @@ class UsageServiceIntegrationTest {
         String validUpgradeSource = "feature_limit";
 
         // When
-        usageService.trackCreditUsage(validCreditType);
+        usageService.trackCreditUsage("Dependencies",validCreditType);
         usageService.trackUpgradeClick(validUpgradeSource);
         usageService.flush();
 
@@ -247,8 +247,8 @@ class UsageServiceIntegrationTest {
     @Test
     void shouldHandleServiceShutdownGracefully() {
         // Given
-        usageService.trackCreditUsage("basic_scan");
-        usageService.trackCreditUsage("advanced_scan");
+        usageService.trackCreditUsage("Dependencies","basic_scan");
+        usageService.trackCreditUsage("Dependencies","advanced_scan");
 
         // When
         usageService.close();
@@ -262,7 +262,7 @@ class UsageServiceIntegrationTest {
     void shouldPersistUserAcrossServiceRestarts() throws Exception {
         // Given
         String firstUserId = userIdentificationService.getAnonymousUserId();
-        usageService.trackCreditUsage("basic_scan");
+        usageService.trackCreditUsage("Dependencies","basic_scan");
         usageService.close();
 
         // When
@@ -286,7 +286,7 @@ class UsageServiceIntegrationTest {
         String longUpgradeSource = "a".repeat(1000);
 
         // When
-        usageService.trackCreditUsage(malformedCreditType);
+        usageService.trackCreditUsage("Dependencies",malformedCreditType);
         usageService.trackUpgradeClick(longUpgradeSource);
         usageService.flush();
 
@@ -302,7 +302,7 @@ class UsageServiceIntegrationTest {
         // When
         long startTime = System.currentTimeMillis();
         for (int i = 0; i < eventCount; i++) {
-            usageService.trackCreditUsage("basic_scan");
+            usageService.trackCreditUsage("Dependencies","basic_scan");
         }
         usageService.flush();
         long endTime = System.currentTimeMillis();

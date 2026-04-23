@@ -22,41 +22,42 @@ public class TestDataFactory {
      * Creates a basic credit usage event.
      */
     public static UsageEvent createCreditUsageEvent() {
-        return UsageEvent.creditUsed(TEST_USER_ID, "basic_scan", TEST_PLUGIN_VERSION);
+        return UsageEvent.creditUsed(TEST_USER_ID, TEST_CURRENT_TAB, "scan_button", TEST_PLUGIN_VERSION);
     }
     
     /**
-     * Creates a credit usage event with specified credit type.
+     * Creates a credit usage event with specified trigger action.
      */
-    public static UsageEvent createCreditUsageEvent(String creditType) {
-        return UsageEvent.creditUsed(TEST_USER_ID, creditType, TEST_PLUGIN_VERSION);
+    public static UsageEvent createCreditUsageEvent(String triggerAction) {
+        return UsageEvent.creditUsed(TEST_USER_ID, TEST_CURRENT_TAB, triggerAction, TEST_PLUGIN_VERSION);
     }
     
     /**
      * Creates an upgrade click event.
      */
     public static UsageEvent createUpgradeClickEvent() {
-        return UsageEvent.upgradeClicked(TEST_USER_ID, "truncation_notice", TEST_PLUGIN_VERSION);
+        return UsageEvent.upgradeClicked(TEST_USER_ID, "truncation_notice", TEST_CURRENT_TAB, TEST_PLUGIN_VERSION);
     }
     
     /**
      * Creates an upgrade click event with specified source.
      */
     public static UsageEvent createUpgradeClickEvent(String source) {
-        return UsageEvent.upgradeClicked(TEST_USER_ID, source, TEST_PLUGIN_VERSION);
+        return UsageEvent.upgradeClicked(TEST_USER_ID, source, TEST_CURRENT_TAB, TEST_PLUGIN_VERSION);
     }
     
     /**
      * Creates a usage event with custom parameters.
      */
     public static UsageEvent createCustomUsageEvent(String userId, UsageEvent.EventType eventType, 
-                                               String creditType, Map<String, Object> eventData) {
+                                               String currentUiTab, String triggerAction, String pluginVersion, Map<String, Object> eventData) {
         return UsageEvent.builder()
             .userId(userId)
             .eventType(eventType)
-            .creditType(creditType)
+            .currentUiTab(currentUiTab)
+            .triggerAction(triggerAction)
+            .pluginVersion(pluginVersion)
             .eventData(eventData)
-            .pluginVersion(TEST_PLUGIN_VERSION)
             .timestamp(Instant.now())
             .build();
     }
@@ -68,7 +69,8 @@ public class TestDataFactory {
         return UsageEvent.builder()
             .userId(TEST_USER_ID)
             .eventType(UsageEvent.EventType.CREDIT_USED)
-            .creditType("basic_scan")
+            .currentUiTab(TEST_CURRENT_TAB)
+            .triggerAction("scan_button")
             .pluginVersion(TEST_PLUGIN_VERSION)
             .timestamp(timestamp)
             .build();
@@ -137,15 +139,15 @@ public class TestDataFactory {
      * Creates a random usage event for load testing.
      */
     public static UsageEvent createRandomUsageEvent() {
-        String[] creditTypes = {"basic_scan", "advanced_scan", "pdf_report", "refactor"};
+        String[] triggerActions = {"scan_button", "export_button", "refresh_button", "settings_button"};
         String[] upgradeSources = {"truncation_notice", "feature_limit", "upgrade_button", "banner"};
         
         ThreadLocalRandom random = ThreadLocalRandom.current();
         
         if (random.nextBoolean()) {
             // Create credit usage event
-            String creditType = creditTypes[random.nextInt(creditTypes.length)];
-            return createCreditUsageEvent(creditType);
+            String triggerAction = triggerActions[random.nextInt(triggerActions.length)];
+            return createCreditUsageEvent(triggerAction);
         } else {
             // Create upgrade click event
             String source = upgradeSources[random.nextInt(upgradeSources.length)];

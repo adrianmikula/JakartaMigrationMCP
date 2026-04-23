@@ -9,7 +9,9 @@ CREATE TABLE usage_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id VARCHAR(255) NOT NULL, -- Direct UUID without foreign key constraint
     event_type VARCHAR(50) NOT NULL, -- 'credit_used', 'upgrade_clicked'
-    credit_type VARCHAR(50), -- 'basic_scan', 'advanced_scan', 'pdf_report', 'refactor'
+    current_ui_tab VARCHAR(100), -- Currently active UI tab when event occurred
+    plugin_version VARCHAR(50), -- Plugin version when event occurred
+    trigger_action VARCHAR(100), -- Action that triggered the event
     event_data JSONB, -- Additional event-specific data (e.g., upgrade source)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
@@ -21,6 +23,9 @@ CREATE TABLE usage_events (
 CREATE INDEX idx_usage_events_user_id ON usage_events(user_id);
 CREATE INDEX idx_usage_events_created_at ON usage_events(created_at);
 CREATE INDEX idx_usage_events_event_type ON usage_events(event_type);
+CREATE INDEX idx_usage_events_current_ui_tab ON usage_events(current_ui_tab);
+CREATE INDEX idx_usage_events_plugin_version ON usage_events(plugin_version);
+CREATE INDEX idx_usage_events_trigger_action ON usage_events(trigger_action);
 
 -- =============================================================================
 -- ERROR REPORTS TABLE
@@ -94,12 +99,12 @@ FROM (
 GROUP BY user_id
 ORDER BY last_event DESC;
 
--- Get usage by credit type
+-- Get usage by trigger action
 SELECT 
-    credit_type,
+    trigger_action,
     COUNT(*) as usage_count,
     DATE_TRUNC('day', created_at) as usage_date
 FROM usage_events 
-WHERE credit_type IS NOT NULL
-GROUP BY credit_type, DATE_TRUNC('day', created_at)
+WHERE trigger_action IS NOT NULL
+GROUP BY trigger_action, DATE_TRUNC('day', created_at)
 ORDER BY usage_date DESC;

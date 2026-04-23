@@ -73,22 +73,21 @@ public class UsageService implements AutoCloseable {
     /**
      * Tracks a credit usage event with context information.
      */
-    public void trackCreditUsage(String creditType, String currentUiTab, String triggerAction) {
+    public void trackCreditUsage(String currentUiTab, String triggerAction) {
         if (!userIdentificationService.isAnalyticsEnabled()) {
             return;
         }
         
         UsageEvent event = UsageEvent.creditUsed(
             userIdentificationService.getAnonymousUserId(),
-            creditType,
             currentUiTab,
             triggerAction,
             pluginVersion
         );
         
         addEventToQueue(event);
-        log.debug("Tracked credit usage event for type: {} in tab: {} with action: {}", 
-            creditType, currentUiTab, triggerAction);
+        log.debug("Tracked credit usage event in tab: {} with action: {}", 
+            currentUiTab, triggerAction);
     }
     
     /**
@@ -267,10 +266,11 @@ public class UsageService implements AutoCloseable {
      */
     private String getEventSummary(List<UsageEvent> events) {
         return events.stream()
-            .map(e -> String.format("%s(user=%s,type=%s)", 
+            .map(e -> String.format("%s(user=%s,tab=%s,action=%s)", 
                 e.getEventType().getValue(), 
                 maskUserId(e.getUserId()),
-                e.getCreditType() != null ? e.getCreditType() : "N/A"))
+                e.getCurrentUiTab() != null ? e.getCurrentUiTab() : "N/A",
+                e.getTriggerAction() != null ? e.getTriggerAction() : "N/A"))
             .collect(java.util.stream.Collectors.joining(", "));
     }
     

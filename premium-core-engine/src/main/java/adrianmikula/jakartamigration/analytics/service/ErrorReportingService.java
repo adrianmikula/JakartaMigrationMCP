@@ -162,9 +162,9 @@ public class ErrorReportingService implements AutoCloseable {
      */
     private void sendErrorsToSupabase(java.util.List<ErrorReport> errors) {
         try {
-            // Ensure user exists before sending error reports
+            // Log user activity before sending error reports
             for (ErrorReport error : errors) {
-                supabaseClient.ensureUser(error.getUserId(), error.getPluginVersion());
+                supabaseClient.logUserActivity(error.getUserId(), error.getPluginVersion());
             }
             
             // Send error reports to database

@@ -74,7 +74,7 @@ class NetworkFailureTest {
                       .withMaxFailures(3);
 
         // When
-        usageService.trackCreditUsage("basic_scan");
+        usageService.trackCreditUsage("Dependencies","basic_scan");
         errorReportingService.reportError(new RuntimeException("Test error"));
 
         // Then
@@ -93,7 +93,7 @@ class NetworkFailureTest {
                       .withMaxFailures(2);
 
         // When
-        usageService.trackCreditUsage("advanced_scan");
+        usageService.trackCreditUsage("Dependencies","advanced_scan");
         errorReportingService.reportError(new SocketTimeoutException("Timeout test"));
 
         // Then
@@ -110,7 +110,7 @@ class NetworkFailureTest {
         networkSimulator.withFailureType(NetworkFailureSimulator.FailureType.UNKNOWN_HOST);
 
         // When
-        usageService.trackUpgradeClick("test_source");
+        usageService.trackUpgradeClick("premium_button", "Dependencies");
         errorReportingService.reportError(new UnknownHostException("Unknown host test"));
 
         // Then
@@ -128,7 +128,7 @@ class NetworkFailureTest {
                       .withMaxFailures(1);
 
         // When
-        usageService.trackCreditUsage("pdf_report");
+        usageService.trackCreditUsage("Dependencies","pdf_report");
         errorReportingService.reportError(new IOException("General I/O error"));
 
         // Then
@@ -146,7 +146,7 @@ class NetworkFailureTest {
                       .withDelay(2000); // 2 second delay
 
         // When
-        usageService.trackCreditUsage("basic_scan");
+        usageService.trackCreditUsage("Dependencies","basic_scan");
         errorReportingService.reportError(new RuntimeException("Slow response test"));
 
         // Then
@@ -164,7 +164,7 @@ class NetworkFailureTest {
 
         // When
         for (int i = 0; i < 10; i++) {
-            usageService.trackCreditUsage("scan_" + i);
+            usageService.trackCreditUsage("Dependencies","scan_" + i);
             if (i % 2 == 0) {
                 errorReportingService.reportError(new RuntimeException("Error " + i));
             }
@@ -187,7 +187,7 @@ class NetworkFailureTest {
 
         // When
         long startTime = System.currentTimeMillis();
-        usageService.trackCreditUsage("basic_scan");
+        usageService.trackCreditUsage("Dependencies","basic_scan");
         usageService.flush();
         long endTime = System.currentTimeMillis();
 
@@ -209,7 +209,7 @@ class NetworkFailureTest {
         // When
         // Add more events than queue can handle
         for (int i = 0; i < 1000; i++) {
-            usageService.trackCreditUsage("scan_" + i);
+            usageService.trackCreditUsage("Dependencies","scan_" + i);
         }
 
         // Then
@@ -229,7 +229,7 @@ class NetworkFailureTest {
                       .withMaxFailures(10);
 
         // When
-        usageService.trackCreditUsage("before_outage");
+        usageService.trackCreditUsage("Dependencies","before_outage");
         waitForQueuesToEmpty(5);
         
         // Simulate extended outage
@@ -237,7 +237,7 @@ class NetworkFailureTest {
         networkSimulator.withFailureType(NetworkFailureSimulator.FailureType.CONNECTION_REFUSED)
                       .withMaxFailures(0); // No more failures
         
-        usageService.trackCreditUsage("after_recovery");
+        usageService.trackCreditUsage("Dependencies","after_recovery");
         
         // Then
         waitForQueuesToEmpty(5);
@@ -253,9 +253,9 @@ class NetworkFailureTest {
         networkSimulator.withIntermittentFailures(0.5); // 50% failure rate
 
         // When
-        String[] creditTypes = {"basic_scan", "advanced_scan", "pdf_report", "refactor"};
-        for (String creditType : creditTypes) {
-            usageService.trackCreditUsage(creditType);
+        String[] triggerActions = {"scan_button", "export_button", "refresh_button", "settings_button"};
+        for (String triggerAction : triggerActions) {
+            usageService.trackCreditUsage("Dependencies", triggerAction);
         }
 
         // Then
@@ -272,7 +272,7 @@ class NetworkFailureTest {
         networkSimulator.withFailureType(NetworkFailureSimulator.FailureType.IO_EXCEPTION);
 
         // When
-        usageService.trackCreditUsage("logging_test");
+        usageService.trackCreditUsage("Dependencies","logging_test");
         errorReportingService.reportError(new IOException("Test for logging"));
 
         // Then
@@ -291,7 +291,7 @@ class NetworkFailureTest {
         // When
         ConcurrencyTestHelper.runConcurrentConsumer(5, (threadIndex) -> {
             for (int i = 0; i < 2; i++) {
-                usageService.trackCreditUsage("concurrent_" + threadIndex + "_" + i);
+                usageService.trackCreditUsage("Dependencies","concurrent_" + threadIndex + "_" + i);
                 errorReportingService.reportError(
                     new RuntimeException("Concurrent error " + threadIndex + "_" + i));
             }
@@ -313,7 +313,7 @@ class NetworkFailureTest {
                       .withMaxFailures(1); // Only 1 failure allowed
 
         // When
-        usageService.trackCreditUsage("retry_limit_test");
+        usageService.trackCreditUsage("Dependencies","retry_limit_test");
 
         // Then
         waitForQueuesToEmpty(5);

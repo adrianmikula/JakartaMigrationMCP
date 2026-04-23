@@ -69,8 +69,8 @@ class SupabaseClientWrapperTest {
     void shouldLogUsageEventsWhenNotConfigured() {
         // Given
         List<UsageEvent> events = List.of(
-            UsageEvent.creditUsed("user123", "basic_scan", "1.0.0"),
-            UsageEvent.upgradeClicked("user123", "test_source", "1.0.0")
+            UsageEvent.creditUsed("user123", "Dependencies", "scan_button", "1.0.0"),
+            UsageEvent.upgradeClicked("user123", "test_source", "Dependencies", "1.0.0")
         );
 
         // When & Then - Should not throw exception
@@ -108,9 +108,9 @@ class SupabaseClientWrapperTest {
     }
 
     @Test
-    void shouldEnsureUserWhenNotConfigured() {
+    void shouldLogUserActivityWhenNotConfigured() {
         // When & Then - Should not throw exception
-        wrapper.ensureUser("user123", "1.0.0");
+        wrapper.logUserActivity("user123", "1.0.0");
     }
 
     @Test
