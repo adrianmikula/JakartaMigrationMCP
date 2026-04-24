@@ -105,7 +105,7 @@ class UsageServiceIntegrationTest {
         String upgradeSource = "truncation_notice";
 
         // When
-        usageService.trackUpgradeClick(upgradeSource);
+        usageService.trackUpgradeClick(upgradeSource, "test");
         usageService.flush();
 
         // Then
@@ -187,8 +187,8 @@ class UsageServiceIntegrationTest {
         UsageService disabledService = new UsageService(userIdentificationService);
 
         // When
-        disabledService.trackCreditUsage("basic_scan");
-        disabledService.trackUpgradeClick("test_source");
+        disabledService.trackCreditUsage("basic_scan", "test");
+        disabledService.trackUpgradeClick("test_source", "test");
 
         // Then
         assertThat(disabledService.getQueueSize()).isEqualTo(0);
@@ -237,7 +237,7 @@ class UsageServiceIntegrationTest {
 
         // When
         usageService.trackCreditUsage("Dependencies",validCreditType);
-        usageService.trackUpgradeClick(validUpgradeSource);
+        usageService.trackUpgradeClick(validUpgradeSource, "test");
         usageService.flush();
 
         // Then
@@ -287,7 +287,7 @@ class UsageServiceIntegrationTest {
 
         // When
         usageService.trackCreditUsage("Dependencies",malformedCreditType);
-        usageService.trackUpgradeClick(longUpgradeSource);
+        usageService.trackUpgradeClick(longUpgradeSource, "test");
         usageService.flush();
 
         // Then

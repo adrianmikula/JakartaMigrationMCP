@@ -43,6 +43,9 @@ platforms:
         regex: "org\\.springframework\\.boot:spring-boot-starter-parent:([0-9]+\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
       - file: "pom.xml"
+        regex: "<parent>.*?<groupId>org\\.springframework\\.boot</groupId>.*?<artifactId>spring-boot-starter-parent</artifactId>.*?<version>([0-9]+\\.[0-9]+\\.[0-9]+)</version>"
+        versionGroup: 1
+      - file: "pom.xml"
         regex: "<spring-boot\\.version>([0-9]+\\.[0-9]+\\.[0-9]+)</spring-boot\\.version>"
         versionGroup: 1
       - file: "gradle.properties"
@@ -244,11 +247,26 @@ platforms:
       - file: "profileRegistry.xml"
         regex: "version=\"([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\""
         versionGroup: 1
+      - file: "pom.xml"
+        regex: "<groupId>com\\.ibm\\.websphere</groupId>"
+        versionGroup: 0
+      - file: "pom.xml"
+        regex: "<groupId>com\\.ibm\\.ws</groupId>"
+        versionGroup: 0
+      - file: "pom.xml"
+        regex: "<artifactId>websphere</artifactId>"
+        versionGroup: 0
+      - file: "pom.xml"
+        regex: "<artifactId>ws-javaee</artifactId>"
+        versionGroup: 0
     commonArtifacts:
       - "com.ibm.websphere:websphere"
       - "com.ibm.ws:ws-javaee"
       - "com.ibm.websphere.appserver:websphere-api"
       - "net.wasdev.maven.tools.targets:websphere-embedded-api"
+      - "com.ibm.websphere.appserver.api"
+      - "com.ibm.websphere.appserver:liberty"
+      - "com.ibm.websphere:websphere-uow"
     jakartaCompatibility:
       minVersion: "9.0"
       supportedVersions:
@@ -391,6 +409,9 @@ platforms:
         regex: "org\\.springframework\\.boot:spring-boot-dependencies:([0-9]+\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1
       - file: "pom.xml"
+        regex: "<parent>.*?<groupId>org\\.springframework\\.boot</groupId>.*?<artifactId>spring-boot-starter-parent</artifactId>.*?<version>([0-9]+\\.[0-9]+\\.[0-9]+)</version>"
+        versionGroup: 1
+      - file: "pom.xml"
         regex: "<spring-boot\\.version>([0-9]+\\.[0-9]+\\.[0-9]+)</spring-boot\\.version>"
         versionGroup: 1
     commonArtifacts:
@@ -403,6 +424,9 @@ platforms:
       - "org.springframework.boot:spring-boot-starter-data-jpa"
       - "org.springframework.boot:spring-boot-starter-security"
       - "org.springframework.boot:spring-boot-starter-test"
+      - "org.springframework.boot:spring-boot-starter-validation"
+      - "org.springframework.boot:spring-boot-maven-plugin"
+      - "org.springframework.boot"
     jakartaCompatibility:
       minVersion: "3.0"
       supportedVersions:
@@ -425,6 +449,12 @@ platforms:
     name: "Payara Server"
     description: "Payara application server"
     patterns:
+      - file: "pom.xml"
+        regex: "<groupId>fish\\.payara\\.extras</groupId>.*?<artifactId>payara-micro</artifactId>"
+        versionGroup: 1
+      - file: "pom.xml"
+        regex: "<groupId>fish\\.payara\\.api</groupId>.*?<artifactId>payara-api</artifactId>"
+        versionGroup: 1
       - file: "bin/asadmin"
         regex: "Payara Server ([0-9]+\\.[0-9]+\\.[0-9]+)"
         versionGroup: 1

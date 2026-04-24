@@ -69,8 +69,8 @@ class SupabaseClientWrapperTest {
     void shouldLogUsageEventsWhenNotConfigured() {
         // Given
         List<UsageEvent> events = List.of(
-            UsageEvent.creditUsed("user123", "Dependencies", "scan_button", "1.0.0"),
-            UsageEvent.upgradeClicked("user123", "test_source", "Dependencies", "1.0.0")
+            UsageEvent.creditUsed("user123", "Dependencies", "scan_button", "1.0.0", "test"),
+            UsageEvent.upgradeClicked("user123", "test_source", "Dependencies", "1.0.0", "test")
         );
 
         // When & Then - Should not throw exception
@@ -82,7 +82,7 @@ class SupabaseClientWrapperTest {
         // Given
         RuntimeException testException = new RuntimeException("Test error");
         List<ErrorReport> reports = List.of(
-            ErrorReport.fromException("user123", "1.0.0", "dashboard", testException)
+            ErrorReport.fromException("user123", "1.0.0", "dashboard", testException, "test")
         );
 
         // When & Then - Should not throw exception

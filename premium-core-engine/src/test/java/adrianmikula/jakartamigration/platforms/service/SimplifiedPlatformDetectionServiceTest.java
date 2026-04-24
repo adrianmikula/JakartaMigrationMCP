@@ -72,6 +72,48 @@ public class SimplifiedPlatformDetectionServiceTest {
     }
     
     @Test
+    @DisplayName("Should detect Spring Boot via parent POM reference")
+    void testDetectSpringBootViaParentPOM() throws IOException {
+        // Given - Spring Boot project using parent POM (like the problematic project)
+        Path projectPath = createSpringBootProjectWithParentPOM();
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then
+        assertThat(detectedServers).contains("springboot");
+        assertThat(detectedServers).hasSize(1); // Should detect only springboot
+    }
+    
+    @Test
+    @DisplayName("Should detect Spring Boot via spring-boot-maven-plugin")
+    void testDetectSpringBootViaMavenPlugin() throws IOException {
+        // Given - Spring Boot project with Maven plugin
+        Path projectPath = createSpringBootProjectWithMavenPlugin();
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then
+        assertThat(detectedServers).contains("springboot");
+        assertThat(detectedServers).hasSize(1); // Should detect only springboot
+    }
+    
+    @Test
+    @DisplayName("Should detect Spring Boot via version properties")
+    void testDetectSpringBootViaVersionProperties() throws IOException {
+        // Given - Spring Boot project using version properties
+        Path projectPath = createSpringBootProjectWithVersionProperties();
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then
+        assertThat(detectedServers).contains("springboot");
+        assertThat(detectedServers).hasSize(1); // Should detect only springboot
+    }
+    
+    @Test
     @DisplayName("Should detect NetBeans via common artifacts")
     void testDetectNetBeansViaCommonArtifacts() throws IOException {
         // Given
@@ -211,6 +253,240 @@ public class SimplifiedPlatformDetectionServiceTest {
         
         // Then
         assertThat(detectedServers).contains("weblogic");
+    }
+    
+    @Test
+    @DisplayName("Should detect WildFly via server dependencies")
+    void testDetectWildFlyViaServerDependencies() throws IOException {
+        // Given - project with WildFly server dependencies
+        Path projectPath = createProjectWithWildFlyServerDependencies();
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then
+        assertThat(detectedServers).contains("wildfly");
+        assertThat(detectedServers).hasSize(1);
+    }
+    
+    
+    
+    @Test
+    @DisplayName("Should detect only WebSphere for real WebSphere project from examples")
+    void testDetectOnlyWebSphere_RealProjectFromExamples() throws IOException {
+        // Given - Real WebSphere project from examples.yaml
+        Path projectPath = Path.of("../../../examples/websphere/extracted/app-modernization-plants-by-websphere-jee6-master");
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then - Should only detect WebSphere, not multiple platforms
+        assertThat(detectedServers).contains("websphere");
+        assertThat(detectedServers).hasSize(1);
+        
+        // Verify no other platforms are detected
+        assertThat(detectedServers).doesNotContain("wildfly");
+        assertThat(detectedServers).doesNotContain("weblogic");
+        assertThat(detectedServers).doesNotContain("glassfish");
+        assertThat(detectedServers).doesNotContain("tomcat");
+        assertThat(detectedServers).doesNotContain("jetty");
+    }
+    
+    @Test
+    @DisplayName("Should detect WebSphere via groupId pattern in pom.xml")
+    void testDetectWebSphere_ViaGroupIdPattern() throws IOException {
+        // Given - Project with WebSphere-specific groupId
+        Path projectPath = tempDir.resolve("websphere-groupid-project");
+        Files.createDirectories(projectPath);
+        
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>com.ibm.websphere.pbw</groupId>
+                    <artifactId>test-project</artifactId>
+                    <version>1.0.0</version>
+                    <packaging>ear</packaging>
+                    <dependencies>
+                        <dependency>
+                            <groupId>net.wasdev.maven.tools.targets</groupId>
+                            <artifactId>java-specs</artifactId>
+                            <version>1.0</version>
+                            <scope>provided</scope>
+                        </dependency>
+                    </dependencies>
+                </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then - Should detect WebSphere and nothing else
+        assertThat(detectedServers).contains("websphere");
+        assertThat(detectedServers).hasSize(1);
+        
+        // Verify no WildFly detection (this was the original bug)
+        assertThat(detectedServers).doesNotContain("wildfly");
+    }
+
+    @Test
+    @DisplayName("Should not fallback to WildFly for WebSphere EAR project")
+    void testNoFallbackToWildFly_ForWebSphereEARProject() throws IOException {
+        // Given - EAR project with WebSphere groupId but no explicit dependencies
+        Path projectPath = tempDir.resolve("websphere-ear-only");
+        Files.createDirectories(projectPath);
+        
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>com.ibm.websphere.test</groupId>
+                    <artifactId>ear-project</artifactId>
+                    <packaging>ear</packaging>
+                    <version>1.0.0</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>javax.servlet</groupId>
+                            <artifactId>javax.servlet-api</artifactId>
+                            <version>3.1.0</version>
+                        </dependency>
+                    </dependencies>
+                </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then - Should detect WebSphere, not WildFly (this was the original bug)
+        assertThat(detectedServers).contains("websphere");
+        assertThat(detectedServers).doesNotContain("wildfly");
+        
+        // Should only detect one platform
+        assertThat(detectedServers).hasSize(1);
+    }
+    
+    @Test
+    @DisplayName("Should detect WebSphere via net.wasdev dependency")
+    void testDetectWebSphere_ViaNetWasDevDependency() throws IOException {
+        // Given - Project with net.wasdev.maven.tools.targets dependency
+        Path projectPath = tempDir.resolve("websphere-netwasdev-project");
+        Files.createDirectories(projectPath);
+        
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+                    <modelVersion>4.0.0</modelVersion>
+                    <groupId>com.example</groupId>
+                    <artifactId>test-project</artifactId>
+                    <packaging>war</packaging>
+                    <version>1.0.0</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>net.wasdev.maven.tools.targets</groupId>
+                            <artifactId>java-specs</artifactId>
+                            <version>1.0</version>
+                            <scope>provided</scope>
+                        </dependency>
+                    </dependencies>
+                </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then - Should detect WebSphere, not WildFly (this was the original bug)
+        assertThat(detectedServers).contains("websphere");
+        assertThat(detectedServers).doesNotContain("wildfly");
+        
+        // Should only detect one platform
+        assertThat(detectedServers).hasSize(1);
+    }
+    
+    @Test
+    @DisplayName("Should detect only WebLogic when WebLogic indicators present")
+    void testDetectOnlyWebLogic_WhenWebLogicIndicatorsPresent() throws IOException {
+        // Given - WebLogic project with specific indicators
+        Path projectPath = createWebLogicProjectWithIndicators();
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then
+        assertThat(detectedServers).contains("weblogic");
+        assertThat(detectedServers).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Should detect only GlassFish when GlassFish indicators present")
+    void testDetectOnlyGlassFish_WhenGlassFishIndicatorsPresent() throws IOException {
+        // Given - GlassFish project with specific indicators
+        Path projectPath = createGlassFishProjectWithIndicators();
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then
+        assertThat(detectedServers).contains("glassfish");
+        assertThat(detectedServers).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Should detect only Liberty when Liberty indicators present")
+    void testDetectOnlyLiberty_WhenLibertyIndicatorsPresent() throws IOException {
+        // Given - Liberty project with specific indicators
+        Path projectPath = createLibertyProjectWithIndicators();
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then
+        assertThat(detectedServers).contains("liberty");
+        assertThat(detectedServers).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Should not over-detect platforms for project with only web.xml")
+    void testNoOverDetection_OnlyWebXmlPresent() throws IOException {
+        // Given - project with only web.xml (no specific platform indicators)
+        Path projectPath = createProjectWithOnlyWebXml();
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then - should be conservative and not detect multiple platforms
+        assertThat(detectedServers).hasSizeLessThanOrEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Should not over-detect platforms for project with only WAR file")
+    void testNoOverDetection_OnlyWarPresent() throws IOException {
+        // Given - project with only WAR file (no specific platform indicators)
+        Path projectPath = createProjectWithOnlyWar();
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then - should be conservative and not detect multiple platforms
+        assertThat(detectedServers).hasSizeLessThanOrEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Should not over-detect platforms for project with only EAR file")
+    void testNoOverDetection_OnlyEarPresent() throws IOException {
+        // Given - project with only EAR file (no specific platform indicators)
+        Path projectPath = createProjectWithOnlyEar();
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then - should be conservative and not detect multiple platforms
+        assertThat(detectedServers).hasSizeLessThanOrEqualTo(1);
     }
     
     // Helper methods for creating test projects
@@ -371,6 +647,273 @@ public class SimplifiedPlatformDetectionServiceTest {
             </project>
             """;
         Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+        return projectPath;
+    }
+    
+    private Path createSpringBootProjectWithParentPOM() throws IOException {
+        Path projectPath = tempDir.resolve("spring-boot-parent");
+        Files.createDirectories(projectPath);
+        
+        // Create the exact structure from the problematic project
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+                <modelVersion>4.0.0</modelVersion>
+                <parent>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-parent</artifactId>
+                    <version>2.7.7</version>
+                    <relativePath/> <!-- lookup parent from repository -->
+                </parent>
+                <groupId>com.example</groupId>
+                <artifactId>demo</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+                <name>demo</name>
+                <description>Demo project for Spring Boot</description>
+                <properties>
+                    <java.version>11</java.version>
+                </properties>
+                <dependencies>
+                    <dependency>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-starter-web</artifactId>
+                    </dependency>
+                    <dependency>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-starter-validation</artifactId>
+                    </dependency>
+                </dependencies>
+                <build>
+                    <plugins>
+                            <plugin>
+                                    <groupId>org.springframework.boot</groupId>
+                                    <artifactId>spring-boot-maven-plugin</artifactId>
+                            </plugin>
+                    </plugins>
+                </build>
+            </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+        return projectPath;
+    }
+    
+    private Path createSpringBootProjectWithMavenPlugin() throws IOException {
+        Path projectPath = tempDir.resolve("spring-boot-plugin");
+        Files.createDirectories(projectPath);
+        
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project>
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>spring-boot-plugin-test</artifactId>
+                <version>1.0.0</version>
+                <build>
+                    <plugins>
+                        <plugin>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-maven-plugin</artifactId>
+                        </plugin>
+                    </plugins>
+                </build>
+            </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+        return projectPath;
+    }
+    
+    private Path createSpringBootProjectWithVersionProperties() throws IOException {
+        Path projectPath = tempDir.resolve("spring-boot-properties");
+        Files.createDirectories(projectPath);
+        
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project>
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>spring-boot-properties-test</artifactId>
+                <version>1.0.0</version>
+                <properties>
+                    <spring-boot.version>2.7.7</spring-boot.version>
+                </properties>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-starter-web</artifactId>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+        return projectPath;
+    }
+    
+    private Path createProjectWithWildFlyServerDependencies() throws IOException {
+        Path projectPath = tempDir.resolve("wildfly-server");
+        Files.createDirectories(projectPath);
+        
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>org.example</groupId>
+                <artifactId>wildfly-server-test</artifactId>
+                <packaging>war</packaging>
+                <version>1.0.0</version>
+                <properties>
+                    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+                    <version.wildfly>27.0.1.Final</version.wildfly>
+                </properties>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.wildfly</groupId>
+                        <artifactId>wildfly-ee</artifactId>
+                        <version>${version.wildfly}</version>
+                        <scope>provided</scope>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.wildfly</groupId>
+                        <artifactId>wildfly-undertow</artifactId>
+                        <version>${version.wildfly}</version>
+                        <scope>provided</scope>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.wildfly</groupId>
+                        <artifactId>wildfly-client</artifactId>
+                        <version>${version.wildfly}</version>
+                        <scope>provided</scope>
+                    </dependency>
+                </dependencies>
+                <build>
+                    <plugins>
+                        <plugin>
+                            <groupId>org.apache.maven.plugins</groupId>
+                            <artifactId>maven-war-plugin</artifactId>
+                            <version>3.3.1</version>
+                            <configuration>
+                                <failOnMissingWebXml>false</failOnMissingWebXml>
+                            </configuration>
+                        </plugin>
+                    </plugins>
+                </build>
+            </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+        return projectPath;
+    }
+    
+        
+        
+    private Path createWebLogicProjectWithIndicators() throws IOException {
+        Path projectPath = tempDir.resolve("weblogic-indicators");
+        Files.createDirectories(projectPath);
+        
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project>
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>weblogic-test</artifactId>
+                <version>1.0.0</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.oracle.weblogic</groupId>
+                        <artifactId>weblogic-server</artifactId>
+                        <version>14.1.1.0</version>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+        return projectPath;
+    }
+    
+    private Path createGlassFishProjectWithIndicators() throws IOException {
+        Path projectPath = tempDir.resolve("glassfish-indicators");
+        Files.createDirectories(projectPath);
+        
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project>
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>glassfish-test</artifactId>
+                <version>1.0.0</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.glassfish.main</groupId>
+                        <artifactId>glassfish-main</artifactId>
+                        <version>7.0.0</version>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+        return projectPath;
+    }
+    
+    private Path createLibertyProjectWithIndicators() throws IOException {
+        Path projectPath = tempDir.resolve("liberty-indicators");
+        Files.createDirectories(projectPath);
+        
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project>
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>liberty-test</artifactId>
+                <version>1.0.0</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>io.openliberty</groupId>
+                        <artifactId>openliberty-kernel</artifactId>
+                        <version>23.0.0</version>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+        return projectPath;
+    }
+    
+    private Path createProjectWithOnlyWebXml() throws IOException {
+        Path projectPath = tempDir.resolve("webxml-only");
+        Files.createDirectories(projectPath);
+        Files.createDirectories(projectPath.resolve("src/main/webapp/WEB-INF"));
+        
+        String webXmlContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                     xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee 
+                     http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
+                     version="4.0">
+                <display-name>Test Web App</display-name>
+            </web-app>
+            """;
+        Files.write(projectPath.resolve("src/main/webapp/WEB-INF/web.xml"), webXmlContent.getBytes());
+        return projectPath;
+    }
+    
+    private Path createProjectWithOnlyWar() throws IOException {
+        Path projectPath = tempDir.resolve("war-only");
+        Files.createDirectories(projectPath);
+        
+        // Create a WAR file
+        Files.createDirectories(projectPath.resolve("target"));
+        Files.write(projectPath.resolve("target/test.war"), "dummy war content".getBytes());
+        return projectPath;
+    }
+    
+    private Path createProjectWithOnlyEar() throws IOException {
+        Path projectPath = tempDir.resolve("ear-only");
+        Files.createDirectories(projectPath);
+        
+        // Create an EAR file
+        Files.createDirectories(projectPath.resolve("target"));
+        Files.write(projectPath.resolve("target/test.ear"), "dummy ear content".getBytes());
         return projectPath;
     }
 }

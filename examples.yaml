@@ -41,6 +41,9 @@ application_servers:
   - name: "Spring"
     description: "Spring2 with javax dependency"
     url: "https://github.com/EAG-es/spring2_oauth2_example"
+  - name: "Spring Boot Parent POM"
+    description: "Spring Boot project using parent POM (tests our detection fix)"
+    url: "https://github.com/EightAugusto/spring-boot-parent-example"
 
   - name: "JBoss EAP"
     description: "JBoss EAP with javax dependency"

@@ -152,6 +152,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private void initializeContent() {
             this.isPremium = checkPremiumStatus();
             LOG.info("initializeContent: Starting, isPremium=" + isPremium);
+            LOG.info("initializeContent: License status string: " + adrianmikula.jakartamigration.intellij.license.CheckLicense.getLicenseStatusString());
+            LOG.info("initializeContent: System property jakarta.migration.dev.simulate_premium=" + System.getProperty("jakarta.migration.dev.simulate_premium"));
             contentPanel.removeAll();
 
             // Credits progress bar (only visible for free users)
@@ -218,6 +220,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // AI tab - controlled by premium feature flag (formerly MCP Server)
             boolean mcpServerPremiumOnly = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isMcpServerPremiumOnly();
+            LOG.info("initializeContent: AI tab check - mcpServerPremiumOnly=" + mcpServerPremiumOnly + ", isPremium=" + isPremium);
             if (!mcpServerPremiumOnly || isPremium) {
                 mcpServerTabComponent = new McpServerTabComponent(project);
                 tabbedPane.addTab("AI", mcpServerTabComponent.getPanel());
@@ -318,9 +321,14 @@ public class MigrationToolWindow implements ToolWindowFactory {
          */
         private void handlePremiumSimulationChanged(boolean isSimulatingPremium) {
             LOG.info("MigrationToolWindow: Premium simulation changed to: " + isSimulatingPremium);
+            LOG.info("MigrationToolWindow: Current isPremium before change: " + this.isPremium);
             
             // Clear license cache to ensure fresh checks
             adrianmikula.jakartamigration.intellij.license.CheckLicense.onPremiumSimulationChanged();
+            
+            // Update isPremium field with fresh license check after cache clear
+            this.isPremium = checkPremiumStatus();
+            LOG.info("MigrationToolWindow: Updated isPremium after cache clear: " + this.isPremium);
             
             // Rebuild the entire UI to reflect the new premium state
             rebuildUI();
@@ -393,6 +401,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
         public void rebuildUI() {
             System.out.println("DEBUG: rebuildUI() called");
+            LOG.info("MigrationToolWindow: rebuildUI() starting, current isPremium: " + this.isPremium);
+            
             ApplicationManager.getApplication().invokeLater(() -> {
                 int selectedIndex = tabbedPane != null ? tabbedPane.getSelectedIndex() : -1;
                 String selectedTitle = (selectedIndex != -1 && selectedIndex < tabbedPane.getTabCount())
@@ -404,6 +414,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     creditsProgressBar.dispose();
                 }
 
+                LOG.info("MigrationToolWindow: rebuildUI() - calling initializeContent(), isPremium: " + this.isPremium);
                 System.out.println("DEBUG: rebuildUI() - calling initializeContent(), isPremium was: " + isPremium);
                 initializeContent();
 

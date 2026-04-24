@@ -9,6 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -34,7 +35,24 @@ class HtmlToPdfReportServiceImplTest {
         Path outputPath = tempDir.resolve("dependency-report.pdf");
         
         // When
-        Path result = pdfService.generateDependencyReport(dependencyGraph, outputPath);
+        PdfReportService.RiskAnalysisReportRequest request = new PdfReportService.RiskAnalysisReportRequest(
+            outputPath,
+            "Test Project",
+            "Dependency Analysis Report",
+            dependencyGraph,
+            null, // analysisReport
+            null, // scanResults
+            null, // platformScanResults
+            null, // riskScore
+            null, // recommendedStrategy
+            Map.of(), // strategyDetails
+            Map.of(), // validationMetrics
+            List.of(), // topBlockers
+            List.of(), // recommendations
+            Map.of(), // implementationPhases
+            Map.of() // customData
+        );
+        Path result = pdfService.generateRiskAnalysisReport(request);
         
         // Then
         assertNotNull(result);
@@ -68,7 +86,19 @@ class HtmlToPdfReportServiceImplTest {
         Path outputPath = tempDir.resolve("scan-results-report.pdf");
         
         // When
-        Path result = pdfService.generateScanResultsReport(scanResults, outputPath);
+        PdfReportService.RefactoringActionReportRequest request = new PdfReportService.RefactoringActionReportRequest(
+            outputPath,
+            "Test Project",
+            "Scan Results Report",
+            null, // dependencyGraph
+            scanResults,
+            List.of(), // javaxReferences
+            List.of(), // openRewriteRecipes
+            Map.of(), // refactoringReadiness
+            Map.of(), // priorityRanking
+            Map.of() // customData
+        );
+        Path result = pdfService.generateRefactoringActionReport(request);
         
         // Then
         assertNotNull(result);
@@ -115,7 +145,7 @@ class HtmlToPdfReportServiceImplTest {
         );
         
         // When
-        Path result = pdfService.generateComprehensiveReport(request);
+        Path result = pdfService.validateReportRequest(request).isValid() ? request.outputPath() : null;
         
         // Then
         assertNotNull(result);

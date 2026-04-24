@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.analytics.service;
 
 import adrianmikula.jakartamigration.analytics.config.SupabaseConfig;
 import adrianmikula.jakartamigration.analytics.model.UsageEvent;
+import adrianmikula.jakartamigration.analytics.util.EnvironmentDetector;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -30,6 +31,7 @@ public class UsageService implements AutoCloseable {
     private final ScheduledExecutorService scheduler;
     private final AtomicBoolean isRunning;
     private final String pluginVersion;
+    private final String environment;
     
     public UsageService(UserIdentificationService userIdentificationService) {
         this.userIdentificationService = userIdentificationService;
@@ -43,6 +45,7 @@ public class UsageService implements AutoCloseable {
         });
         this.isRunning = new AtomicBoolean(false);
         this.pluginVersion = getPluginVersion();
+        this.environment = EnvironmentDetector.getCurrentEnvironment();
         
         if (userIdentificationService.isAnalyticsEnabled()) {
             startBatchProcessor();
@@ -82,7 +85,8 @@ public class UsageService implements AutoCloseable {
             userIdentificationService.getAnonymousUserId(),
             currentUiTab,
             triggerAction,
-            pluginVersion
+            pluginVersion,
+            environment
         );
         
         addEventToQueue(event);
@@ -102,7 +106,8 @@ public class UsageService implements AutoCloseable {
             userIdentificationService.getAnonymousUserId(),
             source,
             currentUiTab,
-            pluginVersion
+            pluginVersion,
+            environment
         );
         
         addEventToQueue(event);
@@ -173,12 +178,12 @@ public class UsageService implements AutoCloseable {
     }
     
     /**
-     * Gets the plugin version from gradle.properties.
+     * Gets the plugin version from version.properties.
      */
     private String getPluginVersion() {
         try {
             Properties props = new Properties();
-            try (var is = getClass().getClassLoader().getResourceAsStream("gradle.properties")) {
+            try (var is = getClass().getClassLoader().getResourceAsStream("version.properties")) {
                 if (is != null) {
                     props.load(is);
                     return props.getProperty("version", "unknown");

@@ -62,7 +62,8 @@ public class UsageTrackingContextTest {
             "test-user", 
             "Reports", 
             "generate_dependency_report", 
-            "1.0.0"
+            "1.0.0",
+            "test"
         );
         
         assertEquals("credit_used", creditEvent.getEventType().getValue());
@@ -73,8 +74,9 @@ public class UsageTrackingContextTest {
         UsageEvent upgradeEvent = UsageEvent.upgradeClicked(
             "test-user", 
             "premium_button", 
-            "1.0.0", 
-            "Reports"
+            "Reports",
+            "1.0.0",
+            "test"
         );
         
         assertEquals("upgrade_clicked", upgradeEvent.getEventType().getValue());

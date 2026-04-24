@@ -9,11 +9,14 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import javax.swing.*;
+import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -33,7 +36,7 @@ public class PremiumUpgradeButtonTest extends BasePlatformTestCase {
 
     @Test
     public void testCreateUpgradeButtonWithProject() {
-        JButton button = PremiumUpgradeButton.createUpgradeButton(getProject());
+        JButton button = PremiumUpgradeButton.createUpgradeButton(getProject(), "test_tab");
         
         assertThat(button).isNotNull();
         assertThat(button.getText()).isEqualTo("⬆ Upgrade to Premium");
@@ -47,7 +50,8 @@ public class PremiumUpgradeButtonTest extends BasePlatformTestCase {
         JButton button = PremiumUpgradeButton.createUpgradeButton(
             getProject(), 
             "Custom Upgrade Text", 
-            "Custom Tooltip"
+            "Custom Tooltip",
+            "test_tab"
         );
         
         assertThat(button).isNotNull();
@@ -62,7 +66,8 @@ public class PremiumUpgradeButtonTest extends BasePlatformTestCase {
             getProject(), 
             "test_source",
             "Test Button",
-            "Test Tooltip"
+            "Test Tooltip",
+            "test_tab"
         );
         
         assertThat(button).isNotNull();
@@ -135,7 +140,7 @@ public class PremiumUpgradeButtonTest extends BasePlatformTestCase {
 
     @Test
     public void testButtonStyling() {
-        JButton button = PremiumUpgradeButton.createUpgradeButton(getProject());
+        JButton button = PremiumUpgradeButton.createUpgradeButton(getProject(), "test_tab");
         
         // Verify font is bold
         assertThat(button.getFont().isBold()).isTrue();

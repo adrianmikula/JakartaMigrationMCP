@@ -1,7 +1,6 @@
-package unit.jakartamigration.dependencyanalysis.service.impl;
+package adrianmikula.jakartamigration.unit.jakartamigration.dependencyanalysis.service.impl;
 
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
-import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphException;
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.MavenDependencyGraphBuilder;
@@ -127,7 +126,6 @@ class MavenDependencyGraphBuilderTest {
         // Then
         assertNotNull(graph);
         // Should use parent groupId if not specified
-        Artifact projectArtifact = new Artifact("org.springframework.boot", "test-project", "2.7.0", "compile", false);
         // Note: This test may need adjustment based on actual implementation behavior
         assertTrue(graph.nodeCount() >= 2);
     }
@@ -166,6 +164,143 @@ class MavenDependencyGraphBuilderTest {
         assertThrows(DependencyGraphException.class, () -> 
             builder.buildFromProject(tempDir)
         );
+    }
+    
+    @Test
+    @DisplayName("Should resolve version from properties")
+    void shouldResolveVersionFromProperties() throws Exception {
+        // Given
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>test-project</artifactId>
+                <version>1.0.0</version>
+                
+                <properties>
+                    <arquillian.version>1.7.0.Alpha1</arquillian.version>
+                    <payara.version>4.1.2.181</payara.version>
+                </properties>
+                
+                <dependencies>
+                    <dependency>
+                        <groupId>org.jboss.arquillian</groupId>
+                        <artifactId>arquillian-bom</artifactId>
+                        <version>${arquillian.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>fish.payara.distributions</groupId>
+                        <artifactId>payara</artifactId>
+                        <version>${payara.version}</version>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        
+        Path pomXml = tempDir.resolve("pom.xml");
+        Files.writeString(pomXml, pomContent);
+        
+        // When
+        DependencyGraph graph = builder.buildFromMaven(pomXml);
+        
+        // Then
+        assertNotNull(graph);
+        assertTrue(graph.nodeCount() >= 3); // Project + 2 dependencies
+        
+        // Verify dependencies with resolved versions
+        Artifact arquillianDep = new Artifact("org.jboss.arquillian", "arquillian-bom", "1.7.0.Alpha1", "compile", true);
+        Artifact payaraDep = new Artifact("fish.payara.distributions", "payara", "4.1.2.181", "compile", true);
+        
+        assertTrue(graph.containsNode(arquillianDep));
+        assertTrue(graph.containsNode(payaraDep));
+    }
+    
+    @Test
+    @DisplayName("Should resolve version from dependencyManagement with properties")
+    void shouldResolveVersionFromDependencyManagementWithProperties() throws Exception {
+        // Given
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>test-project</artifactId>
+                <version>1.0.0</version>
+                
+                <properties>
+                    <wildfly.version>13.0.0.Final</wildfly.version>
+                </properties>
+                
+                <dependencyManagement>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.wildfly</groupId>
+                            <artifactId>wildfly-core</artifactId>
+                            <version>${wildfly.version}</version>
+                        </dependency>
+                    </dependencies>
+                </dependencyManagement>
+                
+                <dependencies>
+                    <dependency>
+                        <groupId>org.wildfly</groupId>
+                        <artifactId>wildfly-core</artifactId>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        
+        Path pomXml = tempDir.resolve("pom.xml");
+        Files.writeString(pomXml, pomContent);
+        
+        // When
+        DependencyGraph graph = builder.buildFromMaven(pomXml);
+        
+        // Then
+        assertNotNull(graph);
+        assertTrue(graph.nodeCount() >= 2); // Project + 1 dependency
+        
+        // Verify dependency with resolved version from dependencyManagement
+        Artifact wildflyDep = new Artifact("org.wildfly", "wildfly-core", "13.0.0.Final", "compile", true);
+        assertTrue(graph.containsNode(wildflyDep));
+    }
+    
+    @Test
+    @DisplayName("Should handle missing properties gracefully")
+    void shouldHandleMissingPropertiesGracefully() throws Exception {
+        // Given
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>com.example</groupId>
+                <artifactId>test-project</artifactId>
+                <version>1.0.0</version>
+                
+                <dependencies>
+                    <dependency>
+                        <groupId>org.jboss.arquillian</groupId>
+                        <artifactId>arquillian-bom</artifactId>
+                        <version>${nonexistent.version}</version>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        
+        Path pomXml = tempDir.resolve("pom.xml");
+        Files.writeString(pomXml, pomContent);
+        
+        // When
+        DependencyGraph graph = builder.buildFromMaven(pomXml);
+        
+        // Then
+        assertNotNull(graph);
+        assertTrue(graph.nodeCount() >= 2); // Project + 1 dependency
+        
+        // Verify dependency with "unknown" version when property doesn't exist
+        Artifact dep = new Artifact("org.jboss.arquillian", "arquillian-bom", "unknown", "compile", true);
+        assertTrue(graph.containsNode(dep));
     }
 }
 

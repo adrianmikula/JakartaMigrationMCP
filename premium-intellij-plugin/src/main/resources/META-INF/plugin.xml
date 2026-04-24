@@ -27,7 +27,7 @@
     <idea-version since-build="233" />
 
     <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
-    <version>1.0.14</version>
+    <version>1.0.15</version>
 
     <name>Jakarta Migration (javax → jakarta)</name>
     <id>com.adrianmikula.jakarta-migration</id>
@@ -41,7 +41,10 @@
     <p>Migrate from Java EE 8 (javax.*) to Jakarta EE 9+ seamlessly. This plugin analyzes dependencies, detects migration blockers, and automates refactoring with OpenRewrite.</p>
 
     <h3>Why Jakarta EE?</h3>
-    <p>After Oracle donated Java EE to the Eclipse Foundation, the javax.* namespace became jakarta.*. If your code uses old appservers which depend on Java EE, you need this migration in order to upgrade.</p>
+    <p>After Oracle donated Java EE to the Eclipse Foundation, the javax.* namespace became jakarta.*. If your code uses old application servers which depend on Java EE, you need this migration in order to upgrade.</p>
+
+    <h3>Privacy & Analytics</h3>
+    <p>This plugin collects anonymous usage statistics and error reports to improve product quality. No personal information is collected. You can disable data collection anytime in Settings → Plugins → Jakarta Migration → About tab.</p>
 
     <h3>Key Features</h3>
     <ul>
@@ -168,6 +171,14 @@
 
 
     <change-notes><![CDATA[
+    <h>1.0.15 - 2026-04-24</h>
+    <ul>
+        <li>Fixed problems with platform detection for Tomcat, JBoss/Wildfly, Paraya, WebSphere</li>
+        <li>Fixed problems with property detection in Maven pom.xml files</li>
+        <li>Fixed HTML validation errors during PDF report generation</li>
+        <li>Added more detail to PDF reports</li>
+        <li>Added clearer documentation of opt-out error reporting and usage metrics</li>
+    </ul>
     <h>1.0.14 - 2026-04-23</h>
     <ul>
         <li>Renamed Dashboard tab to Risk tab, and added confidence dial</li>

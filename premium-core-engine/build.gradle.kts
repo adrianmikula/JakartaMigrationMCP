@@ -112,3 +112,28 @@ tasks.register<Test>("coreTest") {
     }
     maxParallelForks = 4
 }
+
+// Copy version from root gradle.properties to resources for analytics services
+tasks.register<Copy>("copyVersionToResources") {
+    group = "build"
+    description = "Copy version from root gradle.properties to resources for analytics services"
+    
+    // Read version from root gradle.properties and create version.properties content
+    val versionFile = rootProject.file("gradle.properties")
+    val versionContent = versionFile.readLines().find { it.startsWith("version=") } ?: "version=unknown"
+    val finalContent = "# Plugin Version - This file is used by UsageService and ErrorReportingService to get plugin version\n# Version is copied from root gradle.properties during build process\n$versionContent"
+    
+    // Write the content to version.properties
+    doLast {
+        file("src/main/resources/version.properties").writeText(finalContent)
+    }
+}
+
+// Ensure version is copied before processing resources and compilation
+tasks.processResources {
+    dependsOn("copyVersionToResources")
+}
+
+tasks.compileJava {
+    dependsOn("copyVersionToResources")
+}

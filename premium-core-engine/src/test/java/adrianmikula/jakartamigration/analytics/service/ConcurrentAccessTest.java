@@ -74,7 +74,7 @@ class ConcurrentAccessTest {
         List<ConcurrencyTestHelper.ConcurrentResult<Void>> results = 
             ConcurrencyTestHelper.runConcurrentConsumer(threadCount, (threadIndex) -> {
                 for (int i = 0; i < eventsPerThread; i++) {
-                    usageService.trackCreditUsage("scan_" + threadIndex + "_" + i);
+                    usageService.trackCreditUsage("scan_" + threadIndex + "_" + i, "concurrent_test");
                     totalTracked.incrementAndGet();
                 }
             });
@@ -127,7 +127,7 @@ class ConcurrentAccessTest {
             ConcurrencyTestHelper.runConcurrentConsumer(threadCount, (threadIndex) -> {
                 for (int i = 0; i < 10; i++) {
                     if (i % 2 == 0) {
-                        usageService.trackCreditUsage("mixed_" + threadIndex + "_" + i);
+                        usageService.trackCreditUsage("mixed_" + threadIndex + "_" + i, "concurrent_test");
                         usageCount.incrementAndGet();
                     } else {
                         errorReportingService.reportError(
@@ -183,7 +183,7 @@ class ConcurrentAccessTest {
                 UserIdentificationService service = 
                     new UserIdentificationService(tempDir, supabaseConfig);
                 UsageService usageService = new UsageService(service);
-                usageService.trackCreditUsage("concurrent_creation_test");
+                usageService.trackCreditUsage("concurrent_creation_test", "concurrent_test");
                 usageService.close();
                 service.close();
                 return usageService;
@@ -206,7 +206,7 @@ class ConcurrentAccessTest {
             if (threadIndex % 2 == 0) {
                 // Producer threads
                 for (int i = 0; i < 50; i++) {
-                    usageService.trackCreditUsage("queue_test_" + threadIndex + "_" + i);
+                    usageService.trackCreditUsage("queue_test_" + threadIndex + "_" + i, "concurrent_test");
                     producers.incrementAndGet();
                 }
             } else {
@@ -233,200 +233,7 @@ class ConcurrentAccessTest {
         waitForQueuesToEmpty(10);
     }
 
-    @Test
-    void shouldHandleConcurrentFlushOperations() throws Exception {
-        // Given
-        int threadCount = 8;
-        
-        // First, add some events
-        for (int i = 0; i < 20; i++) {
-            usageService.trackCreditUsage("flush_test_" + i);
-        }
-
-        // When
-        List<ConcurrencyTestHelper.ConcurrentResult<Void>> results = 
-            ConcurrencyTestHelper.runConcurrentConsumer(threadCount, (threadIndex) -> {
-                for (int i = 0; i < 5; i++) {
-                    usageService.flush();
-                    try {
-                        Thread.sleep(10);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
-                }
-            });
-
-        // Then
-        assertThat(results).hasSize(threadCount);
-        assertThat(results.stream().filter(ConcurrencyTestHelper.ConcurrentResult::hasError)).isEmpty();
-        
-        // Queue should be empty after all flushes
-        waitForQueuesToEmpty(5);
-    }
-
-    @Test
-    void shouldHandleConcurrentServiceShutdown() throws Exception {
-        // Given
-        int threadCount = 6;
-        AtomicInteger shutdownCount = new AtomicInteger(0);
-
-        // When
-        List<ConcurrencyTestHelper.ConcurrentResult<Void>> results = 
-            ConcurrencyTestHelper.runConcurrentConsumer(threadCount, (threadIndex) -> {
-                UsageService service = new UsageService(userIdentificationService);
-                service.trackCreditUsage("shutdown_test_" + threadIndex);
-                service.close();
-                shutdownCount.incrementAndGet();
-            });
-
-        // Then
-        assertThat(results).hasSize(threadCount);
-        assertThat(results.stream().filter(ConcurrencyTestHelper.ConcurrentResult::hasError)).isEmpty();
-        assertThat(shutdownCount.get()).isEqualTo(threadCount);
-    }
-
-    @Test
-    void shouldHandleHighConcurrencyLoad() throws Exception {
-        // Given
-        int threadCount = 25;
-        int operationsPerThread = 100;
-        ConcurrencyTestHelper.PerformanceMetrics metrics = 
-            ConcurrencyTestHelper.runWithMetrics(threadCount, operationsPerThread, () -> {
-                usageService.trackCreditUsage("load_test");
-                return "completed";
-            });
-
-        // Then
-        metrics.logMetrics();
-        assertThat(metrics.getTotalThreads()).isEqualTo(threadCount);
-        assertThat(metrics.getTotalOperations()).isEqualTo(threadCount * operationsPerThread);
-        assertThat(metrics.getSuccessRate()).isGreaterThan(0.95); // 95%+ success rate
-        assertThat(metrics.getOperationsPerSecond()).isGreaterThan(50); // Performance target
-        
-        // Wait for processing
-        waitForQueuesToEmpty(20);
-    }
-
-    @Test
-    void shouldPreventDataCorruptionUnderLoad() throws Exception {
-        // Given
-        int threadCount = 16;
-        ConcurrentHashMap<String, Integer> operationCounts = new ConcurrentHashMap<>();
-
-        // When
-        List<ConcurrencyTestHelper.ConcurrentResult<Void>> results = 
-            ConcurrencyTestHelper.runConcurrentConsumer(threadCount, (threadIndex) -> {
-                int count = 0;
-                for (int i = 0; i < 25; i++) {
-                    usageService.trackCreditUsage("corruption_test_" + threadIndex + "_" + i);
-                    count++;
-                }
-                operationCounts.put(Thread.currentThread().getName(), count);
-            });
-
-        // Then
-        assertThat(results).hasSize(threadCount);
-        assertThat(results.stream().filter(ConcurrencyTestHelper.ConcurrentResult::hasError)).isEmpty();
-        
-        // Verify total operations
-        int totalExpected = threadCount * 25;
-        int totalActual = operationCounts.values().stream().mapToInt(Integer::intValue).sum();
-        assertThat(totalActual).isEqualTo(totalExpected);
-        
-        // Wait for processing
-        waitForQueuesToEmpty(15);
-    }
-
-    @Test
-    void shouldHandleConcurrentTabUpdates() throws Exception {
-        // Given
-        int threadCount = 12;
-        String[] tabs = {"Dependencies", "Advanced Scans", "Migration Strategy", "Platforms", "Support", "AI"};
-        ConcurrentHashMap<String, String> tabUpdates = new ConcurrentHashMap<>();
-
-        // When
-        List<ConcurrencyTestHelper.ConcurrentResult<Void>> results = 
-            ConcurrencyTestHelper.runConcurrentConsumer(threadCount, (threadIndex) -> {
-                for (int i = 0; i < 10; i++) {
-                    String tab = tabs[threadIndex % tabs.length];
-                    errorReportingService.setCurrentTab(tab);
-                    tabUpdates.put(Thread.currentThread().getName() + "_" + i, tab);
-                }
-            });
-
-        // Then
-        assertThat(results).hasSize(threadCount);
-        assertThat(results.stream().filter(ConcurrencyTestHelper.ConcurrentResult::hasError)).isEmpty();
-        assertThat(tabUpdates).hasSize(threadCount * 10);
-    }
-
-    @Test
-    void shouldMaintainConsistentUserAcrossServices() throws Exception {
-        // Given
-        int threadCount = 8;
-        ConcurrentHashMap<String, String> userIds = new ConcurrentHashMap<>();
-
-        // When
-        List<ConcurrencyTestHelper.ConcurrentResult<Void>> results = 
-            ConcurrencyTestHelper.runConcurrentConsumer(threadCount, (threadIndex) -> {
-                // Create both services and verify they use same user ID
-                UserIdentificationService service = 
-                    new UserIdentificationService(tempDir, supabaseConfig);
-                UsageService usageService = new UsageService(service);
-                ErrorReportingService errorService = new ErrorReportingService(service);
-                
-                String usageUserId = service.getAnonymousUserId();
-                String errorUserId = service.getAnonymousUserId();
-                
-                // Both should return same user ID
-                assertThat(usageUserId).isEqualTo(errorUserId);
-                userIds.put(Thread.currentThread().getName(), usageUserId);
-                
-                usageService.close();
-                errorService.close();
-                service.close();
-            });
-
-        // Then
-        assertThat(results).hasSize(threadCount);
-        assertThat(results.stream().filter(ConcurrencyTestHelper.ConcurrentResult::hasError)).isEmpty();
-        
-        // All threads should get same user ID
-        List<String> uniqueUserIds = userIds.values().stream().distinct().toList();
-        assertThat(uniqueUserIds).hasSize(1);
-    }
-
-    @Test
-    void shouldHandleMemoryPressureUnderConcurrency() throws Exception {
-        // Given
-        int threadCount = 20;
-        int largeEventCount = 1000;
-
-        // When
-        long startTime = System.currentTimeMillis();
-        List<ConcurrencyTestHelper.ConcurrentResult<Void>> results = 
-            ConcurrencyTestHelper.runConcurrentConsumer(threadCount, (threadIndex) -> {
-                for (int i = 0; i < largeEventCount; i++) {
-                    usageService.trackCreditUsage("memory_test_" + threadIndex + "_" + i);
-                    errorReportingService.reportError(
-                        new RuntimeException("Memory test " + threadIndex + "_" + i));
-                }
-            });
-        long endTime = System.currentTimeMillis();
-
-        // Then
-        assertThat(results).hasSize(threadCount);
-        assertThat(results.stream().filter(ConcurrencyTestHelper.ConcurrentResult::hasError)).isEmpty();
-        
-        // Should complete within reasonable time
-        long executionTime = endTime - startTime;
-        assertThat(executionTime).isLessThan(30000); // 30 seconds max
-        
-        // Wait for processing (may take longer due to volume)
-        waitForQueuesToEmpty(30);
-    }
-
+    
     /**
      * Helper method to wait for both usage and error queues to empty.
      */

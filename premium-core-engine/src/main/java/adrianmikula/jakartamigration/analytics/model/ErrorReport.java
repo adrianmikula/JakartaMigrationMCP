@@ -47,6 +47,11 @@ public class ErrorReport {
     private String stackTrace;
     
     /**
+     * Environment where the error occurred (dev, demo, prod).
+     */
+    private String environment;
+    
+    /**
      * Timestamp when the error occurred.
      */
     private Instant timestamp;
@@ -55,7 +60,7 @@ public class ErrorReport {
      * Creates an error report from an exception.
      */
     public static ErrorReport fromException(String userId, String pluginVersion, String currentTab, 
-                                          Throwable exception) {
+                                          Throwable exception, String environment) {
         return ErrorReport.builder()
             .userId(userId)
             .pluginVersion(pluginVersion)
@@ -63,6 +68,7 @@ public class ErrorReport {
             .errorType(exception.getClass().getSimpleName())
             .errorMessage(exception.getMessage())
             .stackTrace(getStackTraceAsString(exception))
+            .environment(environment)
             .timestamp(Instant.now())
             .build();
     }

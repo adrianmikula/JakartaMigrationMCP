@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.analytics.service;
 
 import adrianmikula.jakartamigration.analytics.config.SupabaseConfig;
 import adrianmikula.jakartamigration.analytics.model.ErrorReport;
+import adrianmikula.jakartamigration.analytics.util.EnvironmentDetector;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Properties;
@@ -26,6 +27,7 @@ public class ErrorReportingService implements AutoCloseable {
     private final ScheduledExecutorService scheduler;
     private final AtomicBoolean isRunning;
     private final String pluginVersion;
+    private final String environment;
     
     // Thread-safe current tab tracking
     private volatile String currentTab = "unknown";
@@ -42,6 +44,7 @@ public class ErrorReportingService implements AutoCloseable {
         });
         this.isRunning = new AtomicBoolean(false);
         this.pluginVersion = getPluginVersion();
+        this.environment = EnvironmentDetector.getCurrentEnvironment();
         
         if (userIdentificationService.isErrorReportingEnabled()) {
             startErrorProcessor();
@@ -80,7 +83,8 @@ public class ErrorReportingService implements AutoCloseable {
             userIdentificationService.getAnonymousUserId(),
             pluginVersion,
             currentTab,
-            exception
+            exception,
+            environment
         );
         
         addErrorToQueue(report);
@@ -99,7 +103,8 @@ public class ErrorReportingService implements AutoCloseable {
             userIdentificationService.getAnonymousUserId(),
             pluginVersion,
             currentTab,
-            exception
+            exception,
+            environment
         );
         
         // Add context to error message
@@ -177,12 +182,12 @@ public class ErrorReportingService implements AutoCloseable {
     }
     
     /**
-     * Gets plugin version from gradle.properties.
+     * Gets plugin version from version.properties.
      */
     private String getPluginVersion() {
         try {
             Properties props = new Properties();
-            try (var is = getClass().getClassLoader().getResourceAsStream("gradle.properties")) {
+            try (var is = getClass().getClassLoader().getResourceAsStream("version.properties")) {
                 if (is != null) {
                     props.load(is);
                     return props.getProperty("version", "unknown");

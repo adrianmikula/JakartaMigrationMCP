@@ -37,7 +37,7 @@ class UsageServiceTest {
     @Test
     void shouldTrackCreditUsage() {
         // When
-        usageService.trackCreditUsage("basic_scan");
+        usageService.trackCreditUsage("basic_scan", "test");
 
         // Then
         assertThat(usageService.getQueueSize()).isEqualTo(1);
@@ -49,7 +49,7 @@ class UsageServiceTest {
     @Test
     void shouldTrackUpgradeClick() {
         // When
-        usageService.trackUpgradeClick("truncation_notice");
+        usageService.trackUpgradeClick("truncation_notice", "test");
 
         // Then
         assertThat(usageService.getQueueSize()).isEqualTo(1);
@@ -65,8 +65,8 @@ class UsageServiceTest {
         UsageService disabledService = new UsageService(userIdentificationService);
 
         // When
-        disabledService.trackCreditUsage("basic_scan");
-        disabledService.trackUpgradeClick("truncation_notice");
+        disabledService.trackCreditUsage("basic_scan", "test");
+        disabledService.trackUpgradeClick("truncation_notice", "test");
 
         // Then
         assertThat(disabledService.getQueueSize()).isEqualTo(0);
@@ -78,8 +78,8 @@ class UsageServiceTest {
     @Test
     void shouldProcessBatchWhenFlushCalled() {
         // Given
-        usageService.trackCreditUsage("basic_scan");
-        usageService.trackUpgradeClick("truncation_notice");
+        usageService.trackCreditUsage("basic_scan", "test");
+        usageService.trackUpgradeClick("truncation_notice", "test");
 
         // When
         usageService.flush();
@@ -91,10 +91,10 @@ class UsageServiceTest {
     @Test
     void shouldHandleMultipleEventsInQueue() {
         // When
-        usageService.trackCreditUsage("basic_scan");
-        usageService.trackCreditUsage("advanced_scan");
-        usageService.trackUpgradeClick("truncation_notice");
-        usageService.trackCreditUsage("pdf_report");
+        usageService.trackCreditUsage("basic_scan", "test");
+        usageService.trackCreditUsage("advanced_scan", "test");
+        usageService.trackUpgradeClick("truncation_notice", "test");
+        usageService.trackCreditUsage("pdf_report", "test");
 
         // Then
         assertThat(usageService.getQueueSize()).isEqualTo(4);
@@ -103,7 +103,7 @@ class UsageServiceTest {
     @Test
     void shouldCloseCleanly() throws InterruptedException {
         // Given
-        usageService.trackCreditUsage("basic_scan");
+        usageService.trackCreditUsage("basic_scan", "test");
 
         // When
         usageService.close();
