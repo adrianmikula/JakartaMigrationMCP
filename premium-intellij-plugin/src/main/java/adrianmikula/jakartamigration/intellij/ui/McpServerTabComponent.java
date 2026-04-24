@@ -24,12 +24,17 @@ public class McpServerTabComponent {
     private final JPanel panel;
     private JLabel statusLabel;
     private JTextArea toolsArea;
+    private final boolean showUpgradePrompt;
     
     private static final String MCP_DOCS_URL = "https://github.com/adrianmikula/JakartaMigrationMCP#mcp-server";
     private static final String GITHUB_URL = "https://github.com/adrianmikula/JakartaMigrationMCP";
     
     public McpServerTabComponent(Project project) {
         this.project = project;
+        // Check if MCP server is premium-only and user is not premium
+        boolean mcpServerPremiumOnly = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isMcpServerPremiumOnly();
+        boolean isPremium = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
+        this.showUpgradePrompt = mcpServerPremiumOnly && !isPremium;
         this.panel = createPanel();
     }
     
@@ -40,6 +45,11 @@ public class McpServerTabComponent {
     private JPanel createPanel() {
         JPanel mainPanel = new JPanel(new BorderLayout(20, 20));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        if (showUpgradePrompt) {
+            // Show upgrade prompt for non-premium users
+            return createUpgradePromptPanel(mainPanel);
+        }
         
         // Header
         JLabel headerLabel = new JLabel("MCP Server");
@@ -259,5 +269,78 @@ public class McpServerTabComponent {
         } catch (Exception e) {
             LOG.error("Failed to open URL: " + url, e);
         }
+    }
+    
+    private JPanel createUpgradePromptPanel(JPanel mainPanel) {
+        // Header
+        JLabel headerLabel = new JLabel("AI Assistant (Premium)");
+        headerLabel.setFont(new Font(headerLabel.getFont().getName(), Font.BOLD, 18));
+        headerLabel.setForeground(new Color(255, 140, 0)); // Orange color for premium
+        
+        JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        headerPanel.add(headerLabel);
+        
+        // Upgrade prompt content
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        
+        // Premium feature description
+        contentPanel.add(createSectionHeader("Premium Feature"));
+        
+        JTextArea descriptionArea = new JTextArea(
+            "The AI Assistant (MCP Server) provides powerful AI-powered tools for Jakarta EE migration:\n\n" +
+            "• Intelligent migration analysis and recommendations\n" +
+            "• Automated dependency updates and OpenRewrite refactoring\n" +
+            "• Advanced blocker detection and risk assessment\n" +
+            "• Comprehensive migration planning and validation\n\n" +
+            "Upgrade to Premium to unlock all AI Assistant features and accelerate your Jakarta EE migration."
+        );
+        descriptionArea.setEditable(false);
+        descriptionArea.setBackground(null);
+        descriptionArea.setWrapStyleWord(true);
+        descriptionArea.setLineWrap(true);
+        descriptionArea.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        descriptionArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        contentPanel.add(descriptionArea);
+        contentPanel.add(Box.createVerticalStrut(20));
+        
+        // Upgrade button section
+        contentPanel.add(createSectionHeader("Upgrade to Premium"));
+        contentPanel.add(createUpgradeButtonPanel());
+        contentPanel.add(Box.createVerticalStrut(20));
+        
+        // Documentation section (still available)
+        contentPanel.add(createSectionHeader("Documentation"));
+        contentPanel.add(createDocumentationPanel());
+        
+        // Wrap in scroll pane
+        JScrollPane scrollPane = new JScrollPane(contentPanel);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+        
+        return mainPanel;
+    }
+    
+    private JPanel createUpgradeButtonPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
+        // Create upgrade button using existing PremiumUpgradeButton component
+        JButton upgradeButton = adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton.createUpgradeButton(
+            project, 
+            "ai_tab",
+            "⬆ Upgrade to Premium",
+            "Unlock AI Assistant and all premium features for unlimited Jakarta EE migration support"
+        );
+        
+        // Add upgrade button to center
+        JPanel buttonWrapper = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        buttonWrapper.add(upgradeButton);
+        panel.add(buttonWrapper, BorderLayout.CENTER);
+        
+        return panel;
     }
 }

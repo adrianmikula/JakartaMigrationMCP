@@ -40,6 +40,13 @@ public class RefactorTabComponent {
     private final JLabel progressLabel;
     private RecipeDefinition selectedRecipe;
 
+    // File modification results components
+    private JPanel fileResultsPanel;
+    private JBLabel fileResultsLabel;
+    private JBScrollPane fileListScrollPane;
+    private JPanel fileListPanel;
+    private JButton toggleFileListButton;
+
     // Callback to notify other tabs (e.g. history) after a recipe runs
     private Runnable onRecipeExecuted;
 
@@ -64,6 +71,13 @@ public class RefactorTabComponent {
         this.detailsUndoButton = new JButton("Undo Changes");
         this.progressBar = new JProgressBar();
         this.progressLabel = new JLabel("");
+
+        // Initialize file results components
+        this.fileResultsPanel = new JPanel(new BorderLayout());
+        this.fileResultsLabel = new JBLabel("");
+        this.fileListScrollPane = new JBScrollPane();
+        this.fileListPanel = new JPanel();
+        this.toggleFileListButton = new JButton("Show Modified Files");
 
         initializeComponent();
     }
@@ -163,6 +177,11 @@ public class RefactorTabComponent {
         progressPanel.add(progressLabel);
         content.add(progressPanel);
 
+        // File results panel (hidden until recipe completes)
+        setupFileResultsPanel();
+        content.add(fileResultsPanel);
+        content.add(Box.createVerticalStrut(8));
+
         JPanel buttonBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 10));
         buttonBar.setOpaque(false);
         detailsApplyButton.setEnabled(false);
@@ -182,6 +201,103 @@ public class RefactorTabComponent {
 
         detailsPanel.add(content, BorderLayout.CENTER);
         detailsPanel.add(buttonBar, BorderLayout.SOUTH);
+    }
+
+    private void setupFileResultsPanel() {
+        fileResultsPanel.setVisible(false);
+        fileResultsPanel.setOpaque(false);
+        fileResultsPanel.setLayout(new BoxLayout(fileResultsPanel, BoxLayout.Y_AXIS));
+
+        // File results summary label
+        fileResultsLabel.setFont(fileResultsLabel.getFont().deriveFont(Font.BOLD, 12f));
+        fileResultsLabel.setForeground(new Color(0, 100, 0));
+        fileResultsPanel.add(fileResultsLabel);
+        fileResultsPanel.add(Box.createVerticalStrut(5));
+
+        // Toggle button for file list
+        toggleFileListButton.setFont(toggleFileListButton.getFont().deriveFont(Font.PLAIN, 11f));
+        toggleFileListButton.setVisible(false);
+        toggleFileListButton.addActionListener(e -> toggleFileListVisibility());
+        fileResultsPanel.add(toggleFileListButton);
+        fileResultsPanel.add(Box.createVerticalStrut(5));
+
+        // File list scroll pane
+        fileListScrollPane.setVisible(false);
+        fileListScrollPane.setPreferredSize(new Dimension(400, 150));
+        fileListScrollPane.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+
+        // File list panel
+        fileListPanel.setLayout(new BoxLayout(fileListPanel, BoxLayout.Y_AXIS));
+        fileListPanel.setBackground(Color.WHITE);
+
+        fileListScrollPane.setViewportView(fileListPanel);
+        fileResultsPanel.add(fileListScrollPane);
+    }
+
+    private void toggleFileListVisibility() {
+        boolean isVisible = fileListScrollPane.isVisible();
+        fileListScrollPane.setVisible(!isVisible);
+        toggleFileListButton.setText(isVisible ? "Show Modified Files" : "Hide Modified Files");
+        fileResultsPanel.revalidate();
+        fileResultsPanel.repaint();
+    }
+
+    private void updateFileResultsDisplay(RecipeExecutionResult result) {
+        if (result.success() && result.filesChanged() > 0) {
+            // Show file results panel
+            fileResultsPanel.setVisible(true);
+            
+            // Update summary label
+            String summary = String.format("✓ Modified %d of %d files", 
+                result.filesChanged(), result.filesProcessed());
+            fileResultsLabel.setText(summary);
+            
+            // Show toggle button if there are files to display
+            if (!result.changedFilePaths().isEmpty()) {
+                toggleFileListButton.setVisible(true);
+                toggleFileListButton.setText("Show Modified Files");
+                
+                // Update file list
+                updateFileList(result.changedFilePaths());
+            } else {
+                toggleFileListButton.setVisible(false);
+                fileListScrollPane.setVisible(false);
+            }
+        } else {
+            // Hide file results panel if no files were changed or execution failed
+            fileResultsPanel.setVisible(false);
+        }
+        
+        fileResultsPanel.revalidate();
+        fileResultsPanel.repaint();
+    }
+
+    private void updateFileList(List<String> filePaths) {
+        fileListPanel.removeAll();
+        
+        for (String filePath : filePaths) {
+            JPanel filePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 2));
+            filePanel.setOpaque(false);
+            
+            // File icon (using a simple text representation)
+            JLabel fileIcon = new JLabel("📄");
+            fileIcon.setFont(fileIcon.getFont().deriveFont(10f));
+            filePanel.add(fileIcon);
+            
+            // File path label
+            JLabel fileLabel = new JLabel(filePath);
+            fileLabel.setFont(fileLabel.getFont().deriveFont(Font.PLAIN, 11f));
+            fileLabel.setForeground(new Color(60, 60, 60));
+            filePanel.add(fileLabel);
+            
+            fileListPanel.add(filePanel);
+        }
+        
+        // Add some space at the bottom
+        fileListPanel.add(Box.createVerticalStrut(10));
+        
+        fileListPanel.revalidate();
+        fileListPanel.repaint();
     }
 
     private void updateDetails(RecipeDefinition recipe) {
@@ -393,7 +509,7 @@ public class RefactorTabComponent {
         if (confirm == Messages.YES) {
             // Use credit if free tier
             if (!isPremium) {
-                boolean creditUsed = creditsService.useCredit(CreditType.ACTIONS);
+                boolean creditUsed = creditsService.useCredit(CreditType.ACTIONS, "Refactor", "apply_recipe");
                 if (creditUsed) {
                     LOG.info("Credit deducted for applying recipe: " + recipe.getName() +
                         ". Remaining: " + creditsService.getRemainingCredits(CreditType.ACTIONS));
@@ -409,8 +525,19 @@ public class RefactorTabComponent {
                         ApplicationManager.getApplication().invokeLater(() -> {
                             setRunning(false);
                             if (result.success()) {
-                                Messages.showInfoMessage(project, "Successfully applied '" + recipe.getName() + "'.",
-                                        "Success");
+                                // Update file results display
+                                updateFileResultsDisplay(result);
+                                
+                                // Create enhanced success message
+                                String successMessage;
+                                if (result.filesChanged() > 0) {
+                                    successMessage = String.format("Successfully applied '%s'.\n\nModified %d of %d files.", 
+                                        recipe.getName(), result.filesChanged(), result.filesProcessed());
+                                } else {
+                                    successMessage = String.format("Successfully applied '%s'.\n\nNo files required modification.", 
+                                        recipe.getName());
+                                }
+                                Messages.showInfoMessage(project, successMessage, "Success");
                             } else {
                                 Messages.showErrorDialog(project, "Failed: " + result.errorMessage(), "Error");
                             }
@@ -470,7 +597,7 @@ public class RefactorTabComponent {
         if (confirm == Messages.YES) {
             // Use credit if free tier
             if (!isPremium) {
-                boolean creditUsed = creditsService.useCredit(CreditType.ACTIONS);
+                boolean creditUsed = creditsService.useCredit(CreditType.ACTIONS, "Refactor", "undo_recipe");
                 if (creditUsed) {
                     LOG.info("Credit deducted for undoing recipe: " + recipe.getName() +
                         ". Remaining: " + creditsService.getRemainingCredits(CreditType.ACTIONS));
@@ -485,7 +612,18 @@ public class RefactorTabComponent {
                         ApplicationManager.getApplication().invokeLater(() -> {
                             setRunning(false);
                             if (result.success()) {
-                                Messages.showInfoMessage(project, "Successfully reverted changes.", "Undo Complete");
+                                // Update file results display for undo operation
+                                updateFileResultsDisplay(result);
+                                
+                                // Create enhanced undo message
+                                String undoMessage;
+                                if (result.filesChanged() > 0) {
+                                    undoMessage = String.format("Successfully reverted changes.\n\nModified %d of %d files.", 
+                                        result.filesChanged(), result.filesProcessed());
+                                } else {
+                                    undoMessage = "Successfully reverted changes. No files required modification.";
+                                }
+                                Messages.showInfoMessage(project, undoMessage, "Undo Complete");
                             } else {
                                 Messages.showErrorDialog(project, "Undo failed: " + result.errorMessage(),
                                         "Undo Failed");

@@ -32,11 +32,9 @@ public class SafeLicenseChecker {
     
     // License check timeout from configuration
     private static final long LICENSE_CHECK_TIMEOUT_MS = LicenseFailsafeConfig.getLicenseTimeoutMs();
-    
-    // Cached license status with fallback
-    private static final AtomicReference<LicenseResult> cachedResult = new AtomicReference<>();
-    private static volatile long lastCheckTime = 0;
-    private static final long CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+
+    // Cache for LicenseResult objects (separate from CheckLicense's boolean cache)
+    private static final AtomicReference<LicenseResult> cachedLicenseResult = new AtomicReference<>();
     
     /**
      * Result of license check with safety information
@@ -126,6 +124,24 @@ public class SafeLicenseChecker {
         
         // Perform async license check with timeout
         return performLicenseCheckWithTimeout();
+    }
+
+    /**
+     * Get cached license result if available and not expired.
+     */
+    private static LicenseResult getCachedResult() {
+        LicenseResult cached = cachedLicenseResult.get();
+        if (cached != null) {
+            // Check if cache is still valid (24 hour expiry like CheckLicense)
+            long age = System.currentTimeMillis() - cached.timestamp;
+            if (age < 24 * 60 * 60 * 1000) { // 24 hours
+                return cached;
+            } else {
+                // Cache expired, clear it
+                cachedLicenseResult.set(null);
+            }
+        }
+        return null;
     }
     
     /**
@@ -247,18 +263,6 @@ public class SafeLicenseChecker {
     
     // Private helper methods
     
-    @Nullable
-    private static LicenseResult getCachedResult() {
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - lastCheckTime < CACHE_DURATION_MS) {
-            LicenseResult cached = cachedResult.get();
-            if (cached != null) {
-                return cached;
-            }
-        }
-        return null;
-    }
-    
     @NotNull
     private static LicenseResult performLicenseCheckWithTimeout() {
         try {
@@ -266,9 +270,10 @@ public class SafeLicenseChecker {
                 return performLicenseCheckInternal();
             });
             
+            // CheckLicense.isLicensed() already caches for 24 hours, so we just add timeout protection
             LicenseResult result = future.get(LICENSE_CHECK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            cachedResult.set(result);
-            lastCheckTime = System.currentTimeMillis();
+            // Cache the result for future use
+            cachedLicenseResult.set(result);
             return result;
             
         } catch (Exception e) {
@@ -313,10 +318,11 @@ public class SafeLicenseChecker {
     
     /**
      * Clear the license cache to force fresh check.
+     * Delegates to CheckLicense.clearCache() since it maintains the primary cache.
      */
     public static void clearCache() {
-        cachedResult.set(null);
-        lastCheckTime = 0;
-        LOG.info("SafeLicenseChecker: Cache cleared");
+        CheckLicense.clearCache();
+        cachedLicenseResult.set(null);
+        LOG.info("SafeLicenseChecker: Cache cleared (delegated to CheckLicense and local cache cleared)");
     }
 }

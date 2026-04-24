@@ -7,6 +7,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.Namespace;
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.intellij.model.RiskLevel;
+import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBPanel;
@@ -40,9 +41,23 @@ public class DependencyGraphComponent {
         this.dependencyGraph = new DependencyGraph();
         this.panel = new JBPanel<>(new BorderLayout());
         this.graphCanvas = new GraphCanvas();
-        this.layoutCombo = new JComboBox<>(new String[]{
-            "Hierarchical", "Circular", "Tree", "Force-Directed"
-        });
+        
+        // Check if user is premium
+        boolean isPremium = CheckLicense.isLicensed();
+        
+        // Setup layout dropdown based on license status
+        if (isPremium) {
+            // Premium users get all layout options
+            this.layoutCombo = new JComboBox<>(new String[]{
+                "Hierarchical", "Circular", "Tree", "Force-Directed"
+            });
+        } else {
+            // Freemium users get only Hierarchical with premium message
+            this.layoutCombo = new JComboBox<>(new String[]{
+                "Hierarchical", "Other layouts (Premium only)"
+            });
+        }
+        
         this.organisationalDependenciesCheck = new JCheckBox("Organisational Dependencies", true);
         this.directDependenciesCheck = new JCheckBox("Direct Dependencies", true);
         this.transitiveDependenciesCheck = new JCheckBox("Transitive Dependencies", true);
@@ -162,6 +177,27 @@ public class DependencyGraphComponent {
 
     private void handleLayoutChange(ActionEvent e) {
         String selected = (String) layoutCombo.getSelectedItem();
+        
+        // Check if user is trying to access premium layouts
+        if ("Other layouts (Premium only)".equals(selected)) {
+            boolean isPremium = CheckLicense.isLicensed();
+            if (!isPremium) {
+                Messages.showInfoMessage(
+                    project,
+                    "Other graph layouts (Circular, Tree, Force-Directed) are available with Premium subscription.\n\n" +
+                    "Upgrade to Premium to unlock all layout options:\n" +
+                    "• Circular layout - ideal for moderate dependency counts\n" +
+                    "• Tree layout - perfect for hierarchical structures\n" +
+                    "• Force-Directed layout - best for large, complex graphs\n\n" +
+                    "Hierarchical layout remains available for all users.",
+                    "Premium Feature");
+                // Reset to Hierarchical
+                layoutCombo.setSelectedItem("Hierarchical");
+                graphCanvas.setLayoutStrategy(new HierarchicalLayoutStrategy());
+                return;
+            }
+        }
+        
         if ("Hierarchical".equals(selected)) {
             graphCanvas.setLayoutStrategy(new HierarchicalLayoutStrategy());
         } else if ("Force-Directed".equals(selected)) {

@@ -9,6 +9,7 @@ import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalys
 import adrianmikula.jakartamigration.analysis.persistence.SqliteMigrationAnalysisStore;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.fail;
 
 import java.time.Instant;
 import java.nio.file.Paths;
@@ -69,4 +70,238 @@ public class DashboardComponentTest extends BasePlatformTestCase {
         assertThat(dashboardComponent.getJpaScanCountValue().getText()).isEqualTo("0");
     }
 
+    // ==================== New Score Calculation Tests ====================
+
+    /**
+     * Test getColorForMetric for negative metrics (lower is better like issue counts).
+     * Thresholds: green (<=0), yellow (<=5), orange (<=10), red (>10)
+     */
+    public void testGetColorForMetric_NegativeMetric() throws Exception {
+        java.lang.reflect.Method method = DashboardComponent.class.getDeclaredMethod(
+                "getColorForMetric", int.class, int[].class, boolean.class);
+        method.setAccessible(true);
+
+        int[] thresholds = {0, 5, 10};
+
+        // Test negative metric (lower is better)
+        java.awt.Color green = (java.awt.Color) method.invoke(dashboardComponent, 0, thresholds, false);
+        java.awt.Color yellow = (java.awt.Color) method.invoke(dashboardComponent, 3, thresholds, false);
+        java.awt.Color orange = (java.awt.Color) method.invoke(dashboardComponent, 8, thresholds, false);
+        java.awt.Color red = (java.awt.Color) method.invoke(dashboardComponent, 15, thresholds, false);
+
+        // Green should be returned for 0 issues
+        assertThat(green.getGreen()).isGreaterThan(green.getRed());
+        // Red should be returned for high issue count
+        assertThat(red.getRed()).isGreaterThan(red.getGreen());
     }
+
+    /**
+     * Test getColorForMetric for positive metrics (higher is better like test coverage).
+     * Thresholds: red (<30), orange (<50), yellow (<70), green (>=70)
+     */
+    public void testGetColorForMetric_PositiveMetric() throws Exception {
+        java.lang.reflect.Method method = DashboardComponent.class.getDeclaredMethod(
+                "getColorForMetric", int.class, int[].class, boolean.class);
+        method.setAccessible(true);
+
+        int[] thresholds = {30, 50, 70};
+
+        // Test positive metric (higher is better)
+        java.awt.Color red = (java.awt.Color) method.invoke(dashboardComponent, 20, thresholds, true);
+        java.awt.Color orange = (java.awt.Color) method.invoke(dashboardComponent, 40, thresholds, true);
+        java.awt.Color yellow = (java.awt.Color) method.invoke(dashboardComponent, 60, thresholds, true);
+        java.awt.Color green = (java.awt.Color) method.invoke(dashboardComponent, 85, thresholds, true);
+
+        // Low test coverage should be red
+        assertThat(red.getRed()).isGreaterThan(red.getGreen());
+        // High test coverage should be green
+        assertThat(green.getGreen()).isGreaterThan(green.getRed());
+    }
+
+    /**
+     * Test getSourceCodeIssuesCount returns sum of all source code related scan counts.
+     */
+    public void testGetSourceCodeIssuesCount() throws Exception {
+        // Create summary with specific scan counts
+        AdvancedScanningService.AdvancedScanSummary summary = new AdvancedScanningService.AdvancedScanSummary(
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+
+        // Use reflection to access the private method
+        java.lang.reflect.Method method = DashboardComponent.class.getDeclaredMethod("getSourceCodeIssuesCount");
+        method.setAccessible(true);
+
+        // Initially should return 0 since no cached results
+        int count = (int) method.invoke(dashboardComponent);
+        assertThat(count).isEqualTo(0);
+    }
+
+    /**
+     * Test getConfigIssuesCount returns sum of build config and config file counts.
+     */
+    public void testGetConfigIssuesCount() throws Exception {
+        java.lang.reflect.Method method = DashboardComponent.class.getDeclaredMethod("getConfigIssuesCount");
+        method.setAccessible(true);
+
+        // Initially should return 0 since no cached results
+        int count = (int) method.invoke(dashboardComponent);
+        assertThat(count).isEqualTo(0);
+    }
+
+    /**
+     * Test getPlatformsNeedingUpgradeCount returns 0 when platforms tab not set.
+     */
+    public void testGetPlatformsNeedingUpgradeCount_NoPlatformsTab() throws Exception {
+        java.lang.reflect.Method method = DashboardComponent.class.getDeclaredMethod("getPlatformsNeedingUpgradeCount");
+        method.setAccessible(true);
+
+        int count = (int) method.invoke(dashboardComponent);
+        assertThat(count).isEqualTo(0);
+    }
+
+    /**
+     * Test getRecipesWithMatchesCount returns 0 when no cached results.
+     */
+    public void testGetRecipesWithMatchesCount_NoCachedResults() throws Exception {
+        java.lang.reflect.Method method = DashboardComponent.class.getDeclaredMethod("getRecipesWithMatchesCount");
+        method.setAccessible(true);
+
+        int count = (int) method.invoke(dashboardComponent);
+        assertThat(count).isEqualTo(0);
+    }
+
+    /**
+     * Test extractValue correctly parses numeric values from formatted bullet text.
+     */
+    public void testExtractValue() throws Exception {
+        java.lang.reflect.Method method = DashboardComponent.class.getDeclaredMethod("extractValue", String.class);
+        method.setAccessible(true);
+
+        // Test extracting value from formatted text
+        assertThat(method.invoke(dashboardComponent, "<html>&bull; Direct deps: 5</html>")).isEqualTo(5);
+        assertThat(method.invoke(dashboardComponent, "<html>&bull; Test coverage: 75%</html>")).isEqualTo(75);
+        assertThat(method.invoke(dashboardComponent, "<html><u>&bull; Issues: 42</u></html>")).isEqualTo(42);
+        assertThat(method.invoke(dashboardComponent, (String) null)).isEqualTo(0);
+        assertThat(method.invoke(dashboardComponent, "no colon here")).isEqualTo(0);
+    }
+
+    /**
+     * Test formatBulletText creates properly formatted HTML bullet text.
+     */
+    public void testFormatBulletText() throws Exception {
+        java.lang.reflect.Method method = DashboardComponent.class.getDeclaredMethod("formatBulletText", String.class, int.class);
+        method.setAccessible(true);
+
+        String result = (String) method.invoke(dashboardComponent, "Direct dependencies needing upgrade", 5);
+        assertThat(result).contains("Direct dependencies needing upgrade");
+        assertThat(result).contains("5");
+        assertThat(result).startsWith("<html>&bull;");
+    }
+
+    /**
+     * Test calculateConfidenceScore returns expected percentage based on dependency summary.
+     */
+    public void testCalculateConfidenceScore() throws Exception {
+        // Setup dashboard with dependency summary
+        MigrationDashboard dashboard = new MigrationDashboard();
+        DependencySummary summary = new DependencySummary();
+        summary.setTotalDependencies(100);
+        summary.setUnknownReviewCount(10); // 10 unknown = 90% confidence
+        dashboard.setDependencySummary(summary);
+        dashboard.setStatus(MigrationStatus.COMPLETED);
+
+        dashboardComponent.setDashboard(dashboard);
+
+        // Use reflection to test the private calculateConfidenceScore method
+        java.lang.reflect.Method method = DashboardComponent.class.getDeclaredMethod("calculateConfidenceScore");
+        method.setAccessible(true);
+
+        int score = (int) method.invoke(dashboardComponent);
+        // 100 total - 10 unknown = 90 known = 90% confidence
+        assertThat(score).isEqualTo(90);
+    }
+
+    /**
+     * Test calculateConfidenceScore with zero dependencies returns 0.
+     */
+    public void testCalculateConfidenceScore_ZeroDependencies() throws Exception {
+        MigrationDashboard dashboard = new MigrationDashboard();
+        DependencySummary summary = new DependencySummary();
+        summary.setTotalDependencies(0);
+        summary.setUnknownReviewCount(0);
+        dashboard.setDependencySummary(summary);
+
+        dashboardComponent.setDashboard(dashboard);
+
+        java.lang.reflect.Method method = DashboardComponent.class.getDeclaredMethod("calculateConfidenceScore");
+        method.setAccessible(true);
+
+        int score = (int) method.invoke(dashboardComponent);
+        assertThat(score).isEqualTo(0);
+    }
+
+    /**
+     * Test updateMcpServerStatus handles null MCP components without throwing NullPointerException.
+     * This test ensures the fix for the NPE issue where mcpStatusIndicator and other MCP components
+     * were accessed before initialization.
+     */
+    public void testUpdateMcpServerStatus_WithNullComponents() throws Exception {
+        // This test verifies that updateMcpServerStatus() can be called safely even when
+        // MCP components are not yet initialized (which was causing the NPE)
+        
+        // Call the method that was causing the NPE
+        // This should not throw any exception after our null check fixes
+        try {
+            dashboardComponent.updateMcpServerStatus();
+            // If we reach here, the NPE has been fixed
+            assertThat(true).isTrue();
+        } catch (NullPointerException e) {
+            // If we get an NPE, the fix didn't work properly
+            fail("updateMcpServerStatus() should not throw NPE even when MCP components are null: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Test updateMcpServerStatus with various MCP provider states.
+     * Verifies that all code paths handle null components properly.
+     */
+    public void testUpdateMcpServerStatus_AllProviderStates() throws Exception {
+        // Test multiple times to cover different provider states
+        for (int i = 0; i < 5; i++) {
+            try {
+                dashboardComponent.updateMcpServerStatus();
+                // Small delay to allow for any async operations
+                Thread.sleep(10);
+            } catch (NullPointerException e) {
+                fail("updateMcpServerStatus() should not throw NPE on iteration " + i + ": " + e.getMessage());
+            } catch (InterruptedException e) {
+                // Ignore interruption
+                Thread.currentThread().interrupt();
+            }
+        }
+        
+        // If we reach here, all provider states handled null components correctly
+        assertThat(true).isTrue();
+    }
+
+    /**
+     * Test that MCP status getter methods don't throw NPE when components are null.
+     */
+    public void testMcpStatusGetters_WithNullComponents() throws Exception {
+        try {
+            // These getter methods should handle null components gracefully
+            dashboardComponent.getMcpStatusValue();
+            dashboardComponent.getJpaScanCountValue();
+            dashboardComponent.getBeanValidationScanCountValue();
+            dashboardComponent.getServletJspScanCountValue();
+            dashboardComponent.getCdiInjectionScanCountValue();
+            dashboardComponent.getBuildConfigScanCountValue();
+            dashboardComponent.getRestSoapScanCountValue();
+            
+            // If we reach here, all getters handled null components properly
+            assertThat(true).isTrue();
+        } catch (NullPointerException e) {
+            fail("MCP status getter methods should not throw NPE even when components are null: " + e.getMessage());
+        }
+    }
+
+}

@@ -80,20 +80,25 @@ public class DependenciesTableComponentTest extends BasePlatformTestCase {
                 "Unknown", null, DependencyMigrationStatus.COMPATIBLE, true, false));
         tableComponent.setDependencies(deps);
 
+        // Test "Hide Transitive Dependencies" checkbox - when selected, transitive deps are hidden
         tableComponent.getTransitiveFilter().setSelected(true);
-        // trigger the action listener manually if needed, or check ifsetSelected
-        // triggers it
-        // Actually JCheckBox doesn't trigger ActionListener on setSelected(boolean),
-        // need to call logic or simulate event
 
-        // Let's re-run filtering manually if setSelected doesn't trigger it in unit
-        // tests
+        // Trigger the action listener manually - JCheckBox doesn't trigger ActionListener on setSelected
         for (java.awt.event.ActionListener l : tableComponent.getTransitiveFilter().getActionListeners()) {
             l.actionPerformed(new java.awt.event.ActionEvent(tableComponent.getTransitiveFilter(), 0, ""));
         }
 
+        // Should only show direct dependency now (transitive is hidden)
         assertThat(tableComponent.getTableModel().getRowCount()).isEqualTo(1);
-        assertThat(tableComponent.getTableModel().getValueAt(0, 0)).isEqualTo("transitive.dep");
+        assertThat(tableComponent.getTableModel().getValueAt(0, 0)).isEqualTo("direct.dep");
+
+        // Uncheck - should show all dependencies again
+        tableComponent.getTransitiveFilter().setSelected(false);
+        for (java.awt.event.ActionListener l : tableComponent.getTransitiveFilter().getActionListeners()) {
+            l.actionPerformed(new java.awt.event.ActionEvent(tableComponent.getTransitiveFilter(), 0, ""));
+        }
+
+        assertThat(tableComponent.getTableModel().getRowCount()).isEqualTo(2);
     }
 
     public void testFilteringByUnknownStatus() {

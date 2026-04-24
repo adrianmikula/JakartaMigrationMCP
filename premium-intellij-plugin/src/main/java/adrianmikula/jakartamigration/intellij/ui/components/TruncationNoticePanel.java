@@ -1,5 +1,7 @@
 package adrianmikula.jakartamigration.intellij.ui.components;
 
+import adrianmikula.jakartamigration.analytics.service.UsageService;
+import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBPanel;
 
@@ -20,10 +22,16 @@ public class TruncationNoticePanel extends JBPanel<TruncationNoticePanel> {
 
     private final JBLabel messageLabel;
     private final JBLabel upgradeLink;
+    private final UsageService usageService;
 
     public TruncationNoticePanel() {
         super(new BorderLayout());
         messageLabel = new JBLabel();
+        
+        // Initialize analytics service for upgrade tracking
+        UserIdentificationService userIdentificationService = new UserIdentificationService();
+        this.usageService = new UsageService(userIdentificationService);
+        
         upgradeLink = createUpgradeLink();
         initializeUI();
     }
@@ -66,6 +74,10 @@ public class TruncationNoticePanel extends JBPanel<TruncationNoticePanel> {
         link.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
+                // Track upgrade click analytics with context
+                if (usageService != null) {
+                    usageService.trackUpgradeClick("truncation_notice", "TruncationNotice");
+                }
                 openMarketplace();
             }
 

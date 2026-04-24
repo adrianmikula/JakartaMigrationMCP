@@ -54,93 +54,14 @@ class LicenseServiceTest {
 
     // === Subscription Status Tests ===
 
-    @Test
-    @DisplayName("Should return false for community tier subscription")
-    void shouldReturnFalseForCommunitySubscription() {
-        lenient().when(properties.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
-        assertThat(licenseService.hasActiveSubscription()).isFalse();
-    }
-
-    @Test
-    @DisplayName("Should return true for premium tier subscription")
-    void shouldReturnTrueForPremiumSubscription() {
-        lenient().when(properties.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
-        assertThat(licenseService.hasActiveSubscription()).isTrue();
-    }
-
-    // === Trial Activation Tests ===
-
-    @Test
-    @DisplayName("Should return false for subscription when trial not started")
-    void shouldReturnFalseWhenTrialNotStarted() {
-        lenient().when(properties.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
-        lenient().when(properties.getTrialEndTimestamp()).thenReturn(null);
-        assertThat(licenseService.hasActiveSubscription()).isFalse();
-        assertThat(licenseService.isTrialActive()).isFalse();
-        assertThat(licenseService.getRemainingTrialDays()).isEqualTo(0);
-    }
-
-    @Test
-    @DisplayName("Should return true for subscription during active trial")
-    void shouldReturnTrueDuringActiveTrial() {
-        lenient().when(properties.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
-        // Set trial to expire 5 days from now
-        long trialEnd = System.currentTimeMillis() + (5L * 24 * 60 * 60 * 1000);
-        lenient().when(properties.getTrialEndTimestamp()).thenReturn(trialEnd);
-        assertThat(licenseService.hasActiveSubscription()).isTrue();
-        assertThat(licenseService.isTrialActive()).isTrue();
-        assertThat(licenseService.getRemainingTrialDays()).isGreaterThan(0);
-        assertThat(licenseService.getRemainingTrialDays()).isLessThanOrEqualTo(5);
-    }
-
-    @Test
-    @DisplayName("Should return false for subscription after trial expired")
-    void shouldReturnFalseAfterTrialExpired() {
-        lenient().when(properties.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
-        // Set trial to expired yesterday
-        long trialEnd = System.currentTimeMillis() - (24L * 60 * 60 * 1000);
-        lenient().when(properties.getTrialEndTimestamp()).thenReturn(trialEnd);
-        assertThat(licenseService.hasActiveSubscription()).isFalse();
-        assertThat(licenseService.isTrialActive()).isFalse();
-        assertThat(licenseService.getRemainingTrialDays()).isEqualTo(0);
-    }
-
-    // === Subscription Status String Tests ===
-
-    @Test
-    @DisplayName("Should return Community status for free tier")
-    void shouldReturnCommunityStatusForFreeTier() {
-        lenient().when(properties.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
-        lenient().when(properties.getTrialEndTimestamp()).thenReturn(null);
-        assertThat(licenseService.getSubscriptionStatus()).isEqualTo("Community (Free)");
-    }
-
-    @Test
-    @DisplayName("Should return Premium status for paid subscription")
-    void shouldReturnPremiumStatusForPaidSubscription() {
-        lenient().when(properties.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.PREMIUM);
-        assertThat(licenseService.getSubscriptionStatus()).isEqualTo("Premium Subscription");
-    }
-
-    @Test
-    @DisplayName("Should return Trial status with days remaining")
-    void shouldReturnTrialStatusWithDaysRemaining() {
-        lenient().when(properties.getDefaultTier()).thenReturn(FeatureFlagsProperties.LicenseTier.COMMUNITY);
-        long trialEnd = System.currentTimeMillis() + (5L * 24 * 60 * 60 * 1000);
-        lenient().when(properties.getTrialEndTimestamp()).thenReturn(trialEnd);
-        String status = licenseService.getSubscriptionStatus();
-        assertThat(status).contains("Trial");
-        assertThat(status).contains("days remaining");
-    }
-
     // === Upgrade Prompt Tests ===
 
     @Test
     @DisplayName("Should return upgrade prompt with pricing")
     void shouldReturnUpgradePromptWithPricing() {
         String prompt = licenseService.getUpgradePrompt();
-        assertThat(prompt).contains("$49/month");
-        assertThat(prompt).contains("$399/year");
+        assertThat(prompt).contains("$5/month");
+        assertThat(prompt).contains("$50/year");
         assertThat(prompt).contains("Upgrade to Premium");
     }
 

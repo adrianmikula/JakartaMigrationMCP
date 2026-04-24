@@ -12,6 +12,8 @@ spec/
 ├── plugin-components.tsp       # IntelliJ plugin UI components
 ├── advanced-scanning.tsp       # Advanced scanning and recipe recommendation services
 ├── pdf-reporting.tsp           # PDF reporting and analysis services
+├── enhanced-test-coverage-analysis.tsp  # Enhanced test coverage analysis (reusing existing scanners)
+├── html-to-pdf-reporting.tsp   # HTML-to-PDF report generation (replacing PDFBox)
 ├── tspconfig.yaml             # TypeSpec compiler configuration
 └── README.md                  # This file
 ```
@@ -91,6 +93,59 @@ Defines PDF generation and reporting services:
   - Report templates and sections
   - Generation options
   - Validation rules
+
+### 7. `enhanced-test-coverage-analysis.tsp` - Enhanced Test Coverage Analysis
+Defines enhanced test coverage analysis building on existing file counting infrastructure:
+
+- **Enhanced Test Coverage Analysis Service**:
+  - Builds on existing test file counting (src/test/, Test*.java patterns)
+  - Correlates test coverage with migration risk
+  - Critical risk zone detection (migration issues + low coverage)
+  - Enhanced recommendations for test improvement
+- **Data Models**:
+  - Enhanced module coverage analysis
+  - Critical risk zone identification
+  - Migration readiness validation
+  - Dashboard integration data
+
+### 8. `html-to-pdf-reporting.tsp` - HTML-to-PDF Report Generation
+Defines professional HTML-to-PDF report generation replacing PDFBox approach:
+
+- **HTML-to-PDF Report Service**:
+  - HTML template-based report generation
+  - Professional styling and layout
+  - Multiple template options (Professional, Technical, Minimal)
+  - Color scheme customization
+- **Template System**:
+  - Executive summary sections
+  - Visual hierarchy with CSS styling
+  - Responsive design for PDF output
+  - Template validation and preview
+- **Conversion Features**:
+  - OpenHTMLtoPDF integration
+  - Report preview functionality
+  - Data validation before generation
+  - Generation statistics and metadata
+
+## Implementation Status ✅
+
+### ✅ Enhanced Test Coverage Analysis
+- **EnhancedTestCoverageAnalysisService**: Implemented with library-based test type detection
+- **Critical Risk Zone Detection**: Identifies modules with migration issues + low coverage
+- **Migration-Aware Confidence Scoring**: Prioritizes integration tests over mocked unit tests
+- **UI Integration**: Enhanced dashboard with detailed validation confidence breakdown
+
+### ✅ HTML-to-PDF Report Generation
+- **HtmlToPdfReportServiceImpl**: Professional HTML templates with CSS styling
+- **OpenHTMLtoPDF Integration**: Added dependency and conversion logic
+- **Template System**: Multiple professional templates (Professional, Technical, Minimal)
+- **Comprehensive Testing**: Full test coverage for new services
+
+### ✅ Architecture Compliance
+- **SDD Approach**: Detailed TypeSpec specifications created first
+- **TDD Implementation**: Tests written before and during implementation
+- **Licensing Compliance**: Premium features properly isolated
+- **Code Quality**: KISS principles, SOLID patterns, comprehensive documentation
 
 ## 🎯 Requirements Mapping
 

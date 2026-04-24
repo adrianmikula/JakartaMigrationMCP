@@ -14,7 +14,11 @@ import org.jetbrains.annotations.NotNull;
 
 import java.awt.Desktop;
 import java.net.URI;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Service that monitors license status and notifies users when their license expires.
@@ -49,6 +53,16 @@ public class LicenseExpirationNotifier implements StartupActivity {
     // Singleton instance tracking
     private static volatile LicenseExpirationNotifier instance;
     private static volatile boolean isInitialized = false;
+    
+    // Scheduled executor for periodic checks - single thread is sufficient
+    private static final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1, r -> {
+        Thread t = new Thread(r, "JakartaMigration-LicenseExpirationNotifier");
+        t.setDaemon(true);
+        return t;
+    });
+    
+    // Track scheduled tasks for cleanup
+    private final AtomicReference<ScheduledFuture<?>> scheduledTask = new AtomicReference<>();
     
     @Override
     public void runActivity(@NotNull Project project) {
@@ -206,10 +220,27 @@ public class LicenseExpirationNotifier implements StartupActivity {
     }
     
     /**
-     * Shutdown hook - stops periodic checks.
+     * Shutdown hook - stops periodic checks and cleans up resources.
      */
     public static void shutdown() {
         isInitialized = false;
-        LOG.info("LicenseExpirationNotifier: Shutdown");
+        
+        // Cancel the scheduled task if it exists
+        if (instance != null && instance.scheduledTask.get() != null) {
+            instance.scheduledTask.get().cancel(false);
+            instance.scheduledTask.set(null);
+        }
+        
+        LOG.info("LicenseExpirationNotifier: Shutdown completed");
+    }
+    
+    /**
+     * Cleanup method for project disposal.
+     */
+    public void dispose() {
+        ScheduledFuture<?> future = scheduledTask.getAndSet(null);
+        if (future != null) {
+            future.cancel(false);
+        }
     }
 }

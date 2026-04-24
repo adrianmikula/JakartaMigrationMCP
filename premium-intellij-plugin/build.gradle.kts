@@ -108,6 +108,10 @@ dependencies {
     // Jackson for JSON serialization
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     
+    // SLF4J logging implementation
+    implementation("org.slf4j:slf4j-api:2.0.9")
+    implementation("org.slf4j:slf4j-simple:2.0.9")
+    
     // Community Core Engine - local project dependency (Apache 2.0)
     // Using 'api' to include classes in the final plugin JAR
     api(project(":community-core-engine"))
@@ -146,8 +150,8 @@ tasks.named<org.jetbrains.intellij.tasks.PrepareSandboxTask>("prepareSandbox") {
     exclude { entry ->
         // Exclude org.jetbrains.concurrency package to prevent bundling
         // This package is provided by IntelliJ platform and bundling it causes compatibility issues
-        entry.name.startsWith("org/jetbrains/concurrency/") ||
-        entry.name.contains("/org/jetbrains/concurrency/")
+        entry.name.contains("org/jetbrains/concurrency/") ||
+        entry.name.contains("org/jetbrains/util/")
     }
 }
 
@@ -197,6 +201,11 @@ tasks {
     // Configure JUnit Jupiter for testing
     test {
         useJUnitPlatform()
+
+        // Exclude UI tests that require full IntelliJ Platform environment
+        exclude("**/ui/UI*Tests.class")
+        exclude("**/ui/UI*TestSuite.class")
+        exclude("**/ui/ComprehensiveJakartaLookupTest.class")
     }
 }
 
@@ -220,20 +229,38 @@ tasks.named<Jar>("jar") {
     
     // Include community-core-engine classes
     val communityCoreEngine = project(":community-core-engine")
-    from(communityCoreEngine.sourceSets.main.get().output)
+    from(communityCoreEngine.sourceSets.main.get().output) {
+        // Exclude IDE-provided packages that should not be bundled
+        exclude("org/jetbrains/concurrency/**")
+        exclude("org/jetbrains/util/**")
+    }
     
     // Also include premium-core-engine classes
     val premiumCoreEngine = project(":premium-core-engine")
-    from(premiumCoreEngine.sourceSets.main.get().output)
+    from(premiumCoreEngine.sourceSets.main.get().output) {
+        // Exclude IDE-provided packages that should not be bundled
+        exclude("org/jetbrains/concurrency/**")
+        exclude("org/jetbrains/util/**")
+    }
+    
+    // Exclude IDE-provided packages from the main source set as well
+    from(sourceSets.main.get().output) {
+        exclude("org/jetbrains/concurrency/**")
+        exclude("org/jetbrains/util/**")
+    }
     
     // Include build info from generateBuildInfo (now in build directory)
     from(layout.buildDirectory.file("build-info.properties"))
 }
 
-// Ensure instrumentedJar task depends on generateBuildInfo
+// Ensure instrumentedJar task depends on generateBuildInfo and excludes IDE packages
 tasks.withType<Jar> {
     if (name == "instrumentedJar") {
         dependsOn("generateBuildInfo")
+        
+        // Exclude IDE-provided packages from instrumented JAR
+        exclude("org/jetbrains/concurrency/**")
+        exclude("org/jetbrains/util/**")
     }
 }
 
@@ -512,22 +539,24 @@ tasks.register<DefaultTask>("enableProductDescriptor") {
 }
 
 /**
- * Run IDE in development mode (skips licensing)
+ * Run IDE in development mode (skips licensing, enables dev tab with premium simulation)
  * 
  * Usage: ./gradlew :premium-intellij-plugin:runIdeDev
  */
-tasks.register("runIdeDev") {
+tasks.register<org.jetbrains.intellij.tasks.RunIdeTask>("runIdeDev") {
     group = "build"
-    description = "Run IDE in development mode (dev - skips all licensing checks)"
+    description = "Run IDE in development mode (dev - skips all licensing checks, enables dev tab)"
     
-    // Set development environment
+    // Set development environment system properties
+    systemProperty("jakarta.migration.mode", "dev")
+    // Note: Premium simulation is controlled via the Dev tab UI, not set by default
+    // Users can enable it via the Dev tab checkbox during development
+    
     doFirst {
         project.ext.set("environment", "dev")
         println("\n=== Running IDE in DEV MODE (skipping all licensing checks) ===")
+        println("Dev tab will be available with premium simulation settings")
     }
-    
-    // Run IDE without building JAR (uses existing classes)
-    finalizedBy("runIde")
 }
 
 /**
@@ -535,20 +564,39 @@ tasks.register("runIdeDev") {
  * 
  * Usage: ./gradlew :premium-intellij-plugin:runIdeDemo
  */
-tasks.register("runIdeDemo") {
+tasks.register<org.jetbrains.intellij.tasks.RunIdeTask>("runIdeDemo") {
     group = "build"
     description = "Run IDE in demo marketplace mode (demo - uses JetBrains Demo Marketplace)"
     
-    // Set demo environment
+    // Set demo environment system properties
+    systemProperty("jakarta.migration.mode", "demo")
+    
     doFirst {
         project.ext.set("environment", "demo")
         println("\n=== Running IDE in DEMO MODE (JetBrains Demo Marketplace) ===")
         println("NOTE: Make sure product descriptor is enabled in plugin.xml")
         println("Run: .\\fix-license-dialog.bat enable if needed")
     }
+}
+
+/**
+ * Run IDE in development mode with premium simulation enabled by default
+ * 
+ * Usage: ./gradlew :premium-intellij-plugin:runIdeDevPremium
+ */
+tasks.register<org.jetbrains.intellij.tasks.RunIdeTask>("runIdeDevPremium") {
+    group = "build"
+    description = "Run IDE in development mode with premium simulation enabled"
     
-    // Run IDE without building JAR (uses existing classes)
-    finalizedBy("runIde")
+    // Set development environment and premium simulation system properties
+    systemProperty("jakarta.migration.mode", "dev")
+    systemProperty("jakarta.migration.dev.simulate_premium", "true")
+    
+    doFirst {
+        project.ext.set("environment", "dev")
+        println("\n=== Running IDE in DEV MODE with PREMIUM SIMULATION ===")
+        println("Dev tab will be available with premium simulation ENABLED by default")
+    }
 }
 
 /**
@@ -556,21 +604,20 @@ tasks.register("runIdeDemo") {
  * 
  * Usage: ./gradlew :premium-intellij-plugin:runIdeProd
  */
-tasks.register("runIdeProd") {
+tasks.register<org.jetbrains.intellij.tasks.RunIdeTask>("runIdeProd") {
     group = "build"
     description = "Run IDE in production marketplace mode (production - uses JetBrains Production Marketplace)"
     
     // Enable product descriptor for production marketplace
     dependsOn("enableProductDescriptor")
     
-    // Set production environment
+    // Set production environment system properties
+    systemProperty("jakarta.migration.mode", "production")
+    
     doFirst {
         project.ext.set("environment", "production")
         println("\n=== Running IDE in PRODUCTION MODE (JetBrains Production Marketplace) ===")
     }
-    
-    // Run IDE without building JAR (uses existing classes)
-    finalizedBy("runIde")
 }
 
 /**

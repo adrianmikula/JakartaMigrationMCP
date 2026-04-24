@@ -1,4 +1,4 @@
-<idea-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/schemas/plugin/2/plugin.xsd" icon="/icons/pluginIcon.svg">
+<idea-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/schemas/plugin/2/plugin.xsd" icon="pluginIcon.svg">
     <!-- Freemium Monetization Parameters in product-descriptor  element: -->
 
     <!-- code: Your Product Code must:
@@ -27,7 +27,7 @@
     <idea-version since-build="233" />
 
     <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
-    <version>1.0.12</version>
+    <version>1.0.14</version>
 
     <name>Jakarta Migration (javax → jakarta)</name>
     <id>com.adrianmikula.jakarta-migration</id>
@@ -100,6 +100,10 @@
     <!-- IntelliJ Platform Version Requirements -->
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.java</depends>
+    
+    <!-- Premium module dependency for 2025.3+ unified distribution -->
+    <!-- This ensures premium features are disabled when user lacks active subscription -->
+    <depends optional="true">com.intellij.modules.ultimate</depends>
 
     <!-- Extensions for MCP Integration and Plugin Discoverability -->
     <extensions defaultExtensionNs="com.intellij">
@@ -147,7 +151,7 @@
                 class="adrianmikula.jakartamigration.intellij.JakartaMigrationAction"
                 text="Jakarta Migration"
                 description="Analyze and migrate to Jakarta EE"
-                icon="icons/pluginIcon.svg">
+                icon="pluginIcon.svg">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift J"/>
         </action>
@@ -157,12 +161,32 @@
                 class="adrianmikula.jakartamigration.intellij.JakartaMigrationAction"
                 text="Analyze with AI Assistant"
                 description="Analyze project with Jakarta Migration AI Assistant"
-                icon="icons/pluginIcon.svg">
+                icon="pluginIcon.svg">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>
     </actions>
 
+
     <change-notes><![CDATA[
+    <h>1.0.14 - 2026-04-23</h>
+    <ul>
+        <li>Renamed Dashboard tab to Risk tab, and added confidence dial</li>
+        <li>Expanded migration strategy phase descriptions</li>
+        <li>Added error reporting and collection of usage metrics</li>
+        <li>Fixed bugs with scan results display</li>
+        <li>Fixed performance issues</li>
+        <li>Fixed PDF report layout issue</li>
+        <li>Fixed bugs with force-directed dependency graph</li>
+        <li>Limited scan results to 5 for free verison</li>
+        <li>Limited dependency graph types for free verison</li>
+        <li>Limited report generation for free verison</li>
+        <li>Limited MCP tools for free verison</li>
+    </ul>
+    <h>1.0.13 - 2026-04-12</h>
+    <ul>
+        <li>Added deep scanning of transitive dependencies</li>
+        <li>Replaced time estimate with confidence score</li>
+    </ul>
     <h>1.0.12 - 2026-04-09</h>
     <ul>
         <li>Removed free trial period</li>

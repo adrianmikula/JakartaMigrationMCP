@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyProjectScanResult;
 import adrianmikula.jakartamigration.credits.CreditType;
 import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
@@ -18,9 +19,11 @@ import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalys
 import adrianmikula.jakartamigration.analysis.persistence.SqliteMigrationAnalysisStore;
 import adrianmikula.jakartamigration.coderefactoring.service.CodeRefactoringModule;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
+import adrianmikula.jakartamigration.intellij.ui.DevTabComponent;
 import adrianmikula.jakartamigration.intellij.ui.SimplePlatformsTabComponent;
 import adrianmikula.jakartamigration.intellij.ui.PlatformsTabComponent;
 import adrianmikula.jakartamigration.intellij.ui.ReportsTabComponent;
+import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -82,13 +85,21 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private PlatformsTabComponent platformsTabComponent;
         private RuntimeTabComponent runtimeTabComponent;
         private ReportsTabComponent reportsTabComponent;
+        private DevTabComponent devTabComponent;
         private CodeRefactoringModule refactorModule;
         private RecipeService recipeService;
         private SqliteMigrationAnalysisStore projectStore;
         private JTabbedPane tabbedPane;
         private JPanel toolbarPanel;
+        private JPanel scanControlsPanel;
         private CreditsProgressBar creditsProgressBar;
+        private CreditsService creditsService;
         private boolean isPremium;
+        
+        // Scan controls components
+        private JButton analyzeButton;
+        private JProgressBar scanProgressBar;
+        private JLabel scanProgressLabel;
 
         public MigrationToolWindowContent(Project project) {
             this.project = project;
@@ -103,6 +114,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             
             // Initialize advanced scanning service with recipe service
             this.advancedScanningService = new AdvancedScanningService(this.recipeService);
+            
+            // Initialize credits service
+            this.creditsService = new CreditsService();
 
             this.contentPanel = new JPanel(new BorderLayout());
 
@@ -144,14 +158,25 @@ public class MigrationToolWindow implements ToolWindowFactory {
             creditsProgressBar = new CreditsProgressBar(project);
             creditsProgressBar.refreshCredits();
 
-            // Toolbar with action buttons
+            // Scan controls panel with analyze button and progress bar
+            scanControlsPanel = createScanControlsPanel();
+
+            // Toolbar with action buttons (now minimal)
             toolbarPanel = createToolbar();
 
             tabbedPane = new JTabbedPane();
 
+            // Dev tab - only in development mode, positioned first
+            if (adrianmikula.jakartamigration.intellij.license.CheckLicense.isDevMode()) {
+                devTabComponent = new DevTabComponent(project, this::handlePremiumSimulationChanged);
+                tabbedPane.addTab("Dev", devTabComponent.getPanel());
+                LOG.info("initializeContent: Added Dev tab (development mode)");
+            }
+
             // Dashboard tab
             dashboardComponent = new DashboardComponent(project, advancedScanningService, this::handleAnalyzeProject);
-            tabbedPane.addTab("Dashboard", dashboardComponent.getPanel());
+            dashboardComponent.setExternalProgressComponents(scanProgressBar, scanProgressLabel, analyzeButton);
+            tabbedPane.addTab("Risk", dashboardComponent.getPanel());
 
             // Dependencies tab
             dependenciesComponent = new DependenciesTableComponent(project);
@@ -189,11 +214,18 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Support tab - links to GitHub, LinkedIn, sponsor pages
             supportComponent = new SupportComponent(project, v -> refreshPremiumTabs(), () -> refreshExperimentalTabs());
-            tabbedPane.addTab("Support", supportComponent.getPanel());
+            tabbedPane.addTab("About", supportComponent.getPanel());
 
-            // AI tab - always visible (formerly MCP Server)
-            mcpServerTabComponent = new McpServerTabComponent(project);
-            tabbedPane.addTab("AI", mcpServerTabComponent.getPanel());
+            // AI tab - controlled by premium feature flag (formerly MCP Server)
+            boolean mcpServerPremiumOnly = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isMcpServerPremiumOnly();
+            if (!mcpServerPremiumOnly || isPremium) {
+                mcpServerTabComponent = new McpServerTabComponent(project);
+                tabbedPane.addTab("AI", mcpServerTabComponent.getPanel());
+                LOG.info("initializeContent: Added AI tab (mcpServerPremiumOnly=" + mcpServerPremiumOnly + ", isPremium=" + isPremium + ")");
+            } else {
+                mcpServerTabComponent = null;
+                LOG.info("initializeContent: AI tab hidden - MCP server is premium only and user is not premium");
+            }
 
             // All tabs available for both free and premium users
             // Free users are limited by credits on premium features
@@ -231,6 +263,18 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Connect dashboard with platforms tab for risk integration
             dashboardComponent.setPlatformsTabComponent(platformsTabComponent);
 
+            // Set up tab switcher for dashboard explanation panels
+            dashboardComponent.setTabSwitcher(tabName -> {
+                // Find and switch to the requested tab
+                int tabIndex = findTabIndex(tabName);
+                if (tabIndex >= 0) {
+                    tabbedPane.setSelectedIndex(tabIndex);
+                    LOG.info("Switched to tab: " + tabName);
+                } else {
+                    LOG.warn("Tab not found: " + tabName);
+                }
+            });
+
             // Reports and Runtime tabs (Experimental features only)
             System.out.println("DEBUG: MigrationToolWindow - About to check experimental features");
             boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
@@ -257,15 +301,29 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Load initial state (empty - wait for user to analyze)
             loadInitialState();
 
-            // Layout: Credits bar (top, only for free users), then toolbar, then tabs
+            // Layout: Credits bar (top), scan controls panel, then tabs
             JPanel topPanel = new JPanel(new BorderLayout());
             topPanel.add(creditsProgressBar, BorderLayout.NORTH);
-            topPanel.add(toolbarPanel, BorderLayout.CENTER);
+            topPanel.add(scanControlsPanel, BorderLayout.CENTER);
             contentPanel.add(topPanel, BorderLayout.NORTH);
             contentPanel.add(tabbedPane, BorderLayout.CENTER);
 
             contentPanel.revalidate();
             contentPanel.repaint();
+        }
+
+        /**
+         * Handles premium simulation state changes from Dev tab.
+         * Triggers a complete UI rebuild to reflect the new license state.
+         */
+        private void handlePremiumSimulationChanged(boolean isSimulatingPremium) {
+            LOG.info("MigrationToolWindow: Premium simulation changed to: " + isSimulatingPremium);
+            
+            // Clear license cache to ensure fresh checks
+            adrianmikula.jakartamigration.intellij.license.CheckLicense.onPremiumSimulationChanged();
+            
+            // Rebuild the entire UI to reflect the new premium state
+            rebuildUI();
         }
 
         /**
@@ -364,16 +422,59 @@ public class MigrationToolWindow implements ToolWindowFactory {
             });
         }
 
+        /**
+         * Creates the scan controls panel with analyze button and progress bar.
+         * This panel will be positioned below the credits progress bar and above the tabs.
+         */
+        private JPanel createScanControlsPanel() {
+            scanControlsPanel = new JPanel(new BorderLayout());
+            scanControlsPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 20, 10)); // Increased bottom margin for larger gap
+
+            // Main container with horizontal layout for button and progress
+            JPanel mainContainer = new JPanel(new BorderLayout(10, 0));
+            
+            // Analyze button
+            analyzeButton = new JButton("▶ Analyze Project");
+            analyzeButton.setToolTipText("Run migration analysis on the current project");
+            analyzeButton.addActionListener(this::handleAnalyzeProject);
+            // Make button narrower and twice as tall
+            Dimension currentButtonSize = analyzeButton.getPreferredSize();
+            analyzeButton.setMaximumSize(new Dimension(180, currentButtonSize.height * 2));
+            analyzeButton.setPreferredSize(new Dimension(180, currentButtonSize.height * 2));
+            System.out.println("DEBUG: Analyze button created, enabled: " + analyzeButton.isEnabled());
+            
+            // Progress container
+            JPanel progressContainer = new JPanel(new BorderLayout(10, 0));
+            
+            // Progress bar - now handles long descriptions internally
+            scanProgressBar = new JProgressBar(0, 100);
+            scanProgressBar.setValue(0);
+            scanProgressBar.setStringPainted(true);
+            scanProgressBar.setString("Ready to scan");
+            // Match progress bar height to analyze button height
+            Dimension buttonSize = analyzeButton.getPreferredSize();
+            scanProgressBar.setPreferredSize(new Dimension(300, buttonSize.height));
+            scanProgressBar.setMaximumSize(new Dimension(300, buttonSize.height));
+            progressContainer.add(scanProgressBar, BorderLayout.CENTER);
+            
+            // Progress label - minimized since long descriptions now in progress bar
+            scanProgressLabel = new JLabel(""); // Initially empty
+            scanProgressLabel.setFont(scanProgressLabel.getFont().deriveFont(Font.PLAIN, 11f));
+            scanProgressLabel.setVisible(false); // Hidden by default
+            progressContainer.add(scanProgressLabel, BorderLayout.EAST);
+            
+            // Add analyze button to left, progress to right
+            mainContainer.add(analyzeButton, BorderLayout.WEST);
+            mainContainer.add(progressContainer, BorderLayout.CENTER);
+            
+            scanControlsPanel.add(mainContainer, BorderLayout.CENTER);
+
+            return scanControlsPanel;
+        }
+
         private JPanel createToolbar() {
             toolbarPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
             toolbarPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-
-            // Analyze Project button
-            JButton analyzeButton = new JButton("▶ Analyze Project");
-            analyzeButton.setToolTipText("Run migration analysis on the current project");
-            analyzeButton.addActionListener(this::handleAnalyzeProject);
-            System.out.println("DEBUG: Analyze button created, enabled: " + analyzeButton.isEnabled());
-            toolbarPanel.add(analyzeButton);
 
             // Status indicator
             JLabel statusLabel = new JLabel("Ready");
@@ -383,8 +484,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Add glue to push content to the left
             toolbarPanel.add(Box.createHorizontalGlue());
 
-            // Add license status / upgrade button
-            addLicenseButton(toolbarPanel);
+            // Note: License button is now handled in scanControlsPanel
+            // This toolbar is now minimal and could be removed in future
 
             return toolbarPanel;
         }
@@ -432,9 +533,12 @@ public class MigrationToolWindow implements ToolWindowFactory {
             JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
             buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 0, 0, 0));
 
-            JButton upgradeButton = new JButton("⬆ Upgrade to Premium");
-            upgradeButton.setFont(upgradeButton.getFont().deriveFont(Font.BOLD));
-            upgradeButton.addActionListener(e -> openMarketplace());
+            JButton upgradeButton = PremiumUpgradeButton.createUpgradeButton(
+                project, 
+                "migration_tool_window_placeholder",
+                "⬆ Upgrade to Premium",
+                "Get Premium features: Auto-fixes, one-click refactoring, binary fixes"
+            );
 
             buttonPanel.add(upgradeButton);
 
@@ -471,9 +575,12 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 toolbarPanel.add(premiumBadge);
             } else {
                 // Show upgrade button
-                JButton upgradeButton = new JButton("⬆ Upgrade to Premium");
-                upgradeButton.setToolTipText("Get unlimited scans and refactors: Auto-fixes, one-click refactoring, binary fixes");
-                upgradeButton.addActionListener(e -> openMarketplace());
+                JButton upgradeButton = PremiumUpgradeButton.createUpgradeButton(
+                    project,
+                    "migration_tool_window_toolbar",
+                    "⬆ Upgrade to Premium",
+                    "Get unlimited scans and refactors: Auto-fixes, one-click refactoring, binary fixes"
+                );
                 toolbarPanel.add(upgradeButton);
             }
         }
@@ -511,21 +618,39 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             final Path projectPath = Path.of(projectPathStr);
 
+            // Check credits for free users
+            if (!isPremium) {
+                // Check if user has remaining action credits
+                if (!creditsService.hasCredits(CreditType.ACTIONS)) {
+                    Messages.showWarningDialog(project, 
+                        "You've used all your free action credits. Upgrade to Premium to continue scanning projects.\n\n" +
+                        "Premium includes:\n" +
+                        "• Unlimited action credits\n" +
+                        "• Advanced scanning features\n" +
+                        "• PDF report generation\n" +
+                        "• Code refactoring tools",
+                        "Credits Exhausted");
+                    return;
+                }
+                
+                // Consume one action credit for the scan
+                boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS, "Scanning", "basic_scan");
+                if (!creditConsumed) {
+                    Messages.showErrorDialog(project, "Failed to consume action credit. Please try again.", "Credit Error");
+                    return;
+                }
+                
+                int remainingCredits = creditsService.getRemainingCredits(CreditType.ACTIONS);
+                LOG.info("handleAnalyzeProject: Consumed 1 action credit for free user. Remaining: " + remainingCredits);
+            }
+
             // Set UI to scanning state
             dashboardComponent.setAnalysisRunning(true);
 
-            // Check license status at runtime
-            boolean isLicensed = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
-            LOG.info("handleAnalyzeProject: License check - isLicensed=" + isLicensed);
-
-            if (isLicensed) {
-                // Premium: Run all scans with full results
-                runPremiumAnalysis(projectPath);
-            } else {
-                // Free user: Run basic analysis (truncation mode applied at display time based on credits)
-                LOG.info("handleAnalyzeProject: Free user, running basic analysis");
-                runBasicAnalysis(projectPath);
-            }
+            // Run full analysis for all users (deep scan with transitive dependencies)
+            // Display truncation for free users is handled by DependenciesTableComponent
+            LOG.info("handleAnalyzeProject: Running full analysis (deep scan with transitive dependencies)");
+            runFullAnalysis(projectPath);
         }
 
         /**
@@ -634,90 +759,247 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         /**
-         * Run all 3 scans sequentially for premium users:
-         * 1. Basic dependency analysis
+         * Run all 3 scans sequentially for all users:
+         * 1. Deep dependency scanning (or basic analysis as fallback)
          * 2. Advanced scans
          * 3. Platform detection
+         *
+         * Display truncation for free users is handled at the UI level by DependenciesTableComponent
+         * which limits results to 10 rows for non-premium users.
          */
-        private void runPremiumAnalysis(Path projectPath) {
-            LOG.info("runPremiumAnalysis: Starting sequential scan (basic → advanced → platform)");
+        private void runFullAnalysis(Path projectPath) {
+            LOG.info("runFullAnalysis: Starting sequential scan (deep deps -> advanced -> platform)");
 
-            // Step 1: Run basic analysis
-            CompletableFuture.supplyAsync(() -> analysisService.analyzeProject(projectPath))
-                    .thenCompose(basicReport -> {
-                        LOG.info("runPremiumAnalysis: Basic scan completed");
+            // Report initial progress
+            dashboardComponent.onScanPhase("Deep Dependency Analysis", 0, 3);
 
-                        // Update UI with basic results
-                        ApplicationManager.getApplication().invokeLater(() -> {
-                            if (basicReport != null && basicReport.dependencyGraph() != null &&
-                                    !basicReport.dependencyGraph().getNodes().isEmpty()) {
-                                store.saveAnalysisReport(projectPath, basicReport, false);
-                                updateDashboardFromReport(basicReport);
-                            } else {
-                                showEmptyResultsState();
-                            }
-                        });
+            // Step 1: Run deep dependency scanning (with fallback to basic analysis)
+            CompletableFuture.supplyAsync(() -> runDeepDependencyAnalysis(projectPath))
+                    .thenCompose(deepScanResult -> {
+                        LOG.info("runFullAnalysis: Dependency scan completed (deep or basic fallback)");
+                        
+                        // Report progress after dependency analysis
+                        dashboardComponent.onScanPhase("Advanced Scans", 1, 3);
 
-                        // Step 2: Run advanced scans
+                        // Step 2: Run advanced scans (without transitive dependency scanning)
                         return CompletableFuture.supplyAsync(() -> {
-                            LOG.info("runPremiumAnalysis: Starting advanced scans");
+                            LOG.info("runFullAnalysis: Starting advanced scans");
                             try {
                                 AdvancedScanningService.AdvancedScanSummary advancedSummary =
-                                        advancedScanningService.scanAll(projectPath);
-                                LOG.info("runPremiumAnalysis: Advanced scans completed");
+                                        advancedScanningService.scanAll(projectPath, dashboardComponent);
+                                LOG.info("runFullAnalysis: Advanced scans completed");
                                 return advancedSummary;
                             } catch (Exception ex) {
-                                LOG.warn("runPremiumAnalysis: Advanced scans failed", ex);
+                                LOG.warn("runFullAnalysis: Advanced scans failed", ex);
+                                dashboardComponent.onScanError(ex);
                                 return null; // Continue even if advanced scan fails
                             }
+                        }).thenApply(advancedSummary -> {
+                            // Combine deep dependency results with advanced summary if available
+                            if (deepScanResult != null && !deepScanResult.isEmpty()) {
+                                LOG.info("runFullAnalysis: Using deep dependency scan results with " +
+                                         deepScanResult.size() + " dependencies");
+                                // Store the deep scan results for display
+                                storeDeepDependencyResults(projectPath, deepScanResult);
+                            }
+                            return advancedSummary;
                         });
                     })
                     .thenCompose(advancedSummary -> {
-                        LOG.info("runPremiumAnalysis: Advanced scan step completed");
+                        LOG.info("runFullAnalysis: Advanced scan step completed");
+
+                        // Report progress for platform scan
+                        dashboardComponent.onScanPhase("Platform Detection", 2, 3);
 
                         // Update UI with advanced results
                         ApplicationManager.getApplication().invokeLater(() -> {
                             if (advancedSummary != null) {
                                 dashboardComponent.updateAdvancedScanCounts();
+                                // Refresh Advanced Scans tab to display the new results
+                                if (advancedScansComponent != null) {
+                                    advancedScansComponent.refreshFromCachedResults();
+                                }
                             }
                         });
 
                         // Step 3: Run platform scan
                         return CompletableFuture.supplyAsync(() -> {
-                            LOG.info("runPremiumAnalysis: Starting platform scan");
+                            LOG.info("runFullAnalysis: Starting platform scan");
                             try {
                                 if (platformsTabComponent != null) {
                                     platformsTabComponent.scanProject();
-                                    LOG.info("runPremiumAnalysis: Platform scan completed");
+                                    LOG.info("runFullAnalysis: Platform scan completed");
                                 } else {
-                                    LOG.warn("runPremiumAnalysis: platformsTabComponent is null");
+                                    LOG.warn("runFullAnalysis: platformsTabComponent is null");
                                 }
                                 return true;
                             } catch (Exception ex) {
-                                LOG.warn("runPremiumAnalysis: Platform scan failed", ex);
+                                LOG.warn("runFullAnalysis: Platform scan failed", ex);
                                 return false; // Continue even if platform scan fails
                             }
                         }).thenApply(platformSuccess -> advancedSummary);
                     })
                     .thenAccept(finalSummary -> {
+                        // Report completion
+                        dashboardComponent.onScanComplete();
+                        
                         ApplicationManager.getApplication().invokeLater(() -> {
-                            dashboardComponent.setAnalysisRunning(false);
-                            LOG.info("runPremiumAnalysis: All scans completed successfully");
-                            Messages.showInfoMessage(project,
-                                    "Premium analysis complete! Basic, advanced, and platform scans finished.",
-                                    "Analysis Complete");
+                            LOG.info("runFullAnalysis: All scans completed successfully");
+                            boolean isPremium = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
+                            if (isPremium) {
+                                Messages.showInfoMessage(project,
+                                        "Analysis complete! Deep dependency, advanced, and platform scans finished.",
+                                        "Analysis Complete");
+                            } else {
+                                Messages.showInfoMessage(project,
+                                        "Analysis complete! Showing all dependencies found.\n\n" +
+                                        "Note: Free users see first 10 dependencies in the Dependencies tab. " +
+                                        "Upgrade to Premium for unlimited access.",
+                                        "Analysis Complete");
+                            }
                         });
                     })
                     .exceptionally(ex -> {
+                        Exception exception = ex instanceof Exception ? (Exception) ex : new RuntimeException(ex);
+                        dashboardComponent.onScanError(exception);
                         ApplicationManager.getApplication().invokeLater(() -> {
                             dashboardComponent.setAnalysisRunning(false);
-                            LOG.error("runPremiumAnalysis: Analysis failed", ex);
+                            LOG.error("runFullAnalysis: Analysis failed", ex);
                             Messages.showWarningDialog(project,
                                     "Analysis failed: " + ex.getMessage(),
                                     "Analysis Failed");
                         });
                         return null;
                     });
+        }
+
+        /**
+         * Runs deep dependency analysis using Maven/Gradle commands.
+         * Falls back to basic analysis if Maven/Gradle are not available.
+         *
+         * @param projectPath Path to the project root
+         * @return List of DependencyInfo with deep transitive dependencies, or null if failed
+         */
+        private List<DependencyInfo> runDeepDependencyAnalysis(Path projectPath) {
+            LOG.info("runDeepDependencyAnalysis: Starting deep dependency scan");
+
+            // Check if Maven or Gradle is available
+            boolean mavenAvailable = advancedScanningService.isMavenAvailable();
+            boolean gradleAvailable = advancedScanningService.isGradleAvailable();
+
+            LOG.info("runDeepDependencyAnalysis: Maven available=" + mavenAvailable +
+                     ", Gradle available=" + gradleAvailable);
+
+            if (!mavenAvailable && !gradleAvailable) {
+                LOG.warn("runDeepDependencyAnalysis: Neither Maven nor Gradle available, falling back to basic analysis");
+
+                // Fall back to basic analysis
+                ApplicationManager.getApplication().invokeLater(() -> {
+                    Messages.showInfoMessage(project,
+                            "Deep dependency analysis unavailable (Maven/Gradle not found).\n" +
+                            "Falling back to declared dependencies only.",
+                            "Limited Dependency Analysis");
+                });
+
+                // Run basic analysis and convert results
+                try {
+                    DependencyAnalysisReport report = analysisService.analyzeProject(projectPath);
+                    if (report != null && report.dependencyGraph() != null) {
+                        updateDashboardFromReport(report);
+                        return convertBasicReportToDependencyInfo(report);
+                    }
+                } catch (Exception e) {
+                    LOG.error("runDeepDependencyAnalysis: Basic analysis fallback failed", e);
+                }
+                return new ArrayList<>();
+            }
+
+            // Run deep transitive dependency scan
+            try {
+                TransitiveDependencyProjectScanResult deepResult =
+                        advancedScanningService.scanDependenciesDeep(projectPath);
+
+                if (deepResult == null) {
+                    LOG.warn("runDeepDependencyAnalysis: Deep scan returned null");
+                    return new ArrayList<>();
+                }
+
+                // Convert to DependencyInfo list
+                List<DependencyInfo> dependencyInfos = advancedScanningService.convertToDependencyInfo(deepResult);
+
+                LOG.info("runDeepDependencyAnalysis: Deep scan completed with " + dependencyInfos.size() + " dependencies");
+
+                // Update UI with deep results
+                ApplicationManager.getApplication().invokeLater(() -> {
+                    if (!dependencyInfos.isEmpty()) {
+                        dependenciesComponent.setDependencies(dependencyInfos);
+                        LOG.info("runDeepDependencyAnalysis: Updated Dependencies table with deep scan results");
+                    }
+                });
+
+                return dependencyInfos;
+
+            } catch (Exception e) {
+                LOG.error("runDeepDependencyAnalysis: Deep scan failed", e);
+
+                // Fall back to basic analysis
+                try {
+                    DependencyAnalysisReport report = analysisService.analyzeProject(projectPath);
+                    if (report != null && report.dependencyGraph() != null) {
+                        ApplicationManager.getApplication().invokeLater(() -> {
+                            Messages.showWarningDialog(project,
+                                    "Deep dependency scanning failed: " + e.getMessage() + "\n" +
+                                    "Falling back to declared dependencies only.",
+                                    "Deep Scan Failed");
+                            updateDashboardFromReport(report);
+                        });
+                        return convertBasicReportToDependencyInfo(report);
+                    }
+                } catch (Exception fallbackEx) {
+                    LOG.error("runDeepDependencyAnalysis: Basic analysis fallback also failed", fallbackEx);
+                }
+
+                return new ArrayList<>();
+            }
+        }
+
+        /**
+         * Converts basic analysis report to DependencyInfo list.
+         */
+        private List<DependencyInfo> convertBasicReportToDependencyInfo(DependencyAnalysisReport report) {
+            List<DependencyInfo> deps = new ArrayList<>();
+            if (report == null || report.dependencyGraph() == null) {
+                return deps;
+            }
+
+            for (Artifact artifact : report.dependencyGraph().getNodes()) {
+                DependencyInfo info = new DependencyInfo();
+                info.setArtifactId(artifact.artifactId());
+                info.setGroupId(artifact.groupId());
+                info.setCurrentVersion(artifact.version());
+                info.setTransitive(artifact.transitive());
+                info.setDepth(artifact.transitive() ? 1 : 0); // Basic analysis only knows direct vs transitive
+                info.setScope(artifact.scope());
+                deps.add(info);
+            }
+
+            return deps;
+        }
+
+        /**
+         * Stores deep dependency results and updates the UI.
+         */
+        private void storeDeepDependencyResults(Path projectPath, List<DependencyInfo> deepScanResult) {
+            LOG.info("storeDeepDependencyResults: Storing " + deepScanResult.size() + " dependencies");
+
+            // Update Dependencies table
+            dependenciesComponent.setDependencies(deepScanResult);
+
+            // Update Dependency Graph (if component supports DependencyInfo)
+            // Note: dependencyGraphComponent currently uses DependencyGraph, may need adaptation
+
+            // Store in cache/database if needed
+            // store.saveDeepDependencyResults(projectPath, deepScanResult);
         }
 
         /**
@@ -1065,7 +1347,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 Map<String, String> updatedStatusMap = new HashMap<>();
                 for (DependencyInfo dep : updatedDependencies) {
                     String key = dep.getGroupId() + ":" + dep.getArtifactId();
-                    updatedStatusMap.put(key, dep.getMigrationStatus().name());
+                    DependencyMigrationStatus status = dep.getMigrationStatus();
+                    updatedStatusMap.put(key, status != null ? status.name() : "UNKNOWN");
                 }
                 
                 // Update dependency graph with new statuses
@@ -1091,8 +1374,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 // Note: SimplePlatformsTabComponent doesn't need manual refresh
                 // It handles state internally
                 System.out.println("DEBUG: Platforms tab uses simplified component - no manual refresh needed");
-                // Note: AdvancedScansComponent and ComprehensiveReportsTabComponent 
-                // don't have refreshUI() method, so we'll skip them for now
+                // Note: AdvancedScansComponent doesn't have refreshUI() method, so we'll skip them for now
             });
         }
         
@@ -1103,6 +1385,22 @@ public class MigrationToolWindow implements ToolWindowFactory {
         public void testPlatformsTabRefresh() {
             System.out.println("DEBUG: testPlatformsTabRefresh() called - simplified component handles refresh internally");
             // SimplePlatformsTabComponent handles state internally
+        }
+        
+        /**
+         * Dispose method to clean up resources
+         */
+        public void dispose() {
+            try {
+                if (creditsService != null) {
+                    creditsService.close();
+                }
+                if (creditsProgressBar != null) {
+                    creditsProgressBar.dispose();
+                }
+            } catch (Exception e) {
+                LOG.warn("Error disposing resources", e);
+            }
         }
     }
 }

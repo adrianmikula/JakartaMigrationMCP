@@ -42,6 +42,13 @@ public class PremiumMigrationTools {
         this.recipeService = recipeService;
         this.dependencyAnalysisModule = dependencyAnalysisModule;
     }
+    
+    /**
+     * Check if MCP server is premium-only (always true for now).
+     */
+    private boolean isMcpServerPremiumOnly() {
+        return true; // MCP server is premium-only
+    }
 
     /**
      * Lists all available refactor recipes for a project.
@@ -297,6 +304,15 @@ public class PremiumMigrationTools {
             @McpToolParam(description = "Path to project root directory", required = true) String projectPath) {
         try {
             log.info("Detecting blockers for project: {}", projectPath);
+
+            // Check if MCP server is premium-only feature (always true)
+            if (isMcpServerPremiumOnly()) {
+                // For now, we'll implement a simple premium check
+                // TODO: Implement proper license checking in MCP server
+                return JsonUtils.createErrorResponse(
+                    "MCP Server features require Premium. Upgrade to access all MCP tools including blocker detection."
+                );
+            }
 
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {

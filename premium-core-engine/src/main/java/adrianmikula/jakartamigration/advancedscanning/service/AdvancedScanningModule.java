@@ -7,6 +7,7 @@ import adrianmikula.jakartamigration.advancedscanning.service.impl.CdiInjectionS
 import adrianmikula.jakartamigration.advancedscanning.service.impl.ClassloaderModuleScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.ConfigFileScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.DeprecatedApiScannerImpl;
+import adrianmikula.jakartamigration.advancedscanning.service.impl.DockerCicdScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.IntegrationPointsScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.JpaAnnotationScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.JmsMessagingScannerImpl;
@@ -49,6 +50,7 @@ public class AdvancedScanningModule {
     private final TestContainersScanner testContainersScanner;
     private final IntegrationPointsScanner integrationPointsScanner;
     private final AppServerScanner appServerScanner;
+    private final DockerCicdScanner dockerCicdScanner;
     private final ScanRecipeRecommendationService recipeRecommendationService;
 
     public AdvancedScanningModule(RecipeService recipeService) {
@@ -73,6 +75,7 @@ public class AdvancedScanningModule {
         this.testContainersScanner = new TestContainersScannerImpl();
         this.integrationPointsScanner = new IntegrationPointsScannerImpl();
         this.appServerScanner = new AppServerScannerImpl();
+        this.dockerCicdScanner = new DockerCicdScannerImpl();
         this.recipeRecommendationService = new ScanRecipeRecommendationServiceImpl(recipeService);
     }
 
@@ -202,6 +205,13 @@ public class AdvancedScanningModule {
 
     public AppServerScanner getAppServerScanner() {
         return appServerScanner;
+    }
+
+    /**
+     * Gets the Docker/CI-CD Scanner.
+     */
+    public DockerCicdScanner getDockerCicdScanner() {
+        return dockerCicdScanner;
     }
 
     /**

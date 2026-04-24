@@ -97,11 +97,13 @@ public class DependenciesTableComponent {
         this.truncationHelper = new TruncationHelper();
         this.panel = new JBPanel<>(new BorderLayout());
 
-        // Columns with Jakarta Equivalent information and Maven Coordinates
+        // Columns with Jakarta Equivalent information, Maven Coordinates, Depth and Scope
         String[] columns = {
                 "Group ID",
                 "Artifact ID",
                 "Current Version",
+                "Depth",  // 0=direct, 1+=transitive level from deep scanning
+                "Scope",  // compile, test, provided, runtime
                 "Jakarta Equivalent",
                 "Recommended Version",
                 "Maven Coordinates",
@@ -128,7 +130,7 @@ public class DependenciesTableComponent {
         this.statusFilter = new JComboBox<>(new String[] {
                 "All", "Compatible", "Needs Upgrade", "No Jakarta Version", "Unknown"
         });
-        this.transitiveFilter = new JCheckBox("Show Transitive Only", false);
+        this.transitiveFilter = new JCheckBox("Hide Transitive Dependencies", false);
         this.organizationalFilter = new JCheckBox("Show All Organisational Artifacts", false);
 
         initializeComponent();
@@ -151,9 +153,9 @@ public class DependenciesTableComponent {
             
             isRendering = true;
             try {
-            // Status column is at index 6, Jakarta Equivalent at index 3, Maven Coordinates at index 5, DependencyInfo at index 8
-            if ((column == 6 || column == 3) && row < table.getModel().getRowCount()) {
-                Object depObj = table.getModel().getValueAt(row, 8);
+            // Status column is at index 8, Jakarta Equivalent at index 5, Maven Coordinates at index 7, DependencyInfo at index 10
+            if ((column == 8 || column == 5) && row < table.getModel().getRowCount()) {
+                Object depObj = table.getModel().getValueAt(row, 10);
                 if (depObj instanceof DependencyInfo) {
                     DependencyInfo dep = (DependencyInfo) depObj;
                     JPanel panel = new JPanel(new BorderLayout());
@@ -559,8 +561,8 @@ public class DependenciesTableComponent {
                     (selectedStatus != null && dep.getMigrationStatus() != null &&
                             dep.getMigrationStatus().getValue().equals(mapStatusToValue(selectedStatus)));
 
-            // Transitive filter
-            boolean matchesTransitive = !showTransitiveOnly || dep.isTransitive();
+            // Transitive filter - when checked, hide transitive dependencies
+            boolean matchesTransitive = showTransitiveOnly ? !dep.isTransitive() : true;
 
             // Organizational filter
             boolean matchesOrganizational = !showOrganizationalOnly || dep.isOrganizational();
@@ -602,16 +604,22 @@ public class DependenciesTableComponent {
     private void addDependencyRow(DependencyInfo dep) {
         // Determine dependency type
         String dependencyType = dep.isTransitive() ? "Transitive" : "Direct";
-        
+
+        // Depth - show as integer (0=direct, 1+=transitive level)
+        String depthStr = String.valueOf(dep.getDepth());
+
+        // Scope - show scope (compile, test, provided, runtime)
+        String scopeStr = dep.getScope() != null ? dep.getScope() : "-";
+
         // Jakarta Equivalent
-        String jakartaEquivalent = dep.getRecommendedArtifactCoordinates() != null 
-                ? dep.getRecommendedArtifactCoordinates() 
+        String jakartaEquivalent = dep.getRecommendedArtifactCoordinates() != null
+                ? dep.getRecommendedArtifactCoordinates()
                 : "-";
-        
+
         // Compatibility Status - determines color coding
         String statusText;
         boolean hasJakartaEquivalent = jakartaEquivalent != null && !jakartaEquivalent.equals("-");
-        
+
         if (dep.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE) {
             statusText = "✓ Compatible";
         } else if (hasJakartaEquivalent) {
@@ -625,25 +633,27 @@ public class DependenciesTableComponent {
         // Build Maven Coordinates string (groupId:artifactId:version)
         String mavenCoordinates = "-";
         if (dep.getRecommendedGroupId() != null && dep.getRecommendedArtifactId() != null) {
-            mavenCoordinates = dep.getRecommendedGroupId() + ":" + 
-                              dep.getRecommendedArtifactId() + 
+            mavenCoordinates = dep.getRecommendedGroupId() + ":" +
+                              dep.getRecommendedArtifactId() +
                               (dep.getRecommendedVersion() != null ? ":" + dep.getRecommendedVersion() : "");
         } else if (hasJakartaEquivalent) {
             // Fallback to using the Jakarta Equivalent coordinates
             mavenCoordinates = jakartaEquivalent;
         }
 
-        // Add row with all columns - DependencyInfo at column 8 (hidden)
+        // Add row with all columns - DependencyInfo at column 10 (hidden)
         tableModel.addRow(new Object[] {
                 dep.getGroupId(),
                 dep.getArtifactId(),
                 dep.getCurrentVersion(),
-                jakartaEquivalent,
-                dep.getRecommendedVersion() != null ? dep.getRecommendedVersion() : "-",
-                mavenCoordinates,
-                statusText,
-                dependencyType,
-                dep // Full object for renderer (hidden column)
+                depthStr,           // Column 3: Depth
+                scopeStr,           // Column 4: Scope
+                jakartaEquivalent,  // Column 5: Jakarta Equivalent
+                dep.getRecommendedVersion() != null ? dep.getRecommendedVersion() : "-",  // Column 6: Recommended Version
+                mavenCoordinates,   // Column 7: Maven Coordinates
+                statusText,         // Column 8: Status
+                dependencyType,     // Column 9: Type
+                dep // Column 10: Full object for renderer (hidden column)
         });
     }
     

@@ -40,6 +40,12 @@ public class DependencyInfo {
     @JsonProperty("isOrganizational")
     private boolean isOrganizational;
 
+    @JsonProperty("depth")
+    private int depth;  // 0 = direct dependency, 1+ = transitive level
+
+    @JsonProperty("scope")
+    private String scope;  // compile, test, provided, runtime
+
     public enum DependencyType {
         DIRECT("Direct"),
         TRANSITIVE("Transitive");
@@ -63,6 +69,17 @@ public class DependencyInfo {
             String jakartaCompatibilityStatus, String associatedRecipeName,
             DependencyMigrationStatus migrationStatus,
             boolean isTransitive, boolean isOrganizational) {
+        this(groupId, artifactId, currentVersion, recommendedGroupId, recommendedArtifactId,
+            recommendedVersion, jakartaCompatibilityStatus, associatedRecipeName, migrationStatus,
+            isTransitive, isOrganizational, 0, "compile");
+    }
+
+    public DependencyInfo(String groupId, String artifactId, String currentVersion,
+            String recommendedGroupId, String recommendedArtifactId, String recommendedVersion,
+            String jakartaCompatibilityStatus, String associatedRecipeName,
+            DependencyMigrationStatus migrationStatus,
+            boolean isTransitive, boolean isOrganizational,
+            int depth, String scope) {
         this.groupId = groupId;
         this.artifactId = artifactId;
         this.currentVersion = currentVersion;
@@ -74,6 +91,8 @@ public class DependencyInfo {
         this.migrationStatus = migrationStatus;
         this.isTransitive = isTransitive;
         this.isOrganizational = isOrganizational;
+        this.depth = depth;
+        this.scope = scope;
     }
 
     public String getGroupId() {
@@ -175,6 +194,22 @@ public class DependencyInfo {
 
     public void setOrganizational(boolean organizational) {
         isOrganizational = organizational;
+    }
+
+    public int getDepth() {
+        return depth;
+    }
+
+    public void setDepth(int depth) {
+        this.depth = depth;
+    }
+
+    public String getScope() {
+        return scope;
+    }
+
+    public void setScope(String scope) {
+        this.scope = scope;
     }
 
     public String getDisplayName() {

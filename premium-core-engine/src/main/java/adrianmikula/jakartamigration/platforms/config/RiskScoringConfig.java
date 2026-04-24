@@ -27,12 +27,18 @@ public class RiskScoringConfig {
     // Base calculation weights
     private final Map<String, Integer> baseCalculations;
 
+    // Effort scoring weights and thresholds
+    private final Map<String, Double> effortScoringWeights;
+    private final Map<String, Integer> effortScoringThresholds;
+
     public RiskScoringConfig() {
         this.platformBaseRisks = new HashMap<>();
         this.deploymentArtifacts = new HashMap<>();
         this.configurationFiles = new HashMap<>();
         this.complexityMultipliers = new HashMap<>();
         this.baseCalculations = new HashMap<>();
+        this.effortScoringWeights = new HashMap<>();
+        this.effortScoringThresholds = new HashMap<>();
 
         // Load from YAML, falling back to defaults if not present
         loadFromYaml();
@@ -76,6 +82,27 @@ public class RiskScoringConfig {
                 Map<String, Object> legacy = (Map<String, Object>) config.get("legacyCalculations");
                 for (Map.Entry<String, Object> entry : legacy.entrySet()) {
                     baseCalculations.put(entry.getKey(), ((Number) entry.getValue()).intValue());
+                }
+            }
+
+            // Load effort scoring configuration
+            if (config.containsKey("effortScoring")) {
+                Map<String, Object> effortScoring = (Map<String, Object>) config.get("effortScoring");
+
+                // Load weights
+                if (effortScoring.containsKey("weights")) {
+                    Map<String, Object> weights = (Map<String, Object>) effortScoring.get("weights");
+                    for (Map.Entry<String, Object> entry : weights.entrySet()) {
+                        effortScoringWeights.put(entry.getKey(), ((Number) entry.getValue()).doubleValue());
+                    }
+                }
+
+                // Load thresholds
+                if (effortScoring.containsKey("thresholds")) {
+                    Map<String, Object> thresholds = (Map<String, Object>) effortScoring.get("thresholds");
+                    for (Map.Entry<String, Object> entry : thresholds.entrySet()) {
+                        effortScoringThresholds.put(entry.getKey(), ((Number) entry.getValue()).intValue());
+                    }
                 }
             }
 
@@ -126,8 +153,19 @@ public class RiskScoringConfig {
         if (!baseCalculations.containsKey("platformMultiplier")) baseCalculations.put("platformMultiplier", 15);
         if (!baseCalculations.containsKey("maxPlatformRisk")) baseCalculations.put("maxPlatformRisk", 60);
         if (!baseCalculations.containsKey("maxTotalRisk")) baseCalculations.put("maxTotalRisk", 100);
+
+        // Effort scoring defaults (updated for new weights)
+        if (!effortScoringWeights.containsKey("automationScore")) effortScoringWeights.put("automationScore", 0.4);
+        if (!effortScoringWeights.containsKey("testCoverageScore")) effortScoringWeights.put("testCoverageScore", 0.0);
+        if (!effortScoringWeights.containsKey("organisationalDepsScore")) effortScoringWeights.put("organisationalDepsScore", 0.3);
+        if (!effortScoringWeights.containsKey("projectSizeScore")) effortScoringWeights.put("projectSizeScore", 0.3);
+
+        // Effort scoring thresholds
+        if (!effortScoringThresholds.containsKey("maxOrganisationalDeps")) effortScoringThresholds.put("maxOrganisationalDeps", 100);
+        if (!effortScoringThresholds.containsKey("maxTestCoverage")) effortScoringThresholds.put("maxTestCoverage", 100);
+        if (!effortScoringThresholds.containsKey("maxProjectFiles")) effortScoringThresholds.put("maxProjectFiles", 10000);
     }
-    
+
     // Getters for all configuration values
     public int getPlatformBaseRisk(String platformName) {
         String platformKey = platformName.toLowerCase();
@@ -166,5 +204,34 @@ public class RiskScoringConfig {
     public void setDeploymentArtifacts(Map<String, Integer> deploymentArtifacts) {
         this.deploymentArtifacts.clear();
         this.deploymentArtifacts.putAll(deploymentArtifacts);
+    }
+
+    // Effort scoring getters
+    public double getAutomationScoreWeight() {
+        return effortScoringWeights.getOrDefault("automationScore", 0.33);
+    }
+
+    public double getTestCoverageScoreWeight() {
+        return effortScoringWeights.getOrDefault("testCoverageScore", 0.33);
+    }
+
+    public double getOrganisationalDepsScoreWeight() {
+        return effortScoringWeights.getOrDefault("organisationalDepsScore", 0.3);
+    }
+
+    public double getProjectSizeScoreWeight() {
+        return effortScoringWeights.getOrDefault("projectSizeScore", 0.3);
+    }
+
+    public int getMaxOrganisationalDepsThreshold() {
+        return effortScoringThresholds.getOrDefault("maxOrganisationalDeps", 100);
+    }
+
+    public int getMaxTestCoverage() {
+        return effortScoringThresholds.getOrDefault("maxTestCoverage", 100);
+    }
+
+    public int getMaxProjectFilesThreshold() {
+        return effortScoringThresholds.getOrDefault("maxProjectFiles", 10000);
     }
 }

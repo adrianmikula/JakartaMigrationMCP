@@ -15,7 +15,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Test class for ReportsTabComponent.
+ *
+ * NOTE: These tests require full IntelliJ Platform environment.
  */
+@org.junit.jupiter.api.Disabled("Requires full IntelliJ Platform environment - run in IDE")
 public class ReportsTabComponentTest extends BasePlatformTestCase {
     
     @Mock

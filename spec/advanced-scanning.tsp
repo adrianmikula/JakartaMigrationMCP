@@ -70,7 +70,10 @@ enum ScanType {
   LoggingMetrics: "LOGGING_METRICS_SCANNER",
   
   @doc("Serialization/cache scanning")
-  SerializationCache: "SERIALIZATION_CACHE_SCANNER"
+  SerializationCache: "SERIALIZATION_CACHE_SCANNER",
+  
+  @doc("Docker/CI-CD Java reference scanning")
+  DockerCicd: "DOCKER_CICD_SCANNER"
 }
 
 @doc("JPA annotation usage information")
@@ -200,6 +203,111 @@ model ServletJspProjectScanResult {
   
   @doc("Total usages found")
   totalUsagesFound: int32;
+}
+
+@doc("Docker/CI-CD Java reference usage information")
+model DockerCicdUsage {
+  @doc("Type of Java reference")
+  referenceType: DockerCicdReferenceType;
+  
+  @doc("Type of file containing the reference")
+  fileType: DockerCicdFileType;
+  
+  @doc("Java version detected (if any)")
+  javaVersion?: string;
+  
+  @doc("The actual command or reference found")
+  command: string;
+  
+  @doc("Jakarta migration guidance")
+  jakartaMigrationNote?: string;
+  
+  @doc("Line number in source file")
+  lineNumber: int32;
+}
+
+@doc("Docker/CI-CD reference type enumeration")
+enum DockerCicdReferenceType {
+  @doc("Build/Compile operations")
+  Compile: "COMPILE",
+  
+  @doc("Testing operations")
+  Test: "TEST",
+  
+  @doc("Static analysis and code quality")
+  StaticAnalysis: "STATIC_ANALYSIS",
+  
+  @doc("Packaging and bundling operations")
+  Packaging: "PACKAGING",
+  
+  @doc("Runtime execution")
+  Runtime: "RUNTIME"
+}
+
+@doc("Docker/CI-CD file type enumeration")
+enum DockerCicdFileType {
+  @doc("Dockerfile")
+  Dockerfile: "DOCKERFILE",
+  
+  @doc("Docker Compose")
+  DockerCompose: "DOCKER_COMPOSE",
+  
+  @doc("GitHub Actions")
+  GithubActions: "GITHUB_ACTIONS",
+  
+  @doc("GitLab CI")
+  GitlabCi: "GITLAB_CI",
+  
+  @doc("Jenkinsfile")
+  Jenkinsfile: "JENKINSFILE",
+  
+  @doc("Azure Pipelines")
+  AzurePipelines: "AZURE_PIPELINES",
+  
+  @doc("Bitbucket Pipelines")
+  BitbucketPipelines: "BITBUCKET_PIPELINES",
+  
+  @doc("AWS CodeBuild")
+  AwsCodebuild: "AWS_CODEBUILD",
+  
+  @doc("Google Cloud Build")
+  GoogleCloudBuild: "GOOGLE_CLOUD_BUILD",
+  
+  @doc("Kubernetes Manifest")
+  Kubernetes: "KUBERNETES",
+  
+  @doc("Shell Script")
+  ShellScript: "SHELL_SCRIPT"
+}
+
+@doc("Docker/CI-CD scan result for a single file")
+model DockerCicdScanResult {
+  @doc("File path relative to project root")
+  filePath: string;
+  
+  @doc("List of Docker/CI-CD Java references found in file")
+  usages: DockerCicdUsage[];
+  
+  @doc("Total number of references found")
+  usageCount: int32;
+}
+
+@doc("Docker/CI-CD scan result for entire project")
+model DockerCicdProjectScanResult {
+  @doc("Results for each file")
+  fileResults: DockerCicdScanResult[];
+  
+  @doc("Total files scanned")
+  totalFilesScanned: int32;
+  
+  @doc("Files with Java references")
+  totalFilesWithReferences: int32;
+  
+  @doc("Total references found")
+  totalReferencesFound: int32;
+  
+  @doc("True if any Java references were found")
+  hasReferences: boolean;
 }
 
 @doc("Generic scan result for other scanner types")
@@ -377,6 +485,13 @@ interface AdvancedScanningService {
     @query projectPath: string
   ): ServletJspProjectScanResult;
   
+  @doc("Scan project for Docker/CI-CD Java references")
+  @post("scan/docker-cicd")
+  scanDockerCicd(
+    @doc("Project path")
+    @query projectPath: string
+  ): DockerCicdProjectScanResult;
+  
   @doc("Run comprehensive advanced scan")
   @post("scan/comprehensive")
   runComprehensiveScan(
@@ -424,6 +539,9 @@ model ComprehensiveScanResults {
   @doc("Servlet/JSP scan results")
   servletJspResults?: ServletJspProjectScanResult;
   
+  @doc("Docker/CI-CD scan results")
+  dockerCicdResults?: DockerCicdProjectScanResult;
+  
   @doc("Generic scan results for other scanners")
   genericResults: Record<GenericProjectScanResult>;
   
@@ -444,6 +562,9 @@ model ScanResultsMap {
   
   @doc("Servlet/JSP scan results")
   "SERVLET_JSP_SCANNER"?: ServletJspProjectScanResult;
+  
+  @doc("Docker/CI-CD scan results")
+  "DOCKER_CICD_SCANNER"?: DockerCicdProjectScanResult;
   
   @doc("Generic scan results")
   [key: string]: any;

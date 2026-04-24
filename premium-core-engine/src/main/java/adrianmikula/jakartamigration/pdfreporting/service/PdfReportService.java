@@ -3,8 +3,8 @@ package adrianmikula.jakartamigration.pdfreporting.service;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
-import adrianmikula.jakartamigration.config.JakartaMigrationConfigService;
 import adrianmikula.jakartamigration.platforms.model.PlatformScanResult;
+import adrianmikula.jakartamigration.risk.RiskScoringService;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -27,6 +27,16 @@ public interface PdfReportService {
      * @return Path to the generated PDF file
      */
     Path generateComprehensiveReport(GeneratePdfReportRequest request);
+    
+    /**
+     * Generates a consolidated PDF report that combines all analysis results into a single comprehensive report.
+     * Includes executive summary, risk assessment, migration strategy analysis, dependency analysis,
+     * advanced scan results, platform analysis, blockers, and recommendations.
+     * 
+     * @param request The consolidated report generation request
+     * @return Path to generated PDF file
+     */
+    Path generateConsolidatedReport(ConsolidatedReportRequest request);
     
     /**
      * Generates a dependency-focused PDF report.
@@ -139,5 +149,26 @@ public interface PdfReportService {
         String description,
         boolean enabled,
         Map<String, Object> configuration
+    ) {}
+    
+    /**
+     * Data class for consolidated report generation requests.
+     */
+    record ConsolidatedReportRequest(
+        Path outputPath,
+        String projectName,
+        String reportTitle,
+        DependencyGraph dependencyGraph,
+        DependencyAnalysisReport analysisReport,
+        ComprehensiveScanResults scanResults,
+        PlatformScanResult platformScanResults,
+        RiskScoringService.RiskScore riskScore,
+        String recommendedStrategy,
+        Map<String, Object> strategyDetails,
+        Map<String, Object> validationMetrics,
+        List<Map<String, Object>> topBlockers,
+        List<String> recommendations,
+        Map<String, Object> implementationPhases,
+        Map<String, Object> customData
     ) {}
 }

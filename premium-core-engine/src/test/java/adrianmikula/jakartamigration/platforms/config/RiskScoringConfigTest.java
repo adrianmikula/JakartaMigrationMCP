@@ -64,12 +64,46 @@ public class RiskScoringConfigTest {
     @Test
     void testRiskScoringConfigCaseInsensitive() {
         RiskScoringConfig riskConfig = configLoader.getRiskScoringConfig();
-        
+
         // Test case insensitive lookups
         assertEquals(25, riskConfig.getPlatformBaseRisk("WEBSPHERE"));
         assertEquals(25, riskConfig.getPlatformBaseRisk("WebSphere"));
         assertEquals(4, riskConfig.getDeploymentArtifactRisk("EAR"));
         assertEquals(2, riskConfig.getDeploymentArtifactRisk("WAR"));
         assertEquals(1, riskConfig.getDeploymentArtifactRisk("JAR"));
+    }
+
+    @Test
+    void testEffortScoringWeightsLoadedFromYAML() {
+        RiskScoringConfig riskConfig = configLoader.getRiskScoringConfig();
+
+        // Test effort scoring weights from YAML (should be 0.33 each)
+        assertEquals(0.33, riskConfig.getAutomationScoreWeight(), 0.01);
+        assertEquals(0.33, riskConfig.getTestCoverageScoreWeight(), 0.01);
+        assertEquals(0.33, riskConfig.getOrganisationalDepsScoreWeight(), 0.01);
+    }
+
+    @Test
+    void testEffortScoringThresholdsLoadedFromYAML() {
+        RiskScoringConfig riskConfig = configLoader.getRiskScoringConfig();
+
+        // Test effort scoring thresholds from YAML
+        assertEquals(100, riskConfig.getMaxOrganisationalDepsThreshold());
+        assertEquals(100, riskConfig.getMaxTestCoverage());
+    }
+
+    @Test
+    void testEffortScoringWeightsDefaults() {
+        // Create a new config - should have default values if YAML loading fails
+        RiskScoringConfig defaultConfig = new RiskScoringConfig();
+
+        // Should have default 0.33 weights
+        assertEquals(0.33, defaultConfig.getAutomationScoreWeight(), 0.01);
+        assertEquals(0.33, defaultConfig.getTestCoverageScoreWeight(), 0.01);
+        assertEquals(0.33, defaultConfig.getOrganisationalDepsScoreWeight(), 0.01);
+
+        // Should have default thresholds
+        assertEquals(100, defaultConfig.getMaxOrganisationalDepsThreshold());
+        assertEquals(100, defaultConfig.getMaxTestCoverage());
     }
 }

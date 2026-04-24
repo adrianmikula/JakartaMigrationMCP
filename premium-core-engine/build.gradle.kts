@@ -15,9 +15,20 @@ dependencies {
     implementation("org.ow2.asm:asm:9.6") // For bytecode analysis
     implementation("com.google.guava:guava:32.1.3-jre") // Common utilities
     
-    // PDF generation using Apache PDFBox (modern, fast, Apache 2.0 license)
-    implementation("org.apache.pdfbox:pdfbox:3.0.2")
-    implementation("org.apache.pdfbox:fontbox:3.0.2")
+    // Template engine - Thymeleaf for robust template processing
+    implementation("org.thymeleaf:thymeleaf:3.1.2.RELEASE")
+    
+    // HTML-to-PDF generation using Flying Saucer (XhtmlRenderer)
+    implementation("org.xhtmlrenderer:flying-saucer-pdf:9.1.22")
+    implementation("com.itextpdf:itextpdf:5.5.13.3")
+    // JSoup for HTML parsing and manipulation
+    implementation("org.jsoup:jsoup:1.17.2")
+    
+    // JavaScript charting library for professional visualizations - commented out for now
+    // implementation("org.webjars:chart.js:4.4.0")
+
+    // HTTP client for Supabase API calls
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Test dependencies
     testImplementation(platform("org.junit:junit-bom:5.10.1"))

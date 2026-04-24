@@ -65,7 +65,7 @@ public class CreditsProgressBar extends JBPanel<CreditsProgressBar> {
 
         // Title row with upgrade link
         JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        JBLabel titleLabel = new JBLabel("Action Credits:");
+        JBLabel titleLabel = new JBLabel("Free Credits:");
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD));
         titlePanel.add(titleLabel);
 
@@ -201,7 +201,7 @@ public class CreditsProgressBar extends JBPanel<CreditsProgressBar> {
      * @return true if credit was successfully used
      */
     public boolean useCredit() {
-        boolean success = creditsService.useCredit(CreditType.ACTIONS);
+        boolean success = creditsService.useCredit(CreditType.ACTIONS, "CreditsProgressBar", "credit_consumption");
         if (success) {
             refreshCredits();
         }
@@ -217,7 +217,7 @@ public class CreditsProgressBar extends JBPanel<CreditsProgressBar> {
      */
     @Deprecated
     public boolean useCredit(CreditType type) {
-        boolean success = creditsService.useCredit(type);
+        boolean success = creditsService.useCredit(type, "CreditsProgressBar", "deprecated_credit_consumption");
         if (success) {
             refreshCredits();
         }

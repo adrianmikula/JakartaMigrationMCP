@@ -6,6 +6,8 @@ import "./mcp-integration.tsp";
 import "./plugin-components.tsp";
 import "./advanced-scanning.tsp";
 import "./pdf-reporting.tsp";
+import "./enhanced-test-coverage-analysis.tsp";
+import "./html-to-pdf-reporting.tsp";
 
 using TypeSpec.Http;
 using TypeSpec.Rest;
@@ -149,3 +151,14 @@ alias PdfReportService = JakartaMigrationReporting.PdfReportService;
 alias PdfReportConfig = JakartaMigrationReporting.PdfReportConfig;
 alias GeneratePdfReportRequest = JakartaMigrationReporting.GeneratePdfReportRequest;
 alias GeneratePdfReportResponse = JakartaMigrationReporting.GeneratePdfReportResponse;
+
+// Enhanced Test Coverage Analysis aliases
+alias EnhancedTestCoverageAnalysis = JakartaMigrationEnhancedTestCoverage.EnhancedTestCoverageAnalysisService;
+alias EnhancedTestCoverageRequest = JakartaMigrationEnhancedTestCoverage.EnhancedTestCoverageRequest;
+alias EnhancedTestCoverageResponse = JakartaMigrationEnhancedTestCoverage.EnhancedTestCoverageResponse;
+alias CriticalRiskZone = JakartaMigrationEnhancedTestCoverage.CriticalRiskZone;
+
+// HTML-to-PDF Reporting aliases
+alias HtmlToPdfReportService = JakartaMigrationHtmlToPdfReporting.HtmlToPdfReportService;
+alias HtmlToPdfReportRequest = JakartaMigrationHtmlToPdfReporting.HtmlToPdfReportRequest;
+alias HtmlToPdfReportResponse = JakartaMigrationHtmlToPdfReporting.HtmlToPdfReportResponse;

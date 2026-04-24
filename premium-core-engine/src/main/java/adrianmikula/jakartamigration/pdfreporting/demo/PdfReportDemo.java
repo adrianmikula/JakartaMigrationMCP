@@ -1,6 +1,7 @@
 package adrianmikula.jakartamigration.pdfreporting.demo;
 
-import adrianmikula.jakartamigration.pdfreporting.service.impl.PdfReportServiceImpl;
+import adrianmikula.jakartamigration.pdfreporting.service.PdfReportService;
+import adrianmikula.jakartamigration.pdfreporting.service.impl.HtmlToPdfReportServiceImpl;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
@@ -17,12 +18,12 @@ import java.util.*;
  */
 public class PdfReportDemo {
     
+    private static final PdfReportService pdfService = new HtmlToPdfReportServiceImpl();
+    
     public static void main(String[] args) {
         System.out.println("🚀 Starting PDFBox Report Generation Demo...");
         
         try {
-            PdfReportServiceImpl pdfService = new PdfReportServiceImpl();
-            
             // Create sample dependency graph
             DependencyGraph dependencyGraph = createSampleDependencyGraph();
             
@@ -100,9 +101,9 @@ public class PdfReportDemo {
         );
     }
     
-    private static void generateComprehensiveReport(PdfReportServiceImpl pdfService, 
-                                                   DependencyGraph dependencyGraph, 
-                                                   ComprehensiveScanResults scanResults) throws Exception {
+    private static void generateComprehensiveReport(PdfReportService pdfService,
+                                                    DependencyGraph dependencyGraph,
+                                                    ComprehensiveScanResults scanResults) throws Exception {
         System.out.println("📄 Generating comprehensive report...");
         
         Map<String, Object> customData = Map.of(
@@ -128,8 +129,8 @@ public class PdfReportDemo {
         System.out.println("✅ Comprehensive report generated: " + result.toAbsolutePath());
     }
     
-    private static void generateDependencyReport(PdfReportServiceImpl pdfService, 
-                                               DependencyGraph dependencyGraph) throws Exception {
+    private static void generateDependencyReport(PdfReportService pdfService,
+                                                 DependencyGraph dependencyGraph) throws Exception {
         System.out.println("📄 Generating dependency report...");
         
         Path outputPath = Paths.get("jakarta-migration-dependency-report.pdf");
@@ -138,8 +139,8 @@ public class PdfReportDemo {
         System.out.println("✅ Dependency report generated: " + result.toAbsolutePath());
     }
     
-    private static void generateScanResultsReport(PdfReportServiceImpl pdfService, 
-                                                ComprehensiveScanResults scanResults) throws Exception {
+    private static void generateScanResultsReport(PdfReportService pdfService,
+                                                  ComprehensiveScanResults scanResults) throws Exception {
         System.out.println("📄 Generating scan results report...");
         
         Path outputPath = Paths.get("jakarta-migration-scan-results-report.pdf");

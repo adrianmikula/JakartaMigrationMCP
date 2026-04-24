@@ -4,22 +4,12 @@
 # Premium users have unlimited credits.
 #
 # Credit Types:
-# - basic_scan: Used for basic dependency analysis scans
-# - advanced_scan: Used for advanced scanning (JPA, CDI, Servlet, etc.)
-# - refactor: Used for code refactoring operations and undo operations
+# - actions: Unified credit system for all premium operations (scans, refactoring, reports)
 
 limits:
-  # Basic scan credits - used for basic dependency analysis
-  # When exhausted, shows partial/truncated results
-  basic_scan: 10
-
-  # Advanced scan credits - used for advanced scanning features
-  # When exhausted, the Advanced Scans tab is locked
-  advanced_scan: 50
-
-  # Refactor credits - used for code refactoring operations
-  # When exhausted, the Refactor tab is locked
-  refactor: 5
+  # Actions credits - used for all premium operations
+  # When exhausted, users are prompted to upgrade to Premium
+  actions: 10
 
 # Credit behavior settings
 behavior:

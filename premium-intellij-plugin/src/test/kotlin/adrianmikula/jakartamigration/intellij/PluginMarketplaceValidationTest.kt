@@ -8,6 +8,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.jar.JarFile
 
 /**
  * JUnit 5 tests to verify plugin.xml meets JetBrains Marketplace requirements
@@ -275,15 +276,58 @@ class PluginMarketplaceValidationTest {
     fun `change notes version should match plugin version`() {
         val content = Files.readString(pluginXml)
         val gradleContent = Files.readString(buildGradle)
-        
+
         // Extract plugin version from XML
         val xmlVersionMatch = Regex("<version>([^<]+)</version>").find(content)
         val xmlVersion = xmlVersionMatch?.groupValues?.get(1) ?: fail("XML version not found")
-        
+
         // Extract version from change notes
         val changeNotesMatch = Regex("<h2>([^<]+)</h2>").find(content)
         val changeNotesVersion = changeNotesMatch?.groupValues?.get(1) ?: fail("Change notes version not found")
-        
+
         assertEquals(xmlVersion, changeNotesVersion, "Change notes version should match plugin version")
+    }
+
+    @Test
+    @DisplayName("Plugin icon files should exist in JAR resources")
+    @EnabledIfEnvironmentVariable(named = "CI", matches = "true")
+    fun `plugin icon files should exist in JAR`() {
+        // Locate the built plugin JAR
+        val libsDir = Paths.get("premium-intellij-plugin/build/libs")
+        assertTrue(Files.exists(libsDir), "Libs directory should exist")
+
+        val jarFiles = Files.list(libsDir)
+            .filter { it.fileName.toString().startsWith("instrumented-premium-intellij-plugin") && it.fileName.toString().endsWith(".jar") }
+            .toList()
+
+        assertTrue(jarFiles.isNotEmpty(), "Plugin JAR should exist in build/libs")
+        val pluginJar = jarFiles.first()
+
+        // Verify icon files exist in the JAR
+        JarFile(pluginJar.toFile()).use { jar ->
+            val entries = jar.entries()
+            val iconPaths = mutableSetOf<String>()
+            while (entries.hasMoreElements()) {
+                val entry = entries.nextElement()
+                if (entry.name.startsWith("icons/")) {
+                    iconPaths.add(entry.name)
+                }
+            }
+
+            // Required icons per JetBrains specification - SVG is essential, PNGs are fallbacks
+            val requiredIcons = listOf(
+                "icons/pluginIcon.svg",
+                "icons/pluginIcon.png",
+                "icons/pluginIcon@2x.png",
+                "icons/pluginIcon-24.png",
+                "icons/pluginIcon-24@2x.png",
+                "icons/pluginIcon-128.png",
+                "icons/pluginIcon-128@2x.png"
+            )
+
+            for (requiredIcon in requiredIcons) {
+                assertTrue(iconPaths.contains(requiredIcon), "Plugin JAR must contain $requiredIcon for IntelliJ compatibility")
+            }
+        }
     }
 }

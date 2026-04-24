@@ -46,21 +46,25 @@ public class RiskGaugeAngleRenderingTest {
     @DisplayName("Test specific angle boundaries for arc verification")
     void testSpecificAngleBoundaries() {
         // Test boundaries between score ranges
+        // Angle formula: 180 + (score * 1.8)
+        // 180-270° range: scores 0-50 (green arc)
+        // 270-360° range: scores 50-100 (yellow/red arcs)
+
         riskGauge.setScore(33);
         int angle33 = riskGauge.calculateNeedleAngle(33);
-        assertTrue(angle33 >= 180 && angle33 <= 270, "Score 33 should be at green arc boundary");
+        assertTrue(angle33 >= 180 && angle33 <= 270, "Score 33 should be in green arc (180-270°)");
 
-        riskGauge.setScore(34);
-        int angle34 = riskGauge.calculateNeedleAngle(34);
-        assertTrue(angle34 >= 270 && angle34 <= 360, "Score 34 should be in yellow arc range");
+        riskGauge.setScore(50); // Boundary: 180 + 50*1.8 = 270°
+        int angle50 = riskGauge.calculateNeedleAngle(50);
+        assertTrue(angle50 >= 180 && angle50 <= 270, "Score 50 should be at green arc boundary (270°)");
 
-        riskGauge.setScore(66);
-        int angle66 = riskGauge.calculateNeedleAngle(66);
-        assertTrue(angle66 >= 270 && angle66 <= 360, "Score 66 should be at red arc boundary");
+        riskGauge.setScore(51); // Just past boundary: 180 + 51*1.8 = 271.8°
+        int angle51 = riskGauge.calculateNeedleAngle(51);
+        assertTrue(angle51 >= 270 && angle51 <= 360, "Score 51 should be in yellow/red arc range");
 
-        riskGauge.setScore(67);
-        int angle67 = riskGauge.calculateNeedleAngle(67);
-        assertTrue(angle67 >= 270 && angle67 <= 360, "Score 67 should be in red arc range");
+        riskGauge.setScore(100); // 180 + 100*1.8 = 360°
+        int angle100 = riskGauge.calculateNeedleAngle(100);
+        assertTrue(angle100 >= 270 && angle100 <= 360, "Score 100 should be at end of red arc range");
     }
 
     @Test
