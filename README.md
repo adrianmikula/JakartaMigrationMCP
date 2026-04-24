@@ -21,7 +21,54 @@ This plugin helps you **identify risks early and migrate systematically**.
 
 ---
 
-## 🖥️ IntelliJ IDEA Plugin
+## � Privacy & Analytics
+
+### Anonymous Data Collection
+
+This plugin collects **anonymous usage statistics and error reports** to help improve the product:
+
+**What we collect:**
+- Anonymous user ID (randomly generated UUID)
+- Plugin version and environment
+- Usage events (credit usage, upgrade clicks)
+- Error reports with stack traces (when errors occur)
+- Current UI tab and action context
+
+**What we DON'T collect:**
+- Personal information or identifying data
+- Source code or project content  
+- IP addresses or location data
+- User names or email addresses
+
+**How we use it:**
+- Improve migration detection accuracy
+- Fix bugs and crashes faster
+- Understand which features are most useful
+- Plan future improvements
+
+**Data Storage:**
+- All data is stored securely in Supabase (GDPR compliant)
+- Anonymous user IDs are stored locally in your IDE config
+
+### Opt-Out Options
+
+You can **disable data collection** at any time:
+
+**Via About Tab:**
+1. Open **File → Settings → Plugins → Jakarta Migration**
+2. Click the **About** tab
+3. Toggle off "Usage Analytics" and/or "Error Reporting" 
+4. Changes are saved automatically
+
+**What happens when you opt-out:**
+- No new usage events will be collected
+- No new error reports will be sent
+- Previously collected anonymous data remains in Supabase
+- Plugin functionality is **not affected** - all features work normally
+
+---
+
+## ��️ IntelliJ IDEA Plugin
 
 ### Download
 
