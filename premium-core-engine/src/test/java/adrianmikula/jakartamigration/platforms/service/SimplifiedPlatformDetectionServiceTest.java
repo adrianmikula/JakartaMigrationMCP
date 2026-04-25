@@ -916,4 +916,67 @@ public class SimplifiedPlatformDetectionServiceTest {
         Files.write(projectPath.resolve("target/test.ear"), "dummy ear content".getBytes());
         return projectPath;
     }
+    
+    @Test
+    @DisplayName("Should detect Payara via Payara Micro dependency")
+    void shouldDetectPayaraViaPayaraMicroDependency() throws IOException {
+        // Given - Project with Payara Micro dependency
+        Path projectPath = tempDir.resolve("payara-micro-project");
+        Files.createDirectories(projectPath);
+        
+        String pomContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>payara.reactive</groupId>
+                <artifactId>reactive-web</artifactId>
+                <version>1.0-SNAPSHOT</version>
+                <packaging>war</packaging>
+                
+                <dependencies>
+                    <dependency>
+                        <groupId>fish.payara.extras</groupId>
+                        <artifactId>payara-micro</artifactId>
+                        <version>4.1.1.163</version>
+                        <scope>provided</scope>
+                    </dependency>
+                    <dependency>
+                        <groupId>javax</groupId>
+                        <artifactId>javaee-web-api</artifactId>
+                        <version>7.0</version>
+                        <scope>provided</scope>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        Files.write(projectPath.resolve("pom.xml"), pomContent.getBytes());
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+        
+        // Then
+        assertThat(detectedServers).contains("payara");
+        assertThat(detectedServers).hasSize(1); // Should only detect Payara
+    }
+    
+    @Test
+    @DisplayName("Should detect Payara in real Payara project from examples")
+    void shouldDetectPayaraInRealPayaraProject() throws IOException {
+        // Given - Real Payara project from examples (if available)
+        Path payaraProjectPath = Path.of("../../../examples/paraya/Payara-Micro-Reactive-Example-master/Payara-Micro-Reactive-Example-master/webapp");
+        
+        // Only run if the project exists (integration test)
+        if (!Files.exists(payaraProjectPath)) {
+            // Skip test if Payara project not available
+            return;
+        }
+        
+        // When
+        List<String> detectedServers = detectionService.scanProject(payaraProjectPath);
+        
+        // Then
+        assertThat(detectedServers).contains("payara");
+        // Should detect Payara among potentially other platforms
+    }
 }

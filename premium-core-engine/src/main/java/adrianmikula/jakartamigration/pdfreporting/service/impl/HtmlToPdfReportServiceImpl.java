@@ -326,7 +326,7 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
             <html>
             <head>
                 <title>%s</title>
-                <meta charset="UTF-8">
+                <meta charset="UTF-8" />
                 <style>
                     body {
                         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -690,7 +690,7 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
             <html>
             <head>
                 <title>%s</title>
-                <meta charset="UTF-8">
+                <meta charset="UTF-8" />
                 <style>
                     body { font-family: Arial, sans-serif; margin: 40px; }
                     .container { max-width: 800px; margin: 0 auto; }
@@ -723,7 +723,7 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
             <html>
             <head>
                 <title>%s</title>
-                <meta charset="UTF-8">
+                <meta charset="UTF-8" />
                 <style>
                     body {
                         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -871,7 +871,7 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
             <html>
             <head>
                 <title>%s</title>
-                <meta charset="UTF-8">
+                <meta charset="UTF-8" />
                 <style>
                     body {
                         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -1540,19 +1540,18 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
         // Simplified SVG icon for embedding - using a clean, scalable version
         // All XML entities must be properly escaped for Flying Saucer
         return """
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display: block;">
-                <defs>
-                    <linearGradient id="iconGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" style="stop-color:#3498db;stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:#2c3e50;stop-opacity:1" />
-                    </linearGradient>
-                </defs>
-                <rect x="2" y="2" width="20" height="20" rx="4" fill="url(#iconGrad1)"/>
-                <path d="M8 12h8M12 8v8" stroke="white" stroke-width="2" stroke-linecap="round"/>
-                <circle cx="12" cy="12" r="6" stroke="white" stroke-width="1.5" fill="none" stroke-dasharray="2,2"/>
-            </svg>
-            """.replace("&", "&amp;")
-              .replace("#", "&amp;#");
+            &lt;svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display: block;"&gt;
+                &lt;defs&gt;
+                    &lt;linearGradient id="iconGrad1" x1="0%" y1="0%" x2="100%" y2="100%"&gt;
+                        &lt;stop offset="0%" style="stop-color:#3498db;stop-opacity:1" /&gt;
+                        &lt;stop offset="100%" style="stop-color:#2c3e50;stop-opacity:1" /&gt;
+                    &lt;/linearGradient&gt;
+                &lt;/defs&gt;
+                &lt;rect x="2" y="2" width="20" height="20" rx="4" fill="url(#iconGrad1)"/&gt;
+                &lt;path d="M8 12h8M12 8v8" stroke="white" stroke-width="2" stroke-linecap="round"/&gt;
+                &lt;circle cx="12" cy="12" r="6" stroke="white" stroke-width="1.5" fill="none" stroke-dasharray="2,2"/&gt;
+            &lt;/svg&gt;
+            """;
     }
     String escapeHtml(String text) {
         if (text == null) return "";
@@ -1564,6 +1563,11 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
     }
     
     private void convertHtmlToPdf(String htmlContent, Path outputPath) throws Exception {
+        // Monitor memory usage
+        Runtime runtime = Runtime.getRuntime();
+        long memoryBefore = runtime.totalMemory() - runtime.freeMemory();
+        log.info("Memory before PDF conversion: {} MB", memoryBefore / (1024 * 1024));
+        
         try {
             // Validate HTML content before PDF conversion to catch XML parsing issues early
             HtmlValidator.validateHtml(htmlContent);
@@ -1571,25 +1575,55 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
             // Ensure output directory exists
             Files.createDirectories(outputPath.getParent());
             
-            // Create PDF renderer using Flying Saucer
-            org.xhtmlrenderer.pdf.ITextRenderer renderer = new org.xhtmlrenderer.pdf.ITextRenderer();
-            
-            // Set document content
-            renderer.setDocumentFromString(htmlContent);
-            
-            // Layout the document
-            renderer.layout();
-            
-            // Create output stream and generate PDF
-            try (OutputStream outputStream = new FileOutputStream(outputPath.toFile())) {
-                renderer.createPDF(outputStream);
+            // Create PDF renderer using Flying Saucer with optimized settings
+            org.xhtmlrenderer.pdf.ITextRenderer renderer = null;
+            try {
+                renderer = new org.xhtmlrenderer.pdf.ITextRenderer();
+                
+                // Optimize renderer settings for memory efficiency
+                renderer.getSharedContext().setUserAgentCallback(null); // Disable user agent callback
+                renderer.getSharedContext().setMedia("pdf"); // Use PDF media type
+                
+                // Set document content
+                renderer.setDocumentFromString(htmlContent);
+                
+                // Layout document
+                renderer.layout();
+                
+                // Create output stream and generate PDF
+                try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(outputPath.toFile()))) {
+                    renderer.createPDF(outputStream);
+                    outputStream.flush(); // Ensure all data is written
+                }
+                
+            } finally {
+                // Clean up renderer resources
+                if (renderer != null) {
+                    try {
+                        renderer.getSharedContext().setUserAgentCallback(null);
+                    } catch (Exception e) {
+                        log.warn("Error cleaning up renderer resources: {}", e.getMessage());
+                    }
+                }
             }
             
             log.info("PDF successfully generated: {}", outputPath.toAbsolutePath());
             
             // Verify PDF was created
             if (Files.exists(outputPath) && Files.size(outputPath) > 0) {
-                log.info("PDF file size: {} bytes", Files.size(outputPath));
+                long fileSize = Files.size(outputPath);
+                log.info("PDF file size: {} bytes", fileSize);
+                
+                // Monitor memory after generation
+                long memoryAfter = runtime.totalMemory() - runtime.freeMemory();
+                long memoryUsed = memoryAfter - memoryBefore;
+                log.info("Memory after PDF conversion: {} MB, delta: {} MB", 
+                    memoryAfter / (1024 * 1024), memoryUsed / (1024 * 1024));
+                
+                // Warn if memory usage is high
+                if (memoryUsed > 100 * 1024 * 1024) { // 100MB threshold
+                    log.warn("High memory usage detected during PDF generation: {} MB", memoryUsed / (1024 * 1024));
+                }
             } else {
                 throw new RuntimeException("PDF file was not created properly");
             }
@@ -1603,6 +1637,9 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
             log.warn("PDF conversion failed, saved as HTML instead: {}", htmlPath);
             
             throw new RuntimeException("PDF conversion failed: " + e.getMessage(), e);
+        } finally {
+            // Suggest garbage collection to free memory
+            System.gc();
         }
     }
     

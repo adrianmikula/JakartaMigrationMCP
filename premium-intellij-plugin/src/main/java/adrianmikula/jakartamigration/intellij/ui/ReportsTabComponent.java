@@ -12,6 +12,8 @@ import adrianmikula.jakartamigration.credits.CreditType;
 import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
+import adrianmikula.jakartamigration.analytics.service.ErrorReportingService;
+import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBLabel;
@@ -23,6 +25,10 @@ import javax.swing.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.awt.*;
 import java.awt.Desktop;
 import java.io.File;
@@ -44,28 +50,55 @@ public class ReportsTabComponent {
     private final MigrationAnalysisService migrationAnalysisService;
     private final AdvancedScanningService advancedScanningService;
     private final CreditsService creditsService;
+    private final ErrorReportingService errorReportingService;
     
     // UI Components
     private final JButton generateRiskAnalysisReportButton;
     private final JButton generateRefactoringActionReportButton;
+    private final JButton cancelButton;
     private final JLabel statusLabel;
     private final JTextArea outputArea;
     private final JPanel upgradeButtonPanel;
+    private final JProgressBar progressBar;
+    
+    // Async generation support
+    private final ExecutorService pdfGenerationExecutor;
+    private final AtomicBoolean generationInProgress;
+    private CompletableFuture<Path> currentGenerationTask;
     
     public ReportsTabComponent(Project project, MigrationAnalysisService migrationAnalysisService, AdvancedScanningService advancedScanningService) {
+        this(project, migrationAnalysisService, advancedScanningService, new ErrorReportingService(new UserIdentificationService()));
+    }
+    
+    public ReportsTabComponent(Project project, MigrationAnalysisService migrationAnalysisService, AdvancedScanningService advancedScanningService, ErrorReportingService errorReportingService) {
         this.project = project;
         this.pdfReportService = new HtmlToPdfReportServiceImpl();
         this.migrationAnalysisService = migrationAnalysisService;
         this.advancedScanningService = advancedScanningService;
         this.creditsService = new CreditsService();
+        this.errorReportingService = errorReportingService;
         
         // Initialize UI components
         generateRiskAnalysisReportButton = new JButton("Generate Risk Analysis Report");
         generateRefactoringActionReportButton = new JButton("Generate Refactoring Action Report");
+        cancelButton = new JButton("Cancel Generation");
+        cancelButton.setEnabled(false);
         statusLabel = new JBLabel("Ready to generate reports");
         outputArea = new JTextArea(10, 40);
         outputArea.setEditable(false);
         outputArea.setFont(JBUI.Fonts.smallFont());
+        progressBar = new JProgressBar();
+        progressBar.setStringPainted(true);
+        progressBar.setVisible(false);
+        
+        // Initialize async support
+        this.pdfGenerationExecutor = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "PDF-Generation-Thread");
+            t.setDaemon(true);
+            return t;
+        });
+        this.generationInProgress = new AtomicBoolean(false);
+        this.currentGenerationTask = null;
         
         // Create upgrade button panel (conditionally shown)
         upgradeButtonPanel = createUpgradeButtonPanel();
@@ -114,10 +147,14 @@ public class ReportsTabComponent {
         gbc.gridy = 1;
         buttonPanel.add(generateRefactoringActionReportButton, gbc);
         
+        gbc.gridy = 2;
+        buttonPanel.add(cancelButton, gbc);
+        
         // Status panel
         JPanel statusPanel = new JPanel(new BorderLayout());
         statusPanel.setBorder(JBUI.Borders.empty(10));
         statusPanel.add(statusLabel, BorderLayout.NORTH);
+        statusPanel.add(progressBar, BorderLayout.CENTER);
         
         // Output area
         JScrollPane scrollPane = new JBScrollPane(outputArea);
@@ -141,8 +178,9 @@ public class ReportsTabComponent {
     }
     
     private void setupEventHandlers() {
-        generateRiskAnalysisReportButton.addActionListener(e -> generateRiskAnalysisReport());
-        generateRefactoringActionReportButton.addActionListener(e -> generateRefactoringActionReport());
+        generateRiskAnalysisReportButton.addActionListener(e -> generateRiskAnalysisReportAsync());
+        generateRefactoringActionReportButton.addActionListener(e -> generateRefactoringActionReportAsync());
+        cancelButton.addActionListener(e -> cancelGeneration());
     }
     
     private JPanel createUpgradeButtonPanel() {
@@ -184,7 +222,12 @@ public class ReportsTabComponent {
         });
     }
     
-    private void generateRiskAnalysisReport() {
+    private void generateRiskAnalysisReportAsync() {
+        if (generationInProgress.get()) {
+            outputArea.append("Generation already in progress. Please wait or cancel current operation.\n");
+            return;
+        }
+        
         try {
             // Check if user is premium
             boolean isPremium = CheckLicense.isLicensed();
@@ -196,129 +239,223 @@ public class ReportsTabComponent {
                 return;
             }
 
-            statusLabel.setText("Generating Risk Analysis report...");
-            outputArea.setText("Starting Risk Analysis report generation...\n");
+            setGenerationState(true, "Preparing Risk Analysis report generation...");
             
             // Get real data from services
             Path projectPath = Paths.get(project.getBasePath());
-            DependencyGraph dependencyGraph = null;
-            ComprehensiveScanResults scanResults = getRealScanResults();
             
-            try {
-                dependencyGraph = migrationAnalysisService.getDependencyGraph(projectPath);
-            } catch (Exception e) {
-                if (e.getMessage() != null && e.getMessage().contains("No build file found")) {
-                    outputArea.append("Note: Eclipse-based project detected - no Maven/Gradle build files found.\n");
-                    outputArea.append("Generating report with available scan data...\n");
-                    dependencyGraph = null; // Continue with null dependency graph
-                } else {
-                    throw e; // Re-throw other exceptions
+            // Start async generation
+            currentGenerationTask = CompletableFuture.supplyAsync(() -> {
+                try {
+                    // This runs on background thread
+                    SwingUtilities.invokeLater(() -> {
+                        outputArea.setText("Starting Risk Analysis report generation...\n");
+                        updateProgress(5, "Loading project data...");
+                    });
+                    
+                    DependencyGraph dependencyGraph = null;
+                    ComprehensiveScanResults scanResults = getRealScanResults();
+                    
+                    try {
+                        dependencyGraph = migrationAnalysisService.getDependencyGraph(projectPath);
+                    } catch (Exception e) {
+                        if (e.getMessage() != null && e.getMessage().contains("No build file found")) {
+                            SwingUtilities.invokeLater(() -> {
+                                outputArea.append("Note: Eclipse-based project detected - no Maven/Gradle build files found.\n");
+                                outputArea.append("Generating report with available scan data...\n");
+                            });
+                            dependencyGraph = null; // Continue with null dependency graph
+                        } else {
+                            throw e; // Re-throw other exceptions
+                        }
+                    }
+                    
+                    SwingUtilities.invokeLater(() -> {
+                        updateProgress(15, "Analyzing dependencies...");
+                        if (dependencyGraph == null || dependencyGraph.getNodes().isEmpty()) {
+                            outputArea.append("Warning: No dependency data available. Report will include scan results only.\n");
+                        } else {
+                            outputArea.append("Found " + dependencyGraph.getNodes().size() + " dependencies\n");
+                        }
+                        if (scanResults != null) {
+                            outputArea.append("Total scan issues: " + scanResults.totalIssuesFound() + "\n");
+                        }
+                    });
+                    
+                    // Choose output location
+                    SwingUtilities.invokeLater(() -> updateProgress(25, "Choosing output location..."));
+                    Path outputPath = chooseOutputLocation("risk-analysis-report.pdf");
+                    if (outputPath == null) {
+                        SwingUtilities.invokeLater(() -> {
+                            statusLabel.setText("Report generation cancelled");
+                            setGenerationState(false, "Ready to generate reports");
+                        });
+                        return null;
+                    }
+                    
+                    SwingUtilities.invokeLater(() -> updateProgress(35, "Preparing report data..."));
+                    
+                    // Create risk analysis report request
+                    Map<String, Object> strategyDetails = Map.of(
+                        "displayName", "Incremental",
+                        "description", "Migrate one dependency at a time",
+                        "benefits", "Lower risk per change, better control",
+                        "risks", "Longer timeline, compatibility management",
+                        "phases", "1. Dependency Scan\n2. Priority Ranking\n3. Step-by-Step Upgrade\n4. Continuous Testing",
+                        "color", "#f39c12"
+                    );
+                    
+                    Map<String, Object> validationMetrics = Map.of(
+                        "unitTestCoverage", 65,
+                        "integrationTestCoverage", 45,
+                        "criticalModulesCoverage", 70,
+                        "overallConfidence", 60
+                    );
+                    
+                    List<Map<String, Object>> topBlockers = new ArrayList<>();
+                    topBlockers.add(Map.of(
+                        "name", "javax.servlet:servlet-api", "version", "2.5", "severity", "HIGH", 
+                        "impact", "Requires Jakarta EE migration", "occurrences", 1, 
+                        "remediation", "Update to jakarta.servlet:jakarta.servlet-api"
+                    ));
+                    topBlockers.add(Map.of(
+                        "name", "javax.persistence:persistence-api", "version", "2.2", "severity", "MEDIUM",
+                        "impact", "JPA annotations need namespace update", "occurrences", 3,
+                        "remediation", "Update entity annotations to jakarta.persistence"
+                    ));
+                    
+                    Map<String, Object> implementationPhases = Map.of(
+                        "phase1", Map.of("name", "Preparation", "description", "Setup, analysis, planning"),
+                        "phase2", Map.of("name", "Dependency Updates", "description", "Update javax dependencies"),
+                        "phase3", Map.of("name", "Code Migration", "description", "Replace imports, update code"),
+                        "phase4", Map.of("name", "Testing & Validation", "description", "Comprehensive testing")
+                    );
+                    
+                    PdfReportService.RiskAnalysisReportRequest request = new PdfReportService.RiskAnalysisReportRequest(
+                        outputPath,
+                        project.getName(),
+                        "Jakarta Migration Risk Analysis Report",
+                        dependencyGraph,
+                        null, // analysisReport
+                        scanResults,
+                        null, // platformScanResults
+                        null, // riskScore - will be calculated in service
+                        "Incremental",
+                        strategyDetails,
+                        validationMetrics,
+                        topBlockers,
+                        Arrays.asList(
+                            "Follow incremental migration approach to minimize risk",
+                            "Update dependencies in order of dependency hierarchy", 
+                            "Implement comprehensive testing at each migration step",
+                            "Maintain rollback strategy throughout migration process"
+                        ),
+                        implementationPhases,
+                        Map.of("generatedBy", "Jakarta Migration Tool v3.0")
+                    );
+                    
+                    SwingUtilities.invokeLater(() -> updateProgress(50, "Generating PDF report..."));
+                    
+                    // Generate report
+                    Path result = pdfReportService.generateRiskAnalysisReport(request);
+                    
+                    SwingUtilities.invokeLater(() -> updateProgress(90, "Finalizing report..."));
+                    
+                    return result;
+                    
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
                 }
-            }
+            }, pdfGenerationExecutor);
             
-            if (dependencyGraph == null || dependencyGraph.getNodes().isEmpty()) {
-                outputArea.append("Warning: No dependency data available. Report will include scan results only.\n");
-            } else {
-                outputArea.append("Found " + dependencyGraph.getNodes().size() + " dependencies\n");
-            }
-            if (scanResults != null) {
-                outputArea.append("Total scan issues: " + scanResults.totalIssuesFound() + "\n");
-            }
-            
-            // Choose output location
-            Path outputPath = chooseOutputLocation("risk-analysis-report.pdf");
-            if (outputPath == null) {
-                statusLabel.setText("Report generation cancelled");
-                return;
-            }
-            
-            // Create risk analysis report request
-            Map<String, Object> strategyDetails = Map.of(
-                "displayName", "Incremental",
-                "description", "Migrate one dependency at a time",
-                "benefits", "Lower risk per change, better control",
-                "risks", "Longer timeline, compatibility management",
-                "phases", "1. Dependency Scan\n2. Priority Ranking\n3. Step-by-Step Upgrade\n4. Continuous Testing",
-                "color", "#f39c12"
-            );
-            
-            Map<String, Object> validationMetrics = Map.of(
-                "unitTestCoverage", 65,
-                "integrationTestCoverage", 45,
-                "criticalModulesCoverage", 70,
-                "overallConfidence", 60
-            );
-            
-            List<Map<String, Object>> topBlockers = new ArrayList<>();
-            topBlockers.add(Map.of(
-                "name", "javax.servlet:servlet-api", "version", "2.5", "severity", "HIGH", 
-                "impact", "Requires Jakarta EE migration", "occurrences", 1, 
-                "remediation", "Update to jakarta.servlet:jakarta.servlet-api"
-            ));
-            topBlockers.add(Map.of(
-                "name", "javax.persistence:persistence-api", "version", "2.2", "severity", "MEDIUM",
-                "impact", "JPA annotations need namespace update", "occurrences", 3,
-                "remediation", "Update entity annotations to jakarta.persistence"
-            ));
-            
-            Map<String, Object> implementationPhases = Map.of(
-                "phase1", Map.of("name", "Preparation", "description", "Setup, analysis, planning"),
-                "phase2", Map.of("name", "Dependency Updates", "description", "Update javax dependencies"),
-                "phase3", Map.of("name", "Code Migration", "description", "Replace imports, update code"),
-                "phase4", Map.of("name", "Testing & Validation", "description", "Comprehensive testing")
-            );
-            
-            PdfReportService.RiskAnalysisReportRequest request = new PdfReportService.RiskAnalysisReportRequest(
-                outputPath,
-                project.getName(),
-                "Jakarta Migration Risk Analysis Report",
-                dependencyGraph,
-                null, // analysisReport
-                scanResults,
-                null, // platformScanResults
-                null, // riskScore - will be calculated in service
-                "Incremental",
-                strategyDetails,
-                validationMetrics,
-                topBlockers,
-                Arrays.asList(
-                    "Follow incremental migration approach to minimize risk",
-                    "Update dependencies in order of dependency hierarchy", 
-                    "Implement comprehensive testing at each migration step",
-                    "Maintain rollback strategy throughout migration process"
-                ),
-                implementationPhases,
-                Map.of("generatedBy", "Jakarta Migration Tool v3.0")
-            );
-            
-            // Generate report
-            Path result = pdfReportService.generateRiskAnalysisReport(request);
-            
-            outputArea.append("Risk Analysis report generated successfully!\n");
-            outputArea.append("Output file: " + result.toAbsolutePath() + "\n");
-            outputArea.append("File size: " + result.toFile().length() + " bytes\n");
-            
-            statusLabel.setText("Risk Analysis report generated successfully");
-            
-            // Ask if user wants to open the file
-            int choice = Messages.showYesNoDialog(
-                project,
-                "Risk Analysis report generated successfully!\n\nWould you like to open the PDF file?",
-                "Report Generated",
-                Messages.getQuestionIcon());
-            
-            if (choice == Messages.YES) {
-                openFile(result);
-            }
+            // Handle completion
+            currentGenerationTask.whenComplete((result, throwable) -> {
+                SwingUtilities.invokeLater(() -> {
+                    if (throwable != null) {
+                        handleGenerationError(throwable, "Risk Analysis");
+                    } else if (result != null) {
+                        handleGenerationSuccess(result, "Risk Analysis");
+                    } else {
+                        // User cancelled
+                        setGenerationState(false, "Ready to generate reports");
+                    }
+                });
+            });
             
         } catch (Exception e) {
-            outputArea.append("Error generating Risk Analysis report: " + e.getMessage() + "\n");
-            statusLabel.setText("Error generating report");
-            Messages.showErrorDialog(project, "Failed to generate Risk Analysis report: " + e.getMessage(), "Error");
+            SwingUtilities.invokeLater(() -> {
+                handleGenerationError(e, "Risk Analysis");
+            });
         }
     }
     
-    private void generateRefactoringActionReport() {
+    // Helper methods for async generation
+    private void setGenerationState(boolean inProgress, String status) {
+        generationInProgress.set(inProgress);
+        statusLabel.setText(status);
+        progressBar.setVisible(inProgress);
+        generateRiskAnalysisReportButton.setEnabled(!inProgress);
+        generateRefactoringActionReportButton.setEnabled(!inProgress);
+        cancelButton.setEnabled(inProgress);
+        
+        if (!inProgress) {
+            progressBar.setValue(0);
+            progressBar.setString("");
+        }
+    }
+    
+    private void updateProgress(int percent, String message) {
+        progressBar.setValue(percent);
+        progressBar.setString(message + " (" + percent + "%)");
+        outputArea.append(message + "\n");
+    }
+    
+    private void cancelGeneration() {
+        if (currentGenerationTask != null && !currentGenerationTask.isDone()) {
+            currentGenerationTask.cancel(true);
+            SwingUtilities.invokeLater(() -> {
+                outputArea.append("Generation cancelled by user.\n");
+                setGenerationState(false, "Generation cancelled");
+            });
+        }
+    }
+    
+    private void handleGenerationSuccess(Path result, String reportType) {
+        outputArea.append(reportType + " report generated successfully!\n");
+        outputArea.append("Output file: " + result.toAbsolutePath() + "\n");
+        outputArea.append("File size: " + result.toFile().length() + " bytes\n");
+        
+        updateProgress(100, "Report generation complete");
+        setGenerationState(false, reportType + " report generated successfully");
+        
+        // Ask if user wants to open file
+        int choice = Messages.showYesNoDialog(
+            project,
+            reportType + " report generated successfully!\n\nWould you like to open PDF file?",
+            "Report Generated",
+            Messages.getQuestionIcon());
+        
+        if (choice == Messages.YES) {
+            openFile(result);
+        }
+    }
+    
+    private void handleGenerationError(Throwable throwable, String reportType) {
+        String errorMessage = throwable.getCause() != null ? throwable.getCause().getMessage() : throwable.getMessage();
+        outputArea.append("Error generating " + reportType + " report: " + errorMessage + "\n");
+        setGenerationState(false, "Error generating " + reportType + " report");
+        Messages.showErrorDialog(project, "Failed to generate " + reportType + " report: " + errorMessage, "Error");
+        
+        // Report error to Supabase for analytics
+        errorReportingService.reportError(throwable, "PDF " + reportType + " Report Generation");
+    }
+    
+    private void generateRefactoringActionReportAsync() {
+        if (generationInProgress.get()) {
+            outputArea.append("Generation already in progress. Please wait or cancel current operation.\n");
+            return;
+        }
+        
         try {
             // Check if user is premium
             boolean isPremium = CheckLicense.isLicensed();
@@ -330,116 +467,144 @@ public class ReportsTabComponent {
                 return;
             }
 
-            statusLabel.setText("Generating Refactoring Action report...");
-            outputArea.setText("Starting Refactoring Action report generation...\n");
+            setGenerationState(true, "Preparing Refactoring Action report generation...");
             
             // Get real data from services
             Path projectPath = Paths.get(project.getBasePath());
-            DependencyGraph dependencyGraph = null;
-            ComprehensiveScanResults scanResults = getRealScanResults();
             
-            try {
-                dependencyGraph = migrationAnalysisService.getDependencyGraph(projectPath);
-            } catch (Exception e) {
-                if (e.getMessage() != null && e.getMessage().contains("No build file found")) {
-                    outputArea.append("Note: Eclipse-based project detected - no Maven/Gradle build files found.\n");
-                    outputArea.append("Generating report with available scan data...\n");
-                    dependencyGraph = null; // Continue with null dependency graph
-                } else {
-                    throw e; // Re-throw other exceptions
+            // Start async generation
+            currentGenerationTask = CompletableFuture.supplyAsync(() -> {
+                try {
+                    // This runs on background thread
+                    SwingUtilities.invokeLater(() -> {
+                        outputArea.setText("Starting Refactoring Action report generation...\n");
+                        updateProgress(5, "Loading project data...");
+                    });
+                    
+                    DependencyGraph dependencyGraph = null;
+                    ComprehensiveScanResults scanResults = getRealScanResults();
+                    
+                    try {
+                        dependencyGraph = migrationAnalysisService.getDependencyGraph(projectPath);
+                    } catch (Exception e) {
+                        if (e.getMessage() != null && e.getMessage().contains("No build file found")) {
+                            SwingUtilities.invokeLater(() -> {
+                                outputArea.append("Note: Eclipse-based project detected - no Maven/Gradle build files found.\n");
+                                outputArea.append("Generating report with available scan data...\n");
+                            });
+                            dependencyGraph = null; // Continue with null dependency graph
+                        } else {
+                            throw e; // Re-throw other exceptions
+                        }
+                    }
+                    
+                    SwingUtilities.invokeLater(() -> {
+                        updateProgress(15, "Analyzing dependencies...");
+                        // Check if we have dependency data before generating report
+                        if (dependencyGraph == null || dependencyGraph.getNodes().isEmpty()) {
+                            outputArea.append("Warning: No dependency data available. Report will include scan results only.\n");
+                        } else {
+                            outputArea.append("Found " + dependencyGraph.getNodes().size() + " dependencies\n");
+                        }
+                        
+                        // Check if we have analysis report before generating refactoring report
+                        CentralMigrationAnalysisStore store = new CentralMigrationAnalysisStore();
+                        DependencyAnalysisReport analysisReport = 
+                            store.getLatestAnalysisReport(Paths.get(project.getBasePath()));
+                        if (analysisReport == null) {
+                            outputArea.append("Warning: No analysis report found. Report will include available scan data only.\n");
+                        }
+                        
+                        if (scanResults != null) {
+                            outputArea.append("Total scan issues: " + scanResults.totalIssuesFound() + "\n");
+                        }
+                    });
+                    
+                    // Choose output location
+                    SwingUtilities.invokeLater(() -> updateProgress(25, "Choosing output location..."));
+                    Path outputPath = chooseOutputLocation("refactoring-action-report.pdf");
+                    if (outputPath == null) {
+                        SwingUtilities.invokeLater(() -> {
+                            statusLabel.setText("Report generation cancelled");
+                            setGenerationState(false, "Ready to generate reports");
+                        });
+                        return null;
+                    }
+                    
+                    SwingUtilities.invokeLater(() -> updateProgress(35, "Preparing report data..."));
+                    
+                    // Create mock javax references data (would be populated from real scan)
+                    List<Map<String, Object>> javaxReferences = new ArrayList<>();
+                    if (scanResults != null) {
+                        // Add sample javax references based on scan results
+                        javaxReferences.add(Map.of("file", "SampleController.java", "line", "15", "reference", "javax.servlet.http.HttpServlet", "priority", "high", "recipeAvailable", true));
+                        javaxReferences.add(Map.of("file", "SampleEntity.java", "line", "8", "reference", "javax.persistence.Entity", "priority", "medium", "recipeAvailable", true));
+                        javaxReferences.add(Map.of("file", "SampleService.java", "line", "22", "reference", "javax.inject.Inject", "priority", "low", "recipeAvailable", false));
+                    }
+                    
+                    // Create mock OpenRewrite recipes data
+                    List<Map<String, Object>> openRewriteRecipes = new ArrayList<>();
+                    openRewriteRecipes.add(Map.of("name", "Jakarta EE 9 to 10 Migration", "category", "Namespace", "description", "Updates javax imports to jakarta", "automated", true));
+                    openRewriteRecipes.add(Map.of("name", "JPA Entity Annotations", "category", "JPA", "description", "Updates JPA annotations to jakarta namespace", "automated", true));
+                    openRewriteRecipes.add(Map.of("name", "Servlet API Migration", "category", "Servlet", "description", "Updates servlet references to jakarta", "automated", false));
+                    
+                    Map<String, Object> refactoringReadiness = Map.of(
+                        "automationReady", 75,
+                        "totalFiles", javaxReferences.size(),
+                        "readyForAutomation", (int) (javaxReferences.size() * 0.75)
+                    );
+                    
+                    Map<String, Object> priorityRanking = Map.of(
+                        "highPriority", 1,
+                        "mediumPriority", 2,
+                        "lowPriority", javaxReferences.size() - 3
+                    );
+                    
+                    SwingUtilities.invokeLater(() -> updateProgress(50, "Generating PDF report..."));
+                    
+                    PdfReportService.RefactoringActionReportRequest request = new PdfReportService.RefactoringActionReportRequest(
+                        outputPath,
+                        project.getName(),
+                        "Jakarta Migration Refactoring Action Report",
+                        dependencyGraph,
+                        scanResults,
+                        javaxReferences,
+                        openRewriteRecipes,
+                        refactoringReadiness,
+                        priorityRanking,
+                        Map.of("generatedBy", "Jakarta Migration Tool v3.0")
+                    );
+                    
+                    SwingUtilities.invokeLater(() -> updateProgress(90, "Finalizing report..."));
+                    
+                    // Generate report
+                    Path result = pdfReportService.generateRefactoringActionReport(request);
+                    
+                    return result;
+                    
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
                 }
-            }
+            }, pdfGenerationExecutor);
             
-            // Check if we have dependency data before generating report
-            if (dependencyGraph == null || dependencyGraph.getNodes().isEmpty()) {
-                outputArea.append("Warning: No dependency data available. Report will include scan results only.\n");
-            } else {
-                outputArea.append("Found " + dependencyGraph.getNodes().size() + " dependencies\n");
-            }
-            
-            // Check if we have analysis report before generating refactoring report
-            CentralMigrationAnalysisStore store = new CentralMigrationAnalysisStore();
-            DependencyAnalysisReport analysisReport = 
-                store.getLatestAnalysisReport(Paths.get(project.getBasePath()));
-            if (analysisReport == null) {
-                outputArea.append("Warning: No analysis report found. Report will include available scan data only.\n");
-            }
-            
-            if (scanResults != null) {
-                outputArea.append("Total scan issues: " + scanResults.totalIssuesFound() + "\n");
-            }
-            
-            // Choose output location
-            Path outputPath = chooseOutputLocation("refactoring-action-report.pdf");
-            if (outputPath == null) {
-                statusLabel.setText("Report generation cancelled");
-                return;
-            }
-            
-            // Create mock javax references data (would be populated from real scan)
-            List<Map<String, Object>> javaxReferences = new ArrayList<>();
-            if (scanResults != null) {
-                // Add sample javax references based on scan results
-                javaxReferences.add(Map.of("file", "SampleController.java", "line", "15", "reference", "javax.servlet.http.HttpServlet", "priority", "high", "recipeAvailable", true));
-                javaxReferences.add(Map.of("file", "SampleEntity.java", "line", "8", "reference", "javax.persistence.Entity", "priority", "medium", "recipeAvailable", true));
-                javaxReferences.add(Map.of("file", "SampleService.java", "line", "22", "reference", "javax.inject.Inject", "priority", "low", "recipeAvailable", false));
-            }
-            
-            // Create mock OpenRewrite recipes data
-            List<Map<String, Object>> openRewriteRecipes = new ArrayList<>();
-            openRewriteRecipes.add(Map.of("name", "Jakarta EE 9 to 10 Migration", "category", "Namespace", "description", "Updates javax imports to jakarta", "automated", true));
-            openRewriteRecipes.add(Map.of("name", "JPA Entity Annotations", "category", "JPA", "description", "Updates JPA annotations to jakarta namespace", "automated", true));
-            openRewriteRecipes.add(Map.of("name", "Servlet API Migration", "category", "Servlet", "description", "Updates servlet references to jakarta", "automated", false));
-            
-            Map<String, Object> refactoringReadiness = Map.of(
-                "automationReady", 75,
-                "totalFiles", javaxReferences.size(),
-                "readyForAutomation", (int) (javaxReferences.size() * 0.75)
-            );
-            
-            Map<String, Object> priorityRanking = Map.of(
-                "highPriority", 1,
-                "mediumPriority", 2,
-                "lowPriority", javaxReferences.size() - 3
-            );
-            
-            PdfReportService.RefactoringActionReportRequest request = new PdfReportService.RefactoringActionReportRequest(
-                outputPath,
-                project.getName(),
-                "Jakarta Migration Refactoring Action Report",
-                dependencyGraph,
-                scanResults,
-                javaxReferences,
-                openRewriteRecipes,
-                refactoringReadiness,
-                priorityRanking,
-                Map.of("generatedBy", "Jakarta Migration Tool v3.0")
-            );
-            
-            // Generate report
-            Path result = pdfReportService.generateRefactoringActionReport(request);
-            
-            outputArea.append("Refactoring Action report generated successfully!\n");
-            outputArea.append("Output file: " + result.toAbsolutePath() + "\n");
-            outputArea.append("File size: " + result.toFile().length() + " bytes\n");
-            
-            statusLabel.setText("Refactoring Action report generated successfully");
-            
-            // Ask if user wants to open the file
-            int choice = Messages.showYesNoDialog(
-                project,
-                "Refactoring Action report generated successfully!\n\nWould you like to open the PDF file?",
-                "Report Generated",
-                Messages.getQuestionIcon());
-            
-            if (choice == Messages.YES) {
-                openFile(result);
-            }
+            // Handle completion
+            currentGenerationTask.whenComplete((result, throwable) -> {
+                SwingUtilities.invokeLater(() -> {
+                    if (throwable != null) {
+                        handleGenerationError(throwable, "Refactoring Action");
+                    } else if (result != null) {
+                        handleGenerationSuccess(result, "Refactoring Action");
+                    } else {
+                        // User cancelled
+                        setGenerationState(false, "Ready to generate reports");
+                    }
+                });
+            });
             
         } catch (Exception e) {
-            outputArea.append("Error generating Refactoring Action report: " + e.getMessage() + "\n");
-            statusLabel.setText("Error generating report");
-            Messages.showErrorDialog(project, "Failed to generate Refactoring Action report: " + e.getMessage(), "Error");
+            SwingUtilities.invokeLater(() -> {
+                handleGenerationError(e, "Refactoring Action");
+            });
         }
     }
     
@@ -460,6 +625,9 @@ public class ReportsTabComponent {
             Desktop.getDesktop().open(file.toFile());
         } catch (Exception e) {
             Messages.showErrorDialog(project, "Failed to open PDF file: " + e.getMessage(), "Error");
+            
+            // Report error to Supabase for analytics
+            errorReportingService.reportError(e, "PDF File Open Operation");
         }
     }
     
@@ -647,6 +815,9 @@ public class ReportsTabComponent {
         } catch (Exception e) {
             outputArea.append("Error generating consolidated report: " + e.getMessage() + "\n");
             statusLabel.setText("Error generating consolidated report");
+            
+            // Report error to Supabase for analytics
+            errorReportingService.reportError(e, "PDF Consolidated Report Generation");
         }
     }
     

@@ -65,13 +65,13 @@ run = "gradle :community-core-engine:compileJava :community-mcp-server:compileJa
 
 [tasks.build-all]
 description = "Build all modules with tests"
-run_windows = "gradlew.bat build"
-run = "gradle build"
+run_windows = "gradlew.bat build -Djakarta.migration.mode=dev"
+run = "gradle build -Djakarta.migration.mode=dev"
 
 [tasks.test]
 description = "Run tests for all modules"
-run_windows = "gradlew.bat test"
-run = "gradle test --no-configuration-cache"
+run_windows = "gradlew.bat test -Djakarta.migration.mode=dev"
+run = "gradle test -Djakarta.migration.mode=dev --no-configuration-cache"
 
 [tasks.run]
 description = "Run the community MCP server application"
@@ -169,13 +169,13 @@ run = "gradle :premium-core-engine:compileJava :premium-mcp-server:compileJava :
 
 [tasks.build-premium-all]
 description = "Build premium modules with tests"
-run_windows = "gradlew.bat :premium-core-engine:build :premium-mcp-server:build :premium-intellij-plugin:build"
-run = "gradle :premium-core-engine:build :premium-mcp-server:build :premium-intellij-plugin:build"
+run_windows = "gradlew.bat :premium-core-engine:build :premium-mcp-server:build :premium-intellij-plugin:build -Djakarta.migration.mode=dev"
+run = "gradle :premium-core-engine:build :premium-mcp-server:build :premium-intellij-plugin:build -Djakarta.migration.mode=dev"
 
 [tasks.test-premium]
 description = "Run tests for all premium modules"
-run_windows = "gradlew.bat :premium-core-engine:test :premium-mcp-server:test :premium-intellij-plugin:test"
-run = "gradle :premium-core-engine:test :premium-mcp-server:test :premium-intellij-plugin:test --no-configuration-cache"
+run_windows = "gradlew.bat :premium-core-engine:test :premium-mcp-server:test :premium-intellij-plugin:test -Djakarta.migration.mode=dev"
+run = "gradle :premium-core-engine:test :premium-mcp-server:test :premium-intellij-plugin:test -Djakarta.migration.mode=dev --no-configuration-cache"
 
 [tasks.build-premium-plugin]
 description = "Build premium IntelliJ plugin"
@@ -191,24 +191,24 @@ run = "gradle :community-core-engine:compileJava :community-mcp-server:compileJa
 
 [tasks.test-community]
 description = "Run tests for all community modules"
-run_windows = "gradlew.bat :community-core-engine:test :community-mcp-server:test"
-run = "gradle :community-core-engine:test :community-mcp-server:test --no-configuration-cache"
+run_windows = "gradlew.bat :community-core-engine:test :community-mcp-server:test -Djakarta.migration.mode=dev"
+run = "gradle :community-core-engine:test :community-mcp-server:test -Djakarta.migration.mode=dev --no-configuration-cache"
 
 # Fast Test Tasks (for quick feedback during development)
 [tasks.fast-test]
 description = "Run fast tests only (excludes slow tests)"
-run_windows = "gradlew.bat :premium-core-engine:fastTest :community-core-engine:fastTest"
-run = "gradle :premium-core-engine:fastTest :community-core-engine:fastTest"
+run_windows = "gradlew.bat :premium-core-engine:fastTest :community-core-engine:fastTest -Djakarta.migration.mode=dev"
+run = "gradle :premium-core-engine:fastTest :community-core-engine:fastTest -Djakarta.migration.mode=dev"
 
 [tasks.slow-test]
 description = "Run slow integration tests only"
-run_windows = "gradlew.bat :premium-core-engine:slowTest :community-core-engine:slowTest"
-run = "gradle :premium-core-engine:slowTest :community-core-engine:slowTest"
+run_windows = "gradlew.bat :premium-core-engine:slowTest :community-core-engine:slowTest -Djakarta.migration.mode=dev"
+run = "gradle :premium-core-engine:slowTest :community-core-engine:slowTest -Djakarta.migration.mode=dev"
 
 [tasks.core-test]
 description = "Run core tests (excludes slow tests)"
-run_windows = "gradlew.bat :premium-core-engine:coreTest"
-run = "gradle :premium-core-engine:coreTest"
+run_windows = "gradlew.bat :premium-core-engine:coreTest -Djakarta.migration.mode=dev"
+run = "gradle :premium-core-engine:coreTest -Djakarta.migration.mode=dev"
 
 [tasks.compile-check]
 description = "Quick compile check without running tests"
@@ -229,8 +229,8 @@ run = "gradle compileTestJava"
 
 [tasks.check]
 description = "Run all checks (including code quality)"
-run_windows = "gradlew.bat check"
-run = "gradle check --no-configuration-cache"
+run_windows = "gradlew.bat check -Djakarta.migration.mode=dev"
+run = "gradle check -Djakarta.migration.mode=dev --no-configuration-cache"
 
 [tasks.dependencies]
 description = "Show dependency tree"
@@ -254,8 +254,8 @@ run = "gradle build --dry-run"
 
 [tasks.clean-test]
 description = "Clean and run tests (fresh test run)"
-run_windows = "gradlew.bat clean test"
-run = "gradle clean test --no-configuration-cache"
+run_windows = "gradlew.bat clean test -Djakarta.migration.mode=dev"
+run = "gradle clean test -Djakarta.migration.mode=dev --no-configuration-cache"
 
 [tasks.boot-run]
 description = "Run Spring Boot application"
@@ -264,5 +264,22 @@ run = "gradle bootRun"
 
 [tasks.jacoco]
 description = "Generate test coverage report"
-run_windows = "gradlew.bat jacocoTestReport"
-run = "gradle jacocoTestReport"
+run_windows = "gradlew.bat jacocoTestReport -Djakarta.migration.mode=dev"
+run = "gradle jacocoTestReport -Djakarta.migration.mode=dev"
+
+# IntelliJ Plugin Development Tasks
+
+[tasks.runIde]
+description = "Run IntelliJ plugin in standard mode"
+run_windows = "gradlew.bat :premium-intellij-plugin:runIde"
+run = "gradle :premium-intellij-plugin:runIde"
+
+[tasks.runIdeDev]
+description = "Run IntelliJ plugin in development mode (skips licensing, enables dev tab)"
+run_windows = "gradlew.bat :premium-intellij-plugin:runIdeDev"
+run = "gradle :premium-intellij-plugin:runIdeDev"
+
+[tasks.runIdeDemo]
+description = "Run IntelliJ plugin in demo marketplace mode (uses JetBrains Demo Marketplace)"
+run_windows = "gradlew.bat :premium-intellij-plugin:runIdeDemo"
+run = "gradle :premium-intellij-plugin:runIdeDemo"

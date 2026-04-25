@@ -248,6 +248,68 @@ Use Java 21 for running Gradle builds. The project code can still target Java 17
 
 ---
 
+## Error Reporting Issues
+
+### PDF Generation Errors Not Logged in Supabase
+
+**Problem:**  
+PDF report generation errors are displayed to users but not logged in Supabase analytics database, preventing visibility into issues.
+
+**Cause:**  
+PDF generation components catch exceptions and show UI error messages, but don't integrate with the ErrorReportingService for Supabase logging.
+
+**Solution:**  
+Integrate ErrorReportingService into PDF generation workflow:
+
+1. **Add ErrorReportingService to Components:**
+```java
+// In ReportsTabComponent constructor
+private final ErrorReportingService errorReportingService;
+
+public ReportsTabComponent(Project project, 
+                          MigrationAnalysisService migrationAnalysisService, 
+                          AdvancedScanningService advancedScanningService,
+                          ErrorReportingService errorReportingService) {
+    this.errorReportingService = errorReportingService;
+    // ... rest of initialization
+}
+```
+
+2. **Report Errors in Catch Blocks:**
+```java
+} catch (Exception e) {
+    outputArea.append("Error generating Risk Analysis report: " + e.getMessage() + "\n");
+    statusLabel.setText("Error generating report");
+    Messages.showErrorDialog(project, "Failed to generate Risk Analysis report: " + e.getMessage(), "Error");
+    
+    // Report error to Supabase for analytics
+    errorReportingService.reportError(e, "PDF Risk Analysis Report Generation");
+}
+```
+
+**Files Affected:**
+- `ReportsTabComponent.java` - Main integration point
+- `MigrationToolWindow.java` - Dependency injection
+- Any other PDF generation components
+
+**Error Context Messages Used:**
+- "PDF Risk Analysis Report Generation"
+- "PDF Refactoring Action Report Generation"  
+- "PDF Consolidated Report Generation"
+- "PDF File Open Operation"
+
+**Prevention:**
+- Always integrate ErrorReportingService when adding new error-prone operations
+- Use descriptive context messages for better error categorization
+- Follow the pattern: `errorReportingService.reportError(exception, "Operation Context");`
+
+**Verification:**
+- Check Supabase `error_reports` table for new entries after intentional errors
+- Verify error messages include proper context and stack traces
+- Ensure error reporting doesn't impact user experience (asynchronous processing)
+
+---
+
 ## Testing Issues
 
 ---

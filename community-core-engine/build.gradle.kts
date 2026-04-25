@@ -54,24 +54,26 @@ tasks.test {
     }
     // Enable parallel test execution
     maxParallelForks = 4
+    
+    // Automatically set dev environment for all test executions
+    systemProperty("jakarta.migration.mode", "dev")
 }
 
 // Fast test task for quick agent feedback
-tasks.register("fastTest") {
+tasks.register<Test>("fastTest") {
     group = "verification"
     description = "Run fast unit tests only (excludes integration and slow tests)"
     
-    doLast {
-        exec {
-            workingDir = projectDir
-            commandLine = listOf(
-                "./gradlew", "test", "--tests", "*fast*",
-                "--parallel", "--max-worker-count=4",
-                "--configuration-cache", "--build-cache",
-                "--no-daemon"
-            )
-        }
+    useJUnitPlatform {
+        excludeTags("slow")
     }
+    testLogging {
+        showStandardStreams = true
+    }
+    maxParallelForks = 4
+    
+    // Automatically set dev environment for all test executions
+    systemProperty("jakarta.migration.mode", "dev")
 }
 
 // =============================================================================

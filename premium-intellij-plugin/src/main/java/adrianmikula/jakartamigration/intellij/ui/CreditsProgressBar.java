@@ -3,6 +3,8 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.credits.CreditType;
 import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
+import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
+import adrianmikula.jakartamigration.analytics.service.UsageService;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBColor;
@@ -76,6 +78,15 @@ public class CreditsProgressBar extends JBPanel<CreditsProgressBar> {
         upgradeLink.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
+                // Track upgrade click before opening marketplace
+                try {
+                    UserIdentificationService userIdentificationService = new UserIdentificationService();
+                    UsageService usageService = new UsageService(userIdentificationService);
+                    usageService.trackUpgradeClick("credits_progress_bar", "CreditsProgressBar");
+                } catch (Exception ex) {
+                    // Log error but don't prevent upgrade
+                    System.err.println("Failed to track upgrade click analytics: " + ex.getMessage());
+                }
                 openMarketplace();
             }
 

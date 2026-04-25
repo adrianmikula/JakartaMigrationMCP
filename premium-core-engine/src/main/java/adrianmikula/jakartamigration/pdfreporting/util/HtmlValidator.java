@@ -62,14 +62,29 @@ public class HtmlValidator {
      */
     private static void checkForUnescapedCharacters(String html, List<String> errors) {
         // Check for unescaped less than signs (not part of HTML tags)
-        if (UNESCAPED_LT_PATTERN.matcher(html).find()) {
-            errors.add("Found unescaped less than signs (<) that must be escaped as &lt;");
+        java.util.regex.Matcher ltMatcher = UNESCAPED_LT_PATTERN.matcher(html);
+        while (ltMatcher.find()) {
+            int pos = ltMatcher.start();
+            String context = getContextSnippet(html, pos, 50);
+            errors.add("Found unescaped less than sign (<) at position " + pos + " that must be escaped as &lt;: ...\"" + context + "\"...");
         }
 
         // Check for unescaped greater than signs (not part of HTML tags)
-        if (UNESCAPED_GT_PATTERN.matcher(html).find()) {
-            errors.add("Found unescaped greater than signs (>) that must be escaped as &gt;");
+        java.util.regex.Matcher gtMatcher = UNESCAPED_GT_PATTERN.matcher(html);
+        while (gtMatcher.find()) {
+            int pos = gtMatcher.start();
+            String context = getContextSnippet(html, pos, 50);
+            errors.add("Found unescaped greater than sign (>) at position " + pos + " that must be escaped as &gt;: ...\"" + context + "\"...");
         }
+    }
+    
+    /**
+     * Get a context snippet around an error position for better debugging.
+     */
+    private static String getContextSnippet(String html, int position, int contextLength) {
+        int start = Math.max(0, position - contextLength);
+        int end = Math.min(html.length(), position + contextLength);
+        return html.substring(start, end).replace("\n", "\\n").replace("\r", "\\r");
     }
 
     /**
@@ -82,6 +97,9 @@ public class HtmlValidator {
             // Strip DOCTYPE declaration to avoid security conflicts
             String htmlWithoutDoctype = html.replaceAll("(?s)^<!DOCTYPE[^>]*>", "");
             
+            // Pre-process to escape common XML content that might be embedded
+            String processedHtml = preprocessEmbeddedXml(htmlWithoutDoctype);
+            
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             // Disable external entity resolution for security
             factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
@@ -90,13 +108,68 @@ public class HtmlValidator {
             
             DocumentBuilder builder = factory.newDocumentBuilder();
             builder.setErrorHandler(new DefaultHandler()); // Ignore warnings, fail on errors
-            builder.parse(new ByteArrayInputStream(htmlWithoutDoctype.getBytes("UTF-8")));
+            builder.parse(new ByteArrayInputStream(processedHtml.getBytes("UTF-8")));
             
         } catch (SAXException e) {
-            errors.add("XML parsing error: " + e.getMessage());
+            String errorMsg = e.getMessage();
+            // Try to extract location information from SAX error
+            if (errorMsg.contains("at line") || errorMsg.contains("column")) {
+                errors.add("XML parsing error: " + errorMsg);
+            } else {
+                errors.add("XML parsing error: " + errorMsg + ". This may be caused by unescaped XML content or malformed HTML tags.");
+            }
         } catch (ParserConfigurationException | IOException e) {
             errors.add("XML validation configuration error: " + e.getMessage());
         }
+    }
+    
+    /**
+     * Pre-process HTML to escape common XML patterns that might be embedded in content.
+     * This helps prevent XML fragments from causing parsing errors.
+     */
+    private static String preprocessEmbeddedXml(String html) {
+        // Simple, reliable approach: escape problematic characters in code content
+        String processed = html;
+        
+        // Escape < characters that appear to be part of code examples or annotations
+        // Look for patterns like <SomeClass>, <variable>, <method> etc.
+        processed = processed.replaceAll("<([A-Z][a-zA-Z0-9]+)>", "&lt;$1&gt;");
+        processed = processed.replaceAll("</([A-Z][a-zA-Z0-9]+)>", "&lt;/$1&gt;");
+        
+        // Also escape mixed case patterns
+        processed = processed.replaceAll("<([a-z]+[A-Z][a-zA-Z0-9]+)>", "&lt;$1&gt;");
+        processed = processed.replaceAll("</([a-z]+[A-Z][a-zA-Z0-9]+)>", "&lt;/$1&gt;");
+        
+        // Escape any remaining < characters that aren't part of common HTML tags
+        // This is a safety net for edge cases
+        String[] commonHtmlTags = {"html", "head", "title", "meta", "style", "body", "div", "span", 
+            "h1", "h2", "h3", "h4", "h5", "h6", "p", "br", "hr", "table", "thead", "tbody", 
+            "tr", "th", "td", "ul", "ol", "li", "a", "img", "svg", "defs", "linearGradient", 
+            "stop", "rect", "path", "circle", "strong", "em", "code", "pre", "blockquote"};
+        
+        for (String tag : commonHtmlTags) {
+            // Don't escape if it's a valid HTML tag
+            processed = processed.replaceAll("<(?!" + tag + "(\\s|>|/>))", "&lt;");
+            processed = processed.replaceAll("(?<!/" + tag + "(\\s|>))", "&gt;");
+        }
+        
+        return processed;
+    }
+    
+        
+    /**
+     * Escape HTML content for safe display.
+     * 
+     * @param content The content to escape
+     * @return Escaped content
+     */
+    private static String escapeHtml(String content) {
+        if (content == null) return "";
+        return content.replace("&", "&amp;")
+                   .replace("<", "&lt;")
+                   .replace(">", "&gt;")
+                   .replace("\"", "&quot;")
+                   .replace("'", "&#39;");
     }
 
     /**

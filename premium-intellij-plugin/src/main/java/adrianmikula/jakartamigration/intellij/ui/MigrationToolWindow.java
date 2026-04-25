@@ -24,6 +24,8 @@ import adrianmikula.jakartamigration.intellij.ui.SimplePlatformsTabComponent;
 import adrianmikula.jakartamigration.intellij.ui.PlatformsTabComponent;
 import adrianmikula.jakartamigration.intellij.ui.ReportsTabComponent;
 import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
+import adrianmikula.jakartamigration.analytics.service.ErrorReportingService;
+import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -71,6 +73,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private final Project project;
         private final MigrationAnalysisService analysisService;
         private final CentralMigrationAnalysisStore store;
+        private final ErrorReportingService errorReportingService;
 
         // UI Components
         private DashboardComponent dashboardComponent;
@@ -105,6 +108,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
             this.project = project;
             this.analysisService = new MigrationAnalysisService();
             this.store = new CentralMigrationAnalysisStore();
+            this.creditsService = new CreditsService();
+            this.errorReportingService = new ErrorReportingService(new UserIdentificationService());
 
             // Initialize project-specific store
             Path projectPath = Paths.get(project.getBasePath());
@@ -198,7 +203,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             tabbedPane.addTab("Migration Strategy", migrationPhasesComponent.getPanel());
 
             // Advanced Scans tab - Available for all users (truncation mode for free users with exhausted credits)
-            advancedScansComponent = new AdvancedScansComponent(project, advancedScanningService);
+            advancedScansComponent = new AdvancedScansComponent(project, advancedScanningService, errorReportingService);
             advancedScansComponent.addScanCompletionListener(() -> {
                 if (dashboardComponent != null) {
                     dashboardComponent.updateAdvancedScanCounts();
@@ -285,7 +290,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             if (experimentalEnabled) {
                 // Reports tab - Available for all users with experimental features enabled
-                reportsTabComponent = new ReportsTabComponent(project, analysisService, advancedScanningService);
+                reportsTabComponent = new ReportsTabComponent(project, analysisService, advancedScanningService, errorReportingService);
                 String reportsLabel = isPremium ? "Reports 📊 (Experimental)" : "Reports (Experimental)";
                 tabbedPane.addTab(reportsLabel, reportsTabComponent.getPanel());
                 LOG.info("initializeContent: Added Reports tab (experimental)");
@@ -349,7 +354,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             
             // Add or remove Reports tab
             if (experimentalEnabled && !reportsTabExists && reportsTabComponent == null) {
-                reportsTabComponent = new ReportsTabComponent(project, analysisService, advancedScanningService);
+                reportsTabComponent = new ReportsTabComponent(project, analysisService, advancedScanningService, errorReportingService);
                 // Insert after Platforms tab (find appropriate position)
                 int platformsIndex = findTabIndex("Platforms");
                 int insertIndex = platformsIndex >= 0 ? platformsIndex + 1 : tabbedPane.getTabCount();

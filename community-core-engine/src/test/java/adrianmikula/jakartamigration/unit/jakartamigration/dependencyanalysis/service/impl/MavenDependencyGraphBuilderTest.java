@@ -302,5 +302,51 @@ class MavenDependencyGraphBuilderTest {
         Artifact dep = new Artifact("org.jboss.arquillian", "arquillian-bom", "unknown", "compile", true);
         assertTrue(graph.containsNode(dep));
     }
+    
+    @Test
+    @DisplayName("Should resolve properties in complex real-world pom.xml")
+    void shouldResolvePropertiesInComplexRealWorldPom() throws Exception {
+        // Given - Path to real javaee7-samples project (if available)
+        Path javaeeSamplesPath = Path.of("../../../examples/old/hard/javaee7-samples-master/javaee7-samples-master/pom.xml");
+        
+        // Only run if the test file exists (integration test)
+        if (!Files.exists(javaeeSamplesPath)) {
+            // Skip test if sample project not available
+            return;
+        }
+        
+        // When
+        DependencyGraph graph = builder.buildFromMaven(javaeeSamplesPath);
+        
+        // Then
+        assertNotNull(graph, "Dependency graph should be created");
+        assertTrue(graph.nodeCount() > 0, "Graph should contain nodes");
+        assertTrue(graph.edgeCount() > 0, "Graph should contain edges");
+        
+        // Check for specific properties that should be resolved in javaee7-samples
+        String[] expectedProperties = {
+            "org.jboss.arquillian:arquillian-bom:1.7.0.Alpha1",
+            "fish.payara.distributions:payara:4.1.2.181",
+            "org.glassfish.main.extras:glassfish-embedded-all:4.1.1",
+            "org.wildfly.plugins:wildfly-maven-plugin:13.0.0.Final"
+        };
+        
+        for (String expected : expectedProperties) {
+            String[] parts = expected.split(":");
+            Artifact artifact = new Artifact(parts[0], parts[1], parts[2], "compile", true);
+            boolean found = graph.containsNode(artifact);
+            
+            if (!found) {
+                // Try with "unknown" version - indicates property resolution failed
+                Artifact unknownVersion = new Artifact(parts[0], parts[1], "unknown", "compile", true);
+                boolean unknownFound = graph.containsNode(unknownVersion);
+                
+                // If unknown version found, property resolution failed for this artifact
+                if (unknownFound) {
+                    fail("Property resolution failed for " + expected + " - found 'unknown' version");
+                }
+            }
+        }
+    }
 }
 

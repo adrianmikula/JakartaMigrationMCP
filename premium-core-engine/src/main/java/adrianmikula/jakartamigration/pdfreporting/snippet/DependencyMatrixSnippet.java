@@ -103,13 +103,13 @@ public class DependencyMatrixSnippet extends BaseHtmlSnippet {
                     """,
                     getRowClass(compatibility),
                     super.escapeHtml(artifact.artifactId()),
-                    getCurrentVersion(artifact),
-                    getJakartaVersion(artifact),
+                    super.escapeHtml(getCurrentVersion(artifact)),
+                    super.escapeHtml(getJakartaVersion(artifact)),
                     compatibility.toLowerCase().replace(" ", "-"),
-                    compatibility,
-                    breakingChanges,
-                    effort,
-                    recommendation
+                    super.escapeHtml(compatibility),
+                    super.escapeHtml(breakingChanges),
+                    super.escapeHtml(effort),
+                    super.escapeHtml(recommendation)
                 ));
             });
         

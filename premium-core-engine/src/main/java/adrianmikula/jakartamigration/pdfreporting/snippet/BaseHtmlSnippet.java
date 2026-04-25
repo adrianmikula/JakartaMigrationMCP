@@ -50,7 +50,8 @@ Error: %s</pre>
     }
     
     /**
-     * Escape HTML content for safe display in error messages.
+     * Escape HTML content for safe display.
+     * This method should be used for all dynamic content inserted into HTML.
      * 
      * @param content The content to escape
      * @return Escaped content
@@ -62,6 +63,47 @@ Error: %s</pre>
                    .replace(">", "&gt;")
                    .replace("\"", "&quot;")
                    .replace("'", "&#39;");
+    }
+    
+    /**
+     * Escape HTML content and preserve basic formatting for display.
+     * Use this for content that should maintain some readability while being safe.
+     * 
+     * @param content The content to escape
+     * @return Escaped content with preserved formatting
+     */
+    protected String escapeHtmlWithFormatting(String content) {
+        if (content == null) return "null";
+        String escaped = escapeHtml(content);
+        // Preserve line breaks
+        return escaped.replace("\\n", "<br>").replace("\\r\\n", "<br>");
+    }
+    
+    /**
+     * Safely format content with automatic HTML escaping.
+     * This method ensures all arguments are properly escaped before insertion.
+     * 
+     * @param template The format template with %s placeholders
+     * @param args The arguments to escape and insert
+     * @return Formatted and escaped HTML content
+     */
+    protected String safelyFormatWithEscaping(String template, Object... args) {
+        try {
+            // Escape all arguments before formatting
+            Object[] escapedArgs = new Object[args.length];
+            for (int i = 0; i < args.length; i++) {
+                if (args[i] != null) {
+                    escapedArgs[i] = escapeHtml(args[i].toString());
+                } else {
+                    escapedArgs[i] = "null";
+                }
+            }
+            return template.formatted(escapedArgs);
+        } catch (Exception e) {
+            log.error("Formatting error in snippet {}: template='{}', args={}", 
+                getSnippetName(), template, args, e);
+            return generateFallbackContent(template, args);
+        }
     }
     
     /**

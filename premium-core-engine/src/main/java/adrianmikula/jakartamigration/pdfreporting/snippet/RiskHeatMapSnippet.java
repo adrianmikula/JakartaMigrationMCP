@@ -166,15 +166,15 @@ public class RiskHeatMapSnippet extends BaseHtmlSnippet {
                     </div>
                 </div>
                 """,
-                riskClass,
-                capitalize(module),
-                riskClass,
+                super.escapeHtml(riskClass),
+                super.escapeHtml(capitalize(module)),
+                super.escapeHtml(riskClass),
                 moduleRisk,
                 issueCount,
                 calculateModuleDependencies(module),
-                getEffortClass(moduleRisk),
-                getEffortLabel(moduleRisk),
-                riskClass,
+                super.escapeHtml(getEffortClass(moduleRisk)),
+                super.escapeHtml(getEffortLabel(moduleRisk)),
+                super.escapeHtml(riskClass),
                 moduleRisk
             ));
         }

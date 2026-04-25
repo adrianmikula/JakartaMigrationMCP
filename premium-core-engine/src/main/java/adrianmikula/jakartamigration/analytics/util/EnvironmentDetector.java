@@ -8,7 +8,7 @@ public class EnvironmentDetector {
     private static final String ENVIRONMENT = detectEnvironment();
     
     /**
-     * Detects the current environment based on system properties and launch mode.
+     * Detects the current environment based on explicit system properties only.
      * 
      * @return "dev", "demo", or "prod"
      */
@@ -29,25 +29,13 @@ public class EnvironmentDetector {
             return "dev";
         }
         
-        // Check if running via gradle runIdeDev
-        String javaCommand = System.getProperty("sun.java.command");
-        if (javaCommand != null && javaCommand.contains("runIdeDev")) {
-            return "dev";
-        }
-        
         // Check for environment variable
         String envDevMode = System.getenv("JAKARTA_MIGRATION_DEV_MODE");
         if (envDevMode != null && Boolean.parseBoolean(envDevMode)) {
             return "dev";
         }
         
-        // Check for demo mode system property (set by runIdeDemo task)
-        String demoMode = System.getProperty("jakarta.migration.mode");
-        if (demoMode != null && demoMode.equals("demo")) {
-            return "demo";
-        }
-        
-        // Default to production
+        // Default to production when no explicit properties are set
         return "prod";
     }
     

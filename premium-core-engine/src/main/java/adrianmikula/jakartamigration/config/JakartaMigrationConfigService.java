@@ -75,11 +75,11 @@ public class JakartaMigrationConfigService {
         
         return new DatabaseConfig(
             new DatabaseConfig.DatabaseInfo(
-                getString(centralConfig, "file", "central-migration-analysis.db"),
+                getString(centralConfig, "file", "central-jakarta-migration-plugin.db"),
                 getInt(centralConfig, "version", 5)
             ),
             new DatabaseConfig.DatabaseInfo(
-                getString(projectConfig, "file", "jakarta-migration.db"),
+                getString(projectConfig, "file", "jakarta-migration-plugin.db"),
                 getInt(projectConfig, "version", 2)
             )
         );
@@ -244,8 +244,8 @@ public class JakartaMigrationConfigService {
         DatabaseInfo project
     ) {
         public DatabaseConfig() {
-            this(new DatabaseInfo("central-migration-analysis.db", 5),
-                 new DatabaseInfo("jakarta-migration.db", 2));
+            this(new DatabaseInfo("central-jakarta-migration-plugin.db", 5),
+                 new DatabaseInfo("jakarta-migration-plugin.db", 2));
         }
         
         public record DatabaseInfo(String file, int version) {}

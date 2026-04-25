@@ -163,17 +163,27 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         if (!isMaven && !isGradle) return TransitiveDependencyScanResult.empty(filePath);
 
         try {
+            log.debug("Starting {} dependency scanning for file: {}", isMaven ? "Maven" : "Gradle", filePath);
+            
             var future = isMaven
                 ? commandExecutor.executeMavenDependencyTreeAsync(filePath, MAVEN_SCOPES)
                 : commandExecutor.executeGradleDependenciesAsync(filePath, GRADLE_SCOPES);
 
             var result = future.get(DependencyTreeCommandExecutor.DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            if (!result.isSuccess() || result.getDependencies().isEmpty()) {
-                throw new RuntimeException("Command failed or returned no dependencies");
+            if (!result.isSuccess()) {
+                log.warn("Command execution failed for {}: {}", filePath, result.getErrorMessage());
+                throw new RuntimeException(result.getErrorMessage());
             }
+            if (result.getDependencies().isEmpty()) {
+                log.debug("No dependencies found via command execution for {}, falling back to regex", filePath);
+                throw new RuntimeException("Command returned no dependencies");
+            }
+            
+            log.debug("Successfully parsed {} dependencies via command execution for {}", result.getDependencies().size(), filePath);
             return convertTreeResult(filePath, isMaven ? "Maven" : "Gradle", result);
         } catch (Exception e) {
             log.warn("Async scanning failed for {}, falling back to regex: {}", filePath, e.getMessage());
+            log.debug("Exception details:", e);
             return scanFileFallback(filePath);
         }
     }

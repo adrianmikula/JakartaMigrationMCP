@@ -55,10 +55,13 @@ tasks.test {
     }
     // Enable parallel test execution
     maxParallelForks = 4
+    
+    // Automatically set dev environment for all test executions
+    systemProperty("jakarta.migration.mode", "dev")
 }
 
 // Fast test task - excludes slow tests
- tasks.register<Test>("fastTest") {
+tasks.register<Test>("fastTest") {
     group = "verification"
     description = "Run fast unit tests only (excludes integration and slow tests)"
     
@@ -70,6 +73,9 @@ tasks.test {
         showStandardStreams = true
     }
     maxParallelForks = 4
+    
+    // Automatically set dev environment for all test executions
+    systemProperty("jakarta.migration.mode", "dev")
 }
 
 // Slow test task - only integration/performance tests
@@ -85,6 +91,9 @@ tasks.register<Test>("slowTest") {
         showStandardStreams = true
     }
     maxParallelForks = 2  // Fewer forks for network-heavy tests
+    
+    // Automatically set dev environment for all test executions
+    systemProperty("jakarta.migration.mode", "dev")
 }
 
 // Ultra-fast compilation test
@@ -111,6 +120,9 @@ tasks.register<Test>("coreTest") {
         showStandardStreams = true
     }
     maxParallelForks = 4
+    
+    // Automatically set dev environment for all test executions
+    systemProperty("jakarta.migration.mode", "dev")
 }
 
 // Copy version from root gradle.properties to resources for analytics services

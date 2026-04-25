@@ -40,7 +40,6 @@ After completing a task list, do the following:
 
 
 
-
 ## Architecture
 
 ### Architectural decisions

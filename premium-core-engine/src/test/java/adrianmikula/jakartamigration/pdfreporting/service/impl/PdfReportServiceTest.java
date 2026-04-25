@@ -10,6 +10,7 @@ import org.xml.sax.SAXException;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.ByteArrayInputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
@@ -226,6 +227,51 @@ class PdfReportServiceTest {
         assertDoesNotThrow(() -> {
             parseXmlContent(htmlWithEscapedAmpersands);
         }, "Should accept properly escaped ampersands");
+    }
+
+    @Test
+    @DisplayName("Should generate refactoring action report with minimal request")
+    void shouldGenerateRefactoringActionReportWithMinimalRequest() throws Exception {
+        // Given - minimal refactoring action report request
+        PdfReportService.RefactoringActionReportRequest request = 
+            new PdfReportService.RefactoringActionReportRequest(
+                tempDir.resolve("test-refactoring-report.pdf"),
+                "Test Project",
+                "Jakarta Migration Refactoring Action Report",
+                null, // dependencyGraph
+                null, // scanResults
+                List.of(), // javaxReferences
+                List.of(), // openRewriteRecipes
+                Map.of(), // refactoringReadiness
+                Map.of(), // priorityRanking
+                Map.of() // customData
+            );
+        
+        // When
+        Path result = service.generateRefactoringActionReport(request);
+        
+        // Then
+        assertNotNull(result, "Generated report path should not be null");
+        assertTrue(Files.exists(result), "PDF file should be created");
+        assertTrue(Files.size(result) > 0, "PDF file should not be empty");
+    }
+
+    @Test
+    @DisplayName("Should handle PDF generation errors gracefully")
+    void shouldHandlePdfGenerationErrorsGracefully() {
+        // Given - invalid request that should cause an error
+        PdfReportService.RefactoringActionReportRequest invalidRequest = 
+            new PdfReportService.RefactoringActionReportRequest(
+                null, // null path should cause error
+                "Test Project",
+                "Test Report",
+                null, null, List.of(), List.of(), Map.of(), Map.of(), Map.of()
+            );
+        
+        // When & Then
+        assertThrows(Exception.class, () -> {
+            service.generateRefactoringActionReport(invalidRequest);
+        }, "Should throw exception for invalid request");
     }
 
     /**
