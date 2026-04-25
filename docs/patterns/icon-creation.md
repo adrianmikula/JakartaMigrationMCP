@@ -37,6 +37,8 @@ Begin with a monochrome version of your icon (e.g., `pluginIcon_monochrome.svg`)
 When creating variants, change ONLY these attributes:
 - `width` and `height` (for sizing: 20×20 or 16×16)
 - `fill` color (for theming: `#6C707E` or `#CED0D6`)
+- Add `style="display: block;"` to the svg element
+- Change `preserveAspectRatio` to `"none"`
 
 **Do NOT modify:**
 - Path data (`d` attribute)
@@ -66,7 +68,7 @@ IntelliJ's New UI theming system works best with detailed monochrome icons becau
 
 **New UI light theme variant (20×20):**
 ```xml
-<svg viewBox="0 0 2048 2048" width="20" height="20">
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" style="display: block;" viewBox="0 0 2048 2048" width="20" height="20" preserveAspectRatio="none">
   <path fill="#6C707E" d="M 1019.44 1213.41 C ..."/>
   <path fill="#6C707E" d="M 1173 1298.62 C ..."/>
   <!-- 73 more paths - identical path data -->
@@ -75,7 +77,7 @@ IntelliJ's New UI theming system works best with detailed monochrome icons becau
 
 **New UI dark theme variant (20×20):**
 ```xml
-<svg viewBox="0 0 2048 2048" width="20" height="20">
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" style="display: block;" viewBox="0 0 2048 2048" width="20" height="20" preserveAspectRatio="none">
   <path fill="#CED0D6" d="M 1019.44 1213.41 C ..."/>
   <path fill="#CED0D6" d="M 1173 1298.62 C ..."/>
   <!-- 73 more paths - identical path data -->
@@ -123,26 +125,28 @@ Create `src/main/resources/EntropyGuardIconMappings.json` to map old icon refere
 
 ```json
 {
-  "expui": {
-    "iconMappings": [
-      {
-        "iconId": "/icons/pluginIcon.svg",
-        "iconPath": "/icons/expui/pluginIcon.svg"
-      },
-      {
-        "iconId": "/icons/pluginIcon_16.png",
-        "iconPath": "/icons/expui/pluginIcon.svg"
-      },
-      {
-        "iconId": "/icons/pluginIcon_13.png",
-        "iconPath": "/icons/expui/pluginIcon.svg"
-      }
-    ]
-  }
+  "iconMappings": [
+    {
+      "iconId": "/icons/pluginIcon.svg",
+      "iconPath": "/icons/expui/pluginIcon.svg"
+    },
+    {
+      "iconId": "/icons/pluginIcon_16.png",
+      "iconPath": "/icons/expui/pluginIcon.svg"
+    },
+    {
+      "iconId": "/icons/pluginIcon_13.png",
+      "iconPath": "/icons/expui/pluginIcon.svg"
+    },
+    {
+      "iconId": "/icons/pluginIcon_monochrome.svg",
+      "iconPath": "/icons/expui/pluginIcon.svg"
+    }
+  ]
 }
 ```
 
-**Critical**: The mapping file must include an `expui` block structure as shown above. This is required per the official IntelliJ documentation.
+**Critical**: The mapping file uses a flat structure with an "iconMappings" array. Each entry maps an old icon reference to the new expui icon path.
 
 This mapping allows the iconMapper extension to translate legacy icon references to the new expui icons.
 
@@ -163,16 +167,16 @@ Add the iconMapper extension to `src/main/resources/META-INF/plugin.xml`:
 
 ### 5. Update Main Plugin Icon Reference
 
-The main plugin icon reference in the `<idea-plugin>` tag should reference the old icon path:
+The main plugin icon reference in the `<idea-plugin>` tag should reference the expui path:
 
 ```xml
 <idea-plugin 
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
     xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/schemas/plugin/2/plugin.xsd" 
-    icon="icons/pluginIcon.svg">
+    icon="icons/expui/pluginIcon.svg">
 ```
 
-**Critical**: The icon attribute should reference the old icon path (`icons/pluginIcon.svg`), not the expui path. The iconMapper extension handles the translation to the expui icon at runtime based on the mappings defined in the JSON file.
+**Critical**: The icon attribute should reference the expui path (`icons/expui/pluginIcon.svg`) directly. This is the correct approach for the newer IntelliJ Platform plugin system.
 
 ### 6. Remove Programmatic Icon Loading
 
@@ -263,8 +267,8 @@ src/main/resources/
 ## Common Pitfalls
 
 1. **Incorrect iconMapper attribute**: Use `mappingFile` attribute, not `file` attribute in plugin.xml
-2. **Missing expui block in JSON**: The mapping file must include an `expui` block structure around the iconMappings array
-3. **Incorrect icon path in plugin.xml**: The main plugin icon should reference the old path (`icons/pluginIcon.svg`), not the expui path - iconMapper handles the translation
+2. **Incorrect JSON structure**: The mapping file should use a flat structure (no nested `expui` block)
+3. **Incorrect icon path in plugin.xml**: The main plugin icon should reference the expui path (`icons/expui/pluginIcon.svg`) directly, not the old path
 4. **Missing dark theme variants**: Both light and dark variants are required for proper theming
 5. **Wrong dimensions**: Use 20×20 for standard and 16×16 for compact mode
 6. **Incorrect fill colors**: Use exactly `#6C707E` for light and `#CED0D6` for dark

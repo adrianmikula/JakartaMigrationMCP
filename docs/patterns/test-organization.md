@@ -312,6 +312,57 @@ test {
 }
 ```
 
+### IntelliJ Platform Test Matrix
+
+The `premium-intellij-plugin` module includes a dedicated test matrix for validating against multiple IntelliJ platform versions.
+
+#### Purpose
+- Test UI and platform-dependent tests against multiple IntelliJ versions
+- Ensure compatibility across supported platform versions
+- Separate from normal unit tests to avoid slowing development feedback
+
+#### Test Categories
+The matrix tests include tests matching these patterns:
+- `**/*IntelliJPlatformTest*.class` - Platform-specific integration tests
+- `**/*UI*Test*.class` - UI component tests requiring full platform
+- `**/*LiquibaseScopeTest*.class` - Scope initialization tests
+
+#### Available Gradle Tasks
+```bash
+# Individual version tasks
+./gradlew :premium-intellij-plugin:testIntelliJ_2023_1  # IntelliJ 2023.1.5
+./gradlew :premium-intellij-plugin:testIntelliJ_2024_1  # IntelliJ 2024.1.4
+./gradlew :premium-intellij-plugin:testIntelliJ_2025_1  # IntelliJ 2025.1.1
+./gradlew :premium-intellij-plugin:testIntelliJ_2026_1  # IntelliJ 2026.1 (EAP)
+
+# Aggregate task - runs all versions sequentially
+./gradlew :premium-intellij-plugin:testIntelliJMatrix
+```
+
+#### Mise Convenience Tasks
+```bash
+# Individual versions
+mise run test-intellij-2023
+mise run test-intellij-2024
+mise run test-intellij-2025
+mise run test-intellij-2026
+
+# Full matrix
+mise run test-matrix
+```
+
+#### CI/CD Integration
+- Matrix tests run only on pull requests (not on main branch pushes)
+- Each version runs in parallel for faster feedback
+- 2026.1 (EAP) failures are allowed without failing the build
+- Artifacts uploaded for each matrix job
+
+#### Important Notes
+- Normal `./gradlew test` does NOT trigger matrix tests
+- Matrix tasks are completely separate from the standard test task
+- Tests requiring full IntelliJ platform are excluded from `runFastTests`
+- Matrix tests focus only on platform-dependent functionality
+
 ## Quality Gates
 
 ### Pre-commit Requirements

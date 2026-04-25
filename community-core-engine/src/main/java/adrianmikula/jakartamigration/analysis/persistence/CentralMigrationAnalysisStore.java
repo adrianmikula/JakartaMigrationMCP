@@ -1,9 +1,6 @@
 package adrianmikula.jakartamigration.analysis.persistence;
 
 import adrianmikula.jakartamigration.dependencyanalysis.domain.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -28,7 +25,6 @@ import java.util.*;
 public class CentralMigrationAnalysisStore implements AutoCloseable {
 
     private static final String DB_FILE = "central-migration-analysis.db";
-    private static final int DB_VERSION = 5; // Increment for schema changes
 
     private final Path dbPath;
     private final ObjectMapperService objectMapper;
@@ -127,12 +123,44 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
     }
 
     private void initializeDatabase() {
+        // Check if database file exists and if it was created with manual migrations
+        boolean needsRebuild = false;
+        if (Files.exists(dbPath)) {
+            try (Connection conn = getConnection()) {
+                // Check if DATABASECHANGELOG table exists (Liquibase marker)
+                DatabaseMetaData metaData = conn.getMetaData();
+                ResultSet tables = metaData.getTables(null, null, "DATABASECHANGELOG", null);
+                if (!tables.next()) {
+                    log.warn("Database exists but was not created with Liquibase. Rebuilding...");
+                    needsRebuild = true;
+                }
+            } catch (SQLException e) {
+                log.warn("Failed to check database version, rebuilding: {}", e.getMessage());
+                needsRebuild = true;
+            }
+        }
+
+        // If rebuild needed, delete old database file
+        if (needsRebuild) {
+            try {
+                Files.deleteIfExists(dbPath);
+                log.info("Deleted old database file for rebuild");
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to delete old database file", e);
+            }
+        }
+
+        // Initialize database schema using custom JDBC-based migration
+        // This replaces Liquibase to avoid ClassLoader issues in IntelliJ plugin environments
         try (Connection conn = getConnection()) {
-            createTables(conn);
-            updateSchema(conn);
+            SchemaManager schemaManager = new SchemaManager(conn);
+            schemaManager.initializeSchema();
+            log.info("Database schema initialized successfully");
+
+            // Populate recipes from YAML
             populateRecipesFromYaml(conn);
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to initialize database", e);
+            throw new RuntimeException("Failed to initialize database schema", e);
         }
     }
 
@@ -204,286 +232,6 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
         } catch (Exception e) {
             log.error("Failed to populate recipes from YAML file", e);
             conn.rollback();
-        }
-    }
-
-    private void createTables(Connection conn) throws SQLException {
-        try (Statement stmt = conn.createStatement()) {
-            // Metadata table
-            stmt.execute("""
-                        CREATE TABLE IF NOT EXISTS metadata (
-                            key TEXT PRIMARY KEY,
-                            value TEXT,
-                            updated_at TEXT DEFAULT (datetime('now'))
-                        )
-                    """);
-
-            // Repositories table - tracks analyzed repositories
-            stmt.execute("""
-                        CREATE TABLE IF NOT EXISTS repositories (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            repository_path TEXT UNIQUE NOT NULL,
-                            repository_name TEXT,
-                            is_org_repo BOOLEAN DEFAULT FALSE,
-                            created_at TEXT DEFAULT (datetime('now')),
-                            last_analyzed_at TEXT
-                        )
-                    """);
-
-            // Organization dependencies table - tracks cross-repo internal dependencies
-            stmt.execute("""
-                        CREATE TABLE IF NOT EXISTS org_dependencies (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            group_id TEXT NOT NULL,
-                            artifact_id TEXT NOT NULL,
-                            version TEXT,
-                            source_repository_id INTEGER,
-                            is_analyzed BOOLEAN DEFAULT FALSE,
-                            analyzed_repository_id INTEGER,
-                            analyzed_at TEXT,
-                            jakarta_ready BOOLEAN,
-                            migration_status TEXT,
-                            notes TEXT,
-                            created_at TEXT DEFAULT (datetime('now')),
-                            updated_at TEXT DEFAULT (datetime('now')),
-                            UNIQUE(group_id, artifact_id, version)
-                        )
-                    """);
-
-            // Dependencies table - stores all discovered dependencies (from all repos)
-            stmt.execute("""
-                        CREATE TABLE IF NOT EXISTS dependencies (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            repository_path TEXT NOT NULL,
-                            group_id TEXT NOT NULL,
-                            artifact_id TEXT NOT NULL,
-                            version TEXT,
-                            scope TEXT,
-                            is_direct BOOLEAN DEFAULT TRUE,
-                            is_org_dependency BOOLEAN DEFAULT FALSE,
-                            namespace TEXT,
-                            is_jakarta_compatible BOOLEAN,
-                            risk_level TEXT,
-                            migration_status TEXT,
-                            created_at TEXT DEFAULT (datetime('now')),
-                            UNIQUE(repository_path, group_id, artifact_id, version),
-                            FOREIGN KEY(repository_path) REFERENCES repositories(repository_path) ON DELETE CASCADE
-                        )
-                    """);
-
-            // Dependency graph edges
-            stmt.execute("""
-                        CREATE TABLE IF NOT EXISTS dependency_edges (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            repository_path TEXT NOT NULL,
-                            from_group_id TEXT NOT NULL,
-                            from_artifact_id TEXT NOT NULL,
-                            to_group_id TEXT NOT NULL,
-                            to_artifact_id TEXT NOT NULL,
-                            edge_type TEXT DEFAULT 'dependency',
-                            created_at TEXT DEFAULT (datetime('now')),
-                            FOREIGN KEY(repository_path) REFERENCES repositories(repository_path) ON DELETE CASCADE
-                        )
-                    """);
-
-            // Analysis reports table
-            stmt.execute("""
-                        CREATE TABLE IF NOT EXISTS analysis_reports (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            repository_path TEXT NOT NULL,
-                            analysis_time TEXT DEFAULT (datetime('now')),
-                            total_dependencies INTEGER,
-                            direct_dependencies INTEGER,
-                            transitive_dependencies INTEGER,
-                            org_dependencies INTEGER,
-                            jakarta_ready_count INTEGER,
-                            needs_migration_count INTEGER,
-                            blocked_count INTEGER,
-                            readiness_score REAL,
-                            risk_level TEXT,
-                            raw_report TEXT,
-                            UNIQUE(repository_path, analysis_time),
-                            FOREIGN KEY(repository_path) REFERENCES repositories(repository_path) ON DELETE CASCADE
-                        )
-                    """);
-
-            // Blockers table
-            stmt.execute("""
-                        CREATE TABLE IF NOT EXISTS blockers (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            repository_path TEXT NOT NULL,
-                            analysis_report_id INTEGER,
-                            blocker_type TEXT NOT NULL,
-                            description TEXT,
-                            affected_artifact TEXT,
-                            confidence REAL,
-                            created_at TEXT DEFAULT (datetime('now')),
-                            FOREIGN KEY(repository_path) REFERENCES repositories(repository_path) ON DELETE CASCADE
-                        )
-                    """);
-
-            // Recommendations table
-            stmt.execute("""
-                        CREATE TABLE IF NOT EXISTS recommendations (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            repository_path TEXT NOT NULL,
-                            analysis_report_id INTEGER,
-                            category TEXT,
-                            priority TEXT,
-                            description TEXT,
-                            action TEXT,
-                            estimated_effort TEXT,
-                            created_at TEXT DEFAULT (datetime('now')),
-                            FOREIGN KEY(repository_path) REFERENCES repositories(repository_path) ON DELETE CASCADE
-                        )
-                    """);
-
-            // Plugin state table - stores arbitrary JSON state for the IDE plugin
-            stmt.execute("""
-                        CREATE TABLE IF NOT EXISTS plugin_state (
-                            repository_path TEXT NOT NULL,
-                            state_key TEXT NOT NULL,
-                            state_json TEXT,
-                            updated_at TEXT DEFAULT (datetime('now')),
-                            PRIMARY KEY (repository_path, state_key)
-                        )
-                    """);
-
-            // Indexes for efficient querying
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_deps_repo ON dependencies(repository_path)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_deps_group ON dependencies(group_id, artifact_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_org_deps ON org_dependencies(group_id, artifact_id)");
-            stmt.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_edges_from ON dependency_edges(repository_path, from_group_id, from_artifact_id)");
-            stmt.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_edges_to ON dependency_edges(repository_path, to_group_id, to_artifact_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_blockers_repo ON blockers(repository_path)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_recommendations_repo ON recommendations(repository_path)");
-
-            // Recipe executions table
-            stmt.execute("""
-                        CREATE TABLE IF NOT EXISTS recipe_executions (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            repository_path TEXT NOT NULL,
-                            recipe_name TEXT NOT NULL,
-                            executed_at TEXT DEFAULT (datetime('now')),
-                            success BOOLEAN,
-                            message TEXT,
-                            affected_files TEXT,
-                            FOREIGN KEY(repository_path) REFERENCES repositories(repository_path) ON DELETE CASCADE
-                        )
-                    """);
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_recipe_exec_repo ON recipe_executions(repository_path)");
-
-            // Recipes catalog table
-            stmt.execute("""
-                        CREATE TABLE IF NOT EXISTS recipes (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            name TEXT UNIQUE NOT NULL,
-                            description TEXT,
-                            category TEXT NOT NULL,
-                            recipe_type TEXT NOT NULL,
-                            openrewrite_recipe_name TEXT,
-                            pattern TEXT,
-                            replacement TEXT,
-                            file_pattern TEXT,
-                            reversible BOOLEAN DEFAULT TRUE,
-                            created_at TEXT DEFAULT (datetime('now'))
-                        )
-                    """);
-
-            // Upgrade recommendations table
-            stmt.execute("""
-                        CREATE TABLE IF NOT EXISTS upgrade_recommendations (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            current_group_id TEXT NOT NULL,
-                            current_artifact_id TEXT NOT NULL,
-                            recommended_group_id TEXT NOT NULL,
-                            recommended_artifact_id TEXT NOT NULL,
-                            recommended_version TEXT,
-                            associated_recipe_name TEXT,
-                            created_at TEXT DEFAULT (datetime('now')),
-                            UNIQUE(current_group_id, current_artifact_id)
-                        )
-                    """);
-
-            conn.commit();
-            log.info("Central database created at {}", dbPath);
-        }
-    }
-
-    private void updateSchema(Connection conn) throws SQLException {
-        try (Statement stmt = conn.createStatement();
-                ResultSet rs = stmt.executeQuery("PRAGMA user_version")) {
-            int version = rs.getInt(1);
-            if (version < DB_VERSION) {
-                if (version < 3) {
-                    stmt.execute("""
-                                CREATE TABLE IF NOT EXISTS recipes (
-                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                    name TEXT UNIQUE NOT NULL,
-                                    description TEXT,
-                                    category TEXT NOT NULL,
-                                    recipe_type TEXT NOT NULL,
-                                    openrewrite_recipe_name TEXT,
-                                    pattern TEXT,
-                                    replacement TEXT,
-                                    file_pattern TEXT,
-                                    reversible BOOLEAN DEFAULT TRUE,
-                                    created_at TEXT DEFAULT (datetime('now'))
-                                )
-                            """);
-                }
-                if (version < 4) {
-                    stmt.execute("""
-                                CREATE TABLE IF NOT EXISTS upgrade_recommendations (
-                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                    current_group_id TEXT NOT NULL,
-                                    current_artifact_id TEXT NOT NULL,
-                                    recommended_group_id TEXT NOT NULL,
-                                    recommended_artifact_id TEXT NOT NULL,
-                                    recommended_version TEXT,
-                                    associated_recipe_name TEXT,
-                                    created_at TEXT DEFAULT (datetime('now')),
-                                    UNIQUE(current_group_id, current_artifact_id)
-                                )
-                            """);
-                }
-                // Migration to version 5: Use recipe name as PRIMARY KEY instead of auto-increment ID
-                // This ensures recipe identity is stable even if YAML order changes
-                if (version < 5) {
-                    // Create new table with name as PRIMARY KEY
-                    stmt.execute("""
-                                CREATE TABLE IF NOT EXISTS recipes_new (
-                                    name TEXT PRIMARY KEY,
-                                    description TEXT,
-                                    category TEXT NOT NULL,
-                                    recipe_type TEXT NOT NULL,
-                                    openrewrite_recipe_name TEXT,
-                                    pattern TEXT,
-                                    replacement TEXT,
-                                    file_pattern TEXT,
-                                    reversible BOOLEAN DEFAULT TRUE,
-                                    created_at TEXT DEFAULT (datetime('now'))
-                                )
-                            """);
-                    // Copy data from old table (if exists)
-                    stmt.execute("""
-                                INSERT OR IGNORE INTO recipes_new 
-                                (name, description, category, recipe_type, openrewrite_recipe_name, 
-                                 pattern, replacement, file_pattern, reversible, created_at)
-                                SELECT name, description, category, recipe_type, openrewrite_recipe_name,
-                                       pattern, replacement, file_pattern, reversible, created_at
-                                FROM recipes
-                            """);
-                    // Drop old table and rename new one
-                    stmt.execute("DROP TABLE IF EXISTS recipes");
-                    stmt.execute("ALTER TABLE recipes_new RENAME TO recipes");
-                    log.info("Migrated recipes table to use name as PRIMARY KEY");
-                }
-                stmt.execute("PRAGMA user_version = " + DB_VERSION);
-                log.info("Database schema updated to version {}", DB_VERSION);
-            }
         }
     }
 

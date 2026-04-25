@@ -1,8 +1,8 @@
 package adrianmikula.jakartamigration.intellij.ui.components;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DisplayName;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -15,7 +15,7 @@ import java.awt.event.MouseEvent;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**

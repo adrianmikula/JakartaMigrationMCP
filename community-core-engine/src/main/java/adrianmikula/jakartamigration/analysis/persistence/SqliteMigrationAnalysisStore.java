@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SqliteMigrationAnalysisStore implements AutoCloseable {
 
-    private static final String DB_FILE = "jakarta-migration-plugin.db";
+    private static final String DB_FILE = "jakarta-migration.db";
     private static final int DB_VERSION = 2;
 
     private final Path dbPath;

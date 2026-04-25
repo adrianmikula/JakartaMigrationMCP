@@ -54,7 +54,7 @@ class RefactoringActionReportTest {
         assertNotNull(result);
         assertTrue(result.toFile().exists());
         assertTrue(result.toFile().length() > 0);
-        assertEquals("minimal-refactoring-report.pdf", result.getFileName().toString());
+        assertEquals("minimal-refactoring-report.html", result.getFileName().toString());
     }
 
     @Test
@@ -83,7 +83,7 @@ class RefactoringActionReportTest {
         assertNotNull(result);
         assertTrue(result.toFile().exists());
         assertTrue(result.toFile().length() > 0);
-        assertEquals("dependency-refactoring-report.pdf", result.getFileName().toString());
+        assertEquals("dependency-refactoring-report.html", result.getFileName().toString());
     }
 
     @Test
@@ -112,7 +112,7 @@ class RefactoringActionReportTest {
         assertNotNull(result);
         assertTrue(result.toFile().exists());
         assertTrue(result.toFile().length() > 0);
-        assertEquals("scan-refactoring-report.pdf", result.getFileName().toString());
+        assertEquals("scan-refactoring-report.html", result.getFileName().toString());
     }
 
     @Test
@@ -145,7 +145,7 @@ class RefactoringActionReportTest {
         assertNotNull(result);
         assertTrue(result.toFile().exists());
         assertTrue(result.toFile().length() > 0);
-        assertEquals("javax-refactoring-report.pdf", result.getFileName().toString());
+        assertEquals("javax-refactoring-report.html", result.getFileName().toString());
     }
 
     @Test
@@ -178,7 +178,7 @@ class RefactoringActionReportTest {
         assertNotNull(result);
         assertTrue(result.toFile().exists());
         assertTrue(result.toFile().length() > 0);
-        assertEquals("recipe-refactoring-report.pdf", result.getFileName().toString());
+        assertEquals("recipe-refactoring-report.html", result.getFileName().toString());
     }
 
     @Test
@@ -205,7 +205,7 @@ class RefactoringActionReportTest {
         assertNotNull(result);
         assertTrue(result.toFile().exists());
         assertTrue(result.toFile().length() > 0);
-        assertEquals("null-project-refactoring-report.pdf", result.getFileName().toString());
+        assertEquals("null-project-refactoring-report.html", result.getFileName().toString());
     }
 
     /**

@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     implementation("org.slf4j:slf4j-api:2.0.9")
+    runtimeOnly("org.slf4j:slf4j-simple:2.0.9")
     compileOnly("org.projectlombok:lombok:1.18.30")
     annotationProcessor("org.projectlombok:lombok:1.18.30")
     
@@ -18,7 +19,7 @@ dependencies {
     
     // SQLite database for persistence
     implementation("org.xerial:sqlite-jdbc:3.44.1.0")
-    
+
     // Bytecode analysis
     api("org.ow2.asm:asm:9.6")
     api("org.ow2.asm:asm-commons:9.6")

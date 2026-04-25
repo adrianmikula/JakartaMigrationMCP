@@ -283,3 +283,30 @@ run = "gradle :premium-intellij-plugin:runIdeDev"
 description = "Run IntelliJ plugin in demo marketplace mode (uses JetBrains Demo Marketplace)"
 run_windows = "gradlew.bat :premium-intellij-plugin:runIdeDemo"
 run = "gradle :premium-intellij-plugin:runIdeDemo"
+
+# IntelliJ Platform Test Matrix Tasks
+
+[tasks.test-matrix]
+description = "Run all IntelliJ platform matrix tests (2023.1, 2024.1, 2025.1, 2026.1)"
+run_windows = "gradlew.bat :premium-intellij-plugin:testIntelliJMatrix -Djakarta.migration.mode=dev"
+run = "gradle :premium-intellij-plugin:testIntelliJMatrix -Djakarta.migration.mode=dev"
+
+[tasks.test-intellij-2023]
+description = "Run IntelliJ platform tests against version 2023.1"
+run_windows = "gradlew.bat :premium-intellij-plugin:testIntelliJ_2023_1 -Djakarta.migration.mode=dev"
+run = "gradle :premium-intellij-plugin:testIntelliJ_2023_1 -Djakarta.migration.mode=dev"
+
+[tasks.test-intellij-2024]
+description = "Run IntelliJ platform tests against version 2024.1"
+run_windows = "gradlew.bat :premium-intellij-plugin:testIntelliJ_2024_1 -Djakarta.migration.mode=dev"
+run = "gradle :premium-intellij-plugin:testIntelliJ_2024_1 -Djakarta.migration.mode=dev"
+
+[tasks.test-intellij-2025]
+description = "Run IntelliJ platform tests against version 2025.1"
+run_windows = "gradlew.bat :premium-intellij-plugin:testIntelliJ_2025_1 -Djakarta.migration.mode=dev"
+run = "gradle :premium-intellij-plugin:testIntelliJ_2025_1 -Djakarta.migration.mode=dev"
+
+[tasks.test-intellij-2026]
+description = "Run IntelliJ platform tests against version 2026.1 (EAP)"
+run_windows = "gradlew.bat :premium-intellij-plugin:testIntelliJ_2026_1 -Djakarta.migration.mode=dev"
+run = "gradle :premium-intellij-plugin:testIntelliJ_2026_1 -Djakarta.migration.mode=dev"

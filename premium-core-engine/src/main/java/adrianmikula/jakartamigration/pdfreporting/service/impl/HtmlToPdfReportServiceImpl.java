@@ -6,9 +6,7 @@ import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanRe
 import adrianmikula.jakartamigration.risk.RiskScoringService;
 import adrianmikula.jakartamigration.pdfreporting.snippet.RiskAnalysisSnippetFactory;
 import adrianmikula.jakartamigration.pdfreporting.snippet.ReportAssembler;
-import adrianmikula.jakartamigration.pdfreporting.util.HtmlValidator;
 import lombok.extern.slf4j.Slf4j;
-import org.xhtmlrenderer.pdf.ITextRenderer;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -18,30 +16,75 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
- * Simplified HTML-to-PDF report generation service.
- * Provides basic HTML generation with fallback for testing when dependencies are not available.
+ * HTML report generation service.
+ * PDF generation disabled due to memory issues - provides HTML-only reports.
+ * See docs/techdebt/pdf-memory-issues.md for details.
  */
 @Slf4j
 public class HtmlToPdfReportServiceImpl implements PdfReportService {
     
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     
+    // Cached CSS to avoid regenerating for each report
+    private String cachedCommonStyles;
+    private String cachedHeaderStyles;
+    private String cachedFooterStyles;
+    private String cachedRefactoringStyles;
+    
     public HtmlToPdfReportServiceImpl() {
-        log.info("Initializing HTML-to-PDF Report Service (simplified version for testing)");
+        log.info("Initializing HTML Report Service (PDF generation disabled due to memory issues)");
+        loadAndCacheCss();
+    }
+    
+    /**
+     * Load CSS from external resource files and cache them to reduce memory overhead.
+     */
+    private void loadAndCacheCss() {
+        try {
+            cachedCommonStyles = loadCssResource("pdf-reporting/css/common-styles.css");
+            cachedHeaderStyles = loadCssResource("pdf-reporting/css/header-styles.css");
+            cachedFooterStyles = loadCssResource("pdf-reporting/css/footer-styles.css");
+            cachedRefactoringStyles = loadCssResource("pdf-reporting/css/refactoring-styles.css");
+            
+            log.info("CSS loaded and cached successfully. Common styles: {} bytes, Header styles: {} bytes, Footer styles: {} bytes, Refactoring styles: {} bytes",
+                cachedCommonStyles.length(), cachedHeaderStyles.length(), cachedFooterStyles.length(), cachedRefactoringStyles.length());
+        } catch (Exception e) {
+            log.warn("Failed to load CSS from external files, falling back to inline CSS: {}", e.getMessage());
+            // Initialize with empty strings to allow fallback to inline generation
+            cachedCommonStyles = "";
+            cachedHeaderStyles = "";
+            cachedFooterStyles = "";
+            cachedRefactoringStyles = "";
+        }
+    }
+    
+    /**
+     * Load CSS content from a resource file.
+     */
+    private String loadCssResource(String resourcePath) throws IOException {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+            if (is == null) {
+                throw new IOException("Resource not found: " + resourcePath);
+            }
+            return new String(is.readAllBytes());
+        }
     }
     
     @Override
     public Path generateRiskAnalysisReport(RiskAnalysisReportRequest request) {
-        log.info("Generating Risk Analysis HTML-to-PDF report: {}", request.outputPath());
+        log.info("Generating Risk Analysis HTML report: {}", request.outputPath());
         
         try {
             // Generate HTML content using snippet-based architecture
             String htmlContent = generateRiskAnalysisHtmlWithSnippets(request);
             
-            // Convert HTML to PDF
-            convertHtmlToPdf(htmlContent, request.outputPath());
+            // Log HTML content size for memory monitoring
+            log.info("HTML content size: {} bytes ({} MB)", htmlContent.length(), htmlContent.length() / (1024.0 * 1024.0));
             
-            return request.outputPath();
+            // Save HTML directly (PDF generation disabled due to memory issues)
+            Path htmlPath = saveHtmlReport(htmlContent, request.outputPath());
+            
+            return htmlPath;
         } catch (Exception e) {
             log.error("Error generating risk analysis report", e);
             throw new RuntimeException("Failed to generate risk analysis report", e);
@@ -50,16 +93,19 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
     
     @Override
     public Path generateRefactoringActionReport(RefactoringActionReportRequest request) {
-        log.info("Generating Refactoring Action HTML-to-PDF report: {}", request.outputPath());
+        log.info("Generating Refactoring Action HTML report: {}", request.outputPath());
         
         try {
             // Generate HTML content with modern professional styling
             String htmlContent = generateRefactoringActionHtml(request);
             
-            // Convert HTML to PDF
-            convertHtmlToPdf(htmlContent, request.outputPath());
+            // Log HTML content size for memory monitoring
+            log.info("HTML content size: {} bytes ({} MB)", htmlContent.length(), htmlContent.length() / (1024.0 * 1024.0));
             
-            return request.outputPath();
+            // Save HTML directly (PDF generation disabled due to memory issues)
+            Path htmlPath = saveHtmlReport(htmlContent, request.outputPath());
+            
+            return htmlPath;
         } catch (Exception e) {
             log.error("Error generating refactoring action report", e);
             throw new RuntimeException("Failed to generate refactoring action report", e);
@@ -68,16 +114,19 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
     
     @Override
     public Path generateConsolidatedReport(ConsolidatedReportRequest request) {
-        log.info("Generating Consolidated HTML-to-PDF report: {}", request.outputPath());
+        log.info("Generating Consolidated HTML report: {}", request.outputPath());
         
         try {
             // Generate HTML content with modern professional styling
             String htmlContent = generateConsolidatedHtml(request);
             
-            // Convert HTML to PDF
-            convertHtmlToPdf(htmlContent, request.outputPath());
+            // Log HTML content size for memory monitoring
+            log.info("HTML content size: {} bytes ({} MB)", htmlContent.length(), htmlContent.length() / (1024.0 * 1024.0));
             
-            return request.outputPath();
+            // Save HTML directly (PDF generation disabled due to memory issues)
+            Path htmlPath = saveHtmlReport(htmlContent, request.outputPath());
+            
+            return htmlPath;
         } catch (Exception e) {
             log.error("Error generating consolidated report", e);
             throw new RuntimeException("Failed to generate consolidated report", e);
@@ -866,6 +915,12 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
         int availableRecipes = request.openRewriteRecipes() != null ? request.openRewriteRecipes().size() : 0;
         int readyForAutomation = calculateAutomationReady(request.refactoringReadiness());
         
+        // Use cached CSS if available, otherwise inline
+        String commonStyles = cachedCommonStyles != null && !cachedCommonStyles.isEmpty() ? cachedCommonStyles : getInlineCommonStyles();
+        String headerStyles = getSharedHeaderStyles();
+        String footerStyles = getSharedFooterStyles();
+        String refactoringStyles = cachedRefactoringStyles != null && !cachedRefactoringStyles.isEmpty() ? cachedRefactoringStyles : getInlineRefactoringStyles();
+        
         return """
             <!DOCTYPE html>
             <html>
@@ -873,120 +928,10 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
                 <title>%s</title>
                 <meta charset="UTF-8" />
                 <style>
-                    body {
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                        margin: 0;
-                        padding: 40px;
-                        line-height: 1.6;
-                        color: #333;
-                        background: #f8f9fa;
-                    }
-                    .container {
-                        max-width: 1200px;
-                        margin: 0 auto;
-                        background: white;
-                        padding: 40px;
-                        border-radius: 8px;
-                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                    }
                     %s
                     %s
-                    .section {
-                        margin: 40px 0;
-                        padding: 30px;
-                        border: 1px solid #e1e8ed;
-                        border-radius: 8px;
-                        background: #ffffff;
-                    }
-                    .section h2 {
-                        color: #2c3e50;
-                        border-bottom: 2px solid #e74c3c;
-                        padding-bottom: 15px;
-                        margin-top: 0;
-                        font-size: 1.8em;
-                    }
-                    .metrics-grid {
-                        display: grid;
-                        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-                        gap: 20px;
-                        margin: 30px 0;
-                    }
-                    .metric-card {
-                        background: linear-gradient(135deg, #e74c3c 0%%, #c0392b 100%%);
-                        color: white;
-                        padding: 25px;
-                        border-radius: 12px;
-                        text-align: center;
-                        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-                    }
-                    .metric-value {
-                        font-size: 2.5em;
-                        font-weight: bold;
-                        margin-bottom: 10px;
-                    }
-                    .metric-label {
-                        font-size: 1.1em;
-                        opacity: 0.9;
-                    }
-                    .refactor-table {
-                        width: 100%%;
-                        border-collapse: collapse;
-                        margin: 20px 0;
-                        font-size: 0.9em;
-                    }
-                    .refactor-table th,
-                    .refactor-table td {
-                        padding: 12px 15px;
-                        text-align: left;
-                        border-bottom: 1px solid #ddd;
-                    }
-                    .refactor-table th {
-                        background-color: #c0392b;
-                        color: white;
-                        font-weight: bold;
-                    }
-                    .refactor-table tr:hover {
-                        background-color: #f5f5f5;
-                    }
-                    .priority-high { background: #fdf2f2; color: #e74c3c; font-weight: bold; }
-                    .priority-medium { background: #fef9e7; color: #f39c12; font-weight: bold; }
-                    .priority-low { background: #e8f8f5; color: #27ae60; font-weight: bold; }
-                    .recipe-available { color: #27ae60; font-weight: bold; }
-                    .recipe-unavailable { color: #e74c3c; font-weight: bold; }
-                    .code-example {
-                        background: #2c3e50;
-                        color: #ecf0f1;
-                        padding: 20px;
-                        border-radius: 8px;
-                        font-family: 'Courier New', monospace;
-                        margin: 15px 0;
-                        overflow-x: auto;
-                    }
-                    .action-steps {
-                        background: #ecf0f1;
-                        padding: 20px;
-                        border-radius: 8px;
-                        margin: 20px 0;
-                    }
-                    .action-steps ol {
-                        margin: 0;
-                        padding-left: 20px;
-                    }
-                    .action-steps li {
-                        margin: 10px 0;
-                    }
-                    .footer {
-                        margin-top: 60px;
-                        padding-top: 30px;
-                        border-top: 1px solid #e1e8ed;
-                        text-align: center;
-                        color: #7f8c8d;
-                        font-size: 0.9em;
-                    }
-                    @media print {
-                        body { padding: 20px; }
-                        .container { box-shadow: none; }
-                    }
+                    %s
+                    %s
                 </style>
             </head>
             <body>
@@ -1054,8 +999,10 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
             </html>
             """.formatted(
                 reportTitle,
-                getSharedHeaderStyles(),
-                getSharedFooterStyles(),
+                commonStyles,
+                headerStyles,
+                footerStyles,
+                refactoringStyles,
                 generateSharedHeader(reportTitle, projectName, "Refactoring Action Report"),
                 totalFiles,
                 availableRecipes,
@@ -1384,6 +1331,12 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
     }
     
     private String getSharedHeaderStyles() {
+        // Return cached CSS if available, otherwise generate inline (fallback)
+        if (cachedHeaderStyles != null && !cachedHeaderStyles.isEmpty()) {
+            return cachedHeaderStyles;
+        }
+        
+        // Fallback to inline generation if CSS loading failed
         return """
             /* Shared Header Styles */
             .report-header {
@@ -1460,6 +1413,12 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
     }
     
     private String getSharedFooterStyles() {
+        // Return cached CSS if available, otherwise generate inline (fallback)
+        if (cachedFooterStyles != null && !cachedFooterStyles.isEmpty()) {
+            return cachedFooterStyles;
+        }
+        
+        // Fallback to inline generation if CSS loading failed
         return """
             /* Shared Footer Styles */
             .report-footer {
@@ -1536,6 +1495,299 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
             """;
     }
     
+    /**
+     * Fallback inline common styles when external CSS loading fails.
+     */
+    private String getInlineCommonStyles() {
+        return """
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                margin: 0;
+                padding: 40px;
+                line-height: 1.6;
+                color: #333;
+                background: #f8f9fa;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                background: white;
+                padding: 40px;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+            .section {
+                margin: 40px 0;
+                padding: 30px;
+                border: 1px solid #e1e8ed;
+                border-radius: 8px;
+                background: #ffffff;
+            }
+            .section h2 {
+                color: #2c3e50;
+                border-bottom: 2px solid #3498db;
+                padding-bottom: 15px;
+                margin-top: 0;
+                font-size: 1.8em;
+            }
+            .metrics-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 20px;
+                margin: 30px 0;
+            }
+            .metric-card {
+                background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%);
+                color: white;
+                padding: 25px;
+                border-radius: 12px;
+                text-align: center;
+                box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            }
+            .metric-value {
+                font-size: 2.5em;
+                font-weight: bold;
+                margin-bottom: 10px;
+            }
+            .metric-label {
+                font-size: 1.1em;
+                opacity: 0.9;
+            }
+            .dependency-table {
+                width: 100%%;
+                border-collapse: collapse;
+                margin: 20px 0;
+                font-size: 0.9em;
+            }
+            .dependency-table th,
+            .dependency-table td {
+                padding: 12px 15px;
+                text-align: left;
+                border-bottom: 1px solid #ddd;
+            }
+            .dependency-table th {
+                background-color: #34495e;
+                color: white;
+                font-weight: bold;
+            }
+            .dependency-table tr:hover {
+                background-color: #f5f5f5;
+            }
+            .compatible { color: #27ae60; font-weight: bold; }
+            .incompatible { color: #e74c3c; font-weight: bold; }
+            .blocker-list {
+                list-style: none;
+                padding: 0;
+            }
+            .blocker-item {
+                background: #fff3cd;
+                border: 1px solid #ffeaa7;
+                border-left: 4px solid #e17055;
+                padding: 15px;
+                margin: 10px 0;
+                border-radius: 4px;
+            }
+            .blocker-high { border-left-color: #e74c3c; background: #fdf2f2; }
+            .blocker-medium { border-left-color: #f39c12; background: #fef9e7; }
+            .blocker-low { border-left-color: #27ae60; background: #e8f8f5; }
+            .timeline {
+                position: relative;
+                padding: 20px 0;
+            }
+            .timeline-item {
+                padding: 20px;
+                margin: 20px 0;
+                background: #f8f9fa;
+                border-radius: 8px;
+                border-left: 4px solid #3498db;
+            }
+            .timeline-phase {
+                font-weight: bold;
+                color: #2c3e50;
+                font-size: 1.2em;
+                margin-bottom: 10px;
+            }
+            .timeline-duration {
+                color: #7f8c8d;
+                font-style: italic;
+                margin-bottom: 10px;
+            }
+            .strategy-table-container {
+                margin: 20px 0;
+                overflow-x: auto;
+            }
+            .strategy-comparison-table {
+                width: 100%%;
+                border-collapse: collapse;
+                font-size: 0.85em;
+                background: white;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .strategy-comparison-table th {
+                background: linear-gradient(135deg, #2c3e50 0%%, #34495e 100%%);
+                color: white;
+                font-weight: bold;
+                padding: 15px 12px;
+                text-align: left;
+                border-bottom: 2px solid #3498db;
+                font-size: 0.9em;
+            }
+            .strategy-comparison-table td {
+                padding: 12px;
+                border-bottom: 1px solid #e1e8ed;
+                vertical-align: top;
+                line-height: 1.4;
+            }
+            .strategy-row:hover {
+                background-color: #f8f9fa;
+            }
+            .strategy-row:nth-child(even) {
+                background-color: #fafbfc;
+            }
+            .strategy-row:nth-child(even):hover {
+                background-color: #f1f3f4;
+            }
+            .strategy-name {
+                font-weight: bold;
+                min-width: 120px;
+            }
+            .strategy-indicator {
+                width: 12px;
+                height: 12px;
+                border-radius: 50%%;
+                display: inline-block;
+                margin-right: 8px;
+                border: 1px solid rgba(0, 0, 0, 0.2);
+                vertical-align: middle;
+            }
+            .strategy-description {
+                min-width: 150px;
+                font-style: italic;
+                color: #555;
+            }
+            .strategy-benefits {
+                color: #27ae60;
+                font-size: 0.9em;
+            }
+            .strategy-risks {
+                color: #e74c3c;
+                font-size: 0.9em;
+            }
+            .strategy-phases {
+                font-size: 0.8em;
+                color: #666;
+            }
+            .strategy-use-case {
+                font-weight: 500;
+                color: #2c3e50;
+                font-size: 0.9em;
+            }
+            .risk-dial {
+                display: inline-block;
+                width: 120px;
+                height: 120px;
+                border-radius: 50%%;
+                text-align: center;
+                line-height: 120px;
+                font-size: 1.5em;
+                font-weight: bold;
+                margin: 20px;
+                color: white;
+            }
+            .risk-low { background: #27ae60; }
+            .risk-medium { background: #f39c12; }
+            .risk-high { background: #e74c3c; }
+            .risk-critical { background: #8e44ad; }
+            @media print {
+                body { padding: 20px; }
+                .container { box-shadow: none; }
+                .strategy-comparison-table { font-size: 0.75em; }
+                .strategy-comparison-table th { padding: 10px 8px; }
+                .strategy-comparison-table td { padding: 8px; }
+            }
+            """;
+    }
+    
+    /**
+     * Fallback inline refactoring styles when external CSS loading fails.
+     */
+    private String getInlineRefactoringStyles() {
+        return """
+            .section h2 {
+                color: #2c3e50;
+                border-bottom: 2px solid #e74c3c;
+                padding-bottom: 15px;
+                margin-top: 0;
+                font-size: 1.8em;
+            }
+            .metric-card {
+                background: linear-gradient(135deg, #e74c3c 0%%, #c0392b 100%%);
+                color: white;
+                padding: 25px;
+                border-radius: 12px;
+                text-align: center;
+                box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            }
+            .refactor-table {
+                width: 100%%;
+                border-collapse: collapse;
+                margin: 20px 0;
+                font-size: 0.9em;
+            }
+            .refactor-table th,
+            .refactor-table td {
+                padding: 12px 15px;
+                text-align: left;
+                border-bottom: 1px solid #ddd;
+            }
+            .refactor-table th {
+                background-color: #c0392b;
+                color: white;
+                font-weight: bold;
+            }
+            .refactor-table tr:hover {
+                background-color: #f5f5f5;
+            }
+            .priority-high { background: #fdf2f2; color: #e74c3c; font-weight: bold; }
+            .priority-medium { background: #fef9e7; color: #f39c12; font-weight: bold; }
+            .priority-low { background: #e8f8f5; color: #27ae60; font-weight: bold; }
+            .recipe-available { color: #27ae60; font-weight: bold; }
+            .recipe-unavailable { color: #e74c3c; font-weight: bold; }
+            .code-example {
+                background: #2c3e50;
+                color: #ecf0f1;
+                padding: 20px;
+                border-radius: 8px;
+                font-family: 'Courier New', monospace;
+                margin: 15px 0;
+                overflow-x: auto;
+            }
+            .action-steps {
+                background: #ecf0f1;
+                padding: 20px;
+                border-radius: 8px;
+                margin: 20px 0;
+            }
+            .action-steps ol {
+                margin: 0;
+                padding-left: 20px;
+            }
+            .action-steps li {
+                margin: 10px 0;
+            }
+            .footer {
+                margin-top: 60px;
+                padding-top: 30px;
+                border-top: 1px solid #e1e8ed;
+                text-align: center;
+                color: #7f8c8d;
+                font-size: 0.9em;
+            }
+            """;
+    }
+    
     String getPluginIconSvg() {
         // Simplified SVG icon for embedding - using a clean, scalable version
         // All XML entities must be properly escaped for Flying Saucer
@@ -1562,85 +1814,23 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
                   .replace("'", "&#39;");
     }
     
-    private void convertHtmlToPdf(String htmlContent, Path outputPath) throws Exception {
-        // Monitor memory usage
-        Runtime runtime = Runtime.getRuntime();
-        long memoryBefore = runtime.totalMemory() - runtime.freeMemory();
-        log.info("Memory before PDF conversion: {} MB", memoryBefore / (1024 * 1024));
+    /**
+     * Save HTML report directly to file (PDF generation disabled due to memory issues).
+     */
+    private Path saveHtmlReport(String htmlContent, Path outputPath) throws IOException {
+        // Ensure output directory exists
+        Files.createDirectories(outputPath.getParent());
         
-        try {
-            // Validate HTML content before PDF conversion to catch XML parsing issues early
-            HtmlValidator.validateHtml(htmlContent);
-            
-            // Ensure output directory exists
-            Files.createDirectories(outputPath.getParent());
-            
-            // Create PDF renderer using Flying Saucer with optimized settings
-            org.xhtmlrenderer.pdf.ITextRenderer renderer = null;
-            try {
-                renderer = new org.xhtmlrenderer.pdf.ITextRenderer();
-                
-                // Optimize renderer settings for memory efficiency
-                renderer.getSharedContext().setUserAgentCallback(null); // Disable user agent callback
-                renderer.getSharedContext().setMedia("pdf"); // Use PDF media type
-                
-                // Set document content
-                renderer.setDocumentFromString(htmlContent);
-                
-                // Layout document
-                renderer.layout();
-                
-                // Create output stream and generate PDF
-                try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(outputPath.toFile()))) {
-                    renderer.createPDF(outputStream);
-                    outputStream.flush(); // Ensure all data is written
-                }
-                
-            } finally {
-                // Clean up renderer resources
-                if (renderer != null) {
-                    try {
-                        renderer.getSharedContext().setUserAgentCallback(null);
-                    } catch (Exception e) {
-                        log.warn("Error cleaning up renderer resources: {}", e.getMessage());
-                    }
-                }
-            }
-            
-            log.info("PDF successfully generated: {}", outputPath.toAbsolutePath());
-            
-            // Verify PDF was created
-            if (Files.exists(outputPath) && Files.size(outputPath) > 0) {
-                long fileSize = Files.size(outputPath);
-                log.info("PDF file size: {} bytes", fileSize);
-                
-                // Monitor memory after generation
-                long memoryAfter = runtime.totalMemory() - runtime.freeMemory();
-                long memoryUsed = memoryAfter - memoryBefore;
-                log.info("Memory after PDF conversion: {} MB, delta: {} MB", 
-                    memoryAfter / (1024 * 1024), memoryUsed / (1024 * 1024));
-                
-                // Warn if memory usage is high
-                if (memoryUsed > 100 * 1024 * 1024) { // 100MB threshold
-                    log.warn("High memory usage detected during PDF generation: {} MB", memoryUsed / (1024 * 1024));
-                }
-            } else {
-                throw new RuntimeException("PDF file was not created properly");
-            }
-            
-        } catch (Exception e) {
-            log.error("Error converting HTML to PDF: {}", e.getMessage(), e);
-            
-            // Fallback: save as HTML if PDF conversion fails
-            Path htmlPath = outputPath.resolveSibling(outputPath.getFileName().toString().replace(".pdf", ".html"));
-            Files.writeString(htmlPath, htmlContent);
-            log.warn("PDF conversion failed, saved as HTML instead: {}", htmlPath);
-            
-            throw new RuntimeException("PDF conversion failed: " + e.getMessage(), e);
-        } finally {
-            // Suggest garbage collection to free memory
-            System.gc();
-        }
+        // Change extension from .pdf to .html
+        Path htmlPath = outputPath.resolveSibling(outputPath.getFileName().toString().replace(".pdf", ".html"));
+        
+        // Write HTML content to file
+        Files.writeString(htmlPath, htmlContent);
+        
+        log.info("HTML report saved successfully: {}", htmlPath.toAbsolutePath());
+        log.info("HTML file size: {} bytes", Files.size(htmlPath));
+        
+        return htmlPath;
     }
     
     /**

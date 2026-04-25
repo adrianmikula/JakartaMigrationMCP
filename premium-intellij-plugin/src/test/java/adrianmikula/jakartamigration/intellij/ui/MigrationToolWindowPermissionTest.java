@@ -27,7 +27,7 @@ public class MigrationToolWindowPermissionTest extends BasePlatformTestCase {
     private MigrationToolWindow.MigrationToolWindowContent toolWindowContent;
     
     @BeforeEach
-    void setUp() throws Exception {
+    public void setUp() throws Exception {
         super.setUp();
         MockitoAnnotations.openMocks(this);
     }

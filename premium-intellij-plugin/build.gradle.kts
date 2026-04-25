@@ -112,6 +112,9 @@ dependencies {
     implementation("org.slf4j:slf4j-api:2.0.9")
     implementation("org.slf4j:slf4j-simple:2.0.9")
     
+    // Liquibase SLF4J bridge for proper logging in plugin classloader
+    implementation("com.mattbertolini:liquibase-slf4j:5.0.0")
+    
     // Community Core Engine - local project dependency (Apache 2.0)
     // Using 'api' to include classes in the final plugin JAR
     api(project(":community-core-engine"))
@@ -204,6 +207,171 @@ tasks {
         exclude("**/ui/UI*Tests.class")
         exclude("**/ui/UI*TestSuite.class")
         exclude("**/ui/ComprehensiveJakartaLookupTest.class")
+    }
+
+    /**
+     * IntelliJ Platform Test Matrix Tasks
+     * Run platform-dependent tests against multiple IntelliJ versions
+     */
+
+    // Test against IntelliJ 2023.1.5
+    register<Test>("testIntelliJ_2023_1") {
+        group = "verification"
+        description = "Runs IntelliJ platform tests against version 2023.1.5"
+
+        useJUnitPlatform()
+
+        // Configure IntelliJ platform version
+        systemProperty("intellij.version", "2023.1.5")
+
+        // Include only platform-dependent tests
+        include("**/*IntelliJPlatformTest*.class")
+        include("**/*UI*Test*.class")
+        include("**/*LiquibaseScopeTest*.class")
+
+        // Additional patterns for tests that need IntelliJ Platform
+        include("**/*ComponentTest.class")
+        include("**/*License*Test.class")
+        include("**/*ServiceProgressTest.class")
+        include("**/*ListenerTest.class")
+        include("**/*Mcp*Test.class")
+        include("**/*ActivityTest.class")
+
+        // Exclude tests that don't need platform
+        exclude("**/BuildConfigurationValidationTest.class")
+        exclude("**/PluginMarketplaceValidationTest.class")
+
+        testLogging {
+            events("passed", "skipped", "failed")
+            showExceptions = true
+            showCauses = true
+        }
+    }
+
+    // Test against IntelliJ 2024.1.4
+    register<Test>("testIntelliJ_2024_1") {
+        group = "verification"
+        description = "Runs IntelliJ platform tests against version 2024.1.4"
+
+        useJUnitPlatform()
+
+        // Configure IntelliJ platform version
+        systemProperty("intellij.version", "2024.1.4")
+
+        // Include only platform-dependent tests
+        include("**/*IntelliJPlatformTest*.class")
+        include("**/*UI*Test*.class")
+        include("**/*LiquibaseScopeTest*.class")
+
+        // Additional patterns for tests that need IntelliJ Platform
+        include("**/*ComponentTest.class")
+        include("**/*License*Test.class")
+        include("**/*ServiceProgressTest.class")
+        include("**/*ListenerTest.class")
+        include("**/*Mcp*Test.class")
+        include("**/*ActivityTest.class")
+
+        // Exclude tests that don't need platform
+        exclude("**/BuildConfigurationValidationTest.class")
+        exclude("**/PluginMarketplaceValidationTest.class")
+
+        testLogging {
+            events("passed", "skipped", "failed")
+            showExceptions = true
+            showCauses = true
+        }
+    }
+
+    // Test against IntelliJ 2025.1.1
+    register<Test>("testIntelliJ_2025_1") {
+        group = "verification"
+        description = "Runs IntelliJ platform tests against version 2025.1.1"
+
+        useJUnitPlatform()
+
+        // Configure IntelliJ platform version
+        systemProperty("intellij.version", "2025.1.1")
+
+        // Include only platform-dependent tests
+        include("**/*IntelliJPlatformTest*.class")
+        include("**/*UI*Test*.class")
+        include("**/*LiquibaseScopeTest*.class")
+
+        // Additional patterns for tests that need IntelliJ Platform
+        include("**/*ComponentTest.class")
+        include("**/*License*Test.class")
+        include("**/*ServiceProgressTest.class")
+        include("**/*ListenerTest.class")
+        include("**/*Mcp*Test.class")
+        include("**/*ActivityTest.class")
+
+        // Exclude tests that don't need platform
+        exclude("**/BuildConfigurationValidationTest.class")
+        exclude("**/PluginMarketplaceValidationTest.class")
+
+        testLogging {
+            events("passed", "skipped", "failed")
+            showExceptions = true
+            showCauses = true
+        }
+    }
+
+    // Test against IntelliJ 2026.1 (EAP/Early Access)
+    register<Test>("testIntelliJ_2026_1") {
+        group = "verification"
+        description = "Runs IntelliJ platform tests against version 2026.1 (EAP)"
+
+        useJUnitPlatform()
+
+        // Configure IntelliJ platform version
+        systemProperty("intellij.version", "2026.1")
+
+        // Include only platform-dependent tests
+        include("**/*IntelliJPlatformTest*.class")
+        include("**/*UI*Test*.class")
+        include("**/*LiquibaseScopeTest*.class")
+
+        // Additional patterns for tests that need IntelliJ Platform
+        include("**/*ComponentTest.class")
+        include("**/*License*Test.class")
+        include("**/*ServiceProgressTest.class")
+        include("**/*ListenerTest.class")
+        include("**/*Mcp*Test.class")
+        include("**/*ActivityTest.class")
+
+        // Exclude tests that don't need platform
+        exclude("**/BuildConfigurationValidationTest.class")
+        exclude("**/PluginMarketplaceValidationTest.class")
+
+        testLogging {
+            events("passed", "skipped", "failed")
+            showExceptions = true
+            showCauses = true
+        }
+
+        // Allow this task to fail for EAP versions without failing the build
+        ignoreFailures = true
+    }
+
+    // Aggregate task to run all IntelliJ matrix tests
+    register("testIntelliJMatrix") {
+        group = "verification"
+        description = "Runs all IntelliJ platform matrix tests sequentially (2023.1, 2024.1, 2025.1, 2026.1)"
+
+        dependsOn("testIntelliJ_2023_1")
+        dependsOn("testIntelliJ_2024_1")
+        dependsOn("testIntelliJ_2025_1")
+        dependsOn("testIntelliJ_2026_1")
+
+        doFirst {
+            println("\n=== Starting IntelliJ Platform Test Matrix ===")
+            println("Running tests against versions: 2023.1.5, 2024.1.4, 2025.1.1, 2026.1")
+            println("Note: 2026.1 is EAP and may have failures\n")
+        }
+
+        doLast {
+            println("\n=== IntelliJ Platform Test Matrix Complete ===")
+        }
     }
 }
 

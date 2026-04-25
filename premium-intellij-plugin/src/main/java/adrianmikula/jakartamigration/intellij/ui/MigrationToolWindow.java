@@ -112,7 +112,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             this.analysisService = new MigrationAnalysisService();
             this.store = new CentralMigrationAnalysisStore();
             this.creditsService = new CreditsService();
-            this.userIdentificationService = new UserIdentificationService();
+            this.userIdentificationService = createUserIdentificationService();
             this.errorReportingService = new ErrorReportingService(this.userIdentificationService);
 
             // Initialize project-specific store
@@ -136,6 +136,14 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     System.getProperty("jakarta.migration.premium"));
 
             initializeContent();
+        }
+
+        /**
+         * Factory method for creating UserIdentificationService.
+         * Allows tests to override and provide mock implementations.
+         */
+        protected UserIdentificationService createUserIdentificationService() {
+            return new UserIdentificationService();
         }
 
         public JPanel getContentPanel() {
