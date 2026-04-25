@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <style>
+    .icon-fill {
+      fill: #6C707E;
+    }
+    @media (prefers-color-scheme: dark) {
+      .icon-fill {
+        fill: #CED0D6;
+      }
+    }
+  </style>
+  <!-- Package/box body -->
+  <path class="icon-fill" d="M2 4L3.5 3L5 4L6.5 3L8 4L9.5 5V8L8 9L6.5 8L5 9L3.5 8L2 7V4Z"/>
+  <!-- Top fold lines -->
+  <path class="icon-fill" d="M3 4L4 3L5 4M8 4L7 3L6 4"/>
+  <!-- Bottom base -->
+  <path class="icon-fill" d="M2.5 8.5H9.5V10.5H2.5V8.5Z"/>
+  <!-- Magnifying glass -->
+  <circle class="icon-fill" cx="12" cy="5" r="2"/>
+  <path class="icon-fill" d="M13.5 6.5L15 8"/>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 13 13">
+  <style>
+    .icon-fill {
+      fill: #6C707E;
+    }
+    @media (prefers-color-scheme: dark) {
+      .icon-fill {
+        fill: #CED0D6;
+      }
+    }
+  </style>
+  <path class="icon-fill" d="M3 2L4 3L5 2.5L6 3L7 2.5L8 3L9 2.5L10 3.5V6L9 7L8 6.5L7 7L6 6.5L5 7L4 6.5L3 7L2 6V3ZM3.5 4L4.5 3.5L5.5 4M7.5 4L6.5 3.5L5.5 4M4 5V6M6 5V6M2 7.5H10V9H2V7.5Z"/>
+</svg>
