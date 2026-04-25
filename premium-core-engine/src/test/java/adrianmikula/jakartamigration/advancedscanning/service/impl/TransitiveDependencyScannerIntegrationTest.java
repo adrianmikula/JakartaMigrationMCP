@@ -5,6 +5,7 @@ import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependenc
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -17,7 +18,9 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Integration tests for TransitiveDependencyScannerImpl using TestProjectHelper pattern.
  * Tests real project scanning scenarios with temporary project creation.
+ * Tagged as slow due to integration test nature.
  */
+@Tag("slow")
 class TransitiveDependencyScannerIntegrationTest {
 
     private TransitiveDependencyScannerImpl scanner;

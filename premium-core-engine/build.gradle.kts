@@ -126,18 +126,24 @@ tasks.register<Test>("coreTest") {
 }
 
 // Copy version from root gradle.properties to resources for analytics services
-tasks.register<Copy>("copyVersionToResources") {
+// Configuration-cache compatible version using providers
+tasks.register("copyVersionToResources") {
     group = "build"
     description = "Copy version from root gradle.properties to resources for analytics services"
     
-    // Read version from root gradle.properties and create version.properties content
-    val versionFile = rootProject.file("gradle.properties")
-    val versionContent = versionFile.readLines().find { it.startsWith("version=") } ?: "version=unknown"
-    val finalContent = "# Plugin Version - This file is used by UsageService and ErrorReportingService to get plugin version\n# Version is copied from root gradle.properties during build process\n$versionContent"
+    val versionPropertiesFile = file("src/main/resources/version.properties")
+    val rootGradleProperties = rootProject.file("gradle.properties")
     
-    // Write the content to version.properties
+    inputs.file(rootGradleProperties)
+    outputs.file(versionPropertiesFile)
+    
     doLast {
-        file("src/main/resources/version.properties").writeText(finalContent)
+        val versionContent = rootGradleProperties.readLines()
+            .find { it.startsWith("version=") } 
+            ?: "version=unknown"
+        val finalContent = "# Plugin Version - This file is used by UsageService and ErrorReportingService to get plugin version\n# Version is copied from root gradle.properties during build process\n$versionContent"
+        
+        versionPropertiesFile.writeText(finalContent)
     }
 }
 

@@ -264,18 +264,18 @@ public class ReportsTabComponent {
                                 outputArea.append("Note: Eclipse-based project detected - no Maven/Gradle build files found.\n");
                                 outputArea.append("Generating report with available scan data...\n");
                             });
-                            dependencyGraph = null; // Continue with null dependency graph
                         } else {
                             throw e; // Re-throw other exceptions
                         }
                     }
                     
+                    final DependencyGraph finalDependencyGraph = dependencyGraph;
                     SwingUtilities.invokeLater(() -> {
                         updateProgress(15, "Analyzing dependencies...");
-                        if (dependencyGraph == null || dependencyGraph.getNodes().isEmpty()) {
+                        if (finalDependencyGraph == null || finalDependencyGraph.getNodes().isEmpty()) {
                             outputArea.append("Warning: No dependency data available. Report will include scan results only.\n");
                         } else {
-                            outputArea.append("Found " + dependencyGraph.getNodes().size() + " dependencies\n");
+                            outputArea.append("Found " + finalDependencyGraph.getNodes().size() + " dependencies\n");
                         }
                         if (scanResults != null) {
                             outputArea.append("Total scan issues: " + scanResults.totalIssuesFound() + "\n");
@@ -492,19 +492,19 @@ public class ReportsTabComponent {
                                 outputArea.append("Note: Eclipse-based project detected - no Maven/Gradle build files found.\n");
                                 outputArea.append("Generating report with available scan data...\n");
                             });
-                            dependencyGraph = null; // Continue with null dependency graph
                         } else {
                             throw e; // Re-throw other exceptions
                         }
                     }
                     
+                    final DependencyGraph finalDependencyGraph = dependencyGraph;
                     SwingUtilities.invokeLater(() -> {
                         updateProgress(15, "Analyzing dependencies...");
                         // Check if we have dependency data before generating report
-                        if (dependencyGraph == null || dependencyGraph.getNodes().isEmpty()) {
+                        if (finalDependencyGraph == null || finalDependencyGraph.getNodes().isEmpty()) {
                             outputArea.append("Warning: No dependency data available. Report will include scan results only.\n");
                         } else {
-                            outputArea.append("Found " + dependencyGraph.getNodes().size() + " dependencies\n");
+                            outputArea.append("Found " + finalDependencyGraph.getNodes().size() + " dependencies\n");
                         }
                         
                         // Check if we have analysis report before generating refactoring report

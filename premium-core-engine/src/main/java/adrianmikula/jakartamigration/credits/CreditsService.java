@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.credits;
 
 import adrianmikula.jakartamigration.analytics.service.UsageService;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
+import adrianmikula.jakartamigration.storage.PluginStorageService;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -23,7 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class CreditsService implements AutoCloseable {
 
-    private static final String DB_FILE = "credits.db";
     private static final int DB_VERSION = 2; // Bumped for schema migration
 
     private final Path dbPath;
@@ -31,17 +31,32 @@ public class CreditsService implements AutoCloseable {
     private final FreemiumConfig freemiumConfig;
     private final UserIdentificationService userIdentificationService;
     private final UsageService usageService;
+    private final PluginStorageService storageService;
 
     // In-memory cache for credits to avoid repeated DB queries
     private final ConcurrentHashMap<CreditType, Integer> creditsCache = new ConcurrentHashMap<>();
     private boolean cacheLoaded = false;
 
     /**
-     * Creates a CreditsService with the default storage location.
-     * In IntelliJ, this stores in the IDE's config directory.
+     * Creates a CreditsService with consolidated storage location.
      */
     public CreditsService() {
-        this(getDefaultStoragePath());
+        this.storageService = PluginStorageService.getInstance();
+        this.freemiumConfig = new FreemiumConfig();
+        this.dbPath = this.storageService.getUserHomeDatabasePath();
+        
+        // Initialize analytics services
+        this.userIdentificationService = new UserIdentificationService();
+        this.usageService = new UsageService(userIdentificationService);
+        
+        // Run migration if needed
+        if (!storageService.isMigrationCompleted()) {
+            storageService.migrateExistingData();
+            storageService.markMigrationCompleted();
+        }
+        
+        initializeDatabase();
+        log.info("CreditsService initialized at {} with credit limit: {}", dbPath, freemiumConfig.getCreditLimit());
     }
 
     /**
@@ -51,8 +66,10 @@ public class CreditsService implements AutoCloseable {
      * @param storagePath the directory to store the credits database
      */
     public CreditsService(Path storagePath) {
+        // For testing, use the provided path directly without migration
+        this.storageService = null; // Disable storage service for test mode
         this.freemiumConfig = new FreemiumConfig();
-        this.dbPath = storagePath.resolve(DB_FILE);
+        this.dbPath = storagePath.resolve("credits-usage.db");
         
         // Initialize analytics services
         this.userIdentificationService = new UserIdentificationService();
@@ -65,22 +82,6 @@ public class CreditsService implements AutoCloseable {
         }
         initializeDatabase();
         log.info("CreditsService initialized at {} with credit limit: {}", dbPath, freemiumConfig.getCreditLimit());
-    }
-
-    /**
-     * Gets the default storage path for credits.
-     * Uses the IntelliJ system directory or falls back to user home.
-     */
-    private static Path getDefaultStoragePath() {
-        // Try to use IntelliJ's config directory
-        String ideaConfigPath = System.getProperty("idea.config.path");
-        if (ideaConfigPath != null) {
-            return Path.of(ideaConfigPath, "jakarta-migration");
-        }
-
-        // Fallback to user home
-        String userHome = System.getProperty("user.home");
-        return Path.of(userHome, ".jakarta-migration", "credits");
     }
 
     /**
@@ -114,6 +115,7 @@ public class CreditsService implements AutoCloseable {
     private void initializeDatabase() {
         try (Connection conn = getConnection()) {
             createTables(conn);
+            updateSchema(conn);
             conn.commit();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize credits database", e);
@@ -152,6 +154,18 @@ public class CreditsService implements AutoCloseable {
                 pstmt.setString(1, type.getKey());
                 pstmt.setLong(2, System.currentTimeMillis());
                 pstmt.executeUpdate();
+            }
+        }
+    }
+
+    private void updateSchema(Connection conn) throws SQLException {
+        try (Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery("PRAGMA user_version")) {
+            int version = rs.getInt(1);
+            if (version < DB_VERSION) {
+                // Future schema updates can be added here
+                stmt.execute("PRAGMA user_version = " + DB_VERSION);
+                log.info("Credits database schema updated to version {}", DB_VERSION);
             }
         }
     }

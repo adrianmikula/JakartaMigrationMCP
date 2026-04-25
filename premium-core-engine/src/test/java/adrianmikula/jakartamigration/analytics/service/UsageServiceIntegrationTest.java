@@ -7,6 +7,7 @@ import adrianmikula.jakartamigration.analytics.util.NetworkFailureSimulator;
 import adrianmikula.jakartamigration.analytics.util.TestDataFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -21,7 +22,9 @@ import static org.mockito.Mockito.*;
 /**
  * Integration tests for UsageService with test Supabase instance.
  * Tests real API interactions, error handling, and data persistence.
+ * Tagged as slow due to integration test nature.
  */
+@Tag("slow")
 @ExtendWith(MockitoExtension.class)
 class UsageServiceIntegrationTest {
 

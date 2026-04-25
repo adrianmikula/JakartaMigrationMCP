@@ -118,10 +118,8 @@ dependencies {
     
     // Premium Core Engine - local project dependency (Proprietary)
     // Contains premium features: refactoring, runtime verification, etc.
-    implementation(project(":premium-core-engine"))
-    
-    // Premium Core Engine - runtime verification and premium features (Proprietary)
-    implementation(project(":premium-core-engine"))
+    // Using 'api' to include classes in the final plugin JAR
+    api(project(":premium-core-engine"))
     
     // UI Testing dependencies
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")

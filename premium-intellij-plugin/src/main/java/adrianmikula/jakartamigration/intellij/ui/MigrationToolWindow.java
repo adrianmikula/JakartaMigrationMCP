@@ -23,6 +23,7 @@ import adrianmikula.jakartamigration.intellij.ui.DevTabComponent;
 import adrianmikula.jakartamigration.intellij.ui.SimplePlatformsTabComponent;
 import adrianmikula.jakartamigration.intellij.ui.PlatformsTabComponent;
 import adrianmikula.jakartamigration.intellij.ui.ReportsTabComponent;
+import adrianmikula.jakartamigration.intellij.ui.components.NewFeatureNotification;
 import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
 import adrianmikula.jakartamigration.analytics.service.ErrorReportingService;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
@@ -74,6 +75,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private final MigrationAnalysisService analysisService;
         private final CentralMigrationAnalysisStore store;
         private final ErrorReportingService errorReportingService;
+        private final UserIdentificationService userIdentificationService;
 
         // UI Components
         private DashboardComponent dashboardComponent;
@@ -97,6 +99,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private JPanel scanControlsPanel;
         private CreditsProgressBar creditsProgressBar;
         private CreditsService creditsService;
+        private NewFeatureNotification notificationComponent;
         private boolean isPremium;
         
         // Scan controls components
@@ -109,7 +112,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
             this.analysisService = new MigrationAnalysisService();
             this.store = new CentralMigrationAnalysisStore();
             this.creditsService = new CreditsService();
-            this.errorReportingService = new ErrorReportingService(new UserIdentificationService());
+            this.userIdentificationService = new UserIdentificationService();
+            this.errorReportingService = new ErrorReportingService(this.userIdentificationService);
 
             // Initialize project-specific store
             Path projectPath = Paths.get(project.getBasePath());
@@ -309,15 +313,86 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Load initial state (empty - wait for user to analyze)
             loadInitialState();
 
-            // Layout: Credits bar (top), scan controls panel, then tabs
+            // Create and configure usage permission notification
+            createUsagePermissionNotification();
+
+            // Layout: Notification (top), credits bar, scan controls panel, then tabs
+            JPanel notificationContainer = new JPanel(new BorderLayout());
+            if (notificationComponent != null) {
+                notificationContainer.add(notificationComponent.getPanel(), BorderLayout.NORTH);
+            }
             JPanel topPanel = new JPanel(new BorderLayout());
             topPanel.add(creditsProgressBar, BorderLayout.NORTH);
             topPanel.add(scanControlsPanel, BorderLayout.CENTER);
-            contentPanel.add(topPanel, BorderLayout.NORTH);
+            notificationContainer.add(topPanel, BorderLayout.CENTER);
+            contentPanel.add(notificationContainer, BorderLayout.NORTH);
             contentPanel.add(tabbedPane, BorderLayout.CENTER);
 
             contentPanel.revalidate();
             contentPanel.repaint();
+        }
+
+        /**
+         * Creates usage permission notification if this is the first time plugin is opened.
+         */
+        private void createUsagePermissionNotification() {
+            // Check if permission has already been requested
+            if (userIdentificationService.isUsagePermissionRequested()) {
+                LOG.info("Usage permission already requested, skipping notification");
+                return;
+            }
+            
+            // Create notification with Yes/No actions
+            notificationComponent = NewFeatureNotification.createUsagePermissionNotification(
+                this::handleUsagePermissionYes,
+                this::handleUsagePermissionNo
+            );
+            
+            LOG.info("Created usage permission notification for first-time user");
+        }
+        
+        /**
+         * Handles user clicking "Yes" to usage permission request.
+         * Keeps default settings (usage and error reporting enabled).
+         */
+        private void handleUsagePermissionYes() {
+            LOG.info("User opted in to usage data collection");
+            
+            // Mark permission as requested
+            userIdentificationService.setUsagePermissionRequested();
+            
+            // Hide notification
+            if (notificationComponent != null) {
+                notificationComponent.setVisible(false);
+            }
+            
+            // Ensure usage metrics and error reporting are enabled (default behavior)
+            userIdentificationService.setUsageMetricsEnabled(true);
+            userIdentificationService.setErrorReportingEnabled(true);
+            
+            LOG.info("Usage permission granted - analytics enabled");
+        }
+        
+        /**
+         * Handles user clicking "No" to usage permission request.
+         * Disables both usage metrics and error reporting.
+         */
+        private void handleUsagePermissionNo() {
+            LOG.info("User opted out of usage data collection");
+            
+            // Mark permission as requested
+            userIdentificationService.setUsagePermissionRequested();
+            
+            // Hide notification
+            if (notificationComponent != null) {
+                notificationComponent.setVisible(false);
+            }
+            
+            // Disable both usage metrics and error reporting
+            userIdentificationService.setUsageMetricsEnabled(false);
+            userIdentificationService.setErrorReportingEnabled(false);
+            
+            LOG.info("Usage permission denied - analytics disabled");
         }
 
         /**

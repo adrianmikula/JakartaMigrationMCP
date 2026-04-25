@@ -23,8 +23,7 @@ public class ExamplesTestProjectLoader {
         this.yamlMapper = new ObjectMapper(new YAMLFactory());
         try (InputStream is = getClass().getResourceAsStream("/examples.yaml")) {
             if (is == null) {
-                // Fallback to classpath examples
-                is = getClass().getResourceAsStream("/examples.yaml");
+                throw new RuntimeException("examples.yaml not found on classpath");
             }
             this.examplesData = yamlMapper.readValue(is, Map.class);
         } catch (IOException e) {

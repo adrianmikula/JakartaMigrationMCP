@@ -177,7 +177,9 @@
         <li>Fixed problems with property detection in Maven pom.xml files</li>
         <li>Fixed HTML validation errors during PDF report generation</li>
         <li>Added more detail to PDF reports</li>
-        <li>Added clearer documentation of opt-out error reporting and usage metrics</li>
+        <li>Fixed PDF generation memory & UI blocking issues</li>
+        <li>Fixed tests logging usage to supabase with the wrong env</li>
+        <li>Added permission request/opt-out for error reporting and usage metrics</li>
     </ul>
     <h>1.0.14 - 2026-04-23</h>
     <ul>

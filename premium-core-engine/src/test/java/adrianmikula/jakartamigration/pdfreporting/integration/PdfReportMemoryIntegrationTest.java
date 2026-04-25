@@ -3,11 +3,15 @@ package adrianmikula.jakartamigration.pdfreporting.integration;
 import adrianmikula.jakartamigration.pdfreporting.service.PdfReportService;
 import adrianmikula.jakartamigration.pdfreporting.service.impl.HtmlToPdfReportServiceImpl;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
 import adrianmikula.jakartamigration.pdfreporting.integration.ExamplesTestProjectLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
@@ -27,7 +31,9 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Integration tests for PDF report generation with memory usage verification.
  * Tests memory consumption during PDF generation for large projects using examples.yaml projects.
+ * Tagged as slow due to memory testing and integration nature.
  */
+@Tag("slow")
 public class PdfReportMemoryIntegrationTest {
 
     private PdfReportService pdfReportService;
@@ -109,7 +115,7 @@ public class PdfReportMemoryIntegrationTest {
     @DisplayName("Memory usage for medium project PDF generation")
     void testMemoryUsageForMediumProject() throws Exception {
         // Load medium project example
-        TestProject mediumProject = projectLoader.loadProject("boot-examples");
+        ExamplesTestProjectLoader.TestProject mediumProject = projectLoader.loadProject("boot-examples");
         
         // Create mock dependency graph with medium data
         DependencyGraph mediumGraph = createMediumDependencyGraph();
@@ -167,7 +173,7 @@ public class PdfReportMemoryIntegrationTest {
     @DisplayName("Memory usage for large project PDF generation")
     void testMemoryUsageForLargeProject() throws Exception {
         // Load large project example (NetBeans)
-        TestProject largeProject = projectLoader.loadProject("netbeans");
+        ExamplesTestProjectLoader.TestProject largeProject = projectLoader.loadProject("netbeans");
         
         // Create mock dependency graph with large data
         DependencyGraph largeGraph = createLargeDependencyGraph();
@@ -252,7 +258,7 @@ public class PdfReportMemoryIntegrationTest {
                 Map.of("test", "metadata", "iteration", i)
             );
             
-            Path result = pdfReportService.generateRefactoringActionReport(request);
+            Path result = pdfReportService.generateRiskAnalysisReport(request);
             assertNotNull(result);
             
             // Force GC between iterations
@@ -347,17 +353,7 @@ public class PdfReportMemoryIntegrationTest {
     private DependencyGraph createMockDependencyGraph() {
         // For testing purposes, we'll create a simple mock
         // In a real implementation, this would be populated with actual dependency data
-        return new DependencyGraph() {
-            @Override
-            public java.util.Set<DependencyGraph.DependencyNode> getNodes() {
-                return java.util.Set.of();
-            }
-            
-            @Override
-            public java.util.Set<DependencyGraph.DependencyEdge> getEdges() {
-                return java.util.Set.of();
-            }
-        };
+        return new DependencyGraph();
     }
     
     private DependencyGraph createSmallDependencyGraph() {
