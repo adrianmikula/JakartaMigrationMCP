@@ -117,6 +117,7 @@ public class PdfTestUtilities {
             "Test Refactoring Action Report",
             null, // dependencyGraph
             null, // scanResults
+            List.of(), // recipeRecommendations
             List.of(), // javaxReferences
             List.of(), // openRewriteRecipes
             Map.of("automationReady", 50), // refactoringReadiness
@@ -147,6 +148,7 @@ public class PdfTestUtilities {
             "Comprehensive Refactoring Action Report",
             createMockDependencyGraph(),
             createMockScanResults(),
+            List.of(), // recipeRecommendations
             javaxReferences,
             openRewriteRecipes,
             Map.of("automationReady", 80), // refactoringReadiness

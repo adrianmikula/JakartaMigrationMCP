@@ -10,11 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fixed problems with property detection in Maven pom.xml files
 - Fixed problems with platform detection for Tomcat, JBoss/Wildfly, Paraya, WebSphere
-- Fixed HTML validation errors during PDF report generation
+- Fixed HTML validation errors during HTML report generation
+- Fixed plugin toolbar icon
 
 ### Added
-- Added more detail to PDF reports
-- Added clearer documentation of opt-out error reporting and usage metrics
+- Added more detail to reports and switched from PDF to HTML format
+- Added permission request/opt-out for error reporting and usage metrics
 
 ## [1.0.14] - 2026-04-23
 

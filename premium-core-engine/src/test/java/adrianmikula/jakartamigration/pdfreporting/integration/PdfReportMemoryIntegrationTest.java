@@ -374,7 +374,8 @@ public class PdfReportMemoryIntegrationTest {
             LocalDateTime.now(),
             Map.of("count",5),
             Map.of("count",2),
-            Map.of("count",3),
+            Map.of("count", 3), // cdiResults
+            Map.of("count", 3),
             Map.of("count", 10),
             Map.of("count", 15),
             Map.of("count", 8),
@@ -390,6 +391,7 @@ public class PdfReportMemoryIntegrationTest {
             LocalDateTime.now(),
             Map.of("count", 50),
             Map.of("count",20),
+            Map.of("count", 15), // cdiResults
             Map.of("count", 30),
             Map.of("count", 100),
             Map.of("count", 150),
@@ -406,6 +408,7 @@ public class PdfReportMemoryIntegrationTest {
             LocalDateTime.now(),
             Map.of("count", 200),
             Map.of("count", 80),
+            Map.of("count", 40), // cdiResults
             Map.of("count", 120),
             Map.of("count", 500),
             Map.of("count", 800),

@@ -57,14 +57,49 @@ public class RefactoringSnippetFactory {
             snippets.add(new CdiFindingsSnippet(request.scanResults()));
         }
 
+        // Transitive Dependency Analysis - shows javax transitive deps
+        if (request.scanResults() != null) {
+            snippets.add(new TransitiveDependencySnippet(request.scanResults()));
+        }
+
         // Library Migration Guide - real third-party library analysis
         if (request.scanResults() != null) {
             snippets.add(new LibraryMigrationSnippet(request.scanResults()));
         }
 
+        // Servlet/JSP Findings - real javax.servlet.* scan results
+        if (request.scanResults() != null) {
+            snippets.add(new ServletJspFindingsSnippet(request.scanResults()));
+        }
+
+        // Security API Findings - real javax.security.* scan results
+        if (request.scanResults() != null) {
+            snippets.add(new SecurityApiFindingsSnippet(request.scanResults()));
+        }
+
         // Build File References - pom.xml/build.gradle dependency updates
         if (request.scanResults() != null) {
             snippets.add(new BuildFileReferenceSnippet(request.scanResults()));
+        }
+
+        // REST/SOAP Services - JAX-RS and JAX-WS findings
+        if (request.scanResults() != null) {
+            snippets.add(new RestSoapFindingsSnippet(request.scanResults()));
+        }
+
+        // Deprecated API Findings - deprecated javax.* APIs
+        if (request.scanResults() != null) {
+            snippets.add(new DeprecatedApiFindingsSnippet(request.scanResults()));
+        }
+
+        // Docker & CI/CD Configuration - Java references in config files
+        if (request.scanResults() != null) {
+            snippets.add(new DockerCicdFindingsSnippet(request.scanResults()));
+        }
+
+        // Reflection Usage - patterns that may break during migration
+        if (request.scanResults() != null) {
+            snippets.add(new ReflectionUsageFindingsSnippet(request.scanResults()));
         }
 
         // Recipe Recommendations with Confidence - real recommendations from service

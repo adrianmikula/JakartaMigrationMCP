@@ -83,10 +83,11 @@ public class HeaderFooterTest {
             assertFalse(result.trim().isEmpty());
             assertTrue(result.contains(".report-header"));
             assertTrue(result.contains(".plugin-icon"));
+            assertTrue(result.contains(".plugin-name"));
             assertTrue(result.contains(".header-center"));
             assertTrue(result.contains(".header-left"));
             assertTrue(result.contains(".header-right"));
-            
+
         } catch (Exception e) {
             fail("Failed to test shared header styles: " + e.getMessage());
         }
@@ -105,10 +106,11 @@ public class HeaderFooterTest {
             assertFalse(result.trim().isEmpty());
             assertTrue(result.contains(".report-footer"));
             assertTrue(result.contains(".footer-left"));
+            assertTrue(result.contains(".plugin-icon-footer"));
             assertTrue(result.contains(".footer-center"));
             assertTrue(result.contains(".footer-right"));
             assertTrue(result.contains("@media print"));
-            
+
         } catch (Exception e) {
             fail("Failed to test shared footer styles: " + e.getMessage());
         }

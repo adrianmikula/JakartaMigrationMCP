@@ -151,5 +151,10 @@ class ScanRecipeRecommendationServiceImplTest {
         public List<adrianmikula.jakartamigration.coderefactoring.domain.RecipeExecutionHistory> getHistory(Path projectPath) {
             return List.of(); // Not implemented for this test
         }
+
+        @Override
+        public boolean isRecipeArchived(String recipeName) {
+            return false; // Not implemented for this test
+        }
     }
 }

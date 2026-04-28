@@ -13,6 +13,7 @@ public record ComprehensiveScanResults(
     LocalDateTime scanTime,
     Map<String, Object> jpaResults,
     Map<String, Object> beanValidationResults,
+    Map<String, Object> cdiResults,
     Map<String, Object> servletJspResults,
     Map<String, Object> thirdPartyLibResults,
     Map<String, Object> transitiveDependencyResults,

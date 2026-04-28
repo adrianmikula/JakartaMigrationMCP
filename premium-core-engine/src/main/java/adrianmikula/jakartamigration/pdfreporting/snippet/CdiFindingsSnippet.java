@@ -102,9 +102,8 @@ public class CdiFindingsSnippet extends BaseHtmlSnippet {
 
     @SuppressWarnings("unchecked")
     private CdiInjectionProjectScanResult extractCdiResult() {
-        // CDI results may be stored in beanValidationResults or another map
-        // Try to extract from available results
-        Map<String, Object> resultsMap = scanResults.beanValidationResults();
+        // CDI results are stored in the dedicated cdiResults map
+        Map<String, Object> resultsMap = scanResults.cdiResults();
         if (resultsMap != null) {
             for (Object value : resultsMap.values()) {
                 if (value instanceof CdiInjectionProjectScanResult) {

@@ -15,7 +15,7 @@ import java.sql.Statement;
 @Slf4j
 public class SchemaManager {
 
-    private static final int CURRENT_SCHEMA_VERSION = 1;
+    private static final int CURRENT_SCHEMA_VERSION = 2;
     private static final String VERSION_KEY = "schema_version";
 
     private final Connection connection;
@@ -41,8 +41,16 @@ public class SchemaManager {
             log.info("Schema migration to version 1 completed successfully");
         }
 
-        // Future migrations go here:
-        // if (currentVersion < 2) { executeMigration2(); setSchemaVersion(2); }
+        // Migration 2: Add recipe versioning and archival columns
+        if (currentVersion < 2) {
+            log.info("Executing schema migration (version 2)");
+            executeMigration2();
+            setSchemaVersion(2);
+            if (!connection.getAutoCommit()) {
+                connection.commit();
+            }
+            log.info("Schema migration to version 2 completed successfully");
+        }
     }
 
     /**
@@ -302,5 +310,52 @@ public class SchemaManager {
 
             log.info("Baseline schema created successfully");
         }
+    }
+
+    /**
+     * Migration 2: Add recipe versioning and archival support.
+     * - added_in_plugin_version: tracks which plugin version introduced the recipe
+     * - archived: soft delete flag for recipes no longer in config
+     */
+    private void executeMigration2() throws SQLException {
+        try (Statement stmt = connection.createStatement()) {
+            // Check if columns already exist (SQLite doesn't support IF NOT EXISTS for ALTER TABLE)
+            boolean hasAddedInVersion = columnExists("recipes", "added_in_plugin_version");
+            boolean hasArchived = columnExists("recipes", "archived");
+
+            if (!hasAddedInVersion) {
+                log.info("Adding added_in_plugin_version column to recipes table");
+                stmt.execute("ALTER TABLE recipes ADD COLUMN added_in_plugin_version TEXT DEFAULT 'unknown'");
+                // Update existing recipes with current plugin version
+                stmt.execute("UPDATE recipes SET added_in_plugin_version = '1.0.15' WHERE added_in_plugin_version = 'unknown'");
+            }
+
+            if (!hasArchived) {
+                log.info("Adding archived column to recipes table");
+                stmt.execute("ALTER TABLE recipes ADD COLUMN archived BOOLEAN DEFAULT FALSE");
+            }
+
+            // Create index for archived queries
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_recipes_archived ON recipes(archived)");
+
+            log.info("Migration 2 completed: added recipe versioning and archival columns");
+        }
+    }
+
+    /**
+     * Checks if a column exists in a table.
+     */
+    private boolean columnExists(String tableName, String columnName) {
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery("PRAGMA table_info(" + tableName + ")")) {
+            while (rs.next()) {
+                if (columnName.equals(rs.getString("name"))) {
+                    return true;
+                }
+            }
+        } catch (SQLException e) {
+            log.warn("Could not check if column exists: {}.{} - {}", tableName, columnName, e.getMessage());
+        }
+        return false;
     }
 }

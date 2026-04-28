@@ -47,10 +47,13 @@ public class RiskAnalysisSnippetFactory {
         
         // Enhanced snippets for comprehensive analysis
         snippets.add(new DependencyMatrixSnippet(request.dependencyGraph()));
+        snippets.add(new PlatformDetectionSnippet(request.platformScanResults()));
         snippets.add(new CodeExamplesSnippet());
+        snippets.add(new RiskFindingsDetailSnippet(request.riskScore()));
+        snippets.add(new ComponentScoreSnippet(request.riskScore()));
         snippets.add(new RiskHeatMapSnippet(
-            request.dependencyGraph(), 
-            request.scanResults(), 
+            request.dependencyGraph(),
+            request.scanResults(),
             request.riskScore()
         ));
         snippets.add(new ImplementationRoadmapSnippet(

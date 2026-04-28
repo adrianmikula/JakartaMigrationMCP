@@ -240,6 +240,7 @@ class PdfReportServiceTest {
                 "Jakarta Migration Refactoring Action Report",
                 null, // dependencyGraph
                 null, // scanResults
+                List.of(), // recipeRecommendations
                 List.of(), // javaxReferences
                 List.of(), // openRewriteRecipes
                 Map.of(), // refactoringReadiness
@@ -265,7 +266,7 @@ class PdfReportServiceTest {
                 null, // null path should cause error
                 "Test Project",
                 "Test Report",
-                null, null, List.of(), List.of(), Map.of(), Map.of(), Map.of()
+                null, null, List.of(), List.of(), List.of(), Map.of(), Map.of(), Map.of()
             );
         
         // When & Then

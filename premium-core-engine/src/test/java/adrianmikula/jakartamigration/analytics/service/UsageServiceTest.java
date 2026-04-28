@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.quality.Strictness;
+import org.mockito.junit.jupiter.MockitoSettings;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -14,6 +16,7 @@ import static org.mockito.Mockito.*;
  * Unit tests for UsageService.
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class UsageServiceTest {
 
     @Mock
@@ -29,9 +32,9 @@ class UsageServiceTest {
         when(userIdentificationService.isAnalyticsEnabled()).thenReturn(true);
         when(userIdentificationService.getAnonymousUserId()).thenReturn("test-user-id");
         when(supabaseConfig.getAnalyticsBatchSize()).thenReturn(5);
-        when(supabaseConfig.getAnalyticsFlushIntervalSeconds()).thenReturn(1);
+        when(supabaseConfig.getAnalyticsFlushIntervalSeconds()).thenReturn(3600); // Long interval to prevent auto-flush
         
-        usageService = new UsageService(userIdentificationService);
+        usageService = new UsageService(userIdentificationService, supabaseConfig);
     }
 
     @Test

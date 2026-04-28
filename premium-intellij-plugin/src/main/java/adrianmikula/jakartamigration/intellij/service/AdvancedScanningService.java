@@ -309,6 +309,7 @@ public class AdvancedScanningService {
         // Create placeholder maps for different scan types
         Map<String, Object> jpaResults = Map.of("issues", summary.getJpaCount());
         Map<String, Object> beanValidationResults = Map.of("issues", summary.getBeanValidationCount());
+        Map<String, Object> cdiResults = Map.of("issues", summary.getCdiInjectionCount());
         Map<String, Object> servletJspResults = Map.of("issues", summary.getServletJspCount());
         Map<String, Object> thirdPartyLibResults = Map.of("issues", summary.getThirdPartyLibCount());
         Map<String, Object> transitiveDependencyResults = Map.of("issues", summary.getTransitiveDependencyCount());
@@ -335,6 +336,7 @@ public class AdvancedScanningService {
             java.time.LocalDateTime.now(), // scanTime
             jpaResults,
             beanValidationResults,
+            cdiResults,
             servletJspResults,
             thirdPartyLibResults,
             transitiveDependencyResults,

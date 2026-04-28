@@ -64,7 +64,7 @@ class SchemaManagerTest {
                  ResultSet rs = stmt.executeQuery(
                          "SELECT value FROM metadata WHERE key = 'schema_version'")) {
                 assertThat(rs.next()).isTrue();
-                assertThat(rs.getString("value")).isEqualTo("1");
+                assertThat(rs.getString("value")).isEqualTo("2");
             }
         }
     }
@@ -88,7 +88,7 @@ class SchemaManagerTest {
                  ResultSet rs = stmt.executeQuery(
                          "SELECT value FROM metadata WHERE key = 'schema_version'")) {
                 assertThat(rs.next()).isTrue();
-                assertThat(rs.getString("value")).isEqualTo("1");
+                assertThat(rs.getString("value")).isEqualTo("2");
             }
         }
     }
@@ -114,7 +114,7 @@ class SchemaManagerTest {
                  ResultSet rs = stmt.executeQuery(
                          "SELECT value FROM metadata WHERE key = 'schema_version'")) {
                 assertThat(rs.next()).isTrue();
-                assertThat(rs.getString("value")).isEqualTo("1");
+                assertThat(rs.getString("value")).isEqualTo("2");
             }
         }
     }

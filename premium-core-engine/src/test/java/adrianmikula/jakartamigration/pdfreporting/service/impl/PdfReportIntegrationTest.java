@@ -86,6 +86,7 @@ class PdfReportIntegrationTest {
             "Jakarta Migration Refactoring Action Report",
             dependencyGraph,
             scanResults,
+            List.of(), // recipeRecommendations
             javaxReferences,
             openRewriteRecipes,
             Map.of("automationReady", 75, "totalFiles", javaxReferences.size()),
@@ -163,9 +164,10 @@ class PdfReportIntegrationTest {
     }
 
     private ComprehensiveScanResults createMockScanResults() {
-        Map<String, Object> jpaResults = Map.of("count", 15);
-        Map<String, Object> beanValidationResults = Map.of("count", 8);
-        Map<String, Object> servletJspResults = Map.of("count", 12);
+        Map<String, Object> jpaResults = Map.of("count", 5);
+        Map<String, Object> beanValidationResults = Map.of("count", 3);
+        Map<String, Object> cdiResults = Map.of("count", 2);
+        Map<String, Object> servletJspResults = Map.of("count", 4);
         Map<String, Object> thirdPartyLibResults = Map.of("count", 6);
         Map<String, Object> buildConfigResults = Map.of("count", 3);
         Map<String, Object> transitiveDependencyResults = Map.of("count", 25);
@@ -179,6 +181,7 @@ class PdfReportIntegrationTest {
             java.time.LocalDateTime.now(),
             jpaResults,
             beanValidationResults,
+            cdiResults,
             servletJspResults,
             thirdPartyLibResults,
             transitiveDependencyResults,

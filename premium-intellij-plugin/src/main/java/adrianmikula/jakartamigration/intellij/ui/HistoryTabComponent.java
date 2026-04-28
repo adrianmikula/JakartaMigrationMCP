@@ -151,22 +151,38 @@ public class HistoryTabComponent {
      * - No row is selected
      * - Selected row is a failed execution
      * - Selected row is already an undo action
+     * - Selected recipe is archived (can no longer be undone)
      * Undo button should be enabled when:
-     * - Selected row is a successful "Applied" action
+     * - Selected row is a successful "Applied" action with non-archived recipe
      */
     private void updateUndoButtonState() {
         int selectedRow = historyTable.getSelectedRow();
         boolean canUndo = false;
+        String disabledReason = null;
 
         if (selectedRow != -1 && tableModel.getRowCount() > 0) {
             String status = (String) tableModel.getValueAt(selectedRow, 2);
             String action = (String) tableModel.getValueAt(selectedRow, 5);
-            
-            // Enable undo only for successful "Applied" actions
-            canUndo = "Success".equals(status) && "Applied".equals(action);
+            String recipeName = (String) tableModel.getValueAt(selectedRow, 1);
+
+            // Check if this is a successful "Applied" action
+            boolean isSuccessApplied = "Success".equals(status) && "Applied".equals(action);
+
+            if (isSuccessApplied) {
+                // Check if recipe is archived (historical recipes can't be undone)
+                boolean isArchived = recipeService.isRecipeArchived(recipeName);
+                if (isArchived) {
+                    canUndo = false;
+                    disabledReason = "This recipe has been archived and can no longer be undone";
+                } else {
+                    canUndo = true;
+                }
+            }
         }
 
         undoButton.setEnabled(canUndo);
+        undoButton.setToolTipText(disabledReason != null ? disabledReason :
+                canUndo ? "Undo this recipe execution" : null);
     }
 
     private void handleUndo() {

@@ -36,9 +36,8 @@ public class MetricsSummarySnippet extends BaseHtmlSnippet {
         int jakartaCompatible = calculateJakartaCompatible(dependencyGraph);
         int totalIssues = scanResults != null ? scanResults.totalIssuesFound() : 0;
         double riskScoreValue = riskScore != null ? riskScore.totalScore() : 50.0;
-        String riskLevel = determineRiskLevel(riskScoreValue);
         int readinessScore = 100 - (int) riskScoreValue;
-        
+
         return safelyFormat("""
             <div class="section">
                 <h2>Project Metrics</h2>
@@ -56,24 +55,19 @@ public class MetricsSummarySnippet extends BaseHtmlSnippet {
                         <div class="metric-label">Issues Found</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-value">%s</div>
-                        <div class="metric-label">Risk Level</div>
-                    </div>
-                    <div class="metric-card">
                         <div class="metric-value">%d%%</div>
                         <div class="metric-label">Readiness Score</div>
                     </div>
                 </div>
             </div>
-            """, totalDependencies, jakartaCompatible, totalIssues, riskLevel, readinessScore);
+            """, totalDependencies, jakartaCompatible, totalIssues, readinessScore);
     }
     
     private String generateEclipseMetrics() throws SnippetGenerationException {
         int totalIssues = scanResults != null ? scanResults.totalIssuesFound() : 0;
         double riskScoreValue = riskScore != null ? riskScore.totalScore() : 50.0;
-        String riskLevel = determineRiskLevel(riskScoreValue);
         int readinessScore = 100 - (int) riskScoreValue;
-        
+
         return safelyFormat("""
             <div class="section">
                 <h2>Available Analysis Results</h2>
@@ -83,16 +77,12 @@ public class MetricsSummarySnippet extends BaseHtmlSnippet {
                         <div class="metric-label">Issues Found</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-value">%s</div>
-                        <div class="metric-label">Risk Level</div>
-                    </div>
-                    <div class="metric-card">
                         <div class="metric-value">%d%%</div>
                         <div class="metric-label">Readiness Score</div>
                     </div>
                 </div>
             </div>
-            """, totalIssues, riskLevel, readinessScore);
+            """, totalIssues, readinessScore);
     }
     
     @Override
@@ -159,10 +149,4 @@ public class MetricsSummarySnippet extends BaseHtmlSnippet {
         return false;
     }
     
-    private String determineRiskLevel(double riskScore) {
-        if (riskScore < 30) return "LOW";
-        if (riskScore < 60) return "MEDIUM";
-        if (riskScore < 80) return "HIGH";
-        return "CRITICAL";
-    }
 }

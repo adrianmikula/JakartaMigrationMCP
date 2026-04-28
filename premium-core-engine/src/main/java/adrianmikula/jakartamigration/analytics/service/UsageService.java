@@ -34,8 +34,12 @@ public class UsageService implements AutoCloseable {
     private final String environment;
     
     public UsageService(UserIdentificationService userIdentificationService) {
+        this(userIdentificationService, new SupabaseConfig());
+    }
+    
+    public UsageService(UserIdentificationService userIdentificationService, SupabaseConfig supabaseConfig) {
         this.userIdentificationService = userIdentificationService;
-        this.supabaseConfig = new SupabaseConfig();
+        this.supabaseConfig = supabaseConfig;
         this.supabaseClient = new SupabaseClientWrapper(supabaseConfig);
         this.eventQueue = new LinkedBlockingQueue<>();
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -228,6 +232,9 @@ public class UsageService implements AutoCloseable {
             scheduler.shutdownNow();
             Thread.currentThread().interrupt();
         }
+        
+        // Clear any remaining events from the queue
+        eventQueue.clear();
         
         // Close Supabase client
         if (supabaseClient != null) {

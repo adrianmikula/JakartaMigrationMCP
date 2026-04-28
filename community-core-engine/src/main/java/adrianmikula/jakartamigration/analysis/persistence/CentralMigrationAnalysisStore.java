@@ -157,81 +157,10 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
             schemaManager.initializeSchema();
             log.info("Database schema initialized successfully");
 
-            // Populate recipes from YAML
-            populateRecipesFromYaml(conn);
+            // Note: Recipes are now loaded by RecipeSeeder from recipes.json
+            // This ensures single source of truth and proper versioning
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database schema", e);
-        }
-    }
-
-    /**
-     * Populates recipes table from YAML file if empty.
-     */
-    private void populateRecipesFromYaml(Connection conn) throws SQLException {
-        // Check if recipes table is empty
-        try (Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM recipes")) {
-            if (rs.next() && rs.getInt(1) > 0) {
-                log.info("Recipes table already populated, skipping YAML import");
-                return;
-            }
-        }
-
-        log.info("Populating recipes table from YAML file");
-        
-        try {
-            // Load recipes from YAML file
-            InputStream yamlStream = getClass().getClassLoader()
-                    .getResourceAsStream("recipes.yaml");
-            if (yamlStream == null) {
-                log.warn("recipes.yaml file not found in classpath");
-                return;
-            }
-
-            org.yaml.snakeyaml.Yaml yaml = new org.yaml.snakeyaml.Yaml();
-            Map<String, Object> yamlData = yaml.load(yamlStream);
-            
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> recipes = (List<Map<String, Object>>) yamlData.get("recipes");
-            
-            if (recipes == null || recipes.isEmpty()) {
-                log.warn("No recipes found in YAML file");
-                return;
-            }
-
-            // Insert recipes into database
-            String insertSql = """
-                    INSERT OR REPLACE INTO recipes (
-                        name, description, pattern, safety, reversible, category
-                    ) VALUES (?, ?, ?, ?, ?, ?)
-                    """;
-            
-            try (PreparedStatement pstmt = conn.prepareStatement(insertSql)) {
-                for (Map<String, Object> recipe : recipes) {
-                    String name = (String) recipe.get("name");
-                    String description = (String) recipe.get("description");
-                    String pattern = (String) recipe.get("pattern");
-                    String safety = (String) recipe.get("safety");
-                    Boolean reversible = (Boolean) recipe.get("reversible");
-                    String category = (String) recipe.get("category");
-                    
-                    pstmt.setString(1, name);
-                    pstmt.setString(2, description);
-                    pstmt.setString(3, pattern);
-                    pstmt.setString(4, safety);
-                    pstmt.setBoolean(5, reversible != null ? reversible : false);
-                    pstmt.setString(6, category);
-                    pstmt.addBatch();
-                }
-                pstmt.executeBatch();
-            }
-            
-            conn.commit();
-            log.info("Successfully populated {} recipes from YAML file", recipes.size());
-            
-        } catch (Exception e) {
-            log.error("Failed to populate recipes from YAML file", e);
-            conn.rollback();
         }
     }
 
@@ -884,18 +813,25 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
     }
 
     /**
-     * Gets all available migration recipes from the catalog.
+     * Gets all available (non-archived) migration recipes from the catalog.
      */
     public List<adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition> getRecipes() {
+        return getRecipesByQuery("SELECT * FROM recipes WHERE archived = FALSE ORDER BY category, name");
+    }
+
+    /**
+     * Gets all migration recipes including archived ones.
+     */
+    public List<adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition> getAllRecipes() {
         return getRecipesByQuery("SELECT * FROM recipes ORDER BY category, name");
     }
 
     /**
-     * Gets recipes by category.
+     * Gets non-archived recipes by category.
      */
     public List<adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition> getRecipesByCategory(
             String category) {
-        return getRecipesByQuery("SELECT * FROM recipes WHERE category = ? ORDER BY name", category);
+        return getRecipesByQuery("SELECT * FROM recipes WHERE category = ? AND archived = FALSE ORDER BY name", category);
     }
 
     private List<adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition> getRecipesByQuery(String sql,
@@ -919,6 +855,10 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
 
     private adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition mapRecipe(ResultSet rs)
             throws SQLException {
+        String addedInVersion = rs.getString("added_in_plugin_version");
+        if (rs.wasNull()) {
+            addedInVersion = "unknown";
+        }
         return adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition.builder()
                 .id(rs.getLong("id"))
                 .name(rs.getString("name"))
@@ -933,31 +873,27 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                 .filePattern(rs.getString("file_pattern"))
                 .reversible(rs.getBoolean("reversible"))
                 .createdAt(Instant.parse(rs.getString("created_at").replace(" ", "T") + "Z"))
-                .status(adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition.RecipeStatus.NEVER_RUN) // Default
+                .status(adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition.RecipeStatus.NEVER_RUN)
+                .addedInPluginVersion(addedInVersion)
+                .archived(rs.getBoolean("archived"))
                 .build();
     }
 
     /**
-     * Saves or updates a recipe in the catalog.
+     * Inserts a new recipe without updating existing (INSERT OR IGNORE semantics).
+     * Used by RecipeSeeder to ensure immutable recipes - once added, never modified.
      */
-    public void saveRecipe(adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition recipe) {
-        log.info("saveRecipe called: name={}, type={}, openRewriteRecipeName={}", 
-                recipe.getName(), recipe.getRecipeType(), recipe.getOpenRewriteRecipeName());
+    public void insertRecipe(adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition recipe) {
+        log.info("Inserting new recipe: name={}, addedInVersion={}",
+                recipe.getName(), recipe.getAddedInPluginVersion());
         try (Connection conn = getConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement("""
                     INSERT INTO recipes (
                         name, description, category, recipe_type, openrewrite_recipe_name,
-                        pattern, replacement, file_pattern, reversible, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-                    ON CONFLICT(name) DO UPDATE SET
-                        description = excluded.description,
-                        category = excluded.category,
-                        recipe_type = excluded.recipe_type,
-                        openrewrite_recipe_name = excluded.openrewrite_recipe_name,
-                        pattern = excluded.pattern,
-                        replacement = excluded.replacement,
-                        file_pattern = excluded.file_pattern,
-                        reversible = excluded.reversible
+                        pattern, replacement, file_pattern, reversible, created_at,
+                        added_in_plugin_version, archived
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
+                    ON CONFLICT(name) DO NOTHING
                     """)) {
                 stmt.setString(1, recipe.getName());
                 stmt.setString(2, recipe.getDescription());
@@ -968,6 +904,54 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                 stmt.setString(7, recipe.getReplacement());
                 stmt.setString(8, recipe.getFilePattern());
                 stmt.setBoolean(9, recipe.isReversible());
+                stmt.setString(10, recipe.getAddedInPluginVersion() != null ? recipe.getAddedInPluginVersion() : "unknown");
+                stmt.setBoolean(11, recipe.isArchived());
+                stmt.executeUpdate();
+            }
+            conn.commit();
+            log.info("Successfully inserted recipe: {}", recipe.getName());
+        } catch (SQLException e) {
+            log.error("Failed to insert recipe: " + recipe.getName(), e);
+        }
+    }
+
+    /**
+     * Saves or updates a recipe in the catalog.
+     * Note: This updates existing recipes, prefer insertRecipe() for immutable semantics.
+     */
+    public void saveRecipe(adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition recipe) {
+        log.info("saveRecipe called: name={}, type={}, openRewriteRecipeName={}",
+                recipe.getName(), recipe.getRecipeType(), recipe.getOpenRewriteRecipeName());
+        try (Connection conn = getConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement("""
+                    INSERT INTO recipes (
+                        name, description, category, recipe_type, openrewrite_recipe_name,
+                        pattern, replacement, file_pattern, reversible, created_at,
+                        added_in_plugin_version, archived
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
+                    ON CONFLICT(name) DO UPDATE SET
+                        description = excluded.description,
+                        category = excluded.category,
+                        recipe_type = excluded.recipe_type,
+                        openrewrite_recipe_name = excluded.openrewrite_recipe_name,
+                        pattern = excluded.pattern,
+                        replacement = excluded.replacement,
+                        file_pattern = excluded.file_pattern,
+                        reversible = excluded.reversible,
+                        added_in_plugin_version = excluded.added_in_plugin_version,
+                        archived = excluded.archived
+                    """)) {
+                stmt.setString(1, recipe.getName());
+                stmt.setString(2, recipe.getDescription());
+                stmt.setString(3, recipe.getCategory().name());
+                stmt.setString(4, recipe.getRecipeType().name());
+                stmt.setString(5, recipe.getOpenRewriteRecipeName());
+                stmt.setString(6, recipe.getPattern());
+                stmt.setString(7, recipe.getReplacement());
+                stmt.setString(8, recipe.getFilePattern());
+                stmt.setBoolean(9, recipe.isReversible());
+                stmt.setString(10, recipe.getAddedInPluginVersion() != null ? recipe.getAddedInPluginVersion() : "unknown");
+                stmt.setBoolean(11, recipe.isArchived());
                 stmt.executeUpdate();
             }
             conn.commit();
@@ -977,19 +961,59 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
     }
 
     /**
-     * Deletes all recipes from the catalog.
-     * Used to ensure DB matches YAML configuration exactly on startup.
+     * Marks a recipe as archived (soft delete).
+     * Used when a recipe is removed from the config file but has historical executions.
      */
-    public void deleteAllRecipes() {
+    public void markRecipeArchived(String recipeName) {
+        log.info("Marking recipe as archived: {}", recipeName);
         try (Connection conn = getConnection()) {
-            try (Statement stmt = conn.createStatement()) {
-                stmt.execute("DELETE FROM recipes");
+            try (PreparedStatement stmt = conn.prepareStatement("""
+                    UPDATE recipes SET archived = TRUE WHERE name = ?
+                    """)) {
+                stmt.setString(1, recipeName);
+                int updated = stmt.executeUpdate();
+                if (updated > 0) {
+                    log.info("Recipe '{}' marked as archived", recipeName);
+                } else {
+                    log.warn("Recipe '{}' not found for archiving", recipeName);
+                }
             }
             conn.commit();
-            log.info("Deleted all recipes from catalog");
         } catch (SQLException e) {
-            log.error("Failed to delete all recipes", e);
+            log.error("Failed to archive recipe: " + recipeName, e);
         }
+    }
+
+    /**
+     * Checks if a recipe is archived.
+     * Used by History tab to determine if undo is available.
+     */
+    public boolean isRecipeArchived(String recipeName) {
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement("""
+                     SELECT archived FROM recipes WHERE name = ?
+                     """)) {
+            stmt.setString(1, recipeName);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getBoolean("archived");
+                }
+            }
+        } catch (SQLException e) {
+            log.error("Failed to check if recipe is archived: " + recipeName, e);
+        }
+        // If recipe doesn't exist in DB, consider it not archived
+        return false;
+    }
+
+    /**
+     * @deprecated Use soft-delete via markRecipeArchived() instead. Never delete recipes
+     * to preserve historical execution integrity.
+     */
+    @Deprecated
+    public void deleteAllRecipes() {
+        log.warn("deleteAllRecipes() is deprecated. Use markRecipeArchived() for soft-delete.");
+        // No-op to prevent accidental data loss
     }
 
     /**

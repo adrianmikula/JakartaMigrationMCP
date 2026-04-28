@@ -74,6 +74,7 @@ class HtmlToPdfReportServiceImplTest {
             java.time.LocalDateTime.now(),
             Map.of("count", 10),
             Map.of("count", 5),
+            Map.of("count", 2), // cdiResults
             Map.of("count", 15),
             Map.of("count", 8),
             Map.of("count", 12),
@@ -82,7 +83,7 @@ class HtmlToPdfReportServiceImplTest {
             50,
             summary
         );
-        
+
         Path outputPath = tempDir.resolve("scan-results-report.pdf");
         
         // When
@@ -92,6 +93,7 @@ class HtmlToPdfReportServiceImplTest {
             "Scan Results Report",
             null, // dependencyGraph
             scanResults,
+            List.of(), // recipeRecommendations
             List.of(), // javaxReferences
             List.of(), // openRewriteRecipes
             Map.of(), // refactoringReadiness
@@ -121,6 +123,7 @@ class HtmlToPdfReportServiceImplTest {
             java.time.LocalDateTime.now(),
             Map.of("count", 10),
             Map.of("count", 5),
+            Map.of("count", 2), // cdiResults
             Map.of("count", 15),
             Map.of("count", 8),
             Map.of("count", 12),
@@ -129,7 +132,7 @@ class HtmlToPdfReportServiceImplTest {
             50,
             summary
         );
-        
+
         Map<String, Object> customData = new HashMap<>();
         customData.put("projectName", "Test Project");
         customData.put("description", "Test Description");

@@ -568,6 +568,7 @@ public class ReportsTabComponent {
                         "Jakarta Migration Refactoring Action Report",
                         dependencyGraph,
                         scanResults,
+                        List.of(), // recipeRecommendations
                         javaxReferences,
                         openRewriteRecipes,
                         refactoringReadiness,
@@ -658,6 +659,9 @@ public class ReportsTabComponent {
         java.util.Map<String, Object> beanValidationResults = new java.util.HashMap<>();
         beanValidationResults.put("count", summary.getBeanValidationCount());
         
+        java.util.Map<String, Object> cdiResults = new java.util.HashMap<>();
+        cdiResults.put("count", summary.getCdiInjectionCount());
+        
         java.util.Map<String, Object> servletJspResults = new java.util.HashMap<>();
         servletJspResults.put("count", summary.getServletJspCount());
         
@@ -685,6 +689,7 @@ public class ReportsTabComponent {
             LocalDateTime.now(),
             jpaResults,
             beanValidationResults,
+            cdiResults,
             servletJspResults,
             thirdPartyLibResults,
             transitiveDependencyResults,

@@ -37,4 +37,10 @@ public interface RecipeService {
      * Gets execution history for a project.
      */
     List<RecipeExecutionHistory> getHistory(Path projectPath);
+
+    /**
+     * Checks if a recipe is archived (no longer available for new executions).
+     * Used by History tab to determine if undo is available.
+     */
+    boolean isRecipeArchived(String recipeName);
 }

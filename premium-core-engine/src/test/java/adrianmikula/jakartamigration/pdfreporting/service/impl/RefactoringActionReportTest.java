@@ -40,6 +40,7 @@ class RefactoringActionReportTest {
             "Test Refactoring Action Report",
             null, // dependencyGraph
             null, // scanResults
+            List.of(), // recipeRecommendations
             List.of(), // javaxReferences
             List.of(), // openRewriteRecipes
             Map.of("automationReady", 50), // refactoringReadiness
@@ -69,6 +70,7 @@ class RefactoringActionReportTest {
             "Test Refactoring Action Report",
             dependencyGraph,
             null, // scanResults
+            List.of(), // recipeRecommendations
             List.of(), // javaxReferences
             List.of(), // openRewriteRecipes
             Map.of("automationReady", 60), // refactoringReadiness
@@ -98,6 +100,7 @@ class RefactoringActionReportTest {
             "Test Refactoring Action Report",
             null, // dependencyGraph
             scanResults,
+            List.of(), // recipeRecommendations
             List.of(), // javaxReferences
             List.of(), // openRewriteRecipes
             Map.of("automationReady", 75), // refactoringReadiness
@@ -131,6 +134,7 @@ class RefactoringActionReportTest {
             "Test Refactoring Action Report",
             null, // dependencyGraph
             null, // scanResults
+            List.of(), // recipeRecommendations
             javaxReferences,
             List.of(), // openRewriteRecipes
             Map.of("automationReady", 80), // refactoringReadiness
@@ -164,6 +168,7 @@ class RefactoringActionReportTest {
             "Test Refactoring Action Report",
             null, // dependencyGraph
             null, // scanResults
+            List.of(), // recipeRecommendations
             List.of(), // javaxReferences
             openRewriteRecipes,
             Map.of("automationReady", 90), // refactoringReadiness
@@ -191,6 +196,7 @@ class RefactoringActionReportTest {
             "Test Refactoring Action Report",
             null, // dependencyGraph
             null, // scanResults
+            List.of(), // recipeRecommendations
             List.of(), // javaxReferences
             List.of(), // openRewriteRecipes
             Map.of("automationReady", 50), // refactoringReadiness
