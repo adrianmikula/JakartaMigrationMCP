@@ -20,16 +20,17 @@ public class HeaderFooterTest {
     void testSharedHeaderContainsRequiredElements() {
         // Use reflection to test private method
         try {
-            var method = HtmlToPdfReportServiceImpl.class.getDeclaredMethod("generateSharedHeader", 
+            var method = HtmlToPdfReportServiceImpl.class.getDeclaredMethod("generateSharedHeader",
                 String.class, String.class, String.class);
             method.setAccessible(true);
-            
-            String result = (String) method.invoke(service, 
+
+            String result = (String) method.invoke(service,
                 "Test Report", "Test Project", "Test Type");
-            
+
             // Verify header contains key elements
             assertTrue(result.contains("report-header"));
             assertTrue(result.contains("plugin-icon"));
+            assertTrue(result.contains("plugin-name"));
             assertTrue(result.contains("report-title"));
             assertTrue(result.contains("project-name"));
             assertTrue(result.contains("report-type"));
@@ -37,7 +38,8 @@ public class HeaderFooterTest {
             assertTrue(result.contains("Test Report"));
             assertTrue(result.contains("Test Project"));
             assertTrue(result.contains("Test Type"));
-            
+            assertTrue(result.contains("Jakarta Migration IntelliJ Plugin"));
+
         } catch (Exception e) {
             fail("Failed to test shared header generation: " + e.getMessage());
         }
@@ -55,10 +57,11 @@ public class HeaderFooterTest {
             
             // Verify footer contains key elements
             assertTrue(result.contains("report-footer"));
+            assertTrue(result.contains("plugin-icon-footer"));
             assertTrue(result.contains("plugin-info"));
             assertTrue(result.contains("page-info"));
             assertTrue(result.contains("report-type-footer"));
-            assertTrue(result.contains("Jakarta Migration Tool v3.0"));
+            assertTrue(result.contains("Jakarta Migration IntelliJ Plugin"));
             assertTrue(result.contains("Page 1 of 5"));
             assertTrue(result.contains("Test Report"));
             

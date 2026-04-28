@@ -1,9 +1,6 @@
 package adrianmikula.jakartamigration.pdfreporting.snippet;
 
-import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
-import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.pdfreporting.service.PdfReportService;
-import adrianmikula.jakartamigration.risk.RiskScoringService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +30,14 @@ public class RiskAnalysisSnippetFactory {
         // Eclipse warning - only if no dependency graph
         snippets.add(new EclipseWarningSnippet(request.dependencyGraph() != null));
         
+        // Executive summary for PMs/POs
+        snippets.add(new ExecutiveSummarySnippet(
+            request.projectName(),
+            request.dependencyGraph(),
+            request.scanResults(),
+            request.riskScore()
+        ));
+        
         // Metrics summary - always included, adapts to available data
         snippets.add(new MetricsSummarySnippet(
             request.dependencyGraph(),
@@ -48,7 +53,11 @@ public class RiskAnalysisSnippetFactory {
             request.scanResults(), 
             request.riskScore()
         ));
-        snippets.add(new ImplementationRoadmapSnippet());
+        snippets.add(new ImplementationRoadmapSnippet(
+            request.dependencyGraph(),
+            request.scanResults(),
+            request.riskScore()
+        ));
         
         return snippets;
     }

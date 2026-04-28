@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.pdfreporting.service;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
+import adrianmikula.jakartamigration.advancedscanning.service.ScanRecipeRecommendationService;
 import adrianmikula.jakartamigration.platforms.model.PlatformScanResult;
 import adrianmikula.jakartamigration.risk.RiskScoringService;
 
@@ -156,6 +157,7 @@ public interface PdfReportService {
     
     /**
      * Data class for refactoring action report generation requests.
+     * Uses real scan data from ComprehensiveScanResults and RecipeRecommendationService.
      */
     record RefactoringActionReportRequest(
         Path outputPath,
@@ -163,6 +165,7 @@ public interface PdfReportService {
         String reportTitle,
         DependencyGraph dependencyGraph,
         ComprehensiveScanResults scanResults,
+        List<ScanRecipeRecommendationService.RecipeRecommendation> recipeRecommendations,
         List<Map<String, Object>> javaxReferences,
         List<Map<String, Object>> openRewriteRecipes,
         Map<String, Object> refactoringReadiness,

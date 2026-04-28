@@ -208,42 +208,146 @@ public class DependencyMatrixSnippet extends BaseHtmlSnippet {
     
     private String getJakartaVersion(adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact artifact) {
         String compatibility = determineCompatibility(artifact);
+        String groupId = artifact.groupId();
+        String artifactId = artifact.artifactId();
+        String version = artifact.version();
+        
         return switch (compatibility) {
             case "Jakarta Compatible" -> getCurrentVersion(artifact);
-            case "Needs Update" -> "Available";
+            case "Needs Update" -> getRecommendedVersion(groupId, artifactId, version);
             case "Incompatible" -> "N/A";
-            default -> "Unknown";
+            default -> "Unknown - manual check required";
         };
+    }
+    
+    private String getRecommendedVersion(String groupId, String artifactId, String currentVersion) {
+        // Provide specific version recommendations based on artifact type
+        if (groupId.contains("spring-boot")) {
+            return "3.2.x (Jakarta EE 10)";
+        } else if (groupId.contains("spring-framework")) {
+            return "6.1.x (Jakarta EE 10)";
+        } else if (groupId.contains("spring-security")) {
+            return "6.2.x (Jakarta EE 10)";
+        } else if (groupId.contains("spring-cloud")) {
+            return "2023.x (Jakarta EE 10)";
+        } else if (groupId.contains("hibernate")) {
+            return "6.4.x (Jakarta EE 10)";
+        } else if (artifactId.contains("jakarta") || groupId.startsWith("jakarta")) {
+            return "Already Jakarta - verify version";
+        } else if (groupId.startsWith("javax.servlet") || artifactId.contains("servlet")) {
+            return "6.0 (Jakarta EE 10)";
+        } else if (groupId.startsWith("javax.persistence") || artifactId.contains("persistence")) {
+            return "3.1 (Jakarta EE 10)";
+        } else if (groupId.startsWith("javax.validation") || artifactId.contains("validation")) {
+            return "3.0 (Jakarta EE 10)";
+        } else if (groupId.startsWith("javax.ejb")) {
+            return "4.0 (Jakarta EE 10)";
+        } else {
+            return "Check Jakarta EE compatibility matrix";
+        }
     }
     
     private String getBreakingChanges(adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact artifact) {
         String compatibility = determineCompatibility(artifact);
+        String groupId = artifact.groupId();
+        String artifactId = artifact.artifactId();
+        
         return switch (compatibility) {
             case "Jakarta Compatible" -> "None";
-            case "Needs Update" -> "Package rename";
-            case "Incompatible" -> "Major API changes";
-            default -> "Unknown";
+            case "Needs Update" -> getSpecificBreakingChanges(groupId, artifactId);
+            case "Incompatible" -> "Major API changes - research alternatives";
+            default -> "Unknown - manual verification required";
         };
+    }
+    
+    private String getSpecificBreakingChanges(String groupId, String artifactId) {
+        // Provide specific breaking change information
+        if (groupId.contains("spring-boot")) {
+            return "javax→jakarta package rename; Spring Boot 3.x changes";
+        } else if (groupId.contains("spring")) {
+            return "javax→jakarta package rename";
+        } else if (groupId.contains("hibernate")) {
+            return "javax.persistence→jakarta.persistence; API changes";
+        } else if (artifactId.contains("servlet") || groupId.contains("servlet")) {
+            return "javax.servlet→jakarta.servlet; namespace change";
+        } else if (artifactId.contains("persistence") || groupId.contains("persistence")) {
+            return "javax.persistence→jakarta.persistence; annotation changes";
+        } else if (artifactId.contains("validation") || groupId.contains("validation")) {
+            return "javax.validation→jakarta.validation; constraint changes";
+        } else if (groupId.startsWith("javax.ejb")) {
+            return "javax.ejb→jakarta.ejb; API changes";
+        } else if (groupId.startsWith("javax.ws.rs") || artifactId.contains("jaxrs")) {
+            return "javax.ws.rs→jakarta.ws.rs; REST API changes";
+        } else {
+            return "Package rename: javax.*→jakarta.*";
+        }
     }
     
     private String getMigrationEffort(adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact artifact) {
         String compatibility = determineCompatibility(artifact);
+        String groupId = artifact.groupId();
+        
         return switch (compatibility) {
             case "Jakarta Compatible" -> "None";
-            case "Needs Update" -> "Low";
-            case "Incompatible" -> "High";
-            default -> "Unknown";
+            case "Needs Update" -> getSpecificEffortEstimate(groupId);
+            case "Incompatible" -> "High - alternative needed";
+            default -> "Unknown - assessment required";
         };
+    }
+    
+    private String getSpecificEffortEstimate(String groupId) {
+        // Provide effort estimates based on typical migration complexity
+        if (groupId.contains("spring-boot-starter-parent") || groupId.contains("spring-boot-dependencies")) {
+            return "Medium (coordination required)";
+        } else if (groupId.contains("spring-boot")) {
+            return "Low (version bump)";
+        } else if (groupId.contains("spring")) {
+            return "Low-Medium (package updates)";
+        } else if (groupId.contains("hibernate")) {
+            return "Medium (JPA changes)";
+        } else if (groupId.startsWith("javax.servlet")) {
+            return "Low (package rename)";
+        } else if (groupId.startsWith("javax.persistence")) {
+            return "Medium (annotation updates)";
+        } else if (groupId.startsWith("javax.ejb")) {
+            return "Medium-High (EJB changes)";
+        } else {
+            return "Low-Medium (package updates)";
+        }
     }
     
     private String getRecommendation(adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact artifact) {
         String compatibility = determineCompatibility(artifact);
+        String groupId = artifact.groupId();
+        String artifactId = artifact.artifactId();
+        
         return switch (compatibility) {
-            case "Jakarta Compatible" -> "Keep current version";
-            case "Needs Update" -> "Update to Jakarta version";
-            case "Incompatible" -> "Find alternative";
-            default -> "Manual verification";
+            case "Jakarta Compatible" -> "✓ No action required";
+            case "Needs Update" -> getSpecificRecommendation(groupId, artifactId);
+            case "Incompatible" -> "⚠ Find Jakarta alternative or remove";
+            default -> "❓ Verify compatibility manually";
         };
+    }
+    
+    private String getSpecificRecommendation(String groupId, String artifactId) {
+        // Provide specific action recommendations
+        if (groupId.contains("spring-boot-starter-parent")) {
+            return "Update to Spring Boot 3.2.x";
+        } else if (groupId.contains("spring-boot")) {
+            return "Upgrade with starter parent";
+        } else if (groupId.contains("spring")) {
+            return "Update to Spring 6.x";
+        } else if (groupId.contains("hibernate")) {
+            return "Upgrade to Hibernate 6.4.x";
+        } else if (artifactId.contains("servlet") || groupId.contains("servlet")) {
+            return "Use jakarta.servlet 6.0";
+        } else if (artifactId.contains("persistence") || groupId.contains("persistence")) {
+            return "Use jakarta.persistence 3.1";
+        } else if (artifactId.contains("validation") || groupId.contains("validation")) {
+            return "Use jakarta.validation 3.0";
+        } else {
+            return "Search for Jakarta EE equivalent";
+        }
     }
     
     private String getRowClass(String compatibility) {

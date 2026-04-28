@@ -35,35 +35,117 @@ public class ImplementationRoadmapSnippet extends BaseHtmlSnippet {
         );
     }
     
+    private final adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph dependencyGraph;
+    private final adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults scanResults;
+    private final adrianmikula.jakartamigration.risk.RiskScoringService.RiskScore riskScore;
+    
+    public ImplementationRoadmapSnippet(
+            adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph dependencyGraph,
+            adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults scanResults,
+            adrianmikula.jakartamigration.risk.RiskScoringService.RiskScore riskScore) {
+        this.dependencyGraph = dependencyGraph;
+        this.scanResults = scanResults;
+        this.riskScore = riskScore;
+    }
+    
+    public ImplementationRoadmapSnippet() {
+        this(null, null, null);
+    }
+    
     private String generateExecutiveSummary() {
-        return """
+        // Calculate dynamic estimates based on actual scan data
+        TimelineEstimate estimate = calculateTimelineEstimate();
+        
+        return String.format("""
             <div class="executive-summary-container">
                 <h3>📋 Executive Summary</h3>
                 <div class="summary-grid">
                     <div class="summary-card">
                         <h4>Migration Duration</h4>
-                        <div class="summary-value">8-12 weeks</div>
-                        <p>Based on project complexity and resource availability</p>
+                        <div class="summary-value">%d-%d weeks</div>
+                        <p>Based on %d dependencies and %d issues found</p>
                     </div>
                     <div class="summary-card">
                         <h4>Team Size</h4>
-                        <div class="summary-value">4-6 developers</div>
-                        <p>Recommended team composition for optimal progress</p>
+                        <div class="summary-value">%d-%d developers</div>
+                        <p>Recommended based on project complexity</p>
                     </div>
                     <div class="summary-card">
                         <h4>Total Effort</h4>
-                        <div class="summary-value">320-480 person-hours</div>
+                        <div class="summary-value">%d-%d person-hours</div>
                         <p>Includes development, testing, and deployment</p>
                     </div>
                     <div class="summary-card">
                         <h4>Success Rate</h4>
-                        <div class="summary-value">85-95%</div>
-                        <p>Expected success with proper planning</p>
+                        <div class="summary-value">%d%%</div>
+                        <p>Estimated based on risk analysis</p>
                     </div>
                 </div>
             </div>
-            """;
+            """,
+            estimate.minWeeks,
+            estimate.maxWeeks,
+            estimate.dependencyCount,
+            estimate.issueCount,
+            estimate.minTeamSize,
+            estimate.maxTeamSize,
+            estimate.minHours,
+            estimate.maxHours,
+            estimate.successRate
+        );
     }
+    
+    private TimelineEstimate calculateTimelineEstimate() {
+        int dependencyCount = (dependencyGraph != null) ? dependencyGraph.getNodes().size() : 5;
+        int issueCount = (scanResults != null && scanResults.summary() != null) 
+            ? scanResults.summary().filesWithIssues() : 10;
+        double riskScoreValue = (riskScore != null) ? riskScore.totalScore() : 50.0;
+        
+        // Base weeks for setup
+        int baseWeeks = 1;
+        
+        // Weeks per dependency (version resolution, testing)
+        double weeksPerDep = 0.3;
+        int depWeeks = (int) Math.ceil(dependencyCount * weeksPerDep);
+        
+        // Weeks per batch of issues
+        double weeksPerIssueBatch = 0.5;
+        int issueWeeks = (int) Math.ceil(issueCount / 5.0 * weeksPerIssueBatch);
+        
+        // Risk adjustment
+        double riskMultiplier = 1.0 + (riskScoreValue / 100.0); // 1.0 to 2.0
+        
+        int calculatedWeeks = (int) Math.ceil((baseWeeks + depWeeks + issueWeeks) * riskMultiplier);
+        int minWeeks = Math.max(2, calculatedWeeks - 2);
+        int maxWeeks = calculatedWeeks + 2;
+        
+        // Team size calculation
+        int minTeamSize = Math.max(2, Math.min(3, calculatedWeeks / 3));
+        int maxTeamSize = Math.max(4, Math.min(8, calculatedWeeks / 2));
+        
+        // Effort calculation (40 hours per week per developer)
+        int avgTeamSize = (minTeamSize + maxTeamSize) / 2;
+        int minHours = minWeeks * avgTeamSize * 30; // 30 hrs/week (partial allocation)
+        int maxHours = maxWeeks * maxTeamSize * 40;  // 40 hrs/week (full time)
+        
+        // Success rate based on risk (inverse relationship)
+        int successRate = (int) Math.max(60, 95 - (riskScoreValue / 2));
+        
+        return new TimelineEstimate(minWeeks, maxWeeks, dependencyCount, issueCount,
+            minTeamSize, maxTeamSize, minHours, maxHours, successRate);
+    }
+    
+    private record TimelineEstimate(
+        int minWeeks,
+        int maxWeeks,
+        int dependencyCount,
+        int issueCount,
+        int minTeamSize,
+        int maxTeamSize,
+        int minHours,
+        int maxHours,
+        int successRate
+    ) {}
     
     private String generatePhaseBreakdown() {
         return """

@@ -346,17 +346,67 @@ public class ReportAssembler {
                     padding: 20px;
                     text-align: center;
                     border: 1px solid #e1e8ed;
+                    min-height: 200px;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .trend-phase h4 {
+                    margin: 0 0 15px 0;
+                    color: #2c3e50;
+                }
+                .trend-phase p {
+                    margin: 15px 0 0 0;
+                    color: #7f8c8d;
+                    font-size: 0.9em;
                 }
                 .phase-risk {
                     margin-top: 15px;
-                    height: 20px;
+                    height: 120px;
                     border-radius: 10px;
                     position: relative;
                     overflow: hidden;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 }
-                .high-risk { background: linear-gradient(90deg, #e74c3c, #c0392b); }
-                .medium-risk { background: linear-gradient(90deg, #f39c12, #e67e22); }
-                .low-risk { background: linear-gradient(90deg, #27ae60, #229954); }
+                .risk-label {
+                    color: white;
+                    font-weight: bold;
+                    font-size: 0.9em;
+                    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+                    z-index: 1;
+                }
+                .high-risk { background: linear-gradient(180deg, #e74c3c, #c0392b); }
+                .medium-risk { background: linear-gradient(180deg, #f39c12, #e67e22); }
+                .low-risk { background: linear-gradient(180deg, #27ae60, #229954); }
+                .legend-color {
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 4px;
+                    display: inline-block;
+                }
+                .trend-legend {
+                    display: flex;
+                    justify-content: center;
+                    gap: 30px;
+                    margin-bottom: 20px;
+                    padding: 10px;
+                    background: #f8f9fa;
+                    border-radius: 8px;
+                }
+                .legend-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 0.9em;
+                    color: #555;
+                }
+                .trend-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                    gap: 20px;
+                    margin-top: 20px;
+                }
                 .strategies-grid {
                     display: grid;
                     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));

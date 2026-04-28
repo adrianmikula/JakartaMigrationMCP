@@ -187,7 +187,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Dev tab - only in development mode, positioned first
             if (adrianmikula.jakartamigration.intellij.license.CheckLicense.isDevMode()) {
-                devTabComponent = new DevTabComponent(project, this::handlePremiumSimulationChanged);
+                devTabComponent = new DevTabComponent(project, this::handlePremiumSimulationChanged, errorReportingService);
                 tabbedPane.addTab("Dev", devTabComponent.getPanel());
                 LOG.info("initializeContent: Added Dev tab (development mode)");
             }
@@ -232,7 +232,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             LOG.info("initializeContent: Added Advanced Scans tab (isPremium=" + isPremium + ")");
 
             // Support tab - links to GitHub, LinkedIn, sponsor pages
-            supportComponent = new SupportComponent(project, v -> refreshPremiumTabs(), () -> refreshExperimentalTabs());
+            supportComponent = new SupportComponent(project, v -> refreshPremiumTabs(), () -> refreshExperimentalTabs(), userIdentificationService);
             tabbedPane.addTab("About", supportComponent.getPanel());
 
             // AI tab - controlled by premium feature flag (formerly MCP Server)

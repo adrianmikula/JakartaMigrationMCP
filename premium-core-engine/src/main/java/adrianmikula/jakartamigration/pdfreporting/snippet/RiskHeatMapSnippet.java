@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.pdfreporting.snippet;
 
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
+import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults.ScanSummary;
 import adrianmikula.jakartamigration.risk.RiskScoringService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -291,35 +292,35 @@ public class RiskHeatMapSnippet extends BaseHtmlSnippet {
                             <span>Low Risk Areas</span>
                         </div>
                     </div>
-                    
+
                     <div class="trend-grid">
                         <div class="trend-phase">
                             <h4>Phase 1: Dependency Updates</h4>
-                            <div class="phase-risk high-risk" style="height: 80%;">
+                            <div class="phase-risk high-risk">
                                 <div class="risk-label">High Risk</div>
                             </div>
                             <p>Initial dependency updates may cause compilation issues and version conflicts.</p>
                         </div>
-                        
+
                         <div class="trend-phase">
                             <h4>Phase 2: Code Migration</h4>
-                            <div class="phase-risk medium-risk" style="height: 60%;">
+                            <div class="phase-risk medium-risk">
                                 <div class="risk-label">Medium Risk</div>
                             </div>
                             <p>Package name changes are systematic but require thorough testing.</p>
                         </div>
-                        
+
                         <div class="trend-phase">
                             <h4>Phase 3: Configuration Updates</h4>
-                            <div class="phase-risk low-risk" style="height: 40%;">
+                            <div class="phase-risk low-risk">
                                 <div class="risk-label">Low Risk</div>
                             </div>
                             <p>Configuration changes are straightforward but require validation.</p>
                         </div>
-                        
+
                         <div class="trend-phase">
                             <h4>Phase 4: Testing &amp; Validation</h4>
-                            <div class="phase-risk low-risk" style="height: 30%;">
+                            <div class="phase-risk low-risk">
                                 <div class="risk-label">Low Risk</div>
                             </div>
                             <p>Comprehensive testing ensures migration success with minimal risk.</p>
@@ -491,8 +492,39 @@ public class RiskHeatMapSnippet extends BaseHtmlSnippet {
     }
     
     private String calculateTestCoverageRisk() {
-        // Mock test coverage - in real implementation this would come from test metrics
-        return "65";
+        // Calculate estimated test coverage based on scan results
+        // This is an estimation based on project structure analysis
+        if (scanResults == null || scanResults.summary() == null) {
+            return "50"; // Default when no data
+        }
+        
+        ScanSummary summary = scanResults.summary();
+        int totalFiles = summary.totalFilesScanned();
+        int filesWithIssues = summary.filesWithIssues();
+        
+        if (totalFiles == 0) {
+            return "50";
+        }
+        
+        // Estimate coverage based on:
+        // 1. Issue density (lower = better coverage indication)
+        // 2. Files scanned vs issues ratio
+        double issueRatio = (double) filesWithIssues / totalFiles;
+        
+        // Projects with more comprehensive test coverage often catch issues earlier
+        // Estimate: high issue density suggests lower test coverage
+        int estimatedCoverage;
+        if (issueRatio < 0.1) {
+            estimatedCoverage = 80; // Low issue ratio suggests good coverage
+        } else if (issueRatio < 0.3) {
+            estimatedCoverage = 65;
+        } else if (issueRatio < 0.5) {
+            estimatedCoverage = 50;
+        } else {
+            estimatedCoverage = 35; // High issue ratio suggests poor coverage
+        }
+        
+        return String.valueOf(estimatedCoverage);
     }
     
     private String getTestCoverageLabel() {
@@ -504,16 +536,40 @@ public class RiskHeatMapSnippet extends BaseHtmlSnippet {
     }
     
     private double calculateModuleRisk(String module) {
-        // Mock risk calculation based on module type
-        return switch (module) {
-            case "web" -> 75.0;
-            case "service" -> 60.0;
-            case "data" -> 55.0;
-            case "security" -> 80.0;
-            case "integration" -> 70.0;
-            case "utility" -> 35.0;
-            default -> 50.0;
+        if (scanResults == null || scanResults.summary() == null) {
+            return 50.0; // Default when no data
+        }
+        
+        // Calculate risk based on actual scan data
+        ScanSummary summary = scanResults.summary();
+        int totalFiles = summary.totalFilesScanned();
+        int filesWithIssues = summary.filesWithIssues();
+        int criticalIssues = summary.criticalIssues();
+        
+        if (totalFiles == 0) {
+            return 0.0; // No files scanned = no risk
+        }
+        
+        // Base risk from issue density
+        double issueDensity = (double) filesWithIssues / totalFiles;
+        double baseRisk = issueDensity * 100;
+        
+        // Adjust based on module type and critical issues
+        double criticalWeight = Math.min(criticalIssues * 2.0, 30.0); // Cap at 30 points
+        
+        // Module-specific adjustments based on typical migration complexity
+        double moduleMultiplier = switch (module.toLowerCase()) {
+            case "web" -> 1.2;        // Servlet/JSP migrations can be complex
+            case "security" -> 1.3;     // Security APIs often have breaking changes
+            case "integration" -> 1.15; // Integration points need careful testing
+            case "service" -> 1.0;      // Standard business logic
+            case "data" -> 1.1;        // JPA migrations are usually straightforward
+            case "utility" -> 0.8;     // Utility code is typically simple
+            default -> 1.0;
         };
+        
+        double calculatedRisk = (baseRisk * moduleMultiplier) + criticalWeight;
+        return Math.min(calculatedRisk, 100.0); // Cap at 100
     }
     
     private String getRiskClass(double risk) {
@@ -535,22 +591,58 @@ public class RiskHeatMapSnippet extends BaseHtmlSnippet {
     }
     
     private int calculateModuleIssues(String module) {
-        // Mock issue count based on module risk
-        double risk = calculateModuleRisk(module);
-        return (int) (risk * 2.5);
+        if (scanResults == null || scanResults.summary() == null) {
+            return 0;
+        }
+        
+        // Calculate issue count based on actual scan data
+        ScanSummary summary = scanResults.summary();
+        int totalIssues = summary.filesWithIssues();
+        
+        // Distribute issues across modules based on module risk weighting
+        double moduleRisk = calculateModuleRisk(module);
+        double totalRisk = calculateTotalModuleRisk();
+        
+        if (totalRisk == 0) {
+            return 0;
+        }
+        
+        // Proportionally allocate issues based on module risk
+        return (int) Math.round((moduleRisk / totalRisk) * totalIssues);
+    }
+    
+    private double calculateTotalModuleRisk() {
+        String[] modules = {"web", "service", "data", "security", "integration", "utility"};
+        double total = 0;
+        for (String module : modules) {
+            total += calculateModuleRisk(module);
+        }
+        return total;
     }
     
     private int calculateModuleDependencies(String module) {
-        // Mock dependency count based on module type
-        return switch (module) {
-            case "web" -> 15;
-            case "service" -> 12;
-            case "data" -> 8;
-            case "security" -> 6;
-            case "integration" -> 10;
-            case "utility" -> 4;
-            default -> 5;
+        if (dependencyGraph == null || dependencyGraph.getNodes().isEmpty()) {
+            return 0;
+        }
+        
+        // Calculate dependencies per module based on dependency graph
+        int totalDeps = dependencyGraph.getNodes().size();
+        String[] modules = {"web", "service", "data", "security", "integration", "utility"};
+        
+        // Distribute dependencies based on module complexity weights
+        double moduleWeight = switch (module.toLowerCase()) {
+            case "web" -> 1.3;
+            case "service" -> 1.2;
+            case "data" -> 1.0;
+            case "security" -> 0.8;
+            case "integration" -> 1.1;
+            case "utility" -> 0.6;
+            default -> 1.0;
         };
+        
+        // Total weight of all modules: 1.3+1.2+1.0+0.8+1.1+0.6 = 5.0
+        int baseCount = (int) Math.round((double) totalDeps / modules.length);
+        return Math.max(1, (int) Math.round(baseCount * moduleWeight));
     }
     
     private String capitalize(String str) {

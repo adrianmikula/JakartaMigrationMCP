@@ -5,6 +5,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
 import adrianmikula.jakartamigration.risk.RiskScoringService;
 import adrianmikula.jakartamigration.pdfreporting.snippet.RiskAnalysisSnippetFactory;
+import adrianmikula.jakartamigration.pdfreporting.snippet.RefactoringSnippetFactory;
 import adrianmikula.jakartamigration.pdfreporting.snippet.ReportAssembler;
 import lombok.extern.slf4j.Slf4j;
 
@@ -94,17 +95,17 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
     @Override
     public Path generateRefactoringActionReport(RefactoringActionReportRequest request) {
         log.info("Generating Refactoring Action HTML report: {}", request.outputPath());
-        
+
         try {
-            // Generate HTML content with modern professional styling
-            String htmlContent = generateRefactoringActionHtml(request);
-            
+            // Generate HTML content using new snippet-based architecture with real scan data
+            String htmlContent = generateRefactoringActionHtmlWithSnippets(request);
+
             // Log HTML content size for memory monitoring
             log.info("HTML content size: {} bytes ({} MB)", htmlContent.length(), htmlContent.length() / (1024.0 * 1024.0));
-            
+
             // Save HTML directly (PDF generation disabled due to memory issues)
             Path htmlPath = saveHtmlReport(htmlContent, request.outputPath());
-            
+
             return htmlPath;
         } catch (Exception e) {
             log.error("Error generating refactoring action report", e);
@@ -1013,7 +1014,33 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
                 generateSharedFooter("Refactoring Action Report", 1, 1)
             );
     }
-    
+
+    /**
+     * Generate refactoring action HTML using snippet-based architecture with real scan data.
+     * Replaces the monolithic template approach with data from actual scanners.
+     */
+    private String generateRefactoringActionHtmlWithSnippets(RefactoringActionReportRequest request) {
+        log.info("Generating refactoring report using snippet-based architecture with real scan data");
+
+        try {
+            // Create snippets using the new factory with real scan data
+            RefactoringSnippetFactory factory = new RefactoringSnippetFactory();
+            List<adrianmikula.jakartamigration.pdfreporting.snippet.HtmlSnippet> snippets = factory.createSnippets(request);
+
+            // Assemble the complete HTML report
+            ReportAssembler assembler = new ReportAssembler();
+            String htmlContent = assembler.assembleReport(snippets, request.reportTitle());
+
+            log.info("Refactoring report generated with {} snippets using real scan data", snippets.size());
+            return htmlContent;
+
+        } catch (Exception e) {
+            log.error("Error generating refactoring report with snippets, falling back to legacy method", e);
+            // Fallback to legacy method if snippet generation fails
+            return generateRefactoringActionHtml(request);
+        }
+    }
+
     // Helper methods for Risk Analysis Report
     private int calculateJakartaCompatible(DependencyGraph dependencyGraph) {
         if (dependencyGraph == null || dependencyGraph.getNodes().isEmpty()) {
@@ -1281,16 +1308,20 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
     }
     
     // Shared header and footer generation methods
+    private static final String PLUGIN_NAME = "Jakarta Migration IntelliJ Plugin";
+    private static final String PLUGIN_VERSION = "v3.0";
+
     private String generateSharedHeader(String reportTitle, String projectName, String reportType) {
         String timestamp = LocalDateTime.now().format(DATE_FORMATTER);
         String pluginIconSvg = getPluginIconSvg();
-        
+
         return """
             <div class="report-header">
                 <div class="header-left">
                     <div class="plugin-icon">
                         %s
                     </div>
+                    <div class="plugin-name">%s</div>
                 </div>
                 <div class="header-center">
                     <h1 class="report-title">%s</h1>
@@ -1303,6 +1334,7 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
             </div>
             """.formatted(
                 pluginIconSvg,
+                PLUGIN_NAME,
                 escapeHtml(reportTitle),
                 escapeHtml(projectName),
                 escapeHtml(reportType),
@@ -1311,10 +1343,14 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
     }
     
     private String generateSharedFooter(String reportType, int pageNumber, int totalPages) {
+        String pluginIconSvg = getPluginIconSvg();
         return """
             <div class="report-footer">
                 <div class="footer-left">
-                    <div class="plugin-info">Jakarta Migration Tool v3.0</div>
+                    <div class="plugin-icon-footer">
+                        %s
+                    </div>
+                    <div class="plugin-info">%s %s</div>
                 </div>
                 <div class="footer-center">
                     <div class="page-info">Page %d of %d</div>
@@ -1324,6 +1360,9 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
                 </div>
             </div>
             """.formatted(
+                pluginIconSvg,
+                PLUGIN_NAME,
+                PLUGIN_VERSION,
                 pageNumber,
                 totalPages,
                 escapeHtml(reportType)
@@ -1409,6 +1448,15 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
                 font-size: 0.9em;
                 font-weight: 500;
             }
+            
+            .plugin-name {
+                color: #2c3e50;
+                font-size: 0.95em;
+                font-weight: 600;
+                margin-left: 10px;
+                max-width: 120px;
+                line-height: 1.2;
+            }
             """;
     }
     
@@ -1435,6 +1483,24 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
             
             .footer-left {
                 flex: 0 0 auto;
+                display: flex;
+                align-items: center;
+            }
+            
+            .plugin-icon-footer {
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-right: 8px;
+            }
+            
+            .plugin-icon-footer svg {
+                width: 100%%;
+                height: 100%;
+                max-width: 24px;
+                max-height: 24px;
             }
             
             .plugin-info {
@@ -1790,19 +1856,19 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
     
     String getPluginIconSvg() {
         // Simplified SVG icon for embedding - using a clean, scalable version
-        // All XML entities must be properly escaped for Flying Saucer
+        // Returns raw SVG XML for HTML rendering (unescaped for browser display)
         return """
-            &lt;svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display: block;"&gt;
-                &lt;defs&gt;
-                    &lt;linearGradient id="iconGrad1" x1="0%" y1="0%" x2="100%" y2="100%"&gt;
-                        &lt;stop offset="0%" style="stop-color:#3498db;stop-opacity:1" /&gt;
-                        &lt;stop offset="100%" style="stop-color:#2c3e50;stop-opacity:1" /&gt;
-                    &lt;/linearGradient&gt;
-                &lt;/defs&gt;
-                &lt;rect x="2" y="2" width="20" height="20" rx="4" fill="url(#iconGrad1)"/&gt;
-                &lt;path d="M8 12h8M12 8v8" stroke="white" stroke-width="2" stroke-linecap="round"/&gt;
-                &lt;circle cx="12" cy="12" r="6" stroke="white" stroke-width="1.5" fill="none" stroke-dasharray="2,2"/&gt;
-            &lt;/svg&gt;
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+                <defs>
+                    <linearGradient id="iconGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#3498db;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#2c3e50;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <rect x="2" y="2" width="20" height="20" rx="4" fill="url(#iconGrad1)"/>
+                <path d="M8 12h8M12 8v8" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="12" cy="12" r="6" stroke="white" stroke-width="1.5" fill="none" stroke-dasharray="2,2"/>
+            </svg>
             """;
     }
     String escapeHtml(String text) {

@@ -39,7 +39,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 
 /**
- * Reports tab component for generating PDF reports based on scan data.
+ * Reports tab component for generating HTML reports based on scan data.
  * This is an experimental feature that requires premium + experimental features enabled.
  */
 public class ReportsTabComponent {
@@ -62,7 +62,7 @@ public class ReportsTabComponent {
     private final JProgressBar progressBar;
     
     // Async generation support
-    private final ExecutorService pdfGenerationExecutor;
+    private final ExecutorService htmlGenerationExecutor;
     private final AtomicBoolean generationInProgress;
     private CompletableFuture<Path> currentGenerationTask;
     
@@ -92,8 +92,8 @@ public class ReportsTabComponent {
         progressBar.setVisible(false);
         
         // Initialize async support
-        this.pdfGenerationExecutor = Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "PDF-Generation-Thread");
+        this.htmlGenerationExecutor = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "HTML-Generation-Thread");
             t.setDaemon(true);
             return t;
         });
@@ -119,12 +119,12 @@ public class ReportsTabComponent {
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBorder(JBUI.Borders.empty(10));
         
-        JLabel titleLabel = new JBLabel("Consolidated PDF Reports");
+        JLabel titleLabel = new JBLabel("Consolidated HTML Reports");
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
         headerPanel.add(titleLabel, BorderLayout.NORTH);
         
         JLabel descriptionLabel = new JBLabel("<html><body style='width: 600px'>" +
-            "Generate consolidated PDF reports with modern professional styling. " +
+            "Generate consolidated HTML reports with modern professional styling. " +
             "Two comprehensive reports: Risk Analysis Report with complete assessment, " +
             "dependency analysis, and implementation timeline; and Refactoring Action Report " +
             "with detailed javax reference inventory and OpenRewrite recipe suggestions. " +
@@ -192,7 +192,7 @@ public class ReportsTabComponent {
             project, 
             "reports_tab",
             "⬆ Upgrade to Premium for Unlimited Reports",
-            "Get unlimited PDF reports, advanced scanning, and professional features"
+            "Get unlimited HTML reports, advanced scanning, and professional features"
         );
         
         // Add upgrade button to center
@@ -232,7 +232,7 @@ public class ReportsTabComponent {
             // Check if user is premium
             boolean isPremium = CheckLicense.isLicensed();
             
-            // PDF reports are premium-only feature
+            // HTML reports are premium-only feature
             if (!isPremium) {
                 showUpgradePrompt("Premium Feature Required", 
                     "Risk Analysis reports require Premium. Upgrade to generate unlimited risk analysis reports with professional styling.");
@@ -284,7 +284,7 @@ public class ReportsTabComponent {
                     
                     // Choose output location
                     SwingUtilities.invokeLater(() -> updateProgress(25, "Choosing output location..."));
-                    Path outputPath = chooseOutputLocation("risk-analysis-report.pdf");
+                    Path outputPath = chooseOutputLocation("risk-analysis-report.html");
                     if (outputPath == null) {
                         SwingUtilities.invokeLater(() -> {
                             statusLabel.setText("Report generation cancelled");
@@ -354,7 +354,7 @@ public class ReportsTabComponent {
                         Map.of("generatedBy", "Jakarta Migration Tool v3.0")
                     );
                     
-                    SwingUtilities.invokeLater(() -> updateProgress(50, "Generating PDF report..."));
+                    SwingUtilities.invokeLater(() -> updateProgress(50, "Generating HTML report..."));
                     
                     // Generate report
                     Path result = pdfReportService.generateRiskAnalysisReport(request);
@@ -366,7 +366,7 @@ public class ReportsTabComponent {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-            }, pdfGenerationExecutor);
+            }, htmlGenerationExecutor);
             
             // Handle completion
             currentGenerationTask.whenComplete((result, throwable) -> {
@@ -431,7 +431,7 @@ public class ReportsTabComponent {
         // Ask if user wants to open file
         int choice = Messages.showYesNoDialog(
             project,
-            reportType + " report generated successfully!\n\nWould you like to open PDF file?",
+            reportType + " report generated successfully!\n\nWould you like to open HTML file?",
             "Report Generated",
             Messages.getQuestionIcon());
         
@@ -447,7 +447,7 @@ public class ReportsTabComponent {
         Messages.showErrorDialog(project, "Failed to generate " + reportType + " report: " + errorMessage, "Error");
         
         // Report error to Supabase for analytics
-        errorReportingService.reportError(throwable, "PDF " + reportType + " Report Generation");
+        errorReportingService.reportError(throwable, "HTML " + reportType + " Report Generation");
     }
     
     private void generateRefactoringActionReportAsync() {
@@ -460,7 +460,7 @@ public class ReportsTabComponent {
             // Check if user is premium
             boolean isPremium = CheckLicense.isLicensed();
             
-            // PDF reports are premium-only feature
+            // HTML reports are premium-only feature
             if (!isPremium) {
                 showUpgradePrompt("Premium Feature Required", 
                     "Refactoring Action reports require Premium. Upgrade to generate unlimited refactoring action reports with professional styling.");
@@ -522,7 +522,7 @@ public class ReportsTabComponent {
                     
                     // Choose output location
                     SwingUtilities.invokeLater(() -> updateProgress(25, "Choosing output location..."));
-                    Path outputPath = chooseOutputLocation("refactoring-action-report.pdf");
+                    Path outputPath = chooseOutputLocation("refactoring-action-report.html");
                     if (outputPath == null) {
                         SwingUtilities.invokeLater(() -> {
                             statusLabel.setText("Report generation cancelled");
@@ -560,7 +560,7 @@ public class ReportsTabComponent {
                         "lowPriority", javaxReferences.size() - 3
                     );
                     
-                    SwingUtilities.invokeLater(() -> updateProgress(50, "Generating PDF report..."));
+                    SwingUtilities.invokeLater(() -> updateProgress(50, "Generating HTML report..."));
                     
                     PdfReportService.RefactoringActionReportRequest request = new PdfReportService.RefactoringActionReportRequest(
                         outputPath,
@@ -585,7 +585,7 @@ public class ReportsTabComponent {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-            }, pdfGenerationExecutor);
+            }, htmlGenerationExecutor);
             
             // Handle completion
             currentGenerationTask.whenComplete((result, throwable) -> {
@@ -624,10 +624,10 @@ public class ReportsTabComponent {
         try {
             Desktop.getDesktop().open(file.toFile());
         } catch (Exception e) {
-            Messages.showErrorDialog(project, "Failed to open PDF file: " + e.getMessage(), "Error");
+            Messages.showErrorDialog(project, "Failed to open HTML file: " + e.getMessage(), "Error");
             
             // Report error to Supabase for analytics
-            errorReportingService.reportError(e, "PDF File Open Operation");
+            errorReportingService.reportError(e, "HTML File Open Operation");
         }
     }
     
@@ -704,10 +704,10 @@ public class ReportsTabComponent {
             // Check if user is premium
             boolean isPremium = CheckLicense.isLicensed();
             
-            // PDF reports are premium-only feature
+            // HTML reports are premium-only feature
             if (!isPremium) {
                 showUpgradePrompt("Premium Feature Required", 
-                    "Consolidated reports require Premium. Upgrade to generate unlimited consolidated PDF reports with professional styling.");
+                    "Consolidated reports require Premium. Upgrade to generate unlimited consolidated HTML reports with professional styling.");
                 return;
             }
 
@@ -731,7 +731,7 @@ public class ReportsTabComponent {
             }
             
             // Choose output location
-            Path outputPath = chooseOutputLocation("consolidated-report.pdf");
+            Path outputPath = chooseOutputLocation("consolidated-report.html");
             if (outputPath == null) {
                 statusLabel.setText("Report generation cancelled");
                 return;
@@ -817,7 +817,7 @@ public class ReportsTabComponent {
             statusLabel.setText("Error generating consolidated report");
             
             // Report error to Supabase for analytics
-            errorReportingService.reportError(e, "PDF Consolidated Report Generation");
+            errorReportingService.reportError(e, "HTML Consolidated Report Generation");
         }
     }
     

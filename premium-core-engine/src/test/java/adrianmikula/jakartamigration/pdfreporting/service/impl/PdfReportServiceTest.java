@@ -167,7 +167,7 @@ class PdfReportServiceTest {
             <html>
             <head>
                 <title>Test Report</title>
-                <meta charset="UTF-8">
+                <meta charset="UTF-8" />
                 <style>
                     body { font-family: Arial, sans-serif; }
                     .test { color: #333; }
