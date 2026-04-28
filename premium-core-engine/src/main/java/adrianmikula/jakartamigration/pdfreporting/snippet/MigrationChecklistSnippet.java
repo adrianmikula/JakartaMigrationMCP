@@ -1,6 +1,5 @@
 package adrianmikula.jakartamigration.pdfreporting.snippet;
 
-import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
 import adrianmikula.jakartamigration.advancedscanning.service.ScanRecipeRecommendationService;
 
 import java.util.List;
@@ -13,12 +12,9 @@ import java.util.List;
  */
 public class MigrationChecklistSnippet extends BaseHtmlSnippet {
 
-    private final ComprehensiveScanResults scanResults;
     private final List<ScanRecipeRecommendationService.RecipeRecommendation> recipeRecommendations;
 
-    public MigrationChecklistSnippet(ComprehensiveScanResults scanResults,
-                                      List<ScanRecipeRecommendationService.RecipeRecommendation> recipeRecommendations) {
-        this.scanResults = scanResults;
+    public MigrationChecklistSnippet(List<ScanRecipeRecommendationService.RecipeRecommendation> recipeRecommendations) {
         this.recipeRecommendations = recipeRecommendations;
     }
 
@@ -28,7 +24,7 @@ public class MigrationChecklistSnippet extends BaseHtmlSnippet {
     }
 
     @Override
-    public String getContent() {
+    public String generate() throws SnippetGenerationException {
         StringBuilder html = new StringBuilder();
 
         html.append("""
@@ -64,8 +60,11 @@ public class MigrationChecklistSnippet extends BaseHtmlSnippet {
         html.append("                        <ul class=\"checklist-items\">\n");
 
         if (recipeRecommendations != null && !recipeRecommendations.isEmpty()) {
-            for (ScanRecipeRecommendationService.RecipeRecommendation recipe : recipeRecommendations) {
-                String recipeName = recipe != null && recipe.name() != null ? escapeHtml(recipe.name()) : "Recipe";
+            for (ScanRecipeRecommendationService.RecipeRecommendation recommendation : recipeRecommendations) {
+                if (recommendation == null || recommendation.recipe() == null) continue;
+                String recipeName = recommendation.recipe().getName() != null
+                    ? escapeHtml(recommendation.recipe().getName())
+                    : "Recipe";
                 html.append(String.format(
                     "                            <li><span class=\"checkbox\">&#9744;</span> Run recipe: %s</li>%n",
                     recipeName

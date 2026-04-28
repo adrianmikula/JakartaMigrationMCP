@@ -7,6 +7,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysi
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
+import adrianmikula.jakartamigration.advancedscanning.service.ScanRecipeRecommendationService;
 import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.credits.CreditType;
 import adrianmikula.jakartamigration.credits.CreditsService;
@@ -14,6 +15,7 @@ import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
 import adrianmikula.jakartamigration.analytics.service.ErrorReportingService;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBLabel;
@@ -43,7 +45,9 @@ import java.util.HashMap;
  * This is an experimental feature that requires premium + experimental features enabled.
  */
 public class ReportsTabComponent {
-    
+
+    private static final Logger LOG = Logger.getInstance(ReportsTabComponent.class);
+
     private final Project project;
     private final JPanel mainPanel;
     private final PdfReportService pdfReportService;
@@ -532,32 +536,77 @@ public class ReportsTabComponent {
                     }
                     
                     SwingUtilities.invokeLater(() -> updateProgress(35, "Preparing report data..."));
-                    
-                    // Create mock javax references data (would be populated from real scan)
+
+                    // Get actual recipe recommendations from the scanning service
+                    List<ScanRecipeRecommendationService.RecipeRecommendation> recipeRecommendations = List.of();
+                    if (scanResults != null && advancedScanningService != null) {
+                        try {
+                            ScanRecipeRecommendationService recommendationService = advancedScanningService.getRecipeRecommendationService();
+                            if (recommendationService != null) {
+                                Map<String, Object> scanResultsMap = new HashMap<>();
+                                // Use scanner type keys that match ScanRecipeRecommendationServiceImpl.SCAN_TO_RECIPE_MAPPING
+                                scanResultsMap.put("JPA_ANNOTATION_SCANNER", scanResults.jpaResults());
+                                scanResultsMap.put("BEAN_VALIDATION_SCANNER", scanResults.beanValidationResults());
+                                scanResultsMap.put("CDI_INJECTION_SCANNER", scanResults.cdiResults());
+                                scanResultsMap.put("SERVLET_JSP_SCANNER", scanResults.servletJspResults());
+                                scanResultsMap.put("BUILD_CONFIG_SCANNER", scanResults.buildConfigResults());
+                                scanResultsMap.put("THIRD_PARTY_LIB_SCANNER", scanResults.thirdPartyLibResults());
+                                recipeRecommendations = recommendationService.getRecipeRecommendations(projectPath, scanResultsMap);
+                            }
+                        } catch (Exception e) {
+                            LOG.warn("Failed to get recipe recommendations, proceeding without them", e);
+                        }
+                    }
+
+                    // Use empty list - actual javax references are extracted from scanResults by the report
                     List<Map<String, Object>> javaxReferences = new ArrayList<>();
-                    if (scanResults != null) {
-                        // Add sample javax references based on scan results
-                        javaxReferences.add(Map.of("file", "SampleController.java", "line", "15", "reference", "javax.servlet.http.HttpServlet", "priority", "high", "recipeAvailable", true));
-                        javaxReferences.add(Map.of("file", "SampleEntity.java", "line", "8", "reference", "javax.persistence.Entity", "priority", "medium", "recipeAvailable", true));
-                        javaxReferences.add(Map.of("file", "SampleService.java", "line", "22", "reference", "javax.inject.Inject", "priority", "low", "recipeAvailable", false));
+
+                    // Create OpenRewrite recipes data from actual recipe recommendations
+                    List<Map<String, Object>> openRewriteRecipes = new ArrayList<>();
+                    for (ScanRecipeRecommendationService.RecipeRecommendation rec : recipeRecommendations) {
+                        if (rec.recipe() != null) {
+                            openRewriteRecipes.add(Map.of(
+                                "name", rec.recipe().getName(),
+                                "category", rec.recipe().getCategory() != null ? rec.recipe().getCategory().name() : "General",
+                                "description", rec.recipe().getDescription() != null ? rec.recipe().getDescription() : "",
+                                "automated", true,
+                                "confidence", rec.confidenceScore()
+                            ));
+                        }
                     }
                     
-                    // Create mock OpenRewrite recipes data
-                    List<Map<String, Object>> openRewriteRecipes = new ArrayList<>();
-                    openRewriteRecipes.add(Map.of("name", "Jakarta EE 9 to 10 Migration", "category", "Namespace", "description", "Updates javax imports to jakarta", "automated", true));
-                    openRewriteRecipes.add(Map.of("name", "JPA Entity Annotations", "category", "JPA", "description", "Updates JPA annotations to jakarta namespace", "automated", true));
-                    openRewriteRecipes.add(Map.of("name", "Servlet API Migration", "category", "Servlet", "description", "Updates servlet references to jakarta", "automated", false));
-                    
+                    // Calculate metrics from actual scan data
+                    int totalFiles = scanResults != null && scanResults.summary() != null
+                        ? scanResults.summary().totalFilesScanned()
+                        : 0;
+                    int filesWithIssues = scanResults != null && scanResults.summary() != null
+                        ? scanResults.summary().filesWithIssues()
+                        : 0;
+                    int automationReady = recipeRecommendations != null && !recipeRecommendations.isEmpty()
+                        ? (int) (recipeRecommendations.stream().filter(r -> r.confidenceScore() > 0.7).count() * 100.0 / recipeRecommendations.size())
+                        : 0;
+
                     Map<String, Object> refactoringReadiness = Map.of(
-                        "automationReady", 75,
-                        "totalFiles", javaxReferences.size(),
-                        "readyForAutomation", (int) (javaxReferences.size() * 0.75)
+                        "automationReady", automationReady,
+                        "totalFiles", totalFiles,
+                        "readyForAutomation", filesWithIssues
                     );
-                    
+
+                    // Calculate priority distribution from recipe confidence scores
+                    long highPriority = recipeRecommendations != null
+                        ? recipeRecommendations.stream().filter(r -> r.confidenceScore() >= 0.7).count()
+                        : 0;
+                    long mediumPriority = recipeRecommendations != null
+                        ? recipeRecommendations.stream().filter(r -> r.confidenceScore() >= 0.3 && r.confidenceScore() < 0.7).count()
+                        : 0;
+                    long lowPriority = recipeRecommendations != null
+                        ? recipeRecommendations.stream().filter(r -> r.confidenceScore() < 0.3).count()
+                        : 0;
+
                     Map<String, Object> priorityRanking = Map.of(
-                        "highPriority", 1,
-                        "mediumPriority", 2,
-                        "lowPriority", javaxReferences.size() - 3
+                        "highPriority", (int) highPriority,
+                        "mediumPriority", (int) mediumPriority,
+                        "lowPriority", (int) lowPriority
                     );
                     
                     SwingUtilities.invokeLater(() -> updateProgress(50, "Generating HTML report..."));
@@ -568,7 +617,7 @@ public class ReportsTabComponent {
                         "Jakarta Migration Refactoring Action Report",
                         dependencyGraph,
                         scanResults,
-                        List.of(), // recipeRecommendations
+                        recipeRecommendations, // Actual recipe recommendations from scan analysis
                         javaxReferences,
                         openRewriteRecipes,
                         refactoringReadiness,
@@ -637,67 +686,9 @@ public class ReportsTabComponent {
         if (advancedScanningService == null) {
             return null;
         }
-        
-        // Check if we have cached results
-        if (advancedScanningService.hasCachedResults()) {
-            AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
-            if (summary != null) {
-                // Convert AdvancedScanSummary to ComprehensiveScanResults
-                return convertToComprehensiveScanResults(summary);
-            }
-        }
-        
-        // No cached results available - return null
-        return null;
-    }
-    
-    // Convert AdvancedScanSummary to ComprehensiveScanResults
-    private ComprehensiveScanResults convertToComprehensiveScanResults(AdvancedScanningService.AdvancedScanSummary summary) {
-        java.util.Map<String, Object> jpaResults = new java.util.HashMap<>();
-        jpaResults.put("count", summary.getJpaCount());
-        
-        java.util.Map<String, Object> beanValidationResults = new java.util.HashMap<>();
-        beanValidationResults.put("count", summary.getBeanValidationCount());
-        
-        java.util.Map<String, Object> cdiResults = new java.util.HashMap<>();
-        cdiResults.put("count", summary.getCdiInjectionCount());
-        
-        java.util.Map<String, Object> servletJspResults = new java.util.HashMap<>();
-        servletJspResults.put("count", summary.getServletJspCount());
-        
-        java.util.Map<String, Object> thirdPartyLibResults = new java.util.HashMap<>();
-        thirdPartyLibResults.put("count", summary.getThirdPartyLibCount());
-        
-        java.util.Map<String, Object> buildConfigResults = new java.util.HashMap<>();
-        buildConfigResults.put("count", summary.getBuildConfigCount());
-        
-        java.util.Map<String, Object> transitiveDependencyResults = new java.util.HashMap<>();
-        transitiveDependencyResults.put("count", summary.getTransitiveDependencyCount());
-        
-        // Create scan summary
-        ComprehensiveScanResults.ScanSummary scanSummary = new ComprehensiveScanResults.ScanSummary(
-            0, // totalFilesScanned - not directly available from summary
-            summary.getTotalIssuesFound(), // filesWithIssues
-            0, // criticalIssues - not directly available
-            0, // warningIssues - not directly available
-            0, // infoIssues - not directly available
-            0.0 // readinessScore - not directly available
-        );
-        
-        return new ComprehensiveScanResults(
-            project.getBasePath(),
-            LocalDateTime.now(),
-            jpaResults,
-            beanValidationResults,
-            cdiResults,
-            servletJspResults,
-            thirdPartyLibResults,
-            transitiveDependencyResults,
-            buildConfigResults,
-            java.util.List.of(), // recommendations - empty for now
-            summary.getTotalIssuesFound(),
-            scanSummary
-        );
+
+        // Use the proper conversion method from AdvancedScanningService
+        return advancedScanningService.getLastScanResults();
     }
     
     public JPanel getPanel() {
