@@ -247,6 +247,19 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 LOG.info("initializeContent: AI tab hidden - MCP server is premium only and user is not premium");
             }
 
+            // Reports tab - controlled by premium feature flag
+            boolean reportsPremiumOnly = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isReportsPremiumOnly();
+            LOG.info("initializeContent: Reports tab check - reportsPremiumOnly=" + reportsPremiumOnly + ", isPremium=" + isPremium);
+            if (!reportsPremiumOnly || isPremium) {
+                reportsTabComponent = new ReportsTabComponent(project, analysisService, advancedScanningService, errorReportingService);
+                String reportsLabel = isPremium ? "Reports 📊" : "Reports";
+                tabbedPane.addTab(reportsLabel, reportsTabComponent.getPanel());
+                LOG.info("initializeContent: Added Reports tab (reportsPremiumOnly=" + reportsPremiumOnly + ", isPremium=" + isPremium + ")");
+            } else {
+                reportsTabComponent = null;
+                LOG.info("initializeContent: Reports tab hidden - Reports is premium only and user is not premium");
+            }
+
             // All tabs available for both free and premium users
             // Free users are limited by credits on premium features
             LOG.info("initializeContent: Creating all tabs, isPremium=" + isPremium);
@@ -282,6 +295,12 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Connect dashboard with platforms tab for risk integration
             dashboardComponent.setPlatformsTabComponent(platformsTabComponent);
+            
+            // Connect reports tab with platforms tab for report generation
+            if (reportsTabComponent != null) {
+                reportsTabComponent.setPlatformsTabComponent(platformsTabComponent);
+                LOG.info("initializeContent: Wired reportsTabComponent with platformsTabComponent");
+            }
 
             // Set up tab switcher for dashboard explanation panels
             dashboardComponent.setTabSwitcher(tabName -> {
@@ -295,27 +314,20 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 }
             });
 
-            // Reports and Runtime tabs (Experimental features only)
+            // Runtime tab (Experimental features only)
             System.out.println("DEBUG: MigrationToolWindow - About to check experimental features");
             boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
             System.out.println("DEBUG: MigrationToolWindow - experimentalEnabled = " + experimentalEnabled);
 
             if (experimentalEnabled) {
-                // Reports tab - Available for all users with experimental features enabled
-                reportsTabComponent = new ReportsTabComponent(project, analysisService, advancedScanningService, errorReportingService);
-                String reportsLabel = isPremium ? "Reports 📊 (Experimental)" : "Reports (Experimental)";
-                tabbedPane.addTab(reportsLabel, reportsTabComponent.getPanel());
-                LOG.info("initializeContent: Added Reports tab (experimental)");
-
                 // Runtime tab - Available for all users with experimental features enabled
                 runtimeTabComponent = new RuntimeTabComponent(project);
                 String runtimeLabel = isPremium ? "Runtime ⚡ (Experimental)" : "Runtime (Experimental)";
                 tabbedPane.addTab(runtimeLabel, runtimeTabComponent.getPanel());
                 LOG.info("initializeContent: Added Runtime tab (experimental)");
             } else {
-                reportsTabComponent = null;
                 runtimeTabComponent = null;
-                LOG.info("initializeContent: Reports and Runtime tabs hidden (experimental features disabled)");
+                LOG.info("initializeContent: Runtime tab hidden (experimental features disabled)");
             }
 
             // Load initial state (empty - wait for user to analyze)
@@ -431,24 +443,6 @@ public class MigrationToolWindow implements ToolWindowFactory {
             boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
             System.out.println("DEBUG: MigrationToolWindow - experimentalEnabled = " + experimentalEnabled);
             
-            // Find the Reports tab index if it exists
-            int reportsTabIndex = findTabIndex("Reports");
-            boolean reportsTabExists = reportsTabIndex >= 0;
-            
-            // Add or remove Reports tab
-            if (experimentalEnabled && !reportsTabExists && reportsTabComponent == null) {
-                reportsTabComponent = new ReportsTabComponent(project, analysisService, advancedScanningService, errorReportingService);
-                // Insert after Platforms tab (find appropriate position)
-                int platformsIndex = findTabIndex("Platforms");
-                int insertIndex = platformsIndex >= 0 ? platformsIndex + 1 : tabbedPane.getTabCount();
-                tabbedPane.insertTab("Reports 📊 (Experimental)", null, reportsTabComponent.getPanel(), null, insertIndex);
-                LOG.info("refreshExperimentalTabs: Reports tab added at index " + insertIndex);
-            } else if (!experimentalEnabled && reportsTabExists) {
-                tabbedPane.removeTabAt(reportsTabIndex);
-                reportsTabComponent = null;
-                LOG.info("refreshExperimentalTabs: Reports tab removed");
-            }
-            
             // Find the Runtime tab index if it exists
             int runtimeTabIndex = findTabIndex("Runtime");
             boolean runtimeTabExists = runtimeTabIndex >= 0;
@@ -456,12 +450,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Add or remove Runtime tab
             if (experimentalEnabled && !runtimeTabExists && runtimeTabComponent == null) {
                 runtimeTabComponent = new RuntimeTabComponent(project);
-                // Insert after Reports tab if it exists, otherwise after Platforms
-                int insertAfter = findTabIndex("Reports");
-                if (insertAfter < 0) {
-                    insertAfter = findTabIndex("Platforms");
-                }
-                int insertIndex = insertAfter >= 0 ? insertAfter + 1 : tabbedPane.getTabCount();
+                // Insert after Platforms tab
+                int platformsIndex = findTabIndex("Platforms");
+                int insertIndex = platformsIndex >= 0 ? platformsIndex + 1 : tabbedPane.getTabCount();
                 tabbedPane.insertTab("Runtime ⚡ (Experimental)", null, runtimeTabComponent.getPanel(), null, insertIndex);
                 LOG.info("refreshExperimentalTabs: Runtime tab added at index " + insertIndex);
             } else if (!experimentalEnabled && runtimeTabExists) {
@@ -1470,10 +1461,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
         public void refreshPremiumTabs() {
             System.out.println("DEBUG: refreshPremiumTabs() called");
             ApplicationManager.getApplication().invokeLater(() -> {
-                // Note: SimplePlatformsTabComponent doesn't need manual refresh
-                // It handles state internally
-                System.out.println("DEBUG: Platforms tab uses simplified component - no manual refresh needed");
-                // Note: AdvancedScansComponent doesn't have refreshUI() method, so we'll skip them for now
+                // Rebuild entire UI to reflect premium status changes
+                rebuildUI();
             });
         }
         

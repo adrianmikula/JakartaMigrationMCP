@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.preferences;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -15,6 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Unit tests for UserPreferencesService to verify centralized preferences storage
  * and workspace isolation functionality.
  */
+@Tag("slow")
 class UserPreferencesServiceTest {
 
     @TempDir

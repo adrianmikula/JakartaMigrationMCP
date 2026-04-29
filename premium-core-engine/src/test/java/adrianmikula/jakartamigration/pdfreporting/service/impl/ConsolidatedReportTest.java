@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @Disabled("PDF generation requires external resources or configuration not available in test environment")
 @Tag("integration")
+@Tag("slow")
 class ConsolidatedReportTest {
 
     private PdfReportService pdfReportService;

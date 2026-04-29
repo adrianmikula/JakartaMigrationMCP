@@ -23,35 +23,30 @@ Write-Host "🚀 Fast Test Loop - Mode: $Mode" -ForegroundColor Cyan
 switch ($Mode) {
     "compile" {
         Write-Host "📦 Running compilation check..." -ForegroundColor Yellow
-        $cmd = ".\gradlew.bat :premium-core-engine:compileJava @gradleFlags"
-        Invoke-Expression $cmd
+        & ".\gradlew.bat" ":premium-core-engine:compileJava" @gradleFlags
         if ($LASTEXITCODE -eq 0) {
             Write-Host "✅ Compilation successful - Ready for fast development!" -ForegroundColor Green
         }
     }
-    
+
     "fast" {
         Write-Host "⚡ Running fast unit tests only..." -ForegroundColor Yellow
-        $cmd = ".\gradlew.bat :premium-core-engine:fastTest @gradleFlags"
-        Invoke-Expression $cmd
+        & ".\gradlew.bat" ":premium-core-engine:fastTest" @gradleFlags
     }
-    
+
     "core" {
         Write-Host "🔧 Running core functionality tests..." -ForegroundColor Yellow
-        $cmd = ".\gradlew.bat :premium-core-engine:coreTest @gradleFlags"
-        Invoke-Expression $cmd
+        & ".\gradlew.bat" ":premium-core-engine:coreTest" @gradleFlags
     }
-    
+
     "pdf" {
         Write-Host "📄 Running PDF generation tests only..." -ForegroundColor Yellow
-        $cmd = ".\gradlew.bat :premium-core-engine:test --tests `"*PdfReportServiceImplTest*`" @gradleFlags"
-        Invoke-Expression $cmd
+        & ".\gradlew.bat" ":premium-core-engine:test" "--tests" "*PdfReportServiceImplTest*" @gradleFlags
     }
-    
+
     "all" {
         Write-Host "🧪 Running all tests..." -ForegroundColor Yellow
-        $cmd = ".\gradlew.bat :premium-core-engine:test @gradleFlags"
-        Invoke-Expression $cmd
+        & ".\gradlew.bat" ":premium-core-engine:test" @gradleFlags
     }
 }
 

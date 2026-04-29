@@ -1,12 +1,14 @@
 package adrianmikula.jakartamigration.analysis.persistence;
 
 import adrianmikula.jakartamigration.advancedscanning.domain.*;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Path;
 import java.util.List;
 
+@Tag("slow")
 public class DomainSerializationTest {
 
     private final ObjectMapperService objectMapperService = new ObjectMapperService();

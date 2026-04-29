@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.config;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -12,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * These tests verify that the premium simulation works correctly
  * and only applies in development mode with the proper system properties.
  */
+@Tag("slow")
 class PremiumSimulationTest {
 
     private static final String DEV_MODE_PROPERTY = "jakarta.migration.mode";

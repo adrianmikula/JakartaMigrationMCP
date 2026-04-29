@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.analytics.config;
 
 import adrianmikula.jakartamigration.analytics.util.ConcurrencyTestHelper;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -16,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests for configuration validation edge cases.
  * Tests malformed properties, missing files, and invalid values.
  */
+@Tag("slow")
 class ConfigurationValidationTest {
 
     @TempDir

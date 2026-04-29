@@ -45,6 +45,9 @@ public class RiskAnalysisSnippetFactory {
             request.riskScore()
         ));
         
+        // Dependency graph visualization - interactive force-directed graph
+        snippets.add(new DependencyGraphSnippet(request.dependencyGraph()));
+        
         // Advanced scan summary - counts per category
         if (request.scanResults() != null) {
             AdvancedScanSummarySnippet advancedScanSummary = new AdvancedScanSummarySnippet(request.scanResults());

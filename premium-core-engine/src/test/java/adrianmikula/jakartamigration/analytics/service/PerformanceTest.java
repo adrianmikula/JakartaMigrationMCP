@@ -5,6 +5,7 @@ import adrianmikula.jakartamigration.analytics.util.ConcurrencyTestHelper;
 import adrianmikula.jakartamigration.analytics.util.TestDataFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.*;
  * Performance and load testing for analytics services.
  * Tests throughput, memory usage, and scalability under load.
  */
+@Tag("slow")
 @ExtendWith(MockitoExtension.class)
 class PerformanceTest {
 

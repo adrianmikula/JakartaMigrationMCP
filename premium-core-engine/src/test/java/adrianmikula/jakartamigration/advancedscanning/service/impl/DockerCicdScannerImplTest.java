@@ -4,6 +4,7 @@ import adrianmikula.jakartamigration.advancedscanning.domain.DockerCicdUsage;
 import adrianmikula.jakartamigration.advancedscanning.service.DockerCicdScanner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -20,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Re-enable when scanner implementation is finalized.
  */
 @Disabled("Scanner implementation not yet complete or missing test resources")
+@Tag("slow")
 class DockerCicdScannerImplTest {
     
     private DockerCicdScanner scanner;

@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.platforms.service;
 import adrianmikula.jakartamigration.platforms.service.SimplifiedPlatformDetectionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -17,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Unit tests for SimplifiedPlatformDetectionService
  * Tests common artifact matching, variable resolution, and file-based search patterns
  */
+@Tag("slow")
 public class SimplifiedPlatformDetectionServiceTest {
     
     private SimplifiedPlatformDetectionService detectionService;

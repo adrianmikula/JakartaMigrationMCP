@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.analytics.service;
 
 import adrianmikula.jakartamigration.analytics.config.SupabaseConfig;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -16,6 +17,7 @@ import static org.mockito.Mockito.*;
 /**
  * Unit tests for UserIdentificationService.
  */
+@Tag("slow")
 @ExtendWith(MockitoExtension.class)
 class UserIdentificationServiceTest {
 

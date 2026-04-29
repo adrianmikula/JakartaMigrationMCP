@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Integration tests for recipe seeding during module initialization.
  * Tests the actual CodeRefactoringModule startup flow and validates DB state.
  */
-@Tag("fast")
+@Tag("slow")
 class RecipeSeedingIntegrationTest {
 
     @TempDir

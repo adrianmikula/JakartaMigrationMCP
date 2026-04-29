@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.pdfreporting.service.impl;
 import adrianmikula.jakartamigration.pdfreporting.service.PdfReportService;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Test class for HtmlToPdfReportServiceImpl PDF conversion functionality.
  */
+@Tag("slow")
 class HtmlToPdfReportServiceImplTest {
 
     private HtmlToPdfReportServiceImpl pdfService;

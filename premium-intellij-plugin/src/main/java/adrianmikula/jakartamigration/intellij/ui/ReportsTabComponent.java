@@ -15,6 +15,7 @@ import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
 import adrianmikula.jakartamigration.analytics.service.ErrorReportingService;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
+import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -42,7 +43,7 @@ import java.util.HashMap;
 
 /**
  * Reports tab component for generating HTML reports based on scan data.
- * This is an experimental feature that requires premium + experimental features enabled.
+ * This is a premium feature that requires a premium license.
  */
 public class ReportsTabComponent {
 
@@ -55,6 +56,8 @@ public class ReportsTabComponent {
     private final AdvancedScanningService advancedScanningService;
     private final CreditsService creditsService;
     private final ErrorReportingService errorReportingService;
+    
+    private PlatformsTabComponent platformsTabComponent;
     
     // UI Components
     private final JButton generateRiskAnalysisReportButton;
@@ -335,6 +338,18 @@ public class ReportsTabComponent {
                         "phase4", Map.of("name", "Testing & Validation", "description", "Comprehensive testing")
                     );
                     
+                    // Get platform scan results if available
+                    EnhancedPlatformScanResult platformScanResults = null;
+                    if (platformsTabComponent != null) {
+                        platformScanResults = platformsTabComponent.getCurrentScanResult();
+                        if (platformScanResults != null) {
+                            SwingUtilities.invokeLater(() -> {
+                                outputArea.append("Platform scan results included: " + 
+                                    platformScanResults.getDetectedPlatforms().size() + " platforms detected\n");
+                            });
+                        }
+                    }
+                    
                     PdfReportService.RiskAnalysisReportRequest request = new PdfReportService.RiskAnalysisReportRequest(
                         outputPath,
                         project.getName(),
@@ -342,7 +357,7 @@ public class ReportsTabComponent {
                         dependencyGraph,
                         null, // analysisReport
                         scanResults,
-                        null, // platformScanResults
+                        platformScanResults,
                         null, // riskScore - will be calculated in service
                         "Incremental",
                         strategyDetails,
@@ -815,6 +830,11 @@ public class ReportsTabComponent {
             // Report error to Supabase for analytics
             errorReportingService.reportError(e, "HTML Consolidated Report Generation");
         }
+    }
+    
+    public void setPlatformsTabComponent(PlatformsTabComponent platformsTabComponent) {
+        this.platformsTabComponent = platformsTabComponent;
+        LOG.info("ReportsTabComponent: PlatformsTabComponent set for report generation");
     }
     
     public void refresh() {

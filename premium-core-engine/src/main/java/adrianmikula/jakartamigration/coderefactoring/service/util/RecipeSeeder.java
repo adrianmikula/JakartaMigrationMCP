@@ -209,7 +209,7 @@ public class RecipeSeeder {
      * Gets the current plugin version from version.properties file.
      */
     private static String getPluginVersion() {
-        try (InputStream is = RecipeSeeder.class.getClassLoader().getResourceAsStream(VERSION_PROPERTIES)) {
+        try (InputStream is = RecipeSeeder.class.getResourceAsStream("/" + VERSION_PROPERTIES)) {
             if (is != null) {
                 Properties props = new Properties();
                 props.load(is);
@@ -228,7 +228,7 @@ public class RecipeSeeder {
 
     @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> loadRecipesFromJson() {
-        try (InputStream is = RecipeSeeder.class.getClassLoader().getResourceAsStream(RECIPES_JSON)) {
+        try (InputStream is = RecipeSeeder.class.getResourceAsStream("/" + RECIPES_JSON)) {
             if (is == null) {
                 log.warn("{} not found on classpath", RECIPES_JSON);
                 return Collections.emptyList();
@@ -283,7 +283,7 @@ public class RecipeSeeder {
 
     @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> loadUpgradeRecommendationsFromJson() {
-        try (InputStream is = RecipeSeeder.class.getClassLoader().getResourceAsStream(RECIPES_JSON)) {
+        try (InputStream is = RecipeSeeder.class.getResourceAsStream("/" + RECIPES_JSON)) {
             if (is == null) {
                 log.warn("{} not found on classpath, no upgrade recommendations loaded", RECIPES_JSON);
                 return Collections.emptyList();

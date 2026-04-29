@@ -4,6 +4,7 @@ import adrianmikula.jakartamigration.pdfreporting.service.PdfReportService;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.io.TempDir;
@@ -27,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Test class for Refactoring Action Report generation functionality.
  * Tests the new consolidated Refactoring Action Report with comprehensive data.
  */
+@Tag("slow")
 class RefactoringActionReportTest {
 
     @TempDir

@@ -30,6 +30,7 @@ import static org.mockito.Mockito.*;
  */
 @Disabled("Requires external Supabase instance and network access")
 @Tag("integration")
+@Tag("slow")
 @ExtendWith(MockitoExtension.class)
 class NetworkFailureTest {
 

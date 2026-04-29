@@ -5,6 +5,7 @@ import adrianmikula.jakartamigration.pdfreporting.service.impl.HtmlToPdfReportSe
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.io.TempDir;
 import org.xml.sax.SAXException;
 import javax.xml.parsers.DocumentBuilder;
@@ -20,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Consolidated test for PDF report service initialization and template functionality.
  * Merges BasicTemplateTest and ProfessionalReportTest to eliminate duplication.
  */
+@Tag("slow")
 class PdfReportServiceTest {
 
     private HtmlToPdfReportServiceImpl service;

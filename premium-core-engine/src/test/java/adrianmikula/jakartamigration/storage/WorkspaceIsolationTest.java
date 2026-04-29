@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.storage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -19,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
  * Comprehensive tests for workspace isolation and state management
  * in centralized database system.
  */
+@Tag("slow")
 class WorkspaceIsolationTest {
 
     @TempDir

@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.recipevalidation;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -25,6 +26,7 @@ import java.util.Set;
  * - Upgrade recommendations are properly linked (if applicable)
  */
 @Disabled("Recipe configuration issues - low importance validation test")
+@Tag("slow")
 @DisplayName("Recipe Loop Validation Test")
 public class RecipeLoopValidationTest {
 

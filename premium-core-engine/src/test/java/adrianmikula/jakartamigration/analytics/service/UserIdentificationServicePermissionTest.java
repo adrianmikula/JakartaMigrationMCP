@@ -4,6 +4,7 @@ import adrianmikula.jakartamigration.analytics.config.SupabaseConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -17,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Unit tests for permission tracking functionality in UserIdentificationService.
  */
+@Tag("slow")
 public class UserIdentificationServicePermissionTest {
     
     @TempDir

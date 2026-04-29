@@ -1,6 +1,7 @@
 package adrianmikula.jakartamigration.advancedscanning.service.impl;
 
 import adrianmikula.jakartamigration.advancedscanning.domain.DependencyTreeResult;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -15,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Unit tests for DependencyTreeCommandExecutorImpl.
  * Tests command availability checks and dependency tree execution.
  */
+@Tag("slow")
 class DependencyTreeCommandExecutorImplTest {
 
     @Test

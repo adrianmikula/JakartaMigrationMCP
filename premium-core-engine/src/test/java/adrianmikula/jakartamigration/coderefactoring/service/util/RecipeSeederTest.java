@@ -4,6 +4,7 @@ import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalys
 import adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -12,6 +13,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Tag("slow")
 class RecipeSeederTest {
 
     @TempDir

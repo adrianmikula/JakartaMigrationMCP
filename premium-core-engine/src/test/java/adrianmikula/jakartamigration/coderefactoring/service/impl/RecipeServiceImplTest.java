@@ -9,6 +9,7 @@ import adrianmikula.jakartamigration.coderefactoring.domain.RecipeExecutionResul
 import adrianmikula.jakartamigration.coderefactoring.domain.RecipeType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -19,6 +20,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Tag("slow")
 class RecipeServiceImplTest {
 
     @TempDir

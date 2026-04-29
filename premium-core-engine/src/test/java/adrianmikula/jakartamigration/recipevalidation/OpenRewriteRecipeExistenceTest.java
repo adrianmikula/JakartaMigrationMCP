@@ -1,6 +1,7 @@
 package adrianmikula.jakartamigration.recipevalidation;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.Recipe;
 import org.openrewrite.config.Environment;
@@ -21,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Test to verify that all recipes in recipes.json that use OpenRewrite type
  * have valid OpenRewrite recipe class names that actually exist in OpenRewrite.
  */
+@Tag("slow")
 @DisplayName("OpenRewrite Recipe Existence Test")
 public class OpenRewriteRecipeExistenceTest {
 
