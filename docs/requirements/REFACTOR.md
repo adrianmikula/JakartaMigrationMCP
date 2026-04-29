@@ -84,7 +84,7 @@ add a test which fails if the JSON config contains recipes which are missing the
 
 
 ## Integration Tests
-- loop through all recipes in recipes.yaml and run them, to ensure they exist and are configured correctly
-- loop through all recipes in recipes.yaml to chack that they exist in openrewrite's list
+- loop through all recipes in recipes.json and run them, to ensure they exist and are configured correctly
+- loop through all recipes in recipes.json to chack that they exist in openrewrite's list
 
 

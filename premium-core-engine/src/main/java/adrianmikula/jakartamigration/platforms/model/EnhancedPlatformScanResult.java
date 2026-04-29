@@ -4,26 +4,37 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Enhanced platform scan result that includes deployment artifact counts
+ * Enhanced platform scan result that includes deployment artifact counts and platform details.
+ * Contains raw data only - risk scores must be calculated by RiskScoringService using risk-score.yaml.
  */
 public class EnhancedPlatformScanResult {
     private final List<String> detectedPlatforms;
     private final List<String> inferredPlatforms;
+    private final List<PlatformDetection> detectedPlatformDetails;
     private final Map<String, Integer> deploymentArtifacts;
     private final Map<String, Integer> platformSpecificArtifacts;
     
     public EnhancedPlatformScanResult(List<String> detectedPlatforms, 
                                     Map<String, Integer> deploymentArtifacts,
                                     Map<String, Integer> platformSpecificArtifacts) {
-        this(detectedPlatforms, List.of(), deploymentArtifacts, platformSpecificArtifacts);
+        this(detectedPlatforms, List.of(), List.of(), deploymentArtifacts, platformSpecificArtifacts);
     }
     
     public EnhancedPlatformScanResult(List<String> detectedPlatforms,
                                     List<String> inferredPlatforms,
                                     Map<String, Integer> deploymentArtifacts,
                                     Map<String, Integer> platformSpecificArtifacts) {
+        this(detectedPlatforms, inferredPlatforms, List.of(), deploymentArtifacts, platformSpecificArtifacts);
+    }
+    
+    public EnhancedPlatformScanResult(List<String> detectedPlatforms,
+                                    List<String> inferredPlatforms,
+                                    List<PlatformDetection> detectedPlatformDetails,
+                                    Map<String, Integer> deploymentArtifacts,
+                                    Map<String, Integer> platformSpecificArtifacts) {
         this.detectedPlatforms = detectedPlatforms;
         this.inferredPlatforms = inferredPlatforms;
+        this.detectedPlatformDetails = detectedPlatformDetails;
         this.deploymentArtifacts = deploymentArtifacts;
         this.platformSpecificArtifacts = platformSpecificArtifacts;
     }
@@ -36,8 +47,16 @@ public class EnhancedPlatformScanResult {
         return inferredPlatforms;
     }
     
+    public List<PlatformDetection> getDetectedPlatformDetails() {
+        return detectedPlatformDetails;
+    }
+    
     public boolean hasInferredPlatforms() {
         return inferredPlatforms != null && !inferredPlatforms.isEmpty();
+    }
+    
+    public boolean hasPlatformDetails() {
+        return detectedPlatformDetails != null && !detectedPlatformDetails.isEmpty();
     }
     
     public Map<String, Integer> getDeploymentArtifacts() {

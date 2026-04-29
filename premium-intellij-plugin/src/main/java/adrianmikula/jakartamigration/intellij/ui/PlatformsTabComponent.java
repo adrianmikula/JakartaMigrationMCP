@@ -1,7 +1,6 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.platforms.model.PlatformDetection;
-import adrianmikula.jakartamigration.platforms.model.PlatformScanResult;
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import adrianmikula.jakartamigration.platforms.model.PlatformConfig;
 import adrianmikula.jakartamigration.platforms.model.JakartaCompatibility;

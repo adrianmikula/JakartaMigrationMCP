@@ -122,45 +122,7 @@ Prerequisites:
 
 ---
 
-### Section 6: Before/After Code Examples
-**Purpose:** Visual reference for common migration patterns
-**Data Sources:**
-- `scanResults` via existing `CodeExamplesSnippet`
-- Hardcoded common patterns for:
-  - Servlet API (javax.servlet → jakarta.servlet)
-  - JPA API (javax.persistence → jakarta.persistence)
-  - CDI API (javax.inject → jakarta.inject)
-  - JAX-RS API (javax.ws.rs → jakarta.ws.rs)
-
-**Layout:**
-- Section heading: "Before/After Code Examples"
-- Intro paragraph
-- Example cards (one per API category) with:
-  - Category label (e.g., "Servlet API")
-  - Side-by-side comparison:
-    - Left: "Before (javax)" with old code
-    - Right: "After (jakarta)" with new code
-  - Code in monospace font with syntax highlighting colors
-
-**Sample Content Structure:**
-```
-[Servlet API Example]
-┌─────────────────────┬─────────────────────┐
-│ Before (javax)      │ After (jakarta)     │
-├─────────────────────┼─────────────────────┤
-│ import javax.servlet│ import jakarta.serv-│
-│ .http.HttpServlet;  │ let.http.HttpServlet│
-│                     │                     │
-│ public class MyServ-│ public class MyServ-│
-│ let extends HttpServ│ let extends HttpServ│
-│ let { ... }         │ let { ... }         │
-└─────────────────────┴─────────────────────┘
-```
-
----
-
-
-### Section 7: Manual Migration Tasks
+### Section 6: Manual Migration Tasks
 **Purpose:** Identify changes requiring developer intervention
 **Data Sources:**
 - `javaxReferences` filtered where `recipeAvailable=false`

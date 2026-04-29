@@ -4,6 +4,8 @@ import adrianmikula.jakartamigration.analytics.config.SupabaseConfig;
 import adrianmikula.jakartamigration.analytics.util.ConcurrencyTestHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -21,7 +23,12 @@ import static org.mockito.Mockito.*;
 /**
  * Tests for concurrent access safety in analytics services.
  * Tests thread safety, race conditions, and data consistency.
+ * 
+ * DISABLED: Requires external Supabase instance and network access.
+ * Re-enable when running integration tests with proper infrastructure.
  */
+@Disabled("Requires external Supabase instance and network access")
+@Tag("integration")
 @ExtendWith(MockitoExtension.class)
 class ConcurrentAccessTest {
 

@@ -21,12 +21,34 @@ import java.util.stream.Collectors;
  * Utility to seed default recipes and upgrade recommendations into central store.
  * All recipes are loaded from recipes.json to keep configuration centralized.
  * Implements soft-delete semantics: recipes are never deleted, only marked archived.
+ * 
+ * Mode behavior:
+ * - dev: Fail-fast on missing required fields (throws IllegalStateException)
+ * - demo/production: Gracefully skip invalid recipes and continue
  */
 @Slf4j
 public class RecipeSeeder {
 
     private static final String RECIPES_JSON = "recipes.json";
     private static final String VERSION_PROPERTIES = "version.properties";
+    private static final String MODE_PROPERTY = "jakarta.migration.mode";
+
+    /**
+     * Gets the current operating mode from system property.
+     * Defaults to "production" if not set.
+     * 
+     * @return mode: "dev", "demo", or "production"
+     */
+    private static String getMode() {
+        return System.getProperty(MODE_PROPERTY, "production");
+    }
+
+    /**
+     * Checks if running in development mode.
+     */
+    private static boolean isDevMode() {
+        return "dev".equalsIgnoreCase(getMode());
+    }
 
     /**
      * Seeds default recipes from recipes.json with versioning and soft-delete support.
@@ -38,7 +60,9 @@ public class RecipeSeeder {
      */
     public static void seedDefaultRecipes(CentralMigrationAnalysisStore store) {
         String pluginVersion = getPluginVersion();
-        log.info("Seeding default migration recipes from {} (plugin version: {})...", RECIPES_JSON, pluginVersion);
+        String mode = getMode();
+        log.info("Seeding default migration recipes from {} (plugin version: {}, mode: {})...", 
+                RECIPES_JSON, pluginVersion, mode);
 
         // Load current recipes from config
         List<Map<String, Object>> jsonRecipes = loadRecipesFromJson();
@@ -77,6 +101,7 @@ public class RecipeSeeder {
         // Step 2: Insert new recipes (never update existing)
         int insertedCount = 0;
         int skippedCount = 0;
+        int invalidCount = 0;
         for (Map<String, Object> jsonRecipe : jsonRecipes) {
             String name = (String) jsonRecipe.get("name");
 
@@ -87,29 +112,49 @@ public class RecipeSeeder {
                 continue;
             }
 
-            RecipeDefinition recipe = buildRecipeFromJson(jsonRecipe, pluginVersion);
-            if (recipe != null) {
-                store.insertRecipe(recipe);
-                insertedCount++;
-                log.info("Inserted new recipe: {} (version: {})", name, pluginVersion);
+            try {
+                RecipeDefinition recipe = buildRecipeFromJson(jsonRecipe, pluginVersion);
+                if (recipe != null) {
+                    store.insertRecipe(recipe);
+                    insertedCount++;
+                    log.info("Inserted new recipe: {} (version: {})", name, pluginVersion);
+                }
+            } catch (IllegalStateException e) {
+                // In dev mode, this will propagate up and fail the seeding
+                // In prod/demo mode, we catch and continue
+                invalidCount++;
+                log.error("Recipe '{}' is invalid and was skipped: {}", name, e.getMessage());
+                if (isDevMode()) {
+                    throw e; // Re-throw in dev mode to fail-fast
+                }
             }
         }
 
-        log.info("Recipe seeding complete: {} inserted, {} skipped (existing), {} archived",
-                insertedCount, skippedCount, archivedCount);
+        log.info("Recipe seeding complete: {} inserted, {} skipped (existing), {} archived, {} invalid",
+                insertedCount, skippedCount, archivedCount, invalidCount);
     }
 
     /**
      * Builds a RecipeDefinition from JSON data.
+     * Throws IllegalStateException in dev mode if required fields are missing.
      */
     private static RecipeDefinition buildRecipeFromJson(Map<String, Object> jsonRecipe, String pluginVersion) {
         String name = (String) jsonRecipe.get("name");
         String description = (String) jsonRecipe.get("description");
-        String safety = (String) jsonRecipe.get("safety");
         Boolean reversible = (Boolean) jsonRecipe.get("reversible");
         String fileFilter = (String) jsonRecipe.get("fileFilter");
         String openRewriteClass = (String) jsonRecipe.get("openRewriteClass");
         String pattern = (String) jsonRecipe.get("pattern");
+
+        // Validate required fields in dev mode
+        if (isDevMode()) {
+            if (name == null || name.trim().isEmpty()) {
+                throw new IllegalStateException("Recipe name is required but missing or blank");
+            }
+            if (openRewriteClass == null || openRewriteClass.trim().isEmpty()) {
+                throw new IllegalStateException("Recipe '" + name + "' is missing required field: openRewriteClass");
+            }
+        }
 
         @SuppressWarnings("unchecked")
         List<Map<String, String>> replacements = (List<Map<String, String>>) jsonRecipe.get("replacements");
@@ -213,7 +258,6 @@ public class RecipeSeeder {
                 String description = (String) recommendation.get("description");
                 String recipeName = (String) recommendation.get("recipeName");
                 String pattern = (String) recommendation.get("pattern");
-                String safety = (String) recommendation.get("safety");
                 Boolean reversible = (Boolean) recommendation.get("reversible");
 
                 RecipeDefinition recipe = RecipeDefinition.builder()

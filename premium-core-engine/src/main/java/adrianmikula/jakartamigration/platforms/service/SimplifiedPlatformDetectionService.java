@@ -1,8 +1,10 @@
 package adrianmikula.jakartamigration.platforms.service;
 
 import adrianmikula.jakartamigration.platforms.config.PlatformConfigLoader;
-
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
+import adrianmikula.jakartamigration.platforms.model.PlatformDetection;
+import adrianmikula.jakartamigration.platforms.model.PlatformConfig;
+import adrianmikula.jakartamigration.platforms.model.JakartaCompatibility;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -159,7 +161,10 @@ public class SimplifiedPlatformDetectionService {
             log.debug("Inferred {} platforms from artifacts: {}", inferredServers.size(), inferredServers);
         }
 
-        return new EnhancedPlatformScanResult(detectedServers, inferredServers, deploymentArtifacts, platformSpecificArtifacts);
+        // Create PlatformDetection objects from config (data collection only, no risk calculation)
+        List<PlatformDetection> platformDetails = createPlatformDetectionObjects(detectedServers);
+
+        return new EnhancedPlatformScanResult(detectedServers, inferredServers, platformDetails, deploymentArtifacts, platformSpecificArtifacts);
     }
 
     /**
@@ -685,6 +690,64 @@ public class SimplifiedPlatformDetectionService {
         
         log.debug("Installed servers scan complete. Found {} servers: {}", servers.size(), servers);
         return servers;
+    }
+
+    /**
+     * Creates PlatformDetection objects from detected platform names using config.
+     * This is data collection only - no risk calculation is performed here.
+     * Risk scores must be calculated by RiskScoringService using risk-score.yaml.
+     *
+     * @param detectedPlatforms List of detected platform names
+     * @return List of PlatformDetection objects with details from config
+     */
+    private List<PlatformDetection> createPlatformDetectionObjects(List<String> detectedPlatforms) {
+        List<PlatformDetection> platformDetails = new ArrayList<>();
+        
+        for (String platformName : detectedPlatforms) {
+            PlatformConfig config = configLoader.getPlatformConfig(platformName);
+            if (config != null) {
+                // Extract details from config
+                String platformType = platformName;
+                String detectedVersion = "unknown"; // Version detection would require additional scanning
+                boolean isJakartaCompatible = false;
+                String minJakartaVersion = null;
+                Map<String, String> requirements = config.requirements() != null 
+                    ? new HashMap<>(config.requirements()) 
+                    : new HashMap<>();
+                
+                // Check Jakarta compatibility from config
+                if (config.jakartaCompatibility() != null) {
+                    isJakartaCompatible = true;
+                    minJakartaVersion = config.jakartaCompatibility().minVersion();
+                }
+                
+                PlatformDetection detection = new PlatformDetection(
+                    platformType,
+                    config.name(),
+                    detectedVersion,
+                    isJakartaCompatible,
+                    minJakartaVersion,
+                    requirements
+                );
+                platformDetails.add(detection);
+                log.debug("Created PlatformDetection for {}: compatible={}, minJakarta={}", 
+                    platformName, isJakartaCompatible, minJakartaVersion);
+            } else {
+                log.debug("No config found for platform: {}, creating minimal detection", platformName);
+                // Create minimal detection for platforms without config
+                PlatformDetection detection = new PlatformDetection(
+                    platformName,
+                    platformName,
+                    "unknown",
+                    false,
+                    null,
+                    new HashMap<>()
+                );
+                platformDetails.add(detection);
+            }
+        }
+        
+        return platformDetails;
     }
     
     /**

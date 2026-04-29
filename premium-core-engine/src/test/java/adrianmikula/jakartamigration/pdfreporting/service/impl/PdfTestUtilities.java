@@ -4,7 +4,7 @@ import adrianmikula.jakartamigration.pdfreporting.service.PdfReportService;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
-import adrianmikula.jakartamigration.platforms.model.PlatformScanResult;
+import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import adrianmikula.jakartamigration.risk.RiskScoringService;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -40,8 +40,10 @@ public class PdfTestUtilities {
 
     /**
      * Creates mock platform scan results for testing.
+     * Returns EnhancedPlatformScanResult with raw data only (no risk scores).
+     * Risk scores must be calculated by RiskScoringService using risk-score.yaml.
      */
-    public static PlatformScanResult createMockPlatformScanResult() {
+    public static EnhancedPlatformScanResult createMockPlatformScanResult() {
         // For now, return null since constructor is complex and tests handle null gracefully
         return null;
     }

@@ -319,9 +319,10 @@ dependencyRisks:
 riskCalculation:
   # Weights for different components in overall score
   componentWeights:
-    dependencyIssues: 0.50      # 50% from dependency issues
-    codeComplexity: 0.25        # 25% from code complexity
-    platformRisk: 0.25          # 25% from platform compatibility
+    dependencyIssues: 0.40      # 40% from dependency issues
+    codeComplexity: 0.20        # 20% from code complexity
+    platformRisk: 0.20          # 20% from platform compatibility
+    validationConfidence: 0.20  # 20% - validation confidence score
     
   # Minimum scan threshold to include in scoring
   minScanThreshold: 0.5

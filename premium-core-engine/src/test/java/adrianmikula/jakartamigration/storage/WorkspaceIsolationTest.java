@@ -28,8 +28,8 @@ class WorkspaceIsolationTest {
 
     @BeforeEach
     void setUp() {
-        System.setProperty("user.home", tempDir.toString());
-        store = new CentralizedMigrationStore();
+        Path dbPath = tempDir.resolve(".jakartamigration").resolve("jakarta-migration.db");
+        store = new CentralizedMigrationStore(dbPath.toString());
     }
 
     @AfterEach

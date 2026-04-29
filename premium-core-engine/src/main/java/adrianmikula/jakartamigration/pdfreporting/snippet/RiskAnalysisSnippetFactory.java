@@ -45,10 +45,24 @@ public class RiskAnalysisSnippetFactory {
             request.riskScore()
         ));
         
+        // Advanced scan summary - counts per category
+        if (request.scanResults() != null) {
+            AdvancedScanSummarySnippet advancedScanSummary = new AdvancedScanSummarySnippet(request.scanResults());
+            if (advancedScanSummary.isApplicable()) {
+                snippets.add(advancedScanSummary);
+            }
+        }
+        
+        // Risk dials - visual gauge representations with factor breakdowns
+        snippets.add(new RiskDialsSnippet(
+            request.riskScore(),
+            request.scanResults(),
+            request.dependencyGraph()
+        ));
+        
         // Enhanced snippets for comprehensive analysis
         snippets.add(new DependencyMatrixSnippet(request.dependencyGraph()));
         snippets.add(new PlatformDetectionSnippet(request.platformScanResults()));
-        snippets.add(new CodeExamplesSnippet());
         snippets.add(new RiskFindingsDetailSnippet(request.riskScore()));
         snippets.add(new ComponentScoreSnippet(request.riskScore()));
         snippets.add(new RiskHeatMapSnippet(
@@ -56,11 +70,18 @@ public class RiskAnalysisSnippetFactory {
             request.scanResults(),
             request.riskScore()
         ));
-        snippets.add(new ImplementationRoadmapSnippet(
-            request.dependencyGraph(),
-            request.scanResults(),
-            request.riskScore()
-        ));
+        
+        // Migration strategies from property files
+        var strategiesSnippet = new MigrationStrategiesSnippet();
+        if (strategiesSnippet.isApplicable()) {
+            snippets.add(strategiesSnippet);
+        }
+        
+        // Strategy comparison table
+        var comparisonSnippet = new StrategyComparisonSnippet();
+        if (comparisonSnippet.isApplicable()) {
+            snippets.add(comparisonSnippet);
+        }
         
         return snippets;
     }

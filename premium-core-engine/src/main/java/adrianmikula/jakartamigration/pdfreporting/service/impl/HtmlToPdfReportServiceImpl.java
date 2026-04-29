@@ -709,9 +709,76 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
         log.info("Generating HTML using snippet-based architecture");
         
         try {
+            // Calculate risk score if not provided
+            RiskScoringService.RiskScore calculatedRiskScore = request.riskScore();
+            if (calculatedRiskScore == null) {
+                log.info("Risk score not provided, calculating from scan results and dependency graph");
+                RiskScoringService riskScoringService = RiskScoringService.getInstance();
+                
+                // Calculate simple metrics for risk scoring
+                int totalIssues = request.scanResults() != null ? request.scanResults().totalIssuesFound() : 0;
+                int nonCompatibleDeps = 0;
+                int blockers = 0;
+                
+                if (request.dependencyGraph() != null && request.dependencyGraph().getEdges() != null) {
+                    for (var dep : request.dependencyGraph().getEdges()) {
+                        if (!dep.to().isJakartaCompatible()) {
+                            nonCompatibleDeps++;
+                        }
+                    }
+                }
+                
+                // Use the simpler calculation method that returns a double
+                double rawScore = riskScoringService.calculateRiskScore(
+                    blockers,
+                    nonCompatibleDeps,
+                    totalIssues,
+                    0 // critical issues count from scan results summary
+                );
+                
+                // Create a RiskScore object from the calculated double
+                String category = determineRiskCategory(rawScore);
+                String categoryLabel = getCategoryLabel(category);
+                String categoryColor = getCategoryColor(category);
+                
+                calculatedRiskScore = new RiskScoringService.RiskScore(
+                    rawScore,
+                    category,
+                    categoryLabel,
+                    categoryColor,
+                    Map.of(
+                        "dependencyIssues", (int) Math.min(rawScore * 0.4, 100),
+                        "codeComplexity", (int) Math.min(rawScore * 0.2, 100),
+                        "platformRisk", (int) Math.min(rawScore * 0.2, 100),
+                        "validationConfidence", (int) Math.min(rawScore * 0.2, 100)
+                    ),
+                    Collections.emptyList()
+                );
+                log.info("Calculated risk score: {}", calculatedRiskScore.totalScore());
+            }
+            
+            // Create request with calculated risk score
+            RiskAnalysisReportRequest requestWithScore = new RiskAnalysisReportRequest(
+                request.outputPath(),
+                request.projectName(),
+                request.reportTitle(),
+                request.dependencyGraph(),
+                request.analysisReport(),
+                request.scanResults(),
+                request.platformScanResults(),
+                calculatedRiskScore,
+                request.recommendedStrategy(),
+                request.strategyDetails(),
+                request.validationMetrics(),
+                request.topBlockers(),
+                request.recommendations(),
+                request.implementationPhases(),
+                request.customData()
+            );
+            
             // Create snippets using the factory
             RiskAnalysisSnippetFactory factory = new RiskAnalysisSnippetFactory();
-            List<adrianmikula.jakartamigration.pdfreporting.snippet.HtmlSnippet> snippets = factory.createSnippets(request);
+            List<adrianmikula.jakartamigration.pdfreporting.snippet.HtmlSnippet> snippets = factory.createSnippets(requestWithScore);
             
             // Assemble the complete HTML report
             ReportAssembler assembler = new ReportAssembler();
@@ -725,6 +792,33 @@ public class HtmlToPdfReportServiceImpl implements PdfReportService {
             // Fallback to simplified template if snippet generation fails
             return generateFallbackHtml(request);
         }
+    }
+    
+    private String determineRiskCategory(double score) {
+        if (score < 25) return "low";
+        if (score < 50) return "medium";
+        if (score < 75) return "high";
+        return "extreme";
+    }
+    
+    private String getCategoryLabel(String category) {
+        return switch (category) {
+            case "low" -> "Low Risk";
+            case "medium" -> "Medium Risk";
+            case "high" -> "High Risk";
+            case "extreme" -> "Extreme Risk";
+            default -> "Unknown";
+        };
+    }
+    
+    private String getCategoryColor(String category) {
+        return switch (category) {
+            case "low" -> "#27ae60";
+            case "medium" -> "#f39c12";
+            case "high" -> "#e74c3c";
+            case "extreme" -> "#8e44ad";
+            default -> "#95a5a6";
+        };
     }
     
     /**

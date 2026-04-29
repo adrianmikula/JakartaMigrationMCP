@@ -35,21 +35,7 @@ Successfully implemented comprehensive improvements to the Risk HTML report gene
   - Spring Boot 3.x+ versions (Jakarta EE 10 compatible)
   - `javax.*` artifacts (need migration)
 
-### 3. `ImplementationRoadmapSnippet.java` - Dynamic Timeline & Resources
-**Before:**
-- Fixed values: "8-12 weeks", "4-6 developers", "320-480 hours"
-
-**After:**
-- Added constructor to receive actual scan data
-- `calculateTimelineEstimate()`: Calculates from:
-  - Dependency count (0.3 weeks per dependency)
-  - Issue count (0.5 weeks per 5-issue batch)
-  - Risk score multiplier (1.0-2.0x)
-- Dynamic team size based on calculated weeks
-- Dynamic effort hours based on team size
-- Success rate based on risk score (inverse relationship)
-
-### 4. `DependencyMatrixSnippet.java` - Specific Compatibility Recommendations
+### 3. `DependencyMatrixSnippet.java` - Specific Compatibility Recommendations
 **Before:**
 - Generic recommendations: "Available", "Package rename", "Low"
 
@@ -77,7 +63,7 @@ Successfully implemented comprehensive improvements to the Risk HTML report gene
   - "Upgrade to Hibernate 6.4.x"
   - "Use jakarta.servlet 6.0"
 
-### 5. NEW `ExecutiveSummarySnippet.java` - PM/PO Business-Focused Summary
+### 4. NEW `ExecutiveSummarySnippet.java` - PM/PO Business-Focused Summary
 **Created:** New snippet for executive audience with:
 
 - **Business Overview**: Project metrics, files analyzed, issues identified
@@ -86,10 +72,9 @@ Successfully implemented comprehensive improvements to the Risk HTML report gene
 - **Strategic Recommendations**: Risk-level-specific action items
 - **Immediate Next Steps**: Clear action items for stakeholders
 
-### 6. `RiskAnalysisSnippetFactory.java` - Factory Updates
+### 5. `RiskAnalysisSnippetFactory.java` - Factory Updates
 **Changes:**
 - Added `ExecutiveSummarySnippet` to snippet list
-- Updated `ImplementationRoadmapSnippet` instantiation to pass actual data
 
 ## Key Improvements Summary
 
@@ -97,10 +82,10 @@ Successfully implemented comprehensive improvements to the Risk HTML report gene
 |--------|--------|-------|
 | Module Risk Calculation | Hardcoded (75/60/55...) | From scan data (issue density + critical issues) |
 | Compatibility Count | Fixed 70% | Actual artifact analysis |
-| Timeline Estimates | Fixed 8-12 weeks | Calculated from dependencies + issues |
 | Jakarta Version Advice | Generic "Available" | Specific versions (3.2.x, 6.0, 3.1...) |
 | Breaking Changes | Generic "Package rename" | Artifact-specific details |
 | Business Impact | None | Risk-level specific statements |
+| Risk Dials | None | Visual gauges with factor breakdowns |
 
 ## Target Audience Value
 
@@ -137,6 +122,11 @@ Successfully implemented comprehensive improvements to the Risk HTML report gene
    - Overall project risk
    - Timeline multiplier
    - Success rate calculation
+
+4. `DependencyGraph.getDependencies()`:
+   - Dependency status (BLOCKER, NON_COMPATIBLE, JAKARTA_COMPATIBLE)
+   - Organisational dependency count
+   - Known vs unknown dependency ratios
 
 ## Testing
 All changes compile successfully with:

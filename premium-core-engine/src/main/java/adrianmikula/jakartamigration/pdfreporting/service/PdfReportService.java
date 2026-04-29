@@ -4,7 +4,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
 import adrianmikula.jakartamigration.advancedscanning.service.ScanRecipeRecommendationService;
-import adrianmikula.jakartamigration.platforms.model.PlatformScanResult;
+import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import adrianmikula.jakartamigration.risk.RiskScoringService;
 
 import java.nio.file.Path;
@@ -70,7 +70,7 @@ public interface PdfReportService {
         DependencyGraph dependencyGraph,
         DependencyAnalysisReport analysisReport,
         ComprehensiveScanResults scanResults,
-        PlatformScanResult platformScanResults,
+        EnhancedPlatformScanResult platformScanResults,
         ReportTemplate template,
         Map<String, Object> customData
     ) {}
@@ -144,7 +144,7 @@ public interface PdfReportService {
         DependencyGraph dependencyGraph,
         DependencyAnalysisReport analysisReport,
         ComprehensiveScanResults scanResults,
-        PlatformScanResult platformScanResults,
+        EnhancedPlatformScanResult platformScanResults,
         RiskScoringService.RiskScore riskScore,
         String recommendedStrategy,
         Map<String, Object> strategyDetails,
@@ -191,7 +191,7 @@ public interface PdfReportService {
         DependencyGraph dependencyGraph,
         DependencyAnalysisReport analysisReport,
         ComprehensiveScanResults scanResults,
-        PlatformScanResult platformScanResults,
+        EnhancedPlatformScanResult platformScanResults,
         RiskScoringService.RiskScore riskScore,
         String recommendedStrategy,
         Map<String, Object> strategyDetails,

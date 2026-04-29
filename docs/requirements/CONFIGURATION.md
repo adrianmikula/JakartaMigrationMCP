@@ -23,8 +23,8 @@ defined in JSON
 
 
 # Startup Actions
-- Recipes should be loaded from recipes.yaml when the plugin starts up, and inserted into the DB table to ensure it's up to date with the config.
-- The DB should use the recipe name as the PK for the recipe and history tables, to avoid breaking history records if the order in the YAML changes between releases.
+- Recipes should be loaded from recipes.json when the plugin starts up, and inserted into the DB table to ensure it's up to date with the config.
+- The DB should use the recipe name as the PK for the recipe and history tables, to avoid breaking history records if the order in the JSON changes between releases.
 
 
 

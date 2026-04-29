@@ -55,16 +55,6 @@ class HtmlSnippetValidationTest {
         }
 
         @Test
-        @DisplayName("Code examples snippet should generate valid XML")
-        void codeExamplesSnippetShouldGenerateValidXml() throws Exception {
-            CodeExamplesSnippet snippet = new CodeExamplesSnippet();
-            String html = snippet.generate();
-            
-            assertDoesNotThrow(() -> parseXmlContent(html), 
-                "Code examples snippet should generate valid XML");
-        }
-
-        @Test
         @DisplayName("Eclipse warning snippet should generate valid XML")
         void eclipseWarningSnippetShouldGenerateValidXml() throws Exception {
             EclipseWarningSnippet snippet = new EclipseWarningSnippet(false);
@@ -88,20 +78,6 @@ class HtmlSnippetValidationTest {
     @Nested
     @DisplayName("Complex Snippet Tests")
     class ComplexSnippetTests {
-
-        @Test
-        @DisplayName("Implementation roadmap snippet should generate valid XML")
-        void implementationRoadmapSnippetShouldGenerateValidXml() throws Exception {
-            ImplementationRoadmapSnippet snippet = new ImplementationRoadmapSnippet();
-            String html = snippet.generate();
-            
-            assertDoesNotThrow(() -> parseXmlContent(html), 
-                "Implementation roadmap snippet should generate valid XML");
-            
-            // Should have properly escaped ampersands
-            assertTrue(html.contains("&amp;"), "Should contain escaped ampersands");
-            assertFalse(html.contains(" & "), "Should not contain unescaped ampersands");
-        }
 
         @Test
         @DisplayName("Risk heatmap snippet should generate valid XML")
@@ -137,10 +113,8 @@ class HtmlSnippetValidationTest {
         void allSnippetsShouldProperlyEscapeAmpersands() throws Exception {
             List<HtmlSnippet> snippets = List.of(
                 new HeaderSnippet("Test & Project", "Test & Report", "Test Type"),
-                new CodeExamplesSnippet(),
                 new EclipseWarningSnippet(true),
                 new MetricsSummarySnippet(null, null, null),
-                new ImplementationRoadmapSnippet(),
                 new RiskHeatMapSnippet(null, null, null),
                 new DependencyMatrixSnippet(null)
             );

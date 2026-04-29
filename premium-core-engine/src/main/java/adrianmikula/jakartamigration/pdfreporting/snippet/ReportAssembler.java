@@ -71,6 +71,7 @@ public class ReportAssembler {
             <title>%s</title>
             <meta charset="UTF-8"></meta>
             <meta name="viewport" content="width=device-width, initial-scale=1.0"></meta>
+            <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
             <style>
                 body {
                     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -465,6 +466,70 @@ public class ReportAssembler {
                 .snippet-error h4 {
                     color: #d32f2f;
                     margin: 0 0 10px 0;
+                }
+                .gauge-container {
+                    height: 200px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 20px 0;
+                }
+                .gauge {
+                    width: 100%%;
+                    height: 100%%;
+                    position: relative;
+                }
+                .gauge canvas {
+                    max-width: 100%%;
+                    max-height: 100%%;
+                }
+                .dials-container {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                    gap: 30px;
+                    margin: 20px 0;
+                }
+                .dial-card {
+                    background: white;
+                    border-radius: 8px;
+                    padding: 20px;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                    text-align: center;
+                }
+                .dial-card h3 {
+                    margin: 0 0 20px 0;
+                    color: #2c3e50;
+                }
+                .dial-score {
+                    font-size: 2em;
+                    font-weight: bold;
+                    margin: 10px 0;
+                }
+                .dial-score.low { color: #27ae60; }
+                .dial-score.medium { color: #f39c12; }
+                .dial-score.high { color: #e74c3c; }
+                .dial-label {
+                    color: #7f8c8d;
+                    margin-bottom: 15px;
+                }
+                .factor-list {
+                    margin-top: 20px;
+                    text-align: left;
+                }
+                .factor-item {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 8px 0;
+                    border-bottom: 1px solid #e9ecef;
+                }
+                .factor-item.green { color: #27ae60; }
+                .factor-item.red { color: #e74c3c; }
+                .factor-item.orange { color: #f39c12; }
+                .factor-label {
+                    flex: 1;
+                }
+                .factor-value {
+                    font-weight: bold;
                 }
                 @media print {
                     body { padding: 20px; }

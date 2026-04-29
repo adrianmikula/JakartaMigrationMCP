@@ -496,7 +496,7 @@ A: Recipes target Jakarta EE 9+ (namespace change). Jakarta EE 10+ features are 
 A: Detection works for any `javax.*` usage, but recommendations assume Java EE 8 baseline. Earlier versions may require additional migration steps.
 
 **Q: Can I contribute custom recipes?**
-A: Recipes are loaded from `recipes.yaml`. Custom recipe support is a Premium feature via the `CUSTOM_RECIPES` feature flag.
+A: Recipes are loaded from `recipes.json`. Custom recipe support is a Premium feature via the `CUSTOM_RECIPES` feature flag.
 
 **Q: Why does the scan take so long on my project?**
 A: First scan builds caches. Subsequent scans use SoftReference cache (5-minute TTL). Large projects (>1M LOC) will take 1-2 minutes. Consider reducing `advanced.scan.parallelism` if memory-constrained.

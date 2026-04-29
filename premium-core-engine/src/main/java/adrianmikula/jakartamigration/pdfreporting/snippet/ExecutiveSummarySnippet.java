@@ -41,12 +41,10 @@ public class ExecutiveSummarySnippet extends BaseHtmlSnippet {
                 %s
                 %s
                 %s
-                %s
             </div>
             """,
             generateBusinessOverview(),
             generateRiskSummary(),
-            generateResourceEstimate(),
             generateKeyRecommendations()
         );
     }
@@ -149,59 +147,6 @@ public class ExecutiveSummarySnippet extends BaseHtmlSnippet {
         );
     }
     
-    private String generateResourceEstimate() {
-        TimelineEstimate estimate = calculateTimelineEstimate();
-        
-        return String.format("""
-            <div class="executive-resources">
-                <h3>📋 Resource Requirements</h3>
-                <div class="resource-cards">
-                    <div class="resource-card">
-                        <div class="resource-icon">⏱️</div>
-                        <div class="resource-details">
-                            <span class="resource-value">%d-%d weeks</span>
-                            <span class="resource-label">Estimated Duration</span>
-                        </div>
-                    </div>
-                    <div class="resource-card">
-                        <div class="resource-icon">👥</div>
-                        <div class="resource-details">
-                            <span class="resource-value">%d-%d people</span>
-                            <span class="resource-label">Team Size</span>
-                        </div>
-                    </div>
-                    <div class="resource-card">
-                        <div class="resource-icon">💰</div>
-                        <div class="resource-details">
-                            <span class="resource-value">%d-%d hrs</span>
-                            <span class="resource-label">Total Effort</span>
-                        </div>
-                    </div>
-                    <div class="resource-card">
-                        <div class="resource-icon">🎯</div>
-                        <div class="resource-details">
-                            <span class="resource-value">%d%%</span>
-                            <span class="resource-label">Success Probability</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="resource-breakdown">
-                    <p><strong>Key Factors:</strong> Based on %d dependencies requiring analysis and %d files with migration issues.</p>
-                </div>
-            </div>
-            """,
-            estimate.minWeeks,
-            estimate.maxWeeks,
-            estimate.minTeamSize,
-            estimate.maxTeamSize,
-            estimate.minHours,
-            estimate.maxHours,
-            estimate.successRate,
-            estimate.dependencyCount,
-            estimate.issueCount
-        );
-    }
-    
     private String generateKeyRecommendations() {
         double riskScoreValue = getRiskScore();
         String riskLevel = determineRiskLevel(riskLevelScore(riskScoreValue));
@@ -268,37 +213,6 @@ public class ExecutiveSummarySnippet extends BaseHtmlSnippet {
         );
     }
     
-    private TimelineEstimate calculateTimelineEstimate() {
-        int dependencyCount = getDependencyCount();
-        int issueCount = (scanResults != null && scanResults.summary() != null)
-            ? scanResults.summary().filesWithIssues() : 0;
-        double riskScoreValue = getRiskScore();
-        
-        int baseWeeks = 1;
-        double weeksPerDep = 0.3;
-        int depWeeks = (int) Math.ceil(dependencyCount * weeksPerDep);
-        double weeksPerIssueBatch = 0.5;
-        int issueWeeks = (int) Math.ceil(Math.max(issueCount, 5) / 5.0 * weeksPerIssueBatch);
-        
-        double riskMultiplier = 1.0 + (riskScoreValue / 100.0);
-        int calculatedWeeks = (int) Math.ceil((baseWeeks + depWeeks + issueWeeks) * riskMultiplier);
-        
-        int minWeeks = Math.max(2, calculatedWeeks - 2);
-        int maxWeeks = calculatedWeeks + 2;
-        
-        int minTeamSize = Math.max(2, Math.min(3, calculatedWeeks / 3));
-        int maxTeamSize = Math.max(4, Math.min(8, calculatedWeeks / 2));
-        
-        int avgTeamSize = (minTeamSize + maxTeamSize) / 2;
-        int minHours = minWeeks * avgTeamSize * 30;
-        int maxHours = maxWeeks * maxTeamSize * 40;
-        
-        int successRate = (int) Math.max(60, 95 - (riskScoreValue / 2));
-        
-        return new TimelineEstimate(minWeeks, maxWeeks, dependencyCount, issueCount,
-            minTeamSize, maxTeamSize, minHours, maxHours, successRate);
-    }
-    
     private double getRiskScore() {
         return (riskScore != null) ? riskScore.totalScore() : 50.0;
     }
@@ -344,15 +258,4 @@ public class ExecutiveSummarySnippet extends BaseHtmlSnippet {
         return 25; // Show early in report, after header/warning but before detailed metrics
     }
     
-    private record TimelineEstimate(
-        int minWeeks,
-        int maxWeeks,
-        int dependencyCount,
-        int issueCount,
-        int minTeamSize,
-        int maxTeamSize,
-        int minHours,
-        int maxHours,
-        int successRate
-    ) {}
 }

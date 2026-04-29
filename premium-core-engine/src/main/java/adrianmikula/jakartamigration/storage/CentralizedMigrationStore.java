@@ -16,12 +16,22 @@ import java.util.*;
 public class CentralizedMigrationStore implements AutoCloseable {
 
     private static final int DB_VERSION = 1;
-    private static final String DB_PATH = System.getProperty("user.home") + "/.jakartamigration/jakarta-migration.db";
+    private static final String DEFAULT_DB_PATH = System.getProperty("user.home") + "/.jakartamigration/jakarta-migration.db";
 
+    private final String dbPath;
     private final ThreadLocal<Connection> connectionHolder = new ThreadLocal<>();
     private final ObjectMapperService objectMapper;
 
     public CentralizedMigrationStore() {
+        this(DEFAULT_DB_PATH);
+    }
+
+    /**
+     * Constructor for testing with custom database path.
+     * @param customDbPath Custom path for the database file
+     */
+    public CentralizedMigrationStore(String customDbPath) {
+        this.dbPath = customDbPath;
         this.objectMapper = new ObjectMapperService();
         initializeDatabase();
     }
@@ -29,7 +39,7 @@ public class CentralizedMigrationStore implements AutoCloseable {
     private Connection getConnection() throws SQLException {
         Connection conn = connectionHolder.get();
         if (conn == null || conn.isClosed()) {
-            conn = DriverManager.getConnection("jdbc:sqlite:" + DB_PATH);
+            conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
             conn.setAutoCommit(false);
             connectionHolder.set(conn);
         }
@@ -412,7 +422,7 @@ public class CentralizedMigrationStore implements AutoCloseable {
     }
 
     public Path getDatabasePath() {
-        return Path.of(DB_PATH);
+        return Path.of(dbPath);
     }
 
     @Override
