@@ -36,19 +36,19 @@ public class DependencyGraphSnippet extends BaseHtmlSnippet {
                     <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Legend</h4>
                     <div style="display: flex; gap: 20px; flex-wrap: wrap;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <div style="width: 16px; height: 16px; background: #28a745; border-radius: 50%; border: 2px solid #1e7e34;"></div>
+                            <div style="width: 16px; height: 16px; background: #28a745; border-radius: 50%%; border: 2px solid #1e7e34;"></div>
                             <span style="color: #333;">Jakarta Compatible</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <div style="width: 16px; height: 16px; background: #ffc107; border-radius: 50%; border: 2px solid #d39e00;"></div>
+                            <div style="width: 16px; height: 16px; background: #ffc107; border-radius: 50%%; border: 2px solid #d39e00;"></div>
                             <span style="color: #333;">Needs Update</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <div style="width: 16px; height: 16px; background: #dc3545; border-radius: 50%; border: 2px solid #c82333;"></div>
+                            <div style="width: 16px; height: 16px; background: #dc3545; border-radius: 50%%; border: 2px solid #c82333;"></div>
                             <span style="color: #333;">No Jakarta Version</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <div style="width: 16px; height: 16px; background: #6c757d; border-radius: 50%; border: 2px solid #545b62;"></div>
+                            <div style="width: 16px; height: 16px; background: #6c757d; border-radius: 50%%; border: 2px solid #545b62;"></div>
                             <span style="color: #333;">Unknown Status</span>
                         </div>
                     </div>

@@ -58,9 +58,11 @@ class HtmlToPdfReportServiceImplTest {
         
         // Then
         assertNotNull(result);
-        assertTrue(result.toFile().exists(), "PDF file should exist");
-        assertTrue(result.toFile().length() > 0, "PDF file should not be empty");
-        assertEquals(outputPath, result, "Should return the expected output path");
+        assertTrue(result.toFile().exists(), "Report file should exist");
+        assertTrue(result.toFile().length() > 0, "Report file should not be empty");
+        // PDF generation disabled - expecting HTML output
+        assertTrue(result.toString().endsWith(".html"), "Should return HTML file path");
+        assertEquals(outputPath.toString().replace(".pdf", ".html"), result.toString(), "Should return the expected HTML output path");
     }
 
     @Test
@@ -106,9 +108,11 @@ class HtmlToPdfReportServiceImplTest {
         
         // Then
         assertNotNull(result);
-        assertTrue(result.toFile().exists(), "PDF file should exist");
-        assertTrue(result.toFile().length() > 0, "PDF file should not be empty");
-        assertEquals(outputPath, result, "Should return the expected output path");
+        assertTrue(result.toFile().exists(), "Report file should exist");
+        assertTrue(result.toFile().length() > 0, "Report file should not be empty");
+        // PDF generation disabled - expecting HTML output
+        assertTrue(result.toString().endsWith(".html"), "Should return HTML file path");
+        assertEquals(outputPath.toString().replace(".pdf", ".html"), result.toString(), "Should return the expected HTML output path");
     }
 
     @Test
@@ -139,24 +143,33 @@ class HtmlToPdfReportServiceImplTest {
         customData.put("projectName", "Test Project");
         customData.put("description", "Test Description");
         
-        PdfReportService.GeneratePdfReportRequest request = new PdfReportService.GeneratePdfReportRequest(
+        // When - generate consolidated report
+        PdfReportService.ConsolidatedReportRequest consolidatedRequest = new PdfReportService.ConsolidatedReportRequest(
             tempDir.resolve("comprehensive-report.pdf"),
+            "Test Project",
+            "Comprehensive Report",
             dependencyGraph,
-            null,
+            null, // analysisReport
             scanResults,
-            null,
-            pdfService.getDefaultTemplate(),
+            null, // platformScanResults
+            null, // riskScore
+            "Test Strategy",
+            Map.of(), // strategyDetails
+            Map.of(), // validationMetrics
+            List.of(), // topBlockers
+            scanResults.recommendations(),
+            Map.of(), // implementationPhases
             customData
         );
-        
-        // When
-        Path result = pdfService.validateReportRequest(request).isValid() ? request.outputPath() : null;
+        Path result = pdfService.generateConsolidatedReport(consolidatedRequest);
         
         // Then
         assertNotNull(result);
-        assertTrue(result.toFile().exists(), "PDF file should exist");
-        assertTrue(result.toFile().length() > 0, "PDF file should not be empty");
-        assertEquals(request.outputPath(), result, "Should return the expected output path");
+        assertTrue(result.toFile().exists(), "Report file should exist");
+        assertTrue(result.toFile().length() > 0, "Report file should not be empty");
+        // PDF generation disabled - expecting HTML output
+        assertTrue(result.toString().endsWith(".html"), "Should return HTML file path");
+        assertEquals(consolidatedRequest.outputPath().toString().replace(".pdf", ".html"), result.toString(), "Should return the expected HTML output path");
     }
 
     @Test

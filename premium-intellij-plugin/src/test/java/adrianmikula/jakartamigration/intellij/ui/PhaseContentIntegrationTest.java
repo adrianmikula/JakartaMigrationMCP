@@ -5,8 +5,8 @@ import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.intellij.ui.MigrationPhasesComponent;
 import adrianmikula.jakartamigration.intellij.ui.MigrationStrategyComponent.MigrationStrategy;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.Before;
+import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -22,7 +22,8 @@ public class PhaseContentIntegrationTest extends BasePlatformTestCase {
 
     private MigrationPhasesComponent phasesComponent;
 
-    @BeforeEach
+    @Before
+    @Override
     public void setUp() throws Exception {
         super.setUp();
         phasesComponent = new MigrationPhasesComponent(getProject());

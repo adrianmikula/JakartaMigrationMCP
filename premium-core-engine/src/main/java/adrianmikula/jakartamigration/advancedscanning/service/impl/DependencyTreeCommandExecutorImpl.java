@@ -43,6 +43,10 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
     @Override
     public CompletableFuture<DependencyTreeResult> executeMavenDependencyTreeAsync(Path pomXmlPath, Set<String> scopes) {
         return CompletableFuture.supplyAsync(() -> {
+            // Fast-fail if Maven is not available in the environment
+            if (!isMavenAvailable()) {
+                return DependencyTreeResult.error("mvn command not found");
+            }
             List<String> command = buildMavenCommand(scopes, pomXmlPath.getParent());
             return executeCommand(command, pomXmlPath.getParent(), "mvn dependency:tree",
                 process -> parseMavenJsonOutput(process, scopes));
@@ -52,6 +56,10 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
     @Override
     public CompletableFuture<DependencyTreeResult> executeGradleDependenciesAsync(Path buildFilePath, Set<String> scopes) {
         return CompletableFuture.supplyAsync(() -> {
+            // Fast-fail if Gradle is not available in the environment
+            if (!isGradleAvailable()) {
+                return DependencyTreeResult.error("gradle command not found");
+            }
             List<String> command = buildGradleCommand(scopes, buildFilePath.getParent());
             return executeCommand(command, buildFilePath.getParent(), "gradle dependencies",
                 process -> parseGradleOutput(process, scopes));
@@ -138,11 +146,22 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
             String errorMsg = e.getMessage();
             log.error("Failed to execute {}: {}", cmdName, errorMsg);
             
-            // Provide more helpful error messages for common issues
+            // Provide more helpful error messages for common issues, especially missing executables
+            String lower = errorMsg == null ? "" : errorMsg.toLowerCase();
+            if (errorMsg == null || errorMsg.isEmpty() || lower.contains("cannot run program")
+                || lower.contains("no such file or directory") || lower.contains("not found")) {
+                String commandName = command.get(0);
+                String toolName = cmdName.contains("Maven") ? "Maven" : "Gradle";
+                return DependencyTreeResult.error(
+                    commandName + " not found. Please install " + toolName + " or ensure a " + toolName +
+                    " wrapper (mvnw/mvnw.bat) is available in the project directory.");
+            }
+
+            // Fallback: existing specific message for common wrapper issues
             if (errorMsg.contains("Cannot run program") && errorMsg.contains("CreateProcess error=2")) {
                 String commandName = command.get(0);
                 return DependencyTreeResult.error(String.format(
-                    "%s command not found. Please install %s or ensure a %s wrapper (mvnw/mvnw.bat) is available in the project directory.",
+                    "%s command not found. Please install %s or ensure a %s wrapper (mvnw/mvnw.bat) is available in the project directory.", 
                     commandName, cmdName.contains("Maven") ? "Maven" : "Gradle", cmdName.contains("Maven") ? "Maven" : "Gradle"));
             }
             

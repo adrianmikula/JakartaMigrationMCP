@@ -98,12 +98,11 @@ class ScannerRecommendationsSnippetTest {
     @Test
     @DisplayName("Should skip null or blank recommendations")
     void shouldSkipNullOrBlankRecommendations() throws SnippetGenerationException {
-        // Arrange
+        // Arrange - testing blank strings, null tested in separate test
         List<String> recommendations = List.of(
             "Valid recommendation",
             "",
-            "   ",
-            null
+            "   "
         );
         var scanResults = createScanResultsWithRecommendations(recommendations);
         var snippet = new ScannerRecommendationsSnippet(scanResults);

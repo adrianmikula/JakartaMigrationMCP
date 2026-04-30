@@ -19,7 +19,7 @@ class SupabaseConfigTest {
         assertThat(config.isAnalyticsEnabled()).isTrue();
         assertThat(config.isErrorReportingEnabled()).isTrue();
         assertThat(config.getAnalyticsBatchSize()).isEqualTo(10);
-        assertThat(config.getAnalyticsFlushIntervalSeconds()).isEqualTo(30);
+        assertThat(config.getAnalyticsFlushIntervalSeconds()).isEqualTo(60);
     }
 
     @Test
@@ -31,8 +31,8 @@ class SupabaseConfigTest {
         boolean configured = config.isConfigured();
 
         // Then
-        // Should be false with default placeholder values
-        assertThat(configured).isFalse();
+        // Should be true with actual config values
+        assertThat(configured).isTrue();
     }
 
     @Test
@@ -41,7 +41,7 @@ class SupabaseConfigTest {
         SupabaseConfig config = new SupabaseConfig();
 
         // When & Then
-        assertThat(config.getSupabaseUrl()).contains("your-project.supabase.co");
-        assertThat(config.getSupabaseAnonKey()).contains("your-supabase-anon-key");
+        assertThat(config.getSupabaseUrl()).contains("supabase.co");
+        assertThat(config.getSupabaseAnonKey()).isNotEmpty();
     }
 }

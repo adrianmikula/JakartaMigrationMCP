@@ -38,7 +38,7 @@ public class UserIdentificationService implements AutoCloseable {
     }
     
     public UserIdentificationService(Path storagePath, SupabaseConfig supabaseConfig) {
-        this.preferencesService = new UserPreferencesService();
+        this.preferencesService = storagePath != null ? new UserPreferencesService(storagePath) : new UserPreferencesService();
         this.supabaseConfig = supabaseConfig;
         this.anonymousUserId = loadOrCreateUserId();
         updateLastSeen();

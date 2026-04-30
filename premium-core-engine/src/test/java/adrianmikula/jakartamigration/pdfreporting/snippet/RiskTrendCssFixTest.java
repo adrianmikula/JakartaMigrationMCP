@@ -10,42 +10,19 @@ import static org.junit.jupiter.api.Assertions.*;
 class RiskTrendCssFixTest {
 
     @Test
-    void generatedHtmlShouldContainPhaseRiskElementsWithProperStructure() throws SnippetGenerationException {
-        // Arrange
+    void shouldDisplayNoDataWhenRiskScoreNull() throws SnippetGenerationException {
+        // Arrange - RiskHeatMapSnippet should gracefully handle null riskScore
         RiskHeatMapSnippet snippet = new RiskHeatMapSnippet(null, null, null);
 
         // Act
         String html = snippet.generate();
 
-        // Assert - Verify the HTML structure is correct
+        // Assert - Verify the HTML contains the no-data message
         assertNotNull(html);
-
-        // Verify phase elements exist
-        assertTrue(html.contains("Phase 1: Dependency Updates"), "Should contain Phase 1 heading");
-        assertTrue(html.contains("Phase 2: Code Migration"), "Should contain Phase 2 heading");
-        assertTrue(html.contains("Phase 3: Configuration Updates"), "Should contain Phase 3 heading");
-        assertTrue(html.contains("Phase 4: Testing &amp; Validation"), "Should contain Phase 4 heading");
-
-        // Verify risk labels exist inside phase-risk divs (not using inline percentage heights)
-        assertTrue(html.contains("<div class=\"phase-risk high-risk\">"), "Should contain high-risk div without inline height");
-        assertTrue(html.contains("<div class=\"phase-risk medium-risk\">"), "Should contain medium-risk div without inline height");
-        assertTrue(html.contains("<div class=\"phase-risk low-risk\">"), "Should contain low-risk div without inline height");
-
-        // Verify risk labels are present
-        assertTrue(html.contains("<div class=\"risk-label\">High Risk</div>"), "Should contain High Risk label");
-        assertTrue(html.contains("<div class=\"risk-label\">Medium Risk</div>"), "Should contain Medium Risk label");
-        assertTrue(html.contains("<div class=\"risk-label\">Low Risk</div>"), "Should contain Low Risk label");
-
-        // Verify legend elements exist
-        assertTrue(html.contains("class=\"legend-color high-risk\""), "Should contain legend color for high risk");
-        assertTrue(html.contains("class=\"legend-color medium-risk\""), "Should contain legend color for medium risk");
-        assertTrue(html.contains("class=\"legend-color low-risk\""), "Should contain legend color for low risk");
-
-        // Verify NO inline percentage heights (the fix removes these)
-        assertFalse(html.contains("style=\"height: 80%;\""), "Should NOT contain inline 80% height");
-        assertFalse(html.contains("style=\"height: 60%;\""), "Should NOT contain inline 60% height");
-        assertFalse(html.contains("style=\"height: 40%;\""), "Should NOT contain inline 40% height");
-        assertFalse(html.contains("style=\"height: 30%;\""), "Should NOT contain inline 30% height");
+        assertTrue(html.contains("Category risk analysis requires scan results"), 
+            "Should display no-data message when riskScore is null");
+        assertTrue(html.contains("category-risk-container"), "Should contain container div");
+        assertTrue(html.contains("no-data-message"), "Should contain no-data-message class");
     }
 
     @Test

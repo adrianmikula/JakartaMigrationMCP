@@ -76,14 +76,14 @@ public class NewFeatureNotificationTest {
         assertNotNull(yesLink);
         assertEquals("Yes", yesLink.getText());
         assertEquals(10f, yesLink.getFont().getSize(), 0.1f);
-        assertEquals(Cursor.HAND_CURSOR, yesLink.getCursor());
+        assertEquals(new Cursor(Cursor.HAND_CURSOR), yesLink.getCursor());
         
         // Find No link
         JLabel noLink = findLabelByText(panel, "No");
         assertNotNull(noLink);
         assertEquals("No", noLink.getText());
         assertEquals(10f, noLink.getFont().getSize(), 0.1f);
-        assertEquals(Cursor.HAND_CURSOR, noLink.getCursor());
+        assertEquals(new Cursor(Cursor.HAND_CURSOR), noLink.getCursor());
     }
     
     @Test

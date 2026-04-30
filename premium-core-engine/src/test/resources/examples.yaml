@@ -1,0 +1,180 @@
+# Example Projects for Advanced Integration Testing
+# This file contains URLs to real-world projects for testing refactor recipes, 
+# advanced scans, and platform scans
+
+# =============================================================================
+# APPLICATION SERVER EXAMPLES
+# =============================================================================
+application_servers:
+  - name: "Apache Tomcat"
+    description: "Apache Tomcat embedded with comprehensive dependencies for migration testing"
+    url: "https://github.com/jyeary/tomcat-9-embedded"
+      
+  - name: "WildFly"
+    description: "WildFly with real WildFly dependencies for migration testing"
+    url: "https://github.com/tolis-e/arquillian-wildfly-example"
+      
+  - name: "Spring Boot"
+    description: "Spring with javax packages for migration testing"
+    url: "https://github.com/joshlong-attic/boot-examples"
+      
+  - name: "Payara"
+    description: "Payara Micro with javax packages for migration testing"
+    url: "https://github.com/OndroMih/Payara-Micro-Reactive-Example/"
+    
+  - name: "GlassFish"
+    description: "GlassFish Server with javax packages for migration testing"
+    url: "https://github.com/javaee/glassfish"
+    
+  - name: "NetBeans"
+    description: "NetBeans Platform with javax packages for migration testing"
+    url: "https://github.com/apache/netbeans"
+
+  - name: "Docker Tomcat"
+    description: "Dockerfile with Tomcat for advanced scan testing"
+    url: "https://github.com/gbsnaker/docker-tomcat-java-example"
+
+  - name: "Jetty"
+    description: "Jetty with javax packages for migration testing"
+    url: "https://github.com/ismailfer/java-jetty10-websocket-javax"
+
+  - name: "Spring"
+    description: "Spring2 with javax dependency"
+    url: "https://github.com/EAG-es/spring2_oauth2_example"
+  - name: "Spring Boot Parent POM"
+    description: "Spring Boot project using parent POM (tests our detection fix)"
+    url: "https://github.com/EightAugusto/spring-boot-parent-example"
+
+  - name: "JBoss EAP"
+    description: "JBoss EAP with javax dependency"
+    url: "https://github.com/techatspree/jbosscc-as7-examples"
+
+  - name: "WebSphere Liberty"
+    description: "WebSphere Liberty with Spring Boot integration example"
+    url: "https://github.com/WASdev/sample.Spring"
+      
+  - name: "WebSphere"
+    description: "IBM WebSphere traditional application server with JEE6 example"
+    url: "https://github.com/IBMAppModernization/app-modernization-plants-by-websphere-jee6"
+
+  - name: "SpringBoot on WildFly"
+    description: "SpringBoot on WildFly with javax dependency"
+    url: "https://github.com/JakMar17/SpringBoot-WildFly"  
+
+# =============================================================================
+# JAVAX PACKAGE EXAMPLES
+# =============================================================================
+javax_packages:
+  - name: "javax-validation"
+    description: "application using javax.validation package"
+    url: "https://github.com/asniii/JavaxValidation"
+      
+  - name: "Servlet example"
+    description: "Basic servlet using javax.servlet package"
+    url: "https://github.com/javaee-samples/javaee7-samples/tree/main/jakartamigration/servlet"
+      
+  - name: "Mail javax examples"
+    description: "Mail library using javax packages"
+    url: "https://github.com/AlsGomes/SendMailExample-using-javax.mail"
+
+  - name: "RS javax examples"
+    description: "RS library using javax packages"
+    url: "https://github.com/vavasilva/ExampleJsonJavaxRS"
+
+  - name: "WS javax examples"
+    description: "WS library using javax packages"
+    url: "https://github.com/cvonheeren/RestJavaxwsExample"
+
+  - name: "JPA example"
+    description: "JPA library using javax"
+    url: "https://github.com/tomdantuit/jpa-attribute-converter"
+
+  - name: "Security example"
+    description: "OAuth2 used with Spring 2 project"
+    url: "https://github.com/EAG-es/spring2_oauth2_example"
+
+
+# =============================================================================
+# BUILD SYSTEM EXAMPLES
+# =============================================================================
+build_systems:
+  - name: "Maven"
+    description: "Maven project using javax packages"
+    url: "https://github.com/mkyong/maven-examples"
+
+  - name: "Gradle"
+    description: "Gradle project using javax packages"
+    url: "https://github.com/pkainulainen/gradle-examples"
+
+  - name: "Modern Java Practices"
+    description: "Real-world project demonstrating modern Java/JVM build practices with both Gradle and Maven configurations, Earthly container builds, and comprehensive build scripts"
+    url: "https://github.com/binkley/modern-java-practices"
+
+  - name: "No Build System"
+    description: " Project with no build system using javax packages"
+    url: "https://github.com/fabiodomingues/javaee-legacy-app-example"
+
+
+# =============================================================================
+# DEPENDENCY EXAMPLES
+# =============================================================================
+dependency_types:
+  - name: "Direct Dependencies"
+    description: "Project with direct javax dependencies"
+    url: "https://github.com/javaee-samples/javaee7-samples/tree/main/jakartamigration/validation"
+      
+  - name: "Transitive Dependencies"
+    description: "Project with deep transitive javax dependencies"
+    url: "https://github.com/javaee-samples/javaee7-samples/tree/main/jakartamigration/validation"
+      
+  - name: "Organizational Dependencies"
+    description: "Enterprise project with complex dependency structure"
+    url: "https://github.com/javaee-samples/javaee7-samples/tree/main/jakartamigration/validation"
+
+
+
+# =============================================================================
+# COMPLEXITY EXAMPLES
+# =============================================================================
+project_complexity:
+  - name: "Simple Project"
+    description: "Small simple project with javax dependencies"
+    url: "https://github.com/javaee-samples/javaee7-samples/tree/main/jakartamigration/validation"
+      
+  - name: "Medium Project"
+    description: "Medium complexity project with javax dependencies"
+    url: "https://github.com/colinbut/monolith-enterprise-application"
+
+  - name: "Complex Project A"
+    description: "Large complex project with javax dependencies"
+    url: "https://github.com/javaee-samples/javaee7-samples"
+
+  - name: "Complex Project B"
+    description: "Large complex project with javax dependencies"
+    url: "https://github.com/daggerok/java-ee-examples"
+
+  - name: "J2EE7 Samples"
+    description: "Java EE 7 Samples project with comprehensive JEE technologies including CDI, EJB, JPA, JSF, JMS, WebSocket, and Arquillian testing"
+    url: "https://github.com/tgupta018/J2EE7Samples"
+
+
+
+
+# =============================================================================
+# MIXED EXAMPLES
+# =============================================================================
+mixed_examples:
+  - name: "Non-Javax Only"
+    description: "Project with only non-javax dependencies"
+    url: "https://github.com/wx-chevalier/ms-java-commons"
+      
+  - name: "Non-Javax plus Servlet"
+    description: "Mostly non-javax dependencies plus javax.servlet"
+    url: "https://github.com/Porsyak/javax-servlet-examples/tree/master"
+      
+  - name: "Non-Javax plus JSON"
+    description: "Mostly non-javax dependencies plus javax.json"
+    url: "https://github.com/dodie/working-with-structured-data-in-java"
+
+
+    

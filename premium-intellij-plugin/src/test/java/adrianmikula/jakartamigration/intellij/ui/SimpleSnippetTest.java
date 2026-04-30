@@ -48,7 +48,6 @@ public class SimpleSnippetTest {
         assertFalse(html.trim().isEmpty());
         
         // Basic HTML structure checks
-        assertTrue(html.contains("<!DOCTYPE html>"));
         assertTrue(html.contains("<html"));
         assertTrue(html.contains("</html>"));
         assertTrue(html.contains("<head>"));

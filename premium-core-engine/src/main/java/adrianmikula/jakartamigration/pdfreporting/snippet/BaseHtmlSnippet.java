@@ -19,7 +19,9 @@ public abstract class BaseHtmlSnippet implements HtmlSnippet {
      */
     protected String safelyFormat(String template, Object... args) {
         try {
-            return template.formatted(args);
+            // Escape stray '%' characters to avoid format parsing errors
+            String safeTemplate = template.replaceAll("%(?!s)", "%%");
+            return safeTemplate.formatted(args);
         } catch (Exception e) {
             log.error("Formatting error in snippet {}: template='{}', args={}", 
                 getSnippetName(), template, args, e);

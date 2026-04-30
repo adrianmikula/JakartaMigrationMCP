@@ -29,9 +29,9 @@ public class ReportsTabComponentEclipseTest {
     }
     
     @Test
-    void testEclipseProjectWithoutBuildFilesThrowsDependencyGraphException() {
-        // Arrange - Create an empty directory (simulating Eclipse project without build files)
+    void testEclipseProjectWithoutBuildFilesThrowsDependencyGraphException() throws IOException {
         Path eclipseProjectDir = tempDir.resolve("eclipse-project");
+        Files.createDirectories(eclipseProjectDir);
         
         // Act & Assert - Should throw DependencyGraphException with "No build file found" message
         DependencyGraphException exception = assertThrows(DependencyGraphException.class, () -> {

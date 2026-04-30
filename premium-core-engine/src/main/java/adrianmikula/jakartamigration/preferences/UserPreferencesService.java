@@ -33,6 +33,15 @@ public class UserPreferencesService implements AutoCloseable {
     }
     
     /**
+     * Constructor for testing with custom preferences path.
+     * @param customPath Custom path for the preferences file
+     */
+    public UserPreferencesService(Path customPath) {
+        this.preferencesPath = customPath;
+        log.info("UserPreferencesService initialized at custom path: {}", preferencesPath);
+    }
+    
+    /**
      * Gets the anonymous user ID.
      */
     public String getAnonymousUserId() {

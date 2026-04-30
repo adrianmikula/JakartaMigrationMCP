@@ -48,7 +48,7 @@ class PerformanceTest {
         when(supabaseConfig.getAnalyticsFlushIntervalSeconds()).thenReturn(1);
         when(supabaseConfig.isConfigured()).thenReturn(true);
 
-        userIdentificationService = new UserIdentificationService(tempDir, supabaseConfig);
+        userIdentificationService = new UserIdentificationService(tempDir.resolve("user-preferences.properties"), supabaseConfig);
         usageService = new UsageService(userIdentificationService);
         errorReportingService = new ErrorReportingService(userIdentificationService);
         memoryBean = ManagementFactory.getMemoryMXBean();

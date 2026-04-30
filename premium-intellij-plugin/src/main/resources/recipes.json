@@ -1,0 +1,3088 @@
+{
+  "configuration": {
+    "description": "Jakarta EE Migration Recipes Configuration",
+    "version": "1.0.7",
+    "categories": [
+      {
+        "name": "NAMESPACE_MIGRATION",
+        "displayName": "Namespace Migration",
+        "description": "Convert javax.* namespaces to jakarta.* equivalents"
+      },
+      {
+        "name": "DATABASE",
+        "displayName": "Database",
+        "description": "JPA and Database migration recipes"
+      },
+      {
+        "name": "CDI",
+        "displayName": "CDI",
+        "description": "Context and Dependency Injection migration recipes"
+      },
+      {
+        "name": "API",
+        "displayName": "API",
+        "description": "REST, SOAP and other API migration recipes"
+      },
+      {
+        "name": "WEB",
+        "displayName": "Web",
+        "description": "Web-tier migration recipes (JSF, WebSocket, JSON)"
+      },
+      {
+        "name": "SECURITY",
+        "displayName": "Security",
+        "description": "Security API migration recipes"
+      },
+      {
+        "name": "CONFIGURATION",
+        "displayName": "Configuration",
+        "description": "XML, resource, and property file migration recipes"
+      },
+      {
+        "name": "ANNOTATIONS",
+        "displayName": "Annotations",
+        "description": "Annotation migration recipes"
+      }
+    ]
+  },
+  "recipes": [
+    {
+      "name": "AddJakartaNamespace",
+      "description": "Converts javax.* imports and references to jakarta.*",
+      "pattern": "javax.* → jakarta.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "NAMESPACE_MIGRATION",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "recipeOptions": {
+        "oldPackageName": "javax",
+        "newPackageName": "jakarta"
+      },
+      "replacements": [
+        { "from": "javax.servlet", "to": "jakarta.servlet" },
+        { "from": "javax.persistence", "to": "jakarta.persistence" },
+        { "from": "javax.validation", "to": "jakarta.validation" },
+        { "from": "javax.annotation", "to": "jakarta.annotation" },
+        { "from": "javax.inject", "to": "jakarta.inject" },
+        { "from": "javax.ejb", "to": "jakarta.ejb" },
+        { "from": "javax.transaction", "to": "jakarta.transaction" },
+        { "from": "javax.enterprise", "to": "jakarta.enterprise" },
+        { "from": "javax.ws.rs", "to": "jakarta.ws.rs" },
+        { "from": "javax.json", "to": "jakarta.json" },
+        { "from": "javax.xml.bind", "to": "jakarta.xml.bind" },
+        { "from": "javax.xml.ws", "to": "jakarta.xml.ws" }
+      ]
+    },
+    {
+      "name": "JavaxAnnotationToJakartaAnnotation",
+      "description": "Converts javax.annotation.* to jakarta.annotation.* (OpenRewrite compatibility)",
+      "pattern": "javax.annotation.* → jakarta.annotation.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "ANNOTATIONS",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
+      "replacements": [
+        { "from": "javax.annotation", "to": "jakarta.annotation" },
+        { "from": "javax.annotation.security", "to": "jakarta.annotation.security" },
+        { "from": "javax.annotation.processing", "to": "jakarta.annotation.processing" }
+      ]
+    },
+    {
+      "name": "JavaxValidationToJakartaValidation",
+      "description": "Converts javax.validation.* to jakarta.validation.*",
+      "pattern": "javax.validation.* → jakarta.validation.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxValidationMigrationToJakartaValidation",
+      "replacements": [
+        { "from": "javax.validation", "to": "jakarta.validation" }
+      ]
+    },
+    {
+      "name": "UpdatePersistenceXml",
+      "description": "Updates persistence.xml namespace to Jakarta",
+      "pattern": "xmlns:persistence='http://java.sun.com/xml/ns/persistence' → xmlns:persistence='https://jakarta.ee/xml/ns/persistence'",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxPersistenceXmlToJakartaPersistenceXml",
+      "replacements": [
+        { "from": "xmlns:persistence='http://java.sun.com/xml/ns/persistence'", "to": "xmlns:persistence='https://jakarta.ee/xml/ns/persistence'" }
+      ]
+    },
+    {
+      "name": "UpdateWebXml",
+      "description": "Updates web.xml namespace to Jakarta",
+      "pattern": "http://java.sun.com/xml/ns/javaee → https://jakarta.ee/xml/ns/jakartaee",
+      "safety": "MEDIUM",
+      "reversible": true,
+      "fileFilter": "web.xml",
+      "category": "CONFIGURATION",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxWebXmlToJakartaWebXml",
+      "replacements": [
+        { "from": "http://java.sun.com/xml/ns/javaee", "to": "https://jakarta.ee/xml/ns/jakartaee" }
+      ]
+    },
+    {
+      "name": "MigrateJPA",
+      "description": "Converts javax.persistence.* to jakarta.persistence.*",
+      "pattern": "javax.persistence.* → jakarta.persistence.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxPersistenceToJakartaPersistence",
+      "replacements": [
+        { "from": "javax.persistence", "to": "jakarta.persistence" }
+      ]
+    },
+    {
+      "name": "MigrateBeanValidation",
+      "description": "Converts javax.validation.* to jakarta.validation.*",
+      "pattern": "javax.validation.* → jakarta.validation.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxValidationMigrationToJakartaValidation",
+      "replacements": [
+        { "from": "javax.validation", "to": "jakarta.validation" },
+        { "from": "javax.validation.constraints", "to": "jakarta.validation.constraints" }
+      ]
+    },
+    {
+      "name": "MigrateServlet",
+      "description": "Converts javax.servlet.* to jakarta.servlet.*",
+      "pattern": "javax.servlet.* → jakarta.servlet.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxServletToJakartaServlet",
+      "replacements": [
+        { "from": "javax.servlet", "to": "jakarta.servlet" }
+      ]
+    },
+    {
+      "name": "MigrateCDI",
+      "description": "Converts javax.enterprise.* and javax.inject.* to jakarta equivalents",
+      "pattern": "javax.enterprise.* → jakarta.enterprise.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEnterpriseToJakartaEnterprise",
+      "replacements": [
+        { "from": "javax.enterprise", "to": "jakarta.enterprise" },
+        { "from": "javax.inject", "to": "jakarta.inject" }
+      ]
+    },
+    {
+      "name": "MigrateREST",
+      "description": "Converts javax.ws.rs.* to jakarta.ws.rs.*",
+      "pattern": "javax.ws.rs.* → jakarta.ws.rs.*",
+      "safety": "HIGH",
+      "category": "API",
+      "reversible": true,
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxWsToJakartaWs",
+      "replacements": [
+        { "from": "javax.ws.rs", "to": "jakarta.ws.rs" }
+      ]
+    },
+    {
+      "name": "MigrateSOAP",
+      "description": "Converts javax.xml.ws.* to jakarta.xml.ws.*",
+      "pattern": "javax.xml.ws.* → jakarta.xml.ws.*",
+      "safety": "HIGH",
+      "category": "API",
+      "reversible": true,
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxXmlWsMigrationToJakartaXmlWs",
+      "replacements": [
+        { "from": "javax.xml.ws", "to": "jakarta.xml.ws" }
+      ]
+    },
+    {
+      "name": "MigrateJMS",
+      "description": "Converts javax.jms.* to jakarta.jms.*",
+      "pattern": "javax.jms.* → jakarta.jms.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "SECURITY",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxJmsToJakartaJms",
+      "replacements": [
+        { "from": "javax.jms", "to": "jakarta.jms" }
+      ]
+    },
+    {
+      "name": "MigrateBatch",
+      "description": "Converts javax.batch.* to jakarta.batch.*",
+      "pattern": "javax.batch.* → jakarta.batch.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "OTHER",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxBatchMigrationToJakartaBatch",
+      "replacements": [
+        { "from": "javax.batch", "to": "jakarta.batch" }
+      ]
+    },
+    {
+      "name": "MigrateMail",
+      "description": "Converts javax.mail.* to jakarta.mail.*",
+      "pattern": "javax.mail.* → jakarta.mail.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "OTHER",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxMailToJakartaMail",
+      "replacements": [
+        { "from": "javax.mail", "to": "jakarta.mail" }
+      ]
+    },
+    {
+      "name": "MigrateJTA",
+      "description": "Converts javax.transaction.* to jakarta.transaction.*",
+      "pattern": "javax.transaction.* → jakarta.transaction.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxTransactionMigrationToJakartaTransaction",
+      "replacements": [
+        { "from": "javax.transaction", "to": "jakarta.transaction" }
+      ]
+    },
+    {
+      "name": "MigrateEJB",
+      "description": "Converts javax.ejb.* to jakarta.ejb.*",
+      "pattern": "javax.ejb.* → jakarta.ejb.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb", "to": "jakarta.ejb" }
+      ]
+    },
+    {
+      "name": "MigrateJSF",
+      "description": "Converts javax.faces.* to jakarta.faces.*",
+      "pattern": "javax.faces.* → jakarta.faces.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxFacesToJakartaFaces",
+      "replacements": [
+        { "from": "javax.faces", "to": "jakarta.faces" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocket",
+      "description": "Converts javax.websocket.* to jakarta.websocket.*",
+      "pattern": "javax.websocket.* → jakarta.websocket.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxWebsocketToJakartaWebsocket",
+      "replacements": [
+        { "from": "javax.websocket", "to": "jakarta.websocket" }
+      ]
+    },
+    {
+      "name": "MigrateJSONP",
+      "description": "Converts javax.json.* to jakarta.json.*",
+      "pattern": "javax.json.* → jakarta.json.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "OTHER",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxJsonToJakartaJson",
+      "replacements": [
+        { "from": "javax.json", "to": "jakarta.json" }
+      ]
+    },
+    {
+      "name": "MigrateJSONB",
+      "description": "Converts javax.json.bind.* to jakarta.json.bind.*",
+      "pattern": "javax.json.bind.* → jakarta.json.bind.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "OTHER",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxJsonToJakartaJson",
+      "replacements": [
+        { "from": "javax.json.bind", "to": "jakarta.json.bind" }
+      ]
+    },
+    {
+      "name": "MigrateSecurity",
+      "description": "Converts javax.security.enterprise.* to jakarta.security.enterprise.*",
+      "pattern": "javax.security.enterprise.* → jakarta.security.enterprise.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "SECURITY",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxSecurityToJakartaSecurity",
+      "replacements": [
+        { "from": "javax.security.enterprise", "to": "jakarta.security.enterprise" }
+      ]
+    },
+    {
+      "name": "MigrateJCA",
+      "description": "Converts javax.resource.* to jakarta.resource.*",
+      "pattern": "javax.resource.* → jakarta.resource.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CONFIGURATION",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxResourceToJakartaResource",
+      "replacements": [
+        { "from": "javax.resource", "to": "jakarta.resource" }
+      ]
+    },
+    {
+      "name": "MigrateJAXB",
+      "description": "Converts javax.xml.bind.* to jakarta.xml.bind.*",
+      "pattern": "javax.xml.bind.* → jakarta.xml.bind.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CONFIGURATION",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxXmlBindMigrationToJakartaXmlBind",
+      "replacements": [
+        { "from": "javax.xml.bind", "to": "jakarta.xml.bind" }
+      ]
+    },
+    {
+      "name": "MigrateJAXRPC",
+      "description": "Converts javax.xml.rpc.* to jakarta.xml.rpc.*",
+      "pattern": "javax.xml.rpc.* → jakarta.xml.rpc.*",
+      "safety": "MEDIUM",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.xml.rpc", "to": "jakarta.xml.rpc" }
+      ]
+    },
+    {
+      "name": "MigrateJASPIC",
+      "description": "Converts javax.security.auth.message.* to jakarta.security.auth.message.*",
+      "pattern": "javax.security.auth.message.* → jakarta.security.auth.message.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "SECURITY",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxSecurityToJakartaSecurity",
+      "replacements": [
+        { "from": "javax.security.auth.message", "to": "jakarta.security.auth.message" }
+      ]
+    },
+    {
+      "name": "MigrateActivation",
+      "description": "Converts javax.activation.* to jakarta.activation.*",
+      "pattern": "javax.activation.* → jakarta.activation.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CONFIGURATION",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxActivationMigrationToJakartaActivation",
+      "replacements": [
+        { "from": "javax.activation", "to": "jakarta.activation" }
+      ]
+    },
+    {
+      "name": "MigrateEL",
+      "description": "Converts javax.el.* to jakarta.el.*",
+      "pattern": "javax.el.* → jakarta.el.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxElToJakartaEl",
+      "replacements": [
+        { "from": "javax.el", "to": "jakarta.el" }
+      ]
+    },
+    {
+      "name": "MigrateInterceptor",
+      "description": "Converts javax.interceptor.* to jakarta.interceptor.*",
+      "pattern": "javax.interceptor.* → jakarta.interceptor.*",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxInterceptorToJakartaInterceptor",
+      "replacements": [
+        { "from": "javax.interceptor", "to": "jakarta.interceptor" }
+      ]
+    },
+    {
+      "name": "MigrateResource",
+      "description": "Converts @Resource javax.annotation to jakarta.annotation",
+      "pattern": "@Resource → jakarta.annotation.Resource",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
+      "replacements": [
+        { "from": "@Resource", "to": "@jakarta.annotation.Resource" }
+      ]
+    },
+    {
+      "name": "MigrateServletApi",
+      "description": "Migrates javax.servlet.* packages to jakarta.servlet.*",
+      "pattern": "javax.servlet → jakarta.servlet",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxServletToJakartaServlet",
+      "replacements": [
+        { "from": "javax.servlet", "to": "jakarta.servlet" }
+      ]
+    },
+    {
+      "name": "MigratePostConstruct",
+      "description": "Converts @PostConstruct javax.annotation to jakarta.annotation",
+      "pattern": "@PostConstruct → jakarta.annotation.PostConstruct",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "ANNOTATIONS",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
+      "replacements": [
+        { "from": "@PostConstruct", "to": "@jakarta.annotation.PostConstruct" }
+      ]
+    },
+    {
+      "name": "MigratePreDestroy",
+      "description": "Converts @PreDestroy javax.annotation to jakarta.annotation",
+      "pattern": "@PreDestroy → jakarta.annotation.PreDestroy",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "ANNOTATIONS",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
+      "replacements": [
+        { "from": "@PreDestroy", "to": "@jakarta.annotation.PreDestroy" }
+      ]
+    },
+    {
+      "name": "MigratePriority",
+      "description": "Converts @Priority javax.annotation to jakarta.annotation",
+      "pattern": "@Priority → jakarta.annotation.Priority",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "ANNOTATIONS",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
+      "replacements": [
+        { "from": "@Priority", "to": "@jakarta.annotation.Priority" }
+      ]
+    },
+    {
+      "name": "MigrateGenerated",
+      "description": "Converts @Generated javax.annotation to jakarta.annotation",
+      "pattern": "@Generated → jakarta.annotation.Generated",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "ANNOTATIONS",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
+      "replacements": [
+        { "from": "@Generated", "to": "@jakarta.annotation.Generated" }
+      ]
+    },
+    {
+      "name": "MigrateManagedBean",
+      "description": "Converts @ManagedBean javax.annotation to jakarta.annotation",
+      "pattern": "@ManagedBean → jakarta.annotation.ManagedBean",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "ANNOTATIONS",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
+      "replacements": [
+        { "from": "@ManagedBean", "to": "@jakarta.annotation.ManagedBean" }
+      ]
+    },
+    {
+      "name": "MigrateDeclareRoles",
+      "description": "Converts @DeclareRoles javax.annotation to jakarta.annotation",
+      "pattern": "@DeclareRoles → jakarta.annotation.DeclareRoles",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "SECURITY",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
+      "replacements": [
+        { "from": "@DeclareRoles", "to": "@jakarta.annotation.DeclareRoles" }
+      ]
+    },
+    {
+      "name": "MigrateRunAs",
+      "description": "Converts @RunAs javax.annotation to jakarta.annotation",
+      "pattern": "@RunAs → jakarta.annotation.RunAs",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "SECURITY",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
+      "replacements": [
+        { "from": "@RunAs", "to": "@jakarta.annotation.RunAs" }
+      ]
+    },
+    {
+      "name": "MigrateDataSourceDefinition",
+      "description": "Converts @DataSourceDefinition javax.annotation to jakarta.annotation",
+      "pattern": "@DataSourceDefinition → jakarta.annotation.DataSourceDefinition",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
+      "replacements": [
+        { "from": "@DataSourceDefinition", "to": "@jakarta.annotation.DataSourceDefinition" }
+      ]
+    },
+    {
+      "name": "MigrateDataSourceDefinitions",
+      "description": "Converts @DataSourceDefinitions javax.annotation to jakarta.annotation",
+      "pattern": "@DataSourceDefinitions → jakarta.annotation.DataSourceDefinitions",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxAnnotationMigrationToJakartaAnnotation",
+      "replacements": [
+        { "from": "@DataSourceDefinitions", "to": "@jakarta.annotation.DataSourceDefinitions" }
+      ]
+    },
+    {
+      "name": "MigratePersistenceContext",
+      "description": "Converts @PersistenceContext javax.persistence to jakarta.persistence",
+      "pattern": "@PersistenceContext → jakarta.persistence.PersistenceContext",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxPersistenceToJakartaPersistence",
+      "replacements": [
+        { "from": "@PersistenceContext", "to": "@jakarta.persistence.PersistenceContext" }
+      ]
+    },
+    {
+      "name": "MigratePersistenceUnit",
+      "description": "Converts @PersistenceUnit javax.persistence to jakarta.persistence",
+      "pattern": "@PersistenceUnit → jakarta.persistence.PersistenceUnit",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxPersistenceToJakartaPersistence",
+      "replacements": [
+        { "from": "@PersistenceUnit", "to": "@jakarta.persistence.PersistenceUnit" }
+      ]
+    },
+    {
+      "name": "MigrateEntity",
+      "description": "Converts @Entity javax.persistence to jakarta.persistence",
+      "pattern": "@Entity → jakarta.persistence.Entity",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxPersistenceToJakartaPersistence",
+      "replacements": [
+        { "from": "@Entity", "to": "@jakarta.persistence.Entity" }
+      ]
+    },
+    {
+      "name": "MigrateTable",
+      "description": "Converts @Table javax.persistence to jakarta.persistence",
+      "pattern": "@Table → jakarta.persistence.Table",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Table", "to": "@jakarta.persistence.Table" }
+      ]
+    },
+    {
+      "name": "MigrateColumn",
+      "description": "Converts @Column javax.persistence to jakarta.persistence",
+      "pattern": "@Column → jakarta.persistence.Column",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Column", "to": "@jakarta.persistence.Column" }
+      ]
+    },
+    {
+      "name": "MigrateId",
+      "description": "Converts @Id javax.persistence to jakarta.persistence",
+      "pattern": "@Id → jakarta.persistence.Id",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Id", "to": "@jakarta.persistence.Id" }
+      ]
+    },
+    {
+      "name": "MigrateGeneratedValue",
+      "description": "Converts @GeneratedValue javax.persistence to jakarta.persistence",
+      "pattern": "@GeneratedValue → jakarta.persistence.GeneratedValue",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@GeneratedValue", "to": "@jakarta.persistence.GeneratedValue" }
+      ]
+    },
+    {
+      "name": "MigrateOneToMany",
+      "description": "Converts @OneToMany javax.persistence to jakarta.persistence",
+      "pattern": "@OneToMany → jakarta.persistence.OneToMany",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@OneToMany", "to": "@jakarta.persistence.OneToMany" }
+      ]
+    },
+    {
+      "name": "MigrateManyToOne",
+      "description": "Converts @ManyToOne javax.persistence to jakarta.persistence",
+      "pattern": "@ManyToOne → jakarta.persistence.ManyToOne",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@ManyToOne", "to": "@jakarta.persistence.ManyToOne" }
+      ]
+    },
+    {
+      "name": "MigrateOneToOne",
+      "description": "Converts @OneToOne javax.persistence to jakarta.persistence",
+      "pattern": "@OneToOne → jakarta.persistence.OneToOne",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@OneToOne", "to": "@jakarta.persistence.OneToOne" }
+      ]
+    },
+    {
+      "name": "MigrateManyToMany",
+      "description": "Converts @ManyToMany javax.persistence to jakarta.persistence",
+      "pattern": "@ManyToMany → jakarta.persistence.ManyToMany",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@ManyToMany", "to": "@jakarta.persistence.ManyToMany" }
+      ]
+    },
+    {
+      "name": "MigrateJoinColumn",
+      "description": "Converts @JoinColumn javax.persistence to jakarta.persistence",
+      "pattern": "@JoinColumn → jakarta.persistence.JoinColumn",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@JoinColumn", "to": "@jakarta.persistence.JoinColumn" }
+      ]
+    },
+    {
+      "name": "MigrateJoinTable",
+      "description": "Converts @JoinTable javax.persistence to jakarta.persistence",
+      "pattern": "@JoinTable → jakarta.persistence.JoinTable",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@JoinTable", "to": "@jakarta.persistence.JoinTable" }
+      ]
+    },
+    {
+      "name": "MigrateEmbedded",
+      "description": "Converts @Embedded javax.persistence to jakarta.persistence",
+      "pattern": "@Embedded → jakarta.persistence.Embedded",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Embedded", "to": "@jakarta.persistence.Embedded" }
+      ]
+    },
+    {
+      "name": "MigrateEmbeddedId",
+      "description": "Converts @EmbeddedId javax.persistence to jakarta.persistence",
+      "pattern": "@EmbeddedId → jakarta.persistence.EmbeddedId",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@EmbeddedId", "to": "@jakarta.persistence.EmbeddedId" }
+      ]
+    },
+    {
+      "name": "MigrateTransient",
+      "description": "Converts @Transient javax.persistence to jakarta.persistence",
+      "pattern": "@Transient → jakarta.persistence.Transient",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Transient", "to": "@jakarta.persistence.Transient" }
+      ]
+    },
+    {
+      "name": "MigrateVersion",
+      "description": "Converts @Version javax.persistence to jakarta.persistence",
+      "pattern": "@Version → jakarta.persistence.Version",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Version", "to": "@jakarta.persistence.Version" }
+      ]
+    },
+    {
+      "name": "MigrateBasic",
+      "description": "Converts @Basic javax.persistence to jakarta.persistence",
+      "pattern": "@Basic → jakarta.persistence.Basic",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Basic", "to": "@jakarta.persistence.Basic" }
+      ]
+    },
+    {
+      "name": "MigrateTemporal",
+      "description": "Converts @Temporal javax.persistence to jakarta.persistence",
+      "pattern": "@Temporal → jakarta.persistence.Temporal",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Temporal", "to": "@jakarta.persistence.Temporal" }
+      ]
+    },
+    {
+      "name": "MigrateEnumerated",
+      "description": "Converts @Enumerated javax.persistence to jakarta.persistence",
+      "pattern": "@Enumerated → jakarta.persistence.Enumerated",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Enumerated", "to": "@jakarta.persistence.Enumerated" }
+      ]
+    },
+    {
+      "name": "MigrateLob",
+      "description": "Converts @Lob javax.persistence to jakarta.persistence",
+      "pattern": "@Lob → jakarta.persistence.Lob",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Lob", "to": "@jakarta.persistence.Lob" }
+      ]
+    },
+    {
+      "name": "MigrateNamedQuery",
+      "description": "Converts @NamedQuery javax.persistence to jakarta.persistence",
+      "pattern": "@NamedQuery → jakarta.persistence.NamedQuery",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@NamedQuery", "to": "@jakarta.persistence.NamedQuery" }
+      ]
+    },
+    {
+      "name": "MigrateNamedQueries",
+      "description": "Converts @NamedQueries javax.persistence to jakarta.persistence",
+      "pattern": "@NamedQueries → jakarta.persistence.NamedQueries",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@NamedQueries", "to": "@jakarta.persistence.NamedQueries" }
+      ]
+    },
+    {
+      "name": "MigrateNamedNativeQuery",
+      "description": "Converts @NamedNativeQuery javax.persistence to jakarta.persistence",
+      "pattern": "@NamedNativeQuery → jakarta.persistence.NamedNativeQuery",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@NamedNativeQuery", "to": "@jakarta.persistence.NamedNativeQuery" }
+      ]
+    },
+    {
+      "name": "MigrateNamedNativeQueries",
+      "description": "Converts @NamedNativeQueries javax.persistence to jakarta.persistence",
+      "pattern": "@NamedNativeQueries → jakarta.persistence.NamedNativeQueries",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@NamedNativeQueries", "to": "@jakarta.persistence.NamedNativeQueries" }
+      ]
+    },
+    {
+      "name": "MigrateSqlResultSetMapping",
+      "description": "Converts @SqlResultSetMapping javax.persistence to jakarta.persistence",
+      "pattern": "@SqlResultSetMapping → jakarta.persistence.SqlResultSetMapping",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@SqlResultSetMapping", "to": "@jakarta.persistence.SqlResultSetMapping" }
+      ]
+    },
+    {
+      "name": "MigrateSqlResultSetMappings",
+      "description": "Converts @SqlResultSetMappings javax.persistence to jakarta.persistence",
+      "pattern": "@SqlResultSetMappings → jakarta.persistence.SqlResultSetMappings",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@SqlResultSetMappings", "to": "@jakarta.persistence.SqlResultSetMappings" }
+      ]
+    },
+    {
+      "name": "MigrateAttributeOverride",
+      "description": "Converts @AttributeOverride javax.persistence to jakarta.persistence",
+      "pattern": "@AttributeOverride → jakarta.persistence.AttributeOverride",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@AttributeOverride", "to": "@jakarta.persistence.AttributeOverride" }
+      ]
+    },
+    {
+      "name": "MigrateAttributeOverrides",
+      "description": "Converts @AttributeOverrides javax.persistence to jakarta.persistence",
+      "pattern": "@AttributeOverrides → jakarta.persistence.AttributeOverrides",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@AttributeOverrides", "to": "@jakarta.persistence.AttributeOverrides" }
+      ]
+    },
+    {
+      "name": "MigrateAssociationOverride",
+      "description": "Converts @AssociationOverride javax.persistence to jakarta.persistence",
+      "pattern": "@AssociationOverride → jakarta.persistence.AssociationOverride",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@AssociationOverride", "to": "@jakarta.persistence.AssociationOverride" }
+      ]
+    },
+    {
+      "name": "MigrateAssociationOverrides",
+      "description": "Converts @AssociationOverrides javax.persistence to jakarta.persistence",
+      "pattern": "@AssociationOverrides → jakarta.persistence.AssociationOverrides",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@AssociationOverrides", "to": "@jakarta.persistence.AssociationOverrides" }
+      ]
+    },
+    {
+      "name": "MigrateEntityListeners",
+      "description": "Converts @EntityListeners javax.persistence to jakarta.persistence",
+      "pattern": "@EntityListeners → jakarta.persistence.EntityListeners",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@EntityListeners", "to": "@jakarta.persistence.EntityListeners" }
+      ]
+    },
+    {
+      "name": "MigrateExcludeDefaultListeners",
+      "description": "Converts @ExcludeDefaultListeners javax.persistence to jakarta.persistence",
+      "pattern": "@ExcludeDefaultListeners → jakarta.persistence.ExcludeDefaultListeners",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@ExcludeDefaultListeners", "to": "@jakarta.persistence.ExcludeDefaultListeners" }
+      ]
+    },
+    {
+      "name": "MigrateExcludeSuperclassListeners",
+      "description": "Converts @ExcludeSuperclassListeners javax.persistence to jakarta.persistence",
+      "pattern": "@ExcludeSuperclassListeners → jakarta.persistence.ExcludeSuperclassListeners",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@ExcludeSuperclassListeners", "to": "@jakarta.persistence.ExcludeSuperclassListeners" }
+      ]
+    },
+    {
+      "name": "MigratePrePersist",
+      "description": "Converts @PrePersist javax.persistence to jakarta.persistence",
+      "pattern": "@PrePersist → jakarta.persistence.PrePersist",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@PrePersist", "to": "@jakarta.persistence.PrePersist" }
+      ]
+    },
+    {
+      "name": "MigratePostPersist",
+      "description": "Converts @PostPersist javax.persistence to jakarta.persistence",
+      "pattern": "@PostPersist → jakarta.persistence.PostPersist",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@PostPersist", "to": "@jakarta.persistence.PostPersist" }
+      ]
+    },
+    {
+      "name": "MigratePreRemove",
+      "description": "Converts @PreRemove javax.persistence to jakarta.persistence",
+      "pattern": "@PreRemove → jakarta.persistence.PreRemove",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@PreRemove", "to": "@jakarta.persistence.PreRemove" }
+      ]
+    },
+    {
+      "name": "MigratePostRemove",
+      "description": "Converts @PostRemove javax.persistence to jakarta.persistence",
+      "pattern": "@PostRemove → jakarta.persistence.PostRemove",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@PostRemove", "to": "@jakarta.persistence.PostRemove" }
+      ]
+    },
+    {
+      "name": "MigratePreUpdate",
+      "description": "Converts @PreUpdate javax.persistence to jakarta.persistence",
+      "pattern": "@PreUpdate → jakarta.persistence.PreUpdate",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@PreUpdate", "to": "@jakarta.persistence.PreUpdate" }
+      ]
+    },
+    {
+      "name": "MigratePostUpdate",
+      "description": "Converts @PostUpdate javax.persistence to jakarta.persistence",
+      "pattern": "@PostUpdate → jakarta.persistence.PostUpdate",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@PostUpdate", "to": "@jakarta.persistence.PostUpdate" }
+      ]
+    },
+    {
+      "name": "MigratePostLoad",
+      "description": "Converts @PostLoad javax.persistence to jakarta.persistence",
+      "pattern": "@PostLoad → jakarta.persistence.PostLoad",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@PostLoad", "to": "@jakarta.persistence.PostLoad" }
+      ]
+    },
+    {
+      "name": "MigrateInheritance",
+      "description": "Converts @Inheritance javax.persistence to jakarta.persistence",
+      "pattern": "@Inheritance → jakarta.persistence.Inheritance",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Inheritance", "to": "@jakarta.persistence.Inheritance" }
+      ]
+    },
+    {
+      "name": "MigrateDiscriminatorColumn",
+      "description": "Converts @DiscriminatorColumn javax.persistence to jakarta.persistence",
+      "pattern": "@DiscriminatorColumn → jakarta.persistence.DiscriminatorColumn",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@DiscriminatorColumn", "to": "@jakarta.persistence.DiscriminatorColumn" }
+      ]
+    },
+    {
+      "name": "MigrateDiscriminatorValue",
+      "description": "Converts @DiscriminatorValue javax.persistence to jakarta.persistence",
+      "pattern": "@DiscriminatorValue → jakarta.persistence.DiscriminatorValue",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@DiscriminatorValue", "to": "@jakarta.persistence.DiscriminatorValue" }
+      ]
+    },
+    {
+      "name": "MigratePrimaryKeyJoinColumn",
+      "description": "Converts @PrimaryKeyJoinColumn javax.persistence to jakarta.persistence",
+      "pattern": "@PrimaryKeyJoinColumn → jakarta.persistence.PrimaryKeyJoinColumn",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@PrimaryKeyJoinColumn", "to": "@jakarta.persistence.PrimaryKeyJoinColumn" }
+      ]
+    },
+    {
+      "name": "MigrateSecondaryTable",
+      "description": "Converts @SecondaryTable javax.persistence to jakarta.persistence",
+      "pattern": "@SecondaryTable → jakarta.persistence.SecondaryTable",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@SecondaryTable", "to": "@jakarta.persistence.SecondaryTable" }
+      ]
+    },
+    {
+      "name": "MigrateSecondaryTables",
+      "description": "Converts @SecondaryTables javax.persistence to jakarta.persistence",
+      "pattern": "@SecondaryTables → jakarta.persistence.SecondaryTables",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@SecondaryTables", "to": "@jakarta.persistence.SecondaryTables" }
+      ]
+    },
+    {
+      "name": "MigrateUniqueConstraint",
+      "description": "Converts @UniqueConstraint javax.persistence to jakarta.persistence",
+      "pattern": "@UniqueConstraint → jakarta.persistence.UniqueConstraint",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@UniqueConstraint", "to": "@jakarta.persistence.UniqueConstraint" }
+      ]
+    },
+    {
+      "name": "MigrateIndex",
+      "description": "Converts @Index javax.persistence to jakarta.persistence",
+      "pattern": "@Index → jakarta.persistence.Index",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Index", "to": "@jakarta.persistence.Index" }
+      ]
+    },
+    {
+      "name": "MigrateForeignKey",
+      "description": "Converts @ForeignKey javax.persistence to jakarta.persistence",
+      "pattern": "@ForeignKey → jakarta.persistence.ForeignKey",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@ForeignKey", "to": "@jakarta.persistence.ForeignKey" }
+      ]
+    },
+    {
+      "name": "MigrateCheckConstraint",
+      "description": "Converts @CheckConstraint javax.persistence to jakarta.persistence",
+      "pattern": "@CheckConstraint → jakarta.persistence.CheckConstraint",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@CheckConstraint", "to": "@jakarta.persistence.CheckConstraint" }
+      ]
+    },
+    {
+      "name": "MigrateSequenceGenerator",
+      "description": "Converts @SequenceGenerator javax.persistence to jakarta.persistence",
+      "pattern": "@SequenceGenerator → jakarta.persistence.SequenceGenerator",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@SequenceGenerator", "to": "@jakarta.persistence.SequenceGenerator" }
+      ]
+    },
+    {
+      "name": "MigrateTableGenerator",
+      "description": "Converts @TableGenerator javax.persistence to jakarta.persistence",
+      "pattern": "@TableGenerator → jakarta.persistence.TableGenerator",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@TableGenerator", "to": "@jakarta.persistence.TableGenerator" }
+      ]
+    },
+    {
+      "name": "MigrateConvert",
+      "description": "Converts @Convert javax.persistence to jakarta.persistence",
+      "pattern": "@Convert → jakarta.persistence.Convert",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Convert", "to": "@jakarta.persistence.Convert" }
+      ]
+    },
+    {
+      "name": "MigrateConverts",
+      "description": "Converts @Converts javax.persistence to jakarta.persistence",
+      "pattern": "@Converts → jakarta.persistence.Converts",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Converts", "to": "@jakarta.persistence.Converts" }
+      ]
+    },
+    {
+      "name": "MigrateCacheable",
+      "description": "Converts @Cacheable javax.persistence to jakarta.persistence",
+      "pattern": "@Cacheable → jakarta.persistence.Cacheable",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Cacheable", "to": "@jakarta.persistence.Cacheable" }
+      ]
+    },
+    {
+      "name": "MigrateMapKey",
+      "description": "Converts @MapKey javax.persistence to jakarta.persistence",
+      "pattern": "@MapKey → jakarta.persistence.MapKey",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@MapKey", "to": "@jakarta.persistence.MapKey" }
+      ]
+    },
+    {
+      "name": "MigrateMapKeyClass",
+      "description": "Converts @MapKeyClass javax.persistence to jakarta.persistence",
+      "pattern": "@MapKeyClass → jakarta.persistence.MapKeyClass",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@MapKeyClass", "to": "@jakarta.persistence.MapKeyClass" }
+      ]
+    },
+    {
+      "name": "MigrateMapKeyTemporal",
+      "description": "Converts @MapKeyTemporal javax.persistence to jakarta.persistence",
+      "pattern": "@MapKeyTemporal → jakarta.persistence.MapKeyTemporal",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@MapKeyTemporal", "to": "@jakarta.persistence.MapKeyTemporal" }
+      ]
+    },
+    {
+      "name": "MigrateMapKeyEnumerated",
+      "description": "Converts @MapKeyEnumerated javax.persistence to jakarta.persistence",
+      "pattern": "@MapKeyEnumerated → jakarta.persistence.MapKeyEnumerated",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@MapKeyEnumerated", "to": "@jakarta.persistence.MapKeyEnumerated" }
+      ]
+    },
+    {
+      "name": "MigrateMapKeyJoinColumn",
+      "description": "Converts @MapKeyJoinColumn javax.persistence to jakarta.persistence",
+      "pattern": "@MapKeyJoinColumn → jakarta.persistence.MapKeyJoinColumn",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@MapKeyJoinColumn", "to": "@jakarta.persistence.MapKeyJoinColumn" }
+      ]
+    },
+    {
+      "name": "MigrateMapKeyJoinColumns",
+      "description": "Converts @MapKeyJoinColumns javax.persistence to jakarta.persistence",
+      "pattern": "@MapKeyJoinColumns → jakarta.persistence.MapKeyJoinColumns",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@MapKeyJoinColumns", "to": "@jakarta.persistence.MapKeyJoinColumns" }
+      ]
+    },
+    {
+      "name": "MigrateOrderBy",
+      "description": "Converts @OrderBy javax.persistence to jakarta.persistence",
+      "pattern": "@OrderBy → jakarta.persistence.OrderBy",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@OrderBy", "to": "@jakarta.persistence.OrderBy" }
+      ]
+    },
+    {
+      "name": "MigrateOrderColumn",
+      "description": "Converts @OrderColumn javax.persistence to jakarta.persistence",
+      "pattern": "@OrderColumn → jakarta.persistence.OrderColumn",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@OrderColumn", "to": "@jakarta.persistence.OrderColumn" }
+      ]
+    },
+    {
+      "name": "MigrateCollectionTable",
+      "description": "Converts @CollectionTable javax.persistence to jakarta.persistence",
+      "pattern": "@CollectionTable → jakarta.persistence.CollectionTable",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@CollectionTable", "to": "@jakarta.persistence.CollectionTable" }
+      ]
+    },
+    {
+      "name": "MigrateElementCollection",
+      "description": "Converts @ElementCollection javax.persistence to jakarta.persistence",
+      "pattern": "@ElementCollection → jakarta.persistence.ElementCollection",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@ElementCollection", "to": "@jakarta.persistence.ElementCollection" }
+      ]
+    },
+    {
+      "name": "MigrateMapKeyColumn",
+      "description": "Converts @MapKeyColumn javax.persistence to jakarta.persistence",
+      "pattern": "@MapKeyColumn → jakarta.persistence.MapKeyColumn",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@MapKeyColumn", "to": "@jakarta.persistence.MapKeyColumn" }
+      ]
+    },
+    {
+      "name": "MigrateMapKeyJoinColumn",
+      "description": "Converts @MapKeyJoinColumn javax.persistence to jakarta.persistence",
+      "pattern": "@MapKeyJoinColumn → jakarta.persistence.MapKeyJoinColumn",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@MapKeyJoinColumn", "to": "@jakarta.persistence.MapKeyJoinColumn" }
+      ]
+    },
+    {
+      "name": "MigrateStoredProcedureParameter",
+      "description": "Converts @StoredProcedureParameter javax.persistence to jakarta.persistence",
+      "pattern": "@StoredProcedureParameter → jakarta.persistence.StoredProcedureParameter",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@StoredProcedureParameter", "to": "@jakarta.persistence.StoredProcedureParameter" }
+      ]
+    },
+    {
+      "name": "MigrateNamedStoredProcedureQuery",
+      "description": "Converts @NamedStoredProcedureQuery javax.persistence to jakarta.persistence",
+      "pattern": "@NamedStoredProcedureQuery → jakarta.persistence.NamedStoredProcedureQuery",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@NamedStoredProcedureQuery", "to": "@jakarta.persistence.NamedStoredProcedureQuery" }
+      ]
+    },
+    {
+      "name": "MigrateNamedStoredProcedureQueries",
+      "description": "Converts @NamedStoredProcedureQueries javax.persistence to jakarta.persistence",
+      "pattern": "@NamedStoredProcedureQueries → jakarta.persistence.NamedStoredProcedureQueries",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@NamedStoredProcedureQueries", "to": "@jakarta.persistence.NamedStoredProcedureQueries" }
+      ]
+    },
+    {
+      "name": "MigrateColumnResult",
+      "description": "Converts @ColumnResult javax.persistence to jakarta.persistence",
+      "pattern": "@ColumnResult → jakarta.persistence.ColumnResult",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@ColumnResult", "to": "@jakarta.persistence.ColumnResult" }
+      ]
+    },
+    {
+      "name": "MigrateConstructorResult",
+      "description": "Converts @ConstructorResult javax.persistence to jakarta.persistence",
+      "pattern": "@ConstructorResult → jakarta.persistence.ConstructorResult",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@ConstructorResult", "to": "@jakarta.persistence.ConstructorResult" }
+      ]
+    },
+    {
+      "name": "MigrateEntityResult",
+      "description": "Converts @EntityResult javax.persistence to jakarta.persistence",
+      "pattern": "@EntityResult → jakarta.persistence.EntityResult",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@EntityResult", "to": "@jakarta.persistence.EntityResult" }
+      ]
+    },
+    {
+      "name": "MigrateFieldResult",
+      "description": "Converts @FieldResult javax.persistence to jakarta.persistence",
+      "pattern": "@FieldResult → jakarta.persistence.FieldResult",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@FieldResult", "to": "@jakarta.persistence.FieldResult" }
+      ]
+    },
+    {
+      "name": "MigrateLockModeType",
+      "description": "Converts LockModeType javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.LockModeType → jakarta.persistence.LockModeType",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.LockModeType", "to": "jakarta.persistence.LockModeType" }
+      ]
+    },
+    {
+      "name": "MigratePersistenceContextType",
+      "description": "Converts PersistenceContextType javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.PersistenceContextType → jakarta.persistence.PersistenceContextType",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.PersistenceContextType", "to": "jakarta.persistence.PersistenceContextType" }
+      ]
+    },
+    {
+      "name": "MigrateFetchType",
+      "description": "Converts FetchType javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.FetchType → jakarta.persistence.FetchType",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.FetchType", "to": "jakarta.persistence.FetchType" }
+      ]
+    },
+    {
+      "name": "MigrateCascadeType",
+      "description": "Converts CascadeType javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.CascadeType → jakarta.persistence.CascadeType",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.CascadeType", "to": "jakarta.persistence.CascadeType" }
+      ]
+    },
+    {
+      "name": "MigrateInheritanceType",
+      "description": "Converts InheritanceType javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.InheritanceType → jakarta.persistence.InheritanceType",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.InheritanceType", "to": "jakarta.persistence.InheritanceType" }
+      ]
+    },
+    {
+      "name": "MigrateDiscriminatorType",
+      "description": "Converts DiscriminatorType javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.DiscriminatorType → jakarta.persistence.DiscriminatorType",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.DiscriminatorType", "to": "jakarta.persistence.DiscriminatorType" }
+      ]
+    },
+    {
+      "name": "MigrateTemporalType",
+      "description": "Converts TemporalType javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.TemporalType → jakarta.persistence.TemporalType",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.TemporalType", "to": "jakarta.persistence.TemporalType" }
+      ]
+    },
+    {
+      "name": "MigrateEnumType",
+      "description": "Converts EnumType javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.EnumType → jakarta.persistence.EnumType",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.EnumType", "to": "jakarta.persistence.EnumType" }
+      ]
+    },
+    {
+      "name": "MigrateConstraintMode",
+      "description": "Converts ConstraintMode javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.ConstraintMode → jakarta.persistence.ConstraintMode",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.ConstraintMode", "to": "jakarta.persistence.ConstraintMode" }
+      ]
+    },
+    {
+      "name": "MigrateEntityManager",
+      "description": "Converts EntityManager javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.EntityManager → jakarta.persistence.EntityManager",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.EntityManager", "to": "jakarta.persistence.EntityManager" }
+      ]
+    },
+    {
+      "name": "MigrateEntityManagerFactory",
+      "description": "Converts EntityManagerFactory javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.EntityManagerFactory → jakarta.persistence.EntityManagerFactory",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.EntityManagerFactory", "to": "jakarta.persistence.EntityManagerFactory" }
+      ]
+    },
+    {
+      "name": "MigrateEntityTransaction",
+      "description": "Converts EntityTransaction javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.EntityTransaction → jakarta.persistence.EntityTransaction",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.EntityTransaction", "to": "jakarta.persistence.EntityTransaction" }
+      ]
+    },
+    {
+      "name": "MigrateQuery",
+      "description": "Converts Query javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.Query → jakarta.persistence.Query",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.Query", "to": "jakarta.persistence.Query" }
+      ]
+    },
+    {
+      "name": "MigrateTypedQuery",
+      "description": "Converts TypedQuery javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.TypedQuery → jakarta.persistence.TypedQuery",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.TypedQuery", "to": "jakarta.persistence.TypedQuery" }
+      ]
+    },
+    {
+      "name": "MigrateStoredProcedureQuery",
+      "description": "Converts StoredProcedureQuery javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.StoredProcedureQuery → jakarta.persistence.StoredProcedureQuery",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.StoredProcedureQuery", "to": "jakarta.persistence.StoredProcedureQuery" }
+      ]
+    },
+    {
+      "name": "MigrateCriteriaBuilder",
+      "description": "Converts CriteriaBuilder javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.CriteriaBuilder → jakarta.persistence.CriteriaBuilder",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.CriteriaBuilder", "to": "jakarta.persistence.CriteriaBuilder" }
+      ]
+    },
+    {
+      "name": "MigrateCriteriaQuery",
+      "description": "Converts CriteriaQuery javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.CriteriaQuery → jakarta.persistence.CriteriaQuery",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.CriteriaQuery", "to": "jakarta.persistence.CriteriaQuery" }
+      ]
+    },
+    {
+      "name": "MigrateRoot",
+      "description": "Converts Root javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.Root → jakarta.persistence.Root",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.Root", "to": "jakarta.persistence.Root" }
+      ]
+    },
+    {
+      "name": "MigratePath",
+      "description": "Converts Path javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.Path → jakarta.persistence.Path",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.Path", "to": "jakarta.persistence.Path" }
+      ]
+    },
+    {
+      "name": "MigratePredicate",
+      "description": "Converts Predicate javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.Predicate → jakarta.persistence.Predicate",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.Predicate", "to": "jakarta.persistence.Predicate" }
+      ]
+    },
+    {
+      "name": "MigrateParameterExpression",
+      "description": "Converts ParameterExpression javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.ParameterExpression → jakarta.persistence.ParameterExpression",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.ParameterExpression", "to": "jakarta.persistence.ParameterExpression" }
+      ]
+    },
+    {
+      "name": "MigrateParameter",
+      "description": "Converts Parameter javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.Parameter → jakarta.persistence.Parameter",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.Parameter", "to": "jakarta.persistence.Parameter" }
+      ]
+    },
+    {
+      "name": "MigratePersistence",
+      "description": "Converts Persistence javax.persistence to jakarta.persistence",
+      "pattern": "javax.persistence.Persistence → jakarta.persistence.Persistence",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "DATABASE",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.persistence.Persistence", "to": "jakarta.persistence.Persistence" }
+      ]
+    },
+    {
+      "name": "MigrateInject",
+      "description": "Converts @Inject javax.inject to jakarta.inject",
+      "pattern": "@Inject → jakarta.inject.Inject",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Inject", "to": "@jakarta.inject.Inject" }
+      ]
+    },
+    {
+      "name": "MigrateSingleton",
+      "description": "Converts @Singleton javax.inject to jakarta.inject",
+      "pattern": "@Singleton → jakarta.inject.Singleton",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Singleton", "to": "@jakarta.inject.Singleton" }
+      ]
+    },
+    {
+      "name": "MigrateNamed",
+      "description": "Converts @Named javax.inject to jakarta.inject",
+      "pattern": "@Named → jakarta.inject.Named",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Named", "to": "@jakarta.inject.Named" }
+      ]
+    },
+    {
+      "name": "MigrateQualifier",
+      "description": "Converts @Qualifier javax.inject to jakarta.inject",
+      "pattern": "@Qualifier → jakarta.inject.Qualifier",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Qualifier", "to": "@jakarta.inject.Qualifier" }
+      ]
+    },
+    {
+      "name": "MigrateProvider",
+      "description": "Converts @Provider javax.inject to jakarta.inject",
+      "pattern": "@Provider → jakarta.inject.Provider",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Provider", "to": "@jakarta.inject.Provider" }
+      ]
+    },
+    {
+      "name": "MigrateScope",
+      "description": "Converts @Scope javax.inject to jakarta.inject",
+      "pattern": "@Scope → jakarta.inject.Scope",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Scope", "to": "@jakarta.inject.Scope" }
+      ]
+    },
+    {
+      "name": "MigrateApplicationScoped",
+      "description": "Converts @ApplicationScoped javax.enterprise to jakarta.enterprise",
+      "pattern": "@ApplicationScoped → jakarta.enterprise.context.ApplicationScoped",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@ApplicationScoped", "to": "@jakarta.enterprise.context.ApplicationScoped" }
+      ]
+    },
+    {
+      "name": "MigrateRequestScoped",
+      "description": "Converts @RequestScoped javax.enterprise to jakarta.enterprise",
+      "pattern": "@RequestScoped → jakarta.enterprise.context.RequestScoped",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@RequestScoped", "to": "@jakarta.enterprise.context.RequestScoped" }
+      ]
+    },
+    {
+      "name": "MigrateSessionScoped",
+      "description": "Converts @SessionScoped javax.enterprise to jakarta.enterprise",
+      "pattern": "@SessionScoped → jakarta.enterprise.context.SessionScoped",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@SessionScoped", "to": "@jakarta.enterprise.context.SessionScoped" }
+      ]
+    },
+    {
+      "name": "MigrateConversationScoped",
+      "description": "Converts @ConversationScoped javax.enterprise to jakarta.enterprise",
+      "pattern": "@ConversationScoped → jakarta.enterprise.context.ConversationScoped",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@ConversationScoped", "to": "@jakarta.enterprise.context.ConversationScoped" }
+      ]
+    },
+    {
+      "name": "MigrateDependent",
+      "description": "Converts @Dependent javax.enterprise to jakarta.enterprise",
+      "pattern": "@Dependent → jakarta.enterprise.context.Dependent",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Dependent", "to": "@jakarta.enterprise.context.Dependent" }
+      ]
+    },
+    {
+      "name": "MigrateModel",
+      "description": "Converts @Model javax.enterprise to jakarta.enterprise",
+      "pattern": "@Model → jakarta.enterprise.inject.Model",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Model", "to": "@jakarta.enterprise.inject.Model" }
+      ]
+    },
+    {
+      "name": "MigrateAlternative",
+      "description": "Converts @Alternative javax.enterprise to jakarta.enterprise",
+      "pattern": "@Alternative → jakarta.enterprise.inject.Alternative",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Alternative", "to": "@jakarta.enterprise.inject.Alternative" }
+      ]
+    },
+    {
+      "name": "MigrateSpecializes",
+      "description": "Converts @Specializes javax.enterprise to jakarta.enterprise",
+      "pattern": "@Specializes → jakarta.enterprise.inject.Specializes",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Specializes", "to": "@jakarta.enterprise.inject.Specializes" }
+      ]
+    },
+    {
+      "name": "MigrateVetoed",
+      "description": "Converts @Vetoed javax.enterprise to jakarta.enterprise",
+      "pattern": "@Vetoed → jakarta.enterprise.inject.Vetoed",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Vetoed", "to": "@jakarta.enterprise.inject.Vetoed" }
+      ]
+    },
+    {
+      "name": "MigrateNew",
+      "description": "Converts @New javax.enterprise to jakarta.enterprise",
+      "pattern": "@New → jakarta.enterprise.inject.New",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@New", "to": "@jakarta.enterprise.inject.New" }
+      ]
+    },
+    {
+      "name": "MigrateProduces",
+      "description": "Converts @Produces javax.enterprise to jakarta.enterprise",
+      "pattern": "@Produces → jakarta.enterprise.inject.Produces",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Produces", "to": "@jakarta.enterprise.inject.Produces" }
+      ]
+    },
+    {
+      "name": "MigrateDisposes",
+      "description": "Converts @Disposes javax.enterprise to jakarta.enterprise",
+      "pattern": "@Disposes → jakarta.enterprise.inject.Disposes",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Disposes", "to": "@jakarta.enterprise.inject.Disposes" }
+      ]
+    },
+    {
+      "name": "MigrateInjectInstance",
+      "description": "Converts InjectInstance javax.enterprise to jakarta.enterprise",
+      "pattern": "javax.enterprise.inject.Instance → jakarta.enterprise.inject.Instance",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.enterprise.inject.Instance", "to": "jakarta.enterprise.inject.Instance" }
+      ]
+    },
+    {
+      "name": "MigrateEvent",
+      "description": "Converts Event javax.enterprise to jakarta.enterprise",
+      "pattern": "javax.enterprise.event.Event → jakarta.enterprise.event.Event",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.enterprise.event.Event", "to": "jakarta.enterprise.event.Event" }
+      ]
+    },
+    {
+      "name": "MigrateObserves",
+      "description": "Converts @Observes javax.enterprise to jakarta.enterprise",
+      "pattern": "@Observes → jakarta.enterprise.event.Observes",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Observes", "to": "@jakarta.enterprise.event.Observes" }
+      ]
+    },
+    {
+      "name": "MigrateObservesAsync",
+      "description": "Converts @ObservesAsync javax.enterprise to jakarta.enterprise",
+      "pattern": "@ObservesAsync → jakarta.enterprise.event.ObservesAsync",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@ObservesAsync", "to": "@jakarta.enterprise.event.ObservesAsync" }
+      ]
+    },
+    {
+      "name": "MigrateTransactional",
+      "description": "Converts @Transactional javax.transaction to jakarta.transaction",
+      "pattern": "@Transactional → jakarta.transaction.Transactional",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Transactional", "to": "@jakarta.transaction.Transactional" }
+      ]
+    },
+    {
+      "name": "MigrateTransactionScoped",
+      "description": "Converts @TransactionScoped javax.transaction to jakarta.transaction",
+      "pattern": "@TransactionScoped → jakarta.transaction.TransactionScoped",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@TransactionScoped", "to": "@jakarta.transaction.TransactionScoped" }
+      ]
+    },
+    {
+      "name": "MigratePath",
+      "description": "Converts @Path javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@Path → jakarta.ws.rs.Path",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Path", "to": "@jakarta.ws.rs.Path" }
+      ]
+    },
+    {
+      "name": "MigrateGET",
+      "description": "Converts @GET javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@GET → jakarta.ws.rs.GET",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@GET", "to": "@jakarta.ws.rs.GET" }
+      ]
+    },
+    {
+      "name": "MigratePOST",
+      "description": "Converts @POST javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@POST → jakarta.ws.rs.POST",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@POST", "to": "@jakarta.ws.rs.POST" }
+      ]
+    },
+    {
+      "name": "MigratePUT",
+      "description": "Converts @PUT javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@PUT → jakarta.ws.rs.PUT",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@PUT", "to": "@jakarta.ws.rs.PUT" }
+      ]
+    },
+    {
+      "name": "MigrateDELETE",
+      "description": "Converts @DELETE javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@DELETE → jakarta.ws.rs.DELETE",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@DELETE", "to": "@jakarta.ws.rs.DELETE" }
+      ]
+    },
+    {
+      "name": "MigrateHEAD",
+      "description": "Converts @HEAD javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@HEAD → jakarta.ws.rs.HEAD",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@HEAD", "to": "@jakarta.ws.rs.HEAD" }
+      ]
+    },
+    {
+      "name": "MigrateOPTIONS",
+      "description": "Converts @OPTIONS javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@OPTIONS → jakarta.ws.rs.OPTIONS",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@OPTIONS", "to": "@jakarta.ws.rs.OPTIONS" }
+      ]
+    },
+    {
+      "name": "MigratePATCH",
+      "description": "Converts @PATCH javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@PATCH → jakarta.ws.rs.PATCH",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@PATCH", "to": "@jakarta.ws.rs.PATCH" }
+      ]
+    },
+    {
+      "name": "MigrateProducesAnnotation",
+      "description": "Converts @Produces javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@Produces → jakarta.ws.rs.Produces",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Produces", "to": "@jakarta.ws.rs.Produces" }
+      ]
+    },
+    {
+      "name": "MigrateConsumes",
+      "description": "Converts @Consumes javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@Consumes → jakarta.ws.rs.Consumes",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Consumes", "to": "@jakarta.ws.rs.Consumes" }
+      ]
+    },
+    {
+      "name": "MigratePathParam",
+      "description": "Converts @PathParam javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@PathParam → jakarta.ws.rs.PathParam",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@PathParam", "to": "@jakarta.ws.rs.PathParam" }
+      ]
+    },
+    {
+      "name": "MigrateQueryParam",
+      "description": "Converts @QueryParam javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@QueryParam → jakarta.ws.rs.QueryParam",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@QueryParam", "to": "@jakarta.ws.rs.QueryParam" }
+      ]
+    },
+    {
+      "name": "MigrateHeaderParam",
+      "description": "Converts @HeaderParam javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@HeaderParam → jakarta.ws.rs.HeaderParam",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@HeaderParam", "to": "@jakarta.ws.rs.HeaderParam" }
+      ]
+    },
+    {
+      "name": "MigrateCookieParam",
+      "description": "Converts @CookieParam javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@CookieParam → jakarta.ws.rs.CookieParam",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@CookieParam", "to": "@jakarta.ws.rs.CookieParam" }
+      ]
+    },
+    {
+      "name": "MigrateFormParam",
+      "description": "Converts @FormParam javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@FormParam → jakarta.ws.rs.FormParam",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@FormParam", "to": "@jakarta.ws.rs.FormParam" }
+      ]
+    },
+    {
+      "name": "MigrateMatrixParam",
+      "description": "Converts @MatrixParam javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@MatrixParam → jakarta.ws.rs.MatrixParam",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@MatrixParam", "to": "@jakarta.ws.rs.MatrixParam" }
+      ]
+    },
+    {
+      "name": "MigrateDefaultValue",
+      "description": "Converts @DefaultValue javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@DefaultValue → jakarta.ws.rs.DefaultValue",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@DefaultValue", "to": "@jakarta.ws.rs.DefaultValue" }
+      ]
+    },
+    {
+      "name": "MigrateContext",
+      "description": "Converts @Context javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@Context → jakarta.ws.rs.core.Context",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Context", "to": "@jakarta.ws.rs.core.Context" }
+      ]
+    },
+    {
+      "name": "MigrateApplicationPath",
+      "description": "Converts @ApplicationPath javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@ApplicationPath → jakarta.ws.rs.ApplicationPath",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@ApplicationPath", "to": "@jakarta.ws.rs.ApplicationPath" }
+      ]
+    },
+    {
+      "name": "MigrateProviderAnnotation",
+      "description": "Converts @Provider javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@Provider → jakarta.ws.rs.ext.Provider",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Provider", "to": "@jakarta.ws.rs.ext.Provider" }
+      ]
+    },
+    {
+      "name": "MigrateExceptionMapper",
+      "description": "Converts ExceptionMapper javax.ws.rs to jakarta.ws.rs",
+      "pattern": "javax.ws.rs.ext.ExceptionMapper → jakarta.ws.rs.ext.ExceptionMapper",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.ws.rs.ext.ExceptionMapper", "to": "jakarta.ws.rs.ext.ExceptionMapper" }
+      ]
+    },
+    {
+      "name": "MigrateContainerRequestFilter",
+      "description": "Converts ContainerRequestFilter javax.ws.rs to jakarta.ws.rs",
+      "pattern": "javax.ws.rs.container.ContainerRequestFilter → jakarta.ws.rs.container.ContainerRequestFilter",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.ws.rs.container.ContainerRequestFilter", "to": "jakarta.ws.rs.container.ContainerRequestFilter" }
+      ]
+    },
+    {
+      "name": "MigrateContainerResponseFilter",
+      "description": "Converts ContainerResponseFilter javax.ws.rs to jakarta.ws.rs",
+      "pattern": "javax.ws.rs.container.ContainerResponseFilter → jakarta.ws.rs.container.ContainerResponseFilter",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.ws.rs.container.ContainerResponseFilter", "to": "jakarta.ws.rs.container.ContainerResponseFilter" }
+      ]
+    },
+    {
+      "name": "MigrateNameBinding",
+      "description": "Converts @NameBinding javax.ws.rs to jakarta.ws.rs",
+      "pattern": "@NameBinding → jakarta.ws.rs.NameBinding",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "API",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@NameBinding", "to": "@jakarta.ws.rs.NameBinding" }
+      ]
+    },
+    {
+      "name": "MigrateFacesServlet",
+      "description": "Converts FacesServlet javax.faces to jakarta.faces",
+      "pattern": "javax.faces.web.FacesServlet → jakarta.faces.web.FacesServlet",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.faces.web.FacesServlet", "to": "jakarta.faces.web.FacesServlet" }
+      ]
+    },
+    {
+      "name": "MigrateManagedBeanJSF",
+      "description": "Converts @ManagedBean javax.faces to jakarta.faces",
+      "pattern": "@ManagedBean → jakarta.faces.bean.ManagedBean",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@ManagedBean", "to": "@jakarta.faces.bean.ManagedBean" }
+      ]
+    },
+    {
+      "name": "MigrateSessionScopedJSF",
+      "description": "Converts @SessionScoped javax.faces to jakarta.faces",
+      "pattern": "@SessionScoped → jakarta.faces.bean.SessionScoped",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@SessionScoped", "to": "@jakarta.faces.bean.SessionScoped" }
+      ]
+    },
+    {
+      "name": "MigrateRequestScopedJSF",
+      "description": "Converts @RequestScoped javax.faces to jakarta.faces",
+      "pattern": "@RequestScoped → jakarta.faces.bean.RequestScoped",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@RequestScoped", "to": "@jakarta.faces.bean.RequestScoped" }
+      ]
+    },
+    {
+      "name": "MigrateViewScoped",
+      "description": "Converts @ViewScoped javax.faces to jakarta.faces",
+      "pattern": "@ViewScoped → jakarta.faces.view.ViewScoped",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@ViewScoped", "to": "@jakarta.faces.view.ViewScoped" }
+      ]
+    },
+    {
+      "name": "MigrateNoneScoped",
+      "description": "Converts @NoneScoped javax.faces to jakarta.faces",
+      "pattern": "@NoneScoped → jakarta.faces.view.NoneScoped",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@NoneScoped", "to": "@jakarta.faces.view.NoneScoped" }
+      ]
+    },
+    {
+      "name": "MigrateFacesConfig",
+      "description": "Converts faces-config.xml namespace to Jakarta",
+      "pattern": "http://xmlns.jcp.org/xml/ns/javaee → https://jakarta.ee/xml/ns/jakartaee",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "http://xmlns.jcp.org/xml/ns/javaee", "to": "https://jakarta.ee/xml/ns/jakartaee" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocketServerEndpoint",
+      "description": "Converts @ServerEndpoint javax.websocket to jakarta.websocket",
+      "pattern": "@ServerEndpoint → jakarta.websocket.server.ServerEndpoint",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@ServerEndpoint", "to": "@jakarta.websocket.server.ServerEndpoint" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocketOnOpen",
+      "description": "Converts @OnOpen javax.websocket to jakarta.websocket",
+      "pattern": "@OnOpen → jakarta.websocket.OnOpen",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@OnOpen", "to": "@jakarta.websocket.OnOpen" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocketOnClose",
+      "description": "Converts @OnClose javax.websocket to jakarta.websocket",
+      "pattern": "@OnClose → jakarta.websocket.OnClose",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@OnClose", "to": "@jakarta.websocket.OnClose" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocketOnMessage",
+      "description": "Converts @OnMessage javax.websocket to jakarta.websocket",
+      "pattern": "@OnMessage → jakarta.websocket.OnMessage",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@OnMessage", "to": "@jakarta.websocket.OnMessage" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocketOnError",
+      "description": "Converts @OnError javax.websocket to jakarta.websocket",
+      "pattern": "@OnError → jakarta.websocket.OnError",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@OnError", "to": "@jakarta.websocket.OnError" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocketPathParam",
+      "description": "Converts @PathParam javax.websocket to jakarta.websocket",
+      "pattern": "@PathParam → jakarta.websocket.PathParam",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@PathParam", "to": "@jakarta.websocket.PathParam" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocketClientEndpoint",
+      "description": "Converts @ClientEndpoint javax.websocket to jakarta.websocket",
+      "pattern": "@ClientEndpoint → jakarta.websocket.ClientEndpoint",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@ClientEndpoint", "to": "@jakarta.websocket.ClientEndpoint" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocketContainer",
+      "description": "Converts WebSocketContainer javax.websocket to jakarta.websocket",
+      "pattern": "javax.websocket.WebSocketContainer → jakarta.websocket.WebSocketContainer",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.websocket.WebSocketContainer", "to": "jakarta.websocket.WebSocketContainer" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocketSession",
+      "description": "Converts Session javax.websocket to jakarta.websocket",
+      "pattern": "javax.websocket.Session → jakarta.websocket.Session",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.websocket.Session", "to": "jakarta.websocket.Session" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocketRemoteEndpoint",
+      "description": "Converts RemoteEndpoint javax.websocket to jakarta.websocket",
+      "pattern": "javax.websocket.RemoteEndpoint → jakarta.websocket.RemoteEndpoint",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.websocket.RemoteEndpoint", "to": "jakarta.websocket.RemoteEndpoint" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocketMessageHandler",
+      "description": "Converts MessageHandler javax.websocket to jakarta.websocket",
+      "pattern": "javax.websocket.MessageHandler → jakarta.websocket.MessageHandler",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.websocket.MessageHandler", "to": "jakarta.websocket.MessageHandler" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocketEndpointConfig",
+      "description": "Converts EndpointConfig javax.websocket to jakarta.websocket",
+      "pattern": "javax.websocket.EndpointConfig → jakarta.websocket.EndpointConfig",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.websocket.EndpointConfig", "to": "jakarta.websocket.EndpointConfig" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocketEndpoint",
+      "description": "Converts Endpoint javax.websocket to jakarta.websocket",
+      "pattern": "javax.websocket.Endpoint → jakarta.websocket.Endpoint",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.websocket.Endpoint", "to": "jakarta.websocket.Endpoint" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocketDecoder",
+      "description": "Converts Decoder javax.websocket to jakarta.websocket",
+      "pattern": "javax.websocket.Decoder → jakarta.websocket.Decoder",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.websocket.Decoder", "to": "jakarta.websocket.Decoder" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocketEncoder",
+      "description": "Converts Encoder javax.websocket to jakarta.websocket",
+      "pattern": "javax.websocket.Encoder → jakarta.websocket.Encoder",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.websocket.Encoder", "to": "jakarta.websocket.Encoder" }
+      ]
+    },
+    {
+      "name": "MigrateWebSocketContainerProvider",
+      "description": "Converts ContainerProvider javax.websocket to jakarta.websocket",
+      "pattern": "javax.websocket.ContainerProvider → jakarta.websocket.ContainerProvider",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "WEB",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "javax.websocket.ContainerProvider", "to": "jakarta.websocket.ContainerProvider" }
+      ]
+    },
+    {
+      "name": "MigrateEJB",
+      "description": "Converts @EJB javax.ejb to jakarta.ejb",
+      "pattern": "@EJB → jakarta.ejb.EJB",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@EJB", "to": "@jakarta.ejb.EJB" }
+      ]
+    },
+    {
+      "name": "MigrateStateless",
+      "description": "Converts @Stateless javax.ejb to jakarta.ejb",
+      "pattern": "@Stateless → jakarta.ejb.Stateless",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Stateless", "to": "@jakarta.ejb.Stateless" }
+      ]
+    },
+    {
+      "name": "MigrateStateful",
+      "description": "Converts @Stateful javax.ejb to jakarta.ejb",
+      "pattern": "@Stateful → jakarta.ejb.Stateful",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Stateful", "to": "@jakarta.ejb.Stateful" }
+      ]
+    },
+    {
+      "name": "MigrateSingletonEJB",
+      "description": "Converts @Singleton javax.ejb to jakarta.ejb",
+      "pattern": "@Singleton → jakarta.ejb.Singleton",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Singleton", "to": "@jakarta.ejb.Singleton" }
+      ]
+    },
+    {
+      "name": "MigrateMessageDriven",
+      "description": "Converts @MessageDriven javax.ejb to jakarta.ejb",
+      "pattern": "@MessageDriven → jakarta.ejb.MessageDriven",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@MessageDriven", "to": "@jakarta.ejb.MessageDriven" }
+      ]
+    },
+    {
+      "name": "MigrateLocalBean",
+      "description": "Converts @LocalBean javax.ejb to jakarta.ejb",
+      "pattern": "@LocalBean → jakarta.ejb.LocalBean",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@LocalBean", "to": "@jakarta.ejb.LocalBean" }
+      ]
+    },
+    {
+      "name": "MigrateLocal",
+      "description": "Converts @Local javax.ejb to jakarta.ejb",
+      "pattern": "@Local → jakarta.ejb.Local",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Local", "to": "@jakarta.ejb.Local" }
+      ]
+    },
+    {
+      "name": "MigrateRemote",
+      "description": "Converts @Remote javax.ejb to jakarta.ejb",
+      "pattern": "@Remote → jakarta.ejb.Remote",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Remote", "to": "@jakarta.ejb.Remote" }
+      ]
+    },
+    {
+      "name": "MigrateTimeout",
+      "description": "Converts @Timeout javax.ejb to jakarta.ejb",
+      "pattern": "@Timeout → jakarta.ejb.Timeout",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Timeout", "to": "@jakarta.ejb.Timeout" }
+      ]
+    },
+    {
+      "name": "MigrateSchedule",
+      "description": "Converts @Schedule javax.ejb to jakarta.ejb",
+      "pattern": "@Schedule → jakarta.ejb.Schedule",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Schedule", "to": "@jakarta.ejb.Schedule" }
+      ]
+    },
+    {
+      "name": "MigrateSchedules",
+      "description": "Converts @Schedules javax.ejb to jakarta.ejb",
+      "pattern": "@Schedules → jakarta.ejb.Schedules",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.ChangePackage",
+      "replacements": [
+        { "from": "@Schedules", "to": "@jakarta.ejb.Schedules" }
+      ]
+    },
+    {
+      "name": "MigrateTransactionAttribute",
+      "description": "Converts @TransactionAttribute javax.ejb to jakarta.ejb",
+      "pattern": "@TransactionAttribute → jakarta.ejb.TransactionAttribute",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "@TransactionAttribute", "to": "@jakarta.ejb.TransactionAttribute" }
+      ]
+    },
+    {
+      "name": "MigrateTransactionManagement",
+      "description": "Converts @TransactionManagement javax.ejb to jakarta.ejb",
+      "pattern": "@TransactionManagement → jakarta.ejb.TransactionManagement",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "@TransactionManagement", "to": "@jakarta.ejb.TransactionManagement" }
+      ]
+    },
+    {
+      "name": "MigrateLock",
+      "description": "Converts @Lock javax.ejb to jakarta.ejb",
+      "pattern": "@Lock → jakarta.ejb.Lock",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "@Lock", "to": "@jakarta.ejb.Lock" }
+      ]
+    },
+    {
+      "name": "MigrateAccessTimeout",
+      "description": "Converts @AccessTimeout javax.ejb to jakarta.ejb",
+      "pattern": "@AccessTimeout → jakarta.ejb.AccessTimeout",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "@AccessTimeout", "to": "@jakarta.ejb.AccessTimeout" }
+      ]
+    },
+    {
+      "name": "MigrateStartup",
+      "description": "Converts @Startup javax.ejb to jakarta.ejb",
+      "pattern": "@Startup → jakarta.ejb.Startup",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "@Startup", "to": "@jakarta.ejb.Startup" }
+      ]
+    },
+    {
+      "name": "MigrateDependsOn",
+      "description": "Converts @DependsOn javax.ejb to jakarta.ejb",
+      "pattern": "@DependsOn → jakarta.ejb.DependsOn",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "@DependsOn", "to": "@jakarta.ejb.DependsOn" }
+      ]
+    },
+    {
+      "name": "MigrateEJBException",
+      "description": "Converts EJBException javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.EJBException → jakarta.ejb.EJBException",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.EJBException", "to": "jakarta.ejb.EJBException" }
+      ]
+    },
+    {
+      "name": "MigrateCreateException",
+      "description": "Converts CreateException javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.CreateException → jakarta.ejb.CreateException",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.CreateException", "to": "jakarta.ejb.CreateException" }
+      ]
+    },
+    {
+      "name": "MigrateRemoveException",
+      "description": "Converts RemoveException javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.RemoveException → jakarta.ejb.RemoveException",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.RemoveException", "to": "jakarta.ejb.RemoveException" }
+      ]
+    },
+    {
+      "name": "MigrateFinderException",
+      "description": "Converts FinderException javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.FinderException → jakarta.ejb.FinderException",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.FinderException", "to": "jakarta.ejb.FinderException" }
+      ]
+    },
+    {
+      "name": "MigrateObjectNotFoundException",
+      "description": "Converts ObjectNotFoundException javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.ObjectNotFoundException → jakarta.ejb.ObjectNotFoundException",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.ObjectNotFoundException", "to": "jakarta.ejb.ObjectNotFoundException" }
+      ]
+    },
+    {
+      "name": "MigrateNoSuchEntityException",
+      "description": "Converts NoSuchEntityException javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.NoSuchEntityException → jakarta.ejb.NoSuchEntityException",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.NoSuchEntityException", "to": "jakarta.ejb.NoSuchEntityException" }
+      ]
+    },
+    {
+      "name": "MigrateTransactionRequiredException",
+      "description": "Converts TransactionRequiredException javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.TransactionRequiredException → jakarta.ejb.TransactionRequiredException",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.TransactionRequiredException", "to": "jakarta.ejb.TransactionRequiredException" }
+      ]
+    },
+    {
+      "name": "MigrateTransactionRolledbackException",
+      "description": "Converts TransactionRolledbackException javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.TransactionRolledbackException → jakarta.ejb.TransactionRolledbackException",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.TransactionRolledbackException", "to": "jakarta.ejb.TransactionRolledbackException" }
+      ]
+    },
+    {
+      "name": "MigrateEJBContext",
+      "description": "Converts EJBContext javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.EJBContext → jakarta.ejb.EJBContext",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.EJBContext", "to": "jakarta.ejb.EJBContext" }
+      ]
+    },
+    {
+      "name": "MigrateSessionContext",
+      "description": "Converts SessionContext javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.SessionContext → jakarta.ejb.SessionContext",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.SessionContext", "to": "jakarta.ejb.SessionContext" }
+      ]
+    },
+    {
+      "name": "MigrateEntityContext",
+      "description": "Converts EntityContext javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.EntityContext → jakarta.ejb.EntityContext",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.EntityContext", "to": "jakarta.ejb.EntityContext" }
+      ]
+    },
+    {
+      "name": "MigrateMessageDrivenContext",
+      "description": "Converts MessageDrivenContext javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.MessageDrivenContext → jakarta.ejb.MessageDrivenContext",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.MessageDrivenContext", "to": "jakarta.ejb.MessageDrivenContext" }
+      ]
+    },
+    {
+      "name": "MigrateTimer",
+      "description": "Converts Timer javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.Timer → jakarta.ejb.Timer",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.Timer", "to": "jakarta.ejb.Timer" }
+      ]
+    },
+    {
+      "name": "MigrateTimerService",
+      "description": "Converts TimerService javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.TimerService → jakarta.ejb.TimerService",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.TimerService", "to": "jakarta.ejb.TimerService" }
+      ]
+    },
+    {
+      "name": "MigrateHandle",
+      "description": "Converts Handle javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.Handle → jakarta.ejb.Handle",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.Handle", "to": "jakarta.ejb.Handle" }
+      ]
+    },
+    {
+      "name": "MigrateHomeHandle",
+      "description": "Converts HomeHandle javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.HomeHandle → jakarta.ejb.HomeHandle",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.HomeHandle", "to": "jakarta.ejb.HomeHandle" }
+      ]
+    },
+    {
+      "name": "MigrateEJBHome",
+      "description": "Converts EJBHome javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.EJBHome → jakarta.ejb.EJBHome",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.EJBHome", "to": "jakarta.ejb.EJBHome" }
+      ]
+    },
+    {
+      "name": "MigrateEJBObject",
+      "description": "Converts EJBObject javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.EJBObject → jakarta.ejb.EJBObject",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.EJBObject", "to": "jakarta.ejb.EJBObject" }
+      ]
+    },
+    {
+      "name": "MigrateEJBMetaData",
+      "description": "Converts EJBMetaData javax.ejb to jakarta.ejb",
+      "pattern": "javax.ejb.EJBMetaData → jakarta.ejb.EJBMetaData",
+      "safety": "HIGH",
+      "reversible": true,
+      "category": "CDI",
+      "openRewriteClass": "org.openrewrite.java.migrate.jakarta.JavaxEjbToJakartaEjb",
+      "replacements": [
+        { "from": "javax.ejb.EJBMetaData", "to": "jakarta.ejb.EJBMetaData" }
+      ]
+    }
+  ],
+  "upgradeRecommendations": [
+    {
+      "currentGroupId": "javax.servlet",
+      "currentArtifactId": "javax.servlet-api",
+      "recommendedGroupId": "jakarta.servlet",
+      "recommendedArtifactId": "jakarta.servlet-api",
+      "recommendedVersion": "5.0.0",
+      "associatedRecipeName": "Migrate javax.servlet to jakarta.servlet"
+    },
+    {
+      "currentGroupId": "javax.faces",
+      "currentArtifactId": "javax.faces",
+      "recommendedGroupId": "jakarta.faces",
+      "recommendedArtifactId": "jakarta.faces",
+      "recommendedVersion": "4.0.0",
+      "associatedRecipeName": "Migrate JSF to Jakarta Faces"
+    },
+    {
+      "currentGroupId": "javax.jms",
+      "currentArtifactId": "javax.jms-api",
+      "recommendedGroupId": "jakarta.jms",
+      "recommendedArtifactId": "jakarta.jms-api",
+      "recommendedVersion": "3.1.0",
+      "associatedRecipeName": "Migrate JMS to Jakarta Messaging"
+    },
+    {
+      "currentGroupId": "javax.transaction",
+      "currentArtifactId": "javax.transaction-api",
+      "recommendedGroupId": "jakarta.transaction",
+      "recommendedArtifactId": "jakarta.transaction-api",
+      "recommendedVersion": "2.0.0",
+      "associatedRecipeName": "Migrate JTA to Jakarta Transactions"
+    },
+    {
+      "currentGroupId": "javax.ws.rs",
+      "currentArtifactId": "javax.ws.rs-api",
+      "recommendedGroupId": "jakarta.ws.rs",
+      "recommendedArtifactId": "jakarta.ws.rs-api",
+      "recommendedVersion": "3.1.0",
+      "associatedRecipeName": "Migrate JAX-RS to Jakarta REST"
+    },
+    {
+      "currentGroupId": "javax.ejb",
+      "currentArtifactId": "javax.ejb-api",
+      "recommendedGroupId": "jakarta.ejb",
+      "recommendedArtifactId": "jakarta.ejb-api",
+      "recommendedVersion": "4.0.0",
+      "associatedRecipeName": "Migrate EJB to Jakarta Enterprise Beans"
+    },
+    {
+      "currentGroupId": "javax.xml.bind",
+      "currentArtifactId": "jaxb-api",
+      "recommendedGroupId": "jakarta.xml.bind",
+      "recommendedArtifactId": "jakarta.xml.bind-api",
+      "recommendedVersion": "4.0.0",
+      "associatedRecipeName": "Migrate JAXB to Jakarta XML Binding"
+    },
+    {
+      "currentGroupId": "javax.activation",
+      "currentArtifactId": "activation",
+      "recommendedGroupId": "jakarta.activation",
+      "recommendedArtifactId": "jakarta.activation-api",
+      "recommendedVersion": "2.1.0",
+      "associatedRecipeName": "Migrate JAF to Jakarta Activation"
+    },
+    {
+      "currentGroupId": "javax.batch",
+      "currentArtifactId": "javax.batch-api",
+      "recommendedGroupId": "jakarta.batch",
+      "recommendedArtifactId": "jakarta.batch-api",
+      "recommendedVersion": "2.1.0",
+      "associatedRecipeName": "Migrate Batch to Jakarta Batch"
+    },
+    {
+      "currentGroupId": "javax.persistence",
+      "currentArtifactId": "javax.persistence-api",
+      "recommendedGroupId": "jakarta.persistence",
+      "recommendedArtifactId": "jakarta.persistence-api",
+      "recommendedVersion": "3.1.0",
+      "associatedRecipeName": "Migrate @PersistenceContext"
+    },
+    {
+      "currentGroupId": "org.hibernate",
+      "currentArtifactId": "hibernate-core",
+      "recommendedGroupId": "org.hibernate",
+      "recommendedArtifactId": "hibernate-core",
+      "recommendedVersion": "6.2.0.Final",
+      "associatedRecipeName": "Update Hibernate to Jakarta-compatible version"
+    }
+  ]
+}

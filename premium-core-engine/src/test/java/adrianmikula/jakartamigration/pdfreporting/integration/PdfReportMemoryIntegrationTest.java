@@ -57,7 +57,7 @@ public class PdfReportMemoryIntegrationTest {
     @DisplayName("Memory usage for small project PDF generation")
     void testMemoryUsageForSmallProject() throws Exception {
         // Load small project example
-        ExamplesTestProjectLoader.TestProject smallProject = projectLoader.loadProject("spring2_oauth2_example");
+        ExamplesTestProjectLoader.TestProject smallProject = projectLoader.loadProject("Spring");
         
         // Create mock dependency graph with small data
         DependencyGraph smallGraph = createMockDependencyGraph();
@@ -115,7 +115,7 @@ public class PdfReportMemoryIntegrationTest {
     @DisplayName("Memory usage for medium project PDF generation")
     void testMemoryUsageForMediumProject() throws Exception {
         // Load medium project example
-        ExamplesTestProjectLoader.TestProject mediumProject = projectLoader.loadProject("boot-examples");
+        ExamplesTestProjectLoader.TestProject mediumProject = projectLoader.loadProject("Spring Boot");
         
         // Create mock dependency graph with medium data
         DependencyGraph mediumGraph = createMediumDependencyGraph();

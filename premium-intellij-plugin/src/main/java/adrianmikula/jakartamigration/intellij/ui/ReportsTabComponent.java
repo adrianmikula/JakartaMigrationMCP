@@ -338,17 +338,16 @@ public class ReportsTabComponent {
                         "phase4", Map.of("name", "Testing & Validation", "description", "Comprehensive testing")
                     );
                     
-                    // Get platform scan results if available
-                    EnhancedPlatformScanResult platformScanResults = null;
-                    if (platformsTabComponent != null) {
-                        platformScanResults = platformsTabComponent.getCurrentScanResult();
-                        if (platformScanResults != null) {
-                            SwingUtilities.invokeLater(() -> {
-                                outputArea.append("Platform scan results included: " + 
-                                    platformScanResults.getDetectedPlatforms().size() + " platforms detected\n");
-                            });
+// Get platform scan results if available
+                        if (platformsTabComponent != null) {
+                            EnhancedPlatformScanResult pscan = platformsTabComponent.getCurrentScanResult();
+                            if (pscan != null) {
+                                SwingUtilities.invokeLater(() -> {
+                                    outputArea.append("Platform scan results included: " + 
+                                        pscan.getDetectedPlatforms().size() + " platforms detected\n");
+                                });
+                            }
                         }
-                    }
                     
                     PdfReportService.RiskAnalysisReportRequest request = new PdfReportService.RiskAnalysisReportRequest(
                         outputPath,
@@ -357,7 +356,7 @@ public class ReportsTabComponent {
                         dependencyGraph,
                         null, // analysisReport
                         scanResults,
-                        platformScanResults,
+                        null,
                         null, // riskScore - will be calculated in service
                         "Incremental",
                         strategyDetails,

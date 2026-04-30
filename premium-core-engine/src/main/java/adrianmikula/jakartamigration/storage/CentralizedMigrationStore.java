@@ -33,7 +33,20 @@ public class CentralizedMigrationStore implements AutoCloseable {
     public CentralizedMigrationStore(String customDbPath) {
         this.dbPath = customDbPath;
         this.objectMapper = new ObjectMapperService();
+        ensureParentDirectoryExists();
         initializeDatabase();
+    }
+
+    private void ensureParentDirectoryExists() {
+        Path path = Path.of(dbPath);
+        Path parent = path.getParent();
+        if (parent != null) {
+            try {
+                java.nio.file.Files.createDirectories(parent);
+            } catch (java.io.IOException e) {
+                throw new RuntimeException("Failed to create database directory: " + parent, e);
+            }
+        }
     }
 
     private Connection getConnection() throws SQLException {

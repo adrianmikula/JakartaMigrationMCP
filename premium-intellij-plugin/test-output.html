@@ -3,6 +3,7 @@
 <title>Test Report</title>
 <meta charset="UTF-8"></meta>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"></meta>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
     body {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -398,6 +399,70 @@
         color: #d32f2f;
         margin: 0 0 10px 0;
     }
+    .gauge-container {
+        height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 20px 0;
+    }
+    .gauge {
+        width: 100%;
+        height: 100%;
+        position: relative;
+    }
+    .gauge canvas {
+        max-width: 100%;
+        max-height: 100%;
+    }
+    .dials-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 30px;
+        margin: 20px 0;
+    }
+    .dial-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+    .dial-card h3 {
+        margin: 0 0 20px 0;
+        color: #2c3e50;
+    }
+    .dial-score {
+        font-size: 2em;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    .dial-score.low { color: #27ae60; }
+    .dial-score.medium { color: #f39c12; }
+    .dial-score.high { color: #e74c3c; }
+    .dial-label {
+        color: #7f8c8d;
+        margin-bottom: 15px;
+    }
+    .factor-list {
+        margin-top: 20px;
+        text-align: left;
+    }
+    .factor-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .factor-item.green { color: #27ae60; }
+    .factor-item.red { color: #e74c3c; }
+    .factor-item.orange { color: #f39c12; }
+    .factor-label {
+        flex: 1;
+    }
+    .factor-value {
+        font-weight: bold;
+    }
     @media print {
         body { padding: 20px; }
         .container { box-shadow: none; }
@@ -410,7 +475,7 @@
     <h1>Test Report</h1>
     <h2>Risk Analysis Report</h2>
     <p>Generated for: Test Project</p>
-    <p>Generated on: 2026-04-26 23:39:37</p>
+    <p>Generated on: 2026-04-30 16:12:00</p>
 </div>
 
 <div class="warning-box">
@@ -433,7 +498,7 @@
     <div class="executive-overview">
     <div class="overview-header">
         <h3>📊 Project Overview</h3>
-        <span class="report-date">Generated: 2026-04-26 23:39</span>
+        <span class="report-date">Generated: 2026-04-30 16:12</span>
     </div>
     <div class="overview-grid">
         <div class="overview-card">
@@ -458,63 +523,26 @@
     <div class="executive-risk-summary">
     <h3>🎯 Risk Assessment</h3>
     <div class="risk-summary-grid">
-        <div class="risk-gauge-card medium">
-            <div class="risk-gauge-value">50</div>
+        <div class="risk-gauge-card low">
+            <div class="risk-gauge-value">0</div>
             <div class="risk-gauge-label">Risk Score</div>
-            <div class="risk-gauge-level">MEDIUM</div>
+            <div class="risk-gauge-level">LOW</div>
         </div>
         <div class="readiness-card">
-            <div class="readiness-value">50%</div>
+            <div class="readiness-value">100%</div>
             <div class="readiness-label">Migration Readiness</div>
             <div class="readiness-bar">
-                <div class="readiness-fill" style="width: 50%"></div>
+                <div class="readiness-fill" style="width: 100%"></div>
             </div>
         </div>
     </div>
     <div class="risk-descriptions">
         <div class="risk-description-item">
-            <strong>Migration Complexity:</strong> Moderate complexity requiring planned approach and testing.
+            <strong>Migration Complexity:</strong> Straightforward migration with minimal business risk.
         </div>
         <div class="risk-description-item">
-            <strong>Business Impact:</strong> Plan for extended testing period. Consider staging environment validation.
+            <strong>Business Impact:</strong> Minimal downtime expected. Standard deployment windows sufficient.
         </div>
-    </div>
-</div>
-
-    <div class="executive-resources">
-    <h3>📋 Resource Requirements</h3>
-    <div class="resource-cards">
-        <div class="resource-card">
-            <div class="resource-icon">⏱️</div>
-            <div class="resource-details">
-                <span class="resource-value">2-5 weeks</span>
-                <span class="resource-label">Estimated Duration</span>
-            </div>
-        </div>
-        <div class="resource-card">
-            <div class="resource-icon">👥</div>
-            <div class="resource-details">
-                <span class="resource-value">2-4 people</span>
-                <span class="resource-label">Team Size</span>
-            </div>
-        </div>
-        <div class="resource-card">
-            <div class="resource-icon">💰</div>
-            <div class="resource-details">
-                <span class="resource-value">180-800 hrs</span>
-                <span class="resource-label">Total Effort</span>
-            </div>
-        </div>
-        <div class="resource-card">
-            <div class="resource-icon">🎯</div>
-            <div class="resource-details">
-                <span class="resource-value">70%</span>
-                <span class="resource-label">Success Probability</span>
-            </div>
-        </div>
-    </div>
-    <div class="resource-breakdown">
-        <p><strong>Key Factors:</strong> Based on 0 dependencies requiring analysis and 0 files with migration issues.</p>
     </div>
 </div>
 
@@ -522,10 +550,9 @@
     <h3>💡 Strategic Recommendations</h3>
     <div class="recommendations-list">
         <ul>
-            <li>Schedule dedicated migration sprint(s)</li>
-<li>Include comprehensive integration testing</li>
-<li>Plan for staging environment validation</li>
-<li>Consider incremental migration by module</li>
+            <li>Plan migration during standard maintenance windows</li>
+<li>Allocate 2-3 developers for 2-4 weeks</li>
+<li>Standard regression testing should be sufficient</li>
 
         </ul>
     </div>
@@ -546,1182 +573,398 @@
     <h2>Available Analysis Results</h2>
     <div class="metrics-grid">
         <div class="metric-card">
-            <div class="metric-value">0</div>
+            <div class="metric-value">%d</div>
             <div class="metric-label">Issues Found</div>
         </div>
         <div class="metric-card">
-            <div class="metric-value">50%</div>
+            <div class="metric-value">%d%%</div>
             <div class="metric-label">Readiness Score</div>
         </div>
     </div>
 </div>
 
+<div class="section risk-dials">
+    <h2>Risk Assessment Dials</h2>
+    <p>Visual risk assessment with factor breakdowns contributing to each score.</p>
+
+    <div class="dials-container">
+        <div class="dial-card">
+    <h3>Migration Risk</h3>
+    <div class="gauge-container">
+        <div id="migration-risk-gauge" class="gauge"></div>
+    </div>
+    <div class="dial-score low">%.0f</div>
+    <div class="dial-label">Risk Score</div>
+    <div class="factor-list">
+        0.0
+        <div class="factor-item green">
+    <span class="factor-label">Direct dependencies needing upgrade</span>
+    <span class="factor-value">0</span>
+</div>
+
+        <div class="factor-item green">
+    <span class="factor-label">Transitive dependency issues</span>
+    <span class="factor-value">0</span>
+</div>
+
+        <div class="factor-item green">
+    <span class="factor-label">Platforms needing upgrade</span>
+    <span class="factor-value">0</span>
+</div>
+
+        <div class="factor-item green">
+    <span class="factor-label">Source code issues</span>
+    <span class="factor-value">0</span>
+</div>
+
+    </div>
+</div>
+
+        <div class="dial-card">
+    <h3>Migration Effort</h3>
+    <div class="gauge-container">
+        <div id="migration-effort-gauge" class="gauge"></div>
+    </div>
+    <div class="dial-score low">%d</div>
+    <div class="dial-label">Effort Score</div>
+    <div class="factor-list">
+        0
+        <div class="factor-item green">
+    <span class="factor-label">Refactors with recipes</span>
+    <span class="factor-value">0</span>
+</div>
+
+        <div class="factor-item red">
+    <span class="factor-label">Project complexity (files)</span>
+    <span class="factor-value">0</span>
+</div>
+
+    </div>
+</div>
+
+        <div class="dial-card">
+    <h3>Confidence</h3>
+    <div class="gauge-container">
+        <div id="confidence-gauge" class="gauge"></div>
+    </div>
+    <div class="dial-score low">%d%%</div>
+    <div class="dial-label">Confidence Score</div>
+    <div class="factor-list">
+        20
+        <div class="factor-item red">
+    <span class="factor-label">Dependencies with known status</span>
+    <span class="factor-value">0%</span>
+</div>
+
+    </div>
+</div>
+
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Migration Risk Gauge
+        const migrationRiskCtx = document.getElementById('migration-risk-gauge');
+        if (migrationRiskCtx) {
+            new Chart(migrationRiskCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Risk Score', 'Remaining'],
+                    datasets: [{
+                        data: [%.0f, 100 - %.0f],
+                        backgroundColor: [
+                            '0.0',
+                            '#e9ecef'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%%',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Migration Effort Gauge
+        const effortScore = %d;
+        const migrationEffortCtx = document.getElementById('migration-effort-gauge');
+        if (migrationEffortCtx) {
+            new Chart(migrationEffortCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Effort Score', 'Remaining'],
+                    datasets: [{
+                        data: [effortScore, 100 - effortScore],
+                        backgroundColor: [
+                            '0.0',
+                            '#e9ecef'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%%',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Confidence Gauge
+        const confidenceScore = %d;
+        const confidenceCtx = document.getElementById('confidence-gauge');
+        if (confidenceCtx) {
+            new Chart(confidenceCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Confidence', 'Remaining'],
+                    datasets: [{
+                        data: [confidenceScore, 100 - confidenceScore],
+                        backgroundColor: [
+                            '#27ae60',
+                            '#e9ecef'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%%',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+
 <div class="section">
     <h2>Risk Analysis Details</h2>
-    <p>Risk assessment by migration category with mitigation strategies.</p>
+    <p>Risk assessment by migration category based on actual scan findings.</p>
 
     <div class="category-risk-container">
     <h3>📊 Category Risk Analysis</h3>
-    <div class="category-grid">
-        <div class="category-card">
-            <h4>🌐 Web Layer</h4>
-            <div class="category-risk-score high">75</div>
-            <div class="category-details">
-                <div class="category-item">
-                    <span>Servlet/JSP Migration</span>
-                    <span class="risk-indicator high">High Risk</span>
-                </div>
-                <div class="category-item">
-                    <span>REST API Updates</span>
-                    <span class="risk-indicator medium">Medium Risk</span>
-                </div>
-                <div class="category-item">
-                    <span>Session Management</span>
-                    <span class="risk-indicator low">Low Risk</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="category-card">
-            <h4>💾 Data Layer</h4>
-            <div class="category-risk-score medium">55</div>
-            <div class="category-details">
-                <div class="category-item">
-                    <span>JPA Entity Migration</span>
-                    <span class="risk-indicator medium">Medium Risk</span>
-                </div>
-                <div class="category-item">
-                    <span>Database Drivers</span>
-                    <span class="risk-indicator low">Low Risk</span>
-                </div>
-                <div class="category-item">
-                    <span>Transaction Management</span>
-                    <span class="risk-indicator medium">Medium Risk</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="category-card">
-            <h4>⚙️ Business Layer</h4>
-            <div class="category-risk-score medium">60</div>
-            <div class="category-details">
-                <div class="category-item">
-                    <span>EJB Migration</span>
-                    <span class="risk-indicator medium">Medium Risk</span>
-                </div>
-                <div class="category-item">
-                    <span>CDI Updates</span>
-                    <span class="risk-indicator low">Low Risk</span>
-                </div>
-                <div class="category-item">
-                    <span>Dependency Injection</span>
-                    <span class="risk-indicator low">Low Risk</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="category-card">
-            <h4>🔒 Security Layer</h4>
-            <div class="category-risk-score high">80</div>
-            <div class="category-details">
-                <div class="category-item">
-                    <span>JAAS Configuration</span>
-                    <span class="risk-indicator high">High Risk</span>
-                </div>
-                <div class="category-item">
-                    <span>Container Security</span>
-                    <span class="risk-indicator medium">Medium Risk</span>
-                </div>
-                <div class="category-item">
-                    <span>Certificate Management</span>
-                    <span class="risk-indicator low">Low Risk</span>
-                </div>
-            </div>
-        </div>
+    <div class="no-data-message">
+        <p>Category risk analysis requires scan results. Run the Jakarta migration scanner to see category-level risk assessment.</p>
     </div>
 </div>
 
+</div>
 
-    <div class="risk-trend-container">
-    <h3>📈 Risk Trend Analysis</h3>
-    <div class="trend-chart">
-        <div class="trend-legend">
-            <div class="legend-item">
-                <div class="legend-color high-risk"></div>
-                <span>High Risk Areas</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color medium-risk"></div>
-                <span>Medium Risk Areas</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color low-risk"></div>
-                <span>Low Risk Areas</span>
-            </div>
-        </div>
+<div class="section component-scores">
+    <h2>Risk Component Breakdown</h2>
+    <p>Per-component risk scores that contribute to the total risk assessment.</p>
 
-        <div class="trend-grid">
-            <div class="trend-phase">
-                <h4>Phase 1: Dependency Updates</h4>
-                <div class="phase-risk high-risk">
-                    <div class="risk-label">High Risk</div>
-                </div>
-                <p>Initial dependency updates may cause compilation issues and version conflicts.</p>
-            </div>
+    <div class="total-score-display">
+        <span class="total-label">Total Risk Score:</span>
+        <span class="total-value %.1f</span>
+    </div>
 
-            <div class="trend-phase">
-                <h4>Phase 2: Code Migration</h4>
-                <div class="phase-risk medium-risk">
-                    <div class="risk-label">Medium Risk</div>
-                </div>
-                <p>Package name changes are systematic but require thorough testing.</p>
-            </div>
+    <div class="component-bars">
+        0.0
+    </div>
 
-            <div class="trend-phase">
-                <h4>Phase 3: Configuration Updates</h4>
-                <div class="phase-risk low-risk">
-                    <div class="risk-label">Low Risk</div>
-                </div>
-                <p>Configuration changes are straightforward but require validation.</p>
-            </div>
-
-            <div class="trend-phase">
-                <h4>Phase 4: Testing &amp; Validation</h4>
-                <div class="phase-risk low-risk">
-                    <div class="risk-label">Low Risk</div>
-                </div>
-                <p>Comprehensive testing ensures migration success with minimal risk.</p>
-            </div>
-        </div>
+    <div class="component-table-container">
+        <table class="component-table">
+            <thead>
+                <tr>
+                    <th>Component</th>
+                    <th>Score</th>
+                    <th>Contribution</th>
+                </tr>
+            </thead>
+            <tbody>
+                low
+            </tbody>
+        </table>
     </div>
 </div>
 
+<div class="section migration-strategies">
+    <h2>Migration Strategies</h2>
+    <p>Available migration approaches for Jakarta EE transition.</p>
 
-    <div class="mitigation-strategies-container">
-    <h3>🛡️ Risk Mitigation Strategies</h3>
     <div class="strategies-grid">
-        <div class="strategy-card">
-            <h4>🔄 Incremental Migration</h4>
-            <div class="strategy-effectiveness high">High Effectiveness</div>
-            <div class="strategy-description">
-                <p>Migrate modules incrementally to reduce risk and enable rollback at each stage.</p>
-                <ul>
-                    <li>Start with low-risk modules</li>
-                    <li>Test thoroughly before proceeding</li>
-                    <li>Maintain parallel environments</li>
-                    <li>Document all changes</li>
-                </ul>
-            </div>
+        <div class="strategy-card" style="border-left: 4px solid rgb(220,53,69);">
+    <h3>Big Bang</h3>
+    <p class="strategy-description">Migrate everything at once</p>
+    <div class="strategy-details">
+        <div class="strategy-section">
+            <h4>✓ Benefits</h4>
+            <ul><li>Migrate all javax dependencies to Jakarta EE at once
+- Single comprehensive change
+- Best for small, self-contained projects
+- Requires thorough testing before starting</li></ul>
         </div>
-
-        <div class="strategy-card">
-            <h4>🧪 Comprehensive Testing</h4>
-            <div class="strategy-effectiveness high">High Effectiveness</div>
-            <div class="strategy-description">
-                <p>Implement comprehensive testing strategy to catch issues early.</p>
-                <ul>
-                    <li>Automated regression testing</li>
-                    <li>Integration test suites</li>
-                    <li>Performance benchmarking</li>
-                    <li>Security validation</li>
-                </ul>
-            </div>
+        <div class="strategy-section">
+            <h4>⚠ Risks</h4>
+            <ul><li>Higher risk - issues affect entire codebase
+- Longer rollback time if problems occur
+- Requires comprehensive test suite
+- May cause extended downtime during migration</li></ul>
         </div>
-
-        <div class="strategy-card">
-            <h4>📋 Dependency Management</h4>
-            <div class="strategy-effectiveness medium">Medium Effectiveness</div>
-            <div class="strategy-description">
-                <p>Careful dependency management prevents version conflicts.</p>
-                <ul>
-                    <li>Use dependency management tools</li>
-                    <li>Pin critical dependency versions</li>
-                    <li>Test compatibility thoroughly</li>
-                    <li>Monitor for security updates</li>
-                </ul>
-            </div>
+    </div>
+</div>
+<div class="strategy-card" style="border-left: 4px solid rgb(255,193,7);">
+    <h3>Incremental</h3>
+    <p class="strategy-description">One dependency at a time</p>
+    <div class="strategy-details">
+        <div class="strategy-section">
+            <h4>✓ Benefits</h4>
+            <ul><li>Migrate dependencies incrementally
+- Update one dependency, test, then proceed
+- Lower risk per change
+- Best for large, complex projects</li></ul>
         </div>
-
-        <div class="strategy-card">
-            <h4>👥 Team Training</h4>
-            <div class="strategy-effectiveness medium">Medium Effectiveness</div>
-            <div class="strategy-description">
-                <p>Ensure team is prepared for Jakarta EE migration.</p>
-                <ul>
-                    <li>Jakarta EE training sessions</li>
-                    <li>Documentation review</li>
-                    <li>Best practices workshops</li>
-                    <li>Peer programming sessions</li>
-                </ul>
-            </div>
+        <div class="strategy-section">
+            <h4>⚠ Risks</h4>
+            <ul><li>Longer overall migration timeline
+- Must maintain compatibility during transition
+- May require temporary dual dependencies
+- Need careful dependency ordering</li></ul>
+        </div>
+    </div>
+</div>
+<div class="strategy-card" style="border-left: 4px solid rgb(23,162,184);">
+    <h3>Transform</h3>
+    <p class="strategy-description">Combined build and runtime transformation</p>
+    <div class="strategy-details">
+        <div class="strategy-section">
+            <h4>✓ Benefits</h4>
+            <ul><li>Combine build-time and runtime transformation approaches
+- Use OpenRewrite for automated code changes
+- Deploy runtime adapters for edge cases
+- Best for complex enterprise applications</li></ul>
+        </div>
+        <div class="strategy-section">
+            <h4>⚠ Risks</h4>
+            <ul><li>Most complex implementation
+- Requires both build and runtime configuration
+- Higher resource overhead
+- May need specialized expertise</li></ul>
+        </div>
+    </div>
+</div>
+<div class="strategy-card" style="border-left: 4px solid rgb(108,117,125);">
+    <h3>Microservices</h3>
+    <p class="strategy-description">Migrate each service independently</p>
+    <div class="strategy-details">
+        <div class="strategy-section">
+            <h4>✓ Benefits</h4>
+            <ul><li>Migrate microservices one at a time
+- Each service can use different strategy
+- Independent deployment and testing
+- Best for distributed architectures</li></ul>
+        </div>
+        <div class="strategy-section">
+            <h4>⚠ Risks</h4>
+            <ul><li>Requires coordination across services
+- Inter-service dependencies must be handled
+- May need service mesh updates
+- Longer overall migration timeline</li></ul>
+        </div>
+    </div>
+</div>
+<div class="strategy-card" style="border-left: 4px solid rgb(111,66,193);">
+    <h3>Adapter Pattern</h3>
+    <p class="strategy-description">Use adapter classes for javax/jakarta compatibility</p>
+    <div class="strategy-details">
+        <div class="strategy-section">
+            <h4>✓ Benefits</h4>
+            <ul><li>â¢ Maintain backward compatibility during migration
+â¢ Gradual replacement of javax with jakarta
+â¢ Lower risk changes
+â¢ Easy to rollback individual adapters</li></ul>
+        </div>
+        <div class="strategy-section">
+            <h4>⚠ Risks</h4>
+            <ul><li>â¢ Additional code maintenance
+â¢ Runtime overhead for adapter layer
+â¢ More complex classpath management
+â¢ Need to track adapter usage</li></ul>
+        </div>
+    </div>
+</div>
+<div class="strategy-card" style="border-left: 4px solid rgb(40,167,69);">
+    <h3>Strangler</h3>
+    <p class="strategy-description">Migrate module by module</p>
+    <div class="strategy-details">
+        <div class="strategy-section">
+            <h4>✓ Benefits</h4>
+            <ul><li>Migrate one module at a time
+- New features built in Jakarta EE
+- Existing features gradually migrated
+- Good for monolithic applications</li></ul>
+        </div>
+        <div class="strategy-section">
+            <h4>⚠ Risks</h4>
+            <ul><li>Requires inter-module compatibility layers
+- Can create duplicate logic during transition
+- Managing two EE environments simultaneously</li></ul>
         </div>
     </div>
 </div>
 
-</div>
-
-<div class="section">
-    <h2>Common Migration Patterns</h2>
-    <p>Detailed code examples showing how to migrate common Java EE patterns to Jakarta EE.</p>
-
-                <div class="code-example-section">
-                <h3>📦 Package Import Migration</h3>
-                <p>The most common migration task is updating package imports from javax.* to jakarta.*.</p>
-
-                <div class="code-comparison">
-                    <div class="before-code">
-                        <h4>Before (Java EE)</h4>
-                        <pre class="code-block"><code>import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.persistence.EntityManager;
-import javax.persistence.Entity;
-import javax.ejb.Stateless;
-import javax.inject.Inject;</code></pre>
-                    </div>
-                    <div class="after-code">
-                        <h4>After (Jakarta EE)</h4>
-                        <pre class="code-block"><code>import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.Entity;
-import jakarta.ejb.Stateless;
-import jakarta.inject.Inject;</code></pre>
-                    </div>
-                </div>
-
-                <div class="migration-note">
-                    <h4>📝 Migration Notes</h4>
-                    <ul>
-                        <li>Most packages follow the pattern: javax.* → jakarta.*</li>
-                        <li>Some packages have slight name changes (e.g., javax.persistence → jakarta.persistence)</li>
-                        <li>IDE search/replace functionality can automate most import updates</li>
-                        <li>Verify all imports after automated changes</li>
-                    </ul>
-                </div>
-            </div>
-
-                <div class="code-example-section">
-                <h3>🌐 Servlet API Migration</h3>
-                <p>Servlet API changes are primarily package name updates with minor API improvements.</p>
-
-                <div class="code-comparison">
-                    <div class="before-code">
-                        <h4>Before (Java EE Servlet)</h4>
-                        <pre class="code-block"><code>@WebServlet("/api/users")
-public class UserServlet extends HttpServlet {
-
-    @Override
-    protected void doGet(HttpServletRequest request,
-                          HttpServletResponse response)
-            throws ServletException, IOException {
-
-        String userId = request.getParameter("id");
-        User user = userService.findById(userId);
-
-        response.setContentType("application/json");
-        response.getWriter().write(gson.toJson(user));
-    }
-
-    @Override
-    protected void doPost(HttpServletRequest request,
-                           HttpServletResponse response)
-            throws ServletException, IOException {
-
-        User user = gson.fromJson(request.getReader(), User.class);
-        userService.save(user);
-
-        response.setStatus(HttpServletResponse.SC_CREATED);
-        response.getWriter().write("User created successfully");
-    }
-}</code></pre>
-                    </div>
-                    <div class="after-code">
-                        <h4>After (Jakarta EE Servlet)</h4>
-                        <pre class="code-block"><code>@WebServlet("/api/users")
-public class UserServlet extends HttpServlet {
-
-    @Override
-    protected void doGet(jakarta.servlet.http.HttpServletRequest request,
-                          jakarta.servlet.http.HttpServletResponse response)
-            throws jakarta.servlet.ServletException, java.io.IOException {
-
-        String userId = request.getParameter("id");
-        User user = userService.findById(userId);
-
-        response.setContentType("application/json");
-        response.getWriter().write(gson.toJson(user));
-    }
-
-    @Override
-    protected void doPost(jakarta.servlet.http.HttpServletRequest request,
-                           jakarta.servlet.http.HttpServletResponse response)
-            throws jakarta.servlet.ServletException, java.io.IOException {
-
-        User user = gson.fromJson(request.getReader(), User.class);
-        userService.save(user);
-
-        response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_CREATED);
-        response.getWriter().write("User created successfully");
-    }
-}</code></pre>
-                    </div>
-                </div>
-
-                <div class="migration-note">
-                    <h4>📝 Migration Notes</h4>
-                    <ul>
-                        <li>Update all javax.servlet imports to jakarta.servlet</li>
-                        <li>ServletException moves to jakarta.servlet.ServletException</li>
-                        <li>HTTP status constants remain the same</li>
-                        <li>No changes to servlet lifecycle methods</li>
-                    </ul>
-                </div>
-            </div>
-
-                <div class="code-example-section">
-                <h3>🗄️ JPA/Hibernate Migration</h3>
-                <p>JPA migration involves package updates and some annotation changes.</p>
-
-                <div class="code-comparison">
-                    <div class="before-code">
-                        <h4>Before (Java EE JPA)</h4>
-                        <pre class="code-block"><code>@Entity
-@Table(name = "users")
-public class User {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false, unique = true)
-    private String email;
-
-    @Column(name = "created_at")
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date createdAt;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<Order> orders;
-
-    @ManyToMany
-    @JoinTable(name = "user_roles",
-               joinColumns = @JoinColumn(name = "user_id"),
-               inverseJoinColumns = @JoinColumn(name = "role_id"))
-    private Set<Role> roles;
-}</code></pre>
-                    </div>
-                    <div class="after-code">
-                        <h4>After (Jakarta EE JPA)</h4>
-                        <pre class="code-block"><code>@jakarta.persistence.Entity
-@jakarta.persistence.Table(name = "users")
-public class User {
-
-    @jakarta.persistence.Id
-    @jakarta.persistence.GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
-    private Long id;
-
-    @jakarta.persistence.Column(nullable = false, unique = true)
-    private String email;
-
-    @jakarta.persistence.Column(name = "created_at")
-    @jakarta.persistence.Temporal(jakarta.persistence.TemporalType.TIMESTAMP)
-    private Date createdAt;
-
-    @jakarta.persistence.OneToMany(mappedBy = "user", cascade = jakarta.persistence.CascadeType.ALL)
-    private List<Order> orders;
-
-    @jakarta.persistence.ManyToMany
-    @jakarta.persistence.JoinTable(name = "user_roles",
-               joinColumns = @jakarta.persistence.JoinColumn(name = "user_id"),
-               inverseJoinColumns = @jakarta.persistence.JoinColumn(name = "role_id"))
-    private Set<Role> roles;
-}</code></pre>
-                    </div>
-                </div>
-
-                <div class="migration-note">
-                    <h4>📝 Migration Notes</h4>
-                    <ul>
-                        <li>All javax.persistence annotations move to jakarta.persistence</li>
-                        <li>Annotation names and attributes remain the same</li>
-                        <li>Entity classes work identically after migration</li>
-                        <li>Update persistence.xml configuration file</li>
-                        <li>Test with your specific JPA provider (Hibernate, EclipseLink, etc.)</li>
-                    </ul>
-                </div>
-            </div>
-
-                <div class="code-example-section">
-                <h3>☕ EJB Migration</h3>
-                <p>Enterprise Java Beans migration focuses on package name changes.</p>
-
-                <div class="code-comparison">
-                    <div class="before-code">
-                        <h4>Before (Java EE EJB)</h4>
-                        <pre class="code-block"><code>@Stateless
-public class UserService {
-
-    @PersistenceContext
-    private EntityManager entityManager;
-
-    @Inject
-    private EmailService emailService;
-
-    @TransactionAttribute(TransactionAttributeType.REQUIRED)
-    public User createUser(UserDTO userDTO) {
-        User user = new User();
-        user.setEmail(userDTO.getEmail());
-        user.setName(userDTO.getName());
-
-        entityManager.persist(user);
-
-        emailService.sendWelcomeEmail(user);
-        return user;
-    }
-
-    @TransactionAttribute(TransactionAttributeType.SUPPORTS)
-    public User findById(Long id) {
-        return entityManager.find(User.class, id);
-    }
-}</code></pre>
-                    </div>
-                    <div class="after-code">
-                        <h4>After (Jakarta EE EJB)</h4>
-                        <pre class="code-block"><code>@jakarta.ejb.Stateless
-public class UserService {
-
-    @jakarta.persistence.PersistenceContext
-    private jakarta.persistence.EntityManager entityManager;
-
-    @jakarta.inject.Inject
-    private EmailService emailService;
-
-    @jakarta.ejb.TransactionAttribute(jakarta.ejb.TransactionAttributeType.REQUIRED)
-    public User createUser(UserDTO userDTO) {
-        User user = new User();
-        user.setEmail(userDTO.getEmail());
-        user.setName(userDTO.getName());
-
-        entityManager.persist(user);
-
-        emailService.sendWelcomeEmail(user);
-        return user;
-    }
-
-    @jakarta.ejb.TransactionAttribute(jakarta.ejb.TransactionAttributeType.SUPPORTS)
-    public User findById(Long id) {
-        return entityManager.find(User.class, id);
-    }
-}</code></pre>
-                    </div>
-                </div>
-
-                <div class="migration-note">
-                    <h4>📝 Migration Notes</h4>
-                    <ul>
-                        <li>javax.ejb annotations move to jakarta.ejb</li>
-                        <li>javax.persistence annotations move to jakarta.persistence</li>
-                        <li>javax.inject annotations move to jakarta.inject</li>
-                        <li>EJB behavior and lifecycle remain unchanged</li>
-                        <li>Update ejb-jar.xml configuration if used</li>
-                    </ul>
-                </div>
-            </div>
-
-                <div class="code-example-section">
-                <h3>🔧 CDI Migration</h3>
-                <p>Contexts and Dependency Injection migration involves package updates.</p>
-
-                <div class="code-comparison">
-                    <div class="before-code">
-                        <h4>Before (Java EE CDI)</h4>
-                        <pre class="code-block"><code>@ApplicationScoped
-public class OrderService {
-
-    @Inject
-    private UserRepository userRepository;
-
-    @Inject
-    private PaymentService paymentService;
-
-    @Inject
-    private Event<OrderCreatedEvent> orderCreatedEvent;
-
-    @Transactional
-    public Order createOrder(OrderRequest request) {
-        Order order = new Order();
-        order.setUserId(request.getUserId());
-        order.setAmount(request.getAmount());
-
-        order = userRepository.save(order);
-
-        paymentService.processPayment(order);
-        orderCreatedEvent.fire(new OrderCreatedEvent(order));
-
-        return order;
-    }
-
-    @Produces
-    @RequestScoped
-    public OrderValidator createOrderValidator() {
-        return new OrderValidator();
-    }
-}</code></pre>
-                    </div>
-                    <div class="after-code">
-                        <h4>After (Jakarta EE CDI)</h4>
-                        <pre class="code-block"><code>@jakarta.enterprise.context.ApplicationScoped
-public class OrderService {
-
-    @jakarta.inject.Inject
-    private UserRepository userRepository;
-
-    @jakarta.inject.Inject
-    private PaymentService paymentService;
-
-    @jakarta.inject.Inject
-    private jakarta.enterprise.event.Event<OrderCreatedEvent> orderCreatedEvent;
-
-    @jakarta.transaction.Transactional
-    public Order createOrder(OrderRequest request) {
-        Order order = new Order();
-        order.setUserId(request.getUserId());
-        order.setAmount(request.getAmount());
-
-        order = userRepository.save(order);
-
-        paymentService.processPayment(order);
-        orderCreatedEvent.fire(new OrderCreatedEvent(order));
-
-        return order;
-    }
-
-    @jakarta.enterprise.inject.Produces
-    @jakarta.enterprise.context.RequestScoped
-    public OrderValidator createOrderValidator() {
-        return new OrderValidator();
-    }
-}</code></pre>
-                    </div>
-                </div>
-
-                <div class="migration-note">
-                    <h4>📝 Migration Notes</h4>
-                    <ul>
-                        <li>javax.enterprise.context annotations move to jakarta.enterprise.context</li>
-                        <li>javax.inject annotations move to jakarta.inject</li>
-                        <li>javax.enterprise.inject.Produces moves to jakarta.enterprise.inject.Produces</li>
-                        <li>javax.enterprise.event.Event moves to jakarta.enterprise.event.Event</li>
-                        <li>CDI behavior and scopes remain unchanged</li>
-                    </ul>
-                </div>
-            </div>
-
-                <div class="code-example-section">
-                <h3>✅ Bean Validation Migration</h3>
-                <p>Bean validation migration involves package name updates.</p>
-
-                <div class="code-comparison">
-                    <div class="before-code">
-                        <h4>Before (Java EE Validation)</h4>
-                        <pre class="code-block"><code>public class UserRegistrationForm {
-
-    @NotNull(message = "Name is required")
-    @Size(min = 2, max = 50, message = "Name must be between 2 and 50 characters")
-    private String name;
-
-    @NotNull(message = "Email is required")
-    @Email(message = "Invalid email format")
-    private String email;
-
-    @NotNull(message = "Password is required")
-    @Size(min = 8, message = "Password must be at least 8 characters")
-    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$",
-              message = "Password must contain at least one letter and one number")
-    private String password;
-
-    @Min(value = 18, message = "You must be at least 18 years old")
-    private Integer age;
-}</code></pre>
-                    </div>
-                    <div class="after-code">
-                        <h4>After (Jakarta EE Validation)</h4>
-                        <pre class="code-block"><code>public class UserRegistrationForm {
-
-    @jakarta.validation.constraints.NotNull(message = "Name is required")
-    @jakarta.validation.constraints.Size(min = 2, max = 50, message = "Name must be between 2 and 50 characters")
-    private String name;
-
-    @jakarta.validation.constraints.NotNull(message = "Email is required")
-    @jakarta.validation.constraints.Email(message = "Invalid email format")
-    private String email;
-
-    @jakarta.validation.constraints.NotNull(message = "Password is required")
-    @jakarta.validation.constraints.Size(min = 8, message = "Password must be at least 8 characters")
-    @jakarta.validation.constraints.Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$",
-              message = "Password must contain at least one letter and one number")
-    private String password;
-
-    @jakarta.validation.constraints.Min(value = 18, message = "You must be at least 18 years old")
-    private Integer age;
-}</code></pre>
-                    </div>
-                </div>
-
-                <div class="migration-note">
-                    <h4>📝 Migration Notes</h4>
-                    <ul>
-                        <li>javax.validation.constraints annotations move to jakarta.validation.constraints</li>
-                        <li>All validation annotations and attributes remain the same</li>
-                        <li>Validation behavior is identical after migration</li>
-                        <li>Update validation.xml configuration if used</li>
-                        <li>Test validation messages and constraints</li>
-                    </ul>
-                </div>
-            </div>
-
-</div>
-
-<div class="section">
-    <h2>Implementation Roadmap</h2>
-    <p>Comprehensive migration plan with detailed phases, resource allocation, and timeline estimates.</p>
-
-    <div class="executive-summary-container">
-    <h3>📋 Executive Summary</h3>
-    <div class="summary-grid">
-        <div class="summary-card">
-            <h4>Migration Duration</h4>
-            <div class="summary-value">4-8 weeks</div>
-            <p>Based on 5 dependencies and 10 issues found</p>
-        </div>
-        <div class="summary-card">
-            <h4>Team Size</h4>
-            <div class="summary-value">2-4 developers</div>
-            <p>Recommended based on project complexity</p>
-        </div>
-        <div class="summary-card">
-            <h4>Total Effort</h4>
-            <div class="summary-value">360-1280 person-hours</div>
-            <p>Includes development, testing, and deployment</p>
-        </div>
-        <div class="summary-card">
-            <h4>Success Rate</h4>
-            <div class="summary-value">70%</div>
-            <p>Estimated based on risk analysis</p>
-        </div>
     </div>
 </div>
 
+<div class="section strategy-comparison">
+    <h2>Strategy Comparison</h2>
+    <p>Side-by-side comparison of migration strategies across risk categories.</p>
 
-    <div class="phase-breakdown-container">
-    <h3>🔄 Phase-by-Phase Breakdown</h3>
-    <div class="phases-grid">
-        <div class="phase-card">
-            <div class="phase-header">
-                <h4>Phase 1: Preparation</h4>
-                <div class="phase-duration">2 weeks</div>
-            </div>
-            <div class="phase-content">
-                <div class="phase-objectives">
-                    <h5>Objectives</h5>
-                    <ul>
-                        <li>Environment setup and backup</li>
-                        <li>Dependency analysis and planning</li>
-                        <li>Team training and documentation</li>
-                        <li>Tool configuration</li>
-                    </ul>
-                </div>
-                <div class="phase-deliverables">
-                    <h5>Deliverables</h5>
-                    <ul>
-                        <li>Migration plan document</li>
-                        <li>Environment backup</li>
-                        <li>Dependency inventory</li>
-                        <li>Training materials</li>
-                    </ul>
-                </div>
-                <div class="phase-resources">
-                    <h5>Resources</h5>
-                    <div class="resource-item">
-                        <span class="resource-role">Tech Lead</span>
-                        <span class="resource-allocation">50%</span>
-                    </div>
-                    <div class="resource-item">
-                        <span class="resource-role">Senior Developer</span>
-                        <span class="resource-allocation">100%</span>
-                    </div>
-                    <div class="resource-item">
-                        <span class="resource-role">DevOps Engineer</span>
-                        <span class="resource-allocation">25%</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="phase-card">
-            <div class="phase-header">
-                <h4>Phase 2: Dependency Migration</h4>
-                <div class="phase-duration">3 weeks</div>
-            </div>
-            <div class="phase-content">
-                <div class="phase-objectives">
-                    <h5>Objectives</h5>
-                    <ul>
-                        <li>Update build configuration</li>
-                        <li>Migrate dependencies to Jakarta EE</li>
-                        <li>Resolve version conflicts</li>
-                        <li>Initial compilation testing</li>
-                    </ul>
-                </div>
-                <div class="phase-deliverables">
-                    <h5>Deliverables</h5>
-                    <ul>
-                        <li>Updated build files</li>
-                        <li>Dependency compatibility matrix</li>
-                        <li>Compilation baseline</li>
-                        <li>Issue tracking report</li>
-                    </ul>
-                </div>
-                <div class="phase-resources">
-                    <h5>Resources</h5>
-                    <div class="resource-item">
-                        <span class="resource-role">Senior Developer</span>
-                        <span class="resource-allocation">100%</span>
-                    </div>
-                    <div class="resource-item">
-                        <span class="resource-role">Developer</span>
-                        <span class="resource-allocation">100%</span>
-                    </div>
-                    <div class="resource-item">
-                        <span class="resource-role">QA Engineer</span>
-                        <span class="resource-allocation">50%</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="phase-card">
-            <div class="phase-header">
-                <h4>Phase 3: Code Migration</h4>
-                <div class="phase-duration">4 weeks</div>
-            </div>
-            <div class="phase-content">
-                <div class="phase-objectives">
-                    <h5>Objectives</h5>
-                    <ul>
-                        <li>Update package imports</li>
-                        <li>Migrate configuration files</li>
-                        <li>Update annotations and descriptors</li>
-                        <li>Implement compatibility layers</li>
-                    </ul>
-                </div>
-                <div class="phase-deliverables">
-                    <h5>Deliverables</h5>
-                    <ul>
-                        <li>Migrated source code</li>
-                        <li>Configuration updates</li>
-                        <li>Code review reports</li>
-                        <li>Migration documentation</li>
-                    </ul>
-                </div>
-                <div class="phase-resources">
-                    <h5>Resources</h5>
-                    <div class="resource-item">
-                        <span class="resource-role">Tech Lead</span>
-                        <span class="resource-allocation">75%</span>
-                    </div>
-                    <div class="resource-item">
-                        <span class="resource-role">Senior Developer</span>
-                        <span class="resource-allocation">100%</span>
-                    </div>
-                    <div class="resource-item">
-                        <span class="resource-role">Developer</span>
-                        <span class="resource-allocation">100%</span>
-                    </div>
-                    <div class="resource-item">
-                        <span class="resource-role">Developer</span>
-                        <span class="resource-allocation">100%</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="phase-card">
-            <div class="phase-header">
-                <h4>Phase 4: Testing &amp; Validation</h4>
-                <div class="phase-duration">2 weeks</div>
-            </div>
-            <div class="phase-content">
-                <div class="phase-objectives">
-                    <h5>Objectives</h5>
-                    <ul>
-                        <li>Comprehensive testing</li>
-                        <li>Performance validation</li>
-                        <li>Security assessment</li>
-                        <li>User acceptance testing</li>
-                    </ul>
-                </div>
-                <div class="phase-deliverables">
-                    <h5>Deliverables</h5>
-                    <ul>
-                        <li>Test execution reports</li>
-                        <li>Performance benchmarks</li>
-                        <li>Security scan results</li>
-                        <li>UAT sign-off</li>
-                    </ul>
-                </div>
-                <div class="phase-resources">
-                    <h5>Resources</h5>
-                    <div class="resource-item">
-                        <span class="resource-role">QA Engineer</span>
-                        <span class="resource-allocation">100%</span>
-                    </div>
-                    <div class="resource-item">
-                        <span class="resource-role">Senior Developer</span>
-                        <span class="resource-allocation">50%</span>
-                    </div>
-                    <div class="resource-item">
-                        <span class="resource-role">DevOps Engineer</span>
-                        <span class="resource-allocation">75%</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="phase-card">
-            <div class="phase-header">
-                <h4>Phase 5: Deployment &amp; Rollout</h4>
-                <div class="phase-duration">1 week</div>
-            </div>
-            <div class="phase-content">
-                <div class="phase-objectives">
-                    <h5>Objectives</h5>
-                    <ul>
-                        <li>Production deployment</li>
-                        <li>Monitoring setup</li>
-                        <li>Performance tuning</li>
-                        <li>Documentation finalization</li>
-                    </ul>
-                </div>
-                <div class="phase-deliverables">
-                    <h5>Deliverables</h5>
-                    <ul>
-                        <li>Production deployment</li>
-                        <li>Monitoring dashboards</li>
-                        <li>Final documentation</li>
-                        <li>Lessons learned report</li>
-                    </ul>
-                </div>
-                <div class="phase-resources">
-                    <h5>Resources</h5>
-                    <div class="resource-item">
-                        <span class="resource-role">Tech Lead</span>
-                        <span class="resource-allocation">100%</span>
-                    </div>
-                    <div class="resource-item">
-                        <span class="resource-role">DevOps Engineer</span>
-                        <span class="resource-allocation">100%</span>
-                    </div>
-                    <div class="resource-item">
-                        <span class="resource-role">Senior Developer</span>
-                        <span class="resource-allocation">25%</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-    <div class="resource-allocation-container">
-    <h3>👥 Resource Allocation Summary</h3>
-    <div class="resource-overview">
-        <div class="resource-category">
-            <h4>Development Team</h4>
-            <div class="resource-breakdown">
-                <div class="resource-role-item">
-                    <span class="role-name">Technical Lead</span>
-                    <div class="role-details">
-                        <span class="role-level">Senior</span>
-                        <span class="role-effort">320 hours</span>
-                        <span class="role-cost">$48,000</span>
-                    </div>
-                </div>
-                <div class="resource-role-item">
-                    <span class="role-name">Senior Developer</span>
-                    <div class="role-details">
-                        <span class="role-level">Senior</span>
-                        <span class="role-effort">640 hours</span>
-                        <span class="role-cost">$96,000</span>
-                    </div>
-                </div>
-                <div class="resource-role-item">
-                    <span class="role-name">Developer</span>
-                    <div class="role-details">
-                        <span class="role-level">Mid</span>
-                        <span class="role-effort">640 hours</span>
-                        <span class="role-cost">$80,000</span>
-                    </div>
-                </div>
-                <div class="resource-role-item">
-                    <span class="role-name">Junior Developer</span>
-                    <div class="role-details">
-                        <span class="role-level">Junior</span>
-                        <span class="role-effort">320 hours</span>
-                        <span class="role-cost">$32,000</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="resource-category">
-            <h4>Support Team</h4>
-            <div class="resource-breakdown">
-                <div class="resource-role-item">
-                    <span class="role-name">QA Engineer</span>
-                    <div class="role-details">
-                        <span class="role-level">Senior</span>
-                        <span class="role-effort">400 hours</span>
-                        <span class="role-cost">$60,000</span>
-                    </div>
-                </div>
-                <div class="resource-role-item">
-                    <span class="role-name">DevOps Engineer</span>
-                    <div class="role-details">
-                        <span class="role-level">Senior</span>
-                        <span class="role-effort">320 hours</span>
-                        <span class="role-cost">$48,000</span>
-                    </div>
-                </div>
-                <div class="resource-role-item">
-                    <span class="role-name">Technical Writer</span>
-                    <div class="role-details">
-                        <span class="role-level">Mid</span>
-                        <span class="role-effort">160 hours</span>
-                        <span class="role-cost">$24,000</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="comparison-table-container">
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Risk Category</th>
+                    <th>Big Bang</th><th>Incremental</th><th>Transform</th><th>Microservices</th><th>Adapter Pattern</th><th>Strangler</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td class="category-cell">Development Effort</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell high-risk">High</td><td class="risk-cell high-risk">High</td><td class="risk-cell low-risk">Low</td><td class="risk-cell high-risk">High</td><td class="risk-cell low-risk">Low</td></tr><tr><td class="category-cell">Dependency Risks</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell high-risk">High</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell low-risk">Low</td><td class="risk-cell high-risk">High</td><td class="risk-cell high-risk">High</td></tr><tr><td class="category-cell">Tech Debt Accumulation</td><td class="risk-cell low-risk">Low</td><td class="risk-cell high-risk">High</td><td class="risk-cell high-risk">High</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell high-risk">High</td><td class="risk-cell high-risk">High</td></tr><tr><td class="category-cell">Test Effort</td><td class="risk-cell high-risk">High</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell low-risk">Low</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell medium-risk">Medium</td></tr><tr><td class="category-cell">Backwards Compatibility</td><td class="risk-cell high-risk">High</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell low-risk">Low</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell low-risk">Low</td><td class="risk-cell low-risk">Low</td></tr><tr><td class="category-cell">Production Rollout Risk</td><td class="risk-cell high-risk">High</td><td class="risk-cell low-risk">Low</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell low-risk">Low</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell medium-risk">Medium</td></tr>
+            </tbody>
+        </table>
     </div>
 
-    <div class="resource-summary">
-        <div class="summary-metrics">
-            <div class="metric-item">
-                <span class="metric-label">Total Team Size</span>
-                <span class="metric-value">8 people</span>
-            </div>
-            <div class="metric-item">
-                <span class="metric-label">Total Effort</span>
-                <span class="metric-value">2,800 hours</span>
-            </div>
-            <div class="metric-item">
-                <span class="metric-label">Estimated Cost</span>
-                <span class="metric-value">$388,000</span>
-            </div>
-            <div class="metric-item">
-                <span class="metric-label">Duration</span>
-                <span class="metric-value">12 weeks</span>
-            </div>
+    <div class="comparison-legend">
+        <div class="legend-item">
+            <div class="legend-color high-risk"></div>
+            <span>High Risk</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color medium-risk"></div>
+            <span>Medium Risk</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color low-risk"></div>
+            <span>Low Risk</span>
         </div>
     </div>
-</div>
-
-
-    <div class="timeline-container">
-    <h3>📅 Timeline Estimates</h3>
-    <div class="timeline-grid">
-        <div class="timeline-week">
-            <div class="week-header">Week 1-2</div>
-            <div class="week-content">
-                <div class="week-tasks">
-                    <h5>Preparation Phase</h5>
-                    <ul>
-                        <li>Environment setup and backup</li>
-                        <li>Dependency analysis</li>
-                        <li>Team training</li>
-                        <li>Migration planning</li>
-                    </ul>
-                </div>
-                <div class="week-milestone">
-                    <span class="milestone-complete">✓</span>
-                    <span>Migration Plan Approved</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="timeline-week">
-            <div class="week-header">Week 3-5</div>
-            <div class="week-content">
-                <div class="week-tasks">
-                    <h5>Dependency Migration</h5>
-                    <ul>
-                        <li>Build configuration updates</li>
-                        <li>Dependency migration</li>
-                        <li>Version conflict resolution</li>
-                        <li>Initial testing</li>
-                    </ul>
-                </div>
-                <div class="week-milestone">
-                    <span class="milestone-pending">○</span>
-                    <span>Dependencies Updated</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="timeline-week">
-            <div class="week-header">Week 6-9</div>
-            <div class="week-content">
-                <div class="week-tasks">
-                    <h5>Code Migration</h5>
-                    <ul>
-                        <li>Package import updates</li>
-                        <li>Configuration migration</li>
-                        <li>Annotation updates</li>
-                        <li>Compatibility layer implementation</li>
-                    </ul>
-                </div>
-                <div class="week-milestone">
-                    <span class="milestone-pending">○</span>
-                    <span>Code Migration Complete</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="timeline-week">
-            <div class="week-header">Week 10-11</div>
-            <div class="week-content">
-                <div class="week-tasks">
-                    <h5>Testing &amp; Validation</h5>
-                    <ul>
-                        <li>Comprehensive testing</li>
-                        <li>Performance validation</li>
-                        <li>Security assessment</li>
-                        <li>UAT execution</li>
-                    </ul>
-                </div>
-                <div class="week-milestone">
-                    <span class="milestone-pending">○</span>
-                    <span>Testing Complete</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="timeline-week">
-            <div class="week-header">Week 12</div>
-            <div class="week-content">
-                <div class="week-tasks">
-                    <h5>Deployment &amp; Rollout</h5>
-                    <ul>
-                        <li>Production deployment</li>
-                        <li>Monitoring setup</li>
-                        <li>Performance tuning</li>
-                        <li>Documentation finalization</li>
-                    </ul>
-                </div>
-                <div class="week-milestone">
-                    <span class="milestone-pending">○</span>
-                    <span>Go Live</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-    <div class="risk-mitigation-container">
-    <h3>🛡️ Risk Mitigation Strategies</h3>
-    <div class="mitigation-grid">
-        <div class="mitigation-card">
-            <h4>🔄 Technical Risks</h4>
-            <div class="mitigation-strategies">
-                <div class="risk-item">
-                    <span class="risk-name">Version Conflicts</span>
-                    <span class="risk-level high">High</span>
-                </div>
-                <div class="strategy-item">
-                    <span class="strategy-name">Dependency Testing</span>
-                    <span class="strategy-effectiveness">High</span>
-                </div>
-                <div class="strategy-item">
-                    <span class="strategy-name">Staging Environment</span>
-                    <span class="strategy-effectiveness">High</span>
-                </div>
-                <div class="strategy-item">
-                    <span class="strategy-name">Rollback Plan</span>
-                    <span class="strategy-effectiveness">Medium</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="mitigation-card">
-            <h4>⏰ Timeline Risks</h4>
-            <div class="mitigation-strategies">
-                <div class="risk-item">
-                    <span class="risk-name">Schedule Delays</span>
-                    <span class="risk-level medium">Medium</span>
-                </div>
-                <div class="strategy-item">
-                    <span class="strategy-name">Buffer Time</span>
-                    <span class="strategy-effectiveness">High</span>
-                </div>
-                <div class="strategy-item">
-                    <span class="strategy-name">Parallel Work</span>
-                    <span class="strategy-effectiveness">Medium</span>
-                </div>
-                <div class="strategy-item">
-                    <span class="strategy-name">Regular Checkpoints</span>
-                    <span class="strategy-effectiveness">High</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="mitigation-card">
-            <h4>👥 Resource Risks</h4>
-            <div class="mitigation-strategies">
-                <div class="risk-item">
-                    <span class="risk-name">Skill Gaps</span>
-                    <span class="risk-level medium">Medium</span>
-                </div>
-                <div class="strategy-item">
-                    <span class="strategy-name">Training Program</span>
-                    <span class="strategy-effectiveness">High</span>
-                </div>
-                <div class="strategy-item">
-                    <span class="strategy-name">Expert Consultation</span>
-                    <span class="strategy-effectiveness">Medium</span>
-                </div>
-                <div class="strategy-item">
-                    <span class="strategy-name">Documentation</span>
-                    <span class="strategy-effectiveness">Low</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="mitigation-card">
-            <h4>🎯 Quality Risks</h4>
-            <div class="mitigation-strategies">
-                <div class="risk-item">
-                    <span class="risk-name">Regressions</span>
-                    <span class="risk-level high">High</span>
-                </div>
-                <div class="strategy-item">
-                    <span class="strategy-name">Comprehensive Testing</span>
-                    <span class="strategy-effectiveness">High</span>
-                </div>
-                <div class="strategy-item">
-                    <span class="strategy-name">Code Reviews</span>
-                    <span class="strategy-effectiveness">Medium</span>
-                </div>
-                <div class="strategy-item">
-                    <span class="strategy-name">Automated Checks</span>
-                    <span class="strategy-effectiveness">Medium</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 </div>
 
 </div>

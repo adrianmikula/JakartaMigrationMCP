@@ -31,7 +31,7 @@ public class SupabaseClientWrapper implements AutoCloseable {
     
     public SupabaseClientWrapper(SupabaseConfig config) {
         this.config = config;
-        this.isConfigured = config.isConfigured();
+        this.isConfigured = config != null && config.isConfigured();
         
         if (isConfigured) {
             log.info("SupabaseClientWrapper initialized with URL: {}", maskUrl(config.getSupabaseUrl()));
