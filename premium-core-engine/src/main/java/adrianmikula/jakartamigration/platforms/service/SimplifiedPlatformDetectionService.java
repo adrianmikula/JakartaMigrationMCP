@@ -1,8 +1,10 @@
 package adrianmikula.jakartamigration.platforms.service;
 
 import adrianmikula.jakartamigration.platforms.config.PlatformConfigLoader;
-
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
+import adrianmikula.jakartamigration.platforms.model.PlatformDetection;
+import adrianmikula.jakartamigration.platforms.model.PlatformConfig;
+import adrianmikula.jakartamigration.platforms.model.JakartaCompatibility;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -159,7 +161,10 @@ public class SimplifiedPlatformDetectionService {
             log.debug("Inferred {} platforms from artifacts: {}", inferredServers.size(), inferredServers);
         }
 
-        return new EnhancedPlatformScanResult(detectedServers, inferredServers, deploymentArtifacts, platformSpecificArtifacts);
+        // Create PlatformDetection objects from config (data collection only, no risk calculation)
+        List<PlatformDetection> platformDetails = createPlatformDetectionObjects(detectedServers);
+
+        return new EnhancedPlatformScanResult(detectedServers, inferredServers, platformDetails, deploymentArtifacts, platformSpecificArtifacts);
     }
 
     /**
@@ -252,7 +257,8 @@ public class SimplifiedPlatformDetectionService {
             "javax.servlet", "jakarta.servlet", "javax.ejb", "jakarta.ejb",
             "javax.persistence", "jakarta.persistence", "javax.jms", "jakarta.jms",
             "org.springframework.boot", "org.jboss", "org.apache.tomcat",
-            "org.eclipse.jetty", "org.glassfish", "com.ibm.websphere"
+            "org.eclipse.jetty", "org.glassfish", "com.ibm.websphere",
+            "com.ibm.ws", "net.wasdev.maven.tools.targets", "com.ibm.websphere.appserver"
         };
 
         for (String dep : platformDeps) {
@@ -279,6 +285,7 @@ public class SimplifiedPlatformDetectionService {
     /**
      * Infers likely application server platforms based on detected deployment artifacts.
      * This is a fallback when no platforms are detected via dependency analysis.
+     * Uses conservative inference with platform priority to avoid over-detection.
      */
     private List<String> inferPlatformsFromArtifacts(Map<String, Integer> deploymentArtifacts,
                                                      Map<String, Integer> platformSpecificArtifacts) {
@@ -288,40 +295,120 @@ public class SimplifiedPlatformDetectionService {
         int earCount = deploymentArtifacts.getOrDefault("ear", 0);
         int jarCount = deploymentArtifacts.getOrDefault("jar", 0);
 
-        // EAR files indicate full Java EE/Jakarta EE servers
-        if (earCount > 0) {
-            inferredServers.add("wildfly");
-            inferredServers.add("websphere");
-            inferredServers.add("weblogic");
-            inferredServers.add("glassfish");
-            log.debug("Inferred full EE servers from EAR artifacts: {}", inferredServers);
+        // First, check for platform-specific indicators that should prevent broad inference
+        String specificPlatform = detectSpecificPlatformFromArtifacts(platformSpecificArtifacts);
+        if (specificPlatform != null) {
+            inferredServers.add(specificPlatform);
+            log.debug("Inferred specific platform from artifacts: {}", specificPlatform);
+            return inferredServers;
         }
 
-        // WAR files indicate servlet containers or web servers
-        if (warCount > 0 || (earCount == 0 && jarCount > 0)) {
-            // Check for specific indicators in platform artifacts
-            int webXmlCount = platformSpecificArtifacts.getOrDefault("web.xml", 0);
-
-            if (webXmlCount > 0 || warCount > 0) {
-                inferredServers.add("tomcat");
-                inferredServers.add("jetty");
+        // Only infer multiple platforms if no specific indicators found and truly ambiguous
+        if (isTrulyAmbiguousCase(deploymentArtifacts, platformSpecificArtifacts)) {
+            // EAR files indicate full Java EE/Jakarta EE servers - but be conservative
+            if (earCount > 0) {
+                // Only add the most common EE server instead of all possible ones
                 inferredServers.add("wildfly");
-                log.debug("Inferred servlet containers from WAR/web.xml artifacts");
+                log.debug("Inferred primary EE server from EAR artifacts: wildfly");
             }
-        }
 
-        // If only web.xml detected without any deployment artifacts, still infer web containers
-        if (warCount == 0 && earCount == 0 && jarCount == 0) {
-            int webXmlCount = platformSpecificArtifacts.getOrDefault("web.xml", 0);
-            if (webXmlCount > 0) {
+            // WAR files indicate servlet containers - but be conservative
+            if (warCount > 0 || (earCount == 0 && jarCount > 0)) {
+                // Only add the most common servlet container instead of all possible ones
                 inferredServers.add("tomcat");
-                inferredServers.add("jetty");
-                inferredServers.add("wildfly");
-                log.debug("Inferred servlet containers from web.xml presence");
+                log.debug("Inferred primary servlet container from WAR artifacts: tomcat");
             }
         }
 
         return inferredServers;
+    }
+
+    /**
+     * Detects WebSphere-specific groupIds in pom.xml content.
+     */
+    private boolean hasWebSphereGroupId(String pomContent) {
+        return pomContent.contains("<groupId>com.ibm.websphere") ||
+               pomContent.contains("<groupId>com.ibm.ws") ||
+               pomContent.contains("com.ibm.websphere.pbw");
+    }
+
+    /**
+     * Detects specific platform indicators from platform-specific artifacts.
+     * Returns the first matching platform or null if no specific indicators found.
+     */
+    private String detectSpecificPlatformFromArtifacts(Map<String, Integer> platformSpecificArtifacts) {
+        // Check for WebSphere-specific indicators
+        if (hasWebSphereIndicators(platformSpecificArtifacts)) {
+            return "websphere";
+        }
+
+        // Check for WebLogic-specific indicators
+        if (hasWebLogicIndicators(platformSpecificArtifacts)) {
+            return "weblogic";
+        }
+
+        // Check for WildFly-specific indicators
+        if (hasWildFlyIndicators(platformSpecificArtifacts)) {
+            return "wildfly";
+        }
+
+        // Check for GlassFish-specific indicators
+        if (hasGlassFishIndicators(platformSpecificArtifacts)) {
+            return "glassfish";
+        }
+
+        // Check for Liberty-specific indicators
+        if (hasLibertyIndicators(platformSpecificArtifacts)) {
+            return "liberty";
+        }
+
+        return null;
+    }
+
+    /**
+     * Determines if this is a truly ambiguous case that warrants broad inference.
+     */
+    private boolean isTrulyAmbiguousCase(Map<String, Integer> deploymentArtifacts,
+                                       Map<String, Integer> platformSpecificArtifacts) {
+        int warCount = deploymentArtifacts.getOrDefault("war", 0);
+        int earCount = deploymentArtifacts.getOrDefault("ear", 0);
+        int jarCount = deploymentArtifacts.getOrDefault("jar", 0);
+        int webXmlCount = platformSpecificArtifacts.getOrDefault("web.xml", 0);
+
+        // Only ambiguous if we have artifacts but no specific platform indicators
+        boolean hasArtifacts = warCount > 0 || earCount > 0 || jarCount > 0 || webXmlCount > 0;
+        boolean hasSpecificIndicators = detectSpecificPlatformFromArtifacts(platformSpecificArtifacts) != null;
+
+        return hasArtifacts && !hasSpecificIndicators;
+    }
+
+    // Platform-specific indicator detection methods
+    private boolean hasWebSphereIndicators(Map<String, Integer> platformSpecificArtifacts) {
+        return platformSpecificArtifacts.containsKey("com.ibm.websphere") ||
+               platformSpecificArtifacts.containsKey("com.ibm.ws") ||
+               platformSpecificArtifacts.containsKey("net.wasdev.maven.tools.targets") ||
+               platformSpecificArtifacts.containsKey("com.ibm.websphere.appserver");
+    }
+
+    private boolean hasWebLogicIndicators(Map<String, Integer> platformSpecificArtifacts) {
+        return platformSpecificArtifacts.containsKey("com.oracle.weblogic") ||
+               platformSpecificArtifacts.containsKey("weblogic");
+    }
+
+    private boolean hasWildFlyIndicators(Map<String, Integer> platformSpecificArtifacts) {
+        return platformSpecificArtifacts.containsKey("org.wildfly") ||
+               platformSpecificArtifacts.containsKey("org.jboss.as");
+    }
+
+    private boolean hasGlassFishIndicators(Map<String, Integer> platformSpecificArtifacts) {
+        return platformSpecificArtifacts.containsKey("org.glassfish") ||
+               platformSpecificArtifacts.containsKey("org.glassfish.main") ||
+               platformSpecificArtifacts.containsKey("org.glassfish.jersey");
+    }
+
+    private boolean hasLibertyIndicators(Map<String, Integer> platformSpecificArtifacts) {
+        return platformSpecificArtifacts.containsKey("io.openliberty") ||
+               platformSpecificArtifacts.containsKey("com.ibm.websphere.appserver");
     }
 
     /**
@@ -337,6 +424,14 @@ public class SimplifiedPlatformDetectionService {
             Path pomPath = projectPath.resolve("pom.xml");
             String pomContent = Files.readString(pomPath);
             log.debug("Read pom.xml content ({} characters)", pomContent.length());
+            
+            // Check for WebSphere-specific groupIds first (high priority detection)
+            if (hasWebSphereGroupId(pomContent)) {
+                servers.add("websphere");
+                log.debug("✓ Detected WebSphere via groupId pattern");
+                // Don't continue scanning for other platforms if WebSphere is detected
+                return servers;
+            }
             
             // First, extract variables from gradle.properties or libs.versions.toml
             Map<String, String> variables = extractGradleVariables(projectPath);
@@ -521,42 +616,7 @@ public class SimplifiedPlatformDetectionService {
         return variables;
     }
     
-    /**
-     * Scan for variable-based artifact coordinates (e.g., "${tomcatVersion}")
-     */
-    private List<String> scanForVariableArtifacts(String gradleContent, Map<String, String> variables, 
-            String platformName, adrianmikula.jakartamigration.platforms.model.PlatformConfig config) {
-        List<String> servers = new ArrayList<>();
         
-        // Common variable patterns for different platforms
-        Map<String, String[]> platformVariables = Map.of(
-                "tomcat", new String[]{"tomcatVersion", "tomcatVersion", "catalinaVersion"},
-                "wildfly", new String[]{"wildflyVersion", "wildflyVersion"},
-                "jetty", new String[]{"jettyVersion", "jettyVersion"},
-                "liberty", new String[]{"libertyVersion", "libertyVersion"},
-                "tomee", new String[]{"tomeeVersion", "tomeeVersion"},
-                "payara", new String[]{"payaraVersion", "payaraVersion"},
-                "jbosseap", new String[]{"jbossVersion", "jbossVersion"}
-        );
-        
-        String[] platformVarNames = platformVariables.get(platformName);
-        if (platformVarNames != null) {
-            for (String varName : platformVarNames) {
-                String varPattern = "${" + varName + "}";
-                if (gradleContent.contains(varPattern)) {
-                    String actualValue = variables.get(varName);
-                    if (actualValue != null) {
-                        log.debug("Found variable-based {} artifact: {} = {}", platformName, varName, actualValue);
-                        servers.add(platformName);
-                        break; // Found variable-based detection
-                    }
-                }
-            }
-        }
-        
-        return servers;
-    }
-    
     /**
      * Simple scan for installed application servers - search anywhere in project
      */
@@ -631,14 +691,73 @@ public class SimplifiedPlatformDetectionService {
         log.debug("Installed servers scan complete. Found {} servers: {}", servers.size(), servers);
         return servers;
     }
+
+    /**
+     * Creates PlatformDetection objects from detected platform names using config.
+     * This is data collection only - no risk calculation is performed here.
+     * Risk scores must be calculated by RiskScoringService using risk-score.yaml.
+     *
+     * @param detectedPlatforms List of detected platform names
+     * @return List of PlatformDetection objects with details from config
+     */
+    private List<PlatformDetection> createPlatformDetectionObjects(List<String> detectedPlatforms) {
+        List<PlatformDetection> platformDetails = new ArrayList<>();
+        
+        for (String platformName : detectedPlatforms) {
+            PlatformConfig config = configLoader.getPlatformConfig(platformName);
+            if (config != null) {
+                // Extract details from config
+                String platformType = platformName;
+                String detectedVersion = "unknown"; // Version detection would require additional scanning
+                boolean isJakartaCompatible = false;
+                String minJakartaVersion = null;
+                Map<String, String> requirements = config.requirements() != null 
+                    ? new HashMap<>(config.requirements()) 
+                    : new HashMap<>();
+                
+                // Check Jakarta compatibility from config
+                if (config.jakartaCompatibility() != null) {
+                    isJakartaCompatible = true;
+                    minJakartaVersion = config.jakartaCompatibility().minVersion();
+                }
+                
+                PlatformDetection detection = new PlatformDetection(
+                    platformType,
+                    config.name(),
+                    detectedVersion,
+                    isJakartaCompatible,
+                    minJakartaVersion,
+                    requirements
+                );
+                platformDetails.add(detection);
+                log.debug("Created PlatformDetection for {}: compatible={}, minJakarta={}", 
+                    platformName, isJakartaCompatible, minJakartaVersion);
+            } else {
+                log.debug("No config found for platform: {}, creating minimal detection", platformName);
+                // Create minimal detection for platforms without config
+                PlatformDetection detection = new PlatformDetection(
+                    platformName,
+                    platformName,
+                    "unknown",
+                    false,
+                    null,
+                    new HashMap<>()
+                );
+                platformDetails.add(detection);
+            }
+        }
+        
+        return platformDetails;
+    }
     
     /**
-     * Checks if the content contains the specified artifact.
+     * Checks if content contains the specified artifact.
      * Supports both Gradle format (group:artifact) and Maven XML format (separate groupId/artifactId elements).
+     * Also handles parent POM references for Spring Boot detection.
      * 
      * @param content The file content to search (pom.xml or build.gradle)
      * @param artifact The artifact in group:name format
-     * @return true if the artifact is found in the content
+     * @return true if artifact is found in content
      */
     private boolean matchesArtifact(String content, String artifact) {
         String lowerContent = content.toLowerCase();
@@ -665,8 +784,18 @@ public class SimplifiedPlatformDetectionService {
                     return true;
                 }
                 
+                // Special handling for Spring Boot parent POM detection
+                if ("org.springframework.boot".equals(group) && "spring-boot-starter-parent".equals(name)) {
+                    // Check for parent POM reference
+                    boolean hasParentGroup = lowerContent.contains("<parent>") && 
+                                        lowerContent.contains("<groupid>org.springframework.boot</groupid>");
+                    boolean hasParentArtifact = lowerContent.contains("<artifactid>spring-boot-starter-parent</artifactid>");
+                    if (hasParentGroup && hasParentArtifact) {
+                        return true;
+                    }
+                }
+                
                 // Also check for simple artifact name match (backward compatibility)
-                // This handles cases where only artifactId is specified without group
                 if (lowerContent.contains(name)) {
                     return true;
                 }

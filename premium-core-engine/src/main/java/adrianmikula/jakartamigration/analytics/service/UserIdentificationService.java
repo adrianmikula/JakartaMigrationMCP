@@ -1,6 +1,7 @@
 package adrianmikula.jakartamigration.analytics.service;
 
 import adrianmikula.jakartamigration.analytics.config.SupabaseConfig;
+import adrianmikula.jakartamigration.preferences.UserPreferencesService;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -16,66 +17,43 @@ import java.util.UUID;
 @Slf4j
 public class UserIdentificationService implements AutoCloseable {
     
-    private static final String USER_ID_FILE = "analytics-user-id.properties";
     private static final String USER_ID_KEY = "anonymous.user.id";
     private static final String FIRST_SEEN_KEY = "first.seen.timestamp";
     private static final String LAST_SEEN_KEY = "last.seen.timestamp";
     private static final String USAGE_METRICS_OPT_OUT_KEY = "usage.metrics.opt.out";
     private static final String ERROR_REPORTING_OPT_OUT_KEY = "error.reporting.opt.out";
+    private static final String USAGE_PERMISSION_REQUESTED_KEY = "usage.permission.requested";
     
-    private final Path userIdPath;
+    private final UserPreferencesService preferencesService;
     private final String anonymousUserId;
     private final SupabaseConfig supabaseConfig;
     
     public UserIdentificationService() {
-        this(getDefaultStoragePath(), new SupabaseConfig());
-    }
-    
-    public UserIdentificationService(Path storagePath, SupabaseConfig supabaseConfig) {
-        this.supabaseConfig = supabaseConfig;
-        this.userIdPath = storagePath.resolve(USER_ID_FILE);
-        
-        try {
-            Files.createDirectories(storagePath);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to create analytics storage directory: " + storagePath, e);
-        }
-        
+        this.preferencesService = new UserPreferencesService();
+        this.supabaseConfig = new SupabaseConfig();
         this.anonymousUserId = loadOrCreateUserId();
         updateLastSeen();
         
         log.info("UserIdentificationService initialized for user: {}", anonymousUserId);
     }
     
-    /**
-     * Gets the default storage path for user identification.
-     * Uses the IntelliJ system directory or falls back to user home.
-     */
-    private static Path getDefaultStoragePath() {
-        // Try to use IntelliJ's config directory
-        String ideaConfigPath = System.getProperty("idea.config.path");
-        if (ideaConfigPath != null) {
-            return Path.of(ideaConfigPath, "jakarta-migration");
-        }
-        
-        // Fallback to user home
-        String userHome = System.getProperty("user.home");
-        return Path.of(userHome, ".jakarta-migration", "analytics");
+    public UserIdentificationService(Path storagePath, SupabaseConfig supabaseConfig) {
+        this.preferencesService = storagePath != null ? new UserPreferencesService(storagePath) : new UserPreferencesService();
+        this.supabaseConfig = supabaseConfig;
+        this.anonymousUserId = loadOrCreateUserId();
+        updateLastSeen();
     }
-    
+
     /**
      * Loads existing user ID or creates a new one.
      */
     private String loadOrCreateUserId() {
-        Properties props = loadUserProperties();
-        
-        String userId = props.getProperty(USER_ID_KEY);
+        String userId = preferencesService.getPreference(USER_ID_KEY);
         if (userId == null || userId.trim().isEmpty()) {
             userId = UUID.randomUUID().toString();
-            props.setProperty(USER_ID_KEY, userId);
-            props.setProperty(FIRST_SEEN_KEY, String.valueOf(System.currentTimeMillis()));
-            props.setProperty(LAST_SEEN_KEY, String.valueOf(System.currentTimeMillis()));
-            saveUserProperties(props);
+            preferencesService.setPreference(USER_ID_KEY, userId);
+            preferencesService.setPreference(FIRST_SEEN_KEY, String.valueOf(System.currentTimeMillis()));
+            preferencesService.setPreference(LAST_SEEN_KEY, String.valueOf(System.currentTimeMillis()));
             log.info("Created new anonymous user ID: {}", userId);
         } else {
             log.debug("Loaded existing anonymous user ID: {}", userId);
@@ -85,39 +63,24 @@ public class UserIdentificationService implements AutoCloseable {
     }
     
     /**
-     * Updates the last seen timestamp for the user.
+     * Updates the last seen timestamp for user.
      */
     private void updateLastSeen() {
-        Properties props = loadUserProperties();
-        props.setProperty(LAST_SEEN_KEY, String.valueOf(System.currentTimeMillis()));
-        saveUserProperties(props);
+        preferencesService.setPreference(LAST_SEEN_KEY, String.valueOf(System.currentTimeMillis()));
     }
     
     /**
-     * Loads user properties from disk.
+     * Gets the last seen timestamp.
      */
-    private Properties loadUserProperties() {
-        Properties props = new Properties();
-        if (Files.exists(userIdPath)) {
-            try {
-                props.load(Files.newInputStream(userIdPath));
-            } catch (IOException e) {
-                log.warn("Error loading user ID properties, creating new ones", e);
-            }
-        }
-        return props;
+    public long getLastSeenTimestamp() {
+        return preferencesService.getLastSeenTimestamp();
     }
     
     /**
-     * Saves user properties to disk.
+     * Gets the first seen timestamp.
      */
-    private void saveUserProperties(Properties props) {
-        try {
-            props.store(Files.newOutputStream(userIdPath), 
-                "Jakarta Migration Analytics - Anonymous User Identification");
-        } catch (IOException e) {
-            log.error("Failed to save user ID properties", e);
-        }
+    public long getFirstSeenTimestamp() {
+        return preferencesService.getFirstSeenTimestamp();
     }
     
     /**
@@ -125,24 +88,6 @@ public class UserIdentificationService implements AutoCloseable {
      */
     public String getAnonymousUserId() {
         return anonymousUserId;
-    }
-    
-    /**
-     * Gets the first seen timestamp.
-     */
-    public long getFirstSeenTimestamp() {
-        Properties props = loadUserProperties();
-        String firstSeen = props.getProperty(FIRST_SEEN_KEY);
-        return firstSeen != null ? Long.parseLong(firstSeen) : System.currentTimeMillis();
-    }
-    
-    /**
-     * Gets the last seen timestamp.
-     */
-    public long getLastSeenTimestamp() {
-        Properties props = loadUserProperties();
-        String lastSeen = props.getProperty(LAST_SEEN_KEY);
-        return lastSeen != null ? Long.parseLong(lastSeen) : System.currentTimeMillis();
     }
     
     /**
@@ -163,25 +108,21 @@ public class UserIdentificationService implements AutoCloseable {
      * Checks if user has opted out of usage metrics.
      */
     public boolean isUsageMetricsOptedOut() {
-        Properties props = loadUserProperties();
-        return Boolean.parseBoolean(props.getProperty(USAGE_METRICS_OPT_OUT_KEY, "false"));
+        return Boolean.parseBoolean(preferencesService.getPreference(USAGE_METRICS_OPT_OUT_KEY, "false"));
     }
     
     /**
-     * Checks if user has opted out of error reporting.
+     * Checks if error reporting is opted out.
      */
     public boolean isErrorReportingOptedOut() {
-        Properties props = loadUserProperties();
-        return Boolean.parseBoolean(props.getProperty(ERROR_REPORTING_OPT_OUT_KEY, "false"));
+        return Boolean.parseBoolean(preferencesService.getPreference(ERROR_REPORTING_OPT_OUT_KEY, "false"));
     }
     
     /**
      * Sets the user's preference for usage metrics.
      */
     public void setUsageMetricsEnabled(boolean enabled) {
-        Properties props = loadUserProperties();
-        props.setProperty(USAGE_METRICS_OPT_OUT_KEY, String.valueOf(!enabled));
-        saveUserProperties(props);
+        preferencesService.setPreference(USAGE_METRICS_OPT_OUT_KEY, String.valueOf(!enabled));
         log.info("Usage metrics enabled: {}", enabled);
     }
     
@@ -189,10 +130,23 @@ public class UserIdentificationService implements AutoCloseable {
      * Sets the user's preference for error reporting.
      */
     public void setErrorReportingEnabled(boolean enabled) {
-        Properties props = loadUserProperties();
-        props.setProperty(ERROR_REPORTING_OPT_OUT_KEY, String.valueOf(!enabled));
-        saveUserProperties(props);
+        preferencesService.setPreference(ERROR_REPORTING_OPT_OUT_KEY, String.valueOf(!enabled));
         log.info("Error reporting enabled: {}", enabled);
+    }
+    
+    /**
+     * Checks if usage permission has been requested.
+     */
+    public boolean isUsagePermissionRequested() {
+        return Boolean.parseBoolean(preferencesService.getPreference(USAGE_PERMISSION_REQUESTED_KEY, "false"));
+    }
+    
+    /**
+     * Marks that usage permission has been requested.
+     */
+    public void setUsagePermissionRequested() {
+        preferencesService.setPreference(USAGE_PERMISSION_REQUESTED_KEY, "true");
+        log.info("Usage permission requested flag set");
     }
     
     @Override

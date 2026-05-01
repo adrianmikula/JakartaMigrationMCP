@@ -47,10 +47,14 @@ public class SupportComponent {
     // Removed trial-related static state - credits system handles free tier
     
     public SupportComponent(@NotNull Project project, Consumer<Void> onPremiumActivated, Runnable onExperimentalFeaturesChanged) {
+        this(project, onPremiumActivated, onExperimentalFeaturesChanged, new UserIdentificationService());
+    }
+
+    public SupportComponent(@NotNull Project project, Consumer<Void> onPremiumActivated, Runnable onExperimentalFeaturesChanged, UserIdentificationService userIdentificationService) {
         this.project = project;
         this.onPremiumActivated = onPremiumActivated;
         this.onExperimentalFeaturesChanged = onExperimentalFeaturesChanged;
-        this.userIdentificationService = new UserIdentificationService();
+        this.userIdentificationService = userIdentificationService;
         
         // Load support URLs from properties file
         loadSupportUrls();

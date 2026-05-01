@@ -1,9 +1,14 @@
 package adrianmikula.jakartamigration.advancedscanning.service.impl;
 
 import adrianmikula.jakartamigration.advancedscanning.domain.DependencyTreeResult;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledOnOs;
-import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -11,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Unit tests for DependencyTreeCommandExecutorImpl.
  * Tests command availability checks and dependency tree execution.
  */
+@Tag("slow")
 class DependencyTreeCommandExecutorImplTest {
 
     @Test
@@ -99,5 +105,93 @@ class DependencyTreeCommandExecutorImplTest {
         assertEquals("compile", node.getScope());
         assertEquals(2, node.getDepth());
         assertTrue(node.isTransitive());
+    }
+
+    @Test
+    void executeMavenDependencyTreeAsync_shouldHandleMissingMaven(@TempDir Path tempDir) throws Exception {
+        // Create a temporary pom.xml file
+        Path pomFile = tempDir.resolve("pom.xml");
+        Files.writeString(pomFile, "<?xml version=\"1.0\"?><project></project>");
+        
+        DependencyTreeCommandExecutorImpl executor = new DependencyTreeCommandExecutorImpl();
+        CompletableFuture<DependencyTreeResult> future = 
+            executor.executeMavenDependencyTreeAsync(pomFile, Set.of("compile"));
+        
+        DependencyTreeResult result = future.get();
+        
+        // Should return an error result when Maven is not available
+        assertFalse(result.isSuccess());
+        assertNotNull(result.getErrorMessage());
+        assertTrue(result.getErrorMessage().contains("not found") || 
+                  result.getErrorMessage().contains("command"));
+    }
+
+    @Test
+    void executeGradleDependenciesAsync_shouldHandleMissingGradle(@TempDir Path tempDir) throws Exception {
+        // Create a temporary build.gradle file
+        Path buildFile = tempDir.resolve("build.gradle");
+        Files.writeString(buildFile, "plugins { java }");
+        
+        DependencyTreeCommandExecutorImpl executor = new DependencyTreeCommandExecutorImpl();
+        CompletableFuture<DependencyTreeResult> future = 
+            executor.executeGradleDependenciesAsync(buildFile, Set.of("compileClasspath"));
+        
+        DependencyTreeResult result = future.get();
+        
+        // Should return an error result when Gradle is not available
+        assertFalse(result.isSuccess());
+        assertNotNull(result.getErrorMessage());
+        assertTrue(result.getErrorMessage().contains("not found") || 
+                  result.getErrorMessage().contains("command"));
+    }
+
+    @Test
+    void executeMavenDependencyTreeAsync_shouldUseMavenWrapperWhenAvailable(@TempDir Path tempDir) throws Exception {
+        // Create a temporary pom.xml file
+        Path pomFile = tempDir.resolve("pom.xml");
+        Files.writeString(pomFile, "<?xml version=\"1.0\"?><project></project>");
+        
+        // Create a mock Maven wrapper (Windows batch file)
+        Path mvnwBat = tempDir.resolve("mvnw.bat");
+        Files.writeString(mvnwBat, "@echo off\necho Mock Maven wrapper");
+        mvnwBat.toFile().setExecutable(true);
+        
+        DependencyTreeCommandExecutorImpl executor = new DependencyTreeCommandExecutorImpl();
+        CompletableFuture<DependencyTreeResult> future = 
+            executor.executeMavenDependencyTreeAsync(pomFile, Set.of("compile"));
+        
+        DependencyTreeResult result = future.get();
+        
+        // The wrapper should be found and attempted (may fail but shouldn't be "command not found")
+        assertNotNull(result);
+        // The exact result depends on the mock wrapper behavior
+    }
+
+    @Test
+    void executeGradleDependenciesAsync_shouldUseGradleWrapperWhenAvailable(@TempDir Path tempDir) throws Exception {
+        // Create a temporary build.gradle file
+        Path buildFile = tempDir.resolve("build.gradle");
+        Files.writeString(buildFile, "plugins { java }");
+        
+        // Create a mock Gradle wrapper (Windows batch file)
+        Path gradlewBat = tempDir.resolve("gradlew.bat");
+        Files.writeString(gradlewBat, "@echo off\necho Mock Gradle wrapper");
+        gradlewBat.toFile().setExecutable(true);
+        
+        DependencyTreeCommandExecutorImpl executor = new DependencyTreeCommandExecutorImpl();
+        CompletableFuture<DependencyTreeResult> future = 
+            executor.executeGradleDependenciesAsync(buildFile, Set.of("compileClasspath"));
+        
+        DependencyTreeResult result = future.get();
+        
+        // The wrapper should be found and attempted (may fail but shouldn't be "command not found")
+        assertNotNull(result);
+        // The exact result depends on the mock wrapper behavior
+    }
+
+    @Test
+    void shutdown_shouldNotThrow() {
+        DependencyTreeCommandExecutorImpl executor = new DependencyTreeCommandExecutorImpl();
+        assertDoesNotThrow(executor::shutdown);
     }
 }

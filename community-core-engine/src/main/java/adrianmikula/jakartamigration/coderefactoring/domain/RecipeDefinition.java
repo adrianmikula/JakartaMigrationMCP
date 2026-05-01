@@ -33,6 +33,10 @@ public class RecipeDefinition {
     private boolean reversible;
     private Instant createdAt;
 
+    // Recipe versioning and archival
+    private String addedInPluginVersion;
+    private boolean archived;
+
     // Status and History (computed or loaded from execution history)
     private Instant lastRunDate;
     private RecipeStatus status;

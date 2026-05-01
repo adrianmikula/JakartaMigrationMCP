@@ -1,0 +1,95 @@
+/* Shared Header Styles */
+.report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    border-bottom: 3px solid #2c3e50;
+    margin-bottom: 40px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 8px 8px 0 0;
+}
+
+.header-left {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+}
+
+.plugin-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.plugin-icon svg {
+    width: 100%;
+    height: 100%;
+    max-width: 32px;
+    max-height: 32px;
+}
+
+.header-center {
+    flex: 1 1 auto;
+    text-align: center;
+    padding: 0 20px;
+}
+
+.report-title {
+    color: #2c3e50;
+    font-size: 2.2em;
+    margin: 0;
+    font-weight: 300;
+    line-height: 1.2;
+}
+
+.project-name {
+    color: #34495e;
+    font-size: 1.4em;
+    margin: 8px 0 4px 0;
+    font-weight: 400;
+}
+
+.report-type {
+    color: #7f8c8d;
+    font-size: 1.1em;
+    font-style: italic;
+    margin: 0;
+}
+
+.header-right {
+    flex: 0 0 auto;
+    text-align: right;
+}
+
+.timestamp {
+    color: #7f8c8d;
+    font-size: 0.9em;
+    font-weight: 500;
+}
+
+.plugin-name {
+    color: #2c3e50;
+    font-size: 0.95em;
+    font-weight: 600;
+    margin-left: 10px;
+    max-width: 120px;
+    line-height: 1.2;
+}
+
+@media print {
+    .report-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: auto;
+        z-index: 1000;
+    }
+    
+    body {
+        margin-top: 120px;
+    }
+}

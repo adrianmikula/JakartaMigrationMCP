@@ -55,10 +55,13 @@ tasks.test {
     }
     // Enable parallel test execution
     maxParallelForks = 4
+    
+    // Automatically set dev environment for all test executions
+    systemProperty("jakarta.migration.mode", "dev")
 }
 
 // Fast test task - excludes slow tests
- tasks.register<Test>("fastTest") {
+tasks.register<Test>("fastTest") {
     group = "verification"
     description = "Run fast unit tests only (excludes integration and slow tests)"
     
@@ -70,6 +73,9 @@ tasks.test {
         showStandardStreams = true
     }
     maxParallelForks = 4
+    
+    // Automatically set dev environment for all test executions
+    systemProperty("jakarta.migration.mode", "dev")
 }
 
 // Slow test task - only integration/performance tests
@@ -85,6 +91,9 @@ tasks.register<Test>("slowTest") {
         showStandardStreams = true
     }
     maxParallelForks = 2  // Fewer forks for network-heavy tests
+    
+    // Automatically set dev environment for all test executions
+    systemProperty("jakarta.migration.mode", "dev")
 }
 
 // Ultra-fast compilation test
@@ -111,4 +120,38 @@ tasks.register<Test>("coreTest") {
         showStandardStreams = true
     }
     maxParallelForks = 4
+    
+    // Automatically set dev environment for all test executions
+    systemProperty("jakarta.migration.mode", "dev")
+}
+
+// Copy version from root gradle.properties to resources for analytics services
+// Configuration-cache compatible version using providers
+tasks.register("copyVersionToResources") {
+    group = "build"
+    description = "Copy version from root gradle.properties to resources for analytics services"
+    
+    val versionPropertiesFile = file("src/main/resources/version.properties")
+    val rootGradleProperties = rootProject.file("gradle.properties")
+    
+    inputs.file(rootGradleProperties)
+    outputs.file(versionPropertiesFile)
+    
+    doLast {
+        val versionContent = rootGradleProperties.readLines()
+            .find { it.startsWith("version=") } 
+            ?: "version=unknown"
+        val finalContent = "# Plugin Version - This file is used by UsageService and ErrorReportingService to get plugin version\n# Version is copied from root gradle.properties during build process\n$versionContent"
+        
+        versionPropertiesFile.writeText(finalContent)
+    }
+}
+
+// Ensure version is copied before processing resources and compilation
+tasks.processResources {
+    dependsOn("copyVersionToResources")
+}
+
+tasks.compileJava {
+    dependsOn("copyVersionToResources")
 }

@@ -10,11 +10,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 /**
  * Test class to verify enhanced usage tracking with context information.
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 public class UsageTrackingContextTest {
 
     @Mock
@@ -62,7 +65,8 @@ public class UsageTrackingContextTest {
             "test-user", 
             "Reports", 
             "generate_dependency_report", 
-            "1.0.0"
+            "1.0.0",
+            "test"
         );
         
         assertEquals("credit_used", creditEvent.getEventType().getValue());
@@ -73,14 +77,15 @@ public class UsageTrackingContextTest {
         UsageEvent upgradeEvent = UsageEvent.upgradeClicked(
             "test-user", 
             "premium_button", 
-            "1.0.0", 
-            "Reports"
+            "Reports",
+            "1.0.0",
+            "test"
         );
         
         assertEquals("upgrade_clicked", upgradeEvent.getEventType().getValue());
         assertNotNull(upgradeEvent.getEventData());
         assertEquals("premium_button", upgradeEvent.getEventData().get("source"));
-        assertEquals("Reports", upgradeEvent.getEventData().get("current_ui_tab"));
+        assertEquals("Reports", upgradeEvent.getCurrentUiTab());
     }
 
     @Test

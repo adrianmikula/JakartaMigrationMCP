@@ -5,6 +5,39 @@ All notable changes to the Jakarta Migration IntelliJ plugin will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.15] - 2026-04-24
+
+### Fixed
+- Fixed problems with property detection in Maven pom.xml files
+- Fixed problems with platform detection for Tomcat, JBoss/Wildfly, Paraya, WebSphere
+- Fixed HTML validation errors during HTML report generation
+- Fixed plugin toolbar icon
+
+### Added
+- Added more detail to reports and switched from PDF to HTML format
+- Added permission request/opt-out for error reporting and usage metrics
+
+## [1.0.14] - 2026-04-23
+
+### Changed
+- Renamed Dashboard tab to Risk tab, and added confidence dial
+- Expanded migration strategy phase descriptions
+
+### Added
+- Added error reporting and collection of usage metrics
+
+### Fixed
+- Fixed bugs with scan results display
+- Fixed performance issues
+- Fixed PDF report layout issue
+- Fixed bugs with force-directed dependency graph
+
+### Changed
+- Limited scan results to 5 for free verison
+- Limited dependency graph types for free verison
+- Limited report generation for free verison
+- Limited MCP tools for free verison
+
 ## [1.0.13] - 2026-04-12
 
 - Added deep scanning of transitive dependencies

@@ -17,33 +17,34 @@ public class TestDataFactory {
     private static final String TEST_USER_ID = "test-user-12345";
     private static final String TEST_PLUGIN_VERSION = "1.0.0-test";
     private static final String TEST_CURRENT_TAB = "Dependencies";
+    private static final String TEST_ENVIRONMENT = "test";
     
     /**
      * Creates a basic credit usage event.
      */
     public static UsageEvent createCreditUsageEvent() {
-        return UsageEvent.creditUsed(TEST_USER_ID, TEST_CURRENT_TAB, "scan_button", TEST_PLUGIN_VERSION);
+        return UsageEvent.creditUsed(TEST_USER_ID, TEST_CURRENT_TAB, "scan_button", TEST_PLUGIN_VERSION, TEST_ENVIRONMENT);
     }
     
     /**
      * Creates a credit usage event with specified trigger action.
      */
     public static UsageEvent createCreditUsageEvent(String triggerAction) {
-        return UsageEvent.creditUsed(TEST_USER_ID, TEST_CURRENT_TAB, triggerAction, TEST_PLUGIN_VERSION);
+        return UsageEvent.creditUsed(TEST_USER_ID, TEST_CURRENT_TAB, triggerAction, TEST_PLUGIN_VERSION, TEST_ENVIRONMENT);
     }
     
     /**
      * Creates an upgrade click event.
      */
     public static UsageEvent createUpgradeClickEvent() {
-        return UsageEvent.upgradeClicked(TEST_USER_ID, "truncation_notice", TEST_CURRENT_TAB, TEST_PLUGIN_VERSION);
+        return UsageEvent.upgradeClicked(TEST_USER_ID, "truncation_notice", TEST_CURRENT_TAB, TEST_PLUGIN_VERSION, TEST_ENVIRONMENT);
     }
     
     /**
      * Creates an upgrade click event with specified source.
      */
     public static UsageEvent createUpgradeClickEvent(String source) {
-        return UsageEvent.upgradeClicked(TEST_USER_ID, source, TEST_CURRENT_TAB, TEST_PLUGIN_VERSION);
+        return UsageEvent.upgradeClicked(TEST_USER_ID, source, TEST_CURRENT_TAB, TEST_PLUGIN_VERSION, TEST_ENVIRONMENT);
     }
     
     /**
@@ -81,14 +82,14 @@ public class TestDataFactory {
      */
     public static ErrorReport createErrorReport() {
         RuntimeException exception = new RuntimeException("Test error message");
-        return ErrorReport.fromException(TEST_USER_ID, TEST_PLUGIN_VERSION, TEST_CURRENT_TAB, exception);
+        return ErrorReport.fromException(TEST_USER_ID, TEST_PLUGIN_VERSION, TEST_CURRENT_TAB, exception, TEST_ENVIRONMENT);
     }
     
     /**
      * Creates an error report from specified exception.
      */
     public static ErrorReport createErrorReport(Throwable exception) {
-        return ErrorReport.fromException(TEST_USER_ID, TEST_PLUGIN_VERSION, TEST_CURRENT_TAB, exception);
+        return ErrorReport.fromException(TEST_USER_ID, TEST_PLUGIN_VERSION, TEST_CURRENT_TAB, exception, TEST_ENVIRONMENT);
     }
     
     /**
@@ -96,7 +97,7 @@ public class TestDataFactory {
      */
     public static ErrorReport createCustomErrorReport(String userId, String pluginVersion, 
                                                   String currentTab, Throwable exception) {
-        return ErrorReport.fromException(userId, pluginVersion, currentTab, exception);
+        return ErrorReport.fromException(userId, pluginVersion, currentTab, exception, TEST_ENVIRONMENT);
     }
     
     /**
@@ -104,7 +105,7 @@ public class TestDataFactory {
      */
     public static ErrorReport createErrorReportWithTimestamp(Instant timestamp) {
         RuntimeException exception = new RuntimeException("Test error message");
-        ErrorReport report = ErrorReport.fromException(TEST_USER_ID, TEST_PLUGIN_VERSION, TEST_CURRENT_TAB, exception);
+        ErrorReport report = ErrorReport.fromException(TEST_USER_ID, TEST_PLUGIN_VERSION, TEST_CURRENT_TAB, exception, TEST_ENVIRONMENT);
         // Create a new ErrorReport with custom timestamp using builder
         return ErrorReport.builder()
             .userId(report.getUserId())
@@ -113,6 +114,7 @@ public class TestDataFactory {
             .errorType(report.getErrorType())
             .errorMessage(report.getErrorMessage())
             .stackTrace(report.getStackTrace())
+            .environment(report.getEnvironment())
             .timestamp(timestamp)
             .build();
     }
@@ -123,7 +125,7 @@ public class TestDataFactory {
     public static ErrorReport createLargeErrorReport() {
         String longMessage = "This is a very long error message ".repeat(1000);
         RuntimeException exception = new RuntimeException(longMessage);
-        return ErrorReport.fromException(TEST_USER_ID, TEST_PLUGIN_VERSION, TEST_CURRENT_TAB, exception);
+        return ErrorReport.fromException(TEST_USER_ID, TEST_PLUGIN_VERSION, TEST_CURRENT_TAB, exception, TEST_ENVIRONMENT);
     }
     
     /**
@@ -132,7 +134,7 @@ public class TestDataFactory {
     public static ErrorReport createErrorReportWithSpecialChars() {
         String message = "Error with special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?测试🚀📊";
         RuntimeException exception = new RuntimeException(message);
-        return ErrorReport.fromException(TEST_USER_ID, TEST_PLUGIN_VERSION, TEST_CURRENT_TAB, exception);
+        return ErrorReport.fromException(TEST_USER_ID, TEST_PLUGIN_VERSION, TEST_CURRENT_TAB, exception, TEST_ENVIRONMENT);
     }
     
     /**

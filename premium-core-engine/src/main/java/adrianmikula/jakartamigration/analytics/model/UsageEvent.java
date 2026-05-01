@@ -75,6 +75,11 @@ public class UsageEvent {
     private Map<String, Object> eventData;
     
     /**
+     * Environment where the event occurred (dev, demo, prod).
+     */
+    private String environment;
+    
+    /**
      * Timestamp when the event occurred.
      */
     private Instant timestamp;
@@ -83,7 +88,7 @@ public class UsageEvent {
      * Creates a credit usage event with context information.
      */
     public static UsageEvent creditUsed(String userId, String currentUiTab, 
-                                      String triggerAction, String pluginVersion) {
+                                      String triggerAction, String pluginVersion, String environment) {
         
         return UsageEvent.builder()
             .userId(userId)
@@ -91,6 +96,7 @@ public class UsageEvent {
             .currentUiTab(currentUiTab)
             .triggerAction(triggerAction)
             .pluginVersion(pluginVersion)
+            .environment(environment)
             .timestamp(Instant.now())
             .build();
     }
@@ -99,7 +105,7 @@ public class UsageEvent {
      * Creates an upgrade clicked event with context information.
      */
     public static UsageEvent upgradeClicked(String userId, String source, 
-                                         String currentUiTab, String pluginVersion) {
+                                         String currentUiTab, String pluginVersion, String environment) {
         Map<String, Object> eventData = Map.of(
             "source", source
         );
@@ -109,6 +115,7 @@ public class UsageEvent {
             .eventType(EventType.UPGRADE_CLICKED)
             .currentUiTab(currentUiTab)
             .pluginVersion(pluginVersion)
+            .environment(environment)
             .eventData(eventData)
             .timestamp(Instant.now())
             .build();

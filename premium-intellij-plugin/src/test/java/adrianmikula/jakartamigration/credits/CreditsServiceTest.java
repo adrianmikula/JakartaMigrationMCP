@@ -44,7 +44,7 @@ public class CreditsServiceTest {
         assertTrue(initialCredits > 0);
         
         // Simulate consuming a credit for scan
-        boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS);
+        boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS, "scan", "test");
         assertTrue(creditConsumed);
         
         // Verify credit was consumed
@@ -59,7 +59,7 @@ public class CreditsServiceTest {
     public void testCreditExhaustion() {
         // Consume all credits
         while (creditsService.hasCredits(CreditType.ACTIONS)) {
-            creditsService.useCredit(CreditType.ACTIONS);
+            creditsService.useCredit(CreditType.ACTIONS, "test", "exhaustion");
         }
         
         // Verify no credits remaining
@@ -68,7 +68,7 @@ public class CreditsServiceTest {
         assertEquals(10, creditsService.getUsedCredits(CreditType.ACTIONS));
         
         // Test consumption when exhausted
-        boolean creditConsumedWhenExhausted = creditsService.useCredit(CreditType.ACTIONS);
+        boolean creditConsumedWhenExhausted = creditsService.useCredit(CreditType.ACTIONS, "exhausted", "test");
         assertFalse(creditConsumedWhenExhausted);
     }
 
@@ -78,7 +78,7 @@ public class CreditsServiceTest {
         assertTrue(creditsService.hasCredits(CreditType.ACTIONS));
         
         // Consume from ACTIONS type (used for all operations)
-        creditsService.useCredit(CreditType.ACTIONS);
+        creditsService.useCredit(CreditType.ACTIONS, "multiple", "test");
         
         // Verify credit was consumed correctly
         assertEquals(9, creditsService.getRemainingCredits(CreditType.ACTIONS));
@@ -87,9 +87,9 @@ public class CreditsServiceTest {
 
     @Test
     public void testCreditRefresh() {
-        // Consume some credits
-        creditsService.useCredit(CreditType.ACTIONS);
-        creditsService.useCredit(CreditType.ACTIONS);
+        // Consume from ACTIONS type (used for all operations)
+        creditsService.useCredit(CreditType.ACTIONS, "multiple", "test");
+        creditsService.useCredit(CreditType.ACTIONS, "multiple", "test");
         
         assertEquals(8, creditsService.getRemainingCredits(CreditType.ACTIONS));
         assertEquals(2, creditsService.getUsedCredits(CreditType.ACTIONS));

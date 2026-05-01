@@ -31,7 +31,7 @@ public class SupabaseClientWrapper implements AutoCloseable {
     
     public SupabaseClientWrapper(SupabaseConfig config) {
         this.config = config;
-        this.isConfigured = config.isConfigured();
+        this.isConfigured = config != null && config.isConfigured();
         
         if (isConfigured) {
             log.info("SupabaseClientWrapper initialized with URL: {}", maskUrl(config.getSupabaseUrl()));
@@ -114,7 +114,7 @@ public class SupabaseClientWrapper implements AutoCloseable {
                     // Check response
                     int responseCode = connection.getResponseCode();
                     if (responseCode >= 200 && responseCode < 300) {
-                        log.info("Successfully inserted {} usage events to Supabase", events.size());
+                        log.info("Jakarta Migration Plugin - OPT-OUT anonymous usage data: Successfully inserted {} usage events to Supabase", events.size());
                         log.debug("Response code: {}", responseCode);
                         return; // Success
                     } else {
@@ -227,7 +227,7 @@ public class SupabaseClientWrapper implements AutoCloseable {
                     // Check response
                     int responseCode = connection.getResponseCode();
                     if (responseCode >= 200 && responseCode < 300) {
-                        log.info("Successfully inserted {} error reports to Supabase", reports.size());
+                        log.info("Jakarta Migration Plugin - OPT-OUT anonymous error reporting: Successfully inserted {} error reports to Supabase", reports.size());
                         log.debug("Response code: {}", responseCode);
                         return; // Success
                     } else {
@@ -265,14 +265,15 @@ public class SupabaseClientWrapper implements AutoCloseable {
     /**
      * Logs user activity without requiring a separate users table.
      * The simplified schema stores user_id directly in usage_events and error_reports tables.
+     * This is OPT-OUT anonymous usage data collection for product improvement.
      */
     public void logUserActivity(String userId, String pluginVersion) {
         if (!isConfigured) {
-            log.debug("Would log user {} activity with version {} (not configured)", maskUserId(userId), pluginVersion);
+            log.debug("Would log user {} activity with version {} (not configured) - OPT-OUT anonymous usage collection", maskUserId(userId), pluginVersion);
             return;
         }
         
-        log.info("User {} activity logged with version {} (simplified schema - no separate users table)", 
+        log.info("Jakarta Migration Plugin - OPT-OUT anonymous usage data: User {} activity logged with version {} (simplified schema - no separate users table)", 
             maskUserId(userId), pluginVersion);
     }
     
@@ -319,9 +320,10 @@ public class SupabaseClientWrapper implements AutoCloseable {
     
     /**
      * Fallback logging for usage events when database is unavailable.
+     * This is OPT-OUT anonymous usage data collection for product improvement.
      */
     private void logUsageEvents(List<UsageEvent> events) {
-        log.info("Logging {} usage events (database not available):", events.size());
+        log.info("Jakarta Migration Plugin - OPT-OUT anonymous usage data: Logging {} usage events (database not available):", events.size());
         log.info("Supabase configured: {}, URL: {}", isConfigured, maskUrl(config.getSupabaseUrl()));
         for (UsageEvent event : events) {
             log.info("  Event: {} | User: {} | Tab: {} | Action: {} | Version: {} | Timestamp: {} | Data: {}", 
@@ -337,9 +339,10 @@ public class SupabaseClientWrapper implements AutoCloseable {
     
     /**
      * Fallback logging for error reports when database is unavailable.
+     * This is OPT-OUT anonymous error reporting for product improvement.
      */
     private void logErrorReports(List<ErrorReport> reports) {
-        log.info("Logging {} error reports (database not available):", reports.size());
+        log.info("Jakarta Migration Plugin - OPT-OUT anonymous error reporting: Logging {} error reports (database not available):", reports.size());
         log.info("Supabase configured: {}, URL: {}", isConfigured, maskUrl(config.getSupabaseUrl()));
         for (ErrorReport report : reports) {
             log.info("  Error: {} | User: {} | Tab: {} | Message: {} | Version: {}", 

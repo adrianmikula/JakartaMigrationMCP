@@ -4,8 +4,8 @@ import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.intellij.ui.MigrationStrategyComponent.MigrationStrategy;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.Before;
+import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -23,7 +23,8 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
 
     private MigrationPhasesComponent phasesComponent;
 
-    @BeforeEach
+    @Before
+    @Override
     public void setUp() throws Exception {
         super.setUp();
         phasesComponent = new MigrationPhasesComponent(getProject());

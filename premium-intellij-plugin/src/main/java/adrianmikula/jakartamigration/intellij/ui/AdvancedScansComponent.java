@@ -9,6 +9,9 @@ import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.intellij.ui.components.TruncationHelper;
 import adrianmikula.jakartamigration.intellij.ui.components.TruncationNoticePanel;
+import adrianmikula.jakartamigration.analytics.service.ErrorReportingService;
+import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
+import adrianmikula.jakartamigration.analytics.service.UsageService;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
@@ -77,6 +80,7 @@ public class AdvancedScansComponent {
     private final ObjectMapperService objectMapper;
     private final TruncationHelper truncationHelper;
     private final CreditsService creditsService;
+    private final ErrorReportingService errorReportingService;
 
     // Truncation notice panels for each sub-tab
     private TruncationNoticePanel jpaTruncationNotice;
@@ -95,12 +99,17 @@ public class AdvancedScansComponent {
     private TruncationNoticePanel thirdPartyLibTruncationNotice;
 
     public AdvancedScansComponent(Project project, AdvancedScanningService scanningService) {
+        this(project, scanningService, new ErrorReportingService(new UserIdentificationService()));
+    }
+    
+    public AdvancedScansComponent(Project project, AdvancedScanningService scanningService, ErrorReportingService errorReportingService) {
         this.project = project;
         this.scanningService = scanningService;
         this.store = new CentralMigrationAnalysisStore();
         this.objectMapper = new ObjectMapperService();
         this.truncationHelper = new TruncationHelper();
         this.creditsService = new CreditsService();
+        this.errorReportingService = errorReportingService;
         this.mainPanel = new JPanel(new BorderLayout());
         initializeUI();
         loadInitialState();
@@ -609,12 +618,29 @@ public class AdvancedScansComponent {
         if (!isPremium) {
             int remainingCredits = creditsService.getRemainingCredits(CreditType.ACTIONS);
             if (remainingCredits <= 0) {
-                JOptionPane.showMessageDialog(mainPanel,
+                int result = JOptionPane.showOptionDialog(mainPanel,
                         "You've used all your action credits. Upgrade to Premium to continue running advanced scans.\n\n" +
                         "Credits remaining: " + remainingCredits + "\n" +
                         "Upgrade to Premium for unlimited advanced scans.",
                         "Action Credits Exhausted",
-                        JOptionPane.INFORMATION_MESSAGE);
+                        JOptionPane.DEFAULT_OPTION,
+                        JOptionPane.INFORMATION_MESSAGE,
+                        null,
+                        new Object[]{"Upgrade to Premium", "Cancel"},
+                        "Upgrade to Premium");
+                
+                if (result == 0) {
+                    // Track upgrade click before opening marketplace
+                    try {
+                        UserIdentificationService userIdentificationService = new UserIdentificationService();
+                        UsageService usageService = new UsageService(userIdentificationService);
+                        usageService.trackUpgradeClick("advanced_scans_credit_exhausted", "AdvancedScans");
+                    } catch (Exception e) {
+                        // Log error but don't prevent upgrade
+                        System.err.println("Failed to track upgrade click analytics: " + e.getMessage());
+                    }
+                    openMarketplace();
+                }
                 return;
             }
         }
@@ -690,6 +716,9 @@ public class AdvancedScansComponent {
                             "Error running scans: " + e.getMessage(),
                             "Scan Error",
                             JOptionPane.ERROR_MESSAGE);
+                    
+                    // Report error to Supabase for analytics
+                    errorReportingService.reportError(e, "Advanced Scans Execution");
                 } finally {
                     progressBar.setVisible(false);
                     scanButton.setEnabled(true);
@@ -1590,8 +1619,22 @@ if (projectPathStr != null) {
                     }
                 } catch (Exception e) {
                     LOG.warn("Failed to load initial state for AdvancedScansComponent (may be due to schema changes): " + e.getMessage());
+                    
+                    // Report error to Supabase for analytics
+                    errorReportingService.reportError(e, "Advanced Scans State Loading");
                 }
             }
+        }
+    }
+
+    /**
+     * Opens JetBrains Marketplace to upgrade.
+     */
+    private void openMarketplace() {
+        try {
+            java.awt.Desktop.getDesktop().browse(new java.net.URI("https://plugins.jetbrains.com/plugin/30093-jakarta-migration"));
+        } catch (Exception ex) {
+            LOG.error("Failed to open marketplace", ex);
         }
     }
 }

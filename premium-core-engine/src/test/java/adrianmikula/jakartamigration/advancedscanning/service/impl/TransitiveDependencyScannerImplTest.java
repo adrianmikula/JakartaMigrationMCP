@@ -6,6 +6,7 @@ import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependenc
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage;
 import adrianmikula.jakartamigration.advancedscanning.service.DependencyDeduplicationService;
 import adrianmikula.jakartamigration.advancedscanning.service.DependencyTreeCommandExecutor;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -21,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+@Tag("slow")
 class TransitiveDependencyScannerImplTest {
 
     @Test

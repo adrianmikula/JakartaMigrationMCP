@@ -52,11 +52,15 @@ public record PlatformDetection(
     Map<String, String> requirements
 ) {}
 
-public record PlatformScanResult(
-    List<PlatformDetection> detectedPlatforms,
-    int totalRiskScore,
-    List<String> recommendations
-) {}
+public class EnhancedPlatformScanResult {
+    private final List<String> detectedPlatforms;
+    private final List<String> inferredPlatforms;
+    private final List<PlatformDetection> detectedPlatformDetails;
+    private final Map<String, Integer> deploymentArtifacts;
+    private final Map<String, Integer> platformSpecificArtifacts;
+    
+    // Contains raw data only - risk scores calculated by RiskScoringService using risk-score.yaml
+}
 ```
 
 ### 2. Platform Configuration Models

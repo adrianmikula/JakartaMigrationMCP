@@ -3,12 +3,14 @@ package adrianmikula.jakartamigration.pdfreporting.service.impl;
 import adrianmikula.jakartamigration.pdfreporting.service.PdfReportService;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -17,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Test class for HtmlToPdfReportServiceImpl PDF conversion functionality.
  */
+@Tag("slow")
 class HtmlToPdfReportServiceImplTest {
 
     private HtmlToPdfReportServiceImpl pdfService;
@@ -34,13 +37,32 @@ class HtmlToPdfReportServiceImplTest {
         Path outputPath = tempDir.resolve("dependency-report.pdf");
         
         // When
-        Path result = pdfService.generateDependencyReport(dependencyGraph, outputPath);
+        PdfReportService.RiskAnalysisReportRequest request = new PdfReportService.RiskAnalysisReportRequest(
+            outputPath,
+            "Test Project",
+            "Dependency Analysis Report",
+            dependencyGraph,
+            null, // analysisReport
+            null, // scanResults
+            null, // platformScanResults
+            null, // riskScore
+            null, // recommendedStrategy
+            Map.of(), // strategyDetails
+            Map.of(), // validationMetrics
+            List.of(), // topBlockers
+            List.of(), // recommendations
+            Map.of(), // implementationPhases
+            Map.of() // customData
+        );
+        Path result = pdfService.generateRiskAnalysisReport(request);
         
         // Then
         assertNotNull(result);
-        assertTrue(result.toFile().exists(), "PDF file should exist");
-        assertTrue(result.toFile().length() > 0, "PDF file should not be empty");
-        assertEquals(outputPath, result, "Should return the expected output path");
+        assertTrue(result.toFile().exists(), "Report file should exist");
+        assertTrue(result.toFile().length() > 0, "Report file should not be empty");
+        // PDF generation disabled - expecting HTML output
+        assertTrue(result.toString().endsWith(".html"), "Should return HTML file path");
+        assertEquals(outputPath.toString().replace(".pdf", ".html"), result.toString(), "Should return the expected HTML output path");
     }
 
     @Test
@@ -56,6 +78,7 @@ class HtmlToPdfReportServiceImplTest {
             java.time.LocalDateTime.now(),
             Map.of("count", 10),
             Map.of("count", 5),
+            Map.of("count", 2), // cdiResults
             Map.of("count", 15),
             Map.of("count", 8),
             Map.of("count", 12),
@@ -64,17 +87,32 @@ class HtmlToPdfReportServiceImplTest {
             50,
             summary
         );
-        
+
         Path outputPath = tempDir.resolve("scan-results-report.pdf");
         
         // When
-        Path result = pdfService.generateScanResultsReport(scanResults, outputPath);
+        PdfReportService.RefactoringActionReportRequest request = new PdfReportService.RefactoringActionReportRequest(
+            outputPath,
+            "Test Project",
+            "Scan Results Report",
+            null, // dependencyGraph
+            scanResults,
+            List.of(), // recipeRecommendations
+            List.of(), // javaxReferences
+            List.of(), // openRewriteRecipes
+            Map.of(), // refactoringReadiness
+            Map.of(), // priorityRanking
+            Map.of() // customData
+        );
+        Path result = pdfService.generateRefactoringActionReport(request);
         
         // Then
         assertNotNull(result);
-        assertTrue(result.toFile().exists(), "PDF file should exist");
-        assertTrue(result.toFile().length() > 0, "PDF file should not be empty");
-        assertEquals(outputPath, result, "Should return the expected output path");
+        assertTrue(result.toFile().exists(), "Report file should exist");
+        assertTrue(result.toFile().length() > 0, "Report file should not be empty");
+        // PDF generation disabled - expecting HTML output
+        assertTrue(result.toString().endsWith(".html"), "Should return HTML file path");
+        assertEquals(outputPath.toString().replace(".pdf", ".html"), result.toString(), "Should return the expected HTML output path");
     }
 
     @Test
@@ -91,6 +129,7 @@ class HtmlToPdfReportServiceImplTest {
             java.time.LocalDateTime.now(),
             Map.of("count", 10),
             Map.of("count", 5),
+            Map.of("count", 2), // cdiResults
             Map.of("count", 15),
             Map.of("count", 8),
             Map.of("count", 12),
@@ -99,29 +138,38 @@ class HtmlToPdfReportServiceImplTest {
             50,
             summary
         );
-        
+
         Map<String, Object> customData = new HashMap<>();
         customData.put("projectName", "Test Project");
         customData.put("description", "Test Description");
         
-        PdfReportService.GeneratePdfReportRequest request = new PdfReportService.GeneratePdfReportRequest(
+        // When - generate consolidated report
+        PdfReportService.ConsolidatedReportRequest consolidatedRequest = new PdfReportService.ConsolidatedReportRequest(
             tempDir.resolve("comprehensive-report.pdf"),
+            "Test Project",
+            "Comprehensive Report",
             dependencyGraph,
-            null,
+            null, // analysisReport
             scanResults,
-            null,
-            pdfService.getDefaultTemplate(),
+            null, // platformScanResults
+            null, // riskScore
+            "Test Strategy",
+            Map.of(), // strategyDetails
+            Map.of(), // validationMetrics
+            List.of(), // topBlockers
+            scanResults.recommendations(),
+            Map.of(), // implementationPhases
             customData
         );
-        
-        // When
-        Path result = pdfService.generateComprehensiveReport(request);
+        Path result = pdfService.generateConsolidatedReport(consolidatedRequest);
         
         // Then
         assertNotNull(result);
-        assertTrue(result.toFile().exists(), "PDF file should exist");
-        assertTrue(result.toFile().length() > 0, "PDF file should not be empty");
-        assertEquals(request.outputPath(), result, "Should return the expected output path");
+        assertTrue(result.toFile().exists(), "Report file should exist");
+        assertTrue(result.toFile().length() > 0, "Report file should not be empty");
+        // PDF generation disabled - expecting HTML output
+        assertTrue(result.toString().endsWith(".html"), "Should return HTML file path");
+        assertEquals(consolidatedRequest.outputPath().toString().replace(".pdf", ".html"), result.toString(), "Should return the expected HTML output path");
     }
 
     @Test

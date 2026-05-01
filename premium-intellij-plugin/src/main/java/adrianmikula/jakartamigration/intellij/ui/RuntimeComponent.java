@@ -3,6 +3,8 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.intellij.service.RuntimeVerificationService;
 import adrianmikula.jakartamigration.runtimeverification.domain.*;
+import adrianmikula.jakartamigration.analytics.service.ErrorReportingService;
+import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -31,6 +33,7 @@ public class RuntimeComponent {
     private final JPanel panel;
     private final Project project;
     private final RuntimeVerificationService verificationService;
+    private final ErrorReportingService errorReportingService;
 
     private final JTable errorTable;
     private final DefaultTableModel errorTableModel;
@@ -47,8 +50,13 @@ public class RuntimeComponent {
     private List<RuntimeError> currentErrors;
 
     public RuntimeComponent(Project project) {
+        this(project, new ErrorReportingService(new UserIdentificationService()));
+    }
+    
+    public RuntimeComponent(Project project, ErrorReportingService errorReportingService) {
         this.project = project;
         this.verificationService = new RuntimeVerificationService();
+        this.errorReportingService = errorReportingService;
         this.errorTableModel = new DefaultTableModel();
         this.errorTable = new JTable(errorTableModel);
         this.runHealthCheckButton = new JButton("Run Health Check");
@@ -186,6 +194,9 @@ public class RuntimeComponent {
                     processBytecodeAnalysisResult(result);
                 });
             } catch (Exception ex) {
+                // Report error to Supabase for analytics
+                errorReportingService.reportError(ex, "Runtime Bytecode Analysis");
+                
                 SwingUtilities.invokeLater(() -> {
                     statusLabel.setText("Analysis failed: " + ex.getMessage());
                     statusLabel.setForeground(Color.RED);
@@ -256,6 +267,9 @@ public class RuntimeComponent {
                     progressBar.setValue(100);
                 });
             } catch (Exception ex) {
+                // Report error to Supabase for analytics
+                errorReportingService.reportError(ex, "Runtime Error Analysis");
+                
                 SwingUtilities.invokeLater(() -> {
                     statusLabel.setText("Analysis failed: " + ex.getMessage());
                     statusLabel.setForeground(Color.RED);

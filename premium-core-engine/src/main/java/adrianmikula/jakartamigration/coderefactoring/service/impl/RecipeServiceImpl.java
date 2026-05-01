@@ -366,6 +366,11 @@ public class RecipeServiceImpl implements RecipeService {
         return projectStore.getRecipeHistory(projectPath);
     }
 
+    @Override
+    public boolean isRecipeArchived(String recipeName) {
+        return centralStore.isRecipeArchived(recipeName);
+    }
+
     private java.net.URL[] extractUrls(ClassLoader classLoader) {
         try {
             // Try getURLs (standard for URLClassLoader)

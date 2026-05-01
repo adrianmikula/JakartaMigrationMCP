@@ -3,7 +3,8 @@ package adrianmikula.jakartamigration.pdfreporting.service;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
-import adrianmikula.jakartamigration.platforms.model.PlatformScanResult;
+import adrianmikula.jakartamigration.advancedscanning.service.ScanRecipeRecommendationService;
+import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import adrianmikula.jakartamigration.risk.RiskScoringService;
 
 import java.nio.file.Path;
@@ -17,44 +18,26 @@ import java.util.Map;
 public interface PdfReportService {
     
     /**
-     * Generates a comprehensive PDF report containing:
-     * - Dependency tree visualization
-     * - Maven dependency lists
-     * - Advanced scan results
-     * - Support links and footer
+     * Generates a Risk Analysis Report containing complete risk assessment with full details.
+     * Includes executive summary, risk dials and scoring, dependency analysis with compatibility matrix,
+     * dependency graphs, scan counts by category, platform compatibility analysis, top blockers,
+     * and implementation timeline with risk mitigation strategies.
      * 
-     * @param request The report generation request
+     * @param request The risk analysis report generation request
      * @return Path to the generated PDF file
      */
-    Path generateComprehensiveReport(GeneratePdfReportRequest request);
+    Path generateRiskAnalysisReport(RiskAnalysisReportRequest request);
     
     /**
-     * Generates a consolidated PDF report that combines all analysis results into a single comprehensive report.
-     * Includes executive summary, risk assessment, migration strategy analysis, dependency analysis,
-     * advanced scan results, platform analysis, blockers, and recommendations.
+     * Generates a Refactoring Action Report containing detailed refactoring guide.
+     * Includes complete file-by-file inventory of javax references, OpenRewrite recipe suggestions,
+     * grouped recommendations by dependency type, priority-ranked actions, code examples,
+     * automated refactoring readiness assessment, and validation checklists.
      * 
-     * @param request The consolidated report generation request
-     * @return Path to generated PDF file
-     */
-    Path generateConsolidatedReport(ConsolidatedReportRequest request);
-    
-    /**
-     * Generates a dependency-focused PDF report.
-     * 
-     * @param dependencyGraph The dependency graph to include
-     * @param outputPath Where to save the PDF
+     * @param request The refactoring action report generation request
      * @return Path to the generated PDF file
      */
-    Path generateDependencyReport(DependencyGraph dependencyGraph, Path outputPath);
-    
-    /**
-     * Generates an advanced scanning results PDF report.
-     * 
-     * @param scanResults The comprehensive scan results
-     * @param outputPath Where to save the PDF
-     * @return Path to the generated PDF file
-     */
-    Path generateScanResultsReport(ComprehensiveScanResults scanResults, Path outputPath);
+    Path generateRefactoringActionReport(RefactoringActionReportRequest request);
     
     /**
      * Validates that all required data is available for report generation.
@@ -87,7 +70,7 @@ public interface PdfReportService {
         DependencyGraph dependencyGraph,
         DependencyAnalysisReport analysisReport,
         ComprehensiveScanResults scanResults,
-        PlatformScanResult platformScanResults,
+        EnhancedPlatformScanResult platformScanResults,
         ReportTemplate template,
         Map<String, Object> customData
     ) {}
@@ -152,6 +135,53 @@ public interface PdfReportService {
     ) {}
     
     /**
+     * Data class for risk analysis report generation requests.
+     */
+    record RiskAnalysisReportRequest(
+        Path outputPath,
+        String projectName,
+        String reportTitle,
+        DependencyGraph dependencyGraph,
+        DependencyAnalysisReport analysisReport,
+        ComprehensiveScanResults scanResults,
+        EnhancedPlatformScanResult platformScanResults,
+        RiskScoringService.RiskScore riskScore,
+        String recommendedStrategy,
+        Map<String, Object> strategyDetails,
+        Map<String, Object> validationMetrics,
+        List<Map<String, Object>> topBlockers,
+        List<String> recommendations,
+        Map<String, Object> implementationPhases,
+        Map<String, Object> customData
+    ) {}
+    
+    /**
+     * Data class for refactoring action report generation requests.
+     * Uses real scan data from ComprehensiveScanResults and RecipeRecommendationService.
+     */
+    record RefactoringActionReportRequest(
+        Path outputPath,
+        String projectName,
+        String reportTitle,
+        DependencyGraph dependencyGraph,
+        ComprehensiveScanResults scanResults,
+        List<ScanRecipeRecommendationService.RecipeRecommendation> recipeRecommendations,
+        List<Map<String, Object>> javaxReferences,
+        List<Map<String, Object>> openRewriteRecipes,
+        Map<String, Object> refactoringReadiness,
+        Map<String, Object> priorityRanking,
+        Map<String, Object> customData
+    ) {}
+    
+    /**
+     * Generates a consolidated report combining multiple analysis types.
+     * 
+     * @param request The consolidated report generation request
+     * @return Path to the generated PDF file
+     */
+    Path generateConsolidatedReport(ConsolidatedReportRequest request);
+    
+    /**
      * Data class for consolidated report generation requests.
      */
     record ConsolidatedReportRequest(
@@ -161,7 +191,7 @@ public interface PdfReportService {
         DependencyGraph dependencyGraph,
         DependencyAnalysisReport analysisReport,
         ComprehensiveScanResults scanResults,
-        PlatformScanResult platformScanResults,
+        EnhancedPlatformScanResult platformScanResults,
         RiskScoringService.RiskScore riskScore,
         String recommendedStrategy,
         Map<String, Object> strategyDetails,

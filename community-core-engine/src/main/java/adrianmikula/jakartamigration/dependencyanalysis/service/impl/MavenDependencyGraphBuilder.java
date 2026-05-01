@@ -79,6 +79,15 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
                 if (depVersion == null) {
                     // Try to resolve from dependencyManagement or properties
                     depVersion = resolveVersion(document, depGroupId, depArtifactId);
+                } else if (depVersion.startsWith("${") && depVersion.endsWith("}")) {
+                    // Try to resolve property references
+                    String resolvedVersion = resolveProperty(document, depVersion);
+                    if (resolvedVersion != null) {
+                        depVersion = resolvedVersion;
+                    } else {
+                        // Property not found, set to "unknown"
+                        depVersion = "unknown";
+                    }
                 }
                 
                 if (depVersion == null) {
@@ -327,10 +336,18 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
             }
         }
         
-        // Try properties
-        NodeList properties = document.getElementsByTagName("properties");
-        if (properties.getLength() > 0) {
-            // Properties resolution would go here
+        // Try direct property resolution for dependencies
+        NodeList dependencies = document.getElementsByTagName("dependency");
+        for (int i = 0; i < dependencies.getLength(); i++) {
+            Element dep = (Element) dependencies.item(i);
+            String gId = getTextContent(dep, "groupId");
+            String aId = getTextContent(dep, "artifactId");
+            if (groupId.equals(gId) && artifactId.equals(aId)) {
+                String version = getTextContent(dep, "version");
+                if (version != null) {
+                    return resolveProperty(document, version);
+                }
+            }
         }
         
         return null;
@@ -342,8 +359,14 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
             NodeList properties = document.getElementsByTagName("properties");
             if (properties.getLength() > 0) {
                 Element propsElement = (Element) properties.item(0);
-                return getTextContent(propsElement, propertyName);
+                NodeList propertyNodes = propsElement.getElementsByTagName(propertyName);
+                if (propertyNodes.getLength() > 0) {
+                    Node propertyNode = propertyNodes.item(0);
+                    return propertyNode.getTextContent().trim();
+                }
             }
+            // Return null if property is not found, so caller can handle appropriately
+            return null;
         }
         return propertyValue;
     }

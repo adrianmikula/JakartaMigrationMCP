@@ -6,6 +6,8 @@ import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import adrianmikula.jakartamigration.credits.CreditType;
 import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
+import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
+import adrianmikula.jakartamigration.analytics.service.UsageService;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -496,6 +498,15 @@ public class RefactorTabComponent {
                         "Cancel",
                         Messages.getWarningIcon());
                 if (result == Messages.YES) {
+                    // Track upgrade click before opening marketplace
+                    try {
+                        UserIdentificationService userIdentificationService = new UserIdentificationService();
+                        UsageService usageService = new UsageService(userIdentificationService);
+                        usageService.trackUpgradeClick("refactor_credit_exhausted", "Refactor");
+                    } catch (Exception e) {
+                        // Log error but don't prevent upgrade
+                        System.err.println("Failed to track upgrade click analytics: " + e.getMessage());
+                    }
                     openMarketplace();
                 }
                 return;
@@ -568,6 +579,15 @@ public class RefactorTabComponent {
                         "Cancel",
                         Messages.getWarningIcon());
                 if (result == Messages.YES) {
+                    // Track upgrade click before opening marketplace
+                    try {
+                        UserIdentificationService userIdentificationService = new UserIdentificationService();
+                        UsageService usageService = new UsageService(userIdentificationService);
+                        usageService.trackUpgradeClick("refactor_undo_credit_exhausted", "Refactor");
+                    } catch (Exception e) {
+                        // Log error but don't prevent upgrade
+                        System.err.println("Failed to track upgrade click analytics: " + e.getMessage());
+                    }
                     openMarketplace();
                 }
                 return;

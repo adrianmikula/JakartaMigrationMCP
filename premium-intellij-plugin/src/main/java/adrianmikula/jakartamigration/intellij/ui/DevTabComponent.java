@@ -34,9 +34,13 @@ public class DevTabComponent {
     private static final String SIMULATE_PREMIUM_KEY = "jakarta.migration.dev.simulate_premium";
     
     public DevTabComponent(Project project, Consumer<Boolean> onPremiumSimulationChanged) {
+        this(project, onPremiumSimulationChanged, new ErrorReportingService(new UserIdentificationService()));
+    }
+
+    public DevTabComponent(Project project, Consumer<Boolean> onPremiumSimulationChanged, ErrorReportingService errorReportingService) {
         this.project = project;
         this.onPremiumSimulationChanged = onPremiumSimulationChanged;
-        this.errorReportingService = new ErrorReportingService(new UserIdentificationService());
+        this.errorReportingService = errorReportingService;
         
         // Initialize UI components
         simulatePremiumCheckBox = new JBCheckBox("Simulate Premium License");

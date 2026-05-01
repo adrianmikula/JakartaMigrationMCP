@@ -13,6 +13,7 @@ import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -296,7 +297,7 @@ public class AdvancedScanningService {
 
     /**
      * Gets the last comprehensive scan results.
-     * 
+     *
      * @return ComprehensiveScanResults or null if no scan has been run
      */
     public ComprehensiveScanResults getLastScanResults() {
@@ -305,44 +306,269 @@ public class AdvancedScanningService {
             return null;
         }
 
-        // Convert AdvancedScanSummary to ComprehensiveScanResults
-        // Create placeholder maps for different scan types
-        Map<String, Object> jpaResults = Map.of("issues", summary.getJpaCount());
-        Map<String, Object> beanValidationResults = Map.of("issues", summary.getBeanValidationCount());
-        Map<String, Object> servletJspResults = Map.of("issues", summary.getServletJspCount());
-        Map<String, Object> thirdPartyLibResults = Map.of("issues", summary.getThirdPartyLibCount());
-        Map<String, Object> transitiveDependencyResults = Map.of("issues", summary.getTransitiveDependencyCount());
-        Map<String, Object> buildConfigResults = Map.of("issues", summary.getBuildConfigCount());
-        
-        List<String> recommendations = List.of(
-            "Update javax dependencies to jakarta equivalents",
-            "Review deprecated API usage",
-            "Update configuration files"
-        );
+        // Convert AdvancedScanSummary to ComprehensiveScanResults with actual domain objects
+        Map<String, Object> jpaResults = new HashMap<>();
+        jpaResults.put("result", convertToJpaProjectScanResult(summary.jpaResult()));
 
-        // Create ScanSummary
+        Map<String, Object> beanValidationResults = new HashMap<>();
+        beanValidationResults.put("result", convertToBeanValidationProjectScanResult(summary.beanValidationResult()));
+
+        Map<String, Object> cdiResults = new HashMap<>();
+        cdiResults.put("result", convertToCdiInjectionProjectScanResult(summary.cdiInjectionResult()));
+
+        Map<String, Object> servletJspResults = new HashMap<>();
+        servletJspResults.put("result", convertToServletJspProjectScanResult(summary.servletJspResult()));
+
+        Map<String, Object> thirdPartyLibResults = new HashMap<>();
+        thirdPartyLibResults.put("result", summary.thirdPartyLibResult());
+
+        Map<String, Object> transitiveDependencyResults = new HashMap<>();
+        transitiveDependencyResults.put("result", summary.transitiveDependencyResult());
+
+        Map<String, Object> buildConfigResults = new HashMap<>();
+        buildConfigResults.put("result", convertToBuildConfigProjectScanResult(summary.buildConfigResult()));
+
+        List<String> recommendations = generateRecommendations(summary);
+
+        // Calculate actual total files scanned from all scanners
+        int totalFilesScanned = calculateTotalFilesScanned(summary);
+
+        // Create ScanSummary with actual data
         ComprehensiveScanResults.ScanSummary scanSummary = new ComprehensiveScanResults.ScanSummary(
-            1000, // totalFilesScanned - placeholder
-            summary.getTotalIssuesFound(), // filesWithIssues
-            summary.getDeprecatedApiCount(), // criticalIssues
-            summary.getSecurityApiCount(), // warningIssues
-            0, // infoIssues
-            75.0 // readinessScore - placeholder
+            totalFilesScanned,
+            summary.getTotalIssuesFound(),
+            summary.getDeprecatedApiCount(),
+            summary.getSecurityApiCount(),
+            0,
+            calculateReadinessScore(summary)
         );
 
         return new ComprehensiveScanResults(
             cachedProjectPath != null ? cachedProjectPath.toString() : "unknown",
-            java.time.LocalDateTime.now(), // scanTime
+            java.time.LocalDateTime.now(),
             jpaResults,
             beanValidationResults,
+            cdiResults,
             servletJspResults,
             thirdPartyLibResults,
             transitiveDependencyResults,
             buildConfigResults,
             recommendations,
-            summary.getTotalIssuesFound(), // totalIssuesFound
+            summary.getTotalIssuesFound(),
             scanSummary
         );
+    }
+
+    /**
+     * Converts ProjectScanResult<FileScanResult<JpaAnnotationUsage>> to JpaProjectScanResult.
+     */
+    private adrianmikula.jakartamigration.advancedscanning.domain.JpaProjectScanResult convertToJpaProjectScanResult(
+            ProjectScanResult<FileScanResult<adrianmikula.jakartamigration.advancedscanning.domain.JpaAnnotationUsage>> result) {
+        if (result == null) {
+            return adrianmikula.jakartamigration.advancedscanning.domain.JpaProjectScanResult.empty();
+        }
+
+        var fileResults = result.fileResults().stream()
+            .map(fr -> new adrianmikula.jakartamigration.advancedscanning.domain.JpaScanResult(
+                fr.filePath(),
+                fr.usages(),
+                fr.lineCount()
+            ))
+            .toList();
+
+        return new adrianmikula.jakartamigration.advancedscanning.domain.JpaProjectScanResult(
+            fileResults,
+            result.totalFilesScanned(),
+            result.filesWithIssues(),
+            result.totalIssuesFound()
+        );
+    }
+
+    /**
+     * Converts ProjectScanResult<FileScanResult<JavaxUsage>> to BeanValidationProjectScanResult.
+     */
+    private adrianmikula.jakartamigration.advancedscanning.domain.BeanValidationProjectScanResult convertToBeanValidationProjectScanResult(
+            ProjectScanResult<FileScanResult<adrianmikula.jakartamigration.advancedscanning.domain.JavaxUsage>> result) {
+        if (result == null) {
+            return adrianmikula.jakartamigration.advancedscanning.domain.BeanValidationProjectScanResult.empty();
+        }
+
+        List<adrianmikula.jakartamigration.advancedscanning.domain.BeanValidationScanResult> fileResults = result.fileResults().stream()
+            .map(fr -> new adrianmikula.jakartamigration.advancedscanning.domain.BeanValidationScanResult(
+                fr.filePath(),
+                fr.usages().stream()
+                    .map(u -> new adrianmikula.jakartamigration.advancedscanning.domain.BeanValidationUsage(
+                        u.className(),
+                        u.jakartaEquivalent(),
+                        u.lineNumber(),
+                        "",
+                        u.context()
+                    ))
+                    .toList(),
+                fr.lineCount()
+            ))
+            .toList();
+
+        return new adrianmikula.jakartamigration.advancedscanning.domain.BeanValidationProjectScanResult(
+            fileResults,
+            result.totalFilesScanned(),
+            result.filesWithIssues(),
+            result.totalIssuesFound()
+        );
+    }
+
+    /**
+     * Converts ProjectScanResult<FileScanResult<JavaxUsage>> to CdiInjectionProjectScanResult.
+     */
+    private adrianmikula.jakartamigration.advancedscanning.domain.CdiInjectionProjectScanResult convertToCdiInjectionProjectScanResult(
+            ProjectScanResult<FileScanResult<adrianmikula.jakartamigration.advancedscanning.domain.JavaxUsage>> result) {
+        if (result == null) {
+            return adrianmikula.jakartamigration.advancedscanning.domain.CdiInjectionProjectScanResult.empty();
+        }
+
+        List<adrianmikula.jakartamigration.advancedscanning.domain.CdiInjectionScanResult> fileResults = result.fileResults().stream()
+            .map(fr -> new adrianmikula.jakartamigration.advancedscanning.domain.CdiInjectionScanResult(
+                fr.filePath(),
+                fr.usages().stream()
+                    .map(u -> new adrianmikula.jakartamigration.advancedscanning.domain.CdiInjectionUsage(
+                        u.className(),
+                        u.jakartaEquivalent(),
+                        u.lineNumber(),
+                        u.context(),
+                        "annotation"
+                    ))
+                    .toList(),
+                fr.lineCount()
+            ))
+            .toList();
+
+        return new adrianmikula.jakartamigration.advancedscanning.domain.CdiInjectionProjectScanResult(
+            fileResults,
+            result.totalFilesScanned(),
+            result.filesWithIssues(),
+            result.totalIssuesFound()
+        );
+    }
+
+    /**
+     * Converts ProjectScanResult<FileScanResult<ServletJspUsage>> to ServletJspProjectScanResult.
+     */
+    private adrianmikula.jakartamigration.advancedscanning.domain.ServletJspProjectScanResult convertToServletJspProjectScanResult(
+            ProjectScanResult<FileScanResult<adrianmikula.jakartamigration.advancedscanning.domain.ServletJspUsage>> result) {
+        if (result == null) {
+            return adrianmikula.jakartamigration.advancedscanning.domain.ServletJspProjectScanResult.empty();
+        }
+
+        var fileResults = result.fileResults().stream()
+            .map(fr -> new adrianmikula.jakartamigration.advancedscanning.domain.ServletJspScanResult(
+                fr.filePath(),
+                fr.usages(),
+                fr.lineCount()
+            ))
+            .toList();
+
+        return new adrianmikula.jakartamigration.advancedscanning.domain.ServletJspProjectScanResult(
+            fileResults,
+            result.totalFilesScanned(),
+            result.filesWithIssues(),
+            result.totalIssuesFound()
+        );
+    }
+
+    /**
+     * Converts ProjectScanResult<FileScanResult<BuildConfigUsage>> to BuildConfigProjectScanResult.
+     */
+    private adrianmikula.jakartamigration.advancedscanning.domain.BuildConfigProjectScanResult convertToBuildConfigProjectScanResult(
+            ProjectScanResult<FileScanResult<adrianmikula.jakartamigration.advancedscanning.domain.BuildConfigUsage>> result) {
+        if (result == null) {
+            return adrianmikula.jakartamigration.advancedscanning.domain.BuildConfigProjectScanResult.empty();
+        }
+
+        List<adrianmikula.jakartamigration.advancedscanning.domain.BuildConfigScanResult> fileResults = result.fileResults().stream()
+            .map(fr -> new adrianmikula.jakartamigration.advancedscanning.domain.BuildConfigScanResult(
+                fr.filePath(),
+                fr.usages(),
+                "unknown"
+            ))
+            .toList();
+
+        return new adrianmikula.jakartamigration.advancedscanning.domain.BuildConfigProjectScanResult(
+            fileResults,
+            result.totalFilesScanned(),
+            result.filesWithIssues(),
+            result.totalIssuesFound()
+        );
+    }
+
+    /**
+     * Generates recommendations based on scan results.
+     */
+    private List<String> generateRecommendations(AdvancedScanSummary summary) {
+        List<String> recommendations = new ArrayList<>();
+
+        if (summary.getJpaCount() > 0) {
+            recommendations.add("Update JPA annotations from javax.persistence to jakarta.persistence");
+        }
+        if (summary.getBeanValidationCount() > 0) {
+            recommendations.add("Update Bean Validation annotations from javax.validation to jakarta.validation");
+        }
+        if (summary.getCdiInjectionCount() > 0) {
+            recommendations.add("Update CDI annotations from javax.inject/javax.enterprise to jakarta.inject/jakarta.enterprise");
+        }
+        if (summary.getServletJspCount() > 0) {
+            recommendations.add("Update Servlet/JSP imports from javax.servlet to jakarta.servlet");
+        }
+        if (summary.getBuildConfigCount() > 0) {
+            recommendations.add("Update build configuration dependencies to Jakarta EE equivalents");
+        }
+        if (summary.getDeprecatedApiCount() > 0) {
+            recommendations.add("Review and replace deprecated API usages");
+        }
+        if (summary.getSecurityApiCount() > 0) {
+            recommendations.add("Update security-related javax imports to jakarta equivalents");
+        }
+
+        if (recommendations.isEmpty()) {
+            recommendations.add("No specific migration recommendations - project appears ready for Jakarta EE");
+        }
+
+        return recommendations;
+    }
+
+    /**
+     * Calculates total files scanned across all scanners.
+     */
+    private int calculateTotalFilesScanned(AdvancedScanSummary summary) {
+        int total = 0;
+        if (summary.jpaResult() != null) total += summary.jpaResult().totalFilesScanned();
+        if (summary.beanValidationResult() != null) total += summary.beanValidationResult().totalFilesScanned();
+        if (summary.cdiInjectionResult() != null) total += summary.cdiInjectionResult().totalFilesScanned();
+        if (summary.servletJspResult() != null) total += summary.servletJspResult().totalFilesScanned();
+        if (summary.buildConfigResult() != null) total += summary.buildConfigResult().totalFilesScanned();
+        // ThirdPartyLibProjectScanResult doesn't have totalFilesScanned() - use getTotalLibraries() as approximation
+        if (summary.thirdPartyLibResult() != null) total += summary.thirdPartyLibResult().getTotalLibraries();
+        return total;
+    }
+
+    /**
+     * Calculates readiness score based on scan results.
+     */
+    private double calculateReadinessScore(AdvancedScanSummary summary) {
+        int totalIssues = summary.getTotalIssuesFound();
+        if (totalIssues == 0) {
+            return 100.0;
+        }
+
+        int criticalWeight = summary.getDeprecatedApiCount() * 3 + summary.getSecurityApiCount() * 2;
+        int normalWeight = totalIssues;
+        int totalWeight = criticalWeight + normalWeight;
+
+        if (totalWeight == 0) {
+            return 100.0;
+        }
+
+        double score = 100.0 - (Math.min(totalWeight, 100) * 0.8);
+        return Math.max(0.0, Math.min(100.0, score));
     }
 
     /**
@@ -828,5 +1054,14 @@ public class AdvancedScanningService {
         public boolean hasIssues() {
             return getTotalIssuesFound() > 0;
         }
+    }
+
+    /**
+     * Gets the Recipe Recommendation Service for generating recipe recommendations based on scan results.
+     *
+     * @return ScanRecipeRecommendationService instance
+     */
+    public ScanRecipeRecommendationService getRecipeRecommendationService() {
+        return scanningModule.getRecipeRecommendationService();
     }
 }

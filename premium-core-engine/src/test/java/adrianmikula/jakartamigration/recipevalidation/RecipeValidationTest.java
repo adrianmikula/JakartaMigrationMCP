@@ -1,14 +1,13 @@
 package adrianmikula.jakartamigration.recipevalidation;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
-import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.constructor.Constructor;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -17,14 +16,14 @@ public class RecipeValidationTest {
 
     @Test
     public void testAllRecipesExistAndAreValid() throws IOException {
-        // Load recipes.yaml
-        String yamlPath = "premium-core-engine/src/main/resources/recipes.yaml";
-        List<Map<String, Object>> recipes = loadRecipes(yamlPath);
+        // Load recipes.json
+        List<Map<String, Object>> recipes = loadRecipesFromJson();
 
         // Validate each recipe
         for (Map<String, Object> recipe : recipes) {
             String name = (String) recipe.get("name");
             String pattern = (String) recipe.get("pattern");
+            @SuppressWarnings("unchecked")
             List<Map<String, String>> replacements = (List<Map<String, String>>) recipe.get("replacements");
             String safety = (String) recipe.get("safety");
             Boolean reversible = (Boolean) recipe.get("reversible");
@@ -55,9 +54,8 @@ public class RecipeValidationTest {
 
     @Test
     public void testNoDuplicateRecipeNames() throws IOException {
-        // Load recipes.yaml
-        String yamlPath = "premium-core-engine/src/main/resources/recipes.yaml";
-        List<Map<String, Object>> recipes = loadRecipes(yamlPath);
+        // Load recipes.json
+        List<Map<String, Object>> recipes = loadRecipesFromJson();
 
         // Check for duplicate names
         for (int i = 0; i < recipes.size(); i++) {
@@ -71,9 +69,8 @@ public class RecipeValidationTest {
 
     @Test
     public void testAllRecipesHaveUniquePatterns() throws IOException {
-        // Load recipes.yaml
-        String yamlPath = "premium-core-engine/src/main/resources/recipes.yaml";
-        List<Map<String, Object>> recipes = loadRecipes(yamlPath);
+        // Load recipes.json
+        List<Map<String, Object>> recipes = loadRecipesFromJson();
 
         // Check for recipes with identical pattern AND name (true duplicates)
         for (int i = 0; i < recipes.size(); i++) {
@@ -89,19 +86,16 @@ public class RecipeValidationTest {
         }
     }
 
-    private List<Map<String, Object>> loadRecipes(String path) throws IOException {
-        Yaml yaml = new Yaml();
-        
-        // Try classpath first (works in test context)
-        try (java.io.InputStream inputStream = getClass().getClassLoader().getResourceAsStream("recipes.yaml")) {
-            if (inputStream != null) {
-                Map<String, Object> data = yaml.load(inputStream);
-                return (List<Map<String, Object>>) data.get("recipes");
+    private List<Map<String, Object>> loadRecipesFromJson() throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream("recipes.json")) {
+            if (is == null) {
+                throw new IOException("recipes.json not found on classpath");
             }
+            Map<String, Object> data = mapper.readValue(is, new TypeReference<Map<String, Object>>() {});
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> recipes = (List<Map<String, Object>>) data.get("recipes");
+            return recipes;
         }
-        
-        // Fallback to file system path
-        Map<String, Object> data = yaml.load(Files.newInputStream(Paths.get(path)));
-        return (List<Map<String, Object>>) data.get("recipes");
     }
 }

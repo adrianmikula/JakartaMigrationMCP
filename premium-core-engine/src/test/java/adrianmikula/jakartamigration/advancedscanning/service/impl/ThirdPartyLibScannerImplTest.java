@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.advancedscanning.service.impl;
 
 import adrianmikula.jakartamigration.advancedscanning.service.ThirdPartyLibScanner;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -13,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Unit tests for ThirdPartyLibScannerImpl
  */
+@Tag("slow")
 class ThirdPartyLibScannerImplTest {
     
     private ThirdPartyLibScanner scanner;

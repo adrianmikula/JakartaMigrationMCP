@@ -63,6 +63,7 @@ public class FeatureFlags {
         flags.put("experimental_features", false); // Experimental features disabled by default
         flags.put("mcpServerPremiumOnly", true); // MCP server premium only
         flags.put("pdfReportsPremiumOnly", true); // PDF reports premium only
+        flags.put("reportsPremiumOnly", true); // Reports tab premium only
         
         // Feature configurations
         FeatureConfig runtimeConfig = new FeatureConfig();
@@ -308,6 +309,22 @@ public class FeatureFlags {
      */
     public boolean isPdfReportsPremiumOnly() {
         return flags.getOrDefault("pdfReportsPremiumOnly", true);
+    }
+    
+    /**
+     * Checks if Reports tab is premium only.
+     */
+    public boolean isReportsPremiumOnly() {
+        return flags.getOrDefault("reportsPremiumOnly", true);
+    }
+    
+    /**
+     * Sets whether Reports tab is premium only.
+     * For testing purposes.
+     */
+    public void setReportsPremiumOnly(boolean premiumOnly) {
+        flags.put("reportsPremiumOnly", premiumOnly);
+        LOG.info("Reports tab premium-only flag set to: " + premiumOnly);
     }
     
     /**

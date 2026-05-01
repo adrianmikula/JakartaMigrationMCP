@@ -40,7 +40,6 @@ After completing a task list, do the following:
 
 
 
-
 ## Architecture
 
 ### Architectural decisions
@@ -122,10 +121,17 @@ Full testing standards are documented in AgentRules\TESTING.md and docs/FAST_TES
 
 ## Velocity
 
-- Prefer using commands from the mise-en-place catalogue or the IDE's whitelist. Avoid using commands on the IDE's blacklist. 
+- Prefer using commands from the mise-en-place catalogue or the IDE's whitelist. Avoid using commands on the IDE's blacklist.
 - Agentic coding AIs should default to running the 'fast tests' subset for faster feeback while working.
 - Agents should have relevant/useful MCP servers installed to speed up coding workflows.
 - We should run build/test commands using a fast-start JVM like Graal or CRAK to improve agent feedback time.
+
+### Fast Test Loop
+Use `.\scripts\fast-test.ps1` for quick feedback during development:
+- `.\scripts\fast-test.ps1 compile` - Fast compilation (<10s)
+- `.\scripts\fast-test.ps1 fast` - Fast unit tests (excludes @Tag("slow"))
+- `.\scripts\fast-test.ps1 core` - Core functionality tests
+- Or direct Gradle: `.\gradlew :premium-core-engine:compileJava --configuration-cache`
 
 Full efficiency tweaks are documented in AgentRules\EFFICIENCy.md and docs/FAST_TEST_LOOP.md
 

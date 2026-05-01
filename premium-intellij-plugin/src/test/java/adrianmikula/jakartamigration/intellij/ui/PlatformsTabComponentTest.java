@@ -1,6 +1,6 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
-import adrianmikula.jakartamigration.platforms.model.PlatformScanResult;
+import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import com.intellij.openapi.project.Project;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.junit.jupiter.api.BeforeEach;

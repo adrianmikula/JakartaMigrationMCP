@@ -46,6 +46,7 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
         }
         this.dbPath = dbDir.resolve(DB_FILE);
         this.objectMapper = new ObjectMapperService();
+        log.info("Jakarta Migration Plugin - Local SQLite database initialized at: {}", dbPath);
         initializeDatabase();
     }
 

@@ -37,3 +37,17 @@ tasks.test {
     // Enable parallel test execution
     maxParallelForks = 4
 }
+
+// Fast test task for quick feedback
+tasks.register<Test>("fastTest") {
+    group = "verification"
+    description = "Run fast unit tests only (excludes integration and slow tests)"
+    
+    useJUnitPlatform {
+        excludeTags("slow")
+    }
+    testLogging {
+        showStandardStreams = true
+    }
+    maxParallelForks = 4
+}

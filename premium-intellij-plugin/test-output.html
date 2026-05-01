@@ -1,0 +1,972 @@
+<html>
+<head>
+<title>Test Report</title>
+<meta charset="UTF-8"></meta>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"></meta>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 40px;
+        line-height: 1.6;
+        color: #333;
+        background: #f8f9fa;
+    }
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        padding: 40px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .header {
+        text-align: center;
+        margin-bottom: 40px;
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 20px;
+    }
+    .header h1 {
+        color: #2c3e50;
+        margin: 0;
+        font-size: 2.5em;
+        font-weight: 300;
+    }
+    .header h2 {
+        color: #34495e;
+        font-size: 1.8em;
+        margin: 10px 0;
+        font-weight: 400;
+    }
+    .section {
+        margin: 30px 0;
+    }
+    .section h2 {
+        color: #2c3e50;
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 10px;
+    }
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+    }
+    .metric-card {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        border-left: 4px solid #3498db;
+    }
+    .metric-value {
+        font-size: 2em;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    .metric-label {
+        color: #7f8c8d;
+        margin-top: 5px;
+    }
+    .warning-box {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 4px;
+        padding: 15px;
+        margin: 20px 0;
+    }
+    .warning-box h3 {
+        color: #856404;
+        margin-top: 0;
+    }
+    .dependency-matrix-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 0.85em;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .dependency-matrix-table th {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        color: white;
+        font-weight: bold;
+        padding: 15px 12px;
+        text-align: left;
+        border-bottom: 2px solid #3498db;
+    }
+    .dependency-matrix-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #e1e8ed;
+        vertical-align: top;
+    }
+    .dependency-matrix-table tr:hover {
+        background-color: #f8f9fa;
+    }
+    .compatible { color: #27ae60; font-weight: bold; }
+    .needs-update { color: #f39c12; font-weight: bold; }
+    .incompatible { color: #e74c3c; font-weight: bold; }
+    .unknown-status { color: #95a5a6; font-weight: bold; }
+    .compatibility-summary {
+        margin: 30px 0;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+    }
+    .guidelines-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+    }
+    .guideline-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #e1e8ed;
+        border-left: 4px solid #3498db;
+    }
+    .guideline-card h4 {
+        margin: 0 0 10px 0;
+        color: #2c3e50;
+    }
+    .code-example-section {
+        margin: 40px 0;
+        padding: 30px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+    }
+    .code-comparison {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin: 20px 0;
+    }
+    .before-code, .after-code {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #e1e8ed;
+    }
+    .before-code {
+        border-left: 4px solid #e74c3c;
+    }
+    .after-code {
+        border-left: 4px solid #27ae60;
+    }
+    .code-block {
+        background: #2c3e50;
+        color: #ecf0f1;
+        padding: 15px;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.85em;
+        overflow-x: auto;
+        white-space: pre-wrap;
+    }
+    .migration-note {
+        margin: 20px 0;
+        padding: 20px;
+        background: #e8f5e8;
+        border-radius: 8px;
+        border-left: 4px solid #f39c12;
+    }
+    .risk-matrix-container {
+        margin: 30px 0;
+    }
+    .risk-overview-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 30px;
+        margin: 20px 0;
+    }
+    .risk-score-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 12px;
+        text-align: center;
+    }
+    .risk-dial {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2em;
+        font-weight: bold;
+        margin: 0 auto 20px;
+    }
+    .risk-level {
+        margin-top: 20px;
+    }
+    .risk-level-text {
+        font-size: 1.5em;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+    .factor-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin: 20px 0;
+    }
+    .factor-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        background: white;
+        border-radius: 6px;
+        border: 1px solid #e1e8ed;
+    }
+    .factor-bar {
+        flex: 1;
+        height: 8px;
+        background: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .factor-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #3498db, #2c3e50);
+        transition: width 0.3s ease;
+    }
+    .module-risk-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+    }
+    .module-risk-card {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .module-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .module-risk-score {
+        font-size: 1.5em;
+        font-weight: bold;
+    }
+    .low { color: #27ae60; }
+    .medium { color: #f39c12; }
+    .high { color: #e74c3c; }
+    .phase-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+    }
+    .trend-phase {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        border: 1px solid #e1e8ed;
+        min-height: 200px;
+        display: flex;
+        flex-direction: column;
+    }
+    .trend-phase h4 {
+        margin: 0 0 15px 0;
+        color: #2c3e50;
+    }
+    .trend-phase p {
+        margin: 15px 0 0 0;
+        color: #7f8c8d;
+        font-size: 0.9em;
+    }
+    .phase-risk {
+        margin-top: 15px;
+        height: 120px;
+        border-radius: 10px;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .risk-label {
+        color: white;
+        font-weight: bold;
+        font-size: 0.9em;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        z-index: 1;
+    }
+    .high-risk { background: linear-gradient(180deg, #e74c3c, #c0392b); }
+    .medium-risk { background: linear-gradient(180deg, #f39c12, #e67e22); }
+    .low-risk { background: linear-gradient(180deg, #27ae60, #229954); }
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    .trend-legend {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        margin-bottom: 20px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9em;
+        color: #555;
+    }
+    .trend-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+    .strategies-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+    }
+    .strategy-card {
+        background: white;
+        border-radius: 8px;
+        padding: 25px;
+        border: 1px solid #e1e8ed;
+        border-left: 4px solid #3498db;
+    }
+    .strategy-effectiveness {
+        font-weight: bold;
+        margin-bottom: 15px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 0.9em;
+    }
+    .high { background: #d4edda; color: #155724; }
+    .medium { background: #fff3cd; color: #856404; }
+    .timeline-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin: 20px 0;
+    }
+    .resource-allocation {
+        margin: 30px 0;
+    }
+    .resource-breakdown {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+    }
+    .resource-role-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        background: white;
+        border-radius: 6px;
+        border: 1px solid #e1e8ed;
+        margin-bottom: 10px;
+    }
+    .milestone-complete { color: #27ae60; }
+    .milestone-pending { color: #f39c12; }
+    .snippet-error {
+        background: #ffebee;
+        border: 1px solid #f44336;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+    }
+    .snippet-error h4 {
+        color: #d32f2f;
+        margin: 0 0 10px 0;
+    }
+    .gauge-container {
+        height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 20px 0;
+    }
+    .gauge {
+        width: 100%;
+        height: 100%;
+        position: relative;
+    }
+    .gauge canvas {
+        max-width: 100%;
+        max-height: 100%;
+    }
+    .dials-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 30px;
+        margin: 20px 0;
+    }
+    .dial-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+    .dial-card h3 {
+        margin: 0 0 20px 0;
+        color: #2c3e50;
+    }
+    .dial-score {
+        font-size: 2em;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    .dial-score.low { color: #27ae60; }
+    .dial-score.medium { color: #f39c12; }
+    .dial-score.high { color: #e74c3c; }
+    .dial-label {
+        color: #7f8c8d;
+        margin-bottom: 15px;
+    }
+    .factor-list {
+        margin-top: 20px;
+        text-align: left;
+    }
+    .factor-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .factor-item.green { color: #27ae60; }
+    .factor-item.red { color: #e74c3c; }
+    .factor-item.orange { color: #f39c12; }
+    .factor-label {
+        flex: 1;
+    }
+    .factor-value {
+        font-weight: bold;
+    }
+    @media print {
+        body { padding: 20px; }
+        .container { box-shadow: none; }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+    <h1>Test Report</h1>
+    <h2>Risk Analysis Report</h2>
+    <p>Generated for: Test Project</p>
+    <p>Generated on: 2026-04-30 16:12:00</p>
+</div>
+
+<div class="warning-box">
+    <h3>⚠️ Eclipse Project Detected</h3>
+    <p>This appears to be an Eclipse-based project without Maven or Gradle build files.
+    Dependency analysis requires pom.xml, build.gradle, or build.gradle.kts files.</p>
+    <p><strong>Recommendations:</strong></p>
+    <ul>
+        <li>Consider migrating to Maven or Gradle for comprehensive dependency analysis</li>
+        <li>Add pom.xml or build.gradle files to enable full dependency scanning</li>
+        <li>Run a complete project analysis after build system migration</li>
+    </ul>
+    <p>The report below includes available scan data only.</p>
+</div>
+
+<div class="section executive-section">
+    <h2>Executive Summary</h2>
+    <p class="executive-subtitle">Business overview and strategic recommendations for Jakarta EE migration</p>
+
+    <div class="executive-overview">
+    <div class="overview-header">
+        <h3>📊 Project Overview</h3>
+        <span class="report-date">Generated: 2026-04-30 16:12</span>
+    </div>
+    <div class="overview-grid">
+        <div class="overview-card">
+            <span class="overview-label">Project</span>
+            <span class="overview-value">Test Project</span>
+        </div>
+        <div class="overview-card">
+            <span class="overview-label">Files Analyzed</span>
+            <span class="overview-value">0</span>
+        </div>
+        <div class="overview-card">
+            <span class="overview-label">Issues Identified</span>
+            <span class="overview-value">0</span>
+        </div>
+        <div class="overview-card">
+            <span class="overview-label">Dependencies</span>
+            <span class="overview-value">0</span>
+        </div>
+    </div>
+</div>
+
+    <div class="executive-risk-summary">
+    <h3>🎯 Risk Assessment</h3>
+    <div class="risk-summary-grid">
+        <div class="risk-gauge-card low">
+            <div class="risk-gauge-value">0</div>
+            <div class="risk-gauge-label">Risk Score</div>
+            <div class="risk-gauge-level">LOW</div>
+        </div>
+        <div class="readiness-card">
+            <div class="readiness-value">100%</div>
+            <div class="readiness-label">Migration Readiness</div>
+            <div class="readiness-bar">
+                <div class="readiness-fill" style="width: 100%"></div>
+            </div>
+        </div>
+    </div>
+    <div class="risk-descriptions">
+        <div class="risk-description-item">
+            <strong>Migration Complexity:</strong> Straightforward migration with minimal business risk.
+        </div>
+        <div class="risk-description-item">
+            <strong>Business Impact:</strong> Minimal downtime expected. Standard deployment windows sufficient.
+        </div>
+    </div>
+</div>
+
+    <div class="executive-recommendations">
+    <h3>💡 Strategic Recommendations</h3>
+    <div class="recommendations-list">
+        <ul>
+            <li>Plan migration during standard maintenance windows</li>
+<li>Allocate 2-3 developers for 2-4 weeks</li>
+<li>Standard regression testing should be sufficient</li>
+
+        </ul>
+    </div>
+    <div class="next-steps">
+        <h4>Immediate Next Steps</h4>
+        <ol>
+            <li>Review this report with technical leadership</li>
+            <li>Approve migration timeline and resource allocation</li>
+            <li>Schedule kick-off meeting with development team</li>
+            <li>Set up migration tracking and reporting cadence</li>
+        </ol>
+    </div>
+</div>
+
+</div>
+
+<div class="section">
+    <h2>Available Analysis Results</h2>
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-value">%d</div>
+            <div class="metric-label">Issues Found</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">%d%%</div>
+            <div class="metric-label">Readiness Score</div>
+        </div>
+    </div>
+</div>
+
+<div class="section risk-dials">
+    <h2>Risk Assessment Dials</h2>
+    <p>Visual risk assessment with factor breakdowns contributing to each score.</p>
+
+    <div class="dials-container">
+        <div class="dial-card">
+    <h3>Migration Risk</h3>
+    <div class="gauge-container">
+        <div id="migration-risk-gauge" class="gauge"></div>
+    </div>
+    <div class="dial-score low">%.0f</div>
+    <div class="dial-label">Risk Score</div>
+    <div class="factor-list">
+        0.0
+        <div class="factor-item green">
+    <span class="factor-label">Direct dependencies needing upgrade</span>
+    <span class="factor-value">0</span>
+</div>
+
+        <div class="factor-item green">
+    <span class="factor-label">Transitive dependency issues</span>
+    <span class="factor-value">0</span>
+</div>
+
+        <div class="factor-item green">
+    <span class="factor-label">Platforms needing upgrade</span>
+    <span class="factor-value">0</span>
+</div>
+
+        <div class="factor-item green">
+    <span class="factor-label">Source code issues</span>
+    <span class="factor-value">0</span>
+</div>
+
+    </div>
+</div>
+
+        <div class="dial-card">
+    <h3>Migration Effort</h3>
+    <div class="gauge-container">
+        <div id="migration-effort-gauge" class="gauge"></div>
+    </div>
+    <div class="dial-score low">%d</div>
+    <div class="dial-label">Effort Score</div>
+    <div class="factor-list">
+        0
+        <div class="factor-item green">
+    <span class="factor-label">Refactors with recipes</span>
+    <span class="factor-value">0</span>
+</div>
+
+        <div class="factor-item red">
+    <span class="factor-label">Project complexity (files)</span>
+    <span class="factor-value">0</span>
+</div>
+
+    </div>
+</div>
+
+        <div class="dial-card">
+    <h3>Confidence</h3>
+    <div class="gauge-container">
+        <div id="confidence-gauge" class="gauge"></div>
+    </div>
+    <div class="dial-score low">%d%%</div>
+    <div class="dial-label">Confidence Score</div>
+    <div class="factor-list">
+        20
+        <div class="factor-item red">
+    <span class="factor-label">Dependencies with known status</span>
+    <span class="factor-value">0%</span>
+</div>
+
+    </div>
+</div>
+
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Migration Risk Gauge
+        const migrationRiskCtx = document.getElementById('migration-risk-gauge');
+        if (migrationRiskCtx) {
+            new Chart(migrationRiskCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Risk Score', 'Remaining'],
+                    datasets: [{
+                        data: [%.0f, 100 - %.0f],
+                        backgroundColor: [
+                            '0.0',
+                            '#e9ecef'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%%',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Migration Effort Gauge
+        const effortScore = %d;
+        const migrationEffortCtx = document.getElementById('migration-effort-gauge');
+        if (migrationEffortCtx) {
+            new Chart(migrationEffortCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Effort Score', 'Remaining'],
+                    datasets: [{
+                        data: [effortScore, 100 - effortScore],
+                        backgroundColor: [
+                            '0.0',
+                            '#e9ecef'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%%',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Confidence Gauge
+        const confidenceScore = %d;
+        const confidenceCtx = document.getElementById('confidence-gauge');
+        if (confidenceCtx) {
+            new Chart(confidenceCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Confidence', 'Remaining'],
+                    datasets: [{
+                        data: [confidenceScore, 100 - confidenceScore],
+                        backgroundColor: [
+                            '#27ae60',
+                            '#e9ecef'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%%',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+
+<div class="section">
+    <h2>Risk Analysis Details</h2>
+    <p>Risk assessment by migration category based on actual scan findings.</p>
+
+    <div class="category-risk-container">
+    <h3>📊 Category Risk Analysis</h3>
+    <div class="no-data-message">
+        <p>Category risk analysis requires scan results. Run the Jakarta migration scanner to see category-level risk assessment.</p>
+    </div>
+</div>
+
+</div>
+
+<div class="section component-scores">
+    <h2>Risk Component Breakdown</h2>
+    <p>Per-component risk scores that contribute to the total risk assessment.</p>
+
+    <div class="total-score-display">
+        <span class="total-label">Total Risk Score:</span>
+        <span class="total-value %.1f</span>
+    </div>
+
+    <div class="component-bars">
+        0.0
+    </div>
+
+    <div class="component-table-container">
+        <table class="component-table">
+            <thead>
+                <tr>
+                    <th>Component</th>
+                    <th>Score</th>
+                    <th>Contribution</th>
+                </tr>
+            </thead>
+            <tbody>
+                low
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="section migration-strategies">
+    <h2>Migration Strategies</h2>
+    <p>Available migration approaches for Jakarta EE transition.</p>
+
+    <div class="strategies-grid">
+        <div class="strategy-card" style="border-left: 4px solid rgb(220,53,69);">
+    <h3>Big Bang</h3>
+    <p class="strategy-description">Migrate everything at once</p>
+    <div class="strategy-details">
+        <div class="strategy-section">
+            <h4>✓ Benefits</h4>
+            <ul><li>Migrate all javax dependencies to Jakarta EE at once
+- Single comprehensive change
+- Best for small, self-contained projects
+- Requires thorough testing before starting</li></ul>
+        </div>
+        <div class="strategy-section">
+            <h4>⚠ Risks</h4>
+            <ul><li>Higher risk - issues affect entire codebase
+- Longer rollback time if problems occur
+- Requires comprehensive test suite
+- May cause extended downtime during migration</li></ul>
+        </div>
+    </div>
+</div>
+<div class="strategy-card" style="border-left: 4px solid rgb(255,193,7);">
+    <h3>Incremental</h3>
+    <p class="strategy-description">One dependency at a time</p>
+    <div class="strategy-details">
+        <div class="strategy-section">
+            <h4>✓ Benefits</h4>
+            <ul><li>Migrate dependencies incrementally
+- Update one dependency, test, then proceed
+- Lower risk per change
+- Best for large, complex projects</li></ul>
+        </div>
+        <div class="strategy-section">
+            <h4>⚠ Risks</h4>
+            <ul><li>Longer overall migration timeline
+- Must maintain compatibility during transition
+- May require temporary dual dependencies
+- Need careful dependency ordering</li></ul>
+        </div>
+    </div>
+</div>
+<div class="strategy-card" style="border-left: 4px solid rgb(23,162,184);">
+    <h3>Transform</h3>
+    <p class="strategy-description">Combined build and runtime transformation</p>
+    <div class="strategy-details">
+        <div class="strategy-section">
+            <h4>✓ Benefits</h4>
+            <ul><li>Combine build-time and runtime transformation approaches
+- Use OpenRewrite for automated code changes
+- Deploy runtime adapters for edge cases
+- Best for complex enterprise applications</li></ul>
+        </div>
+        <div class="strategy-section">
+            <h4>⚠ Risks</h4>
+            <ul><li>Most complex implementation
+- Requires both build and runtime configuration
+- Higher resource overhead
+- May need specialized expertise</li></ul>
+        </div>
+    </div>
+</div>
+<div class="strategy-card" style="border-left: 4px solid rgb(108,117,125);">
+    <h3>Microservices</h3>
+    <p class="strategy-description">Migrate each service independently</p>
+    <div class="strategy-details">
+        <div class="strategy-section">
+            <h4>✓ Benefits</h4>
+            <ul><li>Migrate microservices one at a time
+- Each service can use different strategy
+- Independent deployment and testing
+- Best for distributed architectures</li></ul>
+        </div>
+        <div class="strategy-section">
+            <h4>⚠ Risks</h4>
+            <ul><li>Requires coordination across services
+- Inter-service dependencies must be handled
+- May need service mesh updates
+- Longer overall migration timeline</li></ul>
+        </div>
+    </div>
+</div>
+<div class="strategy-card" style="border-left: 4px solid rgb(111,66,193);">
+    <h3>Adapter Pattern</h3>
+    <p class="strategy-description">Use adapter classes for javax/jakarta compatibility</p>
+    <div class="strategy-details">
+        <div class="strategy-section">
+            <h4>✓ Benefits</h4>
+            <ul><li>â¢ Maintain backward compatibility during migration
+â¢ Gradual replacement of javax with jakarta
+â¢ Lower risk changes
+â¢ Easy to rollback individual adapters</li></ul>
+        </div>
+        <div class="strategy-section">
+            <h4>⚠ Risks</h4>
+            <ul><li>â¢ Additional code maintenance
+â¢ Runtime overhead for adapter layer
+â¢ More complex classpath management
+â¢ Need to track adapter usage</li></ul>
+        </div>
+    </div>
+</div>
+<div class="strategy-card" style="border-left: 4px solid rgb(40,167,69);">
+    <h3>Strangler</h3>
+    <p class="strategy-description">Migrate module by module</p>
+    <div class="strategy-details">
+        <div class="strategy-section">
+            <h4>✓ Benefits</h4>
+            <ul><li>Migrate one module at a time
+- New features built in Jakarta EE
+- Existing features gradually migrated
+- Good for monolithic applications</li></ul>
+        </div>
+        <div class="strategy-section">
+            <h4>⚠ Risks</h4>
+            <ul><li>Requires inter-module compatibility layers
+- Can create duplicate logic during transition
+- Managing two EE environments simultaneously</li></ul>
+        </div>
+    </div>
+</div>
+
+    </div>
+</div>
+
+<div class="section strategy-comparison">
+    <h2>Strategy Comparison</h2>
+    <p>Side-by-side comparison of migration strategies across risk categories.</p>
+
+    <div class="comparison-table-container">
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Risk Category</th>
+                    <th>Big Bang</th><th>Incremental</th><th>Transform</th><th>Microservices</th><th>Adapter Pattern</th><th>Strangler</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td class="category-cell">Development Effort</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell high-risk">High</td><td class="risk-cell high-risk">High</td><td class="risk-cell low-risk">Low</td><td class="risk-cell high-risk">High</td><td class="risk-cell low-risk">Low</td></tr><tr><td class="category-cell">Dependency Risks</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell high-risk">High</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell low-risk">Low</td><td class="risk-cell high-risk">High</td><td class="risk-cell high-risk">High</td></tr><tr><td class="category-cell">Tech Debt Accumulation</td><td class="risk-cell low-risk">Low</td><td class="risk-cell high-risk">High</td><td class="risk-cell high-risk">High</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell high-risk">High</td><td class="risk-cell high-risk">High</td></tr><tr><td class="category-cell">Test Effort</td><td class="risk-cell high-risk">High</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell low-risk">Low</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell medium-risk">Medium</td></tr><tr><td class="category-cell">Backwards Compatibility</td><td class="risk-cell high-risk">High</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell low-risk">Low</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell low-risk">Low</td><td class="risk-cell low-risk">Low</td></tr><tr><td class="category-cell">Production Rollout Risk</td><td class="risk-cell high-risk">High</td><td class="risk-cell low-risk">Low</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell low-risk">Low</td><td class="risk-cell medium-risk">Medium</td><td class="risk-cell medium-risk">Medium</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="comparison-legend">
+        <div class="legend-item">
+            <div class="legend-color high-risk"></div>
+            <span>High Risk</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color medium-risk"></div>
+            <span>Medium Risk</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color low-risk"></div>
+            <span>Low Risk</span>
+        </div>
+    </div>
+</div>
+
+</div>
+</body>
+</html>

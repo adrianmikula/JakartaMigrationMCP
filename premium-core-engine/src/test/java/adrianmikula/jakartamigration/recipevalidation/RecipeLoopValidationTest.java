@@ -1,9 +1,10 @@
 package adrianmikula.jakartamigration.recipevalidation;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,18 +18,19 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Test class that loops through all recipes in recipes.yaml to ensure they exist and are configured correctly.
- * This test validates each recipe in the recipes.yaml file by iterating through them and checking:
+ * Test class that loops through all recipes in recipes.json to ensure they exist and are configured correctly.
+ * This test validates each recipe in the recipes.json file by iterating through them and checking:
  * - Required fields are present
  * - Field values are valid
  * - No duplicate recipes exist
  * - Upgrade recommendations are properly linked (if applicable)
  */
 @Disabled("Recipe configuration issues - low importance validation test")
+@Tag("slow")
 @DisplayName("Recipe Loop Validation Test")
 public class RecipeLoopValidationTest {
 
-    // Expected recipe names from recipes.yaml
+    // Expected recipe names from recipes.json
     private static final List<String> EXPECTED_RECIPE_NAMES = Arrays.asList(
         "AddJakartaNamespace",
         "JavaxValidationToJakartaValidation",
@@ -72,7 +74,7 @@ public class RecipeLoopValidationTest {
     private static final List<String> REQUIRED_FIELDS = Arrays.asList("name", "description", "pattern", "replacements", "safety", "reversible");
 
     @Test
-    @DisplayName("All expected recipes should exist in recipes.yaml")
+    @DisplayName("All expected recipes should exist in recipes.json")
     public void testAllExpectedRecipesExist() throws IOException {
         List<Map<String, Object>> recipes = loadRecipes();
         
@@ -313,11 +315,11 @@ public class RecipeLoopValidationTest {
     public void testUpgradeRecommendationsHaveRequiredFields() throws IOException {
         List<Map<String, Object>> recipes = loadRecipes();
         
-        // Check if upgrade_recommendations exist
-        Map<String, Object> data = loadFullYamlData();
-        
-        if (data.containsKey("upgrade_recommendations")) {
-            List<Map<String, Object>> recommendations = (List<Map<String, Object>>) data.get("upgrade_recommendations");
+        // Check if upgradeRecommendations exist
+        Map<String, Object> data = loadFullJsonData();
+
+        if (data.containsKey("upgradeRecommendations")) {
+            List<Map<String, Object>> recommendations = (List<Map<String, Object>>) data.get("upgradeRecommendations");
             
             if (recommendations != null) {
                 List<String> requiredRecommendationFields = Arrays.asList(
@@ -350,42 +352,46 @@ public class RecipeLoopValidationTest {
     }
 
     /**
-     * Helper method to load recipes from recipes.yaml using classpath
+     * Helper method to load recipes from recipes.json using classpath
      */
+    @SuppressWarnings("unchecked")
     private List<Map<String, Object>> loadRecipes() throws IOException {
-        Yaml yaml = new Yaml();
-        
+        ObjectMapper mapper = new ObjectMapper();
+
         // Try classpath first (works in test context)
-        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("recipes.yaml")) {
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("recipes.json")) {
             if (inputStream != null) {
-                Map<String, Object> data = yaml.load(inputStream);
+                Map<String, Object> data = mapper.readValue(inputStream, Map.class);
                 return (List<Map<String, Object>>) data.get("recipes");
             }
         }
-        
+
         // Fallback to file system path
-        Map<String, Object> data = yaml.load(
-            Files.newInputStream(Paths.get("premium-core-engine/src/main/resources/recipes.yaml"))
+        Map<String, Object> data = mapper.readValue(
+            Files.newInputStream(Paths.get("premium-core-engine/src/main/resources/recipes.json")),
+            Map.class
         );
         return (List<Map<String, Object>>) data.get("recipes");
     }
-    
+
     /**
-     * Helper method to load full YAML data including upgrade_recommendations
+     * Helper method to load full JSON data including upgradeRecommendations
      */
-    private Map<String, Object> loadFullYamlData() throws IOException {
-        Yaml yaml = new Yaml();
-        
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> loadFullJsonData() throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+
         // Try classpath first (works in test context)
-        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("recipes.yaml")) {
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("recipes.json")) {
             if (inputStream != null) {
-                return yaml.load(inputStream);
+                return mapper.readValue(inputStream, Map.class);
             }
         }
-        
+
         // Fallback to file system path
-        return yaml.load(
-            Files.newInputStream(Paths.get("premium-core-engine/src/main/resources/recipes.yaml"))
+        return mapper.readValue(
+            Files.newInputStream(Paths.get("premium-core-engine/src/main/resources/recipes.json")),
+            Map.class
         );
     }
 }

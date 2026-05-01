@@ -10,6 +10,8 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.startup.StartupActivity;
+import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
+import adrianmikula.jakartamigration.analytics.service.UsageService;
 import org.jetbrains.annotations.NotNull;
 
 import java.awt.Desktop;
@@ -164,6 +166,15 @@ public class LicenseExpirationNotifier implements StartupActivity {
             notification.addAction(new NotificationAction("Upgrade to Premium") {
                 @Override
                 public void actionPerformed(@NotNull AnActionEvent e, @NotNull Notification notification) {
+                    // Track upgrade click before opening marketplace
+                    try {
+                        UserIdentificationService userIdentificationService = new UserIdentificationService();
+                        UsageService usageService = new UsageService(userIdentificationService);
+                        usageService.trackUpgradeClick("license_expiration_notifier", "Notification");
+                    } catch (Exception ex) {
+                        // Log error but don't prevent upgrade
+                        System.err.println("Failed to track upgrade click analytics: " + ex.getMessage());
+                    }
                     openMarketplace();
                     notification.expire();
                 }

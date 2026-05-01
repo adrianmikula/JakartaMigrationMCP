@@ -1,5 +1,7 @@
 package adrianmikula.jakartamigration.analytics.service;
 
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import adrianmikula.jakartamigration.analytics.config.SupabaseConfig;
 import adrianmikula.jakartamigration.analytics.model.UsageEvent;
 import adrianmikula.jakartamigration.analytics.util.ConcurrencyTestHelper;
@@ -7,7 +9,7 @@ import adrianmikula.jakartamigration.analytics.util.NetworkFailureSimulator;
 import adrianmikula.jakartamigration.analytics.util.TestDataFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
@@ -21,7 +23,14 @@ import static org.mockito.Mockito.*;
 /**
  * Integration tests for UsageService with test Supabase instance.
  * Tests real API interactions, error handling, and data persistence.
+ * Tagged as slow due to integration test nature.
+ * 
+ * DISABLED: Requires external Supabase instance and network access.
+ * Re-enable when running integration tests with proper infrastructure.
  */
+@Disabled("Requires external Supabase instance and network access")
+@Tag("slow")
+@Tag("integration")
 @ExtendWith(MockitoExtension.class)
 class UsageServiceIntegrationTest {
 
@@ -105,7 +114,7 @@ class UsageServiceIntegrationTest {
         String upgradeSource = "truncation_notice";
 
         // When
-        usageService.trackUpgradeClick(upgradeSource);
+        usageService.trackUpgradeClick(upgradeSource, "test");
         usageService.flush();
 
         // Then
@@ -187,8 +196,8 @@ class UsageServiceIntegrationTest {
         UsageService disabledService = new UsageService(userIdentificationService);
 
         // When
-        disabledService.trackCreditUsage("basic_scan");
-        disabledService.trackUpgradeClick("test_source");
+        disabledService.trackCreditUsage("basic_scan", "test");
+        disabledService.trackUpgradeClick("test_source", "test");
 
         // Then
         assertThat(disabledService.getQueueSize()).isEqualTo(0);
@@ -237,7 +246,7 @@ class UsageServiceIntegrationTest {
 
         // When
         usageService.trackCreditUsage("Dependencies",validCreditType);
-        usageService.trackUpgradeClick(validUpgradeSource);
+        usageService.trackUpgradeClick(validUpgradeSource, "test");
         usageService.flush();
 
         // Then
@@ -287,7 +296,7 @@ class UsageServiceIntegrationTest {
 
         // When
         usageService.trackCreditUsage("Dependencies",malformedCreditType);
-        usageService.trackUpgradeClick(longUpgradeSource);
+        usageService.trackUpgradeClick(longUpgradeSource, "test");
         usageService.flush();
 
         // Then

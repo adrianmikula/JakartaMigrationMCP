@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -164,17 +163,27 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         if (!isMaven && !isGradle) return TransitiveDependencyScanResult.empty(filePath);
 
         try {
+            log.debug("Starting {} dependency scanning for file: {}", isMaven ? "Maven" : "Gradle", filePath);
+            
             var future = isMaven
                 ? commandExecutor.executeMavenDependencyTreeAsync(filePath, MAVEN_SCOPES)
                 : commandExecutor.executeGradleDependenciesAsync(filePath, GRADLE_SCOPES);
 
             var result = future.get(DependencyTreeCommandExecutor.DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            if (!result.isSuccess() || result.getDependencies().isEmpty()) {
-                throw new RuntimeException("Command failed or returned no dependencies");
+            if (!result.isSuccess()) {
+                log.warn("Command execution failed for {}: {}", filePath, result.getErrorMessage());
+                throw new RuntimeException(result.getErrorMessage());
             }
+            if (result.getDependencies().isEmpty()) {
+                log.debug("No dependencies found via command execution for {}, falling back to regex", filePath);
+                throw new RuntimeException("Command returned no dependencies");
+            }
+            
+            log.debug("Successfully parsed {} dependencies via command execution for {}", result.getDependencies().size(), filePath);
             return convertTreeResult(filePath, isMaven ? "Maven" : "Gradle", result);
         } catch (Exception e) {
             log.warn("Async scanning failed for {}, falling back to regex: {}", filePath, e.getMessage());
+            log.debug("Exception details:", e);
             return scanFileFallback(filePath);
         }
     }
@@ -230,9 +239,10 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
             String fileName = filePath.getFileName().toString().toLowerCase();
 
             if (fileName.equals("pom.xml")) {
-                // For Maven: group 3 contains version, group 4 contains optional scope
+                // For Maven: extract properties first, then parse dependencies with property resolution
+                Map<String, String> properties = extractMavenProperties(content);
                 return new TransitiveDependencyScanResult(filePath,
-                    parseDependencies(content, MAVEN_DEPENDENCY_PATTERN, 3), "Maven");
+                    parseDependenciesWithProperties(content, MAVEN_DEPENDENCY_PATTERN, 3, properties), "Maven");
             }
             if (fileName.endsWith(".gradle") || fileName.endsWith(".gradle.kts")) {
                 // For Gradle: group 3 contains version
@@ -253,6 +263,10 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
     }
 
     private List<TransitiveDependencyUsage> parseDependencies(String content, Pattern pattern, int versionGroup) {
+        return parseDependenciesWithProperties(content, pattern, versionGroup, Map.of());
+    }
+
+    private List<TransitiveDependencyUsage> parseDependenciesWithProperties(String content, Pattern pattern, int versionGroup, Map<String, String> properties) {
         List<TransitiveDependencyUsage> usages = new ArrayList<>();
         Matcher matcher = pattern.matcher(content);
         while (matcher.find()) {
@@ -260,6 +274,13 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
             String artifactId = matcher.group(2).trim();
             String version = versionGroup > 0 && matcher.groupCount() >= versionGroup
                     ? matcher.group(versionGroup).trim() : null;
+            
+            // Resolve version if it's a property reference
+            if (version != null && version.startsWith("${") && version.endsWith("}")) {
+                String propertyName = version.substring(2, version.length() - 1);
+                version = properties.get(propertyName);
+            }
+            
             // For Maven pattern, scope is in group 4 when present
             String scope = matcher.groupCount() >= 4 && matcher.group(4) != null
                     ? matcher.group(4).trim() : null;
@@ -287,6 +308,36 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                     scope, false, 0));
         }
         return usages;
+    }
+
+    private Map<String, String> extractMavenProperties(String content) {
+        Map<String, String> properties = new HashMap<>();
+        
+        // Extract properties section using regex
+        Pattern propertiesPattern = Pattern.compile(
+            "<properties>\\s*(.*?)\\s*</properties>",
+            Pattern.DOTALL
+        );
+        Matcher propertiesMatcher = propertiesPattern.matcher(content);
+        
+        if (propertiesMatcher.find()) {
+            String propertiesContent = propertiesMatcher.group(1);
+            
+            // Extract individual properties
+            Pattern propertyPattern = Pattern.compile(
+                "<([^>]+)>([^<]*)</\\1>",
+                Pattern.DOTALL
+            );
+            Matcher propertyMatcher = propertyPattern.matcher(propertiesContent);
+            
+            while (propertyMatcher.find()) {
+                String propertyName = propertyMatcher.group(1).trim();
+                String propertyValue = propertyMatcher.group(2).trim();
+                properties.put(propertyName, propertyValue);
+            }
+        }
+        
+        return properties;
     }
 
     /**

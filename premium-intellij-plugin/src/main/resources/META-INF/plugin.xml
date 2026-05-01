@@ -1,4 +1,4 @@
-<idea-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/schemas/plugin/2/plugin.xsd" icon="pluginIcon.svg">
+<idea-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/schemas/plugin/2/plugin.xsd" icon="icons/expui/pluginIcon.svg">
     <!-- Freemium Monetization Parameters in product-descriptor  element: -->
 
     <!-- code: Your Product Code must:
@@ -27,7 +27,7 @@
     <idea-version since-build="233" />
 
     <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
-    <version>1.0.14</version>
+    <version>1.0.15</version>
 
     <name>Jakarta Migration (javax → jakarta)</name>
     <id>com.adrianmikula.jakarta-migration</id>
@@ -41,7 +41,10 @@
     <p>Migrate from Java EE 8 (javax.*) to Jakarta EE 9+ seamlessly. This plugin analyzes dependencies, detects migration blockers, and automates refactoring with OpenRewrite.</p>
 
     <h3>Why Jakarta EE?</h3>
-    <p>After Oracle donated Java EE to the Eclipse Foundation, the javax.* namespace became jakarta.*. If your code uses old appservers which depend on Java EE, you need this migration in order to upgrade.</p>
+    <p>After Oracle donated Java EE to the Eclipse Foundation, the javax.* namespace became jakarta.*. If your code uses old application servers which depend on Java EE, you need this migration in order to upgrade.</p>
+
+    <h3>Privacy & Analytics</h3>
+    <p>This plugin collects anonymous usage statistics and error reports to improve product quality. No personal information is collected. You can disable data collection anytime in Settings → Plugins → Jakarta Migration → About tab.</p>
 
     <h3>Key Features</h3>
     <ul>
@@ -123,6 +126,7 @@
         <toolWindow id="JakartaMigration"
                     displayName="Jakarta Migration"
                     anchor="right"
+                    icon="/icons/expui/pluginIcon.svg"
                     factoryClass="adrianmikula.jakartamigration.intellij.ui.MigrationToolWindow"/>
                     
         <!-- Notification Groups -->
@@ -143,6 +147,9 @@
 
         <!-- License Expiration Notifier - Monitors license status and notifies on expiration -->
         <postStartupActivity implementation="adrianmikula.jakartamigration.intellij.license.LicenseExpirationNotifier"/>
+
+        <!-- Icon Mapper for UI-compliant monochrome icons -->
+        <iconMapper mappingFile="EntropyGuardIconMappings.json"/>
     </extensions>
 
     <actions>
@@ -151,7 +158,7 @@
                 class="adrianmikula.jakartamigration.intellij.JakartaMigrationAction"
                 text="Jakarta Migration"
                 description="Analyze and migrate to Jakarta EE"
-                icon="pluginIcon.svg">
+                icon="/icons/expui/pluginIcon.svg">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift J"/>
         </action>
@@ -160,14 +167,24 @@
         <action id="JakartaMigration.AnalyzeProject"
                 class="adrianmikula.jakartamigration.intellij.JakartaMigrationAction"
                 text="Analyze with AI Assistant"
-                description="Analyze project with Jakarta Migration AI Assistant"
-                icon="pluginIcon.svg">
+                description="Analyze project with Jakarta Migration AI Assistant">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>
     </actions>
 
 
     <change-notes><![CDATA[
+    <h>1.0.15 - 2026-04-24</h>
+    <ul>
+        <li>Fixed problems with platform detection for Tomcat, JBoss/Wildfly, Paraya, WebSphere</li>
+        <li>Fixed problems with property detection in Maven pom.xml files</li>
+        <li>Added more detail to reports and switched from PDF to HTML format</li>
+        <li>Fixed HTML validation errors during HTML report generation</li>
+        <li>Fixed HTML generation memory & UI blocking issues</li>
+        <li>Fixed tests logging usage to supabase with the wrong env</li>
+        <li>Added permission request/opt-out for error reporting and usage metrics</li>
+        <li>Fixed plugin toolbar icon</li>
+    </ul>
     <h>1.0.14 - 2026-04-23</h>
     <ul>
         <li>Renamed Dashboard tab to Risk tab, and added confidence dial</li>

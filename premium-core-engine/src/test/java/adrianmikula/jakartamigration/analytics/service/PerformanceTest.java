@@ -5,6 +5,7 @@ import adrianmikula.jakartamigration.analytics.util.ConcurrencyTestHelper;
 import adrianmikula.jakartamigration.analytics.util.TestDataFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.*;
  * Performance and load testing for analytics services.
  * Tests throughput, memory usage, and scalability under load.
  */
+@Tag("slow")
 @ExtendWith(MockitoExtension.class)
 class PerformanceTest {
 
@@ -46,7 +48,7 @@ class PerformanceTest {
         when(supabaseConfig.getAnalyticsFlushIntervalSeconds()).thenReturn(1);
         when(supabaseConfig.isConfigured()).thenReturn(true);
 
-        userIdentificationService = new UserIdentificationService(tempDir, supabaseConfig);
+        userIdentificationService = new UserIdentificationService(tempDir.resolve("user-preferences.properties"), supabaseConfig);
         usageService = new UsageService(userIdentificationService);
         errorReportingService = new ErrorReportingService(userIdentificationService);
         memoryBean = ManagementFactory.getMemoryMXBean();
@@ -71,7 +73,7 @@ class PerformanceTest {
         long startTime = System.currentTimeMillis();
 
         // When
-        usageService.trackCreditUsage("basic_scan");
+        usageService.trackCreditUsage("basic_scan", "performance_test");
 
         // Then
         long processingTime = System.currentTimeMillis() - startTime;
@@ -88,7 +90,7 @@ class PerformanceTest {
         // When
         ConcurrencyTestHelper.PerformanceMetrics metrics = 
             ConcurrencyTestHelper.runWithMetrics(5, eventCount, () -> {
-                usageService.trackCreditUsage("moderate_load_test");
+                usageService.trackCreditUsage("moderate_load_test", "performance_test");
                 return "completed";
             });
 
@@ -108,7 +110,7 @@ class PerformanceTest {
         // When
         ConcurrencyTestHelper.PerformanceMetrics metrics = 
             ConcurrencyTestHelper.runWithMetrics(10, eventCount, () -> {
-                usageService.trackCreditUsage("high_load_test");
+                usageService.trackCreditUsage("high_load_test", "performance_test");
                 return "completed";
             });
 
@@ -130,7 +132,7 @@ class PerformanceTest {
         // When
         ConcurrencyTestHelper.PerformanceMetrics metrics = 
             ConcurrencyTestHelper.runWithMetrics(20, eventCount, () -> {
-                usageService.trackCreditUsage("extreme_load_test");
+                usageService.trackCreditUsage("extreme_load_test", "performance_test");
                 return "completed";
             });
 
@@ -151,7 +153,7 @@ class PerformanceTest {
 
         // When
         ConcurrencyTestHelper.runWithMetrics(15, eventCount, () -> {
-            usageService.trackCreditUsage("memory_efficiency_test");
+            usageService.trackCreditUsage("memory_efficiency_test", "performance_test");
             errorReportingService.reportError(new RuntimeException("Memory test error"));
             return "completed";
         });
@@ -176,7 +178,7 @@ class PerformanceTest {
         ConcurrencyTestHelper.PerformanceMetrics metrics = 
             ConcurrencyTestHelper.runWithMetrics(1, burstSize, () -> {
                 for (int i = 0; i < burstSize; i++) {
-                    usageService.trackCreditUsage("burst_test_" + i);
+                    usageService.trackCreditUsage("burst_test_" + i, "performance_test");
                 }
                 return "completed";
             });
@@ -200,7 +202,7 @@ class PerformanceTest {
         long startTime = System.currentTimeMillis();
         ConcurrencyTestHelper.PerformanceMetrics metrics = 
             ConcurrencyTestHelper.runWithMetrics(5, durationSeconds * targetOpsPerSecond, () -> {
-                usageService.trackCreditUsage("sustained_load_test");
+                usageService.trackCreditUsage("sustained_load_test", "performance_test");
                 return "completed";
             });
         long endTime = System.currentTimeMillis();
@@ -224,7 +226,7 @@ class PerformanceTest {
         // When
         ConcurrencyTestHelper.PerformanceMetrics usageMetrics = 
             ConcurrencyTestHelper.runWithMetrics(8, usageEvents, () -> {
-                usageService.trackCreditUsage("mixed_load_test");
+                usageService.trackCreditUsage("mixed_load_test", "performance_test");
                 return "completed";
             });
 
@@ -236,7 +238,7 @@ class PerformanceTest {
 
         ConcurrencyTestHelper.PerformanceMetrics upgradeMetrics = 
             ConcurrencyTestHelper.runWithMetrics(2, upgradeClicks, () -> {
-                usageService.trackUpgradeClick("mixed_load_test");
+                usageService.trackUpgradeClick("mixed_load_test", "performance_test");
                 return "completed";
             });
 
@@ -266,7 +268,7 @@ class PerformanceTest {
             
             ConcurrencyTestHelper.PerformanceMetrics metrics = 
                 ConcurrencyTestHelper.runWithMetrics(5, loadLevel, () -> {
-                    usageService.trackCreditUsage("scaling_test_" + index);
+                    usageService.trackCreditUsage("scaling_test_" + index, "performance_test");
                     return "completed";
                 });
             
@@ -295,7 +297,7 @@ class PerformanceTest {
             // Create large error messages to increase memory usage
             String largeMessage = "x".repeat(1000);
             errorReportingService.reportError(new RuntimeException(largeMessage));
-            usageService.trackCreditUsage("memory_pressure_test");
+            usageService.trackCreditUsage("memory_pressure_test", "performance_test");
             return "completed";
         });
 
@@ -321,7 +323,7 @@ class PerformanceTest {
             final int roundIndex = round; // Make effectively final for lambda
             ConcurrencyTestHelper.PerformanceMetrics metrics = 
                 ConcurrencyTestHelper.runWithMetrics(5, eventsPerRound, () -> {
-                    usageService.trackCreditUsage("consistency_test_round_" + roundIndex);
+                    usageService.trackCreditUsage("consistency_test_round_" + roundIndex, "performance_test");
                     return "completed";
                 });
             
@@ -352,7 +354,7 @@ class PerformanceTest {
         long startTime = System.currentTimeMillis();
         ConcurrencyTestHelper.PerformanceMetrics metrics = 
             ConcurrencyTestHelper.runWithMetrics(20, saturationEvents, () -> {
-                usageService.trackCreditUsage("saturation_test");
+                usageService.trackCreditUsage("saturation_test", "performance_test");
                 return "completed";
             });
         long endTime = System.currentTimeMillis();
@@ -379,7 +381,7 @@ class PerformanceTest {
         // When
         ConcurrencyTestHelper.PerformanceMetrics metrics = 
             ConcurrencyTestHelper.runWithMetrics(threadCount, eventsPerThread, () -> {
-                usageService.trackCreditUsage("concurrent_performance_test");
+                usageService.trackCreditUsage("concurrent_performance_test", "performance_test");
                 return "completed";
             });
 
@@ -411,7 +413,7 @@ class PerformanceTest {
             
             // Add some events
             for (int j = 0; j < cleanupEvents / 10; j++) {
-                tempUsageService.trackCreditUsage("cleanup_test_" + i + "_" + j);
+                tempUsageService.trackCreditUsage("cleanup_test_" + i + "_" + j, "performance_test");
                 tempErrorService.reportError(new RuntimeException("Cleanup error " + i + "_" + j));
             }
             
@@ -442,7 +444,7 @@ class PerformanceTest {
         // Measure normal performance
         ConcurrencyTestHelper.PerformanceMetrics normalMetrics = 
             ConcurrencyTestHelper.runWithMetrics(5, normalEvents, () -> {
-                usageService.trackCreditUsage("normal_performance_test");
+                usageService.trackCreditUsage("normal_performance_test", "performance_test");
                 return "completed";
             });
         
@@ -454,7 +456,7 @@ class PerformanceTest {
         // Measure degraded performance
         ConcurrencyTestHelper.PerformanceMetrics degradedMetrics = 
             ConcurrencyTestHelper.runWithMetrics(5, degradedEvents, () -> {
-                usageService.trackCreditUsage("degraded_performance_test");
+                usageService.trackCreditUsage("degraded_performance_test", "performance_test");
                 return "completed";
             });
 
