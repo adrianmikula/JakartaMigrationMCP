@@ -9,7 +9,8 @@ import adrianmikula.jakartamigration.dependencyanalysis.service.JakartaMappingSe
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.JakartaMappingServiceImpl;
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.MavenDependencyGraphBuilder;
-import adrianmikula.jakartamigration.dependencyanalysis.service.impl.SimpleNamespaceClassifier;
+import adrianmikula.jakartamigration.jaranalysis.classifier.BytecodeNamespaceClassifier;
+import adrianmikula.jakartamigration.jaranalysis.config.JarScanningConfig;
 import com.intellij.openapi.diagnostic.Logger;
 
 import java.nio.file.Path;
@@ -36,7 +37,7 @@ public class MigrationAnalysisService {
 
     public MigrationAnalysisService() {
         this.dependencyGraphBuilder = new MavenDependencyGraphBuilder();
-        this.namespaceClassifier = new SimpleNamespaceClassifier();
+        this.namespaceClassifier = new BytecodeNamespaceClassifier();
         this.jakartaMappingService = new JakartaMappingServiceImpl();
         this.analysisStore = new CentralMigrationAnalysisStore();
 
@@ -47,7 +48,7 @@ public class MigrationAnalysisService {
                 new ImprovedMavenCentralLookupService(),
                 analysisStore);
 
-        LOG.info("MigrationAnalysisService initialized with core library");
+        LOG.info("MigrationAnalysisService initialized with core library (deep bytecode scanning)");
     }
 
     /**

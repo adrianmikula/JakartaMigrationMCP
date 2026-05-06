@@ -126,15 +126,25 @@ public enum FeatureFlag {
             "Diagnose runtime errors with AI-powered analysis",
             FeatureFlagsProperties.LicenseTier.PREMIUM),
 
-    /**
-     * Experimental features.
-     * Cutting-edge features under development.
-     */
-    EXPERIMENTAL_FEATURES(
-            "experimental-features",
-            "Experimental features",
-            "Cutting-edge features under development",
-            FeatureFlagsProperties.LicenseTier.PREMIUM);
+     /**
+      * Experimental features.
+      * Cutting-edge features under development.
+      */
+     EXPERIMENTAL_FEATURES(
+             "experimental-features",
+             "Experimental features",
+             "Cutting-edge features under development",
+             FeatureFlagsProperties.LicenseTier.PREMIUM),
+
+     /**
+      * Deep JAR scanning.
+      * Advanced bytecode analysis for accurate Jakarta compatibility detection.
+      */
+     JAR_SCANNING(
+             "jar-scanning",
+             "Deep JAR Scanning",
+             "Advanced bytecode analysis for accurate Jakarta compatibility detection",
+             FeatureFlagsProperties.LicenseTier.PREMIUM);
 
     // === COMMUNITY FEATURES ===
     // These features are always available (no premium required):

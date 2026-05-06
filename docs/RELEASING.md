@@ -148,6 +148,64 @@ intellij {
 }
 ```
 
+## Plugin Verification
+
+The project uses the IntelliJ Plugin Verifier to check binary compatibility between the built plugin and target IntelliJ Platform versions. The `runPluginVerifier` task is provided automatically by the `org.jetbrains.intellij` Gradle plugin.
+
+### How It Works
+
+`runPluginVerifier` checks the plugin distribution produced by `buildPlugin` against specified IDE versions. It detects:
+- Missing classes or methods (binary incompatibilities)
+- Internal API usages
+- Deprecated API usages
+- Plugin descriptor issues
+
+### Running the Verifier
+
+Run as a standalone verification step (optional — not executed by default):
+
+```bash
+# Build the plugin first, then verify
+./gradlew :premium-intellij-plugin:buildPlugin :premium-intellij-plugin:runPluginVerifier
+```
+
+On Windows:
+```powershell
+.\gradlew.bat :premium-intellij-plugin:buildPlugin :premium-intellij-plugin:runPluginVerifier
+```
+
+### Configuring Target IDE Versions
+
+To verify against specific IDE versions, configure the `runPluginVerifier` block in `premium-intellij-plugin/build.gradle.kts`:
+
+```kotlin
+runPluginVerifier {
+    ideVersions.set(listOf("IC-2023.3.4", "IC-2024.1.4", "IC-2025.1.1"))
+}
+```
+
+If left unconfigured, the verifier will use the IDE version defined in the `intellij` block (`2023.3.4`).
+
+### Ignoring Known Issues
+
+If the verifier reports acceptable warnings (e.g., experimental API usage), you can suppress them in the same block:
+
+```kotlin
+runPluginVerifier {
+    ideVersions.set(listOf("IC-2023.3.4"))
+    failureLevel.set(org.jetbrains.intellij.tasks.RunPluginVerifierTask.FailureLevel.COMPATIBILITY_PROBLEMS)
+}
+```
+
+### Verification Reports
+
+Results are written to:
+```
+premium-intellij-plugin/build/reports/pluginVerifier/
+```
+
+Review the HTML/TXT report before publishing to the Marketplace.
+
 ### Plugin Descriptor Validation
 The plugin.xml must pass all JetBrains Marketplace validation checks:
 
@@ -164,7 +222,8 @@ The plugin.xml must pass all JetBrains Marketplace validation checks:
 3. **Risk Scoring**: Test platform detection and risk calculation
 4. **Build Validation**: Ensure no IDE package bundling warnings
 5. **Compatibility Testing**: Test with target IntelliJ versions
-6. **Documentation**: Update changelog and release notes
+6. **Plugin Verification**: Run `runPluginVerifier` to check binary compatibility with target IDE versions (see [Plugin Verification](#plugin-verification) above)
+7. **Documentation**: Update changelog and release notes
 
 ### Post-Release:
 1. **Tag Release**: Create Git tag with version number

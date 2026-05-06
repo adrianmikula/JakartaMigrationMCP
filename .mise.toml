@@ -284,6 +284,16 @@ description = "Run IntelliJ plugin in demo marketplace mode (uses JetBrains Demo
 run_windows = "gradlew.bat :premium-intellij-plugin:runIdeDemo"
 run = "gradle :premium-intellij-plugin:runIdeDemo"
 
+[tasks.build-plugin]
+description = "Build premium IntelliJ plugin distribution (ZIP artifact)"
+run_windows = "gradlew.bat :premium-intellij-plugin:buildPlugin"
+run = "gradle :premium-intellij-plugin:buildPlugin"
+
+[tasks.verify-plugin]
+description = "Verify plugin binary compatibility using IntelliJ Plugin Verifier (runs buildPlugin first)"
+run_windows = "gradlew.bat :premium-intellij-plugin:buildPlugin :premium-intellij-plugin:runPluginVerifier"
+run = "gradle :premium-intellij-plugin:buildPlugin :premium-intellij-plugin:runPluginVerifier"
+
 # IntelliJ Platform Test Matrix Tasks
 
 [tasks.test-matrix]
