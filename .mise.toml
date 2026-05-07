@@ -284,7 +284,7 @@ description = "Run IntelliJ plugin in demo marketplace mode (uses JetBrains Demo
 run_windows = "gradlew.bat :premium-intellij-plugin:runIdeDemo"
 run = "gradle :premium-intellij-plugin:runIdeDemo"
 
-[tasks.build-plugin]
+[tasks.build-plugin-distribution]
 description = "Build premium IntelliJ plugin distribution (ZIP artifact)"
 run_windows = "gradlew.bat :premium-intellij-plugin:buildPlugin"
 run = "gradle :premium-intellij-plugin:buildPlugin"

@@ -11,6 +11,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -21,8 +22,16 @@ import java.util.regex.Pattern;
 public class HtmlValidator {
 
     private static final Pattern UNESCAPED_AMPERSAND_PATTERN = Pattern.compile(" & ");
-    private static final Pattern UNESCAPED_LT_PATTERN = Pattern.compile(" <[a-zA-Z]");
     private static final Pattern UNESCAPED_GT_PATTERN = Pattern.compile("[a-zA-Z]> ");
+    
+    // Common HTML tags (lowercase) used to identify allowed markup constructs
+    private static final Set<String> COMMON_HTML_TAGS = Set.of(
+        "html","head","title","meta","style","body","div","span",
+        "h1","h2","h3","h4","h5","h6","p","br","hr","table","thead","tbody",
+        "tr","th","td","ul","ol","li","a","img","svg","defs","lineargradient",
+        "stop","rect","path","circle","strong","em","code","pre","blockquote",
+        "script","canvas","link","form","input","button"
+    );
     private static final Pattern UNESCAPED_QUOTE_PATTERN = Pattern.compile("=\"[^\"]*\"[^&]");
 
     /**
@@ -61,20 +70,22 @@ public class HtmlValidator {
      * Checks for other unescaped special characters.
      */
     private static void checkForUnescapedCharacters(String html, List<String> errors) {
-        // Check for unescaped less than signs (not part of HTML tags)
-        java.util.regex.Matcher ltMatcher = UNESCAPED_LT_PATTERN.matcher(html);
-        while (ltMatcher.find()) {
-            int pos = ltMatcher.start();
-            String context = getContextSnippet(html, pos, 50);
-            errors.add("Found unescaped less than sign (<) at position " + pos + " that must be escaped as &lt;: ...\"" + context + "\"...");
+        // Check for unescaped less than signs that are not part of HTML tags, comments, DOCTYPE, etc.
+        for (int i = 0; i < html.length(); i++) {
+            if (html.charAt(i) == '<' && !isAllowedMarkup(html, i)) {
+                String context = getContextSnippet(html, i, 50);
+                errors.add("Found unescaped less than sign (<) at position " + i + 
+                           " that must be escaped as &lt;: ...\"" + context + "\"...");
+            }
         }
-
-        // Check for unescaped greater than signs (not part of HTML tags)
+        
+        // Check for unescaped greater than signs (letter followed by '>' and space)
         java.util.regex.Matcher gtMatcher = UNESCAPED_GT_PATTERN.matcher(html);
         while (gtMatcher.find()) {
             int pos = gtMatcher.start();
             String context = getContextSnippet(html, pos, 50);
-            errors.add("Found unescaped greater than sign (>) at position " + pos + " that must be escaped as &gt;: ...\"" + context + "\"...");
+            errors.add("Found unescaped greater than sign (>) at position " + pos + 
+                       " that must be escaped as &gt;: ...\"" + context + "\"...");
         }
     }
     
@@ -85,6 +96,37 @@ public class HtmlValidator {
         int start = Math.max(0, position - contextLength);
         int end = Math.min(html.length(), position + contextLength);
         return html.substring(start, end).replace("\n", "\\n").replace("\r", "\\r");
+    }
+    
+    /**
+     * Determines if a '<' at the given position is part of allowed markup (HTML tags,
+     * comments, DOCTYPE, or processing instructions). If so, it is not considered an error.
+     */
+    private static boolean isAllowedMarkup(String html, int ltPos) {
+        int len = html.length();
+        if (ltPos + 1 >= len) return false;
+        char next = html.charAt(ltPos + 1);
+        // Allow declarations and processing instructions: <!DOCTYPE ...>, <!-- ... -->, <? ... ?>
+        if (next == '!' || next == '?') {
+            return true;
+        }
+        // Skip leading '/' for closing tags
+        int nameStart = ltPos + 1;
+        if (next == '/') {
+            nameStart = ltPos + 2;
+            if (nameStart >= len) return false;
+        }
+        // Tag name must start with a letter
+        if (!Character.isLetter(html.charAt(nameStart))) {
+            return false;
+        }
+        // Extract tag name (letters and digits only)
+        int nameEnd = nameStart;
+        while (nameEnd < len && Character.isLetterOrDigit(html.charAt(nameEnd))) {
+            nameEnd++;
+        }
+        String tagName = html.substring(nameStart, nameEnd).toLowerCase();
+        return COMMON_HTML_TAGS.contains(tagName);
     }
 
     /**
@@ -128,30 +170,28 @@ public class HtmlValidator {
      * This helps prevent XML fragments from causing parsing errors.
      */
     private static String preprocessEmbeddedXml(String html) {
-        // Simple, reliable approach: escape problematic characters in code content
         String processed = html;
         
-        // Escape < characters that appear to be part of code examples or annotations
-        // Look for patterns like <SomeClass>, <variable>, <method> etc.
+        // Escape < and > around type names and code snippets (uppercase/mixed case)
         processed = processed.replaceAll("<([A-Z][a-zA-Z0-9]+)>", "&lt;$1&gt;");
         processed = processed.replaceAll("</([A-Z][a-zA-Z0-9]+)>", "&lt;/$1&gt;");
-        
-        // Also escape mixed case patterns
         processed = processed.replaceAll("<([a-z]+[A-Z][a-zA-Z0-9]+)>", "&lt;$1&gt;");
         processed = processed.replaceAll("</([a-z]+[A-Z][a-zA-Z0-9]+)>", "&lt;/$1&gt;");
         
-        // Escape any remaining < characters that aren't part of common HTML tags
-        // This is a safety net for edge cases
-        String[] commonHtmlTags = {"html", "head", "title", "meta", "style", "body", "div", "span", 
-            "h1", "h2", "h3", "h4", "h5", "h6", "p", "br", "hr", "table", "thead", "tbody", 
-            "tr", "th", "td", "ul", "ol", "li", "a", "img", "svg", "defs", "linearGradient", 
-            "stop", "rect", "path", "circle", "strong", "em", "code", "pre", "blockquote"};
-        
-        for (String tag : commonHtmlTags) {
-            // Don't escape if it's a valid HTML tag
-            processed = processed.replaceAll("<(?!" + tag + "(\\s|>|/>))", "&lt;");
-            processed = processed.replaceAll("(?<!/" + tag + "(\\s|>))", "&gt;");
-        }
+        // Escape any remaining < that aren't part of common HTML tags (including declarations)
+        // Build a regex that matches '<' not followed by any known HTML tag name (case-insensitive)
+        // and not a declaration (<!...>) or processing instruction (<?...?>)
+        String[] commonHtmlTags = {"html","head","title","meta","style","body","div","span",
+            "h1","h2","h3","h4","h5","h6","p","br","hr","table","thead","tbody",
+            "tr","th","td","ul","ol","li","a","img","svg","defs","lineargradient",
+            "stop","rect","path","circle","strong","em","code","pre","blockquote",
+            "script","canvas","link","ul","ol","li","form","input","button"
+        };
+        String tagPattern = String.join("|", commonHtmlTags);
+        // '<' that is NOT followed by a known tag name OR a closing tag ('/') OR a declaration/processing instruction ('!' or '?')
+        // (?i) for case-insensitive tag matching
+        String tagRegex = "<(?!(?i)(" + tagPattern + ")(\\s|>|/)|[/!?])";
+        processed = processed.replaceAll(tagRegex, "&lt;");
         
         return processed;
     }

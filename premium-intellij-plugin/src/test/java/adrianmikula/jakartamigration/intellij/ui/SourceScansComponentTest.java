@@ -1,5 +1,9 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+/**
+ * Tests for SourceScansComponent.
+ * Implements plan: .kilo/plans/1778130109717-neon-tiger.md
+ */
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
@@ -8,9 +12,9 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import static org.assertj.core.api.Assertions.assertThat;
 import java.nio.file.Paths;
 
-public class AdvancedScansComponentTest extends BasePlatformTestCase {
+public class SourceScansComponentTest extends BasePlatformTestCase {
 
-    private AdvancedScansComponent advancedScansComponent;
+    private SourceScansComponent sourceScansComponent;
     private AdvancedScanningService scanningService;
 
     @Override
@@ -21,24 +25,24 @@ public class AdvancedScansComponentTest extends BasePlatformTestCase {
         SqliteMigrationAnalysisStore projectStore = new SqliteMigrationAnalysisStore(Paths.get(getProject().getBasePath()));
         RecipeService recipeService = new adrianmikula.jakartamigration.coderefactoring.service.impl.RecipeServiceImpl(centralStore, projectStore);
         scanningService = new AdvancedScanningService(recipeService);
-        advancedScansComponent = new AdvancedScansComponent(getProject(), scanningService);
+        sourceScansComponent = new SourceScansComponent(getProject(), scanningService);
     }
 
     public void testInitialization() {
-        assertThat(advancedScansComponent.getPanel()).isNotNull();
-        assertThat(advancedScansComponent.getJpaStatusLabel().getText()).isEqualTo("Not scanned yet");
-        assertThat(advancedScansComponent.getBeanValidationStatusLabel().getText()).isEqualTo("Not scanned yet");
-        assertThat(advancedScansComponent.getServletJspStatusLabel().getText()).isEqualTo("Not scanned yet");
+        assertThat(sourceScansComponent.getPanel()).isNotNull();
+        assertThat(sourceScansComponent.getJpaStatusLabel().getText()).isEqualTo("Not scanned yet");
+        assertThat(sourceScansComponent.getBeanValidationStatusLabel().getText()).isEqualTo("Not scanned yet");
+        assertThat(sourceScansComponent.getServletJspStatusLabel().getText()).isEqualTo("Not scanned yet");
     }
 
     public void testTabsExists() {
-        assertThat(advancedScansComponent.getTabbedPane().getTabCount()).isGreaterThanOrEqualTo(3);
-        assertThat(advancedScansComponent.getTabbedPane().getTitleAt(0)).isEqualTo("JPA Annotations");
+        assertThat(sourceScansComponent.getTabbedPane().getTabCount()).isGreaterThanOrEqualTo(3);
+        assertThat(sourceScansComponent.getTabbedPane().getTitleAt(0)).isEqualTo("JPA Annotations");
     }
 
     public void testTablesInitialized() {
-        assertThat(advancedScansComponent.getJpaTable()).isNotNull();
-        assertThat(advancedScansComponent.getBeanValidationTable()).isNotNull();
-        assertThat(advancedScansComponent.getServletJspTable()).isNotNull();
+        assertThat(sourceScansComponent.getJpaTable()).isNotNull();
+        assertThat(sourceScansComponent.getBeanValidationTable()).isNotNull();
+        assertThat(sourceScansComponent.getServletJspTable()).isNotNull();
     }
 }

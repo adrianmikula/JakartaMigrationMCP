@@ -4,19 +4,17 @@ import adrianmikula.jakartamigration.advancedscanning.domain.*;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.analysis.persistence.ObjectMapperService;
-import adrianmikula.jakartamigration.credits.CreditType;
-import adrianmikula.jakartamigration.credits.CreditsService;
-import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.intellij.ui.components.TruncationHelper;
 import adrianmikula.jakartamigration.intellij.ui.components.TruncationNoticePanel;
 import adrianmikula.jakartamigration.analytics.service.ErrorReportingService;
-import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
-import adrianmikula.jakartamigration.analytics.service.UsageService;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.ui.components.JBLabel;
+import com.intellij.ui.components.JBPanel;
+import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.table.JBTable;
 
 import javax.swing.*;
@@ -30,12 +28,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * UI component for displaying advanced scanning results (JPA, Bean Validation,
- * Servlet/JSP).
+ * UI component for displaying source scanning results (JPA, Bean Validation,
+ * Servlet/JSP, etc.).
  * Available for all users - free users are limited by advanced scan credits.
+ * This component is passive; scans are triggered externally (e.g., from the main toolbar).
+ *
+ * Refactored from AdvancedScansComponent to .kilo/plans/1778130109717-neon-tiger.md.
  */
-public class AdvancedScansComponent {
-    private static final Logger LOG = Logger.getInstance(AdvancedScansComponent.class);
+public class SourceScansComponent {
+    private static final Logger LOG = Logger.getInstance(SourceScansComponent.class);
 
     private final Project project;
     private final AdvancedScanningService scanningService;
@@ -73,13 +74,9 @@ public class AdvancedScansComponent {
     private JLabel serializationCacheStatusLabel;
     private JLabel thirdPartyLibStatusLabel;
 
-    private JButton scanButton;
-    private JProgressBar progressBar;
-
     private final CentralMigrationAnalysisStore store;
     private final ObjectMapperService objectMapper;
     private final TruncationHelper truncationHelper;
-    private final CreditsService creditsService;
     private final ErrorReportingService errorReportingService;
 
     // Truncation notice panels for each sub-tab
@@ -98,29 +95,25 @@ public class AdvancedScansComponent {
     private TruncationNoticePanel serializationCacheTruncationNotice;
     private TruncationNoticePanel thirdPartyLibTruncationNotice;
 
-    public AdvancedScansComponent(Project project, AdvancedScanningService scanningService) {
-        this(project, scanningService, new ErrorReportingService(new UserIdentificationService()));
+    public SourceScansComponent(Project project, AdvancedScanningService scanningService) {
+        this(project, scanningService, new ErrorReportingService(new adrianmikula.jakartamigration.analytics.service.UserIdentificationService()));
     }
-    
-    public AdvancedScansComponent(Project project, AdvancedScanningService scanningService, ErrorReportingService errorReportingService) {
+
+    public SourceScansComponent(Project project, AdvancedScanningService scanningService, ErrorReportingService errorReportingService) {
         this.project = project;
         this.scanningService = scanningService;
         this.store = new CentralMigrationAnalysisStore();
         this.objectMapper = new ObjectMapperService();
         this.truncationHelper = new TruncationHelper();
-        this.creditsService = new CreditsService();
         this.errorReportingService = errorReportingService;
         this.mainPanel = new JPanel(new BorderLayout());
         initializeUI();
         loadInitialState();
     }
 
-    private void initializeUI() {
-        // Toolbar
-        JPanel toolbarPanel = createToolbar();
-
-        // Tabbed pane for different scan types
-        tabbedPane = new JTabbedPane();
+     private void initializeUI() {
+         // Tabbed pane for different scan types
+         tabbedPane = new JTabbedPane();
 
         // JPA Tab
         JPanel jpaPanel = createJpaPanel();
@@ -178,29 +171,7 @@ public class AdvancedScansComponent {
         JPanel thirdPartyLibPanel = createThirdPartyLibPanel();
         tabbedPane.addTab("Third-Party Libs", thirdPartyLibPanel);
 
-        mainPanel.add(toolbarPanel, BorderLayout.NORTH);
         mainPanel.add(tabbedPane, BorderLayout.CENTER);
-    }
-
-    private JPanel createToolbar() {
-        JPanel toolbarPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
-        toolbarPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-
-        scanButton = new JButton("🔍 Run Advanced Scans");
-        scanButton.setToolTipText("Run JPA, Bean Validation, and Servlet/JSP scans");
-        scanButton.addActionListener(e -> runScans());
-        toolbarPanel.add(scanButton);
-
-        progressBar = new JProgressBar(0, 14);
-        progressBar.setValue(0);
-        progressBar.setVisible(false);
-        progressBar.setPreferredSize(new Dimension(150, 20));
-        progressBar.setStringPainted(true);
-        toolbarPanel.add(progressBar);
-
-        toolbarPanel.add(Box.createHorizontalGlue());
-
-        return toolbarPanel;
     }
 
     private JPanel createJpaPanel() {
@@ -610,124 +581,7 @@ public class AdvancedScansComponent {
         return panel;
     }
 
-    private void runScans() {
-        // Check if user is premium
-        boolean isPremium = CheckLicense.isLicensed();
-        
-        // Check credits for free users
-        if (!isPremium) {
-            int remainingCredits = creditsService.getRemainingCredits(CreditType.ACTIONS);
-            if (remainingCredits <= 0) {
-                int result = JOptionPane.showOptionDialog(mainPanel,
-                        "You've used all your action credits. Upgrade to Premium to continue running advanced scans.\n\n" +
-                        "Credits remaining: " + remainingCredits + "\n" +
-                        "Upgrade to Premium for unlimited advanced scans.",
-                        "Action Credits Exhausted",
-                        JOptionPane.DEFAULT_OPTION,
-                        JOptionPane.INFORMATION_MESSAGE,
-                        null,
-                        new Object[]{"Upgrade to Premium", "Cancel"},
-                        "Upgrade to Premium");
-                
-                if (result == 0) {
-                    // Track upgrade click before opening marketplace
-                    try {
-                        UserIdentificationService userIdentificationService = new UserIdentificationService();
-                        UsageService usageService = new UsageService(userIdentificationService);
-                        usageService.trackUpgradeClick("advanced_scans_credit_exhausted", "AdvancedScans");
-                    } catch (Exception e) {
-                        // Log error but don't prevent upgrade
-                        System.err.println("Failed to track upgrade click analytics: " + e.getMessage());
-                    }
-                    openMarketplace();
-                }
-                return;
-            }
-        }
 
-        String projectPathStr = project.getBasePath();
-        if (projectPathStr == null) {
-            projectPathStr = project.getProjectFilePath();
-        }
-
-        if (projectPathStr == null) {
-            JOptionPane.showMessageDialog(mainPanel,
-                    "Cannot determine project path. Please open a project first.",
-                    "Scan Failed",
-                    JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        final Path projectPath = Path.of(projectPathStr);
-
-        // Show progress
-        progressBar.setValue(0);
-        progressBar.setVisible(true);
-        scanButton.setEnabled(false);
-
-        // Progress simulation timer
-        final int totalScans = 14;
-        final int[] currentScan = {0};
-        Timer progressTimer = new Timer(300, null);
-        progressTimer.addActionListener(e -> {
-            currentScan[0]++;
-            if (currentScan[0] >= totalScans) {
-                currentScan[0] = totalScans - 1;
-            }
-            progressBar.setValue(currentScan[0]);
-            progressBar.setString("Scanning... " + currentScan[0] + "/" + totalScans);
-        });
-        progressTimer.setInitialDelay(0);
-        progressTimer.start();
-
-        // Run scans in background
-        SwingWorker<AdvancedScanningService.AdvancedScanSummary, Void> worker = new SwingWorker<>() {
-            @Override
-            protected AdvancedScanningService.AdvancedScanSummary doInBackground() {
-                return scanningService.scanAll(projectPath);
-            }
-
-            @Override
-            protected void done() {
-                progressTimer.stop();
-                try {
-                    AdvancedScanningService.AdvancedScanSummary summary = get();
-
-                    // Save to database
-                    String stateJson = objectMapper.toJson(summary);
-                    store.savePluginState(projectPath, "advancedScansSummary", stateJson);
-
-                    // Consume 1 action credit for free users
-                    if (!isPremium) {
-                        boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS, "Scanning", "advanced_scan");
-                        if (creditConsumed) {
-                            LOG.info("Successfully consumed 1 Action credit");
-                        } else {
-                            LOG.warn("Failed to consume Action credit");
-                        }
-                    }
-
-                    progressBar.setValue(totalScans);
-                    progressBar.setString("Complete!");
-                    displayResults(summary);
-                } catch (Exception e) {
-                    LOG.error("Error running scans", e);
-                    JOptionPane.showMessageDialog(mainPanel,
-                            "Error running scans: " + e.getMessage(),
-                            "Scan Error",
-                            JOptionPane.ERROR_MESSAGE);
-                    
-                    // Report error to Supabase for analytics
-                    errorReportingService.reportError(e, "Advanced Scans Execution");
-                } finally {
-                    progressBar.setVisible(false);
-                    scanButton.setEnabled(true);
-                }
-            }
-        };
-
-        worker.execute();
-    }
 
     private void updateTabTitle(int index, String baseTitle, int issueCount) {
         if (index >= 0 && index < tabbedPane.getTabCount()) {
@@ -1561,13 +1415,7 @@ public class AdvancedScansComponent {
         return servletJspStatusLabel;
     }
 
-    public JButton getScanButton() {
-        return scanButton;
-    }
 
-    public JProgressBar getProgressBar() {
-        return progressBar;
-    }
 
     public interface ScanCompletionListener {
         void onScanComplete();
@@ -1627,14 +1475,4 @@ if (projectPathStr != null) {
         }
     }
 
-    /**
-     * Opens JetBrains Marketplace to upgrade.
-     */
-    private void openMarketplace() {
-        try {
-            java.awt.Desktop.getDesktop().browse(new java.net.URI("https://plugins.jetbrains.com/plugin/30093-jakarta-migration"));
-        } catch (Exception ex) {
-            LOG.error("Failed to open marketplace", ex);
-        }
-    }
 }

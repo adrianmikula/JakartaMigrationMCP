@@ -279,6 +279,9 @@ class DefaultJarCompatibilityScannerTest {
         var scorer = new ScoringEngine();
         var config = Mockito.mock(JarScanningConfig.class);
         when(config.isCachingEnabled()).thenReturn(false);
+        when(config.getMaximumJarSizeBytes()).thenReturn(50L * 1024 * 1024);
+        when(config.createScanOptions()).thenReturn(new JarScanOptions(true, true, true, 10, false, true, 0));
+        when(config.isParallelScanEnabled()).thenReturn(false);
         var resolver = new JarResolver();
         var scanner = new DefaultJarCompatibilityScanner(extractor, metadataExtractor, scorer, config, resolver);
 

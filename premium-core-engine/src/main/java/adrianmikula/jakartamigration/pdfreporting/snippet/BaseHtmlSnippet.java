@@ -19,14 +19,94 @@ public abstract class BaseHtmlSnippet implements HtmlSnippet {
      */
     protected String safelyFormat(String template, Object... args) {
         try {
-            // Escape stray '%' characters to avoid format parsing errors
-            String safeTemplate = template.replaceAll("%(?!s)", "%%");
-            return safeTemplate.formatted(args);
+            String escaped = escapeStrayPercent(template);
+            return escaped.formatted(args);
         } catch (Exception e) {
             log.error("Formatting error in snippet {}: template='{}', args={}", 
                 getSnippetName(), template, args, e);
             return generateFallbackContent(template, args);
         }
+    }
+    
+    /**
+     * Escape stray percent signs while preserving valid Java format specifiers.
+     * Valid specifiers: %d, %s, %f, %.0f, %%, argument indexes, flags, etc.
+     */
+    private String escapeStrayPercent(String template) {
+        StringBuilder sb = new StringBuilder();
+        int i = 0;
+        int len = template.length();
+        while (i < len) {
+            char c = template.charAt(i);
+            if (c == '%') {
+                int nextIdx = i + 1;
+                if (nextIdx >= len) {
+                    sb.append("%%");
+                    break;
+                }
+                char next = template.charAt(nextIdx);
+                if (next == '%') {
+                    sb.append("%%");
+                    i += 2;
+                    continue;
+                }
+                int specEnd = findFormatSpecifierEnd(template, i);
+                if (specEnd != -1) {
+                    sb.append(template, i, specEnd);
+                    i = specEnd;
+                } else {
+                    sb.append("%%");
+                    i++;
+                }
+            } else {
+                sb.append(c);
+                i++;
+            }
+        }
+        return sb.toString();
+    }
+    
+    /**
+     * Finds the end index (exclusive) of a valid Java format specifier starting at {@code start}.
+     * Returns -1 if the sequence at start is not a valid format specifier.
+     */
+    private int findFormatSpecifierEnd(String s, int start) {
+        int i = start + 1;
+        int n = s.length();
+        if (i >= n) return -1;
+        
+        // Argument index (e.g., "1$")
+        while (i < n && Character.isDigit(s.charAt(i))) i++;
+        if (i < n && s.charAt(i) == '$') { i++; }
+        
+        // Flags: - + 0 , ( <
+        while (i < n && "-+0,(<".indexOf(s.charAt(i)) >= 0) i++;
+        
+        // Width
+        while (i < n && Character.isDigit(s.charAt(i))) i++;
+        
+        // Precision
+        if (i < n && s.charAt(i) == '.') {
+            i++;
+            while (i < n && Character.isDigit(s.charAt(i))) i++;
+        }
+        
+        // Conversion
+        if (i >= n) return -1;
+        char conv = s.charAt(i);
+        // Time conversion prefix: t or T followed by another letter
+        if (conv == 't' || conv == 'T') {
+            i++;
+            if (i < n && Character.isLetter(s.charAt(i))) {
+                return i + 1;
+            }
+            return -1;
+        }
+        // Other conversions: b h c d e E f F g G a A o s x X % n
+        if ("bBhHcdeEfFgGaAosxX%n".indexOf(conv) >= 0) {
+            return i + 1;
+        }
+        return -1;
     }
     
     /**

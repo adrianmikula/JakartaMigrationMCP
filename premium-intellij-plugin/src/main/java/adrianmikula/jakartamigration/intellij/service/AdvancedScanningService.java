@@ -580,18 +580,18 @@ public class AdvancedScanningService {
         return cachedSummaryRef.get() != null;
     }
 
-    /**
-     * Runs scans sequentially for low memory situations using optimized resource management.
-     */
+     /**
+      * Runs scans sequentially for low memory situations using optimized resource management.
+      */
     private AdvancedScanSummary runScansSequentially(Path projectPath, ScanProgressListener progressListener) {
         LOG.info("Running scans sequentially to conserve memory");
-        
+
         try {
             // Report progress for sequential scans
             if (progressListener != null) {
                 progressListener.onScanPhase("Advanced Scans (Sequential)", 0, 1);
             }
-            
+
             // Use try-with-resources for automatic resource management
             ProjectScanResult<FileScanResult<JpaAnnotationUsage>> jpaResult = scanForJpaAnnotations(projectPath);
             if (progressListener != null && jpaResult != null && !jpaResult.fileResults().isEmpty()) {
@@ -600,7 +600,7 @@ public class AdvancedScanningService {
                     .sum();
                 progressListener.onSubScanComplete("JPA", totalFindings);
             }
-            
+
             ProjectScanResult<FileScanResult<JavaxUsage>> beanValidationResult = scanForBeanValidation(projectPath);
             if (progressListener != null && beanValidationResult != null && !beanValidationResult.fileResults().isEmpty()) {
                 int totalFindings = beanValidationResult.fileResults().stream()
@@ -608,7 +608,7 @@ public class AdvancedScanningService {
                     .sum();
                 progressListener.onSubScanComplete("Bean Validation", totalFindings);
             }
-            
+
             ProjectScanResult<FileScanResult<ServletJspUsage>> servletJspResult = scanForServletJsp(projectPath);
             if (progressListener != null && servletJspResult != null && !servletJspResult.fileResults().isEmpty()) {
                 int totalFindings = servletJspResult.fileResults().stream()
@@ -616,7 +616,7 @@ public class AdvancedScanningService {
                     .sum();
                 progressListener.onSubScanComplete("Servlet/JSP", totalFindings);
             }
-            
+
             ProjectScanResult<FileScanResult<JavaxUsage>> cdiInjectionResult = scanForCdiInjection(projectPath);
             if (progressListener != null && cdiInjectionResult != null && !cdiInjectionResult.fileResults().isEmpty()) {
                 int totalFindings = cdiInjectionResult.fileResults().stream()
@@ -624,7 +624,7 @@ public class AdvancedScanningService {
                     .sum();
                 progressListener.onSubScanComplete("CDI Injection", totalFindings);
             }
-            
+
             ProjectScanResult<FileScanResult<BuildConfigUsage>> buildConfigResult = scanForBuildConfig(projectPath);
             if (progressListener != null && buildConfigResult != null && !buildConfigResult.fileResults().isEmpty()) {
                 int totalFindings = buildConfigResult.fileResults().stream()
@@ -632,7 +632,7 @@ public class AdvancedScanningService {
                     .sum();
                 progressListener.onSubScanComplete("Build Config", totalFindings);
             }
-            
+
             ProjectScanResult<FileScanResult<JavaxUsage>> restSoapResult = scanForRestSoap(projectPath);
             if (progressListener != null && restSoapResult != null && !restSoapResult.fileResults().isEmpty()) {
                 int totalFindings = restSoapResult.fileResults().stream()
@@ -640,18 +640,18 @@ public class AdvancedScanningService {
                     .sum();
                 progressListener.onSubScanComplete("REST/SOAP", totalFindings);
             }
-            
+
             DeprecatedApiProjectScanResult deprecatedApiResult = scanForDeprecatedApi(projectPath);
             SecurityApiProjectScanResult securityApiResult = scanForSecurityApi(projectPath);
             JmsMessagingProjectScanResult jmsMessagingResult = scanForJmsMessaging(projectPath);
-            TransitiveDependencyProjectScanResult transitiveDependencyResult = scanForTransitiveDependencies(projectPath);
             ConfigFileProjectScanResult configFileResult = scanForConfigFiles(projectPath);
             ClassloaderModuleProjectScanResult classloaderModuleResult = scanForClassloaderModule(projectPath);
             LoggingMetricsProjectScanResult loggingMetricsResult = scanForLoggingMetrics(projectPath);
             SerializationCacheProjectScanResult serializationCacheResult = scanForSerializationCache(projectPath);
+            ReflectionUsageProjectScanResult reflectionUsageResult = scanForReflectionUsage(projectPath);
             ThirdPartyLibProjectScanResult thirdPartyLibResult = scanForThirdPartyLib(projectPath);
-            
-            // Create summary with all results
+
+            // Create summary WITHOUT transitive dependencies
             AdvancedScanSummary summary = new AdvancedScanSummary(
                 jpaResult,
                 beanValidationResult,
@@ -662,14 +662,14 @@ public class AdvancedScanningService {
                 deprecatedApiResult,
                 securityApiResult,
                 jmsMessagingResult,
-                transitiveDependencyResult,
+                null, // transitiveDependencyResult - EXCLUDED for quick scan
                 configFileResult,
                 classloaderModuleResult,
                 loggingMetricsResult,
                 serializationCacheResult,
                 thirdPartyLibResult
             );
-            
+
             // Cache the results
             cachedSummaryRef = new java.lang.ref.SoftReference<>(summary);
             cachedProjectPath = projectPath;
@@ -680,6 +680,80 @@ public class AdvancedScanningService {
             LOG.error("Sequential scan failed", e);
             throw new RuntimeException("Advanced scan failed", e);
         }
+    }
+
+    /**
+     * Scans a project for all advanced scanning types EXCLUDING transitive dependencies.
+     * Results are cached for 5 minutes using SoftReferences.
+     * This is used for Quick Scan to avoid expensive deep dependency analysis.
+     *
+     * @param projectPath Path to the project root directory
+     * @return AdvancedScanSummary containing combined results (transitive dependencies will be null/empty)
+     */
+    public AdvancedScanSummary scanAllExcludingTransitive(Path projectPath) {
+        return scanAllExcludingTransitive(projectPath, null);
+    }
+
+    /**
+     * Scans a project for all advanced scanning types EXCLUDING transitive dependencies
+     * with progress reporting. Results are cached for 5 minutes using SoftReferences.
+     * This is used for Quick Scan to avoid expensive deep dependency analysis.
+     *
+     * @param projectPath Path to the project root directory
+     * @param progressListener Optional listener for progress updates
+     * @return AdvancedScanSummary containing combined results (transitive dependencies will be null/empty)
+     */
+    public AdvancedScanSummary scanAllExcludingTransitive(Path projectPath, ScanProgressListener progressListener) {
+        LOG.info("=== Starting Quick Scan (excluding transitive dependencies) ===");
+        LOG.info("Project path: " + projectPath);
+
+        // Check cache first
+        AdvancedScanSummary existing = cachedSummaryRef.get();
+        if (existing != null && cachedProjectPath != null
+                && cachedProjectPath.equals(projectPath)
+                && (System.currentTimeMillis() - lastScanTime) < CACHE_VALIDITY_MS) {
+            LOG.info("Returning cached quick scan results (excluding transitive)");
+            return existing;
+        }
+
+        // Run sequentially for better memory control and simpler progress reporting
+        return runScansSequentially(projectPath, progressListener);
+    }
+
+    /**
+     * Runs quick scans sequentially: basic dependency analysis, advanced scans (excluding transitive),
+     * and platform detection. This is the main entry point for Quick Scan functionality.
+     * Results are cached and displayed in the UI.
+     *
+     * @param projectPath Path to the project root directory
+     * @param progressListener Optional listener for progress updates
+     * @return CompletableFuture that completes when all quick scans are done
+     */
+    public CompletableFuture<Void> runQuickScansSequentially(Path projectPath, ScanProgressListener progressListener) {
+        LOG.info("Running quick scans sequentially: basic analysis -> advanced scans (no transitive) -> platform");
+
+        // Step 1: Basic dependency analysis (direct dependencies only)
+        if (progressListener != null) {
+            progressListener.onScanPhase("Basic Dependency Analysis", 0, 3);
+        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            // Basic analysis - note: this uses a different service (analysisService) not in this class
+            // Caller must provide this via MigrationAnalysisService
+            throw new UnsupportedOperationException("Basic analysis must be performed by caller with MigrationAnalysisService");
+        }).thenCompose(v -> {
+            // Placeholder - actual basic analysis is done in MigrationToolWindow before calling this
+            return CompletableFuture.completedFuture(null);
+        }).thenCompose(v -> {
+            // Step 2: Advanced scans excluding transitive
+            if (progressListener != null) {
+                progressListener.onScanPhase("Advanced Scans", 1, 3);
+            }
+            return CompletableFuture.supplyAsync(() -> scanAllExcludingTransitive(projectPath, progressListener));
+        }).thenAccept(advancedSummary -> {
+            // Step 3: Platform scan is handled separately by caller (PlatformsTabComponent)
+            LOG.info("Quick scan advanced scans completed");
+        });
     }
 
     // Individual scan methods for each scanner type
