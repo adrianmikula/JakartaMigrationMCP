@@ -778,8 +778,38 @@ public class AdvancedScanningService {
             return null; // Signal to use basic analysis fallback
         }
 
-        // Run the deep transitive dependency scan
-        return scanForTransitiveDependencies(projectPath);
+     // Run the deep transitive dependency scan
+     return scanForTransitiveDependencies(projectPath);
+    }
+
+    /**
+     * Runs deep dependency scanning for a project using Maven/Gradle commands,
+     * with progress reporting via the provided listener.
+     * This provides multi-level transitive dependency resolution with fine-grained progress updates.
+     *
+     * @param projectPath Path to the project root
+     * @param progressListener Listener to receive progress updates
+     * @return Deep dependency scan result with multi-level transitive dependencies, or null if Maven/Gradle not available
+     */
+    public TransitiveDependencyProjectScanResult scanDependenciesDeep(Path projectPath, ScanProgressListener progressListener) {
+        LOG.info("Running deep dependency scan with progress for: " + projectPath);
+
+        // Check if Maven or Gradle is available
+        boolean mavenAvailable = isMavenAvailable();
+        boolean gradleAvailable = isGradleAvailable();
+
+        LOG.info("Maven available: " + mavenAvailable + ", Gradle available: " + gradleAvailable);
+
+        if (!mavenAvailable && !gradleAvailable) {
+            LOG.warn("Neither Maven nor Gradle available for deep scanning");
+            return null; // Signal to use basic analysis fallback
+        }
+
+        // Convert UI listener to engine callback
+        ScanProgressCallback callback = (phase, completed, total) -> progressListener.onScanPhase(phase, completed, total);
+
+        // Run the deep transitive dependency scan with progress callback
+        return scanningModule.getTransitiveDependencyScanner().scanProject(projectPath, callback);
     }
 
     /**
@@ -812,11 +842,15 @@ public class AdvancedScanningService {
                     null, // recommendedVersion
                     usage.getJavaxPackage(), // jakartaCompatibilityStatus - store the javax package info
                     usage.getRecommendation(), // associatedRecipeName - store the recommendation
-                    mapSeverityToStatus(usage.getSeverity()),
+                    determineMigrationStatus(usage),
                     usage.isTransitive(),
                     false, // isOrganizational - determined elsewhere
                     usage.getDepth(),
-                    usage.getScope()
+                    usage.getScope(),
+                    usage.getScanReason() != null ? usage.getScanReason().name() : null,
+                    usage.getDetailMessage(),
+                    usage.getConfidence(),
+                    usage.isIncompatibilityFromTransitive()
                 );
                 dependencyInfos.add(info);
             }
@@ -827,8 +861,55 @@ public class AdvancedScanningService {
     }
 
     /**
-     * Maps severity string to DependencyMigrationStatus.
+     * Determines the migration status for a dependency based on its ScanReason, with
+     * incompatibility taking precedence over compatibility.
+     * Package-private for unit testing.
+     *
+     * Mapping:
+     * - BLACKLISTED, BYTECODE_SCAN_JAVAX, TRANSITIVE_INCOMPATIBLE -> NEEDS_UPGRADE
+     * - BYTECODE_SCAN_MIXED, REVIEW_REQUIRED -> REQUIRES_MANUAL_MIGRATION
+     * - MAVEN_LOOKUP_NONE -> NO_JAKARTA_VERSION
+     * - WHITELISTED, BYTECODE_SCAN_JAKARTA, MAVEN_LOOKUP_FOUND -> COMPATIBLE
+     * - BYTECODE_SCAN_UNKNOWN, UNKNOWN -> UNKNOWN_REVIEW
+     *
+     * @param u the dependency usage with scan reason metadata
+     * @return the determined migration status
      */
+    DependencyMigrationStatus determineMigrationStatus(TransitiveDependencyUsage u) {
+        ScanReason r = u.getScanReason();
+        // Incompatible (upgrade required)
+        if (r == ScanReason.BLACKLISTED ||
+            r == ScanReason.BYTECODE_SCAN_JAVAX ||
+            r == ScanReason.TRANSITIVE_INCOMPATIBLE) {
+            return DependencyMigrationStatus.NEEDS_UPGRADE;
+        }
+        // Ambiguous / manual review
+        if (r == ScanReason.BYTECODE_SCAN_MIXED ||
+            r == ScanReason.REVIEW_REQUIRED) {
+            return DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION;
+        }
+        // No Jakarta equivalent
+        if (r == ScanReason.MAVEN_LOOKUP_NONE) {
+            return DependencyMigrationStatus.NO_JAKARTA_VERSION;
+        }
+        // Compatible
+        if (r == ScanReason.WHITELISTED ||
+            r == ScanReason.BYTECODE_SCAN_JAKARTA ||
+            r == ScanReason.MAVEN_LOOKUP_FOUND) {
+            return DependencyMigrationStatus.COMPATIBLE;
+        }
+        // Uncertain
+        if (r == ScanReason.BYTECODE_SCAN_UNKNOWN || r == ScanReason.UNKNOWN) {
+            return DependencyMigrationStatus.UNKNOWN_REVIEW;
+        }
+        return DependencyMigrationStatus.UNKNOWN;
+    }
+
+    /**
+     * Maps severity string to DependencyMigrationStatus.
+     * @deprecated Use determineMigrationStatus(TransitiveDependencyUsage) instead, which uses ScanReason
+     */
+    @Deprecated
     private DependencyMigrationStatus mapSeverityToStatus(String severity) {
         if (severity == null) {
             return DependencyMigrationStatus.UNKNOWN_REVIEW;

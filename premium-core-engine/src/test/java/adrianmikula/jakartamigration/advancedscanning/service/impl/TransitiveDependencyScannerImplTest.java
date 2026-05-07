@@ -13,6 +13,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -21,6 +22,10 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+
+import adrianmikula.jakartamigration.advancedscanning.service.ScanProgressCallback;
+import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader;
+import adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyDeduplicationServiceImpl;
 
 @Tag("slow")
 class TransitiveDependencyScannerImplTest {
@@ -492,11 +497,11 @@ class TransitiveDependencyScannerImplTest {
         // Level 3: jackson-databind (transitive, depth 2)
         // Level 4: jackson-core (transitive, depth 3)
         List<DependencyTreeResult.DependencyNode> dependencies = Arrays.asList(
-            new DependencyTreeResult.DependencyNode("org.springframework.boot", "spring-boot-starter", "2.7.0", "compile", 0, false),
-            new DependencyTreeResult.DependencyNode("org.springframework", "spring-core", "5.3.21", "compile", 1, true),
-            new DependencyTreeResult.DependencyNode("com.fasterxml.jackson.core", "jackson-databind", "2.13.0", "compile", 2, true),
-            new DependencyTreeResult.DependencyNode("com.fasterxml.jackson.core", "jackson-core", "2.13.0", "compile", 3, true),
-            new DependencyTreeResult.DependencyNode("javax.servlet", "javax.servlet-api", "4.0.1", "provided", 2, true)
+            new DependencyTreeResult.DependencyNode("org.springframework.boot", "spring-boot-starter", "2.7.0", "compile", 0, false, null),
+            new DependencyTreeResult.DependencyNode("org.springframework", "spring-core", "5.3.21", "compile", 1, true, null),
+            new DependencyTreeResult.DependencyNode("com.fasterxml.jackson.core", "jackson-databind", "2.13.0", "compile", 2, true, null),
+            new DependencyTreeResult.DependencyNode("com.fasterxml.jackson.core", "jackson-core", "2.13.0", "compile", 3, true, null),
+            new DependencyTreeResult.DependencyNode("javax.servlet", "javax.servlet-api", "4.0.1", "provided", 2, true, null)
         );
 
         DependencyTreeResult treeResult = new DependencyTreeResult(dependencies, Set.of("compile", "provided"));
@@ -674,5 +679,64 @@ class TransitiveDependencyScannerImplTest {
 
         assertTrue(foundServlet && foundSpring && foundPersistence && foundJackson,
             "Should find all dependencies from all modules");
+    }
+
+    @Test
+    void sequentialScanReportsProgressCallbacks(@TempDir Path tempDir) throws IOException {
+        // Create a dummy build file
+        Path pom = tempDir.resolve("pom.xml");
+        Files.createFile(pom);
+
+        // Create a sample dependency tree with 3 nodes
+        DependencyTreeResult.DependencyNode node1 = new DependencyTreeResult.DependencyNode(
+                "org.example", "lib-a", "1.0", "compile", 0, false, null);
+        DependencyTreeResult.DependencyNode node2 = new DependencyTreeResult.DependencyNode(
+                "org.example", "lib-b", "2.0", "compile", 1, true, "org.example:lib-a");
+        DependencyTreeResult.DependencyNode node3 = new DependencyTreeResult.DependencyNode(
+                "org.example", "lib-c", "3.0", "runtime", 1, true, "org.example:lib-a");
+        List<DependencyTreeResult.DependencyNode> nodes = Arrays.asList(node1, node2, node3);
+        DependencyTreeResult treeResult = new DependencyTreeResult(nodes, Set.of("compile", "runtime"));
+
+        // Mock executor to return the prepared tree result
+        DependencyTreeCommandExecutor mockExecutor = mock(DependencyTreeCommandExecutor.class);
+        when(mockExecutor.executeMavenDependencyTreeAsync(eq(pom), anySet()))
+                .thenReturn(CompletableFuture.completedFuture(treeResult));
+
+        // Real services for deduplication and classification
+        DependencyDeduplicationService dedup = new DependencyDeduplicationServiceImpl();
+        CompatibilityConfigLoader configLoader = new CompatibilityConfigLoader();
+
+        // Scanner with mocked executor; JAR/maven lookup disabled
+        TransitiveDependencyScannerImpl scanner = new TransitiveDependencyScannerImpl(
+                mockExecutor, dedup, configLoader, null, null, null);
+
+        // Capture callback invocations
+        List<String> phases = new ArrayList<>();
+        List<int[]> progressUpdates = new ArrayList<>();
+
+        TransitiveDependencyProjectScanResult result = scanner.scanProject(tempDir, (phase, completed, total) -> {
+            phases.add(phase);
+            progressUpdates.add(new int[]{completed, total});
+        });
+
+        // Assert on result: should have 1 file result with 3 usages after deduplication
+        assertNotNull(result);
+        assertEquals(1, result.getFileResults().size());
+        List<TransitiveDependencyUsage> usages = result.getFileResults().get(0).getUsages();
+        assertEquals(3, usages.size());
+
+        // Progress callback: initial (0,0) + one per dependency = 4 calls
+        assertEquals(4, phases.size());
+        assertEquals(4, progressUpdates.size());
+
+        // Initial call: 0/0
+        assertEquals(0, progressUpdates.get(0)[0]);
+        assertEquals(0, progressUpdates.get(0)[1]);
+
+        // Subsequent calls: should have total=3 and increasing completed
+        for (int i = 1; i <= 3; i++) {
+            assertEquals(i, progressUpdates.get(i)[0]);
+            assertEquals(3, progressUpdates.get(i)[1]);
+        }
     }
 }

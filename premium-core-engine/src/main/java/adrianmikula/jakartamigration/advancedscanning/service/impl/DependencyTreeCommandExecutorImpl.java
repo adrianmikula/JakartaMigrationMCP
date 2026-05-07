@@ -12,7 +12,9 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -182,50 +184,69 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
             while ((line = reader.readLine()) != null) {
                 if (line.trim().startsWith("{") || line.trim().startsWith("[")) json.append(line);
             }
-            if (json.length() > 0) parseMavenJsonNode(objectMapper.readTree(json.toString()), deps, 0, null);
+            if (json.length() > 0) parseMavenJsonNode(objectMapper.readTree(json.toString()), deps, 0, null, null);
         }
         return deps;
     }
 
-    private void parseMavenJsonNode(JsonNode node, List<DependencyTreeResult.DependencyNode> deps, int depth, String parentScope) {
+    private void parseMavenJsonNode(JsonNode node, List<DependencyTreeResult.DependencyNode> deps, int depth, String parentScope, String parentArtifactKey) {
         if (deps.size() >= MAX_DEPENDENCIES) { log.warn("Max dependency limit reached"); return; }
         if (!node.has("groupId") || !node.has("artifactId")) return;
 
+        String groupId = node.get("groupId").asText();
+        String artifactId = node.get("artifactId").asText();
+        String artifactKey = groupId + ":" + artifactId;
+
         String scope = node.has("scope") ? node.get("scope").asText() : (parentScope != null ? parentScope : "compile");
         deps.add(new DependencyTreeResult.DependencyNode(
-            node.get("groupId").asText(),
-            node.get("artifactId").asText(),
+            groupId,
+            artifactId,
             node.has("version") ? node.get("version").asText() : "unknown",
-            scope, depth, depth > 0));
+            scope, depth, depth > 0, parentArtifactKey));
 
-        if (node.has("children")) node.get("children").forEach(c -> parseMavenJsonNode(c, deps, depth + 1, scope));
+        if (node.has("children")) node.get("children").forEach(c -> parseMavenJsonNode(c, deps, depth + 1, scope, artifactKey));
     }
 
     private List<DependencyTreeResult.DependencyNode> parseGradleOutput(Process process, Set<String> scopes) throws IOException {
         List<DependencyTreeResult.DependencyNode> deps = new ArrayList<>();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
             String line, scope = "compile";
+            // Track the last node at each depth level for parent reconstruction
+            Map<Integer, String> depthToArtifactKey = new HashMap<>();
             while ((line = reader.readLine()) != null && deps.size() < MAX_DEPENDENCIES) {
                 if (line.trim().isEmpty() || line.startsWith("\\")) continue;
                 if (line.endsWith("Classpath") || line.endsWith("Configuration")) {
                     scope = line.trim().split(" ")[0]; continue;
                 }
-                parseGradleLine(line, scope).ifPresent(deps::add);
+                parseGradleLine(line, scope, depthToArtifactKey).ifPresent(node -> {
+                    deps.add(node);
+                    // Update depth tracking for this node
+                    depthToArtifactKey.put(node.getDepth(), node.getArtifactKey());
+                    // Clear deeper levels since we've moved to a new branch
+                    depthToArtifactKey.keySet().removeIf(d -> d > node.getDepth());
+                });
             }
         }
         return deps;
     }
 
-    private Optional<DependencyTreeResult.DependencyNode> parseGradleLine(String line, String scope) {
+    private Optional<DependencyTreeResult.DependencyNode> parseGradleLine(String line, String scope, Map<Integer, String> depthToArtifactKey) {
         int depth = 0;
         String trimmed = line;
-        while (trimmed.startsWith("\\") || trimmed.startsWith("+")) {
+        while (trimmed.startsWith("\\") || trimmed.startsWith("+") || trimmed.startsWith("|")) {
             depth++; trimmed = trimmed.substring(1).trim();
         }
         Matcher m = DEP_PATTERN.matcher(trimmed);
         if (!m.find()) return Optional.empty();
+        
+        // Determine parent key from the previous depth level
+        String parentKey = null;
+        if (depth > 0) {
+            parentKey = depthToArtifactKey.get(depth - 1);
+        }
+        
         return Optional.of(new DependencyTreeResult.DependencyNode(
-            m.group(1), m.group(2), m.group(3), scope, depth, depth > 0));
+            m.group(1), m.group(2), m.group(3), scope, depth, depth > 0, parentKey));
     }
 
     @Override

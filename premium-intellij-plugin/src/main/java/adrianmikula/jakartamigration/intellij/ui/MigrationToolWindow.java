@@ -1007,7 +1007,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Run deep transitive dependency scan
             try {
                 TransitiveDependencyProjectScanResult deepResult =
-                        advancedScanningService.scanDependenciesDeep(projectPath);
+                        advancedScanningService.scanDependenciesDeep(projectPath, dashboardComponent);
 
                 if (deepResult == null) {
                     LOG.warn("runDeepDependencyAnalysis: Deep scan returned null");

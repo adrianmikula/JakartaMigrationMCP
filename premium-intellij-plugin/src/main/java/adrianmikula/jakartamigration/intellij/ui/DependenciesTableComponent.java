@@ -107,7 +107,7 @@ public class DependenciesTableComponent {
                 "Jakarta Equivalent",
                 "Recommended Version",
                 "Maven Coordinates",
-                "Status",
+                "Compatibility Status",
                 "Type",
                 "" // Hidden column for DependencyInfo object
         };
