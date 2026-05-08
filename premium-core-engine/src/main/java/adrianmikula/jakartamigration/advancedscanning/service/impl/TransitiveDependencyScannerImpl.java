@@ -143,6 +143,66 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         }
     }
 
+    @Override
+    public TransitiveDependencyProjectScanResult scanProject(List<Path> filesToScan) {
+        if (filesToScan == null || filesToScan.isEmpty()) {
+            return TransitiveDependencyProjectScanResult.empty();
+        }
+        log.info("[DEBUG] scanProject with file list called with {} files", filesToScan.size());
+        AtomicInteger totalScanned = new AtomicInteger(0);
+        int parallelism = Math.min(MAX_PARALLELISM, filesToScan.size());
+        List<TransitiveDependencyScanResult> results = filesToScan.parallelStream()
+                .map(file -> {
+                    log.info("[DEBUG] Scanning file: {}", file);
+                    TransitiveDependencyScanResult result = scanFileWithTracking(file, totalScanned);
+                    if (result != null) {
+                        log.info("[DEBUG] File {} scanned: {} usages", file, result.getUsages().size());
+                    } else {
+                        log.warn("[DEBUG] File {} returned null result", file);
+                    }
+                    return result;
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
+        log.info("[DEBUG] Scan complete (parallel): {} files, {} total usages", results.size(), totalUsages);
+        return new TransitiveDependencyProjectScanResult(results, totalScanned.get(), results.size(), totalUsages);
+    }
+
+    @Override
+    public TransitiveDependencyProjectScanResult scanProject(List<Path> filesToScan, ScanProgressCallback progressListener) {
+        if (filesToScan == null || filesToScan.isEmpty()) {
+            return TransitiveDependencyProjectScanResult.empty();
+        }
+        log.info("[DEBUG] scanProject with progress listener (list) called with {} files", filesToScan.size());
+        List<TransitiveDependencyScanResult> results = new ArrayList<>();
+        AtomicInteger totalScanned = new AtomicInteger(0);
+
+        for (Path file : filesToScan) {
+            log.info("[DEBUG] Scanning file (sequential): {}", file);
+            String moduleName = "Scanning module: " + file.getFileName();
+            ScanProgressCallback fileListener = (phase, completed, total) -> {
+                if (progressListener != null) {
+                    progressListener.onPhaseProgress(moduleName, completed, total);
+                }
+            };
+            if (progressListener != null) {
+                fileListener.onPhaseProgress("", 0, 0);
+            }
+            TransitiveDependencyScanResult result = scanFile(file, fileListener);
+            if (result != null) {
+                results.add(result);
+            } else {
+                log.warn("[DEBUG] File {} returned null result", file);
+            }
+            totalScanned.incrementAndGet();
+        }
+
+        int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
+        log.info("[DEBUG] Scan complete (sequential): {} files, {} total usages", results.size(), totalUsages);
+        return new TransitiveDependencyProjectScanResult(results, totalScanned.get(), results.size(), totalUsages);
+    }
+
     /**
      * Sequential project scanner with per-module progress reporting.
      * Processes build files one at a time and invokes the listener after each dependency is enriched.

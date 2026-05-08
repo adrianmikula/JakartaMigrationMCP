@@ -83,6 +83,35 @@ public class ThirdPartyLibScannerImpl implements ThirdPartyLibScanner {
                 buildFilesFound.toString());
     }
 
+    @Override
+    public ThirdPartyLibProjectScanResult scanProject(List<Path> filesToScan) {
+        if (filesToScan == null) {
+            return new ThirdPartyLibProjectScanResult("", List.of(), "");
+        }
+        List<ThirdPartyLibUsage> problematicLibs = new ArrayList<>();
+        StringBuilder buildFilesFound = new StringBuilder();
+        for (Path buildFile : filesToScan) {
+            String name = buildFile.getFileName().toString();
+            if (buildFilesFound.length() > 0) buildFilesFound.append(", ");
+            buildFilesFound.append(name);
+            if (name.equals("pom.xml")) {
+                problematicLibs.addAll(scanMavenPom(buildFile));
+            } else if (name.equals("Dockerfile") || name.equals("dockerfile")) {
+                problematicLibs.addAll(scanDockerfile(buildFile));
+            } else {
+                problematicLibs.addAll(scanGradleBuild(buildFile));
+            }
+        }
+        // Derive project path from first file's parent (approximate)
+        String projectPathStr = "";
+        if (!filesToScan.isEmpty()) {
+            Path first = filesToScan.get(0);
+            Path parent = first.getParent();
+            if (parent != null) projectPathStr = parent.toString();
+        }
+        return new ThirdPartyLibProjectScanResult(projectPathStr, problematicLibs, buildFilesFound.toString());
+    }
+
     private List<ThirdPartyLibUsage> scanMavenPom(Path pomPath) {
         List<ThirdPartyLibUsage> usages = new ArrayList<>();
 

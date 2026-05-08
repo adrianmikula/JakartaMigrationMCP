@@ -87,6 +87,52 @@ public class IntegrationPointsScannerImpl implements IntegrationPointsScanner {
         return new IntegrationPointsProjectScanResult(projectPath.toString(), usages);
     }
 
+    @Override
+    public IntegrationPointsProjectScanResult scanProject(List<Path> filesToScan) {
+        if (filesToScan == null) {
+            return new IntegrationPointsProjectScanResult("");
+        }
+        log.info("Starting integration points scan for {} files", filesToScan.size());
+        List<IntegrationPointUsage> allUsages = new ArrayList<>();
+        for (Path filePath : filesToScan) {
+            try {
+                long fileSize = Files.size(filePath);
+                if (fileSize > MAX_FILE_SIZE_BYTES) {
+                    log.warn("Skipping large file ({} bytes): {}", fileSize, filePath);
+                    continue;
+                }
+                try (Stream<String> lines = Files.lines(filePath)) {
+                    final AtomicInteger lineNumber = new AtomicInteger(0);
+                    lines.forEach(line -> {
+                        int currentLineNumber = lineNumber.incrementAndGet();
+                        Matcher matcher = IMPORT_PATTERN.matcher(line);
+                        if (matcher.find()) {
+                            String pkg = "javax." + matcher.group(1);
+                            for (Map.Entry<String, String> entry : INTEGRATION_PATTERNS.entrySet()) {
+                                if (pkg.startsWith(entry.getKey())) {
+                                    allUsages.add(new IntegrationPointUsage(
+                                            filePath.toString(),
+                                            currentLineNumber,
+                                            entry.getValue(),
+                                            extractClassName(line)));
+                                    break;
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (IOException e) {
+                log.warn("Error reading file: {}", e.getMessage());
+            }
+        }
+        String projectPath = "";
+        if (!filesToScan.isEmpty()) {
+            Path parent = filesToScan.get(0).getParent();
+            if (parent != null) projectPath = parent.toString();
+        }
+        return new IntegrationPointsProjectScanResult(projectPath, allUsages);
+    }
+
     private String extractClassName(String line) {
         Pattern p = Pattern.compile("(class|interface|enum)\\s+(\\w+)");
         Matcher m = p.matcher(line);

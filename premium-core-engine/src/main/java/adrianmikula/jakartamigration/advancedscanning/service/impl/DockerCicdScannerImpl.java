@@ -132,6 +132,32 @@ public class DockerCicdScannerImpl extends BaseScanner<DockerCicdUsage> implemen
     }
 
     @Override
+    public ProjectScanResult<FileScanResult<DockerCicdUsage>> scanProject(List<Path> filesToScan) {
+        if (filesToScan == null) {
+            return ProjectScanResult.empty();
+        }
+        List<Path> dockerCicdFiles = filesToScan;
+        if (dockerCicdFiles.isEmpty()) {
+            return ProjectScanResult.empty();
+        }
+        AtomicInteger totalScanned = new AtomicInteger(0);
+        List<FileScanResult<DockerCicdUsage>> results = dockerCicdFiles.parallelStream()
+                .map(file -> {
+                    totalScanned.incrementAndGet();
+                    FileScanResult<DockerCicdUsage> result = scanFile(file);
+                    return result.hasIssues() ? result : null;
+                })
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toList());
+        int totalUsages = results.stream()
+                .mapToInt(r -> r.usages().size())
+                .sum();
+        log.info("Docker/CI-CD scan complete: {} files scanned, {} files with Java references, {} total references",
+                totalScanned.get(), results.size(), totalUsages);
+        return new ProjectScanResult<>(results, totalScanned.get(), results.size(), totalUsages);
+    }
+
+    @Override
     public FileScanResult<DockerCicdUsage> scanFile(Path filePath) {
         Path validatedPath = validateFilePath(filePath);
         if (validatedPath == null) {

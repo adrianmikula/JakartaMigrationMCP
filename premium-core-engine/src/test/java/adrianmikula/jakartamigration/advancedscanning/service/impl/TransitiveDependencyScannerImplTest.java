@@ -179,7 +179,7 @@ class TransitiveDependencyScannerImplTest {
     void scanProject_shouldReturnEmptyResultForNullPath() {
         TransitiveDependencyScannerImpl scanner = new TransitiveDependencyScannerImpl();
 
-        TransitiveDependencyProjectScanResult result = scanner.scanProject(null);
+        TransitiveDependencyProjectScanResult result = scanner.scanProject((Path) null);
 
         assertNotNull(result);
         assertTrue(result.getFileResults().isEmpty());

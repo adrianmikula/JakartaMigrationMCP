@@ -101,6 +101,11 @@ public class RestSoapScannerImpl extends BaseScanner<JavaxUsage> implements Rest
     }
 
     @Override
+    public ProjectScanResult<FileScanResult<JavaxUsage>> scanProject(List<Path> filesToScan) {
+        return scanProjectGeneric(null, filesToScan, "REST/SOAP");
+    }
+
+    @Override
     public FileScanResult<JavaxUsage> scanFile(Path filePath) {
         Path validatedPath = validateFilePath(filePath);
         if (validatedPath == null) {

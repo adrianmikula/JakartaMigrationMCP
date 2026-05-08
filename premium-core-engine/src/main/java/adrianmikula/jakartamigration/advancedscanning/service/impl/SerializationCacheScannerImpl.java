@@ -74,6 +74,30 @@ public class SerializationCacheScannerImpl implements SerializationCacheScanner 
                 fileResults);
     }
 
+    @Override
+    public SerializationCacheProjectScanResult scanProject(List<Path> filesToScan) {
+        if (filesToScan == null) {
+            return new SerializationCacheProjectScanResult("");
+        }
+        List<SerializationCacheScanResult> results = new ArrayList<>();
+        for (Path file : filesToScan) {
+            try {
+                SerializationCacheScanResult r = scanFile(file);
+                if (r != null && r.hasFindings()) {
+                    results.add(r);
+                }
+            } catch (Exception e) {
+                log.warn("Error scanning file {}: {}", file, e.getMessage());
+            }
+        }
+        String projectPath = "";
+        if (!filesToScan.isEmpty()) {
+            Path p = filesToScan.get(0).getParent();
+            if (p != null) projectPath = p.toString();
+        }
+        return new SerializationCacheProjectScanResult(projectPath, results);
+    }
+
     private SerializationCacheScanResult scanFile(Path filePath) {
         List<SerializationCacheUsage> usages = new ArrayList<>();
         StringBuilder contentBuilder = new StringBuilder();

@@ -127,6 +127,11 @@ public class ServletJspScannerImpl extends BaseScanner<ServletJspUsage> implemen
     }
 
     @Override
+    public ProjectScanResult<FileScanResult<ServletJspUsage>> scanProject(List<Path> filesToScan) {
+        return scanProjectGeneric(null, filesToScan, "Servlet/JSP");
+    }
+
+    @Override
     public FileScanResult<ServletJspUsage> scanFile(Path filePath) {
         Path validatedPath = validateFilePath(filePath);
         if (validatedPath == null) {
@@ -146,6 +151,15 @@ public class ServletJspScannerImpl extends BaseScanner<ServletJspUsage> implemen
         } else {
             return scanJavaFile(validatedPath);
         }
+    }
+
+    @Override
+    protected List<Path> discoverJavaFiles(Path projectPath) {
+        List<Path> javaFiles = fileScanner.findFiles(projectPath, List.of(".java"));
+        List<Path> jspFiles = fileScanner.findFiles(projectPath, List.of(".jsp"));
+        List<Path> all = new ArrayList<>(javaFiles);
+        all.addAll(jspFiles);
+        return all;
     }
 
     private FileScanResult<ServletJspUsage> scanJavaFile(Path filePath) {

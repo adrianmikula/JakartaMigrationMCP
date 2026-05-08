@@ -83,47 +83,12 @@ public class BuildConfigScannerImpl extends BaseScanner<BuildConfigUsage> implem
 
     @Override
     public ProjectScanResult<FileScanResult<BuildConfigUsage>> scanProject(Path projectPath) {
-        if (projectPath == null || !Files.exists(projectPath) || !Files.isDirectory(projectPath)) {
-            log.warn("Invalid project path: {}", projectPath);
-            return ProjectScanResult.empty();
-        }
+        return scanProjectGeneric(projectPath, "Build Config");
+    }
 
-        try {
-            List<Path> buildFiles = discoverBuildFiles(projectPath);
-
-            if (buildFiles.isEmpty()) {
-                log.info("No build files found in project: {}", projectPath);
-                return ProjectScanResult.empty();
-            }
-
-            log.info("Scanning {} build files in project: {}", buildFiles.size(), projectPath);
-
-            AtomicInteger totalScanned = new AtomicInteger(0);
-            List<FileScanResult<BuildConfigUsage>> results = buildFiles.parallelStream()
-                    .map(file -> {
-                        totalScanned.incrementAndGet();
-                        FileScanResult<BuildConfigUsage> result = scanFile(file);
-                        if (result.hasIssues()) {
-                            return result;
-                        }
-                        return null;
-                    })
-                    .filter(java.util.Objects::nonNull)
-                    .collect(Collectors.toList());
-
-            int totalDeps = results.stream()
-                    .mapToInt(r -> r.usages().size())
-                    .sum();
-
-            log.info("Build config scan complete: {} files scanned, {} files with javax deps, {} total deps",
-                    totalScanned.get(), results.size(), totalDeps);
-
-            return new ProjectScanResult<>(results, totalScanned.get(), results.size(), totalDeps);
-
-        } catch (Exception e) {
-            log.error("Error scanning project for build config: {}", projectPath, e);
-            return ProjectScanResult.empty();
-        }
+    @Override
+    public ProjectScanResult<FileScanResult<BuildConfigUsage>> scanProject(List<Path> filesToScan) {
+        return scanProjectGeneric(null, filesToScan, "Build Config");
     }
 
     @Override
@@ -153,7 +118,8 @@ public class BuildConfigScannerImpl extends BaseScanner<BuildConfigUsage> implem
         }
     }
 
-    private List<Path> discoverBuildFiles(Path projectPath) {
+    @Override
+    protected List<Path> discoverJavaFiles(Path projectPath) {
         return fileScanner.findFiles(projectPath, path -> {
             String name = path.getFileName().toString();
             return "pom.xml".equals(name) || name.startsWith("build.gradle") || name.endsWith(".gradle");

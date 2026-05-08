@@ -71,6 +71,11 @@ public class CdiInjectionScannerImpl extends BaseScanner<JavaxUsage> implements 
     }
 
     @Override
+    public ProjectScanResult<FileScanResult<JavaxUsage>> scanProject(List<Path> filesToScan) {
+        return scanProjectGeneric(null, filesToScan, "CDI");
+    }
+
+    @Override
     public FileScanResult<JavaxUsage> scanFile(Path filePath) {
         Path validatedPath = validateFilePath(filePath);
         if (validatedPath == null) {
