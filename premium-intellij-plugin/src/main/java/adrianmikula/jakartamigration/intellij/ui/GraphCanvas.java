@@ -10,7 +10,18 @@ import java.util.List;
 
 /**
  * Canvas component for rendering the dependency graph.
- * Supports pan, zoom, and node selection.
+ * Supports pan, zoom, and node selection with standard left-click drag panning.
+ *
+ * Interaction modes:
+ * - Left-click drag: Pan the view (requires >5px movement to distinguish from click)
+ * - Left-click tap: Select node (click without significant drag)
+ * - Middle/right drag: Pan immediately (backward compatibility)
+ * - Ctrl + scroll: Zoom in/out
+ * - Scroll alone: Vertical pan
+ * - Double-click: Reset view to default
+ *
+ * Implements spec GraphInteractionState (spec/plugin-components.tsp)
+ * @see ADR-0065 (Dynamic Graph Spacing and Standard Panning)
  */
 public class GraphCanvas extends JPanel {
     private final List<GraphNode> nodes = new ArrayList<>();
@@ -25,7 +36,10 @@ public class GraphCanvas extends JPanel {
 
     // Mouse interaction state
     private Point lastMousePos = null;
+    private Point pressPoint = null; // For click vs drag discrimination
     private boolean isDragging = false;
+    private boolean leftButtonDown = false; // Track left button state for drag events
+    private static final int DRAG_THRESHOLD = 5; // pixels: movement needed to start drag
 
     public GraphCanvas() {
         setBackground(Color.WHITE);
@@ -55,6 +69,12 @@ public class GraphCanvas extends JPanel {
             @Override
             public void mouseMoved(MouseEvent e) {
                 handleMouseMoved(e);
+            }
+        });
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                handleMouseReleased(e);
             }
         });
     }
@@ -137,26 +157,72 @@ public class GraphCanvas extends JPanel {
 
     private void handleMousePressed(MouseEvent e) {
         lastMousePos = e.getPoint();
-        // Check if clicking on a node
-        Point worldPos = screenToWorld(e.getX(), e.getY());
-        selectedNode = null;
-        for (GraphNode node : nodes) {
-            if (node.contains(worldPos.x, worldPos.y)) {
-                selectedNode = node;
-                break;
-            }
+        if (SwingUtilities.isLeftMouseButton(e)) {
+            leftButtonDown = true;
+            // Track press position to distinguish click from drag
+            pressPoint = e.getPoint();
+            isDragging = false;
+        } else {
+            leftButtonDown = false;
+            pressPoint = null;
         }
+        // Clear previous selection on any mouse press
+        selectedNode = null;
         repaint();
     }
 
     private void handleMouseDragged(MouseEvent e) {
-        if (lastMousePos != null && !SwingUtilities.isLeftMouseButton(e)) {
-            // Pan
-            offsetX += e.getX() - lastMousePos.x;
-            offsetY += e.getY() - lastMousePos.y;
+        if (lastMousePos == null) {
+            lastMousePos = e.getPoint();
+            return;
+        }
+        int deltaX = e.getX() - lastMousePos.x;
+        int deltaY = e.getY() - lastMousePos.y;
+
+        if (leftButtonDown) {
+            // Left button panning with drag threshold
+            if (!isDragging && pressPoint != null) {
+                int dragX = e.getX() - pressPoint.x;
+                int dragY = e.getY() - pressPoint.y;
+                double dragDistSq = (double) dragX * dragX + (double) dragY * dragY;
+                if (dragDistSq > DRAG_THRESHOLD * DRAG_THRESHOLD) {
+                    isDragging = true;
+                    // Clear selection once dragging starts
+                    selectedNode = null;
+                }
+            }
+            if (isDragging) {
+                offsetX += deltaX;
+                offsetY += deltaY;
+                repaint();
+            }
+        } else {
+            // Non-left buttons (middle/right) pan immediately without threshold (backward compatibility)
+            offsetX += deltaX;
+            offsetY += deltaY;
             repaint();
         }
         lastMousePos = e.getPoint();
+    }
+
+    private void handleMouseReleased(MouseEvent e) {
+        if (leftButtonDown && !isDragging && pressPoint != null) {
+            // This was a tap (not drag) - select node at press position
+            Point worldPos = screenToWorld(pressPoint.x, pressPoint.y);
+            selectedNode = null;
+            for (GraphNode node : nodes) {
+                if (node.contains(worldPos.x, worldPos.y)) {
+                    selectedNode = node;
+                    break;
+                }
+            }
+            repaint();
+        }
+        // Reset interaction state
+        leftButtonDown = false;
+        pressPoint = null;
+        isDragging = false;
+        lastMousePos = null;
     }
 
     private void handleMouseMoved(MouseEvent e) {
