@@ -5,6 +5,7 @@ import adrianmikula.jakartamigration.advancedscanning.domain.ScanReason;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyProjectScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage;
+import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyEdge;
 import adrianmikula.jakartamigration.advancedscanning.service.DependencyDeduplicationService;
 import adrianmikula.jakartamigration.advancedscanning.service.DependencyTreeCommandExecutor;
 import adrianmikula.jakartamigration.advancedscanning.service.ScanProgressCallback;
@@ -271,61 +272,66 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
       * @param listener Optional progress callback, may be null
       * @return TransitiveDependencyScanResult with all enriched dependencies
       */
-     private TransitiveDependencyScanResult convertTreeResult(Path filePath, String buildFileType,
-                                                                DependencyTreeResult treeResult,
-                                                                ScanProgressCallback listener) {
-        // Build parent map from tree structure
-        Map<String, String> parentMap = buildParentMap(treeResult.getDependencies());
+      private TransitiveDependencyScanResult convertTreeResult(Path filePath, String buildFileType,
+                                                                 DependencyTreeResult treeResult,
+                                                                 ScanProgressCallback listener) {
+         // Build parent map from tree structure
+         Map<String, String> parentMap = buildParentMap(treeResult.getDependencies());
 
-        // Sort dependencies by depth for breadth-first processing
-        List<DependencyTreeResult.DependencyNode> sortedNodes = treeResult.getDependencies().stream()
-                .sorted(Comparator.comparingInt(DependencyTreeResult.DependencyNode::getDepth))
-                .collect(Collectors.toList());
+         // Sort dependencies by depth for breadth-first processing
+         List<DependencyTreeResult.DependencyNode> sortedNodes = treeResult.getDependencies().stream()
+                 .sorted(Comparator.comparingInt(DependencyTreeResult.DependencyNode::getDepth))
+                 .collect(Collectors.toList());
 
-        int totalNodes = sortedNodes.size();
-        List<TransitiveDependencyUsage> usages = new ArrayList<>(totalNodes);
-        int processed = 0;
+         int totalNodes = sortedNodes.size();
+         List<TransitiveDependencyUsage> usages = new ArrayList<>(totalNodes);
+         int processed = 0;
 
-        for (DependencyTreeResult.DependencyNode node : sortedNodes) {
-            // Classify using CompatibilityConfigLoader
-            CompatibilityConfigLoader.ArtifactClassification classification =
-                    compatibilityConfigLoader.classifyArtifact(node.getGroupId(), node.getArtifactId());
+         for (DependencyTreeResult.DependencyNode node : sortedNodes) {
+             // Classify using CompatibilityConfigLoader
+             CompatibilityConfigLoader.ArtifactClassification classification =
+                     compatibilityConfigLoader.classifyArtifact(node.getGroupId(), node.getArtifactId());
 
-            // Create base usage from classification
-            TransitiveDependencyUsage usage = createBaseUsage(node, classification);
+             // Create base usage from classification
+             TransitiveDependencyUsage usage = createBaseUsage(node, classification);
 
-            // Enrich with JAR scanning if available
-            if (jarCompatibilityScanner != null && jarResolver != null) {
-                Optional<TransitiveDependencyUsage> jarOpt = enrichWithJarScan(usage);
-                if (jarOpt.isPresent()) {
-                    usage = jarOpt.get();
-                }
-            }
+             // Enrich with JAR scanning if available
+             if (jarCompatibilityScanner != null && jarResolver != null) {
+                 Optional<TransitiveDependencyUsage> jarOpt = enrichWithJarScan(usage);
+                 if (jarOpt.isPresent()) {
+                     usage = jarOpt.get();
+                 }
+             }
 
-            // Enrich with Maven Central lookup if available
-            if (mavenCentralLookupService != null) {
-                Optional<TransitiveDependencyUsage> mavenOpt = enrichWithMavenLookup(usage);
-                if (mavenOpt.isPresent()) {
-                    usage = mavenOpt.get();
-                }
-            }
+             // Enrich with Maven Central lookup if available
+             if (mavenCentralLookupService != null) {
+                 Optional<TransitiveDependencyUsage> mavenOpt = enrichWithMavenLookup(usage);
+                 if (mavenOpt.isPresent()) {
+                     usage = mavenOpt.get();
+                 }
+             }
 
-            usages.add(usage);
-            processed++;
+             usages.add(usage);
+             processed++;
 
-            if (listener != null) {
-                listener.onPhaseProgress("", processed, totalNodes);
-            }
-        }
+             if (listener != null) {
+                 listener.onPhaseProgress("", processed, totalNodes);
+             }
+         }
 
-        // Propagate incompatibility upward through the dependency tree
-        usages = propagateIncompatibility(usages, parentMap);
+         // Propagate incompatibility upward through the dependency tree
+         usages = propagateIncompatibility(usages, parentMap);
 
-        // Deduplicate results
-        List<TransitiveDependencyUsage> deduplicated = deduplicationService.deduplicate(usages);
+         // Deduplicate results
+         List<TransitiveDependencyUsage> deduplicated = deduplicationService.deduplicate(usages);
 
-        return new TransitiveDependencyScanResult(filePath, deduplicated, buildFileType, treeResult.getScopes());
-    }
+         // Build edges from parent map BEFORE deduplication to preserve tree structure
+         List<TransitiveDependencyEdge> edges = parentMap.entrySet().stream()
+                 .map(entry -> new TransitiveDependencyEdge(entry.getValue(), entry.getKey()))
+                 .collect(Collectors.toList());
+
+         return new TransitiveDependencyScanResult(filePath, deduplicated, buildFileType, treeResult.getScopes(), edges);
+     }
 
     /**
      * Creates a base TransitiveDependencyUsage from a dependency node and its classification.

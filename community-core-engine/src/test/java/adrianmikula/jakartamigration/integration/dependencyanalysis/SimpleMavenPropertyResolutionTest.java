@@ -106,39 +106,39 @@ class SimpleMavenPropertyResolutionTest {
         // Then - Should resolve Maven properties correctly
         assertThat(graph.nodeCount()).isGreaterThan(1); // Project + dependencies
         
-        // Print all dependencies for debugging
-        System.out.println("=== Dependencies found in realistic POM ===");
-        graph.getNodes().stream()
-            .filter(Artifact::transitive)
-            .forEach(node -> {
-                System.out.println("  " + node.groupId() + ":" + node.artifactId() + ":" + node.version() + " (scope: " + node.scope() + ")");
-            });
-        
-        // Verify that dependencies with property references are resolved to actual versions
-        boolean hasUnresolvedProperties = graph.getNodes().stream()
-            .filter(Artifact::transitive)
-            .anyMatch(node -> node.version().startsWith("${") || "unknown".equals(node.version()));
-        
-        assertThat(hasUnresolvedProperties)
-            .as("Should not have any dependencies with unresolved property references")
-            .isFalse();
-        
-        // Verify specific properties are resolved correctly
-        assertThat(graph.containsNode(new Artifact("org.jboss.arquillian", "arquillian-bom", "1.7.0.Alpha1", "import", true)))
-            .as("Should resolve arquillian.version property")
-            .isTrue();
-            
-        assertThat(graph.containsNode(new Artifact("fish.payara.distributions", "payara", "4.1.2.181", "compile", true)))
-            .as("Should resolve payara.version property")
-            .isTrue();
-            
-        assertThat(graph.containsNode(new Artifact("org.glassfish.main.extras", "glassfish-embedded-all", "4.1.1", "test", true)))
-            .as("Should resolve glassfish.version property")
-            .isTrue();
-            
-        assertThat(graph.containsNode(new Artifact("org.wildfly.plugins", "wildfly-maven-plugin", "13.0.0.Final", "compile", true)))
-            .as("Should resolve wildfly.version property")
-            .isTrue();
+         // Print all dependencies for debugging
+         System.out.println("=== Dependencies found in realistic POM ===");
+         graph.getNodes().stream()
+             .filter(a -> !a.groupId().equals("org.javaee7") || !a.artifactId().equals("samples-parent"))
+             .forEach(node -> {
+                 System.out.println("  " + node.groupId() + ":" + node.artifactId() + ":" + node.version() + " (scope: " + node.scope() + ")");
+             });
+
+         // Verify that dependencies with property references are resolved to actual versions
+         boolean hasUnresolvedProperties = graph.getNodes().stream()
+             .filter(a -> !a.groupId().equals("org.javaee7") || !a.artifactId().equals("samples-parent"))
+             .anyMatch(node -> node.version().startsWith("${") || "unknown".equals(node.version()));
+
+         assertThat(hasUnresolvedProperties)
+             .as("Should not have any dependencies with unresolved property references")
+             .isFalse();
+
+         // Verify specific properties are resolved correctly
+         assertThat(graph.containsNode(new Artifact("org.jboss.arquillian", "arquillian-bom", "1.7.0.Alpha1", "import", false)))
+             .as("Should resolve arquillian.version property")
+             .isTrue();
+
+         assertThat(graph.containsNode(new Artifact("fish.payara.distributions", "payara", "4.1.2.181", "compile", false)))
+             .as("Should resolve payara.version property")
+             .isTrue();
+
+         assertThat(graph.containsNode(new Artifact("org.glassfish.main.extras", "glassfish-embedded-all", "4.1.1", "test", false)))
+             .as("Should resolve glassfish.version property")
+             .isTrue();
+
+         assertThat(graph.containsNode(new Artifact("org.wildfly.plugins", "wildfly-maven-plugin", "13.0.0.Final", "compile", false)))
+             .as("Should resolve wildfly.version property")
+             .isTrue();
     }
     
     @Test
@@ -185,35 +185,35 @@ class SimpleMavenPropertyResolutionTest {
         // Then - Should handle missing properties gracefully
         assertThat(graph.nodeCount()).isGreaterThan(1); // Project + dependencies
         
-        // Print all dependencies for debugging
-        System.out.println("=== Dependencies found in POM with missing properties ===");
-        graph.getNodes().stream()
-            .filter(Artifact::transitive)
-            .forEach(node -> {
-                System.out.println("  " + node.groupId() + ":" + node.artifactId() + ":" + node.version());
-            });
-        
-        // Verify existing property is resolved
-        assertThat(graph.containsNode(new Artifact("org.example", "existing-artifact", "1.2.3", "compile", true)))
-            .as("Should resolve existing property")
-            .isTrue();
-            
-        // Verify missing property falls back to the original reference or "unknown"
-        boolean hasMissingPropertyHandled = graph.getNodes().stream()
-            .filter(Artifact::transitive)
-            .anyMatch(node -> 
-                node.groupId().equals("org.example") && 
-                node.artifactId().equals("missing-artifact") &&
-                (node.version().equals("${missing.version}") || node.version().equals("unknown"))
-            );
-        
-        assertThat(hasMissingPropertyHandled)
-            .as("Should handle missing property gracefully")
-            .isTrue();
-            
-        // Verify direct version is preserved
-        assertThat(graph.containsNode(new Artifact("org.example", "direct-artifact", "4.5.6", "compile", true)))
-            .as("Should preserve direct version")
-            .isTrue();
+         // Print all dependencies for debugging
+         System.out.println("=== Dependencies found in POM with missing properties ===");
+         graph.getNodes().stream()
+             .filter(a -> !a.groupId().equals("unknown") || !a.artifactId().equals("unknown"))
+             .forEach(node -> {
+                 System.out.println("  " + node.groupId() + ":" + node.artifactId() + ":" + node.version());
+             });
+
+         // Verify existing property is resolved
+         assertThat(graph.containsNode(new Artifact("org.example", "existing-artifact", "1.2.3", "compile", false)))
+             .as("Should resolve existing property")
+             .isTrue();
+
+         // Verify missing property falls back to the original reference or "unknown"
+         boolean hasMissingPropertyHandled = graph.getNodes().stream()
+             .filter(a -> !a.groupId().equals("unknown") || !a.artifactId().equals("unknown"))
+             .anyMatch(node ->
+                 node.groupId().equals("org.example") &&
+                 node.artifactId().equals("missing-artifact") &&
+                 (node.version().equals("${missing.version}") || node.version().equals("unknown"))
+             );
+
+         assertThat(hasMissingPropertyHandled)
+             .as("Should handle missing property gracefully")
+             .isTrue();
+
+         // Verify direct version is preserved
+         assertThat(graph.containsNode(new Artifact("org.example", "direct-artifact", "4.5.6", "compile", false)))
+             .as("Should preserve direct version")
+             .isTrue();
     }
 }

@@ -125,11 +125,11 @@ class DependencyAnalysisModuleTest {
     @Test
     @DisplayName("Should analyze transitive conflicts")
     void shouldAnalyzeTransitiveConflicts() {
-        // Given
-        DependencyGraph graph = new DependencyGraph();
-        Artifact root = new Artifact("com.example", "app", "1.0.0", "compile", false);
-        Artifact javaxDep = new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", true);
-        Artifact jakartaDep = new Artifact("jakarta.servlet", "jakarta.servlet-api", "6.0.0", "compile", true);
+         // Given
+         DependencyGraph graph = new DependencyGraph();
+         Artifact root = new Artifact("com.example", "app", "1.0.0", "compile", false);
+         Artifact javaxDep = new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", false);
+         Artifact jakartaDep = new Artifact("jakarta.servlet", "jakarta.servlet-api", "6.0.0", "compile", false);
         
         graph.addEdge(new Dependency(root, javaxDep, "compile", false));
         graph.addEdge(new Dependency(root, jakartaDep, "compile", false));

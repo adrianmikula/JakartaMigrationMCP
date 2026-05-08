@@ -98,13 +98,13 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
                     scope = "compile";
                 }
                 
-                Artifact dependencyArtifact = new Artifact(
-                    depGroupId,
-                    depArtifactId,
-                    depVersion,
-                    scope,
-                    true
-                );
+                 Artifact dependencyArtifact = new Artifact(
+                     depGroupId,
+                     depArtifactId,
+                     depVersion,
+                     scope,
+                     false
+                 );
                 
                 Dependency dependency = new Dependency(
                     projectArtifact,
@@ -274,7 +274,7 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
                 artifactId,
                 version,
                 scope,
-                true
+                false
             ));
         }
         

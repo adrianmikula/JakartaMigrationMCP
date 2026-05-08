@@ -137,9 +137,9 @@ class TransitiveDependencyScannerImplTest {
         // ALL 2 dependencies should be captured now (not just javax ones)
         assertEquals(2, result.getUsages().size(), "Should capture ALL dependencies including non-javax");
 
-        // Should find jaxb-api with high severity
+        // Should find jaxb-api with medium severity (context dependent)
         assertTrue(result.getUsages().stream()
-                .anyMatch(u -> u.getArtifactId().equals("jaxb-api") && "high".equals(u.getSeverity())));
+                .anyMatch(u -> u.getArtifactId().equals("jaxb-api") && "medium".equals(u.getSeverity())));
 
         // Should also find normal-lib with low severity (not filtered out anymore)
         assertTrue(result.getUsages().stream()
@@ -496,12 +496,19 @@ class TransitiveDependencyScannerImplTest {
         // Level 2: spring-core (transitive, depth 1)
         // Level 3: jackson-databind (transitive, depth 2)
         // Level 4: jackson-core (transitive, depth 3)
+        // Create a dependency tree with multiple depth levels:
+        // Level 0: project (direct)
+        // Level 1: spring-boot-starter (direct)
+        // Level 2: spring-core (transitive, depth 1, parent = spring-boot-starter)
+        // Level 3: jackson-databind (transitive, depth 2, parent = spring-core)
+        // Level 4: jackson-core (transitive, depth 3, parent = jackson-databind)
+        // Also javax.servlet-api (depth 2, parent = spring-core)
         List<DependencyTreeResult.DependencyNode> dependencies = Arrays.asList(
             new DependencyTreeResult.DependencyNode("org.springframework.boot", "spring-boot-starter", "2.7.0", "compile", 0, false, null),
-            new DependencyTreeResult.DependencyNode("org.springframework", "spring-core", "5.3.21", "compile", 1, true, null),
-            new DependencyTreeResult.DependencyNode("com.fasterxml.jackson.core", "jackson-databind", "2.13.0", "compile", 2, true, null),
-            new DependencyTreeResult.DependencyNode("com.fasterxml.jackson.core", "jackson-core", "2.13.0", "compile", 3, true, null),
-            new DependencyTreeResult.DependencyNode("javax.servlet", "javax.servlet-api", "4.0.1", "provided", 2, true, null)
+            new DependencyTreeResult.DependencyNode("org.springframework", "spring-core", "5.3.21", "compile", 1, true, "org.springframework.boot:spring-boot-starter"),
+            new DependencyTreeResult.DependencyNode("com.fasterxml.jackson.core", "jackson-databind", "2.13.0", "compile", 2, true, "org.springframework:spring-core"),
+            new DependencyTreeResult.DependencyNode("com.fasterxml.jackson.core", "jackson-core", "2.13.0", "compile", 3, true, "com.fasterxml.jackson.core:jackson-databind"),
+            new DependencyTreeResult.DependencyNode("javax.servlet", "javax.servlet-api", "4.0.1", "provided", 2, true, "org.springframework:spring-core")
         );
 
         DependencyTreeResult treeResult = new DependencyTreeResult(dependencies, Set.of("compile", "provided"));
@@ -520,6 +527,9 @@ class TransitiveDependencyScannerImplTest {
 
         // Verify all 5 dependencies are captured with correct depths
         assertEquals(5, result.getUsages().size(), "Should capture all transitive dependencies at all depths");
+
+        // Verify edges are captured (should have 4 edges: parent->child relationships)
+        assertEquals(4, result.getEdges().size(), "Should capture all parent-child edges");
 
         // Verify depth tracking
         assertTrue(result.getUsages().stream()

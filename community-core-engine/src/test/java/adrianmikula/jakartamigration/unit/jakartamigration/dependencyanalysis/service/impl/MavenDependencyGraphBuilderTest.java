@@ -85,9 +85,9 @@ class MavenDependencyGraphBuilderTest {
         Artifact projectArtifact = new Artifact("com.example", "test-project", "1.0.0", "compile", false);
         assertTrue(graph.containsNode(projectArtifact));
         
-        // Verify dependencies exist
-        Artifact servletDep = new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", true);
-        Artifact springDep = new Artifact("org.springframework", "spring-web", "5.3.21", "compile", true);
+         // Verify dependencies exist
+         Artifact servletDep = new Artifact("javax.servlet", "javax.servlet-api", "4.0.1", "compile", false);
+         Artifact springDep = new Artifact("org.springframework", "spring-web", "5.3.21", "compile", false);
         
         assertTrue(graph.containsNode(servletDep));
         assertTrue(graph.containsNode(springDep));
@@ -209,8 +209,8 @@ class MavenDependencyGraphBuilderTest {
         assertTrue(graph.nodeCount() >= 3); // Project + 2 dependencies
         
         // Verify dependencies with resolved versions
-        Artifact arquillianDep = new Artifact("org.jboss.arquillian", "arquillian-bom", "1.7.0.Alpha1", "compile", true);
-        Artifact payaraDep = new Artifact("fish.payara.distributions", "payara", "4.1.2.181", "compile", true);
+         Artifact arquillianDep = new Artifact("org.jboss.arquillian", "arquillian-bom", "1.7.0.Alpha1", "compile", false);
+         Artifact payaraDep = new Artifact("fish.payara.distributions", "payara", "4.1.2.181", "compile", false);
         
         assertTrue(graph.containsNode(arquillianDep));
         assertTrue(graph.containsNode(payaraDep));
@@ -261,9 +261,9 @@ class MavenDependencyGraphBuilderTest {
         assertNotNull(graph);
         assertTrue(graph.nodeCount() >= 2); // Project + 1 dependency
         
-        // Verify dependency with resolved version from dependencyManagement
-        Artifact wildflyDep = new Artifact("org.wildfly", "wildfly-core", "13.0.0.Final", "compile", true);
-        assertTrue(graph.containsNode(wildflyDep));
+         // Verify dependency with resolved version from dependencyManagement
+         Artifact wildflyDep = new Artifact("org.wildfly", "wildfly-core", "13.0.0.Final", "compile", false);
+         assertTrue(graph.containsNode(wildflyDep));
     }
     
     @Test
@@ -298,9 +298,9 @@ class MavenDependencyGraphBuilderTest {
         assertNotNull(graph);
         assertTrue(graph.nodeCount() >= 2); // Project + 1 dependency
         
-        // Verify dependency with "unknown" version when property doesn't exist
-        Artifact dep = new Artifact("org.jboss.arquillian", "arquillian-bom", "unknown", "compile", true);
-        assertTrue(graph.containsNode(dep));
+         // Verify dependency with "unknown" version when property doesn't exist
+         Artifact dep = new Artifact("org.jboss.arquillian", "arquillian-bom", "unknown", "compile", false);
+         assertTrue(graph.containsNode(dep));
     }
     
     @Test
@@ -331,22 +331,22 @@ class MavenDependencyGraphBuilderTest {
             "org.wildfly.plugins:wildfly-maven-plugin:13.0.0.Final"
         };
         
-        for (String expected : expectedProperties) {
-            String[] parts = expected.split(":");
-            Artifact artifact = new Artifact(parts[0], parts[1], parts[2], "compile", true);
-            boolean found = graph.containsNode(artifact);
-            
-            if (!found) {
-                // Try with "unknown" version - indicates property resolution failed
-                Artifact unknownVersion = new Artifact(parts[0], parts[1], "unknown", "compile", true);
-                boolean unknownFound = graph.containsNode(unknownVersion);
-                
-                // If unknown version found, property resolution failed for this artifact
-                if (unknownFound) {
-                    fail("Property resolution failed for " + expected + " - found 'unknown' version");
-                }
-            }
-        }
+         for (String expected : expectedProperties) {
+             String[] parts = expected.split(":");
+             Artifact artifact = new Artifact(parts[0], parts[1], parts[2], "compile", false);
+             boolean found = graph.containsNode(artifact);
+
+             if (!found) {
+                 // Try with "unknown" version - indicates property resolution failed
+                 Artifact unknownVersion = new Artifact(parts[0], parts[1], "unknown", "compile", false);
+                 boolean unknownFound = graph.containsNode(unknownVersion);
+
+                 // If unknown version found, property resolution failed for this artifact
+                 if (unknownFound) {
+                     fail("Property resolution failed for " + expected + " - found 'unknown' version");
+                 }
+             }
+         }
     }
 }
 

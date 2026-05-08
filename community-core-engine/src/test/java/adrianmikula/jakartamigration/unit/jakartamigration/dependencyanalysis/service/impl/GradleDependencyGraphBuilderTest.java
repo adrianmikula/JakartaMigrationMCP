@@ -48,14 +48,15 @@ class GradleDependencyGraphBuilderTest {
         // When
         DependencyGraph graph = builder.buildFromGradle(buildGradle);
         
-        // Then
-        assertThat(graph.nodeCount()).isGreaterThanOrEqualTo(4); // Project + 3 dependencies
-        
-        List<Artifact> artifacts = graph.getNodes().stream()
-            .filter(a -> a.transitive())
-            .collect(Collectors.toList());
-        
-        assertThat(artifacts).hasSize(3);
+         // Then
+         assertThat(graph.nodeCount()).isGreaterThanOrEqualTo(4); // Project + 3 dependencies
+
+         // Get all dependency nodes (non-project artifacts)
+         List<Artifact> artifacts = graph.getNodes().stream()
+             .filter(a -> !(a.groupId().equals("unknown") && a.artifactId().equals("unknown")))
+             .collect(Collectors.toList());
+
+         assertThat(artifacts).hasSize(3);
         
         Artifact servlet = artifacts.stream()
             .filter(a -> a.groupId().equals("javax.servlet"))
@@ -100,14 +101,15 @@ class GradleDependencyGraphBuilderTest {
         // When
         DependencyGraph graph = builder.buildFromGradle(buildGradleKts);
         
-        // Then
-        assertThat(graph.nodeCount()).isGreaterThanOrEqualTo(3); // Project + 2 dependencies
-        
-        List<Artifact> artifacts = graph.getNodes().stream()
-            .filter(a -> a.transitive())
-            .collect(Collectors.toList());
-        
-        assertThat(artifacts).hasSize(2);
+         // Then
+         assertThat(graph.nodeCount()).isGreaterThanOrEqualTo(3); // Project + 2 dependencies
+
+         // Get all dependency nodes (non-project artifacts)
+         List<Artifact> artifacts = graph.getNodes().stream()
+             .filter(a -> !(a.groupId().equals("unknown") && a.artifactId().equals("unknown")))
+             .collect(Collectors.toList());
+
+         assertThat(artifacts).hasSize(2);
     }
     
     @Test
@@ -159,22 +161,24 @@ class GradleDependencyGraphBuilderTest {
         // When
         DependencyGraph graph = builder.buildFromGradle(buildGradle);
         
-        // Then
-        List<Artifact> artifacts = graph.getNodes().stream()
-            .filter(a -> a.transitive())
-            .collect(Collectors.toList());
-        
-        Artifact runtime = artifacts.stream()
-            .filter(a -> a.groupId().equals("com.example") && a.artifactId().equals("runtime-lib"))
-            .findFirst()
-            .orElseThrow();
-        assertThat(runtime.scope()).isEqualTo("runtime");
-        
-        Artifact provided = artifacts.stream()
-            .filter(a -> a.groupId().equals("com.example") && a.artifactId().equals("provided-lib"))
-            .findFirst()
-            .orElseThrow();
-        assertThat(provided.scope()).isEqualTo("provided");
+         // Then
+         List<Artifact> artifacts = graph.getNodes().stream()
+             .filter(a -> !(a.groupId().equals("unknown") && a.artifactId().equals("unknown")))
+             .collect(Collectors.toList());
+
+         assertThat(artifacts).hasSize(2);
+
+         Artifact runtime = artifacts.stream()
+             .filter(a -> a.groupId().equals("com.example") && a.artifactId().equals("runtime-lib"))
+             .findFirst()
+             .orElseThrow();
+         assertThat(runtime.scope()).isEqualTo("runtime");
+
+         Artifact provided = artifacts.stream()
+             .filter(a -> a.groupId().equals("com.example") && a.artifactId().equals("provided-lib"))
+             .findFirst()
+             .orElseThrow();
+         assertThat(provided.scope()).isEqualTo("provided");
     }
 }
 

@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * Main migration tool window from TypeSpec: plugin-components.tsp
@@ -893,8 +894,23 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             deepFuture.thenAccept(deepResult -> {
                 List<DependencyInfo> depInfos = advancedScanningService.convertToDependencyInfo(deepResult);
+                // Build dependency graph from deep result
+                DependencyGraph deepGraph = advancedScanningService.buildDependencyGraphFromDeepResult(deepResult);
+                // Build status map for graph visualization
+                Map<String, DependencyMigrationStatus> statusMap = depInfos.stream()
+                        .collect(Collectors.toMap(
+                                d -> d.getGroupId() + ":" + d.getArtifactId(),
+                                d -> d.getMigrationStatus(),
+                                (existing, replacement) -> existing
+                        ));
+                // Build dashboard from deep dependencies
+                MigrationDashboard dashboard = buildDashboardFromDependencies(depInfos);
+
                 ApplicationManager.getApplication().invokeLater(() -> {
                     dependenciesComponent.setDependencies(depInfos);
+                    migrationPhasesComponent.setDependencies(depInfos);
+                    dependencyGraphComponent.updateGraphFromDependencyGraph(deepGraph, statusMap);
+                    dashboardComponent.setDashboard(dashboard);
                 });
             });
 
@@ -1400,6 +1416,71 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     .count();
 
             return (int) ((compatible + hasVersion * 0.7) * 100 / deps.size());
+        }
+
+        /**
+         * Builds a MigrationDashboard from a list of DependencyInfo.
+         * Used for deep scan results to populate the dashboard with accurate counts.
+         */
+        private MigrationDashboard buildDashboardFromDependencies(List<DependencyInfo> deps) {
+            MigrationDashboard dashboard = new MigrationDashboard();
+            if (deps == null || deps.isEmpty()) {
+                dashboard.setStatus(MigrationStatus.READY);
+                dashboard.setLastAnalyzed(Instant.now());
+                DependencySummary summary = new DependencySummary();
+                summary.setTotalDependencies(0);
+                summary.setAffectedDependencies(0);
+                summary.setBlockerDependencies(0);
+                summary.setMigrableDependencies(0);
+                summary.setNoJakartaSupportCount(0);
+                summary.setJakartaUpgradeCount(0);
+                summary.setJakartaCompatibleCount(0);
+                summary.setOrganisationalDependencies(0);
+                summary.setUnknownReviewCount(0);
+                summary.setTransitiveDependencies(0);
+                dashboard.setDependencySummary(summary);
+                dashboard.setReadinessScore(100);
+                return dashboard;
+            }
+
+            long blockers = deps.stream().filter(DependencyInfo::isBlocker).count();
+            long migrable = deps.stream().filter(d -> d.getRecommendedVersion() != null).count();
+            long noJakartaSupport = deps.stream()
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.NO_JAKARTA_VERSION)
+                    .count();
+            long jakartaUpgrade = deps.stream()
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.NEEDS_UPGRADE)
+                    .count();
+            long jakartaCompatible = deps.stream()
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE)
+                    .count();
+            long organisational = deps.stream().filter(DependencyInfo::isOrganizational).count();
+            long unknownReview = deps.stream()
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.UNKNOWN_REVIEW ||
+                                 d.getMigrationStatus() == DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION)
+                    .count();
+            long transitive = deps.stream().filter(DependencyInfo::isTransitive).count();
+
+            int score = calculateReadinessScore(deps);
+
+            dashboard.setReadinessScore(score);
+            dashboard.setStatus(blockers > 0 ? MigrationStatus.HAS_BLOCKERS : MigrationStatus.READY);
+            dashboard.setLastAnalyzed(Instant.now());
+
+            DependencySummary summary = new DependencySummary();
+            summary.setTotalDependencies(deps.size());
+            summary.setAffectedDependencies(deps.size());
+            summary.setBlockerDependencies((int) blockers);
+            summary.setMigrableDependencies((int) migrable);
+            summary.setNoJakartaSupportCount((int) noJakartaSupport);
+            summary.setJakartaUpgradeCount((int) jakartaUpgrade);
+            summary.setJakartaCompatibleCount((int) jakartaCompatible);
+            summary.setOrganisationalDependencies((int) organisational);
+            summary.setUnknownReviewCount((int) unknownReview);
+            summary.setTransitiveDependencies((int) transitive);
+            dashboard.setDependencySummary(summary);
+
+            return dashboard;
         }
 
         private void loadInitialState() {

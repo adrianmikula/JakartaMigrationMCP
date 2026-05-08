@@ -10,13 +10,19 @@ import com.intellij.openapi.diagnostic.Logger;
 
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * Service for performing advanced scanning using premium core engine.
@@ -977,6 +983,51 @@ public class AdvancedScanningService {
             return DependencyMigrationStatus.UNKNOWN_REVIEW;
         }
         return DependencyMigrationStatus.UNKNOWN;
+    }
+
+    /**
+     * Builds a dependency graph from deep scan results.
+     * This captures the full transitive dependency tree with proper parent-child edges.
+     *
+     * @param result The deep transitive dependency scan result
+     * @return A complete dependency graph
+     */
+    public DependencyGraph buildDependencyGraphFromDeepResult(TransitiveDependencyProjectScanResult result) {
+        if (result == null || result.getFileResults() == null) {
+            return new DependencyGraph(Set.of(), Set.of());
+        }
+
+        Map<String, Artifact> artifactMap = new HashMap<>();
+
+        // Collect all unique artifacts from all usages across all files
+        for (TransitiveDependencyScanResult fileResult : result.getFileResults()) {
+            for (TransitiveDependencyUsage usage : fileResult.getUsages()) {
+                String key = usage.getArtifactKey();
+                // Use putIfAbsent to avoid overwriting; first occurrence wins
+                artifactMap.putIfAbsent(key, new Artifact(
+                        usage.getGroupId(),
+                        usage.getArtifactId(),
+                        usage.getVersion(),
+                        usage.getScope() != null ? usage.getScope() : "compile",
+                        usage.isTransitive()
+                ));
+            }
+        }
+
+        // Build edges from parent-child relationships captured before deduplication
+        Set<Dependency> edges = new HashSet<>();
+        for (TransitiveDependencyEdge edge : result.getAllEdges().stream()
+                .distinct()  // Deduplicate identical edges
+                .collect(Collectors.toList())) {
+            Artifact parent = artifactMap.get(edge.parentArtifactKey());
+            Artifact child = artifactMap.get(edge.childArtifactKey());
+            if (parent != null && child != null) {
+                // Edge scope matches child's scope; optional=false (not tracked in tree)
+                edges.add(new Dependency(parent, child, child.scope(), false));
+            }
+        }
+
+        return new DependencyGraph(new HashSet<>(artifactMap.values()), edges);
     }
 
     /**
