@@ -42,7 +42,6 @@ public class AdvancedScanningService {
 
     private final AdvancedScanningModule scanningModule;
     private final ThirdPartyLibScanner thirdPartyLibScanner;
-    private final ProjectFileSystemScanner fsScanner = new ProjectFileSystemScanner();
 
     // Cache for the last scan results using SoftReference to prevent OOM
     private java.lang.ref.SoftReference<AdvancedScanSummary> cachedSummaryRef = new java.lang.ref.SoftReference<>(null);
@@ -303,33 +302,36 @@ public class AdvancedScanningService {
     private Map<FileCategory, List<Path>> discoverAllFilesOnce(Path projectPath) {
         Map<FileCategory, List<Path>> files = new HashMap<>();
         
+        // Use gitignore-enabled scanner for better folder exclusion
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        
         // Java source files
-        files.put(FileCategory.JAVA, fsScanner.findFiles(projectPath, List.of(".java")));
+        files.put(FileCategory.JAVA, scanner.findFiles(projectPath, List.of(".java")));
         
         // Test files (filtered from .java files)
-        List<Path> javaFiles = fsScanner.findFiles(projectPath, List.of(".java"));
+        List<Path> javaFiles = scanner.findFiles(projectPath, List.of(".java"));
         List<Path> testFiles = javaFiles.stream()
                 .filter(f -> isTestFile(f, projectPath))
                 .collect(Collectors.toList());
         files.put(FileCategory.TEST, testFiles);
         
         // Config files
-        files.put(FileCategory.CONFIG, fsScanner.findFiles(projectPath, List.of(".xml", ".properties", ".yaml", ".yml")));
+        files.put(FileCategory.CONFIG, scanner.findFiles(projectPath, List.of(".xml", ".properties", ".yaml", ".yml")));
         
         // Build files (pom.xml, build.gradle, etc.)
-        files.put(FileCategory.BUILD, fsScanner.findFiles(projectPath, path -> {
+        files.put(FileCategory.BUILD, scanner.findFiles(projectPath, path -> {
             String name = path.getFileName().toString();
             return name.equals("pom.xml") || name.startsWith("build.gradle") || name.endsWith(".gradle") || name.endsWith(".gradle.kts");
         }));
         
         // Dockerfiles
-        files.put(FileCategory.DOCKER, fsScanner.findFiles(projectPath, path -> {
+        files.put(FileCategory.DOCKER, scanner.findFiles(projectPath, path -> {
             String name = path.getFileName().toString();
             return name.equals("Dockerfile") || name.equals("dockerfile");
         }));
         
         // JSP files
-        files.put(FileCategory.JSP, fsScanner.findFiles(projectPath, List.of(".jsp")));
+        files.put(FileCategory.JSP, scanner.findFiles(projectPath, List.of(".jsp")));
         
         LOG.info("Discovered files: JAVA=" + files.get(FileCategory.JAVA).size() +
                 ", TEST=" + files.get(FileCategory.TEST).size() +
@@ -522,37 +524,42 @@ public class AdvancedScanningService {
     @Deprecated
     public ProjectScanResult<FileScanResult<JpaAnnotationUsage>> scanForJpaAnnotations(Path projectPath) {
         LOG.info("Scanning for JPA annotations in: " + projectPath);
-        List<Path> javaFiles = fsScanner.findFiles(projectPath, List.of(".java"));
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> javaFiles = scanner.findFiles(projectPath, List.of(".java"));
         return scanForJpaAnnotations(javaFiles);
     }
     
     @Deprecated
     public ProjectScanResult<FileScanResult<JavaxUsage>> scanForBeanValidation(Path projectPath) {
         LOG.info("Scanning for Bean Validation in: " + projectPath);
-        List<Path> javaFiles = fsScanner.findFiles(projectPath, List.of(".java"));
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> javaFiles = scanner.findFiles(projectPath, List.of(".java"));
         return scanForBeanValidation(javaFiles);
     }
     
     @Deprecated
     public ProjectScanResult<FileScanResult<ServletJspUsage>> scanForServletJsp(Path projectPath) {
         LOG.info("Scanning for Servlet/JSP in: " + projectPath);
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
         // ServletJspScanner needs both .java and .jsp files
-        List<Path> allFiles = new ArrayList<>(fsScanner.findFiles(projectPath, List.of(".java")));
-        allFiles.addAll(fsScanner.findFiles(projectPath, List.of(".jsp")));
+        List<Path> allFiles = new ArrayList<>(scanner.findFiles(projectPath, List.of(".java")));
+        allFiles.addAll(scanner.findFiles(projectPath, List.of(".jsp")));
         return scanForServletJsp(allFiles);
     }
     
     @Deprecated
     public ProjectScanResult<FileScanResult<JavaxUsage>> scanForCdiInjection(Path projectPath) {
         LOG.info("Scanning for CDI Injection in: " + projectPath);
-        List<Path> javaFiles = fsScanner.findFiles(projectPath, List.of(".java"));
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> javaFiles = scanner.findFiles(projectPath, List.of(".java"));
         return scanForCdiInjection(javaFiles);
     }
     
     @Deprecated
     public ProjectScanResult<FileScanResult<BuildConfigUsage>> scanForBuildConfig(Path projectPath) {
         LOG.info("Scanning for Build Config in: " + projectPath);
-        List<Path> buildFiles = fsScanner.findFiles(projectPath, path -> {
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> buildFiles = scanner.findFiles(projectPath, path -> {
             String name = path.getFileName().toString();
             return name.equals("pom.xml") || name.startsWith("build.gradle");
         });
@@ -562,35 +569,40 @@ public class AdvancedScanningService {
     @Deprecated
     public ProjectScanResult<FileScanResult<JavaxUsage>> scanForRestSoap(Path projectPath) {
         LOG.info("Scanning for REST/SOAP in: " + projectPath);
-        List<Path> javaFiles = fsScanner.findFiles(projectPath, List.of(".java"));
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> javaFiles = scanner.findFiles(projectPath, List.of(".java"));
         return scanForRestSoap(javaFiles);
     }
     
     @Deprecated
     public DeprecatedApiProjectScanResult scanForDeprecatedApi(Path projectPath) {
         LOG.info("Scanning for Deprecated API in: " + projectPath);
-        List<Path> javaFiles = fsScanner.findFiles(projectPath, List.of(".java"));
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> javaFiles = scanner.findFiles(projectPath, List.of(".java"));
         return scanForDeprecatedApi(javaFiles);
     }
     
     @Deprecated
     public SecurityApiProjectScanResult scanForSecurityApi(Path projectPath) {
         LOG.info("Scanning for Security API in: " + projectPath);
-        List<Path> javaFiles = fsScanner.findFiles(projectPath, List.of(".java"));
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> javaFiles = scanner.findFiles(projectPath, List.of(".java"));
         return scanForSecurityApi(javaFiles);
     }
     
     @Deprecated
     public JmsMessagingProjectScanResult scanForJmsMessaging(Path projectPath) {
         LOG.info("Scanning for JMS Messaging in: " + projectPath);
-        List<Path> javaFiles = fsScanner.findFiles(projectPath, List.of(".java"));
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> javaFiles = scanner.findFiles(projectPath, List.of(".java"));
         return scanForJmsMessaging(javaFiles);
     }
     
     @Deprecated
     public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(Path projectPath) {
         LOG.info("Scanning for Transitive Dependencies in: " + projectPath);
-        List<Path> buildFiles = fsScanner.findFiles(projectPath, path -> {
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> buildFiles = scanner.findFiles(projectPath, path -> {
             String name = path.getFileName().toString();
             return name.equals("pom.xml") || name.startsWith("build.gradle");
         });
@@ -600,45 +612,51 @@ public class AdvancedScanningService {
     @Deprecated
     public ConfigFileProjectScanResult scanForConfigFiles(Path projectPath) {
         LOG.info("Scanning for Config Files in: " + projectPath);
-        List<Path> configFiles = fsScanner.findFiles(projectPath, List.of(".xml", ".properties", ".yaml", ".yml"));
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> configFiles = scanner.findFiles(projectPath, List.of(".xml", ".properties", ".yaml", ".yml"));
         return scanForConfigFiles(configFiles);
     }
     
     @Deprecated
     public ClassloaderModuleProjectScanResult scanForClassloaderModule(Path projectPath) {
         LOG.info("Scanning for Classloader/Module in: " + projectPath);
-        List<Path> javaFiles = fsScanner.findFiles(projectPath, List.of(".java"));
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> javaFiles = scanner.findFiles(projectPath, List.of(".java"));
         return scanForClassloaderModule(javaFiles);
     }
     
     @Deprecated
     public LoggingMetricsProjectScanResult scanForLoggingMetrics(Path projectPath) {
         LOG.info("Scanning for Logging/Metrics in: " + projectPath);
-        List<Path> javaFiles = fsScanner.findFiles(projectPath, List.of(".java"));
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> javaFiles = scanner.findFiles(projectPath, List.of(".java"));
         return scanForLoggingMetrics(javaFiles);
     }
     
     @Deprecated
     public SerializationCacheProjectScanResult scanForSerializationCache(Path projectPath) {
         LOG.info("Scanning for Serialization/Cache in: " + projectPath);
-        List<Path> javaFiles = fsScanner.findFiles(projectPath, List.of(".java"));
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> javaFiles = scanner.findFiles(projectPath, List.of(".java"));
         return scanForSerializationCache(javaFiles);
     }
     
     @Deprecated
     public ReflectionUsageProjectScanResult scanForReflectionUsage(Path projectPath) {
         LOG.info("Scanning for Reflection Usage in: " + projectPath);
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
         // Reflection scanner needs .java, .kt, .scala
-        List<Path> allSource = new ArrayList<>(fsScanner.findFiles(projectPath, List.of(".java")));
-        allSource.addAll(fsScanner.findFiles(projectPath, List.of(".kt")));
-        allSource.addAll(fsScanner.findFiles(projectPath, List.of(".scala")));
+        List<Path> allSource = new ArrayList<>(scanner.findFiles(projectPath, List.of(".java")));
+        allSource.addAll(scanner.findFiles(projectPath, List.of(".kt")));
+        allSource.addAll(scanner.findFiles(projectPath, List.of(".scala")));
         return scanForReflectionUsage(allSource);
     }
     
     @Deprecated
     public ThirdPartyLibProjectScanResult scanForThirdPartyLib(Path projectPath) {
         LOG.info("Scanning for Third-Party Libraries in: " + projectPath);
-        List<Path> buildFiles = fsScanner.findFiles(projectPath, path -> {
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> buildFiles = scanner.findFiles(projectPath, path -> {
             String name = path.getFileName().toString();
             return name.equals("pom.xml") || name.startsWith("build.gradle") || 
                    name.equals("Dockerfile") || name.equals("dockerfile");
@@ -649,28 +667,32 @@ public class AdvancedScanningService {
     @Deprecated
     public UnitTestProjectScanResult scanForUnitTests(Path projectPath) {
         LOG.info("Scanning for Unit Tests in: " + projectPath);
-        List<Path> javaFiles = fsScanner.findFiles(projectPath, List.of(".java"));
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> javaFiles = scanner.findFiles(projectPath, List.of(".java"));
         return scanningModule.getUnitTestScanner().scanProject(javaFiles);
     }
     
     @Deprecated
     public IntegrationPointsProjectScanResult scanForIntegrationPoints(Path projectPath) {
         LOG.info("Scanning for Integration Points in: " + projectPath);
-        List<Path> javaFiles = fsScanner.findFiles(projectPath, List.of(".java"));
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> javaFiles = scanner.findFiles(projectPath, List.of(".java"));
         return scanningModule.getIntegrationPointsScanner().scanProject(javaFiles);
     }
     
     @Deprecated
     public AppServerProjectScanResult scanForAppServer(Path projectPath) {
         LOG.info("Scanning for App Server Config in: " + projectPath);
-        List<Path> javaFiles = fsScanner.findFiles(projectPath, List.of(".java"));
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> javaFiles = scanner.findFiles(projectPath, List.of(".java"));
         return scanningModule.getAppServerScanner().scanProject(javaFiles);
     }
     
     @Deprecated
     public ProjectScanResult<FileScanResult<DockerCicdUsage>> scanForDockerCicd(Path projectPath) {
         LOG.info("Scanning for Docker/CI-CD in: " + projectPath);
-        List<Path> dockerFiles = fsScanner.findFiles(projectPath, path -> {
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> dockerFiles = scanner.findFiles(projectPath, path -> {
             String name = path.getFileName().toString();
             return name.equals("Dockerfile") || name.equals("dockerfile") ||
                    name.endsWith(".yml") || name.endsWith(".yaml");
@@ -681,7 +703,8 @@ public class AdvancedScanningService {
     @Deprecated
     public TestContainersProjectScanResult scanForTestContainers(Path projectPath) {
         LOG.info("Scanning for TestContainers in: " + projectPath);
-        List<Path> buildFiles = fsScanner.findFiles(projectPath, path -> {
+        ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
+        List<Path> buildFiles = scanner.findFiles(projectPath, path -> {
             String name = path.getFileName().toString();
             return name.equals("pom.xml") || name.startsWith("build.gradle");
         });
