@@ -1,6 +1,7 @@
 package adrianmikula.jakartamigration.intellij.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
 /**
  * Individual dependency information for the dependencies table from TypeSpec:
@@ -45,6 +46,10 @@ public class DependencyInfo {
 
     @JsonProperty("scope")
     private String scope;  // compile, test, provided, runtime
+
+    // Tree structure fields for hierarchical dependency view
+    private String parentDependencyId;  // ID of parent dependency (groupId:artifactId:version)
+    private List<DependencyInfo> children;  // Nested dependencies
 
     public enum DependencyType {
         DIRECT("Direct"),
@@ -239,5 +244,29 @@ public class DependencyInfo {
 
     public DependencyType getDependencyType() {
         return isTransitive ? DependencyType.TRANSITIVE : DependencyType.DIRECT;
+    }
+
+    public String getParentDependencyId() {
+        return parentDependencyId;
+    }
+
+    public void setParentDependencyId(String parentDependencyId) {
+        this.parentDependencyId = parentDependencyId;
+    }
+
+    public List<DependencyInfo> getChildren() {
+        return children;
+    }
+
+    public void setChildren(List<DependencyInfo> children) {
+        this.children = children;
+    }
+
+    /**
+     * Get unique identifier for this dependency.
+     * Used for tree building and duplicate detection.
+     */
+    public String getDependencyId() {
+        return groupId + ":" + artifactId + ":" + currentVersion;
     }
 }

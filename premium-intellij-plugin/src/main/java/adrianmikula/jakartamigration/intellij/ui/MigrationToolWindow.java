@@ -80,6 +80,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         // UI Components
         private DashboardComponent dashboardComponent;
         private DependenciesTableComponent dependenciesComponent;
+        private DependenciesTreeComponent dependenciesTreeComponent;
         private DependencyGraphComponent dependencyGraphComponent;
         private MigrationPhasesComponent migrationPhasesComponent;
         private AdvancedScansComponent advancedScansComponent;
@@ -197,13 +198,18 @@ public class MigrationToolWindow implements ToolWindowFactory {
             dashboardComponent.setExternalProgressComponents(scanProgressBar, scanProgressLabel, analyzeButton);
             tabbedPane.addTab("Risk", dashboardComponent.getPanel());
 
-            // Dependencies tab
+            // Dependencies tab (flat table)
             dependenciesComponent = new DependenciesTableComponent(project);
             dependenciesComponent.setOnAnalysisCompleteListener(updatedDependencies -> {
                 // Refresh dependency graph with updated status when async analysis completes
                 refreshDependencyGraphWithUpdatedStatus(updatedDependencies);
             });
             tabbedPane.addTab("Dependencies", dependenciesComponent.getPanel());
+
+            // Dependencies Tree tab (experimental hierarchical view)
+            dependenciesTreeComponent = new DependenciesTreeComponent(project);
+            dependenciesTreeComponent.setPremiumUser(isPremium);
+            tabbedPane.addTab("Dependencies (Tree)", dependenciesTreeComponent.getPanel());
 
             // Dependency Graph tab
             dependencyGraphComponent = new DependencyGraphComponent(project);
@@ -225,6 +231,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 // This ensures Jakarta version recommendations are up-to-date
                 if (dependenciesComponent != null) {
                     dependenciesComponent.queryMavenCentralForDependencies();
+                }
+                if (dependenciesTreeComponent != null) {
+                    dependenciesTreeComponent.setPremiumUser(isPremium);
                 }
             });
             String advancedScansLabel = isPremium ? "Advanced Scans ⭐" : "Advanced Scans";
@@ -1023,7 +1032,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 ApplicationManager.getApplication().invokeLater(() -> {
                     if (!dependencyInfos.isEmpty()) {
                         dependenciesComponent.setDependencies(dependencyInfos);
-                        LOG.info("runDeepDependencyAnalysis: Updated Dependencies table with deep scan results");
+                        dependenciesTreeComponent.setDependencies(dependencyInfos);
+                        LOG.info("runDeepDependencyAnalysis: Updated Dependencies table and tree with deep scan results");
                     }
                 });
 
@@ -1306,6 +1316,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Update dashboard components with new data
             dashboardComponent.setDashboard(dashboard);
             dependenciesComponent.setDependencies(deps);
+            dependenciesTreeComponent.setDependencies(deps);
             migrationPhasesComponent.setDependencies(deps);
         }
 

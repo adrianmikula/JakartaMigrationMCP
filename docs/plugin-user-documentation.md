@@ -170,6 +170,19 @@ This design choice enables:
    - Visual graph of module relationships
    - Hierarchical and force-directed layout options
    - Color-coding by Jakarta compatibility
+   - **Graph Interaction:**
+     - **Left-click drag** on background to pan the view (movement must exceed 5px to distinguish from click)
+     - **Single click** on a node to select it (click without significant drag)
+     - **Middle/right button drag** to pan immediately (backward compatibility)
+     - **Ctrl + scroll** to zoom in/out
+     - **Double-click** to reset view to default
+   - **Dynamic Spacing (Force-Directed Layout):**
+     - Node spacing automatically adjusts based on total node count
+     - Small graphs (10 nodes): larger nodes with generous spacing for clarity
+     - Medium graphs (50 nodes): optimal spacing for readability
+     - Large graphs (200 nodes): compact spacing to fit more nodes
+     - Very large graphs (1000 nodes): dense but readable with minimum size constraints
+     - Minimum node size thresholds ensure readability at any scale
 
 6. **Evaluate Migration Strategy:**
    - Six strategies compared: Big Bang, Incremental, Parallel, Strangler Fig, Microservices, Hybrid
