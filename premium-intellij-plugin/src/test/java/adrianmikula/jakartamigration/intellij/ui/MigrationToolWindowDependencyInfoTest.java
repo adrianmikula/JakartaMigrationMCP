@@ -41,7 +41,7 @@ public class MigrationToolWindowDependencyInfoTest {
         graph.addEdge(new Dependency(project, directDep, "compile", false));
         
         // Create report
-        DependencyAnalysisReport report = new DependencyAnalysisReport(graph, null, null, null, null);
+        DependencyAnalysisReport report = new DependencyAnalysisReport(graph, null, null, null, null, null);
         
         // Simulate the conversion logic from MigrationToolWindow.convertBasicReportToDependencyInfo
         List<DependencyInfo> deps = convertBasicReportToDependencyInfo(report);
@@ -81,7 +81,7 @@ public class MigrationToolWindowDependencyInfoTest {
         graph.addEdge(new Dependency(directDep, transitiveDep, "compile", false));
         
         // Create report
-        DependencyAnalysisReport report = new DependencyAnalysisReport(graph, null, null, null, null);
+        DependencyAnalysisReport report = new DependencyAnalysisReport(graph, null, null, null, null, null);
         
         // Simulate the conversion logic
         List<DependencyInfo> deps = convertBasicReportToDependencyInfo(report);
@@ -134,7 +134,7 @@ public class MigrationToolWindowDependencyInfoTest {
         graph.addEdge(new Dependency(directDep2, sharedTransitive, "compile", false));
         
         // Create report
-        DependencyAnalysisReport report = new DependencyAnalysisReport(graph, null, null, null, null);
+        DependencyAnalysisReport report = new DependencyAnalysisReport(graph, null, null, null, null, null);
         
         // Simulate the conversion logic
         List<DependencyInfo> deps = convertBasicReportToDependencyInfo(report);
@@ -154,7 +154,7 @@ public class MigrationToolWindowDependencyInfoTest {
     @Test
     public void testEmptyGraphReturnsEmptyList() {
         DependencyGraph graph = new DependencyGraph();
-        DependencyAnalysisReport report = new DependencyAnalysisReport(graph, null, null, null, null);
+        DependencyAnalysisReport report = new DependencyAnalysisReport(graph, null, null, null, null, null);
         
         List<DependencyInfo> deps = convertBasicReportToDependencyInfo(report);
         
