@@ -17,13 +17,28 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Builds dependency graphs from Maven pom.xml files.
  */
 @Slf4j
 public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
+    
+    private final DocumentBuilderFactory documentBuilderFactory;
+    private final DocumentBuilder documentBuilder;
+    
+    public MavenDependencyGraphBuilder() {
+        try {
+            this.documentBuilderFactory = DocumentBuilderFactory.newInstance();
+            this.documentBuilderFactory.setNamespaceAware(false);
+            this.documentBuilder = documentBuilderFactory.newDocumentBuilder();
+        } catch (Exception e) {
+            throw new DependencyGraphException("Failed to initialize DOM parser", e);
+        }
+    }
     
     @Override
     public DependencyGraph buildFromMaven(Path pomXmlPath) {
@@ -32,9 +47,11 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
         }
         
         try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder builder = factory.newDocumentBuilder();
-            Document document = builder.parse(pomXmlPath.toFile());
+            Document document = documentBuilder.parse(pomXmlPath.toFile());
+            
+            // Build lookup maps for efficient version resolution
+            Map<String, String> depMgmtVersions = buildDependencyManagementVersionMap(document);
+            Map<String, String> propertiesMap = buildPropertiesMap(document);
             
             DependencyGraph graph = new DependencyGraph();
             
@@ -77,11 +94,11 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
                 }
                 
                 if (depVersion == null) {
-                    // Try to resolve from dependencyManagement or properties
-                    depVersion = resolveVersion(document, depGroupId, depArtifactId);
+                    // Try to resolve from dependencyManagement or properties using lookup maps
+                    depVersion = resolveVersionFromMaps(depGroupId, depArtifactId, depMgmtVersions, propertiesMap, document);
                 } else if (depVersion.startsWith("${") && depVersion.endsWith("}")) {
                     // Try to resolve property references
-                    String resolvedVersion = resolveProperty(document, depVersion);
+                    String resolvedVersion = resolvePropertyFromMap(depVersion, propertiesMap);
                     if (resolvedVersion != null) {
                         depVersion = resolvedVersion;
                     } else {
@@ -209,13 +226,18 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
     /**
      * Recursively searches for build files (pom.xml, build.gradle, build.gradle.kts)
      * in the project directory and its subdirectories.
+     * Limited to max depth to prevent excessive directory traversal.
      *
      * @param directory The directory to search in
      * @return The path to the first build file found, or null if none found
      */
     private Path searchForBuildFile(Path directory) {
         log.debug("Walking directory tree to find build files starting from: {}", directory);
-        try (var stream = Files.walk(directory)) {
+        
+        // Limit depth to prevent excessive traversal in deep project structures
+        int maxDepth = Integer.parseInt(System.getProperty("maven.build.search.maxDepth", "4"));
+        
+        try (var stream = Files.walk(directory, maxDepth)) {
             Path foundFile = stream
                 .filter(Files::isRegularFile)
                 .filter(path -> {
@@ -230,7 +252,7 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
             if (foundFile != null) {
                 log.debug("Found build file: {}", foundFile);
             } else {
-                log.debug("No build files found in directory tree: {}", directory);
+                log.debug("No build files found in directory tree (max depth: {}): {}", maxDepth, directory);
             }
             return foundFile;
         } catch (IOException e) {
@@ -367,6 +389,81 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
             }
             // Return null if property is not found, so caller can handle appropriately
             return null;
+        }
+        return propertyValue;
+    }
+    
+    /**
+     * Builds a lookup map for dependencyManagement versions keyed by "groupId:artifactId".
+     * Optimized version resolution from O(n*m) to O(1) lookups.
+     */
+    private Map<String, String> buildDependencyManagementVersionMap(Document document) {
+        Map<String, String> versionMap = new HashMap<>();
+        NodeList depMgmt = document.getElementsByTagName("dependencyManagement");
+        if (depMgmt.getLength() > 0) {
+            Element depMgmtElement = (Element) depMgmt.item(0);
+            NodeList deps = depMgmtElement.getElementsByTagName("dependency");
+            for (int i = 0; i < deps.getLength(); i++) {
+                Element dep = (Element) deps.item(i);
+                String gId = getTextContent(dep, "groupId");
+                String aId = getTextContent(dep, "artifactId");
+                String version = getTextContent(dep, "version");
+                if (gId != null && aId != null && version != null) {
+                    String key = gId + ":" + aId;
+                    versionMap.put(key, version);
+                }
+            }
+        }
+        return versionMap;
+    }
+    
+    /**
+     * Builds a lookup map for properties keyed by property name.
+     * Optimized property resolution from O(n) to O(1) lookups.
+     */
+    private Map<String, String> buildPropertiesMap(Document document) {
+        Map<String, String> propertiesMap = new HashMap<>();
+        NodeList properties = document.getElementsByTagName("properties");
+        if (properties.getLength() > 0) {
+            Element propsElement = (Element) properties.item(0);
+            NodeList propertyNodes = propsElement.getChildNodes();
+            for (int i = 0; i < propertyNodes.getLength(); i++) {
+                Node node = propertyNodes.item(i);
+                if (node.getNodeType() == Node.ELEMENT_NODE) {
+                    String propertyName = node.getNodeName();
+                    String propertyValue = node.getTextContent().trim();
+                    if (!propertyName.isEmpty() && !propertyValue.isEmpty()) {
+                        propertiesMap.put(propertyName, propertyValue);
+                    }
+                }
+            }
+        }
+        return propertiesMap;
+    }
+    
+    /**
+     * Resolves version using pre-built lookup maps for O(1) performance.
+     */
+    private String resolveVersionFromMaps(String groupId, String artifactId, 
+                                          Map<String, String> depMgmtVersions,
+                                          Map<String, String> propertiesMap,
+                                          Document document) {
+        String key = groupId + ":" + artifactId;
+        String version = depMgmtVersions.get(key);
+        if (version != null) {
+            // Resolve property if version is a property reference
+            return resolvePropertyFromMap(version, propertiesMap);
+        }
+        return null;
+    }
+    
+    /**
+     * Resolves property using pre-built lookup map for O(1) performance.
+     */
+    private String resolvePropertyFromMap(String propertyValue, Map<String, String> propertiesMap) {
+        if (propertyValue != null && propertyValue.startsWith("${") && propertyValue.endsWith("}")) {
+            String propertyName = propertyValue.substring(2, propertyValue.length() - 1);
+            return propertiesMap.get(propertyName);
         }
         return propertyValue;
     }

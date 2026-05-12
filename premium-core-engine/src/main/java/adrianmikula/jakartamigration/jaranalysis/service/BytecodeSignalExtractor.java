@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.jaranalysis.service;
 
+import adrianmikula.jakartamigration.jaranalysis.config.JarScanningConfig;
 import adrianmikula.jakartamigration.jaranalysis.domain.JarScanSignal;
 import lombok.extern.slf4j.Slf4j;
 import org.objectweb.asm.AnnotationVisitor;
@@ -38,19 +39,27 @@ public class BytecodeSignalExtractor {
         
         String artifactCoordinate = inferArtifactCoordinate(jarPath);
         
-        // Use sets to track unique class references
-        Set<String> javaxClasses = new HashSet<>();
-        Set<String> jakartaClasses = new HashSet<>();
-        Map<String, Integer> apiUsage = new HashMap<>();
-        Set<String> reflectionStrings = new HashSet<>();
+        // Estimate collection sizes to avoid resizing
+        int estimatedSize = (maxClasses > 0) ? Math.min(maxClasses, 500) : 500;
+        
+        // Use sets to track unique class references with pre-sized collections
+        Set<String> javaxClasses = new HashSet<>(estimatedSize / 4);
+        Set<String> jakartaClasses = new HashSet<>(estimatedSize / 4);
+        Map<String, Integer> apiUsage = new HashMap<>(16);
+        Set<String> reflectionStrings = new HashSet<>(estimatedSize / 10);
         boolean hasPomMetadata = false;
         boolean pomIndicatesJavax = false;
         boolean pomIndicatesJakarta = false;
         String automaticModuleName = null;
         boolean hasShadedPackages = false;
-        Set<String> testOnlyPatterns = new HashSet<>();
+        Set<String> testOnlyPatterns = new HashSet<>(8);
         
         int classesScanned = 0;
+        
+        // Early exit configuration
+        boolean earlyExitEnabled = JarScanningConfig.get().isEarlyExitEnabled();
+        int earlyExitThreshold = JarScanningConfig.get().getEarlyExitThreshold();
+        int runningScore = 0;
         
         try (JarFile jarFile = new JarFile(jarPath.toFile())) {
             // Check for pom.xml in META-INF
@@ -73,6 +82,17 @@ public class BytecodeSignalExtractor {
                         reader.accept(visitor, 
                             ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
                         classesScanned++;
+                        
+                        // Update running score for early exit
+                        if (earlyExitEnabled) {
+                            runningScore = (jakartaClasses.size() * JarScanningConfig.get().getJakartaClassRefWeight()) +
+                                          (javaxClasses.size() * JarScanningConfig.get().getJavaxClassRefWeight());
+                            if (Math.abs(runningScore) >= earlyExitThreshold) {
+                                log.debug("Early exit after {} classes (score: {}, threshold: {})", 
+                                    classesScanned, runningScore, earlyExitThreshold);
+                                break;
+                            }
+                        }
                     } catch (Exception e) {
                         log.trace("Failed to analyze class {} in {}: {}", 
                             entryName, jarPath.getFileName(), e.getMessage());

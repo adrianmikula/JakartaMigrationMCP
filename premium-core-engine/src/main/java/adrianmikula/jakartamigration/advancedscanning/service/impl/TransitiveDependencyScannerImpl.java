@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -40,6 +41,9 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
     private final JarCompatibilityScanner jarCompatibilityScanner;
     private final JarResolver jarResolver;
     private final ImprovedMavenCentralLookupService mavenCentralLookupService;
+    
+    // Classification cache to avoid repeated lookups for same artifact
+    private final Map<String, CompatibilityConfigLoader.ArtifactClassification> classificationCache = new HashMap<>(1000);
 
     // Scopes to include in transitive dependency scanning
     private static final Set<String> MAVEN_SCOPES = Set.of("compile", "provided", "runtime", "test");
@@ -338,44 +342,77 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
          // Build parent map from tree structure
          Map<String, String> parentMap = buildParentMap(treeResult.getDependencies());
 
-         // Sort dependencies by depth for breadth-first processing
-         List<DependencyTreeResult.DependencyNode> sortedNodes = treeResult.getDependencies().stream()
-                 .sorted(Comparator.comparingInt(DependencyTreeResult.DependencyNode::getDepth))
-                 .collect(Collectors.toList());
+         // Use dependencies directly without sorting - the tree structure is already ordered
+         // Sorting by depth was removed as it adds O(n log n) overhead with minimal benefit
+         List<DependencyTreeResult.DependencyNode> nodes = treeResult.getDependencies();
 
-         int totalNodes = sortedNodes.size();
+         int totalNodes = nodes.size();
          List<TransitiveDependencyUsage> usages = new ArrayList<>(totalNodes);
          int processed = 0;
 
-         for (DependencyTreeResult.DependencyNode node : sortedNodes) {
-             // Classify using CompatibilityConfigLoader
-             CompatibilityConfigLoader.ArtifactClassification classification =
-                     compatibilityConfigLoader.classifyArtifact(node.getGroupId(), node.getArtifactId());
+         // First pass: create base usages and collect those needing enrichment
+         List<TransitiveDependencyUsage> usagesNeedingJarScan = new ArrayList<>();
+         List<TransitiveDependencyUsage> usagesNeedingMavenLookup = new ArrayList<>();
+         Map<String, Integer> usageIndexMap = new HashMap<>(totalNodes);
+
+         for (DependencyTreeResult.DependencyNode node : nodes) {
+            // Classify using CompatibilityConfigLoader with caching
+            String artifactKey = node.getGroupId() + ":" + node.getArtifactId();
+            CompatibilityConfigLoader.ArtifactClassification classification =
+                    classificationCache.computeIfAbsent(artifactKey,
+                        k -> compatibilityConfigLoader.classifyArtifact(node.getGroupId(), node.getArtifactId()));
 
              // Create base usage from classification
              TransitiveDependencyUsage usage = createBaseUsage(node, classification);
-
-             // Enrich with JAR scanning if available
-             if (jarCompatibilityScanner != null && jarResolver != null) {
-                 Optional<TransitiveDependencyUsage> jarOpt = enrichWithJarScan(usage);
-                 if (jarOpt.isPresent()) {
-                     usage = jarOpt.get();
-                 }
-             }
-
-             // Enrich with Maven Central lookup if available
-             if (mavenCentralLookupService != null) {
-                 Optional<TransitiveDependencyUsage> mavenOpt = enrichWithMavenLookup(usage);
-                 if (mavenOpt.isPresent()) {
-                     usage = mavenOpt.get();
-                 }
-             }
-
              usages.add(usage);
+             
+             // Track index for later merging
+             usageIndexMap.put(usage.getArtifactKey(), usages.size() - 1);
+
+             // Collect usages needing JAR scanning
+             if (jarCompatibilityScanner != null && jarResolver != null) {
+                 if (usage.getScanReason() == ScanReason.UNKNOWN || usage.getScanReason() == ScanReason.REVIEW_REQUIRED) {
+                     usagesNeedingJarScan.add(usage);
+                 }
+             }
+
+             // Collect usages needing Maven Central lookup
+             if (mavenCentralLookupService != null) {
+                 if (usage.getScanReason() == ScanReason.UNKNOWN || usage.getScanReason() == ScanReason.BYTECODE_SCAN_UNKNOWN) {
+                     usagesNeedingMavenLookup.add(usage);
+                 }
+             }
+
              processed++;
 
              if (listener != null) {
                  listener.onPhaseProgress("", processed, totalNodes);
+             }
+         }
+         
+         // Batch JAR scanning in parallel
+         if (!usagesNeedingJarScan.isEmpty()) {
+             Map<String, TransitiveDependencyUsage> jarScanResults = enrichWithJarScansBatch(usagesNeedingJarScan);
+             // Merge results back into usages list
+             for (TransitiveDependencyUsage original : usagesNeedingJarScan) {
+                 TransitiveDependencyUsage enriched = jarScanResults.get(original.getArtifactKey());
+                 if (enriched != null) {
+                     int index = usageIndexMap.get(original.getArtifactKey());
+                     usages.set(index, enriched);
+                 }
+             }
+         }
+         
+         // Batch Maven Central lookups in parallel
+         if (!usagesNeedingMavenLookup.isEmpty()) {
+             Map<String, TransitiveDependencyUsage> mavenLookupResults = enrichWithMavenLookupsBatch(usagesNeedingMavenLookup);
+             // Merge results back into usages list
+             for (TransitiveDependencyUsage original : usagesNeedingMavenLookup) {
+                 TransitiveDependencyUsage enriched = mavenLookupResults.get(original.getArtifactKey());
+                 if (enriched != null) {
+                     int index = usageIndexMap.get(original.getArtifactKey());
+                     usages.set(index, enriched);
+                 }
              }
          }
 
@@ -475,6 +512,21 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         }
         return Optional.empty();
     }
+    
+    /**
+     * Batch enriches multiple usages with JAR bytecode scanning in parallel.
+     * Returns a map of artifactKey to enriched usage (only for successful scans).
+     */
+    private Map<String, TransitiveDependencyUsage> enrichWithJarScansBatch(List<TransitiveDependencyUsage> usages) {
+        Map<String, TransitiveDependencyUsage> results = new ConcurrentHashMap<>();
+        
+        usages.parallelStream().forEach(usage -> {
+            Optional<TransitiveDependencyUsage> enriched = enrichWithJarScan(usage);
+            enriched.ifPresent(u -> results.put(u.getArtifactKey(), u));
+        });
+        
+        return results;
+    }
 
     /**
      * Enriches a usage with Maven Central lookup if applicable.
@@ -536,6 +588,21 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         }
         return Optional.empty();
     }
+    
+    /**
+     * Batch enriches multiple usages with Maven Central lookups in parallel.
+     * Returns a map of artifactKey to enriched usage (only for successful lookups).
+     */
+    private Map<String, TransitiveDependencyUsage> enrichWithMavenLookupsBatch(List<TransitiveDependencyUsage> usages) {
+        Map<String, TransitiveDependencyUsage> results = new ConcurrentHashMap<>();
+        
+        usages.parallelStream().forEach(usage -> {
+            Optional<TransitiveDependencyUsage> enriched = enrichWithMavenLookup(usage);
+            enriched.ifPresent(u -> results.put(u.getArtifactKey(), u));
+        });
+        
+        return results;
+    }
 
     /**
      * Builds a parent map from the dependency tree structure.
@@ -554,6 +621,7 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
     /**
      * Propagates incompatibility upward through the dependency tree.
      * Marks ancestors of incompatible dependencies as TRANSITIVE_INCOMPATIBLE.
+     * Optimized to use single pass through parentMap and track already-marked nodes.
      */
     private List<TransitiveDependencyUsage> propagateIncompatibility(List<TransitiveDependencyUsage> usages,
                                                                        Map<String, String> parentMap) {
@@ -561,53 +629,60 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         Map<String, TransitiveDependencyUsage> usageMap = usages.stream()
                 .collect(Collectors.toMap(TransitiveDependencyUsage::getArtifactKey, u -> u, (a, b) -> a));
 
-        // Identify incompatible nodes
-        Set<String> incompatibleKeys = usages.stream()
-                .filter(u -> isIncompatibleReason(u.getScanReason()))
-                .map(TransitiveDependencyUsage::getArtifactKey)
-                .collect(Collectors.toSet());
+        // Track already-marked nodes to avoid duplicate processing
+        Set<String> alreadyMarked = new HashSet<>();
 
-        // Propagate incompatibility upward
-        for (String incompatibleKey : incompatibleKeys) {
-            String currentKey = incompatibleKey;
+        // Propagate incompatibility upward in single pass through parentMap
+        for (Map.Entry<String, String> entry : parentMap.entrySet()) {
+            String childKey = entry.getKey();
+            String parentKey = entry.getValue();
+            
+            TransitiveDependencyUsage childUsage = usageMap.get(childKey);
+            if (childUsage == null || !isIncompatibleReason(childUsage.getScanReason())) {
+                continue; // Only propagate from incompatible nodes
+            }
+            
+            // Walk up the tree marking ancestors
+            String currentKey = parentKey;
             while (currentKey != null) {
-                String parentKey = parentMap.get(currentKey);
-                
-                if (parentKey == null) {
-                    break; // Reached root
-                }
-
-                TransitiveDependencyUsage parentUsage = usageMap.get(parentKey);
-                if (parentUsage != null) {
-                    // Only mark if not already more severe
-                    if (parentUsage.getScanReason() != ScanReason.BLACKLISTED &&
-                        parentUsage.getScanReason() != ScanReason.BYTECODE_SCAN_JAVAX &&
-                        parentUsage.getScanReason() != ScanReason.BYTECODE_SCAN_MIXED) {
-                        
-                        // Create updated usage with TRANSITIVE_INCOMPATIBLE reason
-                        TransitiveDependencyUsage updatedUsage = new TransitiveDependencyUsage(
-                                parentUsage.getArtifactId(),
-                                parentUsage.getGroupId(),
-                                parentUsage.getVersion(),
-                                parentUsage.getJavaxPackage(),
-                                "high", // upgrade severity
-                                parentUsage.getRecommendation(),
-                                parentUsage.getScope(),
-                                parentUsage.isTransitive(),
-                                parentUsage.getDepth(),
-                                parentUsage.getAlternativeVersions(),
-                                ScanReason.TRANSITIVE_INCOMPATIBLE,
-                                "Incompatible due to transitive dependency: " + incompatibleKey,
-                                parentUsage.getConfidence(),
-                                true
-                        );
-                        
-                        // Update the map and the list
-                        usageMap.put(parentKey, updatedUsage);
-                    }
+                if (alreadyMarked.contains(currentKey)) {
+                    break; // Already marked this node, skip
                 }
                 
-                currentKey = parentKey;
+                TransitiveDependencyUsage parentUsage = usageMap.get(currentKey);
+                if (parentUsage == null) {
+                    currentKey = parentMap.get(currentKey);
+                    continue;
+                }
+                
+                // Only mark if not already more severe
+                if (parentUsage.getScanReason() != ScanReason.BLACKLISTED &&
+                    parentUsage.getScanReason() != ScanReason.BYTECODE_SCAN_JAVAX &&
+                    parentUsage.getScanReason() != ScanReason.BYTECODE_SCAN_MIXED) {
+                    
+                    // Create updated usage with TRANSITIVE_INCOMPATIBLE reason
+                    TransitiveDependencyUsage updatedUsage = new TransitiveDependencyUsage(
+                            parentUsage.getArtifactId(),
+                            parentUsage.getGroupId(),
+                            parentUsage.getVersion(),
+                            parentUsage.getJavaxPackage(),
+                            "high", // upgrade severity
+                            parentUsage.getRecommendation(),
+                            parentUsage.getScope(),
+                            parentUsage.isTransitive(),
+                            parentUsage.getDepth(),
+                            parentUsage.getAlternativeVersions(),
+                            ScanReason.TRANSITIVE_INCOMPATIBLE,
+                            "Incompatible due to transitive dependency: " + childKey,
+                            parentUsage.getConfidence(),
+                            true
+                    );
+                    
+                    usageMap.put(currentKey, updatedUsage);
+                    alreadyMarked.add(currentKey);
+                }
+                
+                currentKey = parentMap.get(currentKey);
             }
         }
 

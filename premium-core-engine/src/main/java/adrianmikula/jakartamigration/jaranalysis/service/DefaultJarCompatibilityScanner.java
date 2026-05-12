@@ -25,6 +25,9 @@ public class DefaultJarCompatibilityScanner implements JarCompatibilityScanner {
     private final JarResolver jarResolver;
     private final Cache<String, JarCompatibilityReport> resultCache;
     private final ExecutorService parallelExecutor;
+    
+    // Index for O(1) cache lookups by artifact coordinate
+    private final Map<String, String> artifactCoordinateToCacheKeyIndex = new ConcurrentHashMap<>();
 
     public DefaultJarCompatibilityScanner() {
         this(new BytecodeSignalExtractor(), new MetadataSignalExtractor(),
@@ -85,7 +88,11 @@ public class DefaultJarCompatibilityScanner implements JarCompatibilityScanner {
             JarCompatibilityReport report = new JarCompatibilityReport(signal.artifactCoordinate(),
                 scoreResult.level(), scoreResult.confidence(), scoreResult.reasons(), signal,
                 Math.max(1, System.currentTimeMillis() - startTime), false);
-            if (config.isCachingEnabled()) resultCache.put(cacheKey, report);
+            if (config.isCachingEnabled()) {
+                resultCache.put(cacheKey, report);
+                // Update index for O(1) lookups
+                artifactCoordinateToCacheKeyIndex.put(signal.artifactCoordinate(), cacheKey);
+            }
             log.info("Analyzed JAR {}: {} (confidence: {}, {} ms)", jarPath, report.level(), report.confidence(), report.analysisTimeMs());
             return report;
         } catch (Exception e) {
@@ -118,16 +125,22 @@ public class DefaultJarCompatibilityScanner implements JarCompatibilityScanner {
     @Override
     public JarCompatibilityReport getCachedResult(String artifactCoordinate) {
         if (!config.isCachingEnabled()) return null;
-        for (Map.Entry<String, JarCompatibilityReport> e : resultCache.asMap().entrySet()) {
-            if (e.getValue().artifactCoordinate().equals(artifactCoordinate)) {
-                return copyWithCachedFlag(e.getValue(), true);
+        String cacheKey = artifactCoordinateToCacheKeyIndex.get(artifactCoordinate);
+        if (cacheKey != null) {
+            JarCompatibilityReport report = resultCache.getIfPresent(cacheKey);
+            if (report != null) {
+                return copyWithCachedFlag(report, true);
             }
         }
         return null;
     }
 
     @Override
-    public boolean clearCache() { resultCache.invalidateAll(); return true; }
+    public boolean clearCache() { 
+        resultCache.invalidateAll(); 
+        artifactCoordinateToCacheKeyIndex.clear();
+        return true; 
+    }
 
     @Override
     public Map<String, Object> getCacheStats() {
