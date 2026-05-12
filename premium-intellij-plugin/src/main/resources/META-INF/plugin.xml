@@ -145,6 +145,21 @@
                           displayType="BALLOON"
                           key="license.expiration.notification"/>
 
+        <!-- Notification for Report Generation Errors -->
+        <notificationGroup id="JakartaMigration.ReportGeneration"
+                          displayType="BALLOON"
+                          key="report.generation.notification"/>
+
+        <!-- Notification for Scan Completion -->
+        <notificationGroup id="JakartaMigration.ScanCompletion"
+                          displayType="BALLOON"
+                          key="scan.completion.notification"/>
+
+        <!-- Notification for Credit Exhaustion -->
+        <notificationGroup id="JakartaMigration.CreditExhaustion"
+                          displayType="BALLOON"
+                          key="credit.exhaustion.notification"/>
+
         <!-- License Expiration Notifier - Monitors license status and notifies on expiration -->
         <postStartupActivity implementation="adrianmikula.jakartamigration.intellij.license.LicenseExpirationNotifier"/>
 

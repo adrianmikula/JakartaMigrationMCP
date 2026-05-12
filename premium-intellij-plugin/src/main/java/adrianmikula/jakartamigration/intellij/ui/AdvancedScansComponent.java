@@ -12,12 +12,19 @@ import adrianmikula.jakartamigration.intellij.ui.components.TruncationNoticePane
 import adrianmikula.jakartamigration.analytics.service.ErrorReportingService;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
 import adrianmikula.jakartamigration.analytics.service.UsageService;
+import com.intellij.notification.Notification;
+import com.intellij.notification.NotificationAction;
+import com.intellij.notification.NotificationGroupManager;
+import com.intellij.notification.NotificationType;
+import com.intellij.notification.Notifications;
+import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.table.JBTable;
+import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -618,29 +625,32 @@ public class AdvancedScansComponent {
         if (!isPremium) {
             int remainingCredits = creditsService.getRemainingCredits(CreditType.ACTIONS);
             if (remainingCredits <= 0) {
-                int result = JOptionPane.showOptionDialog(mainPanel,
-                        "You've used all your action credits. Upgrade to Premium to continue running advanced scans.\n\n" +
-                        "Credits remaining: " + remainingCredits + "\n" +
-                        "Upgrade to Premium for unlimited advanced scans.",
-                        "Action Credits Exhausted",
-                        JOptionPane.DEFAULT_OPTION,
-                        JOptionPane.INFORMATION_MESSAGE,
-                        null,
-                        new Object[]{"Upgrade to Premium", "Cancel"},
-                        "Upgrade to Premium");
-                
-                if (result == 0) {
-                    // Track upgrade click before opening marketplace
-                    try {
-                        UserIdentificationService userIdentificationService = new UserIdentificationService();
-                        UsageService usageService = new UsageService(userIdentificationService);
-                        usageService.trackUpgradeClick("advanced_scans_credit_exhausted", "AdvancedScans");
-                    } catch (Exception e) {
-                        // Log error but don't prevent upgrade
-                        System.err.println("Failed to track upgrade click analytics: " + e.getMessage());
+                Notification notification = NotificationGroupManager.getInstance()
+                        .getNotificationGroup("JakartaMigration.CreditExhaustion")
+                        .createNotification(
+                                "Credits Exhausted",
+                                "You've used all your action credits. Upgrade to Premium to continue running advanced scans.",
+                                NotificationType.WARNING);
+
+                // Add upgrade action
+                notification.addAction(new NotificationAction("Upgrade to Premium") {
+                    @Override
+                    public void actionPerformed(@NotNull AnActionEvent e, @NotNull Notification notification) {
+                        // Track upgrade click before opening marketplace
+                        try {
+                            UserIdentificationService userIdentificationService = new UserIdentificationService();
+                            UsageService usageService = new UsageService(userIdentificationService);
+                            usageService.trackUpgradeClick("advanced_scans_credit_exhausted", "AdvancedScans");
+                        } catch (Exception ex) {
+                            // Log error but don't prevent upgrade
+                            System.err.println("Failed to track upgrade click analytics: " + ex.getMessage());
+                        }
+                        openMarketplace();
+                        notification.expire();
                     }
-                    openMarketplace();
-                }
+                });
+
+                Notifications.Bus.notify(notification);
                 return;
             }
         }
@@ -712,11 +722,14 @@ public class AdvancedScansComponent {
                     displayResults(summary);
                 } catch (Exception e) {
                     LOG.error("Error running scans", e);
-                    JOptionPane.showMessageDialog(mainPanel,
-                            "Error running scans: " + e.getMessage(),
-                            "Scan Error",
-                            JOptionPane.ERROR_MESSAGE);
-                    
+                    Notification notification = NotificationGroupManager.getInstance()
+                            .getNotificationGroup("JakartaMigration.ScanCompletion")
+                            .createNotification(
+                                    "Scan Error",
+                                    "Error running scans: " + e.getMessage(),
+                                    NotificationType.ERROR);
+                    Notifications.Bus.notify(notification);
+
                     // Report error to Supabase for analytics
                     errorReportingService.reportError(e, "Advanced Scans Execution");
                 } finally {

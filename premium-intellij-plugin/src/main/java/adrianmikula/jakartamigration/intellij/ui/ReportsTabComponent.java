@@ -9,14 +9,20 @@ import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
 import adrianmikula.jakartamigration.advancedscanning.service.ScanRecipeRecommendationService;
 import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
-import adrianmikula.jakartamigration.credits.CreditType;
 import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
 import adrianmikula.jakartamigration.analytics.service.ErrorReportingService;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
+import com.intellij.notification.Notification;
+import com.intellij.notification.NotificationAction;
+import com.intellij.notification.NotificationGroupManager;
+import com.intellij.notification.NotificationType;
+import com.intellij.notification.Notifications;
+import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.diagnostic.Logger;
+import org.jetbrains.annotations.NotNull;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBLabel;
@@ -35,9 +41,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.awt.*;
 import java.awt.Desktop;
 import java.io.File;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashMap;
 
@@ -442,27 +448,55 @@ public class ReportsTabComponent {
         outputArea.append(reportType + " report generated successfully!\n");
         outputArea.append("Output file: " + result.toAbsolutePath() + "\n");
         outputArea.append("File size: " + result.toFile().length() + " bytes\n");
-        
+
         updateProgress(100, "Report generation complete");
         setGenerationState(false, reportType + " report generated successfully");
-        
-        // Ask if user wants to open file
-        int choice = Messages.showYesNoDialog(
-            project,
-            reportType + " report generated successfully!\n\nWould you like to open HTML file?",
-            "Report Generated",
-            Messages.getQuestionIcon());
-        
-        if (choice == Messages.YES) {
-            openFile(result);
-        }
+
+        // Show notification balloon with action to open file
+        String title = reportType + " Report Generated";
+        String content = "Report saved to: " + result.toAbsolutePath();
+
+        Notification notification = NotificationGroupManager.getInstance()
+                .getNotificationGroup("JakartaMigration.ReportGeneration")
+                .createNotification(title, content, NotificationType.INFORMATION);
+
+        // Add action to open the file
+        notification.addAction(new NotificationAction("Open HTML File") {
+            @Override
+            public void actionPerformed(@NotNull AnActionEvent e, @NotNull Notification notification) {
+                openFile(result);
+                notification.expire();
+            }
+        });
+
+        Notifications.Bus.notify(notification);
     }
     
     private void handleGenerationError(Throwable throwable, String reportType) {
         String errorMessage = throwable.getCause() != null ? throwable.getCause().getMessage() : throwable.getMessage();
         outputArea.append("Error generating " + reportType + " report: " + errorMessage + "\n");
         setGenerationState(false, "Error generating " + reportType + " report");
-        Messages.showErrorDialog(project, "Failed to generate " + reportType + " report: " + errorMessage, "Error");
+
+        // Check if this is an AccessDeniedException (Windows security blocking file write)
+        Throwable rootCause = throwable;
+        while (rootCause.getCause() != null) {
+            rootCause = rootCause.getCause();
+        }
+
+        if (rootCause instanceof AccessDeniedException) {
+            // Show notification balloon for access denied errors
+            String title = "Report Generation Failed - Access Denied";
+            String content = "Windows security blocked writing to the selected location. Please choose a different location (e.g., your project directory or Desktop) and try again.";
+            
+            Notification notification = NotificationGroupManager.getInstance()
+                    .getNotificationGroup("JakartaMigration.ReportGeneration")
+                    .createNotification(title, content, NotificationType.ERROR);
+            
+            Notifications.Bus.notify(notification);
+        } else {
+            // Show dialog for other errors
+            Messages.showErrorDialog(project, "Failed to generate " + reportType + " report: " + errorMessage, "Error");
+        }
         
         // Report error to Supabase for analytics
         errorReportingService.reportError(throwable, "HTML " + reportType + " Report Generation");

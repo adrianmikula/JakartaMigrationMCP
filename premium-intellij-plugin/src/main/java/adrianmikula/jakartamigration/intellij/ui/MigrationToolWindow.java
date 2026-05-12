@@ -27,6 +27,12 @@ import adrianmikula.jakartamigration.intellij.ui.components.NewFeatureNotificati
 import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
 import adrianmikula.jakartamigration.analytics.service.ErrorReportingService;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
+import com.intellij.notification.Notification;
+import com.intellij.notification.NotificationAction;
+import com.intellij.notification.NotificationGroupManager;
+import com.intellij.notification.NotificationType;
+import com.intellij.notification.Notifications;
+import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -36,6 +42,7 @@ import com.intellij.openapi.wm.ToolWindowFactory;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.*;
@@ -712,21 +719,36 @@ public class MigrationToolWindow implements ToolWindowFactory {
             if (!isPremium) {
                 // Check if user has remaining action credits
                 if (!creditsService.hasCredits(CreditType.ACTIONS)) {
-                    Messages.showWarningDialog(project, 
-                        "You've used all your free action credits. Upgrade to Premium to continue scanning projects.\n\n" +
-                        "Premium includes:\n" +
-                        "• Unlimited action credits\n" +
-                        "• Advanced scanning features\n" +
-                        "• PDF report generation\n" +
-                        "• Code refactoring tools",
-                        "Credits Exhausted");
+                    Notification notification = NotificationGroupManager.getInstance()
+                            .getNotificationGroup("JakartaMigration.CreditExhaustion")
+                            .createNotification(
+                                    "Credits Exhausted",
+                                    "You've used all your free action credits. Upgrade to Premium to continue scanning projects.",
+                                    NotificationType.WARNING);
+
+                    // Add upgrade action
+                    notification.addAction(new NotificationAction("Upgrade to Premium") {
+                        @Override
+                        public void actionPerformed(@NotNull AnActionEvent e, @NotNull Notification notification) {
+                            openMarketplace();
+                            notification.expire();
+                        }
+                    });
+
+                    Notifications.Bus.notify(notification);
                     return;
                 }
-                
+
                 // Consume one action credit for the scan
                 boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS, "Scanning", "basic_scan");
                 if (!creditConsumed) {
-                    Messages.showErrorDialog(project, "Failed to consume action credit. Please try again.", "Credit Error");
+                    Notification notification = NotificationGroupManager.getInstance()
+                            .getNotificationGroup("JakartaMigration.CreditExhaustion")
+                            .createNotification(
+                                    "Credit Error",
+                                    "Failed to consume action credit. Please try again.",
+                                    NotificationType.ERROR);
+                    Notifications.Bus.notify(notification);
                     return;
                 }
                 
@@ -761,23 +783,35 @@ public class MigrationToolWindow implements ToolWindowFactory {
                                 store.saveAnalysisReport(projectPath, report, false);
                                 updateDashboardFromReport(report);
                                 int depsCount = report.dependencyGraph().getNodes().size();
-                                Messages.showInfoMessage(project, "Analysis complete! " +
-                                        depsCount +
-                                        " dependencies analyzed.", "Analysis Complete");
+                                Notification notification = NotificationGroupManager.getInstance()
+                                        .getNotificationGroup("JakartaMigration.ScanCompletion")
+                                        .createNotification(
+                                                "Analysis Complete",
+                                                depsCount + " dependencies found",
+                                                NotificationType.INFORMATION);
+                                Notifications.Bus.notify(notification, project);
                             } else {
                                 showEmptyResultsState();
-                                Messages.showInfoMessage(project,
-                                        "Analysis complete. No Jakarta migration issues found.",
-                                        "Analysis Complete");
+                                Notification notification = NotificationGroupManager.getInstance()
+                                        .getNotificationGroup("JakartaMigration.ScanCompletion")
+                                        .createNotification(
+                                                "Analysis Complete",
+                                                "No migration issues detected",
+                                                NotificationType.INFORMATION);
+                                Notifications.Bus.notify(notification, project);
                             }
                         });
                     })
                     .exceptionally(ex -> {
                         ApplicationManager.getApplication().invokeLater(() -> {
                             dashboardComponent.setAnalysisRunning(false);
-                            Messages.showWarningDialog(project,
-                                    "Analysis failed: " + ex.getMessage(),
-                                    "Analysis Failed");
+                            Notification notification = NotificationGroupManager.getInstance()
+                                    .getNotificationGroup("JakartaMigration.ScanCompletion")
+                                    .createNotification(
+                                            "Analysis Failed",
+                                            "Analysis failed: " + ex.getMessage(),
+                                            NotificationType.ERROR);
+                            Notifications.Bus.notify(notification, project);
                         });
                         return null;
                     });
@@ -805,34 +839,46 @@ public class MigrationToolWindow implements ToolWindowFactory {
                                 store.saveAnalysisReport(projectPath, truncatedReport, false);
                                 updateDashboardFromReport(truncatedReport);
 
-                                // Show upgrade dialog with partial results message
-                                int result = Messages.showYesNoDialog(project,
-                                        String.format("Analysis complete! Showing %d of %d dependencies.\n\n" +
-                                                "You've used all your basic scan credits.\n" +
-                                                "Upgrade to Premium for unlimited scans and complete results.",
-                                                shownDeps, totalDeps),
-                                        "Credits Exhausted - Partial Results",
-                                        "Upgrade to Premium",
-                                        "Continue with Limited Results",
-                                        Messages.getInformationIcon());
+                                // Show credit exhaustion notification with partial results
+                                Notification notification = NotificationGroupManager.getInstance()
+                                        .getNotificationGroup("JakartaMigration.CreditExhaustion")
+                                        .createNotification(
+                                                "Credits Exhausted",
+                                                String.format("Showing %d of %d dependencies. Upgrade for unlimited scans.", shownDeps, totalDeps),
+                                                NotificationType.WARNING);
 
-                                if (result == Messages.YES) {
-                                    openMarketplace();
-                                }
+                                // Add upgrade action
+                                notification.addAction(new NotificationAction("Upgrade to Premium") {
+                                    @Override
+                                    public void actionPerformed(@NotNull AnActionEvent e, @NotNull Notification notification) {
+                                        openMarketplace();
+                                        notification.expire();
+                                    }
+                                });
+
+                                Notifications.Bus.notify(notification);
                             } else {
                                 showEmptyResultsState();
-                                Messages.showInfoMessage(project,
-                                        "Analysis complete. No Jakarta migration issues found.",
-                                        "Analysis Complete");
+                                Notification notification = NotificationGroupManager.getInstance()
+                                        .getNotificationGroup("JakartaMigration.ScanCompletion")
+                                        .createNotification(
+                                                "Analysis Complete",
+                                                "No migration issues detected",
+                                                NotificationType.INFORMATION);
+                                Notifications.Bus.notify(notification);
                             }
                         });
                     })
                     .exceptionally(ex -> {
                         ApplicationManager.getApplication().invokeLater(() -> {
                             dashboardComponent.setAnalysisRunning(false);
-                            Messages.showWarningDialog(project,
-                                    "Analysis failed: " + ex.getMessage(),
-                                    "Analysis Failed");
+                            Notification notification = NotificationGroupManager.getInstance()
+                                    .getNotificationGroup("JakartaMigration.ScanCompletion")
+                                    .createNotification(
+                                            "Analysis Failed",
+                                            "Analysis failed: " + ex.getMessage(),
+                                            NotificationType.ERROR);
+                            Notifications.Bus.notify(notification);
                         });
                         return null;
                     });
@@ -937,15 +983,21 @@ public class MigrationToolWindow implements ToolWindowFactory {
                             LOG.info("runFullAnalysis: All scans completed successfully");
                             boolean isPremium = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
                             if (isPremium) {
-                                Messages.showInfoMessage(project,
-                                        "Analysis complete! Deep dependency, advanced, and platform scans finished.",
-                                        "Analysis Complete");
+                                Notification notification = NotificationGroupManager.getInstance()
+                                        .getNotificationGroup("JakartaMigration.ScanCompletion")
+                                        .createNotification(
+                                                "Analysis Complete",
+                                                "Deep dependency, advanced, and platform scans finished",
+                                                NotificationType.INFORMATION);
+                                Notifications.Bus.notify(notification);
                             } else {
-                                Messages.showInfoMessage(project,
-                                        "Analysis complete! Showing all dependencies found.\n\n" +
-                                        "Note: Free users see first 10 dependencies in the Dependencies tab. " +
-                                        "Upgrade to Premium for unlimited access.",
-                                        "Analysis Complete");
+                                Notification notification = NotificationGroupManager.getInstance()
+                                        .getNotificationGroup("JakartaMigration.ScanCompletion")
+                                        .createNotification(
+                                                "Analysis Complete",
+                                                "Showing all dependencies found. Free users see first 10 dependencies in Dependencies tab",
+                                                NotificationType.INFORMATION);
+                                Notifications.Bus.notify(notification);
                             }
                         });
                     })
@@ -955,9 +1007,13 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         ApplicationManager.getApplication().invokeLater(() -> {
                             dashboardComponent.setAnalysisRunning(false);
                             LOG.error("runFullAnalysis: Analysis failed", ex);
-                            Messages.showWarningDialog(project,
-                                    "Analysis failed: " + ex.getMessage(),
-                                    "Analysis Failed");
+                            Notification notification = NotificationGroupManager.getInstance()
+                                    .getNotificationGroup("JakartaMigration.ScanCompletion")
+                                    .createNotification(
+                                            "Analysis Failed",
+                                            "Analysis failed: " + ex.getMessage(),
+                                            NotificationType.ERROR);
+                            Notifications.Bus.notify(notification);
                         });
                         return null;
                     });
