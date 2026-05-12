@@ -1077,13 +1077,24 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 return deps;
             }
 
+            // Build a set of artifacts that have incoming edges (transitive dependencies)
+            Set<String> hasIncomingEdges = new HashSet<>();
+            for (adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency dep : report.dependencyGraph().getEdges()) {
+                hasIncomingEdges.add(dep.to().groupId() + ":" + dep.to().artifactId());
+            }
+
             for (Artifact artifact : report.dependencyGraph().getNodes()) {
                 DependencyInfo info = new DependencyInfo();
                 info.setArtifactId(artifact.artifactId());
                 info.setGroupId(artifact.groupId());
                 info.setCurrentVersion(artifact.version());
-                info.setTransitive(artifact.transitive());
-                info.setDepth(artifact.transitive() ? 1 : 0); // Basic analysis only knows direct vs transitive
+                
+                // Determine if this is a transitive dependency based on incoming edges
+                String artifactId = artifact.groupId() + ":" + artifact.artifactId();
+                boolean isTransitive = hasIncomingEdges.contains(artifactId);
+                info.setTransitive(isTransitive);
+                info.setDepth(isTransitive ? 1 : 0);
+                
                 info.setScope(artifact.scope());
                 deps.add(info);
             }

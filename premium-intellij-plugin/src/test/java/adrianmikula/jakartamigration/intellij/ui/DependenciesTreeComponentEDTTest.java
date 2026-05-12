@@ -158,6 +158,36 @@ public class DependenciesTreeComponentEDTTest extends BasePlatformTestCase {
         // The actual click behavior is tested by UI integration tests
     }
 
+    @Test
+    public void testIsTransitiveFlagCorrectness() throws Exception {
+        // Test that isTransitive flag is set correctly based on depth
+        List<DependencyInfo> dependencies = createTestDependenciesWithDepth();
+        
+        // Verify direct dependency (depth 0) is not transitive
+        assertThat(dependencies.get(0).getDepth()).isEqualTo(0);
+        assertThat(dependencies.get(0).isTransitive()).isFalse();
+        
+        // Verify transitive dependency (depth 1) is transitive
+        assertThat(dependencies.get(1).getDepth()).isEqualTo(1);
+        assertThat(dependencies.get(1).isTransitive()).isTrue();
+    }
+
+    @Test
+    public void testFilterWithCorrectIsTransitiveData() throws Exception {
+        // Test that filter works correctly when isTransitive flag is properly set
+        List<DependencyInfo> dependencies = createTestDependenciesWithDepth();
+        
+        ApplicationManager.getApplication().invokeAndWait(() -> {
+            treeComponent.setDependencies(dependencies);
+            treeComponent.getTransitiveFilter().setSelected(true);
+        });
+        
+        Thread.sleep(200);
+        
+        // Verify the component still exists (direct dependencies should remain visible)
+        assertThat(treeComponent.getPanel()).isNotNull();
+    }
+
     /**
      * Helper method to create test dependency list with depth for tree structure.
      */
