@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.advancedscanning.domain.*;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import adrianmikula.jakartamigration.analysis.persistence.ObjectMapperService;
 import adrianmikula.jakartamigration.credits.CreditType;
 import adrianmikula.jakartamigration.credits.CreditsService;
@@ -661,10 +662,7 @@ public class AdvancedScansComponent {
         }
 
         if (projectPathStr == null) {
-            JOptionPane.showMessageDialog(mainPanel,
-                    "Cannot determine project path. Please open a project first.",
-                    "Scan Failed",
-                    JOptionPane.WARNING_MESSAGE);
+            NotificationHelper.showWarning(project, "Scan Failed", "Cannot determine project path. Please open a project first.");
             return;
         }
 

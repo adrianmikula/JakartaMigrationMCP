@@ -8,6 +8,7 @@ import adrianmikula.jakartamigration.platforms.service.SimplifiedPlatformDetecti
 import adrianmikula.jakartamigration.platforms.config.PlatformConfigLoader;
 import adrianmikula.jakartamigration.platforms.config.RiskScoringConfig;
 import adrianmikula.jakartamigration.intellij.util.DevModeLogger;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBLabel;
@@ -430,10 +431,7 @@ public class PlatformsTabComponent {
      * Displays error message
      */
     private void displayError(String message) {
-        JOptionPane.showMessageDialog(mainPanel,
-                message,
-                "Error",
-                JOptionPane.ERROR_MESSAGE);
+        NotificationHelper.showError(project, "Error", message);
     }
 
     /**

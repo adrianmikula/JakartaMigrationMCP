@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.coderefactoring.domain.*;
 import adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition.RecipeStatus;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import adrianmikula.jakartamigration.credits.CreditType;
 import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
@@ -550,7 +551,7 @@ public class RefactorTabComponent {
                                 }
                                 Messages.showInfoMessage(project, successMessage, "Success");
                             } else {
-                                Messages.showErrorDialog(project, "Failed: " + result.errorMessage(), "Error");
+                                NotificationHelper.showError(project, "Error", "Failed: " + result.errorMessage());
                             }
                             refreshAllRecipes();
                             // Re-select to update status/date in details panel
@@ -645,8 +646,7 @@ public class RefactorTabComponent {
                                 }
                                 Messages.showInfoMessage(project, undoMessage, "Undo Complete");
                             } else {
-                                Messages.showErrorDialog(project, "Undo failed: " + result.errorMessage(),
-                                        "Undo Failed");
+                                NotificationHelper.showError(project, "Undo Failed", "Undo failed: " + result.errorMessage());
                             }
                             refreshAllRecipes();
                             if (onRecipeExecuted != null) {

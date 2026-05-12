@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.coderefactoring.domain.RecipeExecutionHistory;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import adrianmikula.jakartamigration.credits.CreditType;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
@@ -200,13 +201,13 @@ public class HistoryTabComponent {
 
         if ("Undone".equals(status)) {
             ApplicationManager.getApplication().invokeLater(() ->
-                Messages.showErrorDialog(project, "This action has already been undone.", "Already Undone"));
+                NotificationHelper.showError(project, "Already Undone", "This action has already been undone."));
             return;
         }
 
         if ("Failed".equals(status)) {
             ApplicationManager.getApplication().invokeLater(() ->
-                Messages.showErrorDialog(project, "Cannot undo a failed execution.", "Cannot Undo"));
+                NotificationHelper.showError(project, "Cannot Undo", "Cannot undo a failed execution."));
             return;
         }
 

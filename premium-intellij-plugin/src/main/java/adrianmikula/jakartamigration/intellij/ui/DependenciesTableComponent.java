@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.ui.components.TruncationHelper;
 import adrianmikula.jakartamigration.intellij.ui.components.TruncationNoticePanel;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService.JakartaArtifactMatch;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
@@ -453,9 +454,9 @@ public class DependenciesTableComponent {
         }
         
         if (!isPremiumUser) {
-            Messages.showWarningDialog(project, 
-                    "Applying recipes requires a Premium license.\nPlease upgrade to Premium to use this feature.", 
-                    "Premium Feature");
+            NotificationHelper.showWarning(project,
+                    "Premium Feature",
+                    "Applying recipes requires a Premium license.\nPlease upgrade to Premium to use this feature.");
             return;
         }
         
@@ -476,24 +477,24 @@ public class DependenciesTableComponent {
                 adrianmikula.jakartamigration.coderefactoring.domain.RecipeExecutionResult result = recipeService.applyRecipe(selectedRecipe, projectPath);
                 
                 if (result != null && result.success()) {
-                    Messages.showInfoMessage(project, 
-                            "Successfully applied recipe '" + selectedRecipe + "' to migrate " + dep.getDisplayName() + ".\n\nThe refactoring has been completed. Please review the changes and run tests.", 
+                    Messages.showInfoMessage(project,
+                            "Successfully applied recipe '" + selectedRecipe + "' to migrate " + dep.getDisplayName() + ".\n\nThe refactoring has been completed. Please review the changes and run tests.",
                             "Recipe Applied Successfully");
                 } else {
                     String errorMessage = result != null ? result.errorMessage() : "Unknown error";
-                    Messages.showErrorDialog(project, 
-                            "Failed to apply recipe '" + selectedRecipe + "' to migrate " + dep.getDisplayName() + ".\n\nError: " + errorMessage, 
-                            "Recipe Application Failed");
+                    NotificationHelper.showError(project,
+                            "Recipe Application Failed",
+                            "Failed to apply recipe '" + selectedRecipe + "' to migrate " + dep.getDisplayName() + ".\n\nError: " + errorMessage);
                 }
             } else {
-                Messages.showErrorDialog(project, 
-                        "Recipe service not available. Please ensure the Jakarta Migration plugin is properly configured.", 
-                        "Service Unavailable");
+                NotificationHelper.showError(project,
+                        "Service Unavailable",
+                        "Recipe service not available. Please ensure the Jakarta Migration plugin is properly configured.");
             }
         } catch (Exception e) {
-            Messages.showErrorDialog(project, 
-                    "Error applying recipe '" + selectedRecipe + "': " + e.getMessage(), 
-                    "Recipe Application Error");
+            NotificationHelper.showError(project,
+                    "Recipe Application Error",
+                    "Error applying recipe '" + selectedRecipe + "': " + e.getMessage());
         }
     }
 
@@ -913,7 +914,7 @@ public class DependenciesTableComponent {
     private void handleUpdate(ActionEvent e) {
         List<DependencyInfo> selected = getSelectedDependencies();
         if (selected.isEmpty()) {
-            Messages.showWarningDialog(project, "Please select dependencies to update.", "No Selection");
+            NotificationHelper.showWarning(project, "No Selection", "Please select dependencies to update.");
             return;
         }
 
@@ -936,7 +937,7 @@ public class DependenciesTableComponent {
     private void handleViewDetails(ActionEvent e) {
         List<DependencyInfo> selected = getSelectedDependencies();
         if (selected.isEmpty()) {
-            Messages.showWarningDialog(project, "Please select a dependency to view details.", "No Selection");
+            NotificationHelper.showWarning(project, "No Selection", "Please select a dependency to view details.");
             return;
         }
         showDependencyDetails(selected.get(0));

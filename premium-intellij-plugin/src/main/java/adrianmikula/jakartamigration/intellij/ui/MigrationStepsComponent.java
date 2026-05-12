@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBPanel;
@@ -100,9 +101,7 @@ public class MigrationStepsComponent {
                 "Starting: " + step + "\n\nThis will launch the appropriate migration tool.",
                 "Start Migration");
         } else {
-            Messages.showWarningDialog(project,
-                "Please select a step to start.",
-                "No Step Selected");
+            NotificationHelper.showWarning(project, "No Step Selected", "Please select a step to start.");
         }
     }
     

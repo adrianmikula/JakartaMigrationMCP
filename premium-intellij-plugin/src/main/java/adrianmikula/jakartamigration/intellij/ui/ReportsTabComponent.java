@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.pdfreporting.service.PdfReportService;
 import adrianmikula.jakartamigration.pdfreporting.service.impl.HtmlToPdfReportServiceImpl;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
@@ -495,7 +496,7 @@ public class ReportsTabComponent {
             Notifications.Bus.notify(notification);
         } else {
             // Show dialog for other errors
-            Messages.showErrorDialog(project, "Failed to generate " + reportType + " report: " + errorMessage, "Error");
+            NotificationHelper.showError(project, "Error", "Failed to generate " + reportType + " report: " + errorMessage);
         }
         
         // Report error to Supabase for analytics
@@ -722,8 +723,8 @@ public class ReportsTabComponent {
         try {
             Desktop.getDesktop().open(file.toFile());
         } catch (Exception e) {
-            Messages.showErrorDialog(project, "Failed to open HTML file: " + e.getMessage(), "Error");
-            
+            NotificationHelper.showError(project, "Error", "Failed to open HTML file: " + e.getMessage());
+
             // Report error to Supabase for analytics
             errorReportingService.reportError(e, "HTML File Open Operation");
         }

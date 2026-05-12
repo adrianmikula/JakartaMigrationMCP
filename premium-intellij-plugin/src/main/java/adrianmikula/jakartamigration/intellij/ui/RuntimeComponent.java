@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.intellij.service.RuntimeVerificationService;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import adrianmikula.jakartamigration.runtimeverification.domain.*;
 import adrianmikula.jakartamigration.analytics.service.ErrorReportingService;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
@@ -176,7 +177,7 @@ public class RuntimeComponent {
 
     private void handleRunHealthCheck(ActionEvent e) {
         if (selectedJarPath == null) {
-            Messages.showWarningDialog(project, "Please select a JAR file first.", "No JAR Selected");
+            NotificationHelper.showWarning(project, "No JAR Selected", "Please select a JAR file first.");
             return;
         }
 
@@ -202,7 +203,7 @@ public class RuntimeComponent {
                     statusLabel.setForeground(Color.RED);
                     progressBar.setIndeterminate(false);
                     runHealthCheckButton.setEnabled(true);
-                    Messages.showErrorDialog(project, "Analysis failed: " + ex.getMessage(), "Error");
+                    NotificationHelper.showError(project, "Error", "Analysis failed: " + ex.getMessage());
                 });
             }
         });
@@ -216,9 +217,9 @@ public class RuntimeComponent {
             statusLabel.setText("Found " + currentErrors.size() + " runtime issues");
             statusLabel.setForeground(Color.ORANGE);
 
-            Messages.showWarningDialog(project,
-                    "Analysis found " + currentErrors.size() + " runtime issues.",
-                    "Issues Found");
+            NotificationHelper.showWarning(project,
+                    "Issues Found",
+                    "Analysis found " + currentErrors.size() + " runtime issues.");
         } else {
             currentErrors = new ArrayList<>();
             displayErrors(currentErrors);
@@ -238,9 +239,9 @@ public class RuntimeComponent {
 
     private void handleAnalyzeErrors(ActionEvent e) {
         if (currentErrors == null || currentErrors.isEmpty()) {
-            Messages.showWarningDialog(project,
-                    "No errors to analyze. Run a health check first.",
-                    "No Errors");
+            NotificationHelper.showWarning(project,
+                    "No Errors",
+                    "No errors to analyze. Run a health check first.");
             return;
         }
 
@@ -281,9 +282,9 @@ public class RuntimeComponent {
 
     private void handleRemediate(ActionEvent e) {
         if (currentErrors == null || currentErrors.isEmpty()) {
-            Messages.showWarningDialog(project,
-                    "No errors to remediate. Run a health check first.",
-                    "No Errors");
+            NotificationHelper.showWarning(project,
+                    "No Errors",
+                    "No errors to remediate. Run a health check first.");
             return;
         }
 

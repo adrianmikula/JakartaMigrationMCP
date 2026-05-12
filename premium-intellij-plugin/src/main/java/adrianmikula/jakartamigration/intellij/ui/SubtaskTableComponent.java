@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -281,7 +282,7 @@ public class SubtaskTableComponent {
         SwingUtilities.invokeLater(() -> {
             subtask.setInProgress(false);
             if (message != null && !message.contains("successfully") && !message.contains("updated successfully")) {
-                Messages.showMessageDialog(project, message, "Action Failed", Messages.getWarningIcon());
+                NotificationHelper.showError(project, "Action Failed", message);
             } else if (message != null) {
                 Messages.showInfoMessage(project, message, "Action Complete");
             }

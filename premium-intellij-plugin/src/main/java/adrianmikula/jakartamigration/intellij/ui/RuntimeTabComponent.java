@@ -7,6 +7,7 @@ import adrianmikula.jakartamigration.runtimeverification.domain.RemediationStep;
 import adrianmikula.jakartamigration.runtimeverification.domain.RuntimeError;
 import adrianmikula.jakartamigration.runtimeverification.domain.SimilarPastFailure;
 import adrianmikula.jakartamigration.runtimeverification.service.ErrorAnalyzer;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -146,7 +147,7 @@ public class RuntimeTabComponent {
         String errorText = errorInputArea.getText();
         
         if (errorText == null || errorText.trim().isEmpty()) {
-            Messages.showWarningDialog(project, "Please paste error output first.", "No Input");
+            NotificationHelper.showWarning(project, "No Input", "Please paste error output first.");
             return;
         }
         

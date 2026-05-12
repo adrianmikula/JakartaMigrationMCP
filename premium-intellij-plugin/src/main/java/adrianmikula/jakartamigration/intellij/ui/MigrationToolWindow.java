@@ -22,6 +22,7 @@ import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import adrianmikula.jakartamigration.intellij.ui.DevTabComponent;
 import adrianmikula.jakartamigration.intellij.ui.SimplePlatformsTabComponent;
 import adrianmikula.jakartamigration.intellij.ui.PlatformsTabComponent;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import adrianmikula.jakartamigration.intellij.ui.ReportsTabComponent;
 import adrianmikula.jakartamigration.intellij.ui.components.NewFeatureNotification;
 import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
@@ -708,8 +709,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             }
 
             if (projectPathStr == null) {
-                Messages.showWarningDialog(project, "Cannot determine project path. Please open a project first.",
-                        "Analysis Failed");
+                NotificationHelper.showWarning(project, "Analysis Failed", "Cannot determine project path. Please open a project first.");
                 return;
             }
 
@@ -1093,10 +1093,10 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     DependencyAnalysisReport report = analysisService.analyzeProject(projectPath);
                     if (report != null && report.dependencyGraph() != null) {
                         ApplicationManager.getApplication().invokeLater(() -> {
-                            Messages.showWarningDialog(project,
+                            NotificationHelper.showWarning(project,
+                                    "Deep Scan Failed",
                                     "Deep dependency scanning failed: " + e.getMessage() + "\n" +
-                                    "Falling back to declared dependencies only.",
-                                    "Deep Scan Failed");
+                                    "Falling back to declared dependencies only.");
                             updateDashboardFromReport(report);
                         });
                         return convertBasicReportToDependencyInfo(report);
