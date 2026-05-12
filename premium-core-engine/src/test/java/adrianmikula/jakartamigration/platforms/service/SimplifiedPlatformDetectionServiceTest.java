@@ -453,42 +453,136 @@ public class SimplifiedPlatformDetectionServiceTest {
     }
 
     @Test
-    @DisplayName("Should not over-detect platforms for project with only web.xml")
+    @DisplayName("Should not assume platforms for project with only web.xml")
     void testNoOverDetection_OnlyWebXmlPresent() throws IOException {
         // Given - project with only web.xml (no specific platform indicators)
         Path projectPath = createProjectWithOnlyWebXml();
-        
+
         // When
         List<String> detectedServers = detectionService.scanProject(projectPath);
-        
-        // Then - should be conservative and not detect multiple platforms
-        assertThat(detectedServers).hasSizeLessThanOrEqualTo(1);
+
+        // Then - should not assume any platform based on artifacts alone
+        assertThat(detectedServers).isEmpty();
     }
 
     @Test
-    @DisplayName("Should not over-detect platforms for project with only WAR file")
+    @DisplayName("Should not assume platforms for project with only WAR file")
     void testNoOverDetection_OnlyWarPresent() throws IOException {
         // Given - project with only WAR file (no specific platform indicators)
         Path projectPath = createProjectWithOnlyWar();
-        
+
         // When
         List<String> detectedServers = detectionService.scanProject(projectPath);
-        
-        // Then - should be conservative and not detect multiple platforms
-        assertThat(detectedServers).hasSizeLessThanOrEqualTo(1);
+
+        // Then - should not assume Tomcat based on WAR artifact alone
+        assertThat(detectedServers).isEmpty();
     }
 
     @Test
-    @DisplayName("Should not over-detect platforms for project with only EAR file")
+    @DisplayName("Should not assume platforms for project with only EAR file")
     void testNoOverDetection_OnlyEarPresent() throws IOException {
         // Given - project with only EAR file (no specific platform indicators)
         Path projectPath = createProjectWithOnlyEar();
-        
+
         // When
         List<String> detectedServers = detectionService.scanProject(projectPath);
-        
-        // Then - should be conservative and not detect multiple platforms
-        assertThat(detectedServers).hasSizeLessThanOrEqualTo(1);
+
+        // Then - should not assume WildFly based on EAR artifact alone
+        assertThat(detectedServers).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should detect JBoss from Eclipse .classpath file")
+    void testDetectJBossFromClasspathFile() throws IOException {
+        // Given - Eclipse project with JBoss runtime reference in .classpath
+        Path projectPath = tempDir.resolve("eclipse-jboss-project");
+        Files.createDirectories(projectPath);
+
+        String classpathContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <classpath>
+                <classpathentry kind="src" path="src"/>
+                <classpathentry kind="con" path="org.eclipse.jst.server.core.container/org.jboss.ide.eclipse.as.core.server.runtime.runtimeTarget/JBoss 4.0 Runtime Example">
+                    <attributes>
+                        <attribute name="owner.project.facets" value="jst.ejb"/>
+                    </attributes>
+                </classpathentry>
+                <classpathentry kind="con" path="org.eclipse.jst.j2ee.internal.module.container"/>
+                <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/6.0.119-zulu">
+                    <attributes>
+                        <attribute name="owner.project.facets" value="java"/>
+                    </attributes>
+                </classpathentry>
+                <classpathentry kind="output" path="build/classes"/>
+            </classpath>
+            """;
+        Files.write(projectPath.resolve(".classpath"), classpathContent.getBytes());
+
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+
+        // Then - Should detect JBoss/WildFly from .classpath file
+        assertThat(detectedServers).contains("wildfly");
+        assertThat(detectedServers).doesNotContain("tomcat");
+    }
+
+    @Test
+    @DisplayName("Should detect JBoss EAP from Eclipse .classpath file")
+    void testDetectJBossEAPFromClasspathFile() throws IOException {
+        // Given - Eclipse project with JBoss EAP runtime reference in .classpath
+        Path projectPath = tempDir.resolve("eclipse-jbosseap-project");
+        Files.createDirectories(projectPath);
+
+        String classpathContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <classpath>
+                <classpathentry kind="src" path="src"/>
+                <classpathentry kind="con" path="org.eclipse.jst.server.core.container/org.jboss.ide.eclipse.as.core.server.runtime.runtimeTarget/JBoss EAP 7.0 Runtime">
+                    <attributes>
+                        <attribute name="owner.project.facets" value="jst.ejb"/>
+                    </attributes>
+                </classpathentry>
+                <classpathentry kind="output" path="build/classes"/>
+            </classpath>
+            """;
+        Files.write(projectPath.resolve(".classpath"), classpathContent.getBytes());
+
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+
+        // Then - Should detect JBoss EAP from .classpath file
+        assertThat(detectedServers).contains("jbosseap");
+        assertThat(detectedServers).doesNotContain("tomcat");
+    }
+
+    @Test
+    @DisplayName("Should detect Tomcat from Eclipse .classpath file")
+    void testDetectTomcatFromClasspathFile() throws IOException {
+        // Given - Eclipse project with Tomcat runtime reference in .classpath
+        Path projectPath = tempDir.resolve("eclipse-tomcat-project");
+        Files.createDirectories(projectPath);
+
+        String classpathContent = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <classpath>
+                <classpathentry kind="src" path="src"/>
+                <classpathentry kind="con" path="org.eclipse.jst.server.core.container/org.eclipse.jst.server.tomcat.runtimeTarget/Apache Tomcat v9.0">
+                    <attributes>
+                        <attribute name="owner.project.facets" value="jst.web"/>
+                    </attributes>
+                </classpathentry>
+                <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+                <classpathentry kind="output" path="build/classes"/>
+            </classpath>
+            """;
+        Files.write(projectPath.resolve(".classpath"), classpathContent.getBytes());
+
+        // When
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+
+        // Then - Should detect Tomcat from .classpath file
+        assertThat(detectedServers).contains("tomcat");
+        assertThat(detectedServers).doesNotContain("wildfly");
     }
     
     // Helper methods for creating test projects
