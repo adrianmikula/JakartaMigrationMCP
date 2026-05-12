@@ -22,7 +22,7 @@ import java.util.List;
  * Tree component for displaying dependencies in a hierarchical structure.
  * Experimental feature added as a new tab alongside the flat table view.
  */
-public class DependenciesTreeComponent {
+public class DependenciesTreeComponent extends AbstractDependencyUIComponent {
     private final JPanel panel;
     private final JTree tree;
     private final JCheckBox transitiveFilter;
@@ -68,6 +68,7 @@ public class DependenciesTreeComponent {
         tree.setRootVisible(false);
         tree.setSelectionModel(new DefaultTreeSelectionModel());
         tree.getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        tree.setToggleClickCount(1); // Enable single-click expand/collapse
         
         JBScrollPane scrollPane = new JBScrollPane(tree);
         tree.setShowsRootHandles(true);
@@ -103,9 +104,15 @@ public class DependenciesTreeComponent {
     /**
      * Set the dependencies to display in the tree.
      */
+    @Override
     public void setDependencies(List<DependencyInfo> dependencies) {
         this.allDependencies = dependencies != null ? dependencies : new ArrayList<>();
         applyFilters();
+    }
+
+    @Override
+    public void clearDependencies() {
+        setDependencies(new ArrayList<>());
     }
 
     /**

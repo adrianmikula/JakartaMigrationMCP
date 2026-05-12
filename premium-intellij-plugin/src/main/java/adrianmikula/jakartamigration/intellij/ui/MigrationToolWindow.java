@@ -82,6 +82,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private DependenciesTableComponent dependenciesComponent;
         private DependenciesTreeComponent dependenciesTreeComponent;
         private DependencyGraphComponent dependencyGraphComponent;
+        private DependencyUIManager dependencyUIManager;
         private MigrationPhasesComponent migrationPhasesComponent;
         private AdvancedScansComponent advancedScansComponent;
         private SupportComponent supportComponent;
@@ -214,6 +215,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Dependency Graph tab
             dependencyGraphComponent = new DependencyGraphComponent(project);
             tabbedPane.addTab("Dependency Graph", dependencyGraphComponent.getPanel());
+
+            // Initialize dependency UI manager to coordinate updates across all dependency components
+            dependencyUIManager = new DependencyUIManager(dependenciesComponent, dependenciesTreeComponent, dependencyGraphComponent);
 
             // Migration Strategy tab - strategy cards with benefits/risks and migration
             // steps
@@ -1033,8 +1037,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 // Update UI with deep results
                 ApplicationManager.getApplication().invokeLater(() -> {
                     if (!dependencyInfos.isEmpty()) {
-                        dependenciesComponent.setDependencies(dependencyInfos);
-                        dependenciesTreeComponent.setDependencies(dependencyInfos);
+                        dependencyUIManager.updateAllDependencies(dependencyInfos);
                         LOG.info("runDeepDependencyAnalysis: Updated Dependencies table and tree with deep scan results");
                     }
                 });
@@ -1094,11 +1097,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private void storeDeepDependencyResults(Path projectPath, List<DependencyInfo> deepScanResult) {
             LOG.info("storeDeepDependencyResults: Storing " + deepScanResult.size() + " dependencies");
 
-            // Update Dependencies table
-            dependenciesComponent.setDependencies(deepScanResult);
-
-            // Update Dependency Graph (if component supports DependencyInfo)
-            // Note: dependencyGraphComponent currently uses DependencyGraph, may need adaptation
+            // Update all dependency components via manager
+            dependencyUIManager.updateAllDependencies(deepScanResult);
 
             // Store in cache/database if needed
             // store.saveDeepDependencyResults(projectPath, deepScanResult);
@@ -1123,11 +1123,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Update dashboard components with new data
             dashboardComponent.setDashboard(dashboard);
-            dependenciesComponent.setDependencies(new ArrayList<>());
+            dependencyUIManager.clearAllDependencies();
             migrationPhasesComponent.setDependencies(new ArrayList<>());
-
-            // Clear the dependency graph
-            dependencyGraphComponent.updateGraphFromDependencyGraph(new DependencyGraph());
         }
 
         /**
@@ -1268,7 +1265,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             }
 
             // Update the dependency graph with real relationships and status
-            dependencyGraphComponent.updateGraphFromDependencyGraph(report.dependencyGraph(), statusMap);
+            dependencyUIManager.updateDependencyGraph(report.dependencyGraph(), statusMap);
 
             // Set org namespace patterns for the dependency graph component
             dependencyGraphComponent.setOrgNamespacePatterns(orgPatterns);
@@ -1317,8 +1314,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Update dashboard components with new data
             dashboardComponent.setDashboard(dashboard);
-            dependenciesComponent.setDependencies(deps);
-            dependenciesTreeComponent.setDependencies(deps);
+            dependencyUIManager.updateAllDependencies(deps);
             migrationPhasesComponent.setDependencies(deps);
         }
 
@@ -1437,7 +1433,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Update dashboard components with new data
             dashboardComponent.setDashboard(dashboard);
-            dependenciesComponent.setDependencies(new ArrayList<>());
+            dependencyUIManager.clearAllDependencies();
             migrationPhasesComponent.setDependencies(new ArrayList<>());
         }
 
@@ -1455,7 +1451,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 }
                 
                 // Update dependency graph with new statuses
-                dependencyGraphComponent.updateNodeStatuses(updatedStatusMap);
+                dependencyUIManager.updateNodeStatuses(updatedStatusMap);
                 
                 LOG.info("Dependency graph refreshed with " + updatedDependencies.size() + " updated statuses");
             });

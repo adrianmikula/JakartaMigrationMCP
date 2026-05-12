@@ -45,7 +45,7 @@ import javax.swing.table.TableCellRenderer;
  * - Jakarta Equivalent columns
  * - Bottom panel for refactoring recipes (premium feature)
  */
-public class DependenciesTableComponent {
+public class DependenciesTableComponent extends AbstractDependencyUIComponent {
     private final JPanel panel;
     private final Project project;
     private final JBTable table;
@@ -521,6 +521,11 @@ public class DependenciesTableComponent {
         if (!this.allDependencies.isEmpty()) {
             queryMavenCentralForDependencies();
         }
+    }
+
+    @Override
+    public void clearDependencies() {
+        setDependencies(new ArrayList<>());
     }
 
     public List<DependencyInfo> getSelectedDependencies() {
