@@ -1004,7 +1004,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 try {
                     DependencyAnalysisReport report = analysisService.analyzeProject(projectPath);
                     if (report != null && report.dependencyGraph() != null) {
-                        updateDashboardFromReport(report);
+                        ApplicationManager.getApplication().invokeLater(() -> {
+                            updateDashboardFromReport(report);
+                        });
                         return convertBasicReportToDependencyInfo(report);
                     }
                 } catch (Exception e) {
