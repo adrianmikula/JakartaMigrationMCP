@@ -185,6 +185,10 @@ public class JarScanningConfig {
         return features.earlyExitThreshold;
     }
 
+    public boolean isUseVirtualThreads() {
+        return features.useVirtualThreads;
+    }
+
     // ========== Cache Configuration ==========
 
     public int getCacheMaxSize() {
@@ -315,6 +319,7 @@ public class JarScanningConfig {
         boolean detectTestScope = true;
         boolean earlyExit = true;
         int earlyExitThreshold = 10;
+        boolean useVirtualThreads = true;
 
         void loadFromMap(Map<String, Object> map) {
             if (map.containsKey("enableDeepScanning")) enableDeepScanning = (Boolean) map.get("enableDeepScanning");
@@ -324,6 +329,7 @@ public class JarScanningConfig {
             if (map.containsKey("detectTestScope")) detectTestScope = (Boolean) map.get("detectTestScope");
             if (map.containsKey("earlyExit")) earlyExit = (Boolean) map.get("earlyExit");
             if (map.containsKey("earlyExitThreshold")) earlyExitThreshold = ((Number) map.get("earlyExitThreshold")).intValue();
+            if (map.containsKey("useVirtualThreads")) useVirtualThreads = (Boolean) map.get("useVirtualThreads");
         }
     }
 }

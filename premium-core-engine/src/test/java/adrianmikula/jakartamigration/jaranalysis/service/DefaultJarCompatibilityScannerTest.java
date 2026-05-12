@@ -405,4 +405,86 @@ class DefaultJarCompatibilityScannerTest {
         // Different modification time creates a new cache entry; size should increase
         assertThat(size2).isEqualTo(size1 + 1);
     }
+
+    @Test
+    void virtualThreadsEnabledByDefault() {
+        var config = JarScanningConfig.get();
+        assertThat(config.isUseVirtualThreads()).isTrue();
+    }
+
+    @Test
+    void virtualThreadsCanBeDisabled() throws IOException {
+        var extractor = new BytecodeSignalExtractor();
+        var metadataExtractor = new MetadataSignalExtractor();
+        var scorer = new ScoringEngine();
+        var config = Mockito.mock(JarScanningConfig.class);
+        when(config.isCachingEnabled()).thenReturn(false);
+        when(config.isParallelScanEnabled()).thenReturn(true);
+        when(config.isUseVirtualThreads()).thenReturn(false);
+        when(config.getMaxParallelism()).thenReturn(2);
+        when(config.getMaximumJarSizeBytes()).thenReturn(50L * 1024 * 1024);
+        when(config.getMaxClassesPerJar()).thenReturn(0);
+        when(config.createScanOptions()).thenReturn(new JarScanOptions(true, true, true, 10, false, true, 0));
+        var resolver = new JarResolver();
+        var scanner = new DefaultJarCompatibilityScanner(extractor, metadataExtractor, scorer, config, resolver);
+
+        Path jar = tempDir.resolve("fixed-pool.jar");
+        TestJarBuilder.create()
+            .withClass(TestJarBuilder.ClassSpec.builder("test/FixedPool").withSuper("javax.servlet.http.HttpServlet"))
+            .build(jar);
+
+        var report = scanner.analyzeJar(jar);
+        assertThat(report.level()).isEqualTo(JarCompatibilityLevel.JAVAX);
+        scanner.shutdown();
+    }
+
+    @Test
+    void virtualThreadsEnabledWithParallelScan() throws IOException {
+        var extractor = new BytecodeSignalExtractor();
+        var metadataExtractor = new MetadataSignalExtractor();
+        var scorer = new ScoringEngine();
+        var config = Mockito.mock(JarScanningConfig.class);
+        when(config.isCachingEnabled()).thenReturn(false);
+        when(config.isParallelScanEnabled()).thenReturn(true);
+        when(config.isUseVirtualThreads()).thenReturn(true);
+        when(config.getMaximumJarSizeBytes()).thenReturn(50L * 1024 * 1024);
+        when(config.getMaxClassesPerJar()).thenReturn(0);
+        when(config.createScanOptions()).thenReturn(new JarScanOptions(true, true, true, 10, false, true, 0));
+        var resolver = new JarResolver();
+        var scanner = new DefaultJarCompatibilityScanner(extractor, metadataExtractor, scorer, config, resolver);
+
+        Path jar = tempDir.resolve("virtual-thread.jar");
+        TestJarBuilder.create()
+            .withClass(TestJarBuilder.ClassSpec.builder("test/VirtualThread").withSuper("javax.servlet.http.HttpServlet"))
+            .build(jar);
+
+        var report = scanner.analyzeJar(jar);
+        assertThat(report.level()).isEqualTo(JarCompatibilityLevel.JAVAX);
+        scanner.shutdown();
+    }
+
+    @Test
+    void virtualThreadsDisabledWhenParallelScanDisabled() throws IOException {
+        var extractor = new BytecodeSignalExtractor();
+        var metadataExtractor = new MetadataSignalExtractor();
+        var scorer = new ScoringEngine();
+        var config = Mockito.mock(JarScanningConfig.class);
+        when(config.isCachingEnabled()).thenReturn(false);
+        when(config.isParallelScanEnabled()).thenReturn(false);
+        when(config.isUseVirtualThreads()).thenReturn(true);
+        when(config.getMaximumJarSizeBytes()).thenReturn(50L * 1024 * 1024);
+        when(config.getMaxClassesPerJar()).thenReturn(0);
+        when(config.createScanOptions()).thenReturn(new JarScanOptions(true, true, true, 10, false, true, 0));
+        var resolver = new JarResolver();
+        var scanner = new DefaultJarCompatibilityScanner(extractor, metadataExtractor, scorer, config, resolver);
+
+        Path jar = tempDir.resolve("sequential.jar");
+        TestJarBuilder.create()
+            .withClass(TestJarBuilder.ClassSpec.builder("test/Sequential").withSuper("javax.servlet.http.HttpServlet"))
+            .build(jar);
+
+        var report = scanner.analyzeJar(jar);
+        assertThat(report.level()).isEqualTo(JarCompatibilityLevel.JAVAX);
+        scanner.shutdown();
+    }
 }

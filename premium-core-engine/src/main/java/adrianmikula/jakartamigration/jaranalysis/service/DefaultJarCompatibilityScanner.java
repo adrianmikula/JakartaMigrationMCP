@@ -60,6 +60,14 @@ public class DefaultJarCompatibilityScanner implements JarCompatibilityScanner {
                 return t;
             });
         }
+        if (config.isUseVirtualThreads()) {
+            ThreadFactory factory = r -> {
+                Thread t = Thread.ofVirtual().unstarted(r);
+                t.setName("jar-scanner-virtual-" + t.getId());
+                return t;
+            };
+            return Executors.newThreadPerTaskExecutor(factory);
+        }
         int parallelism = config.getMaxParallelism();
         ThreadFactory factory = r -> { Thread t = new Thread(r);
             t.setName("jar-scanner-" + t.getId()); t.setDaemon(true); return t; };
