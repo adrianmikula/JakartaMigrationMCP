@@ -13,8 +13,8 @@ dependencies {
     implementation("org.springaicommunity:mcp-annotations:0.8.0")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     
-    compileOnly("org.projectlombok:lombok:1.18.30")
-    annotationProcessor("org.projectlombok:lombok:1.18.30")
+    compileOnly("org.projectlombok:lombok:1.18.34")
+    annotationProcessor("org.projectlombok:lombok:1.18.34")
     
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }

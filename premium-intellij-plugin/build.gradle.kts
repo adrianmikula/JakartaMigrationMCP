@@ -141,7 +141,7 @@ dependencies {
 }
 
 intellij {
-    version = "2023.3.4"
+    version = "2024.2.5"
     type = "IC"
     plugins = listOf("com.intellij.java")
 }
@@ -377,13 +377,13 @@ tasks {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
+        languageVersion.set(JavaLanguageVersion.of(21))
         vendor.set(JvmVendorSpec.ADOPTIUM)
     }
     
-    // Set source and target compatibility to match IntelliJ 2023.3.4 requirements
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    // Set source and target compatibility to match IntelliJ 2024.2.5 requirements
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 // Include community-core-engine classes in the plugin JAR
