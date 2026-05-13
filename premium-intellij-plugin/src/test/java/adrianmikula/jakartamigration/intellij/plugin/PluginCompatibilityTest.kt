@@ -67,8 +67,8 @@ class PluginCompatibilityTest : DescribeSpec({
             val ideaVersion = ideaVersionElements.item(0) as Element
             val sinceBuildAttribute = ideaVersion.getAttribute("since-build")
             
-            // The sinceBuild attribute should be set to 233
-            sinceBuildAttribute shouldBe "233"
+            // The sinceBuild attribute should be set to 242
+            sinceBuildAttribute shouldBe "242"
             sinceBuildAttribute shouldNotBe ""
         }
         
@@ -278,7 +278,7 @@ class PluginCompatibilityTest : DescribeSpec({
                 val content = sourcePluginXml.readText()
                 content shouldNotContain "until-build"
                 content shouldNotContain "untilBuild"
-                content shouldContain "since-build=\"233\""
+                content shouldContain "since-build=\"242\""
             } else {
                 // Skip test if no ZIP found (publishPlugin not run)
                 println("Skipping ZIP verification test - no plugin ZIP found. Run publishPlugin first.")

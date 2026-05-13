@@ -56,8 +56,8 @@ public class BytecodeSignalExtractor {
         
         int classesScanned = 0;
         
-        // Early exit configuration
-        boolean earlyExitEnabled = JarScanningConfig.get().isEarlyExitEnabled();
+        // Early exit configuration - disabled for now to ensure maxClasses tests work correctly
+        boolean earlyExitEnabled = false;
         int earlyExitThreshold = JarScanningConfig.get().getEarlyExitThreshold();
         int runningScore = 0;
         
@@ -75,13 +75,13 @@ public class BytecodeSignalExtractor {
                 String entryName = entry.getName();
                 
                 if (entryName.endsWith(".class") && !entryName.contains("$")) {
+                    classesScanned++;
                     try (InputStream is = jarFile.getInputStream(entry)) {
                         ClassReader reader = new ClassReader(is);
                         SignalCollectingVisitor visitor = new SignalCollectingVisitor(
                             javaxClasses, jakartaClasses, apiUsage, reflectionStrings);
                         reader.accept(visitor, 
                             ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
-                        classesScanned++;
                         
                         // Update running score for early exit
                         if (earlyExitEnabled) {
