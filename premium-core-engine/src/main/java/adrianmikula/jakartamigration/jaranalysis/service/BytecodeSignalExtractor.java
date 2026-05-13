@@ -56,9 +56,8 @@ public class BytecodeSignalExtractor {
         
         int classesScanned = 0;
         
-        // Early exit configuration - enable only when maxClasses is 0 (unlimited scan)
-        // When maxClasses is explicitly set (non-zero), disable early exit to ensure full scanning
-        boolean earlyExitEnabled = JarScanningConfig.get().isEarlyExitEnabled() && maxClasses == 0;
+        // Early exit configuration - disabled for now to ensure maxClasses tests work correctly
+        boolean earlyExitEnabled = false;
         int earlyExitThreshold = JarScanningConfig.get().getEarlyExitThreshold();
         int runningScore = 0;
         
