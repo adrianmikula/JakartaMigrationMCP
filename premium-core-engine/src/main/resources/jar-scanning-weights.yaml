@@ -1,0 +1,48 @@
+# Feature flags (preferred location at root level)
+features:
+  enableDeepScanning: true
+  enableCaching: true
+  enableParallelScan: true
+  detectShaded: false
+  detectTestScope: true
+  earlyExit: true
+  earlyExitThreshold: 10
+  useVirtualThreads: true
+
+# Scoring weights
+scoring:
+  # Base weights for individual signal types
+  jakartaClassRef: 5
+  javaxClassRef: -5
+  jakartaCriticalApi: 3
+  javaxCriticalApi: -3
+  jakartaMetadata: 2
+  javaxMetadata: -2
+  jakartaReflection: 1
+  javaxReflection: -1
+  jakartaModuleName: 1
+
+  # API criticality weights (multipliers applied to critical API counts)
+  apiCriticality:
+    servlet: 2.0      # Highest impact - core Java EE/Jakarta EE API
+    persistence: 2.0  # JPA - high impact
+    cdi: 1.5          # CDI - medium-high impact
+    validation: 1.0   # Bean Validation - medium impact
+    annotation: 0.5   # Common annotations - lower impact
+
+  # Scoring thresholds
+  thresholds:
+    jakarta: 5        # score >= 5 → JAKARTA
+    javax: -5         # score <= -5 → JAVAX
+    mixedMax: 4       # |score| < 4 → MIXED (if both signals present)
+
+# Cache configuration
+cache:
+  maxSize: 1000
+  expireAfterHours: 24
+  maximumJarSizeMB: 50
+
+# Performance tuning
+performance:
+  maxParallelism: 4
+  maxClassesPerJar: 0  # 0 = unlimited

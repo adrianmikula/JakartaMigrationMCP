@@ -475,7 +475,7 @@
     <h1>Test Report</h1>
     <h2>Risk Analysis Report</h2>
     <p>Generated for: Test Project</p>
-    <p>Generated on: 2026-04-30 16:12:00</p>
+    <p>Generated on: 2026-05-08 10:30:10</p>
 </div>
 
 <div class="warning-box">
@@ -498,7 +498,7 @@
     <div class="executive-overview">
     <div class="overview-header">
         <h3>📊 Project Overview</h3>
-        <span class="report-date">Generated: 2026-04-30 16:12</span>
+        <span class="report-date">Generated: 2026-05-08 10:30</span>
     </div>
     <div class="overview-grid">
         <div class="overview-card">
@@ -573,11 +573,11 @@
     <h2>Available Analysis Results</h2>
     <div class="metrics-grid">
         <div class="metric-card">
-            <div class="metric-value">%d</div>
+            <div class="metric-value">0</div>
             <div class="metric-label">Issues Found</div>
         </div>
         <div class="metric-card">
-            <div class="metric-value">%d%%</div>
+            <div class="metric-value">100%</div>
             <div class="metric-label">Readiness Score</div>
         </div>
     </div>
@@ -593,10 +593,9 @@
     <div class="gauge-container">
         <div id="migration-risk-gauge" class="gauge"></div>
     </div>
-    <div class="dial-score low">%.0f</div>
+    <div class="dial-score low">0</div>
     <div class="dial-label">Risk Score</div>
     <div class="factor-list">
-        0.0
         <div class="factor-item green">
     <span class="factor-label">Direct dependencies needing upgrade</span>
     <span class="factor-value">0</span>
@@ -617,6 +616,11 @@
     <span class="factor-value">0</span>
 </div>
 
+        <div class="factor-item green">
+    <span class="factor-label">Config/non-source issues</span>
+    <span class="factor-value">0</span>
+</div>
+
     </div>
 </div>
 
@@ -625,10 +629,9 @@
     <div class="gauge-container">
         <div id="migration-effort-gauge" class="gauge"></div>
     </div>
-    <div class="dial-score low">%d</div>
+    <div class="dial-score low">0</div>
     <div class="dial-label">Effort Score</div>
     <div class="factor-list">
-        0
         <div class="factor-item green">
     <span class="factor-label">Refactors with recipes</span>
     <span class="factor-value">0</span>
@@ -636,6 +639,11 @@
 
         <div class="factor-item red">
     <span class="factor-label">Project complexity (files)</span>
+    <span class="factor-value">0</span>
+</div>
+
+        <div class="factor-item green">
+    <span class="factor-label">Organisational dependencies</span>
     <span class="factor-value">0</span>
 </div>
 
@@ -647,13 +655,17 @@
     <div class="gauge-container">
         <div id="confidence-gauge" class="gauge"></div>
     </div>
-    <div class="dial-score low">%d%%</div>
+    <div class="dial-score low">20%</div>
     <div class="dial-label">Confidence Score</div>
     <div class="factor-list">
-        20
         <div class="factor-item red">
     <span class="factor-label">Dependencies with known status</span>
     <span class="factor-value">0%</span>
+</div>
+
+        <div class="factor-item orange">
+    <span class="factor-label">Test coverage for migration risk</span>
+    <span class="factor-value">50%</span>
 </div>
 
     </div>
@@ -671,9 +683,9 @@
                 data: {
                     labels: ['Risk Score', 'Remaining'],
                     datasets: [{
-                        data: [%.0f, 100 - %.0f],
+                        data: [0, 100 - 0],
                         backgroundColor: [
-                            '0.0',
+                            '#27ae60',
                             '#e9ecef'
                         ],
                         borderWidth: 0
@@ -682,7 +694,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: '75%%',
+                    cutout: '75%',
                     plugins: {
                         legend: {
                             display: false
@@ -696,7 +708,7 @@
         }
 
         // Migration Effort Gauge
-        const effortScore = %d;
+        const effortScore = 0;
         const migrationEffortCtx = document.getElementById('migration-effort-gauge');
         if (migrationEffortCtx) {
             new Chart(migrationEffortCtx, {
@@ -706,7 +718,7 @@
                     datasets: [{
                         data: [effortScore, 100 - effortScore],
                         backgroundColor: [
-                            '0.0',
+                            '#27ae60',
                             '#e9ecef'
                         ],
                         borderWidth: 0
@@ -715,7 +727,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: '75%%',
+                    cutout: '75%',
                     plugins: {
                         legend: {
                             display: false
@@ -729,7 +741,7 @@
         }
 
         // Confidence Gauge
-        const confidenceScore = %d;
+        const confidenceScore = 20;
         const confidenceCtx = document.getElementById('confidence-gauge');
         if (confidenceCtx) {
             new Chart(confidenceCtx, {
@@ -739,7 +751,7 @@
                     datasets: [{
                         data: [confidenceScore, 100 - confidenceScore],
                         backgroundColor: [
-                            '#27ae60',
+                            '#e74c3c',
                             '#e9ecef'
                         ],
                         borderWidth: 0
@@ -748,7 +760,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: '75%%',
+                    cutout: '75%',
                     plugins: {
                         legend: {
                             display: false
@@ -782,11 +794,11 @@
 
     <div class="total-score-display">
         <span class="total-label">Total Risk Score:</span>
-        <span class="total-value %.1f</span>
+        <span class="total-value 0.0</span>
     </div>
 
     <div class="component-bars">
-        0.0
+        low
     </div>
 
     <div class="component-table-container">
@@ -799,7 +811,35 @@
                 </tr>
             </thead>
             <tbody>
-                low
+                <div class="component-bar-item">
+    <span class="component-name">validationConfidence</span>
+    <div class="component-bar">
+        <div class="component-bar-fill low" style="width: 0.0%"></div>
+    </div>
+    <span class="component-score">0</span>
+</div>
+<div class="component-bar-item">
+    <span class="component-name">codeComplexity</span>
+    <div class="component-bar">
+        <div class="component-bar-fill low" style="width: 0.0%"></div>
+    </div>
+    <span class="component-score">0</span>
+</div>
+<div class="component-bar-item">
+    <span class="component-name">platformRisk</span>
+    <div class="component-bar">
+        <div class="component-bar-fill low" style="width: 0.0%"></div>
+    </div>
+    <span class="component-score">0</span>
+</div>
+<div class="component-bar-item">
+    <span class="component-name">dependencyIssues</span>
+    <div class="component-bar">
+        <div class="component-bar-fill low" style="width: 0.0%"></div>
+    </div>
+    <span class="component-score">0</span>
+</div>
+
             </tbody>
         </table>
     </div>

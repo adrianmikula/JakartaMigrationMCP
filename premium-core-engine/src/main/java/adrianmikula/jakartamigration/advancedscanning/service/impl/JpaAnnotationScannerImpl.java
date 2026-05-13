@@ -135,78 +135,12 @@ public class JpaAnnotationScannerImpl extends BaseScanner<JpaAnnotationUsage> im
 
     @Override
     public ProjectScanResult<FileScanResult<JpaAnnotationUsage>> scanProject(Path projectPath) {
-        if (projectPath == null || !Files.exists(projectPath) || !Files.isDirectory(projectPath)) {
-            log.warn("Invalid project path: {}", projectPath);
-            return ProjectScanResult.empty();
-        }
+        return scanProjectGeneric(projectPath, "JPA");
+    }
 
-        try {
-            List<Path> javaFiles = discoverJavaFiles(projectPath);
-
-            if (javaFiles.isEmpty()) {
-                log.info("No Java files found in project: {}", projectPath);
-                return ProjectScanResult.empty();
-            }
-
-            log.info("Scanning {} Java files for JPA annotations in project: {}", javaFiles.size(), projectPath);
-
-            // Check available memory and determine parallelism
-            Runtime runtime = Runtime.getRuntime();
-            long maxMemory = runtime.maxMemory();
-            long usedMemory = runtime.totalMemory() - runtime.freeMemory();
-            long availableMemory = maxMemory - usedMemory;
-
-            AtomicInteger totalScanned = new AtomicInteger(0);
-            List<FileScanResult<JpaAnnotationUsage>> results;
-
-            // Use sequential processing if low on memory, otherwise use bounded parallelism
-            if (availableMemory < MEMORY_THRESHOLD_BYTES) {
-                log.info("Low memory detected ({} MB available), using sequential processing for JPA scan",
-                        availableMemory / (1024 * 1024));
-                results = javaFiles.stream()
-                        .map(file -> scanFileWithTracking(file, totalScanned))
-                        .filter(java.util.Objects::nonNull)
-                        .collect(Collectors.toList());
-            } else {
-                // Use bounded parallelism with custom ForkJoinPool
-                int parallelism = Math.min(MAX_PARALLELISM, javaFiles.size());
-                log.debug("Using parallel processing with parallelism={} for JPA scan", parallelism);
-
-                ForkJoinPool customPool = new ForkJoinPool(parallelism);
-                try {
-                    results = customPool.submit(() ->
-                            javaFiles.parallelStream()
-                                    .map(file -> scanFileWithTracking(file, totalScanned))
-                                    .filter(java.util.Objects::nonNull)
-                                    .collect(Collectors.toList())
-                    ).get();
-                } catch (Exception e) {
-                    log.warn("Parallel scan failed for JPA, falling back to sequential: {}", e.getMessage());
-                    results = javaFiles.stream()
-                            .map(file -> scanFileWithTracking(file, totalScanned))
-                            .filter(java.util.Objects::nonNull)
-                            .collect(Collectors.toList());
-                } finally {
-                    customPool.shutdown();
-                }
-            }
-
-            // Cleanup ThreadLocal to prevent memory leaks
-            cleanupThreadLocal();
-
-            int totalAnnotations = results.stream()
-                    .mapToInt(r -> r.usages().size())
-                    .sum();
-
-            log.info("JPA scan complete: {} files scanned, {} files with JPA usage, {} total annotations",
-                    totalScanned.get(), results.size(), totalAnnotations);
-
-            return new ProjectScanResult<>(results, totalScanned.get(), results.size(), totalAnnotations);
-
-        } catch (Exception e) {
-            log.error("Error scanning project for JPA annotations: {}", projectPath, e);
-            return ProjectScanResult.empty();
-        }
+    @Override
+    public ProjectScanResult<FileScanResult<JpaAnnotationUsage>> scanProject(List<Path> filesToScan) {
+        return scanProjectGeneric(null, filesToScan, "JPA");
     }
 
     @Override

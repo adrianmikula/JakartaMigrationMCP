@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.advancedscanning.service.impl;
 import adrianmikula.jakartamigration.advancedscanning.domain.ThirdPartyLibProjectScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.ThirdPartyLibUsage;
 import adrianmikula.jakartamigration.advancedscanning.service.ThirdPartyLibScanner;
+import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -23,38 +24,14 @@ import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 public class ThirdPartyLibScannerImpl implements ThirdPartyLibScanner {
 
     private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
+    private final CompatibilityConfigLoader compatibilityConfigLoader;
 
-    // Known libraries that still use javax.* namespace
-    private static final Map<String, LibraryInfo> KNOWN_LIBRARIES = new HashMap<>();
+    public ThirdPartyLibScannerImpl() {
+        this(new CompatibilityConfigLoader());
+    }
 
-    static {
-        // Libraries that are javax-only (no Jakarta version available)
-        KNOWN_LIBRARIES.put("javax.xml.bind:jaxb-api",
-                new LibraryInfo("JAXB", "jakarta.xml.bind:jakarta.xml.bind-api", "javax-only"));
-        KNOWN_LIBRARIES.put("javax.activation:activation",
-                new LibraryInfo("Java Activation", "jakarta.activation:jakarta.activation-api", "javax-only"));
-        KNOWN_LIBRARIES.put("javax.xml.ws:jaxws-api",
-                new LibraryInfo("JAX-WS", "jakarta.xml.ws:jakarta.xml.ws-api", "javax-only"));
-        KNOWN_LIBRARIES.put("javax.xml.soap:soap-api",
-                new LibraryInfo("SOAP", "jakarta.xml.soap:jakarta.xml.soap-api", "javax-only"));
-        KNOWN_LIBRARIES.put("javax.jws:jsr181-api",
-                new LibraryInfo("JSR-181", "jakarta.jws:jakarta.jws-api", "javax-only"));
-
-        // Libraries with partial migration (some versions support Jakarta)
-        KNOWN_LIBRARIES.put("org.hibernate:hibernate-core",
-                new LibraryInfo("Hibernate ORM", "org.hibernate.orm:hibernate-core (Jakarta)", "partial-migration"));
-        KNOWN_LIBRARIES.put("org.hibernate.validator:hibernate-validator",
-                new LibraryInfo("Hibernate Validator", "Use Jakarta version", "partial-migration"));
-        KNOWN_LIBRARIES.put("org.springframework:spring-core",
-                new LibraryInfo("Spring Framework", "Spring 6.x (Jakarta)", "partial-migration"));
-        KNOWN_LIBRARIES.put("org.springframework:spring-web",
-                new LibraryInfo("Spring Web", "Spring 6.x (Jakarta)", "partial-migration"));
-
-        // Outdated libraries that need updating
-        KNOWN_LIBRARIES.put("javax.servlet:javax.servlet-api",
-                new LibraryInfo("Servlet API", "jakarta.servlet:jakarta.servlet-api", "outdated"));
-        KNOWN_LIBRARIES.put("javax.validation:validation-api",
-                new LibraryInfo("Bean Validation", "jakarta.validation:jakarta.validation-api", "outdated"));
+    public ThirdPartyLibScannerImpl(CompatibilityConfigLoader compatibilityConfigLoader) {
+        this.compatibilityConfigLoader = compatibilityConfigLoader;
     }
 
     // Patterns for parsing Maven pom.xml
@@ -106,6 +83,35 @@ public class ThirdPartyLibScannerImpl implements ThirdPartyLibScanner {
                 buildFilesFound.toString());
     }
 
+    @Override
+    public ThirdPartyLibProjectScanResult scanProject(List<Path> filesToScan) {
+        if (filesToScan == null) {
+            return new ThirdPartyLibProjectScanResult("", List.of(), "");
+        }
+        List<ThirdPartyLibUsage> problematicLibs = new ArrayList<>();
+        StringBuilder buildFilesFound = new StringBuilder();
+        for (Path buildFile : filesToScan) {
+            String name = buildFile.getFileName().toString();
+            if (buildFilesFound.length() > 0) buildFilesFound.append(", ");
+            buildFilesFound.append(name);
+            if (name.equals("pom.xml")) {
+                problematicLibs.addAll(scanMavenPom(buildFile));
+            } else if (name.equals("Dockerfile") || name.equals("dockerfile")) {
+                problematicLibs.addAll(scanDockerfile(buildFile));
+            } else {
+                problematicLibs.addAll(scanGradleBuild(buildFile));
+            }
+        }
+        // Derive project path from first file's parent (approximate)
+        String projectPathStr = "";
+        if (!filesToScan.isEmpty()) {
+            Path first = filesToScan.get(0);
+            Path parent = first.getParent();
+            if (parent != null) projectPathStr = parent.toString();
+        }
+        return new ThirdPartyLibProjectScanResult(projectPathStr, problematicLibs, buildFilesFound.toString());
+    }
+
     private List<ThirdPartyLibUsage> scanMavenPom(Path pomPath) {
         List<ThirdPartyLibUsage> usages = new ArrayList<>();
 
@@ -118,17 +124,26 @@ public class ThirdPartyLibScannerImpl implements ThirdPartyLibScanner {
                 String artifactId = matcher.group(2).trim();
                 String version = matcher.group(3).trim();
 
-                String key = groupId + ":" + artifactId;
-                LibraryInfo info = KNOWN_LIBRARIES.get(key);
+                // Classify using CompatibilityConfigLoader
+                CompatibilityConfigLoader.ArtifactClassification classification = 
+                        compatibilityConfigLoader.classifyArtifact(groupId, artifactId);
 
-                if (info != null) {
+                // Only add usages for dependencies that need attention
+                if (classification == CompatibilityConfigLoader.ArtifactClassification.JAKARTA_REQUIRED ||
+                    classification == CompatibilityConfigLoader.ArtifactClassification.CONTEXT_DEPENDENT) {
+                    
+                    String issueType = classification == CompatibilityConfigLoader.ArtifactClassification.JAKARTA_REQUIRED 
+                                      ? "outdated" : "partial-migration";
+                    String suggestedReplacement = "Replace with Jakarta EE equivalent";
+                    String libraryName = groupId + ":" + artifactId;
+
                     usages.add(new ThirdPartyLibUsage(
-                            info.libraryName,
+                            libraryName,
                             groupId,
                             artifactId,
                             version,
-                            info.issueType,
-                            info.suggestedReplacement));
+                            issueType,
+                            suggestedReplacement));
                 }
             }
         } catch (IOException e) {
@@ -150,17 +165,26 @@ public class ThirdPartyLibScannerImpl implements ThirdPartyLibScanner {
                 String artifactId = matcher.group(3).trim();
                 String version = matcher.group(4).trim();
 
-                String key = groupId + ":" + artifactId;
-                LibraryInfo info = KNOWN_LIBRARIES.get(key);
+                // Classify using CompatibilityConfigLoader
+                CompatibilityConfigLoader.ArtifactClassification classification = 
+                        compatibilityConfigLoader.classifyArtifact(groupId, artifactId);
 
-                if (info != null) {
+                // Only add usages for dependencies that need attention
+                if (classification == CompatibilityConfigLoader.ArtifactClassification.JAKARTA_REQUIRED ||
+                    classification == CompatibilityConfigLoader.ArtifactClassification.CONTEXT_DEPENDENT) {
+                    
+                    String issueType = classification == CompatibilityConfigLoader.ArtifactClassification.JAKARTA_REQUIRED 
+                                      ? "outdated" : "partial-migration";
+                    String suggestedReplacement = "Replace with Jakarta EE equivalent";
+                    String libraryName = groupId + ":" + artifactId;
+
                     usages.add(new ThirdPartyLibUsage(
-                            info.libraryName,
+                            libraryName,
                             groupId,
                             artifactId,
                             version,
-                            info.issueType,
-                            info.suggestedReplacement));
+                            issueType,
+                            suggestedReplacement));
                 }
             }
         } catch (IOException e) {
@@ -209,17 +233,5 @@ public class ThirdPartyLibScannerImpl implements ThirdPartyLibScanner {
         }
         
         return usages;
-    }
-
-    private static class LibraryInfo {
-        final String libraryName;
-        final String suggestedReplacement;
-        final String issueType;
-
-        LibraryInfo(String libraryName, String suggestedReplacement, String issueType) {
-            this.libraryName = libraryName;
-            this.suggestedReplacement = suggestedReplacement;
-            this.issueType = issueType;
-        }
     }
 }

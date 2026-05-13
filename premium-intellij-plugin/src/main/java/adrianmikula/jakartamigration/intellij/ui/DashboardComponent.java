@@ -942,8 +942,8 @@ private void resetAdvancedScanCounts() {
         riskDirectDepsLabel = createClickableBullet("Direct dependencies needing upgrade", "Dependencies", 0);
         riskTransitiveLabel = createClickableBullet("Transitive dependency issues", "Dependencies", 0);
         riskPlatformsLabel = createClickableBullet("Platforms needing upgrade", "Platforms", 0);
-        riskSourceIssuesLabel = createClickableBullet("Source code issues", "Advanced Scans", 0);
-        riskConfigIssuesLabel = createClickableBullet("Config/non-source issues", "Advanced Scans", 0);
+        riskSourceIssuesLabel = createClickableBullet("Source code issues", "Source Scans", 0);
+        riskConfigIssuesLabel = createClickableBullet("Config/non-source issues", "Source Scans", 0);
 
         panel.add(riskDirectDepsLabel);
         panel.add(riskTransitiveLabel);
@@ -983,7 +983,7 @@ private void resetAdvancedScanCounts() {
         panel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
 
         // Create clickable bullet labels with initial values
-        confidenceScansLabel = createClickableBullet("Scans completed", "Advanced Scans", 0);
+        confidenceScansLabel = createClickableBullet("Scans completed", "Source Scans", 0);
         confidenceUnknownDepsLabel = createClickableBullet("Unknown/review dependencies", "Dependencies", 0);
 
         panel.add(confidenceScansLabel);

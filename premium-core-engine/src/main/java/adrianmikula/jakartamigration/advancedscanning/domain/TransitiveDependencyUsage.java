@@ -17,6 +17,10 @@ public class TransitiveDependencyUsage {
     private final boolean transitive;
     private final int depth;
     private final List<String> alternativeVersions;
+    private final ScanReason scanReason;
+    private final String detailMessage;
+    private final double confidence;
+    private final boolean incompatibilityFromTransitive;
 
     public TransitiveDependencyUsage(String artifactId, String groupId, String version,
                                        String javaxPackage, String severity, String recommendation) {
@@ -32,6 +36,15 @@ public class TransitiveDependencyUsage {
     public TransitiveDependencyUsage(String artifactId, String groupId, String version,
                                        String javaxPackage, String severity, String recommendation,
                                        String scope, boolean transitive, int depth, List<String> alternativeVersions) {
+        this(artifactId, groupId, version, javaxPackage, severity, recommendation, scope, transitive, depth, 
+             alternativeVersions, null, null, 0.0, false);
+    }
+
+    public TransitiveDependencyUsage(String artifactId, String groupId, String version,
+                                       String javaxPackage, String severity, String recommendation,
+                                       String scope, boolean transitive, int depth, List<String> alternativeVersions,
+                                       ScanReason scanReason, String detailMessage, double confidence,
+                                       boolean incompatibilityFromTransitive) {
         this.artifactId = artifactId;
         this.groupId = groupId;
         this.version = version;
@@ -42,6 +55,10 @@ public class TransitiveDependencyUsage {
         this.transitive = transitive;
         this.depth = depth;
         this.alternativeVersions = alternativeVersions != null ? alternativeVersions : Collections.emptyList();
+        this.scanReason = scanReason;
+        this.detailMessage = detailMessage;
+        this.confidence = confidence;
+        this.incompatibilityFromTransitive = incompatibilityFromTransitive;
     }
 
     /**

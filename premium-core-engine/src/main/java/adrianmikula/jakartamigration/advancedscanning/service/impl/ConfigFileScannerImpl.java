@@ -133,6 +133,24 @@ public class ConfigFileScannerImpl implements ConfigFileScanner {
     }
 
     @Override
+    public ConfigFileProjectScanResult scanProject(List<Path> filesToScan) {
+        if (filesToScan == null) {
+            return ConfigFileProjectScanResult.empty();
+        }
+        List<ConfigFileScanResult> results = new ArrayList<>();
+        AtomicInteger totalScanned = new AtomicInteger(0);
+        for (Path file : filesToScan) {
+            totalScanned.incrementAndGet();
+            ConfigFileScanResult result = scanFile(file);
+            if (result != null && result.hasJavaxUsage()) {
+                results.add(result);
+            }
+        }
+        int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
+        return new ConfigFileProjectScanResult(results, totalScanned.get(), results.size(), totalUsages);
+    }
+
+    @Override
     public ConfigFileScanResult scanFile(Path filePath) {
         if (filePath == null || !Files.exists(filePath)) {
             return ConfigFileScanResult.empty(filePath);

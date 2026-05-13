@@ -256,9 +256,18 @@ public class RecipeSeeder {
 
             for (Map<String, Object> recommendation : recommendations) {
                 String description = (String) recommendation.get("description");
-                String recipeName = (String) recommendation.get("recipeName");
+                String recipeName = (String) recommendation.get("associatedRecipeName");
                 String pattern = (String) recommendation.get("pattern");
                 Boolean reversible = (Boolean) recommendation.get("reversible");
+
+                // Validate required fields
+                if (recipeName == null || recipeName.trim().isEmpty()) {
+                    log.error("Upgrade recommendation is missing required field: associatedRecipeName");
+                    if (isDevMode()) {
+                        throw new IllegalStateException("Upgrade recommendation is missing required field: associatedRecipeName");
+                    }
+                    continue;
+                }
 
                 RecipeDefinition recipe = RecipeDefinition.builder()
                         .name(recipeName)

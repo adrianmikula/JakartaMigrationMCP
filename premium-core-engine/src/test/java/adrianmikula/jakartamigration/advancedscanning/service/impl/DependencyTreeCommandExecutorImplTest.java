@@ -65,11 +65,11 @@ class DependencyTreeCommandExecutorImplTest {
         var deps = java.util.List.of(
                 new DependencyTreeResult.DependencyNode(
                         "javax.servlet", "javax.servlet-api", "4.0.1",
-                        "provided", 0, false
+                        "provided", 0, false, null
                 ),
                 new DependencyTreeResult.DependencyNode(
                         "javax.xml.bind", "jaxb-api", "2.3.1",
-                        "compile", 1, true
+                        "compile", 1, true, "javax.servlet:javax.servlet-api"
                 )
         );
         var scopes = java.util.Set.of("compile", "provided");
@@ -86,7 +86,7 @@ class DependencyTreeCommandExecutorImplTest {
     void dependencyNode_shouldCalculateArtifactKey() {
         DependencyTreeResult.DependencyNode node = new DependencyTreeResult.DependencyNode(
                 "javax.servlet", "javax.servlet-api", "4.0.1",
-                "provided", 0, false
+                "provided", 0, false, null
         );
 
         assertEquals("javax.servlet:javax.servlet-api", node.getArtifactKey());
@@ -96,7 +96,7 @@ class DependencyTreeCommandExecutorImplTest {
     void dependencyNode_shouldStoreAllFields() {
         DependencyTreeResult.DependencyNode node = new DependencyTreeResult.DependencyNode(
                 "javax.xml.bind", "jaxb-api", "2.3.1",
-                "compile", 2, true
+                "compile", 2, true, "parent:artifact"
         );
 
         assertEquals("javax.xml.bind", node.getGroupId());

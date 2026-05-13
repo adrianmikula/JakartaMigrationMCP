@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Getter
 @NoArgsConstructor(force = true, access = AccessLevel.PRIVATE)
@@ -26,6 +27,16 @@ public class TransitiveDependencyProjectScanResult {
 
     public static TransitiveDependencyProjectScanResult empty() {
         return new TransitiveDependencyProjectScanResult(Collections.emptyList(), 0, 0, 0);
+    }
+
+    /**
+     * Returns all edges from all file results, aggregated into a single list.
+     * Edges represent parent-child relationships in the dependency tree.
+     */
+    public List<TransitiveDependencyEdge> getAllEdges() {
+        return fileResults.stream()
+                .flatMap(fr -> fr.getEdges().stream())
+                .collect(Collectors.toList());
     }
 
     public boolean hasJavaxDependencies() {

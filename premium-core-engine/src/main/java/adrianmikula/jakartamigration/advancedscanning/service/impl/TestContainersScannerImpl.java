@@ -64,6 +64,28 @@ public class TestContainersScannerImpl implements TestContainersScanner {
         return new TestContainersProjectScanResult(projectPath.toString(), usages);
     }
 
+    @Override
+    public TestContainersProjectScanResult scanProject(List<Path> filesToScan) {
+        if (filesToScan == null) {
+            return new TestContainersProjectScanResult("");
+        }
+        List<TestContainerUsage> usages = new ArrayList<>();
+        for (Path file : filesToScan) {
+            String name = file.getFileName().toString();
+            if (name.equals("pom.xml")) {
+                usages.addAll(scanMaven(file));
+            } else if (name.startsWith("build.gradle") || name.endsWith(".gradle")) {
+                usages.addAll(scanGradle(file));
+            }
+        }
+        String projectPath = "";
+        if (!filesToScan.isEmpty()) {
+            Path p = filesToScan.get(0).getParent();
+            if (p != null) projectPath = p.toString();
+        }
+        return new TestContainersProjectScanResult(projectPath, usages);
+    }
+
     private List<TestContainerUsage> scanMaven(Path pomPath) {
         List<TestContainerUsage> usages = new ArrayList<>();
         try {

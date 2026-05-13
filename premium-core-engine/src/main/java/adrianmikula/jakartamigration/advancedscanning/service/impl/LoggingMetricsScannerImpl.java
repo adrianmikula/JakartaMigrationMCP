@@ -85,6 +85,30 @@ public class LoggingMetricsScannerImpl implements LoggingMetricsScanner {
                 fileResults);
     }
 
+    @Override
+    public LoggingMetricsProjectScanResult scanProject(List<Path> filesToScan) {
+        if (filesToScan == null) {
+            return new LoggingMetricsProjectScanResult("");
+        }
+        List<LoggingMetricsScanResult> results = new ArrayList<>();
+        for (Path file : filesToScan) {
+            try {
+                LoggingMetricsScanResult r = scanFile(file);
+                if (r != null && r.hasFindings()) {
+                    results.add(r);
+                }
+            } catch (Exception e) {
+                log.warn("Error scanning file {}: {}", file, e.getMessage());
+            }
+        }
+        String projectPath = "";
+        if (!filesToScan.isEmpty()) {
+            Path p = filesToScan.get(0).getParent();
+            if (p != null) projectPath = p.toString();
+        }
+        return new LoggingMetricsProjectScanResult(projectPath, results);
+    }
+
     private LoggingMetricsScanResult scanFile(Path filePath) {
         List<LoggingMetricsUsage> usages = new ArrayList<>();
 

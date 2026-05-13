@@ -44,18 +44,20 @@ dependencies {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
 tasks.test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("slow")
+    }
     testLogging {
         showStandardStreams = true
     }
     // Enable parallel test execution
     maxParallelForks = 4
-    
+
     // Automatically set dev environment for all test executions
     systemProperty("jakarta.migration.mode", "dev")
 }

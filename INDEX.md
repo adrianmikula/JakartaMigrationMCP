@@ -121,7 +121,7 @@ Blacklisted Linux commands:
 | **DependenciesTableComponent** | `intellij/ui/DependenciesTableComponent.java` | Dependency visualization table with Maven Central lookup |
 | **DashboardComponent** | `intellij/ui/DashboardComponent.java` | Main dashboard UI with summary metrics |
 | **MigrationToolWindow** | `intellij/ui/MigrationToolWindow.java` | Main tool window container |
-| **AdvancedScansComponent** | `intellij/ui/AdvancedScansComponent.java` | Advanced scanning configuration UI |
+| **SourceScansComponent** | `intellij/ui/SourceScansComponent.java` | Source code scanning results display UI |
 | **PlatformsTabComponent** | `intellij/ui/PlatformsTabComponent.java` | Platform selection and configuration |
 | **RuntimeTabComponent** | `intellij/ui/RuntimeTabComponent.java` | Runtime environment UI |
 | **ComprehensiveReportsTabComponent** | `intellij/ui/ComprehensiveReportsTabComponent.java` | Comprehensive scan reports UI |

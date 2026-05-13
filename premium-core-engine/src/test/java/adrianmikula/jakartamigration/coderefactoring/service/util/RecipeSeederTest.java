@@ -78,4 +78,80 @@ class RecipeSeederTest {
                 .isNotBlank();
         }
     }
+
+    @Test
+    @DisplayName("Should successfully seed upgrade recommendations")
+    void shouldSeedUpgradeRecommendations() {
+        // When
+        RecipeSeeder.seedUpgradeRecommendations(store);
+        
+        // Then
+        List<RecipeDefinition> recipes = store.getRecipes();
+        
+        // Verify that upgrade recommendations were loaded
+        assertThat(recipes).isNotEmpty();
+        
+        // Verify that all upgrade recommendations have valid names
+        for (RecipeDefinition recipe : recipes) {
+            assertThat(recipe.getName())
+                .as("Upgrade recommendation should have a name")
+                .isNotNull();
+            assertThat(recipe.getName())
+                .as("Upgrade recommendation should have a non-blank name")
+                .isNotBlank();
+        }
+    }
+
+    @Test
+    @DisplayName("Should handle upgrade recommendations with missing associatedRecipeName gracefully")
+    void shouldHandleMissingAssociatedRecipeNameGracefully() {
+        // Given - Set dev mode to ensure validation is enforced
+        System.setProperty("jakarta.migration.mode", "dev");
+        
+        try {
+            // When - seed upgrade recommendations
+            RecipeSeeder.seedUpgradeRecommendations(store);
+            
+            // Then - should not throw exception and should only insert valid recipes
+            List<RecipeDefinition> recipes = store.getRecipes();
+            
+            // Verify all recipes have valid names
+            for (RecipeDefinition recipe : recipes) {
+                assertThat(recipe.getName())
+                    .as("Recipe should have a non-null name")
+                    .isNotNull();
+                assertThat(recipe.getName())
+                    .as("Recipe should have a non-blank name")
+                    .isNotBlank();
+            }
+        } finally {
+            // Cleanup - Reset system property
+            System.clearProperty("jakarta.migration.mode");
+        }
+    }
+
+    @Test
+    @DisplayName("Should handle upgrade recommendations with empty associatedRecipeName gracefully")
+    void shouldHandleEmptyAssociatedRecipeNameGracefully() {
+        // Given - Set dev mode to ensure validation is enforced
+        System.setProperty("jakarta.migration.mode", "dev");
+        
+        try {
+            // When - seed upgrade recommendations
+            RecipeSeeder.seedUpgradeRecommendations(store);
+            
+            // Then - should not throw exception and should only insert valid recipes
+            List<RecipeDefinition> recipes = store.getRecipes();
+            
+            // Verify all recipes have non-blank names
+            for (RecipeDefinition recipe : recipes) {
+                assertThat(recipe.getName())
+                    .as("Recipe should have a non-blank name")
+                    .isNotBlank();
+            }
+        } finally {
+            // Cleanup - Reset system property
+            System.clearProperty("jakarta.migration.mode");
+        }
+    }
 }

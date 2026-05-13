@@ -1,5 +1,9 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+/**
+ * Tests for SourceScansComponent refresh functionality.
+ * Implements plan: .kilo/plans/1778130109717-neon-tiger.md
+ */
 import adrianmikula.jakartamigration.advancedscanning.domain.*;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
@@ -17,10 +21,10 @@ import java.util.ArrayList;
 import static org.mockito.Mockito.*;
 
 /**
- * Test for AdvancedScansComponent refresh functionality.
+ * Test for SourceScansComponent refresh functionality.
  * Verifies that refreshFromCachedResults() properly displays scan results.
  */
-public class AdvancedScansComponentRefreshTest extends BasePlatformTestCase {
+public class SourceScansComponentRefreshTest extends BasePlatformTestCase {
 
     @Mock
     private AdvancedScanningService mockScanningService;
@@ -28,7 +32,7 @@ public class AdvancedScansComponentRefreshTest extends BasePlatformTestCase {
     @Mock
     private RecipeService mockRecipeService;
     
-    private AdvancedScansComponent component;
+    private SourceScansComponent component;
     
     @Before
     public void setUp() throws Exception {
@@ -36,7 +40,7 @@ public class AdvancedScansComponentRefreshTest extends BasePlatformTestCase {
         MockitoAnnotations.openMocks(this);
         
         Project project = getProject();
-        component = new AdvancedScansComponent(project, mockScanningService);
+        component = new SourceScansComponent(project, mockScanningService);
     }
     
     @Test

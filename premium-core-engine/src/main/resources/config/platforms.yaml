@@ -94,6 +94,9 @@ platforms:
       - file: "server.xml"
         regex: "<Connector[^>]*port=\"([0-9]+)\""
         versionGroup: 1
+      - file: ".classpath"
+        regex: "org\\.eclipse\\.jst\\.server\\.core\\.container.*Tomcat"
+        versionGroup: 0
     commonArtifacts:
       - "org.apache.tomcat.embed:tomcat-embed-core"
       - "org.apache.tomcat.embed:tomcat-embed-jasper"
@@ -129,6 +132,9 @@ platforms:
       - file: "modules/system/layers/base/org/jboss/as/server/main/module.xml"
         regex: "version=\"([0-9]+\\.[0-9]+\\.[0-9]+)\""
         versionGroup: 1
+      - file: ".classpath"
+        regex: "org\\.jboss\\.ide\\.eclipse\\.as\\.core\\.server\\.runtime\\.runtimeTarget.*JBoss"
+        versionGroup: 0
     commonArtifacts:
       - "org.wildfly:wildfly-ee"
       - "org.wildfly.core:wildfly-core"
@@ -491,6 +497,9 @@ platforms:
       - file: "modules/system/layers/base/org/jboss/as/product/module.xml"
         regex: "version=\"([0-9]+\\.[0-9]+\\.[0-9]+)\""
         versionGroup: 1
+      - file: ".classpath"
+        regex: "org\\.jboss\\.ide\\.eclipse\\.as\\.core\\.server\\.runtime\\.runtimeTarget.*EAP"
+        versionGroup: 0
     commonArtifacts:
       - "org.jboss.eap:jboss-eap-dist"
       - "org.jboss.eap:jboss-eap-embedded"

@@ -1,8 +1,8 @@
 package adrianmikula.jakartamigration.advancedscanning.service;
 
 import adrianmikula.jakartamigration.advancedscanning.domain.SerializationCacheProjectScanResult;
-
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * Scanner interface for detecting serialization and cache compatibility issues.
@@ -17,4 +17,11 @@ public interface SerializationCacheScanner {
      * @return SerializationCacheProjectScanResult containing all findings
      */
     SerializationCacheProjectScanResult scanProject(Path projectPath);
+    
+    /**
+     * Scans a project using pre-discovered Java files.
+     * @param filesToScan list of Java file paths to scan
+     * @return Project scan result with all findings
+     */
+    SerializationCacheProjectScanResult scanProject(List<Path> filesToScan);
 }

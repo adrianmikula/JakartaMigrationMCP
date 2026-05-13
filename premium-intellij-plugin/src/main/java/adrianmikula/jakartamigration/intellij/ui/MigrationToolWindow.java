@@ -1,5 +1,10 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+/**
+ * MigrationToolWindow - Main tool window.
+ * Implements the "Replace Analyze Button with Quick Scan & Deep Scan" plan.
+ * See .kilo/plans/1778130109717-neon-tiger.md for full specification.
+ */
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyProjectScanResult;
 import adrianmikula.jakartamigration.credits.CreditType;
 import adrianmikula.jakartamigration.credits.CreditsService;
@@ -51,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * Main migration tool window from TypeSpec: plugin-components.tsp
@@ -82,7 +88,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private DependenciesTableComponent dependenciesComponent;
         private DependencyGraphComponent dependencyGraphComponent;
         private MigrationPhasesComponent migrationPhasesComponent;
-        private AdvancedScansComponent advancedScansComponent;
+        private SourceScansComponent sourceScansComponent;
         private SupportComponent supportComponent;
         private McpServerTabComponent mcpServerTabComponent;
         private RefactorTabComponent refactorTabComponent;
@@ -103,7 +109,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private boolean isPremium;
         
         // Scan controls components
-        private JButton analyzeButton;
+        private JButton quickScanButton;
+        private JButton deepScanButton;
         private JProgressBar scanProgressBar;
         private JLabel scanProgressLabel;
 
@@ -193,8 +200,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
             }
 
             // Dashboard tab
-            dashboardComponent = new DashboardComponent(project, advancedScanningService, this::handleAnalyzeProject);
-            dashboardComponent.setExternalProgressComponents(scanProgressBar, scanProgressLabel, analyzeButton);
+            dashboardComponent = new DashboardComponent(project, advancedScanningService, e -> {});
+            dashboardComponent.setExternalProgressComponents(scanProgressBar, scanProgressLabel, null);
             tabbedPane.addTab("Risk", dashboardComponent.getPanel());
 
             // Dependencies tab
@@ -214,9 +221,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             migrationPhasesComponent = new MigrationPhasesComponent(project);
             tabbedPane.addTab("Migration Strategy", migrationPhasesComponent.getPanel());
 
-            // Advanced Scans tab - Available for all users (truncation mode for free users with exhausted credits)
-            advancedScansComponent = new AdvancedScansComponent(project, advancedScanningService, errorReportingService);
-            advancedScansComponent.addScanCompletionListener(() -> {
+            // Source Scans tab - Available for all users (truncation mode for free users with exhausted credits)
+            sourceScansComponent = new SourceScansComponent(project, advancedScanningService, errorReportingService);
+            sourceScansComponent.addScanCompletionListener(() -> {
                 if (dashboardComponent != null) {
                     dashboardComponent.updateAdvancedScanCounts();
                 }
@@ -227,9 +234,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     dependenciesComponent.queryMavenCentralForDependencies();
                 }
             });
-            String advancedScansLabel = isPremium ? "Advanced Scans ⭐" : "Advanced Scans";
-            tabbedPane.addTab(advancedScansLabel, advancedScansComponent.getPanel());
-            LOG.info("initializeContent: Added Advanced Scans tab (isPremium=" + isPremium + ")");
+            String sourceScansLabel = isPremium ? "Source Scans ⭐" : "Source Scans";
+            tabbedPane.addTab(sourceScansLabel, sourceScansComponent.getPanel());
+            LOG.info("initializeContent: Added Source Scans tab (isPremium=" + isPremium + ")");
 
             // Support tab - links to GitHub, LinkedIn, sponsor pages
             supportComponent = new SupportComponent(project, v -> refreshPremiumTabs(), () -> refreshExperimentalTabs(), userIdentificationService);
@@ -513,53 +520,80 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         /**
-         * Creates the scan controls panel with analyze button and progress bar.
+         * Creates the scan controls panel with Quick Scan and Deep Scan buttons.
          * This panel will be positioned below the credits progress bar and above the tabs.
          */
         private JPanel createScanControlsPanel() {
             scanControlsPanel = new JPanel(new BorderLayout());
             scanControlsPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 20, 10)); // Increased bottom margin for larger gap
 
-            // Main container with horizontal layout for button and progress
+            // Main container with horizontal layout for buttons and progress
             JPanel mainContainer = new JPanel(new BorderLayout(10, 0));
-            
-            // Analyze button
-            analyzeButton = new JButton("▶ Analyze Project");
-            analyzeButton.setToolTipText("Run migration analysis on the current project");
-            analyzeButton.addActionListener(this::handleAnalyzeProject);
-            // Make button narrower and twice as tall
-            Dimension currentButtonSize = analyzeButton.getPreferredSize();
-            analyzeButton.setMaximumSize(new Dimension(180, currentButtonSize.height * 2));
-            analyzeButton.setPreferredSize(new Dimension(180, currentButtonSize.height * 2));
-            System.out.println("DEBUG: Analyze button created, enabled: " + analyzeButton.isEnabled());
-            
+
+            // Button panel with vertical layout for two buttons
+            JPanel buttonPanel = new JPanel(new GridLayout(2, 1, 0, 5));
+
+            // Create a sample button to determine size based on current LookAndFeel
+            JButton sampleButton = new JButton("Quick Scan");
+            Dimension sampleSize = sampleButton.getPreferredSize();
+
+            // Calculate button heights: original analyze button was double height, now split into two
+            int originalDoubleHeight = sampleSize.height * 2;
+            int btnHeight = (originalDoubleHeight - 5) / 2; // Subtract 5px for spacing
+            Dimension btnSize = new Dimension(150, btnHeight);
+
+            // Quick Scan button
+            quickScanButton = new JButton("Quick Scan");
+            quickScanButton.setToolTipText("Scan direct dependencies, source code, and platform (fast)");
+            quickScanButton.addActionListener(this::handleQuickScan);
+            quickScanButton.setPreferredSize(btnSize);
+            quickScanButton.setMinimumSize(btnSize);
+            quickScanButton.setMaximumSize(btnSize);
+            buttonPanel.add(quickScanButton);
+
+            // Deep Scan button
+            deepScanButton = new JButton("Deep Scan");
+            deepScanButton.setToolTipText("Full scan including all transitive dependencies (slower)");
+            deepScanButton.addActionListener(this::handleDeepScan);
+            deepScanButton.setPreferredSize(btnSize);
+            deepScanButton.setMinimumSize(btnSize);
+            deepScanButton.setMaximumSize(btnSize);
+            buttonPanel.add(deepScanButton);
+
             // Progress container
             JPanel progressContainer = new JPanel(new BorderLayout(10, 0));
-            
+
             // Progress bar - now handles long descriptions internally
             scanProgressBar = new JProgressBar(0, 100);
             scanProgressBar.setValue(0);
             scanProgressBar.setStringPainted(true);
             scanProgressBar.setString("Ready to scan");
-            // Match progress bar height to analyze button height
-            Dimension buttonSize = analyzeButton.getPreferredSize();
-            scanProgressBar.setPreferredSize(new Dimension(300, buttonSize.height));
-            scanProgressBar.setMaximumSize(new Dimension(300, buttonSize.height));
+            // Match progress bar height to button height
+            scanProgressBar.setPreferredSize(new Dimension(300, btnHeight));
+            scanProgressBar.setMaximumSize(new Dimension(300, btnHeight));
             progressContainer.add(scanProgressBar, BorderLayout.CENTER);
-            
+
             // Progress label - minimized since long descriptions now in progress bar
             scanProgressLabel = new JLabel(""); // Initially empty
             scanProgressLabel.setFont(scanProgressLabel.getFont().deriveFont(Font.PLAIN, 11f));
             scanProgressLabel.setVisible(false); // Hidden by default
             progressContainer.add(scanProgressLabel, BorderLayout.EAST);
-            
-            // Add analyze button to left, progress to right
-            mainContainer.add(analyzeButton, BorderLayout.WEST);
+
+            // Add button panel to left, progress to right
+            mainContainer.add(buttonPanel, BorderLayout.WEST);
             mainContainer.add(progressContainer, BorderLayout.CENTER);
-            
+
             scanControlsPanel.add(mainContainer, BorderLayout.CENTER);
 
             return scanControlsPanel;
+        }
+
+        /**
+         * Enable or disable both scan buttons.
+         */
+        private void setScanButtonsEnabled(boolean enabled) {
+            if (quickScanButton != null) quickScanButton.setEnabled(enabled);
+            if (deepScanButton != null) deepScanButton.setEnabled(enabled);
         }
 
         private JPanel createToolbar() {
@@ -690,11 +724,102 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         /**
-         * Handle analyze project action - triggers analysis using migration-core library.
-         * For premium users, runs all scans with full results.
-         * For free users, checks credits and may show truncated results when credits exhausted.
+         * Handle Quick Scan action - scans direct dependencies, source code, and platform.
+         * Fast analysis that excludes transitive dependencies.
          */
-        private void handleAnalyzeProject(java.awt.event.ActionEvent e) {
+        private void handleQuickScan(java.awt.event.ActionEvent e) {
+            String projectPathStr = project.getBasePath();
+            if (projectPathStr == null) {
+                projectPathStr = project.getProjectFilePath();
+            }
+
+            if (projectPathStr == null) {
+                Messages.showWarningDialog(project, "Cannot determine project path. Please open a project first.",
+                        "Analysis Failed");
+                return;
+            }
+
+            final Path projectPath = Path.of(projectPathStr);
+
+            setScanButtonsEnabled(false);
+            dashboardComponent.setAnalysisRunning(true);
+
+            // Phase 1: Basic dependency analysis (direct dependencies)
+            dashboardComponent.onScanPhase("Basic Dependency Analysis", 0, 3);
+
+            CompletableFuture<DependencyAnalysisReport> depFuture = CompletableFuture.supplyAsync(() -> {
+                LOG.info("handleQuickScan: Running basic dependency analysis");
+                return analysisService.analyzeProject(projectPath);
+            });
+
+            // Save and update dashboard after basic analysis
+            depFuture.thenAccept(report -> {
+                ApplicationManager.getApplication().invokeLater(() -> {
+                    if (report != null && report.dependencyGraph() != null && !report.dependencyGraph().getNodes().isEmpty()) {
+                        store.saveAnalysisReport(projectPath, report, false);
+                        updateDashboardFromReport(report);
+                    }
+                });
+            });
+
+            // Phase 2: Source code scanning (excluding transitive)
+            CompletableFuture<AdvancedScanningService.AdvancedScanSummary> advFuture = depFuture.thenCompose(report -> {
+                dashboardComponent.onScanPhase("Source Code Scanning", 1, 3);
+                LOG.info("handleQuickScan: Running advanced scans (excluding transitive)");
+                return CompletableFuture.supplyAsync(() -> {
+                    try {
+                        return advancedScanningService.scanAllExcludingTransitive(projectPath, dashboardComponent);
+                    } catch (Exception ex) {
+                        LOG.warn("handleQuickScan: Advanced scans failed", ex);
+                        dashboardComponent.onScanError(ex);
+                        return null;
+                    }
+                });
+            });
+
+            advFuture.thenAccept(summary -> {
+                ApplicationManager.getApplication().invokeLater(() -> {
+                    if (sourceScansComponent != null) {
+                        sourceScansComponent.refreshFromCachedResults();
+                    }
+                    dashboardComponent.updateAdvancedScanCounts();
+                });
+            });
+
+            // Phase 3: Platform detection
+            CompletableFuture<Void> platformFuture = advFuture.thenRun(() -> {
+                dashboardComponent.onScanPhase("Platform Detection", 2, 3);
+                if (platformsTabComponent != null) {
+                    platformsTabComponent.scanProject();
+                }
+            });
+
+            // Final completion and error handling
+            platformFuture.whenComplete((v, throwable) -> {
+                ApplicationManager.getApplication().invokeLater(() -> {
+                    if (throwable != null) {
+                        LOG.error("handleQuickScan: Scan failed", throwable);
+                        dashboardComponent.setAnalysisRunning(false);
+                        setScanButtonsEnabled(true);
+                        Messages.showWarningDialog(project,
+                                "Quick scan failed: " + throwable.getMessage(),
+                                "Scan Failed");
+                    } else {
+                        dashboardComponent.onScanComplete();
+                        setScanButtonsEnabled(true);
+                        Messages.showInfoMessage(project,
+                                "Quick scan complete! Direct dependencies, source scans, and platform detection finished.",
+                                "Scan Complete");
+                    }
+                });
+            });
+        }
+
+        /**
+         * Handle Deep Scan action - full analysis including all transitive dependencies.
+         * Premium feature or consumes 1 action credit for free users.
+         */
+        private void handleDeepScan(java.awt.event.ActionEvent e) {
             String projectPathStr = project.getBasePath();
             if (projectPathStr == null) {
                 projectPathStr = project.getProjectFilePath();
@@ -710,258 +835,155 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Check credits for free users
             if (!isPremium) {
-                // Check if user has remaining action credits
                 if (!creditsService.hasCredits(CreditType.ACTIONS)) {
-                    Messages.showWarningDialog(project, 
-                        "You've used all your free action credits. Upgrade to Premium to continue scanning projects.\n\n" +
-                        "Premium includes:\n" +
-                        "• Unlimited action credits\n" +
-                        "• Advanced scanning features\n" +
-                        "• PDF report generation\n" +
-                        "• Code refactoring tools",
-                        "Credits Exhausted");
+                    Messages.showWarningDialog(project,
+                            "You've used all your free action credits. Upgrade to Premium to run deep scans.\n\n" +
+                                    "Premium includes:\n" +
+                                    "• Unlimited action credits\n" +
+                                    "• Full transitive dependency analysis\n" +
+                                    "• Advanced scanning features",
+                            "Credits Exhausted");
                     return;
                 }
-                
-                // Consume one action credit for the scan
-                boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS, "Scanning", "basic_scan");
+
+                boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS, "Scanning", "deep_scan");
                 if (!creditConsumed) {
                     Messages.showErrorDialog(project, "Failed to consume action credit. Please try again.", "Credit Error");
                     return;
                 }
-                
+
                 int remainingCredits = creditsService.getRemainingCredits(CreditType.ACTIONS);
-                LOG.info("handleAnalyzeProject: Consumed 1 action credit for free user. Remaining: " + remainingCredits);
+                LOG.info("handleDeepScan: Consumed 1 action credit for free user. Remaining: " + remainingCredits);
             }
 
-            // Set UI to scanning state
+            setScanButtonsEnabled(false);
             dashboardComponent.setAnalysisRunning(true);
 
-            // Run full analysis for all users (deep scan with transitive dependencies)
-            // Display truncation for free users is handled by DependenciesTableComponent
-            LOG.info("handleAnalyzeProject: Running full analysis (deep scan with transitive dependencies)");
-            runFullAnalysis(projectPath);
+            try {
+                performDeepScan(projectPath);
+            } catch (Exception ex) {
+                LOG.error("handleDeepScan: Unexpected error", ex);
+                dashboardComponent.setAnalysisRunning(false);
+                setScanButtonsEnabled(true);
+                Messages.showWarningDialog(project,
+                        "Deep scan failed: " + ex.getMessage(),
+                        "Scan Failed");
+            }
         }
 
         /**
-         * Run basic analysis only (for non-premium users with credits)
+         * Performs deep scan: deep dependency analysis + advanced scans + platform detection.
+         * This is the full analysis identical to the old "Analyze Project" functionality.
          */
-        private void runBasicAnalysis(Path projectPath) {
-            LOG.info("runBasicAnalysis: Starting basic scan (free user - no credit consumption)");
+        private void performDeepScan(Path projectPath) {
+            LOG.info("performDeepScan: Starting deep scan with full transitive dependency analysis");
 
-            // Note: Basic scans don't consume credits in the simplified model
-            // Truncation mode applies when displaying results if credits exhausted
-
-            CompletableFuture.supplyAsync(() -> analysisService.analyzeProject(projectPath))
-                    .thenAccept(report -> {
-                        ApplicationManager.getApplication().invokeLater(() -> {
-                            dashboardComponent.setAnalysisRunning(false);
-                            if (report != null && report.dependencyGraph() != null &&
-                                    !report.dependencyGraph().getNodes().isEmpty()) {
-                                store.saveAnalysisReport(projectPath, report, false);
-                                updateDashboardFromReport(report);
-                                int depsCount = report.dependencyGraph().getNodes().size();
-                                Messages.showInfoMessage(project, "Analysis complete! " +
-                                        depsCount +
-                                        " dependencies analyzed.", "Analysis Complete");
-                            } else {
-                                showEmptyResultsState();
-                                Messages.showInfoMessage(project,
-                                        "Analysis complete. No Jakarta migration issues found.",
-                                        "Analysis Complete");
-                            }
-                        });
-                    })
-                    .exceptionally(ex -> {
-                        ApplicationManager.getApplication().invokeLater(() -> {
-                            dashboardComponent.setAnalysisRunning(false);
-                            Messages.showWarningDialog(project,
-                                    "Analysis failed: " + ex.getMessage(),
-                                    "Analysis Failed");
-                        });
-                        return null;
-                    });
-        }
-
-        /**
-         * Run basic analysis with truncation for free users without credits.
-         * Shows partial results with upgrade prompt.
-         */
-        private void runBasicAnalysisWithTruncation(Path projectPath) {
-            LOG.info("runBasicAnalysisWithTruncation: Starting truncated scan (no credits remaining)");
-
-            CompletableFuture.supplyAsync(() -> analysisService.analyzeProject(projectPath))
-                    .thenAccept(report -> {
-                        ApplicationManager.getApplication().invokeLater(() -> {
-                            dashboardComponent.setAnalysisRunning(false);
-                            if (report != null && report.dependencyGraph() != null &&
-                                    !report.dependencyGraph().getNodes().isEmpty()) {
-                                int totalDeps = report.dependencyGraph().getNodes().size();
-                                int shownDeps = Math.min(totalDeps, 10); // Show first 10 dependencies
-
-                                // Truncate the report to show only first N dependencies
-                                DependencyAnalysisReport truncatedReport = truncateReport(report, shownDeps);
-
-                                store.saveAnalysisReport(projectPath, truncatedReport, false);
-                                updateDashboardFromReport(truncatedReport);
-
-                                // Show upgrade dialog with partial results message
-                                int result = Messages.showYesNoDialog(project,
-                                        String.format("Analysis complete! Showing %d of %d dependencies.\n\n" +
-                                                "You've used all your basic scan credits.\n" +
-                                                "Upgrade to Premium for unlimited scans and complete results.",
-                                                shownDeps, totalDeps),
-                                        "Credits Exhausted - Partial Results",
-                                        "Upgrade to Premium",
-                                        "Continue with Limited Results",
-                                        Messages.getInformationIcon());
-
-                                if (result == Messages.YES) {
-                                    openMarketplace();
-                                }
-                            } else {
-                                showEmptyResultsState();
-                                Messages.showInfoMessage(project,
-                                        "Analysis complete. No Jakarta migration issues found.",
-                                        "Analysis Complete");
-                            }
-                        });
-                    })
-                    .exceptionally(ex -> {
-                        ApplicationManager.getApplication().invokeLater(() -> {
-                            dashboardComponent.setAnalysisRunning(false);
-                            Messages.showWarningDialog(project,
-                                    "Analysis failed: " + ex.getMessage(),
-                                    "Analysis Failed");
-                        });
-                        return null;
-                    });
-        }
-
-        /**
-         * Truncate a dependency analysis report to show only first N dependencies.
-         */
-        private DependencyAnalysisReport truncateReport(DependencyAnalysisReport originalReport, int limit) {
-            // For simplicity, we return the full report but the UI will show truncated results
-            // A more sophisticated approach would create a new report with limited nodes
-            // This is handled in updateDashboardFromReport by checking credit status
-            return originalReport;
-        }
-
-        /**
-         * Run all 3 scans sequentially for all users:
-         * 1. Deep dependency scanning (or basic analysis as fallback)
-         * 2. Advanced scans
-         * 3. Platform detection
-         *
-         * Display truncation for free users is handled at the UI level by DependenciesTableComponent
-         * which limits results to 10 rows for non-premium users.
-         */
-        private void runFullAnalysis(Path projectPath) {
-            LOG.info("runFullAnalysis: Starting sequential scan (deep deps -> advanced -> platform)");
-
-            // Report initial progress
+            // Phase 1: Deep dependency analysis
             dashboardComponent.onScanPhase("Deep Dependency Analysis", 0, 3);
 
-            // Step 1: Run deep dependency scanning (with fallback to basic analysis)
-            CompletableFuture.supplyAsync(() -> runDeepDependencyAnalysis(projectPath))
-                    .thenCompose(deepScanResult -> {
-                        LOG.info("runFullAnalysis: Dependency scan completed (deep or basic fallback)");
-                        
-                        // Report progress after dependency analysis
-                        dashboardComponent.onScanPhase("Advanced Scans", 1, 3);
+            CompletableFuture<TransitiveDependencyProjectScanResult> deepFuture = CompletableFuture.supplyAsync(() -> {
+                LOG.info("performDeepScan: Running deep dependency scan");
+                TransitiveDependencyProjectScanResult result =
+                        advancedScanningService.scanDependenciesDeep(projectPath, dashboardComponent);
+                if (result == null) {
+                    LOG.warn("performDeepScan: Maven/Gradle not available for deep scan");
+                    throw new IllegalStateException("Deep scan requires Maven or Gradle. Neither was found on the system.");
+                }
+                return result;
+            });
 
-                        // Step 2: Run advanced scans (without transitive dependency scanning)
-                        return CompletableFuture.supplyAsync(() -> {
-                            LOG.info("runFullAnalysis: Starting advanced scans");
-                            try {
-                                AdvancedScanningService.AdvancedScanSummary advancedSummary =
-                                        advancedScanningService.scanAll(projectPath, dashboardComponent);
-                                LOG.info("runFullAnalysis: Advanced scans completed");
-                                return advancedSummary;
-                            } catch (Exception ex) {
-                                LOG.warn("runFullAnalysis: Advanced scans failed", ex);
-                                dashboardComponent.onScanError(ex);
-                                return null; // Continue even if advanced scan fails
-                            }
-                        }).thenApply(advancedSummary -> {
-                            // Combine deep dependency results with advanced summary if available
-                            if (deepScanResult != null && !deepScanResult.isEmpty()) {
-                                LOG.info("runFullAnalysis: Using deep dependency scan results with " +
-                                         deepScanResult.size() + " dependencies");
-                                // Store the deep scan results for display
-                                storeDeepDependencyResults(projectPath, deepScanResult);
-                            }
-                            return advancedSummary;
-                        });
-                    })
-                    .thenCompose(advancedSummary -> {
-                        LOG.info("runFullAnalysis: Advanced scan step completed");
+            deepFuture.thenAccept(deepResult -> {
+                List<DependencyInfo> depInfos = advancedScanningService.convertToDependencyInfo(deepResult);
+                // Build dependency graph from deep result
+                DependencyGraph deepGraph = advancedScanningService.buildDependencyGraphFromDeepResult(deepResult);
+                // Build status map for graph visualization
+                Map<String, DependencyMigrationStatus> statusMap = depInfos.stream()
+                        .collect(Collectors.toMap(
+                                d -> d.getGroupId() + ":" + d.getArtifactId(),
+                                d -> d.getMigrationStatus(),
+                                (existing, replacement) -> existing
+                        ));
+                // Build dashboard from deep dependencies
+                MigrationDashboard dashboard = buildDashboardFromDependencies(depInfos);
 
-                        // Report progress for platform scan
-                        dashboardComponent.onScanPhase("Platform Detection", 2, 3);
+                ApplicationManager.getApplication().invokeLater(() -> {
+                    dependenciesComponent.setDependencies(depInfos);
+                    migrationPhasesComponent.setDependencies(depInfos);
+                    dependencyGraphComponent.updateGraphFromDependencyGraph(deepGraph, statusMap);
+                    dashboardComponent.setDashboard(dashboard);
+                });
+            });
 
-                        // Update UI with advanced results
-                        ApplicationManager.getApplication().invokeLater(() -> {
-                            if (advancedSummary != null) {
-                                dashboardComponent.updateAdvancedScanCounts();
-                                // Refresh Advanced Scans tab to display the new results
-                                if (advancedScansComponent != null) {
-                                    advancedScansComponent.refreshFromCachedResults();
-                                }
-                            }
-                        });
-
-                        // Step 3: Run platform scan
-                        return CompletableFuture.supplyAsync(() -> {
-                            LOG.info("runFullAnalysis: Starting platform scan");
-                            try {
-                                if (platformsTabComponent != null) {
-                                    platformsTabComponent.scanProject();
-                                    LOG.info("runFullAnalysis: Platform scan completed");
-                                } else {
-                                    LOG.warn("runFullAnalysis: platformsTabComponent is null");
-                                }
-                                return true;
-                            } catch (Exception ex) {
-                                LOG.warn("runFullAnalysis: Platform scan failed", ex);
-                                return false; // Continue even if platform scan fails
-                            }
-                        }).thenApply(platformSuccess -> advancedSummary);
-                    })
-                    .thenAccept(finalSummary -> {
-                        // Report completion
-                        dashboardComponent.onScanComplete();
-                        
-                        ApplicationManager.getApplication().invokeLater(() -> {
-                            LOG.info("runFullAnalysis: All scans completed successfully");
-                            boolean isPremium = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
-                            if (isPremium) {
-                                Messages.showInfoMessage(project,
-                                        "Analysis complete! Deep dependency, advanced, and platform scans finished.",
-                                        "Analysis Complete");
-                            } else {
-                                Messages.showInfoMessage(project,
-                                        "Analysis complete! Showing all dependencies found.\n\n" +
-                                        "Note: Free users see first 10 dependencies in the Dependencies tab. " +
-                                        "Upgrade to Premium for unlimited access.",
-                                        "Analysis Complete");
-                            }
-                        });
-                    })
-                    .exceptionally(ex -> {
-                        Exception exception = ex instanceof Exception ? (Exception) ex : new RuntimeException(ex);
-                        dashboardComponent.onScanError(exception);
-                        ApplicationManager.getApplication().invokeLater(() -> {
-                            dashboardComponent.setAnalysisRunning(false);
-                            LOG.error("runFullAnalysis: Analysis failed", ex);
-                            Messages.showWarningDialog(project,
-                                    "Analysis failed: " + ex.getMessage(),
-                                    "Analysis Failed");
-                        });
+            // Phase 2: Advanced scans (full, includes transitive)
+            CompletableFuture<AdvancedScanningService.AdvancedScanSummary> advFuture = deepFuture.thenCompose(deepResult -> {
+                dashboardComponent.onScanPhase("Advanced Scans", 1, 3);
+                return CompletableFuture.supplyAsync(() -> {
+                    LOG.info("performDeepScan: Running advanced scans (full)");
+                    try {
+                        return advancedScanningService.scanAll(projectPath, dashboardComponent);
+                    } catch (Exception ex) {
+                        LOG.warn("performDeepScan: Advanced scans failed", ex);
+                        dashboardComponent.onScanError(ex);
                         return null;
-                    });
+                    }
+                });
+            });
+
+            advFuture.thenAccept(summary -> {
+                ApplicationManager.getApplication().invokeLater(() -> {
+                    if (summary != null) {
+                        dashboardComponent.updateAdvancedScanCounts();
+                        if (sourceScansComponent != null) {
+                            sourceScansComponent.refreshFromCachedResults();
+                        }
+                    }
+                });
+            });
+
+            // Phase 3: Platform detection
+            CompletableFuture<Void> platformFuture = advFuture.thenRun(() -> {
+                dashboardComponent.onScanPhase("Platform Detection", 2, 3);
+                if (platformsTabComponent != null) {
+                    platformsTabComponent.scanProject();
+                }
+            });
+
+            // Final completion handling
+            platformFuture.whenComplete((v, throwable) -> {
+                ApplicationManager.getApplication().invokeLater(() -> {
+                    if (throwable != null) {
+                        LOG.error("performDeepScan: Scan failed", throwable);
+                        dashboardComponent.setAnalysisRunning(false);
+                        setScanButtonsEnabled(true);
+                        Messages.showWarningDialog(project,
+                                "Deep scan failed: " + throwable.getMessage(),
+                                "Scan Failed");
+                    } else {
+                        dashboardComponent.onScanComplete();
+                        setScanButtonsEnabled(true);
+                        Messages.showInfoMessage(project,
+                                "Analysis complete! Deep dependency, advanced, and platform scans finished.",
+                                "Analysis Complete");
+                    }
+                });
+            });
         }
+
+        /**
+         * Handle analyze project action - triggers analysis using migration-core library.
+         * For premium users, runs all scans with full results.
+         * For free users, checks credits and may show truncated results when credits exhausted.
+         * @deprecated Replaced by Quick Scan and Deep Scan buttons
+         */
+        @Deprecated
+        private void handleAnalyzeProject(java.awt.event.ActionEvent e) {
+            // Legacy method - functionality moved to handleQuickScan and handleDeepScan
+            Messages.showInfoMessage(project,
+                    "This button has been replaced by 'Quick Scan' and 'Deep Scan' buttons in the toolbar.",
+                    "Legacy Button");
+        }
+
+
 
         /**
          * Runs deep dependency analysis using Maven/Gradle commands.
@@ -1007,7 +1029,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Run deep transitive dependency scan
             try {
                 TransitiveDependencyProjectScanResult deepResult =
-                        advancedScanningService.scanDependenciesDeep(projectPath);
+                        advancedScanningService.scanDependenciesDeep(projectPath, dashboardComponent);
 
                 if (deepResult == null) {
                     LOG.warn("runDeepDependencyAnalysis: Deep scan returned null");
@@ -1396,6 +1418,71 @@ public class MigrationToolWindow implements ToolWindowFactory {
             return (int) ((compatible + hasVersion * 0.7) * 100 / deps.size());
         }
 
+        /**
+         * Builds a MigrationDashboard from a list of DependencyInfo.
+         * Used for deep scan results to populate the dashboard with accurate counts.
+         */
+        private MigrationDashboard buildDashboardFromDependencies(List<DependencyInfo> deps) {
+            MigrationDashboard dashboard = new MigrationDashboard();
+            if (deps == null || deps.isEmpty()) {
+                dashboard.setStatus(MigrationStatus.READY);
+                dashboard.setLastAnalyzed(Instant.now());
+                DependencySummary summary = new DependencySummary();
+                summary.setTotalDependencies(0);
+                summary.setAffectedDependencies(0);
+                summary.setBlockerDependencies(0);
+                summary.setMigrableDependencies(0);
+                summary.setNoJakartaSupportCount(0);
+                summary.setJakartaUpgradeCount(0);
+                summary.setJakartaCompatibleCount(0);
+                summary.setOrganisationalDependencies(0);
+                summary.setUnknownReviewCount(0);
+                summary.setTransitiveDependencies(0);
+                dashboard.setDependencySummary(summary);
+                dashboard.setReadinessScore(100);
+                return dashboard;
+            }
+
+            long blockers = deps.stream().filter(DependencyInfo::isBlocker).count();
+            long migrable = deps.stream().filter(d -> d.getRecommendedVersion() != null).count();
+            long noJakartaSupport = deps.stream()
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.NO_JAKARTA_VERSION)
+                    .count();
+            long jakartaUpgrade = deps.stream()
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.NEEDS_UPGRADE)
+                    .count();
+            long jakartaCompatible = deps.stream()
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE)
+                    .count();
+            long organisational = deps.stream().filter(DependencyInfo::isOrganizational).count();
+            long unknownReview = deps.stream()
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.UNKNOWN_REVIEW ||
+                                 d.getMigrationStatus() == DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION)
+                    .count();
+            long transitive = deps.stream().filter(DependencyInfo::isTransitive).count();
+
+            int score = calculateReadinessScore(deps);
+
+            dashboard.setReadinessScore(score);
+            dashboard.setStatus(blockers > 0 ? MigrationStatus.HAS_BLOCKERS : MigrationStatus.READY);
+            dashboard.setLastAnalyzed(Instant.now());
+
+            DependencySummary summary = new DependencySummary();
+            summary.setTotalDependencies(deps.size());
+            summary.setAffectedDependencies(deps.size());
+            summary.setBlockerDependencies((int) blockers);
+            summary.setMigrableDependencies((int) migrable);
+            summary.setNoJakartaSupportCount((int) noJakartaSupport);
+            summary.setJakartaUpgradeCount((int) jakartaUpgrade);
+            summary.setJakartaCompatibleCount((int) jakartaCompatible);
+            summary.setOrganisationalDependencies((int) organisational);
+            summary.setUnknownReviewCount((int) unknownReview);
+            summary.setTransitiveDependencies((int) transitive);
+            dashboard.setDependencySummary(summary);
+
+            return dashboard;
+        }
+
         private void loadInitialState() {
             String projectPathStr = project.getBasePath();
             if (projectPathStr == null) {
@@ -1452,7 +1539,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
          * Refresh data from migration-core library
          */
         public void refreshFromLibrary() {
-            handleAnalyzeProject(null);
+            handleDeepScan(null);
         }
         
         /**

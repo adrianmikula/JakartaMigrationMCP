@@ -69,6 +69,37 @@ public class AppServerScannerImpl implements AppServerScanner {
         return new AppServerProjectScanResult(projectPath.toString(), usages);
     }
 
+    @Override
+    public AppServerProjectScanResult scanProject(List<Path> filesToScan) {
+        if (filesToScan == null || filesToScan.isEmpty()) {
+            return new AppServerProjectScanResult("", new ArrayList<>());
+        }
+        List<AppServerUsage> allUsages = new ArrayList<>();
+        
+        log.info("Scanning {} pre-discovered files for app server usage", filesToScan.size());
+        
+        for (Path file : filesToScan) {
+            String fileName = file.getFileName().toString().toLowerCase();
+            
+            // Process build files
+            if (fileName.equals("pom.xml")) {
+                allUsages.addAll(scanMaven(file));
+            } else if (fileName.startsWith("build.gradle") || fileName.endsWith(".gradle") || fileName.endsWith(".gradle.kts")) {
+                allUsages.addAll(scanGradle(file));
+            }
+            // XML descriptors are also included in filesToScan if they're relevant
+            // (AdvancedScanningService would pass them based on discovery predicate)
+        }
+        
+        String projectPath = "";
+        if (!filesToScan.isEmpty()) {
+            Path p = filesToScan.get(0).getParent();
+            if (p != null) projectPath = p.toString();
+        }
+        
+        return new AppServerProjectScanResult(projectPath, allUsages);
+    }
+
     private List<AppServerUsage> scanMaven(Path pomPath) {
         List<AppServerUsage> usages = new ArrayList<>();
         try {
