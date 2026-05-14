@@ -295,6 +295,11 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
             int version = rs.getInt(1);
             if (version < DB_VERSION) {
                 if (version < 2) {
+                    // Only delete scan data tables if upgrading from version 1 (not fresh install)
+                    if (version == 1) {
+                        deleteScanDataTables(stmt);
+                    }
+
                     // Upgrade to version 2: add refactoring history tables
                     stmt.execute("""
                                 CREATE TABLE IF NOT EXISTS recipe_executions (
@@ -328,6 +333,40 @@ public class SqliteMigrationAnalysisStore implements AutoCloseable {
                 log.info("Database schema updated to version {}", DB_VERSION);
             }
         }
+    }
+
+    /**
+     * Deletes scan data tables while preserving recipe history.
+     * This is called on schema upgrade to simplify migration logic.
+     */
+    private void deleteScanDataTables(Statement stmt) throws SQLException {
+        // Delete scan-related tables (order matters due to foreign keys)
+        String[] scanDataTables = {
+            "migration_phases",
+            "migration_plans",
+            "migration_issues",
+            "blockers",
+            "recommendations",
+            "dependency_edges",
+            "dependencies",
+            "analysis_reports"
+        };
+
+        for (String tableName : scanDataTables) {
+            try {
+                stmt.execute("DROP TABLE IF EXISTS " + tableName);
+                log.info("Dropped scan data table: {}", tableName);
+            } catch (SQLException e) {
+                log.warn("Could not drop table {} (may not exist): {}", tableName, e.getMessage());
+            }
+        }
+
+        // Note: We preserve these tables:
+        // - projects (project metadata)
+        // - recipe_executions (history of recipe runs)
+        // - recipe_changed_files (file content for undo/rollback)
+        // - migration_issues_registry (scanner type mappings)
+        // - metadata (schema version tracking)
     }
 
     // ==================== Analysis Report Operations ====================

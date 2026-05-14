@@ -26,6 +26,7 @@ public class SchemaManager {
 
     /**
      * Initializes or migrates the database schema to the current version.
+     * Deletes scan data on upgrade but preserves recipe history and credits.
      */
     public void initializeSchema() throws SQLException {
         int currentVersion = getSchemaVersion();
@@ -44,12 +45,55 @@ public class SchemaManager {
         // Migration 2: Add recipe versioning and archival columns
         if (currentVersion < 2) {
             log.info("Executing schema migration (version 2)");
+            // Only delete scan data tables if upgrading from version 1 (not fresh install)
+            if (currentVersion == 1) {
+                deleteScanDataTables();
+            }
             executeMigration2();
             setSchemaVersion(2);
             if (!connection.getAutoCommit()) {
                 connection.commit();
             }
             log.info("Schema migration to version 2 completed successfully");
+        }
+    }
+
+    /**
+     * Deletes scan data tables while preserving recipe history.
+     * This is called on schema upgrade to simplify migration logic.
+     */
+    private void deleteScanDataTables() throws SQLException {
+        try (Statement stmt = connection.createStatement()) {
+            // Delete scan-related tables (order matters due to foreign keys)
+            String[] scanDataTables = {
+                "blockers",
+                "recommendations",
+                "dependency_edges",
+                "dependencies",
+                "analysis_reports",
+                "migration_phases",
+                "migration_plans",
+                "migration_issues",
+                "org_dependencies",
+                "repositories"
+            };
+
+            for (String tableName : scanDataTables) {
+                try {
+                    stmt.execute("DROP TABLE IF EXISTS " + tableName);
+                    log.info("Dropped scan data table: {}", tableName);
+                } catch (SQLException e) {
+                    log.warn("Could not drop table {} (may not exist): {}", tableName, e.getMessage());
+                }
+            }
+
+            // Note: We preserve these tables:
+            // - recipes (recipe definitions)
+            // - recipe_executions (history of recipe runs)
+            // - recipe_changed_files (file content for undo/rollback)
+            // - plugin_state (repository-specific settings)
+            // - upgrade_recommendations (dependency upgrade suggestions)
+            // - metadata (schema version tracking)
         }
     }
 
