@@ -335,4 +335,38 @@ public class DependenciesTreeComponentEDTTest extends BasePlatformTestCase {
 
         return dependencies;
     }
+
+    @Test
+    public void testTreeIndentationCorrect() throws Exception {
+        // Test that child nodes are indented correctly from their parent
+        // This test verifies the bug: setRootVisible(false) + setShowsRootHandles(true) causes incorrect indentation
+        List<DependencyInfo> dependencies = createTestDependenciesWithTreeStructure();
+        
+        ApplicationManager.getApplication().invokeAndWait(() -> {
+            treeComponent.setDependencies(dependencies);
+        });
+        
+        Thread.sleep(200);
+        
+        ApplicationManager.getApplication().invokeAndWait(() -> {
+            javax.swing.JTree tree = treeComponent.getTree();
+            
+            // Get the row bounds for the first visible row (should be the parent node)
+            java.awt.Rectangle parentRowBounds = tree.getRowBounds(0);
+            assertThat(parentRowBounds).isNotNull();
+            
+            // Get the row bounds for the second visible row (should be the child node)
+            java.awt.Rectangle childRowBounds = tree.getRowBounds(1);
+            assertThat(childRowBounds).isNotNull();
+            
+            // Child node should be indented to the right of parent node
+            // Standard JTree indentation is typically 20-30 pixels per level
+            assertThat(childRowBounds.x).isGreaterThan(parentRowBounds.x);
+            
+            // The indentation should be reasonable (at least 10 pixels, less than 100 pixels)
+            int indentation = childRowBounds.x - parentRowBounds.x;
+            assertThat(indentation).isGreaterThan(10);
+            assertThat(indentation).isLessThan(100);
+        });
+    }
 }

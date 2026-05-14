@@ -145,6 +145,7 @@ public class RecipeSeeder {
         String fileFilter = (String) jsonRecipe.get("fileFilter");
         String openRewriteClass = (String) jsonRecipe.get("openRewriteClass");
         String pattern = (String) jsonRecipe.get("pattern");
+        String safety = (String) jsonRecipe.get("safety");
 
         // Validate required fields in dev mode
         if (isDevMode()) {
@@ -166,6 +167,7 @@ public class RecipeSeeder {
                 .reversible(reversible != null ? reversible : true)
                 .pattern(pattern)
                 .filePattern(fileFilter)
+                .safety(safety)
                 .addedInPluginVersion(pluginVersion)
                 .archived(false);
 

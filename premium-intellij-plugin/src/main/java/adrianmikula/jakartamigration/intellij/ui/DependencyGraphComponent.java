@@ -114,19 +114,19 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
         legendPanel.setBackground(new Color(245, 245, 245));
 
         // Compatible (Green)
-        JPanel legendItem1 = createLegendItem(new Color(40, 167, 69), "Jakarta Compatible");
+        JPanel legendItem1 = createLegendItem(DependencyStatusColors.STATUS_COMPATIBLE, "Jakarta Compatible");
         legendPanel.add(legendItem1);
 
         // Needs Upgrade (Yellow)
-        JPanel legendItem2 = createLegendItem(new Color(255, 193, 7), "Needs Upgrade");
+        JPanel legendItem2 = createLegendItem(DependencyStatusColors.STATUS_NEEDS_UPGRADE, "Needs Upgrade");
         legendPanel.add(legendItem2);
 
         // No Jakarta Version (Red)
-        JPanel legendItem3 = createLegendItem(new Color(220, 53, 69), "No Jakarta Version");
+        JPanel legendItem3 = createLegendItem(DependencyStatusColors.STATUS_NO_JAKARTA, "No Jakarta Version");
         legendPanel.add(legendItem3);
 
         // Organisational - Thicker border indicator
-        JPanel legendItem4 = createLegendItemWithBorder(new Color(108, 117, 125), "Organisational (thicker border)");
+        JPanel legendItem4 = createLegendItemWithBorder(DependencyStatusColors.STATUS_UNKNOWN, "Organisational (thicker border)");
         legendPanel.add(legendItem4);
 
         // Combine controls and legend in a wrapper panel

@@ -316,18 +316,21 @@ public class GraphCanvas extends JPanel {
         int dy = y2 - y1;
         double length = Math.sqrt(dx * dx + dy * dy);
 
-        // Shorten the line to not overlap with nodes
+        // Shorten the line from both ends to not overlap with nodes
         double shortenAmount = 25;
         double shortenRatio = Math.max(0, (length - shortenAmount) / length);
 
-        int endX = (int) (x1 + dx * shortenRatio);
-        int endY = (int) (y1 + dy * shortenRatio);
+        // Calculate start point (shortened from source)
         int startX = (int) (x1 + dx * (1 - shortenRatio));
         int startY = (int) (y1 + dy * (1 - shortenRatio));
 
+        // Calculate end point (shortened from target)
+        int endX = (int) (x1 + dx * shortenRatio);
+        int endY = (int) (y1 + dy * shortenRatio);
+
         g2d.drawLine(startX, startY, endX, endY);
 
-        // Draw arrow head
+        // Draw arrow head at the end point
         int arrowX1 = (int) (endX - arrowLength * Math.cos(angle - Math.PI / 6));
         int arrowY1 = (int) (endY - arrowLength * Math.sin(angle - Math.PI / 6));
         int arrowX2 = (int) (endX - arrowLength * Math.cos(angle + Math.PI / 6));

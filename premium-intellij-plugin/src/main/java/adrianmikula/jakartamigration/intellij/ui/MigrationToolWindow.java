@@ -920,7 +920,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 MigrationDashboard dashboard = buildDashboardFromDependencies(depInfos);
 
                 ApplicationManager.getApplication().invokeLater(() -> {
-                    dependenciesComponent.setDependencies(depInfos);
+                    dependencyUIManager.updateAllDependencies(depInfos);
                     migrationPhasesComponent.setDependencies(depInfos);
                     dependencyGraphComponent.updateGraphFromDependencyGraph(deepGraph, statusMap);
                     dashboardComponent.setDashboard(dashboard);

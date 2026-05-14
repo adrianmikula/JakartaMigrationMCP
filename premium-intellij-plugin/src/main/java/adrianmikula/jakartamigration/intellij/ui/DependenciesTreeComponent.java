@@ -71,7 +71,7 @@ public class DependenciesTreeComponent extends AbstractDependencyUIComponent {
         tree.setToggleClickCount(1); // Enable single-click expand/collapse
         
         JBScrollPane scrollPane = new JBScrollPane(tree);
-        tree.setShowsRootHandles(true);
+        tree.setShowsRootHandles(false);
 
         // Add selection listener to update recipes panel
         tree.addTreeSelectionListener(new TreeSelectionListener() {
