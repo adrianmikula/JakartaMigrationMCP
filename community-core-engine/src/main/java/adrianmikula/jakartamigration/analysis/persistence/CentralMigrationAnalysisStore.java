@@ -28,9 +28,7 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
 
     private final Path dbPath;
     private final ObjectMapperService objectMapper;
-
-    // User-configurable org namespace patterns
-    private final Set<String> orgNamespacePatterns = new HashSet<>();
+    private final OrgNamespacePatternMatcher orgNamespaceMatcher;
 
     public CentralMigrationAnalysisStore() {
         this(getCentralDbPath());
@@ -39,6 +37,7 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
     public CentralMigrationAnalysisStore(Path dbPath) {
         this.dbPath = dbPath;
         this.objectMapper = new ObjectMapperService();
+        this.orgNamespaceMatcher = new OrgNamespacePatternMatcher();
         initializeDatabase();
     }
 
@@ -75,35 +74,14 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
      * Patterns are matched against groupId (supports wildcards like "com.myorg.*")
      */
     public void setOrgNamespacePatterns(Set<String> patterns) {
-        this.orgNamespacePatterns.clear();
-        this.orgNamespacePatterns.addAll(patterns);
+        orgNamespaceMatcher.setOrgNamespacePatterns(patterns);
     }
 
     /**
      * Checks if a dependency belongs to the organization.
      */
     public boolean isOrgDependency(String groupId) {
-        for (String pattern : orgNamespacePatterns) {
-            if (matchesPattern(groupId, pattern)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean matchesPattern(String groupId, String pattern) {
-        if (pattern.equals("*") || pattern.equals(groupId)) {
-            return true;
-        }
-        if (pattern.endsWith(".*")) {
-            String prefix = pattern.substring(0, pattern.length() - 2);
-            return groupId.equals(prefix) || groupId.startsWith(prefix + ".");
-        }
-        if (pattern.endsWith("*")) {
-            String prefix = pattern.substring(0, pattern.length() - 1);
-            return groupId.startsWith(prefix);
-        }
-        return groupId.equals(pattern);
+        return orgNamespaceMatcher.isOrgDependency(groupId);
     }
 
     private Connection getConnection() throws SQLException {
