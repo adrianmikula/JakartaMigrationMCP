@@ -19,9 +19,6 @@ import java.util.List;
  * - Ctrl + scroll: Zoom in/out
  * - Scroll alone: Vertical pan
  * - Double-click: Reset view to default
- *
- * Implements spec GraphInteractionState (spec/plugin-components.tsp)
- * @see ADR-0065 (Dynamic Graph Spacing and Standard Panning)
  */
 public class GraphCanvas extends JPanel {
     private final List<GraphNode> nodes = new ArrayList<>();
@@ -205,26 +202,6 @@ public class GraphCanvas extends JPanel {
         lastMousePos = e.getPoint();
     }
 
-    private void handleMouseReleased(MouseEvent e) {
-        if (leftButtonDown && !isDragging && pressPoint != null) {
-            // This was a tap (not drag) - select node at press position
-            Point worldPos = screenToWorld(pressPoint.x, pressPoint.y);
-            selectedNode = null;
-            for (GraphNode node : nodes) {
-                if (node.contains(worldPos.x, worldPos.y)) {
-                    selectedNode = node;
-                    break;
-                }
-            }
-            repaint();
-        }
-        // Reset interaction state
-        leftButtonDown = false;
-        pressPoint = null;
-        isDragging = false;
-        lastMousePos = null;
-    }
-
     private void handleMouseMoved(MouseEvent e) {
         Point worldPos = screenToWorld(e.getX(), e.getY());
         GraphNode hoveredNode = null;
@@ -260,6 +237,26 @@ public class GraphCanvas extends JPanel {
         } else {
             setToolTipText(null);
         }
+    }
+
+    private void handleMouseReleased(MouseEvent e) {
+        if (leftButtonDown && !isDragging && pressPoint != null) {
+            // This was a tap (not drag) - select node at press position
+            Point worldPos = screenToWorld(pressPoint.x, pressPoint.y);
+            selectedNode = null;
+            for (GraphNode node : nodes) {
+                if (node.contains(worldPos.x, worldPos.y)) {
+                    selectedNode = node;
+                    break;
+                }
+            }
+            repaint();
+        }
+        // Reset interaction state
+        leftButtonDown = false;
+        pressPoint = null;
+        isDragging = false;
+        lastMousePos = null;
     }
 
     private Point screenToWorld(int screenX, int screenY) {
@@ -316,21 +313,18 @@ public class GraphCanvas extends JPanel {
         int dy = y2 - y1;
         double length = Math.sqrt(dx * dx + dy * dy);
 
-        // Shorten the line from both ends to not overlap with nodes
+        // Shorten the line to not overlap with nodes
         double shortenAmount = 25;
         double shortenRatio = Math.max(0, (length - shortenAmount) / length);
 
-        // Calculate start point (shortened from source)
+        int endX = (int) (x1 + dx * shortenRatio);
+        int endY = (int) (y1 + dy * shortenRatio);
         int startX = (int) (x1 + dx * (1 - shortenRatio));
         int startY = (int) (y1 + dy * (1 - shortenRatio));
 
-        // Calculate end point (shortened from target)
-        int endX = (int) (x1 + dx * shortenRatio);
-        int endY = (int) (y1 + dy * shortenRatio);
-
         g2d.drawLine(startX, startY, endX, endY);
 
-        // Draw arrow head at the end point
+        // Draw arrow head
         int arrowX1 = (int) (endX - arrowLength * Math.cos(angle - Math.PI / 6));
         int arrowY1 = (int) (endY - arrowLength * Math.sin(angle - Math.PI / 6));
         int arrowX2 = (int) (endX - arrowLength * Math.cos(angle + Math.PI / 6));
