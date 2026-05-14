@@ -81,6 +81,11 @@ public class BeanValidationScannerImpl extends BaseScanner<JavaxUsage> implement
     }
 
     @Override
+    public ProjectScanResult<FileScanResult<JavaxUsage>> scanProject(List<Path> filesToScan) {
+        return scanProjectGeneric(null, filesToScan, "Bean Validation");
+    }
+
+    @Override
     public FileScanResult<JavaxUsage> scanFile(Path filePath) {
         Path validatedPath = validateFilePath(filePath);
         if (validatedPath == null) {

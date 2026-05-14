@@ -90,6 +90,30 @@ public class ReflectionUsageScannerImpl implements ReflectionUsageScanner {
                 fileResults);
     }
 
+    @Override
+    public ReflectionUsageProjectScanResult scanProject(List<Path> filesToScan) {
+        if (filesToScan == null) {
+            return new ReflectionUsageProjectScanResult("", List.of());
+        }
+        List<ReflectionUsageScanResult> results = new ArrayList<>();
+        for (Path file : filesToScan) {
+            try {
+                ReflectionUsageScanResult r = scanFile(file);
+                if (r != null && r.hasFindings()) {
+                    results.add(r);
+                }
+            } catch (Exception e) {
+                log.warn("Error scanning file {}: {}", file, e.getMessage());
+            }
+        }
+        String projectPath = "";
+        if (!filesToScan.isEmpty()) {
+            Path p = filesToScan.get(0).getParent();
+            if (p != null) projectPath = p.toString();
+        }
+        return new ReflectionUsageProjectScanResult(projectPath, results);
+    }
+
     private ReflectionUsageScanResult scanFile(Path filePath) {
         List<ReflectionUsage> usages = new ArrayList<>();
         String fileKey = filePath.toString();

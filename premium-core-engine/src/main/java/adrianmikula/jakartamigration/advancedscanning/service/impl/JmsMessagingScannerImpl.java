@@ -206,6 +206,58 @@ public class JmsMessagingScannerImpl implements JmsMessagingScanner {
         } catch (Exception e) {
             log.error("Error scanning project for JMS APIs", e);
             return JmsMessagingProjectScanResult.empty();
+                }
+        }
+
+    @Override
+    public JmsMessagingProjectScanResult scanProject(List<Path> filesToScan) {
+        if (filesToScan == null || filesToScan.isEmpty()) {
+            return JmsMessagingProjectScanResult.empty();
+        }
+        try {
+            Runtime runtime = Runtime.getRuntime();
+            long maxMemory = runtime.maxMemory();
+            long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+            long availableMemory = maxMemory - usedMemory;
+
+            AtomicInteger totalScanned = new AtomicInteger(0);
+            List<JmsMessagingScanResult> results;
+
+            if (availableMemory < MEMORY_THRESHOLD_BYTES) {
+                log.info("Low memory detected ({} MB available), sequential processing for JMS Messaging",
+                        availableMemory / (1024 * 1024));
+                results = filesToScan.stream()
+                        .map(file -> scanFileWithTracking(file, totalScanned))
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+            } else {
+                int parallelism = Math.min(MAX_PARALLELISM, filesToScan.size());
+                ForkJoinPool customPool = new ForkJoinPool(parallelism);
+                try {
+                    results = customPool.submit(() ->
+                            filesToScan.parallelStream()
+                                    .map(file -> scanFileWithTracking(file, totalScanned))
+                                    .filter(Objects::nonNull)
+                                    .collect(Collectors.toList())
+                    ).get();
+                } catch (Exception e) {
+                    log.warn("Parallel scan failed for JMS Messaging, falling back to sequential", e);
+                    results = filesToScan.stream()
+                            .map(file -> scanFileWithTracking(file, totalScanned))
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toList());
+                } finally {
+                    customPool.shutdown();
+                }
+            }
+
+            cleanupThreadLocal();
+
+            int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
+            return new JmsMessagingProjectScanResult(results, totalScanned.get(), results.size(), totalUsages);
+        } catch (Exception e) {
+            log.error("Error scanning files for JMS Messaging", e);
+            return JmsMessagingProjectScanResult.empty();
         }
     }
 

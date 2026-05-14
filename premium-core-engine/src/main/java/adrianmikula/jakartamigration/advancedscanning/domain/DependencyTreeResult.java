@@ -39,9 +39,10 @@ public class DependencyTreeResult {
         private final String scope;
         private final int depth;
         private final boolean transitive;
+        private final String parentArtifactKey; // null for root dependencies
 
-        public DependencyNode(String g, String a, String v, String s, int d, boolean t) {
-            this.groupId = g; this.artifactId = a; this.version = v; this.scope = s; this.depth = d; this.transitive = t;
+        public DependencyNode(String g, String a, String v, String s, int d, boolean t, String parentKey) {
+            this.groupId = g; this.artifactId = a; this.version = v; this.scope = s; this.depth = d; this.transitive = t; this.parentArtifactKey = parentKey;
         }
 
         public String getArtifactKey() { return groupId + ":" + artifactId; }

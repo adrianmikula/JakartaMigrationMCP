@@ -5,6 +5,7 @@ import adrianmikula.jakartamigration.advancedscanning.domain.JavaxUsage;
 import adrianmikula.jakartamigration.advancedscanning.domain.ProjectScanResult;
 
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * Service for scanning source code for javax.validation.* (Bean Validation) usage.
@@ -19,7 +20,14 @@ public interface BeanValidationScanner {
      * @return Project scan result with all files containing javax.validation.* usage
      */
     ProjectScanResult<FileScanResult<JavaxUsage>> scanProject(Path projectPath);
-
+    
+    /**
+     * Scans a project using pre-discovered Java files.
+     * @param filesToScan list of Java file paths to scan
+     * @return Project scan result with all findings
+     */
+    ProjectScanResult<FileScanResult<JavaxUsage>> scanProject(List<Path> filesToScan);
+    
     /**
      * Scans a single file for javax.validation.* usage.
      *

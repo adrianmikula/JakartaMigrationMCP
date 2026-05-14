@@ -50,6 +50,17 @@ public class DependencyInfo {
     // Tree structure fields for hierarchical dependency view
     private String parentDependencyId;  // ID of parent dependency (groupId:artifactId:version)
     private List<DependencyInfo> children;  // Nested dependencies
+    @JsonProperty("scanReason")
+    private String scanReason;
+
+    @JsonProperty("detailMessage")
+    private String detailMessage;
+
+    @JsonProperty("confidence")
+    private double confidence;
+
+    @JsonProperty("incompatibilityFromTransitive")
+    private boolean incompatibilityFromTransitive;
 
     public enum DependencyType {
         DIRECT("Direct"),
@@ -85,6 +96,18 @@ public class DependencyInfo {
             DependencyMigrationStatus migrationStatus,
             boolean isTransitive, boolean isOrganizational,
             int depth, String scope) {
+        this(groupId, artifactId, currentVersion, recommendedGroupId, recommendedArtifactId,
+            recommendedVersion, jakartaCompatibilityStatus, associatedRecipeName, migrationStatus,
+            isTransitive, isOrganizational, depth, scope, null, null, 0.0, false);
+    }
+
+    public DependencyInfo(String groupId, String artifactId, String currentVersion,
+            String recommendedGroupId, String recommendedArtifactId, String recommendedVersion,
+            String jakartaCompatibilityStatus, String associatedRecipeName,
+            DependencyMigrationStatus migrationStatus,
+            boolean isTransitive, boolean isOrganizational,
+            int depth, String scope, String scanReason, String detailMessage,
+            double confidence, boolean incompatibilityFromTransitive) {
         this.groupId = groupId;
         this.artifactId = artifactId;
         this.currentVersion = currentVersion;
@@ -98,6 +121,10 @@ public class DependencyInfo {
         this.isOrganizational = isOrganizational;
         this.depth = depth;
         this.scope = scope;
+        this.scanReason = scanReason;
+        this.detailMessage = detailMessage;
+        this.confidence = confidence;
+        this.incompatibilityFromTransitive = incompatibilityFromTransitive;
     }
 
     public String getGroupId() {
@@ -215,6 +242,38 @@ public class DependencyInfo {
 
     public void setScope(String scope) {
         this.scope = scope;
+    }
+
+    public String getScanReason() {
+        return scanReason;
+    }
+
+    public void setScanReason(String scanReason) {
+        this.scanReason = scanReason;
+    }
+
+    public String getDetailMessage() {
+        return detailMessage;
+    }
+
+    public void setDetailMessage(String detailMessage) {
+        this.detailMessage = detailMessage;
+    }
+
+    public double getConfidence() {
+        return confidence;
+    }
+
+    public void setConfidence(double confidence) {
+        this.confidence = confidence;
+    }
+
+    public boolean isIncompatibilityFromTransitive() {
+        return incompatibilityFromTransitive;
+    }
+
+    public void setIncompatibilityFromTransitive(boolean incompatibilityFromTransitive) {
+        this.incompatibilityFromTransitive = incompatibilityFromTransitive;
     }
 
     public String getDisplayName() {

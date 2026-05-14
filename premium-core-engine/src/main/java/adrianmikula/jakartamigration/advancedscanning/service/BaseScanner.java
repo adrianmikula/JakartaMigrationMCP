@@ -41,6 +41,7 @@ public abstract class BaseScanner<T> {
 
     /**
      * Scans a project for javax.* usages and returns a generic ProjectScanResult.
+     * This method discovers Java files and then delegates to scanProjectGeneric(List).
      *
      * @param projectPath The path to the project directory
      * @param scanTypeName The name of the scan type for logging (e.g., "Bean Validation")
@@ -52,73 +53,84 @@ public abstract class BaseScanner<T> {
             return ProjectScanResult.empty();
         }
 
-        try {
-            List<Path> javaFiles = discoverJavaFiles(projectPath);
+        List<Path> javaFiles = discoverJavaFiles(projectPath);
+        return scanProjectGeneric(projectPath, javaFiles, scanTypeName);
+    }
 
-            if (javaFiles.isEmpty()) {
-                log.info("No Java files found in project: {}", projectPath);
-                return ProjectScanResult.empty();
-            }
+    /**
+     * Scans a project for javax.* usages using pre-discovered files.
+     * This is the core scanning logic that handles memory management, parallelism, etc.
+     *
+     * @param projectPath The path to the project directory (for validation/logging, may be null if files validated)
+     * @param filesToScan List of files to scan
+     * @param scanTypeName The name of the scan type for logging (e.g., "Bean Validation")
+     * @return ProjectScanResult containing all findings
+     */
+    protected ProjectScanResult<FileScanResult<T>> scanProjectGeneric(Path projectPath, List<Path> filesToScan, String scanTypeName) {
+        if (filesToScan == null) {
+            log.warn("File list is null for {} scan", scanTypeName);
+            return ProjectScanResult.empty();
+        }
 
-            log.info("Scanning {} Java files for {} in project: {}", javaFiles.size(), scanTypeName, projectPath);
+        if (filesToScan.isEmpty()) {
+            log.info("No files to scan for {} in project: {}", scanTypeName, projectPath);
+            return ProjectScanResult.empty();
+        }
 
-            // Check available memory and determine parallelism
-            Runtime runtime = Runtime.getRuntime();
-            long maxMemory = runtime.maxMemory();
-            long usedMemory = runtime.totalMemory() - runtime.freeMemory();
-            long availableMemory = maxMemory - usedMemory;
+        log.info("Scanning {} files for {} in project: {}", filesToScan.size(), scanTypeName, projectPath);
 
-            AtomicInteger totalScanned = new AtomicInteger(0);
-            List<FileScanResult<T>> results;
+        // Check available memory and determine parallelism
+        Runtime runtime = Runtime.getRuntime();
+        long maxMemory = runtime.maxMemory();
+        long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+        long availableMemory = maxMemory - usedMemory;
 
-            // Use sequential processing if low on memory, otherwise use bounded parallelism
-            if (availableMemory < MEMORY_THRESHOLD_BYTES) {
-                log.info("Low memory detected ({} MB available), using sequential processing for {}",
-                        availableMemory / (1024 * 1024), scanTypeName);
-                results = javaFiles.stream()
+        AtomicInteger totalScanned = new AtomicInteger(0);
+        List<FileScanResult<T>> results;
+
+        // Use sequential processing if low on memory, otherwise use bounded parallelism
+        if (availableMemory < MEMORY_THRESHOLD_BYTES) {
+            log.info("Low memory detected ({} MB available), using sequential processing for {}",
+                    availableMemory / (1024 * 1024), scanTypeName);
+            results = filesToScan.stream()
+                    .map(file -> scanFileWithTracking(file, totalScanned, scanTypeName))
+                    .filter(java.util.Objects::nonNull)
+                    .collect(Collectors.toList());
+        } else {
+            // Use bounded parallelism with custom ForkJoinPool
+            int parallelism = Math.min(MAX_PARALLELISM, filesToScan.size());
+            log.debug("Using parallel processing with parallelism={} for {}", parallelism, scanTypeName);
+
+            ForkJoinPool customPool = new ForkJoinPool(parallelism);
+            try {
+                results = customPool.submit(() ->
+                        filesToScan.parallelStream()
+                                .map(file -> scanFileWithTracking(file, totalScanned, scanTypeName))
+                                .filter(java.util.Objects::nonNull)
+                                .collect(Collectors.toList())
+                ).get();
+            } catch (Exception e) {
+                log.warn("Parallel scan failed for {}, falling back to sequential: {}", scanTypeName, e.getMessage());
+                results = filesToScan.stream()
                         .map(file -> scanFileWithTracking(file, totalScanned, scanTypeName))
                         .filter(java.util.Objects::nonNull)
                         .collect(Collectors.toList());
-            } else {
-                // Use bounded parallelism with custom ForkJoinPool
-                int parallelism = Math.min(MAX_PARALLELISM, javaFiles.size());
-                log.debug("Using parallel processing with parallelism={} for {}", parallelism, scanTypeName);
-
-                ForkJoinPool customPool = new ForkJoinPool(parallelism);
-                try {
-                    results = customPool.submit(() ->
-                            javaFiles.parallelStream()
-                                    .map(file -> scanFileWithTracking(file, totalScanned, scanTypeName))
-                                    .filter(java.util.Objects::nonNull)
-                                    .collect(Collectors.toList())
-                    ).get();
-                } catch (Exception e) {
-                    log.warn("Parallel scan failed for {}, falling back to sequential: {}", scanTypeName, e.getMessage());
-                    results = javaFiles.stream()
-                            .map(file -> scanFileWithTracking(file, totalScanned, scanTypeName))
-                            .filter(java.util.Objects::nonNull)
-                            .collect(Collectors.toList());
-                } finally {
-                    customPool.shutdown();
-                }
+            } finally {
+                customPool.shutdown();
             }
-
-            // Cleanup ThreadLocal to prevent memory leaks
-            cleanupThreadLocal();
-
-            int totalUsages = results.stream()
-                    .mapToInt(r -> r.usages().size())
-                    .sum();
-
-            log.info("{} scan complete: {} files scanned, {} files with usage, {} total usages",
-                    scanTypeName, totalScanned.get(), results.size(), totalUsages);
-
-            return new ProjectScanResult<>(results, totalScanned.get(), results.size(), totalUsages);
-
-        } catch (Exception e) {
-            log.error("Error scanning project for {}: {}", scanTypeName, projectPath, e);
-            return ProjectScanResult.empty();
         }
+
+        // Cleanup ThreadLocal to prevent memory leaks
+        cleanupThreadLocal();
+
+        int totalUsages = results.stream()
+                .mapToInt(r -> r.usages().size())
+                .sum();
+
+        log.info("{} scan complete: {} files scanned, {} files with usage, {} total usages",
+                scanTypeName, totalScanned.get(), results.size(), totalUsages);
+
+        return new ProjectScanResult<>(results, totalScanned.get(), results.size(), totalUsages);
     }
 
     /**

@@ -82,7 +82,6 @@ maven_artifacts:
     - org.apache.cxf
     - org.apache.batchee
     - org.apache.johnzon
-    
 
 java_packages:
   whitelist:

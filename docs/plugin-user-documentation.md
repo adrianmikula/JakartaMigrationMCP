@@ -153,8 +153,10 @@ This design choice enables:
 1. **Open Project:** Ensure project is loaded in IntelliJ with Maven/Gradle structure
 
 2. **Launch Analysis:**
-   - Click `▶ Analyze Project` in the tool window toolbar
-   - Or use `Tools → Jakarta Migration → Analyze Readiness`
+   - **Quick Scan** (fast): Direct dependencies + source code scanning + platform detection
+   - **Deep Scan** (full): All of Quick Scan plus full transitive dependency analysis
+   - Buttons located in the tool window toolbar
+   - Or use `Tools → Jakarta Migration → Analyze Readiness` (legacy)
 
 3. **Review Dashboard:**
    - Risk score (0-100) displayed with visual dial
@@ -162,7 +164,7 @@ This design choice enables:
    - Summary counts: total dependencies, Jakarta-compatible, blockers, no Jakarta version
 
 4. **Inspect Dependencies Tab:**
-   - Table view of all dependencies
+   - Table view of dependencies (Quick Scan shows direct deps; Deep Scan shows all transitive)
    - Migration status per dependency (Compatible, Needs Upgrade, No Jakarta Version, etc.)
    - Maven Central lookup status (pending/failed/completed)
 
@@ -188,10 +190,10 @@ This design choice enables:
    - Six strategies compared: Big Bang, Incremental, Parallel, Strangler Fig, Microservices, Hybrid
    - Each shows estimated time, risk level, pros/cons
 
-7. **Premium: Run Advanced Scans:**
-   - Click scan buttons for specific API categories
-   - Results populate dashboard counters
-   - Individual scan results viewable per category
+7. **Premium: Source Scans:**
+   - Results from source code scanning are automatically populated in the **Source Scans** tab
+   - No manual button required — scans run when you click Quick Scan or Deep Scan
+   - Categories include: JPA, Bean Validation, Servlet/JSP, Build Config, Security, etc.
 
 8. **Premium: Apply Refactoring:**
    - Navigate to Refactor tab

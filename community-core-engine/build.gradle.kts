@@ -5,8 +5,8 @@ plugins {
 dependencies {
     implementation("org.slf4j:slf4j-api:2.0.9")
     runtimeOnly("org.slf4j:slf4j-simple:2.0.9")
-    compileOnly("org.projectlombok:lombok:1.18.30")
-    annotationProcessor("org.projectlombok:lombok:1.18.30")
+    compileOnly("org.projectlombok:lombok:1.18.34")
+    annotationProcessor("org.projectlombok:lombok:1.18.34")
     
     // YAML processing
     implementation("org.yaml:snakeyaml:2.2")
@@ -16,6 +16,9 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.3")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.15.3")
     implementation("com.fasterxml.jackson.module:jackson-module-parameter-names:2.15.3")
+    
+    // Gitignore parsing
+    implementation("nl.basjes.gitignore:gitignore-reader:1.4.0")
     
     // SQLite database for persistence
     implementation("org.xerial:sqlite-jdbc:3.44.1.0")
@@ -42,7 +45,7 @@ dependencies {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 

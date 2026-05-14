@@ -6,12 +6,13 @@ import adrianmikula.jakartamigration.intellij.ui.MigrationStrategyComponent.Migr
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -19,9 +20,29 @@ import java.util.List;
  * Tests phase content length, quality, UI rendering, and edge cases.
  */
 @SuppressWarnings("deprecation")
+@RunWith(Parameterized.class)
 public class MigrationPhasesComponentTest extends BasePlatformTestCase {
 
     private MigrationPhasesComponent phasesComponent;
+    private MigrationStrategy strategy;
+    private int expectedPhaseCount;
+
+    public MigrationPhasesComponentTest(MigrationStrategy strategy, int expectedPhaseCount) {
+        this.strategy = strategy;
+        this.expectedPhaseCount = expectedPhaseCount;
+    }
+
+    @Parameterized.Parameters(name = "{0} should have {1} phases")
+    public static Collection<Object[]> strategyProvider() {
+        return Arrays.asList(new Object[][]{
+            {MigrationStrategy.BIG_BANG, 1},
+            {MigrationStrategy.INCREMENTAL, 4},
+            {MigrationStrategy.TRANSFORM, 4},
+            {MigrationStrategy.MICROSERVICES, 4},
+            {MigrationStrategy.ADAPTER, 4},
+            {MigrationStrategy.STRANGLER, 4}
+        });
+    }
 
     @Before
     @Override
@@ -31,7 +52,6 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
     }
 
     @Test
-    @DisplayName("Initialization should create component with default strategy")
     public void testInitialization() {
         assertThat(phasesComponent.getPanel()).isNotNull();
         // Default is INCREMENTAL which has 4 phases
@@ -40,7 +60,6 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
     }
 
     @Test
-    @DisplayName("Strategy switch should update phases correctly")
     public void testStrategySwitch() {
         phasesComponent.getStrategyComponent().setSelectedStrategy(MigrationStrategy.BIG_BANG);
         
@@ -51,7 +70,6 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
     }
 
     @Test
-    @DisplayName("Dependencies should update phase content")
     public void testSetDependencies() {
         List<DependencyInfo> deps = new ArrayList<>();
         deps.add(new DependencyInfo("org.hibernate", "hibernate-core", "5.6.0.Final", null, null, null,
@@ -63,29 +81,15 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
         assertThat(phasesComponent.getPhaseTabs().getTabCount()).isEqualTo(4);
     }
 
-    @ParameterizedTest
-    @DisplayName("All strategies should have appropriate phase counts")
-    @MethodSource("strategyProvider")
-    public void testStrategyPhaseCounts(MigrationStrategy strategy, int expectedPhaseCount) {
+    @Test
+    public void testStrategyPhaseCounts() {
         phasesComponent.getStrategyComponent().setSelectedStrategy(strategy);
         
         assertThat(phasesComponent.getSelectedStrategy()).isEqualTo(strategy);
         assertThat(phasesComponent.getPhaseTabs().getTabCount()).isEqualTo(expectedPhaseCount);
     }
 
-    private static Object[][] strategyProvider() {
-        return new Object[][]{
-            {MigrationStrategy.BIG_BANG, 1},
-            {MigrationStrategy.INCREMENTAL, 4},
-            {MigrationStrategy.TRANSFORM, 4},
-            {MigrationStrategy.MICROSERVICES, 4},
-            {MigrationStrategy.ADAPTER, 4},
-            {MigrationStrategy.STRANGLER, 4}
-        };
-    }
-
     @Test
-    @DisplayName("Phase descriptions should be comprehensive and detailed")
     public void testPhaseDescriptionQuality() {
         // Test that phase descriptions contain 2026 industry-standard content
         phasesComponent.getStrategyComponent().setSelectedStrategy(MigrationStrategy.INCREMENTAL);
@@ -101,7 +105,6 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
     }
 
     @Test
-    @DisplayName("Phase content should render correctly in UI")
     public void testPhaseContentRendering() {
         phasesComponent.getStrategyComponent().setSelectedStrategy(MigrationStrategy.BIG_BANG);
         
@@ -115,7 +118,6 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
     }
 
     @Test
-    @DisplayName("Component should handle missing phase properties gracefully")
     public void testMissingPhaseProperties() {
         // Test edge case where phase properties might be missing
         // This ensures robustness of the phase loading mechanism
@@ -127,7 +129,6 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
     }
 
     @Test
-    @DisplayName("Phase tabs should have proper titles")
     public void testPhaseTabTitles() {
         phasesComponent.getStrategyComponent().setSelectedStrategy(MigrationStrategy.MICROSERVICES);
         
@@ -139,7 +140,6 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
     }
 
     @Test
-    @DisplayName("Component should handle null dependencies gracefully")
     public void testNullDependencies() {
         // Test that null dependencies don't cause issues
         phasesComponent.setDependencies(null);
@@ -149,7 +149,6 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
     }
 
     @Test
-    @DisplayName("Phase content should be scrollable for long descriptions")
     public void testPhaseContentScrolling() {
         phasesComponent.getStrategyComponent().setSelectedStrategy(MigrationStrategy.TRANSFORM);
         
@@ -164,7 +163,6 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
     }
 
     @Test
-    @DisplayName("Strategy listener should be notified of changes")
     public void testStrategyListenerNotification() {
         final boolean[] notified = {false};
         
@@ -187,7 +185,6 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
     }
 
     @Test
-    @DisplayName("Phase content should include 2026 industry standards")
     public void testPhaseContentIncludes2026Standards() {
         phasesComponent.getStrategyComponent().setSelectedStrategy(MigrationStrategy.ADAPTER);
         
@@ -201,7 +198,6 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
     }
 
     @Test
-    @DisplayName("Component should maintain performance with large content")
     public void testComponentPerformanceWithLargeContent() {
         // Test that component performs well with expanded descriptions
         long startTime = System.currentTimeMillis();
@@ -220,7 +216,6 @@ public class MigrationPhasesComponentTest extends BasePlatformTestCase {
     }
 
     @Test
-    @DisplayName("Phase step validation should work correctly")
     public void testPhaseStepValidation() {
         phasesComponent.getStrategyComponent().setSelectedStrategy(MigrationStrategy.INCREMENTAL);
         

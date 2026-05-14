@@ -82,6 +82,52 @@ public class UnitTestScannerImpl implements UnitTestScanner {
         return new UnitTestProjectScanResult(projectPath.toString(), usages, 0);
     }
 
+    @Override
+    public UnitTestProjectScanResult scanProject(List<Path> filesToScan) {
+        if (filesToScan == null) {
+            return new UnitTestProjectScanResult("", List.of(), 0);
+        }
+        log.info("Starting unit test scan for {} files", filesToScan.size());
+        List<UnitTestUsage> allUsages = new ArrayList<>();
+        for (Path filePath : filesToScan) {
+            // same scanning as original
+            try {
+                long fileSize = Files.size(filePath);
+                if (fileSize > MAX_FILE_SIZE_BYTES) {
+                    log.warn("Skipping large test file ({} bytes): {}", fileSize, filePath);
+                    continue;
+                }
+                StringBuilder contentBuilder = new StringBuilder();
+                try (Stream<String> lines = Files.lines(filePath)) {
+                    final AtomicInteger lineNumber = new AtomicInteger(0);
+                    lines.forEach(line -> {
+                        if (contentBuilder.length() < 5000) {
+                            contentBuilder.append(line).append("\n");
+                        }
+                        int currentLineNumber = lineNumber.incrementAndGet();
+                        Matcher matcher = JAVAX_PATTERN.matcher(line);
+                        if (matcher.find()) {
+                            String packageName = matcher.group(1);
+                            allUsages.add(new UnitTestUsage(
+                                    filePath.toString(),
+                                    currentLineNumber,
+                                    "javax." + packageName,
+                                    detectTestFramework(contentBuilder.toString())));
+                        }
+                    });
+                }
+            } catch (IOException e) {
+                log.warn("Error reading test file: {}", e.getMessage());
+            }
+        }
+        String projectPath = "";
+        if (!filesToScan.isEmpty()) {
+            Path p = filesToScan.get(0).getParent();
+            if (p != null) projectPath = p.toString();
+        }
+        return new UnitTestProjectScanResult(projectPath, allUsages, 0);
+    }
+
     private boolean isTestFile(Path path, Path projectPath) {
         String relativePath = projectPath.relativize(path).toString().replace("\\", "/");
         return TEST_DIRS.stream().anyMatch(d -> relativePath.startsWith(d))

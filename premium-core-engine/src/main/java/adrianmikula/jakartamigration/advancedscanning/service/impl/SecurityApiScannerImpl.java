@@ -169,6 +169,59 @@ public class SecurityApiScannerImpl implements SecurityApiScanner {
     }
 
     @Override
+    public SecurityApiProjectScanResult scanProject(List<Path> filesToScan) {
+        if (filesToScan == null || filesToScan.isEmpty()) {
+            return SecurityApiProjectScanResult.empty();
+        }
+        try {
+            // Check available memory
+            Runtime runtime = Runtime.getRuntime();
+            long maxMemory = runtime.maxMemory();
+            long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+            long availableMemory = maxMemory - usedMemory;
+
+            AtomicInteger totalScanned = new AtomicInteger(0);
+            List<SecurityApiScanResult> results;
+
+            if (availableMemory < MEMORY_THRESHOLD_BYTES) {
+                log.info("Low memory detected ({} MB available), sequential processing for Security API",
+                        availableMemory / (1024 * 1024));
+                results = filesToScan.stream()
+                        .map(file -> scanFileWithTracking(file, totalScanned))
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+            } else {
+                int parallelism = Math.min(MAX_PARALLELISM, filesToScan.size());
+                ForkJoinPool customPool = new ForkJoinPool(parallelism);
+                try {
+                    results = customPool.submit(() ->
+                            filesToScan.parallelStream()
+                                    .map(file -> scanFileWithTracking(file, totalScanned))
+                                    .filter(Objects::nonNull)
+                                    .collect(Collectors.toList())
+                    ).get();
+                } catch (Exception e) {
+                    log.warn("Parallel scan failed for Security API, falling back to sequential", e);
+                    results = filesToScan.stream()
+                            .map(file -> scanFileWithTracking(file, totalScanned))
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toList());
+                } finally {
+                    customPool.shutdown();
+                }
+            }
+
+            cleanupThreadLocal();
+
+            int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
+            return new SecurityApiProjectScanResult(results, totalScanned.get(), results.size(), totalUsages);
+        } catch (Exception e) {
+            log.error("Error scanning files for security APIs", e);
+            return SecurityApiProjectScanResult.empty();
+        }
+    }
+
+    @Override
     public SecurityApiScanResult scanFile(Path filePath) {
         if (filePath == null || !Files.exists(filePath)) {
             return SecurityApiScanResult.empty(filePath);

@@ -167,8 +167,60 @@ public class DeprecatedApiScannerImpl implements DeprecatedApiScanner {
                 }
         }
 
-        @Override
-        public DeprecatedApiScanResult scanFile(Path filePath) {
+    @Override
+    public DeprecatedApiProjectScanResult scanProject(List<Path> filesToScan) {
+        if (filesToScan == null || filesToScan.isEmpty()) {
+            return DeprecatedApiProjectScanResult.empty();
+        }
+        try {
+            Runtime runtime = Runtime.getRuntime();
+            long maxMemory = runtime.maxMemory();
+            long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+            long availableMemory = maxMemory - usedMemory;
+
+            AtomicInteger totalScanned = new AtomicInteger(0);
+            List<DeprecatedApiScanResult> results;
+
+            if (availableMemory < MEMORY_THRESHOLD_BYTES) {
+                log.info("Low memory detected ({} MB available), sequential processing for Deprecated API",
+                        availableMemory / (1024 * 1024));
+                results = filesToScan.stream()
+                        .map(file -> scanFileWithTracking(file, totalScanned))
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+            } else {
+                int parallelism = Math.min(MAX_PARALLELISM, filesToScan.size());
+                ForkJoinPool customPool = new ForkJoinPool(parallelism);
+                try {
+                    results = customPool.submit(() ->
+                            filesToScan.parallelStream()
+                                    .map(file -> scanFileWithTracking(file, totalScanned))
+                                    .filter(Objects::nonNull)
+                                    .collect(Collectors.toList())
+                    ).get();
+                } catch (Exception e) {
+                    log.warn("Parallel scan failed for Deprecated API, falling back to sequential", e);
+                    results = filesToScan.stream()
+                            .map(file -> scanFileWithTracking(file, totalScanned))
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toList());
+                } finally {
+                    customPool.shutdown();
+                }
+            }
+
+            cleanupThreadLocal();
+
+            int totalUsages = results.stream().mapToInt(r -> r.usages().size()).sum();
+            return new DeprecatedApiProjectScanResult(results, totalScanned.get(), results.size(), totalUsages);
+        } catch (Exception e) {
+            log.error("Error scanning files for deprecated APIs", e);
+            return DeprecatedApiProjectScanResult.empty();
+        }
+    }
+
+    @Override
+    public DeprecatedApiScanResult scanFile(Path filePath) {
                 if (filePath == null || !Files.exists(filePath)) {
                         return DeprecatedApiScanResult.empty(filePath);
                 }

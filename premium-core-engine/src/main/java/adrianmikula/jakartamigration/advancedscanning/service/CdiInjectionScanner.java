@@ -5,6 +5,7 @@ import adrianmikula.jakartamigration.advancedscanning.domain.JavaxUsage;
 import adrianmikula.jakartamigration.advancedscanning.domain.ProjectScanResult;
 
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * Service for scanning source code for javax.inject and javax.enterprise (CDI) usage.
@@ -19,7 +20,14 @@ public interface CdiInjectionScanner {
      * @return Project scan result with all files containing CDI usage
      */
     ProjectScanResult<FileScanResult<JavaxUsage>> scanProject(Path projectPath);
-
+    
+    /**
+     * Scans a project using pre-discovered Java files.
+     * @param filesToScan list of Java file paths to scan
+     * @return Project scan result with all findings
+     */
+    ProjectScanResult<FileScanResult<JavaxUsage>> scanProject(List<Path> filesToScan);
+    
     /**
      * Scans a single file for CDI usage.
      *

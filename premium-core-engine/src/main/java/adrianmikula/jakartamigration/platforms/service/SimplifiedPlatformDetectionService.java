@@ -74,6 +74,12 @@ public class SimplifiedPlatformDetectionService {
             List<String> installedServers = scanForInstalledServers(projectPath);
             log.debug("Installed servers scan found {} servers: {}", installedServers.size(), installedServers);
             detectedServers.addAll(installedServers);
+
+            // Scan Eclipse .classpath files for server runtime references
+            log.debug("Scanning for Eclipse .classpath files...");
+            List<String> eclipseServers = scanEclipseProject(projectPath);
+            log.debug("Eclipse .classpath scan found {} servers: {}", eclipseServers.size(), eclipseServers);
+            detectedServers.addAll(eclipseServers);
             
         } catch (Exception e) {
             log.error("Error scanning project: {}", e.getMessage(), e);
@@ -133,6 +139,10 @@ public class SimplifiedPlatformDetectionService {
             // Scan for installed servers
             List<String> installedServers = scanForInstalledServers(projectPath);
             detectedServers.addAll(installedServers);
+
+            // Scan Eclipse .classpath files for server runtime references
+            List<String> eclipseServers = scanEclipseProject(projectPath);
+            detectedServers.addAll(eclipseServers);
 
             // Count deployment artifacts in project structure
             countProjectArtifacts(projectPath, deploymentArtifacts, platformSpecificArtifacts);
@@ -285,41 +295,22 @@ public class SimplifiedPlatformDetectionService {
     /**
      * Infers likely application server platforms based on detected deployment artifacts.
      * This is a fallback when no platforms are detected via dependency analysis.
-     * Uses conservative inference with platform priority to avoid over-detection.
+     * Only returns platforms when there are clear, specific indicators - never makes assumptions.
      */
     private List<String> inferPlatformsFromArtifacts(Map<String, Integer> deploymentArtifacts,
                                                      Map<String, Integer> platformSpecificArtifacts) {
         List<String> inferredServers = new ArrayList<>();
 
-        int warCount = deploymentArtifacts.getOrDefault("war", 0);
-        int earCount = deploymentArtifacts.getOrDefault("ear", 0);
-        int jarCount = deploymentArtifacts.getOrDefault("jar", 0);
-
-        // First, check for platform-specific indicators that should prevent broad inference
+        // Only check for platform-specific indicators - never assume based on artifacts alone
         String specificPlatform = detectSpecificPlatformFromArtifacts(platformSpecificArtifacts);
         if (specificPlatform != null) {
             inferredServers.add(specificPlatform);
             log.debug("Inferred specific platform from artifacts: {}", specificPlatform);
-            return inferredServers;
         }
 
-        // Only infer multiple platforms if no specific indicators found and truly ambiguous
-        if (isTrulyAmbiguousCase(deploymentArtifacts, platformSpecificArtifacts)) {
-            // EAR files indicate full Java EE/Jakarta EE servers - but be conservative
-            if (earCount > 0) {
-                // Only add the most common EE server instead of all possible ones
-                inferredServers.add("wildfly");
-                log.debug("Inferred primary EE server from EAR artifacts: wildfly");
-            }
-
-            // WAR files indicate servlet containers - but be conservative
-            if (warCount > 0 || (earCount == 0 && jarCount > 0)) {
-                // Only add the most common servlet container instead of all possible ones
-                inferredServers.add("tomcat");
-                log.debug("Inferred primary servlet container from WAR artifacts: tomcat");
-            }
-        }
-
+        // Do not make assumptions based on WAR/EAR/JAR artifacts alone
+        // Return empty list if no specific platform indicators found
+        log.debug("No specific platform indicators found, returning empty list");
         return inferredServers;
     }
 
@@ -689,6 +680,69 @@ public class SimplifiedPlatformDetectionService {
         }
         
         log.debug("Installed servers scan complete. Found {} servers: {}", servers.size(), servers);
+        return servers;
+    }
+
+    /**
+     * Scan Eclipse .classpath files for server runtime references.
+     * Eclipse projects use .classpath files to define project classpath, including server runtime containers.
+     */
+    private List<String> scanEclipseProject(Path projectPath) {
+        log.debug("Starting Eclipse .classpath scan...");
+        List<String> servers = new ArrayList<>();
+        Map<String, adrianmikula.jakartamigration.platforms.model.PlatformConfig> configs = configLoader.getAllPlatformConfigs();
+        log.debug("Loaded {} platform configurations from YAML", configs.size());
+
+        try {
+            // Search for .classpath files anywhere in the project
+            try (var paths = Files.walk(projectPath)) {
+                paths.filter(Files::isRegularFile)
+                     .filter(path -> path.getFileName().toString().equals(".classpath"))
+                     .forEach(classpathFile -> {
+                         try {
+                             String content = Files.readString(classpathFile);
+                             log.debug("Found .classpath file: {}", classpathFile);
+
+                             // Check each platform configuration using patterns
+                             for (Map.Entry<String, adrianmikula.jakartamigration.platforms.model.PlatformConfig> entry : configs.entrySet()) {
+                                 String platformName = entry.getKey();
+                                 adrianmikula.jakartamigration.platforms.model.PlatformConfig config = entry.getValue();
+
+                                 // Skip java platform - we only want application servers
+                                 if ("java".equals(platformName)) {
+                                     continue;
+                                 }
+
+                                 // Check regex patterns for .classpath files
+                                 if (config.patterns() != null) {
+                                     for (adrianmikula.jakartamigration.platforms.model.DetectionPattern pattern : config.patterns()) {
+                                         if (".classpath".equals(pattern.file())) {
+                                             try {
+                                                 Pattern regex = Pattern.compile(pattern.regex(), Pattern.CASE_INSENSITIVE);
+                                                 if (regex.matcher(content).find()) {
+                                                     if (!servers.contains(platformName)) {
+                                                         servers.add(platformName);
+                                                         log.debug("✓ Detected {} via .classpath pattern: {}", platformName, pattern.regex());
+                                                     }
+                                                     break; // Found this platform, move to next
+                                                 }
+                                             } catch (Exception e) {
+                                                 log.debug("Invalid regex pattern for {}: {}", platformName, pattern.regex());
+                                             }
+                                         }
+                                     }
+                                 }
+                             }
+                         } catch (IOException e) {
+                             log.debug("Error reading .classpath file {}: {}", classpathFile, e.getMessage());
+                         }
+                     });
+            }
+        } catch (IOException e) {
+            log.debug("Error walking project tree for .classpath files: {}", e.getMessage(), e);
+        }
+
+        log.debug("Eclipse .classpath scan complete. Found {} servers: {}", servers.size(), servers);
         return servers;
     }
 

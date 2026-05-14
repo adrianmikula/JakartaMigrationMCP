@@ -8,6 +8,7 @@ import "./advanced-scanning.tsp";
 import "./pdf-reporting.tsp";
 import "./enhanced-test-coverage-analysis.tsp";
 import "./html-to-pdf-reporting.tsp";
+import "./jar-scanning.tsp";
 
 using TypeSpec.Http;
 using TypeSpec.Rest;
@@ -162,3 +163,12 @@ alias CriticalRiskZone = JakartaMigrationEnhancedTestCoverage.CriticalRiskZone;
 alias HtmlToPdfReportService = JakartaMigrationHtmlToPdfReporting.HtmlToPdfReportService;
 alias HtmlToPdfReportRequest = JakartaMigrationHtmlToPdfReporting.HtmlToPdfReportRequest;
 alias HtmlToPdfReportResponse = JakartaMigrationHtmlToPdfReporting.HtmlToPdfReportResponse;
+
+// JAR Scanning aliases
+alias JarCompatibilityScanner = JakartaMigrationJarScanning.JarCompatibilityScanner;
+alias JarCompatibilityReport = JakartaMigrationJarScanning.JarCompatibilityReport;
+alias JarScanSignal = JakartaMigrationJarScanning.JarScanSignal;
+alias JarCompatibilityLevel = JakartaMigrationJarScanning.JarCompatibilityLevel;
+alias JarScanOptions = JakartaMigrationJarScanning.JarScanOptions;
+alias BytecodeNamespaceClassifier = JakartaMigrationJarScanning.BytecodeNamespaceClassifier;
+alias ClassificationResult = JakartaMigrationJarScanning.ClassificationResult;
