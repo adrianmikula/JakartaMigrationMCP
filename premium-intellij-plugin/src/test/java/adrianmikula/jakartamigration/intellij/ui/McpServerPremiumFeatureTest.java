@@ -29,15 +29,15 @@ public class McpServerPremiumFeatureTest extends BasePlatformTestCase {
     @After
     @Override
     public void tearDown() {
+        try {
+            super.tearDown();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         FeatureFlags.getInstance().setMcpServerPremiumOnly(true);
         System.clearProperty("jakarta.migration.dev.simulate_premium");
         System.clearProperty("jakarta.migration.mode");
         CheckLicense.clearCache();
-        try {
-            super.tearDown();
-        } catch (Throwable t) {
-            // ignore
-        }
     }
 
     @Test

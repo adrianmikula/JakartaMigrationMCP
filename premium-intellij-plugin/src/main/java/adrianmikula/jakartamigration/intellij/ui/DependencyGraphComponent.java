@@ -23,7 +23,7 @@ import java.util.List;
  * Dependency graph component that displays module dependency graph with interactive visualization.
  * Uses the real DependencyGraph from migration-core library.
  */
-public class DependencyGraphComponent {
+public class DependencyGraphComponent extends AbstractDependencyUIComponent {
     private final JPanel panel;
     private final Project project;
     private final GraphCanvas graphCanvas;
@@ -239,7 +239,7 @@ public class DependencyGraphComponent {
 
         for (DependencyInfo dep : deps) {
             // Artifact record requires 5 params: groupId, artifactId, version, scope, transitive
-            Artifact artifact = new Artifact(dep.getGroupId(), dep.getArtifactId(), 
+            Artifact artifact = new Artifact(dep.getGroupId(), dep.getArtifactId(),
                 dep.getCurrentVersion(), "compile", dep.isTransitive());
             nodes.add(artifact);
         }
@@ -259,22 +259,48 @@ public class DependencyGraphComponent {
         updateGraphFromDependencyGraph();
     }
 
+    @Override
+    public void setDependencies(List<DependencyInfo> dependencies) {
+        updateGraph(dependencies);
+    }
+
+    @Override
+    public void clearDependencies() {
+        updateGraph(new ArrayList<>());
+    }
+
     /**
      * Update the graph with the real DependencyGraph from migration-core.
      */
-    public void updateGraphFromDependencyGraph(DependencyGraph graph) {
+    @Override
+    public void updateDependencyGraph(DependencyGraph graph) {
         this.dependencyGraph = graph != null ? graph : new DependencyGraph();
         this.artifactStatusMap = new HashMap<String, DependencyMigrationStatus>();
         updateGraphFromDependencyGraph();
     }
-    
+
     /**
      * Update the graph with the real DependencyGraph and status map.
      */
-    public void updateGraphFromDependencyGraph(DependencyGraph graph, Map<String, DependencyMigrationStatus> statusMap) {
+    @Override
+    public void updateDependencyGraph(DependencyGraph graph, Map<String, DependencyMigrationStatus> statusMap) {
         this.dependencyGraph = graph != null ? graph : new DependencyGraph();
         this.artifactStatusMap = statusMap != null ? statusMap : new HashMap<String, DependencyMigrationStatus>();
         updateGraphFromDependencyGraph();
+    }
+
+    /**
+     * Update the graph with the real DependencyGraph and status map (internal method).
+     */
+    public void updateGraphFromDependencyGraph(DependencyGraph graph) {
+        updateDependencyGraph(graph);
+    }
+
+    /**
+     * Update the graph with the real DependencyGraph and status map (internal method).
+     */
+    public void updateGraphFromDependencyGraph(DependencyGraph graph, Map<String, DependencyMigrationStatus> statusMap) {
+        updateDependencyGraph(graph, statusMap);
     }
 
     /**
