@@ -1,6 +1,7 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -310,7 +311,7 @@ public class SupportComponent {
             Desktop.getDesktop().browse(new java.net.URI(url));
         } catch (Exception ex) {
             LOG.error("Failed to open URL: " + url, ex);
-            Messages.showErrorDialog(project, "Failed to open URL: " + url, "Error");
+            NotificationHelper.showError(project, "Error", "Failed to open URL: " + url);
         }
     }
     

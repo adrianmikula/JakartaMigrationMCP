@@ -32,6 +32,7 @@ import adrianmikula.jakartamigration.intellij.ui.components.NewFeatureNotificati
 import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
 import adrianmikula.jakartamigration.analytics.service.ErrorReportingService;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -747,8 +748,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             }
 
             if (projectPathStr == null) {
-                Messages.showWarningDialog(project, "Cannot determine project path. Please open a project first.",
-                        "Analysis Failed");
+                NotificationHelper.showWarning(project, "Analysis Failed", "Cannot determine project path. Please open a project first.");
                 return;
             }
 
@@ -814,9 +814,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         LOG.error("handleQuickScan: Scan failed", throwable);
                         dashboardComponent.setAnalysisRunning(false);
                         setScanButtonsEnabled(true);
-                        Messages.showWarningDialog(project,
-                                "Quick scan failed: " + throwable.getMessage(),
-                                "Scan Failed");
+                        NotificationHelper.showWarning(project,
+                                "Scan Failed",
+                                "Quick scan failed: " + throwable.getMessage());
                     } else {
                         dashboardComponent.onScanComplete();
                         setScanButtonsEnabled(true);
@@ -849,19 +849,19 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Check credits for free users
             if (!isPremium) {
                 if (!creditsService.hasCredits(CreditType.ACTIONS)) {
-                    Messages.showWarningDialog(project,
+                    NotificationHelper.showWarning(project,
+                            "Credits Exhausted",
                             "You've used all your free action credits. Upgrade to Premium to run deep scans.\n\n" +
                                     "Premium includes:\n" +
                                     "• Unlimited action credits\n" +
                                     "• Full transitive dependency analysis\n" +
-                                    "• Advanced scanning features",
-                            "Credits Exhausted");
+                                    "• Advanced scanning features");
                     return;
                 }
 
                 boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS, "Scanning", "deep_scan");
                 if (!creditConsumed) {
-                    Messages.showErrorDialog(project, "Failed to consume action credit. Please try again.", "Credit Error");
+                    NotificationHelper.showError(project, "Credit Error", "Failed to consume action credit. Please try again.");
                     return;
                 }
 
@@ -878,9 +878,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 LOG.error("handleDeepScan: Unexpected error", ex);
                 dashboardComponent.setAnalysisRunning(false);
                 setScanButtonsEnabled(true);
-                Messages.showWarningDialog(project,
-                        "Deep scan failed: " + ex.getMessage(),
-                        "Scan Failed");
+                NotificationHelper.showWarning(project,
+                        "Scan Failed",
+                        "Deep scan failed: " + ex.getMessage());
             }
         }
 
