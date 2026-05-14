@@ -141,9 +141,9 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             
             isRendering = true;
             try {
-            // Status column is at index 5, Jakarta Equivalent at index 4, DependencyInfo at index 9
+            // Status column is at index 5, Jakarta Equivalent at index 4, DependencyInfo at index 8
             if (column == 5 && row < table.getModel().getRowCount()) {
-                Object depObj = table.getModel().getValueAt(row, 9);
+                Object depObj = table.getModel().getValueAt(row, 8);
                 if (depObj instanceof DependencyInfo) {
                     DependencyInfo dep = (DependencyInfo) depObj;
                     JPanel panel = new JPanel(new BorderLayout());

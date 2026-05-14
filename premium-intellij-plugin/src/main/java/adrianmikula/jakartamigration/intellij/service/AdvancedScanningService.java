@@ -5,6 +5,7 @@ import adrianmikula.jakartamigration.advancedscanning.service.*;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyTreeCommandExecutorImpl;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import adrianmikula.jakartamigration.intellij.ui.ScanProgressListener;
+import adrianmikula.jakartamigration.intellij.ui.ThrottledProgressListener;
 import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 import adrianmikula.jakartamigration.advancedscanning.domain.DockerCicdUsage;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage;
@@ -86,6 +87,28 @@ public class AdvancedScanningService {
     public AdvancedScanSummary scanAll(Path projectPath, ScanProgressListener progressListener) {
         LOG.info("=== Starting Advanced Scan ===");
         LOG.info("Project path: " + projectPath);
+        
+        // Wrap progress listener with throttled wrapper to prevent EDT flooding
+        ThrottledProgressListener throttledListener = null;
+        if (progressListener != null) {
+            throttledListener = new ThrottledProgressListener(progressListener);
+            LOG.info("Progress listener wrapped with ThrottledProgressListener");
+        }
+        
+        try {
+            return scanAllInternal(projectPath, throttledListener);
+        } finally {
+            // Clean up throttled listener
+            if (throttledListener != null) {
+                throttledListener.shutdown();
+            }
+        }
+    }
+    
+    /**
+     * Internal implementation of scanAll that uses a potentially throttled listener.
+     */
+    private AdvancedScanSummary scanAllInternal(Path projectPath, ScanProgressListener progressListener) {
         
         Runtime runtime = Runtime.getRuntime();
         long maxMemory = runtime.maxMemory();
@@ -950,12 +973,26 @@ public class AdvancedScanningService {
                 info.setDepth(usage.getDepth());
                 info.setScope(usage.getScope() != null ? usage.getScope() : "compile");
 
-                // Determine migration status based on severity/recommendation
-                DependencyMigrationStatus status = determineMigrationStatus(usage.getSeverity(), usage.getRecommendation());
+                // Determine migration status based on scan reason
+                DependencyMigrationStatus status = determineMigrationStatus(usage);
                 info.setMigrationStatus(status);
 
-                // Set Jakarta compatibility status
-                info.setJakartaCompatibilityStatus(determineJakartaCompatibilityStatus(usage.getSeverity()));
+                // Set Jakarta compatibility status based on scan reason
+                info.setJakartaCompatibilityStatus(determineJakartaCompatibilityStatus(usage.getScanReason()));
+
+                // Set scan reason (convert enum to string)
+                if (usage.getScanReason() != null) {
+                    info.setScanReason(usage.getScanReason().name());
+                }
+
+                // Set detail message
+                info.setDetailMessage(usage.getDetailMessage());
+
+                // Set confidence
+                info.setConfidence(usage.getConfidence());
+
+                // Set incompatibility from transitive flag
+                info.setIncompatibilityFromTransitive(usage.isIncompatibilityFromTransitive());
 
                 // Set recommended version if available
                 if (usage.getAlternativeVersions() != null && !usage.getAlternativeVersions().isEmpty()) {
@@ -969,40 +1006,18 @@ public class AdvancedScanningService {
         return new ArrayList<>(dependencyMap.values());
     }
 
-    private DependencyMigrationStatus determineMigrationStatus(String severity, String recommendation) {
-        if (severity == null) {
-            return DependencyMigrationStatus.NO_JAKARTA_VERSION;
-        }
-
-        switch (severity.toLowerCase()) {
-            case "critical":
-            case "high":
-                return DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION;
-            case "medium":
-                return DependencyMigrationStatus.NEEDS_UPGRADE;
-            case "low":
-                return DependencyMigrationStatus.COMPATIBLE;
-            default:
-                return DependencyMigrationStatus.NO_JAKARTA_VERSION;
-        }
-    }
-
-    private String determineJakartaCompatibilityStatus(String severity) {
-        if (severity == null) {
+    private String determineJakartaCompatibilityStatus(ScanReason scanReason) {
+        if (scanReason == null) {
             return "unknown";
         }
 
-        switch (severity.toLowerCase()) {
-            case "low":
-                return "compatible";
-            case "medium":
-                return "upgrade-available";
-            case "high":
-            case "critical":
-                return "requires-migration";
-            default:
-                return "unknown";
-        }
+        return switch (scanReason) {
+            case WHITELISTED, BYTECODE_SCAN_JAKARTA, MAVEN_LOOKUP_FOUND -> "compatible";
+            case BLACKLISTED, BYTECODE_SCAN_JAVAX, TRANSITIVE_INCOMPATIBLE -> "upgrade-available";
+            case MAVEN_LOOKUP_NONE -> "no-jakarta-version";
+            case BYTECODE_SCAN_MIXED, REVIEW_REQUIRED -> "requires-migration";
+            case BYTECODE_SCAN_UNKNOWN, UNKNOWN -> "unknown";
+        };
     }
 
     public DependencyGraph buildDependencyGraphFromDeepResult(TransitiveDependencyProjectScanResult deepResult) {
@@ -1053,8 +1068,23 @@ public class AdvancedScanningService {
     }
 
     public TransitiveDependencyProjectScanResult scanDependenciesDeep(Path projectPath, ScanProgressListener progressListener) {
-        // Full transitive dependency scan using scanner directly
-        return scanningModule.getTransitiveDependencyScanner().scanProject(projectPath);
+        // Wrap progress listener with throttled wrapper to prevent EDT flooding
+        ThrottledProgressListener throttledListener = null;
+        if (progressListener != null) {
+            throttledListener = new ThrottledProgressListener(progressListener);
+        }
+        
+        try {
+            // Full transitive dependency scan using scanner directly
+            // Note: The scanner doesn't support progress listeners yet, so we don't pass it through
+            // This is a synchronous call that can take a long time
+            return scanningModule.getTransitiveDependencyScanner().scanProject(projectPath);
+        } finally {
+            // Clean up throttled listener
+            if (throttledListener != null) {
+                throttledListener.shutdown();
+            }
+        }
     }
 
     /**
@@ -1068,8 +1098,21 @@ public class AdvancedScanningService {
      * Runs advanced scans excluding transitive dependency analysis (faster quick scan).
      */
     public AdvancedScanSummary scanAllExcludingTransitive(Path projectPath, ScanProgressListener progressListener) {
-        // Sequential execution already excludes transitive; reuse that implementation
-        return runScansSequentially(projectPath, progressListener);
+        // Wrap progress listener with throttled wrapper to prevent EDT flooding
+        ThrottledProgressListener throttledListener = null;
+        if (progressListener != null) {
+            throttledListener = new ThrottledProgressListener(progressListener);
+        }
+        
+        try {
+            // Sequential execution already excludes transitive; reuse that implementation
+            return runScansSequentially(projectPath, throttledListener);
+        } finally {
+            // Clean up throttled listener
+            if (throttledListener != null) {
+                throttledListener.shutdown();
+            }
+        }
     }
 
     /**

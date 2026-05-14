@@ -91,6 +91,17 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
     private static final int MAX_PARALLELISM = Integer.parseInt(
             System.getProperty("advanced.scan.parallelism", "4"));
 
+    // Executor for asynchronous progress updates to prevent blocking scanning threads
+    private final java.util.concurrent.ExecutorService progressUpdateExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "TransitiveDependencyScanner-ProgressUpdater");
+        t.setDaemon(true);
+        return t;
+    });
+
+    // Throttling for progress updates (max 10 updates per second)
+    private volatile long lastProgressUpdateTime = 0;
+    private static final long MIN_PROGRESS_UPDATE_INTERVAL_MS = 100;
+
     // Patterns for Maven pom.xml - captures groupId, artifactId, version, and optional scope
     private static final Pattern MAVEN_DEPENDENCY_PATTERN = Pattern.compile(
             "<dependency>\\s*<groupId>([^<]+)</groupId>\\s*<artifactId>([^<]+)</artifactId>\\s*<version>([^<]*)</version>(?:\\s*<scope>([^<]*)</scope>)?",
@@ -100,6 +111,41 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
     private static final Pattern GRADLE_DEPENDENCY_PATTERN = Pattern.compile(
             "['\"]([^':]+):([^':]+):([^'\"]+)['\"]",
             Pattern.MULTILINE);
+
+    /**
+     * Dispatches a progress update asynchronously with throttling to prevent flooding.
+     * This ensures that progress updates don't block the scanning threads.
+     * 
+     * @param progressListener The listener to notify (may be null)
+     * @param phase The phase description
+     * @param completed Number of items completed
+     * @param total Total number of items
+     */
+    private void dispatchProgressUpdateAsync(ScanProgressCallback progressListener, String phase, int completed, int total) {
+        if (progressListener == null) {
+            return;
+        }
+
+        // Throttle updates to prevent flooding
+        long now = System.currentTimeMillis();
+        long timeSinceLastUpdate = now - lastProgressUpdateTime;
+        
+        if (timeSinceLastUpdate < MIN_PROGRESS_UPDATE_INTERVAL_MS) {
+            // Skip this update if it's too soon
+            return;
+        }
+        
+        lastProgressUpdateTime = now;
+
+        // Dispatch asynchronously to avoid blocking scanning thread
+        progressUpdateExecutor.submit(() -> {
+            try {
+                progressListener.onPhaseProgress(phase, completed, total);
+            } catch (Exception e) {
+                log.error("Error dispatching progress update", e);
+            }
+        });
+    }
 
     @Override
     public TransitiveDependencyProjectScanResult scanProject(Path projectPath) {
@@ -186,13 +232,9 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
             log.info("[DEBUG] Scanning file (sequential): {}", file);
             String moduleName = "Scanning module: " + file.getFileName();
             ScanProgressCallback fileListener = (phase, completed, total) -> {
-                if (progressListener != null) {
-                    progressListener.onPhaseProgress(moduleName, completed, total);
-                }
+                dispatchProgressUpdateAsync(progressListener, moduleName, completed, total);
             };
-            if (progressListener != null) {
-                fileListener.onPhaseProgress("", 0, 0);
-            }
+            dispatchProgressUpdateAsync(progressListener, "", 0, 0);
             TransitiveDependencyScanResult result = scanFile(file, fileListener);
             if (result != null) {
                 results.add(result);
@@ -244,15 +286,11 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
 
                 // Adapter to prefix phase with module name
                 ScanProgressCallback fileListener = (phase, completed, total) -> {
-                    if (progressListener != null) {
-                        progressListener.onPhaseProgress(moduleName, completed, total);
-                    }
+                    dispatchProgressUpdateAsync(progressListener, moduleName, completed, total);
                 };
 
                 // Report start of module processing
-                if (progressListener != null) {
-                    fileListener.onPhaseProgress("", 0, 0);
-                }
+                dispatchProgressUpdateAsync(progressListener, "", 0, 0);
 
                 TransitiveDependencyScanResult result = scanFile(file, fileListener);
                 if (result != null) {
