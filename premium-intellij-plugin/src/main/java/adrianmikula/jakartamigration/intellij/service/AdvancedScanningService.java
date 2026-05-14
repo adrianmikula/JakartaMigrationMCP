@@ -926,13 +926,130 @@ public class AdvancedScanningService {
     }
 
     public List<DependencyInfo> convertToDependencyInfo(TransitiveDependencyProjectScanResult deepResult) {
-        // TODO: Implement conversion from TransitiveDependencyProjectScanResult to DependencyInfo list
-        return List.of();
+        if (deepResult == null) {
+            return List.of();
+        }
+
+        Map<String, DependencyInfo> dependencyMap = new HashMap<>();
+
+        // Process all file results and usages
+        for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult fileResult : deepResult.getFileResults()) {
+            for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage usage : fileResult.getUsages()) {
+                String artifactKey = usage.getArtifactKey();
+
+                // Deduplicate by artifact key
+                if (dependencyMap.containsKey(artifactKey)) {
+                    continue;
+                }
+
+                DependencyInfo info = new DependencyInfo();
+                info.setGroupId(usage.getGroupId());
+                info.setArtifactId(usage.getArtifactId());
+                info.setCurrentVersion(usage.getVersion());
+                info.setTransitive(usage.isTransitive());
+                info.setDepth(usage.getDepth());
+                info.setScope(usage.getScope() != null ? usage.getScope() : "compile");
+
+                // Determine migration status based on severity/recommendation
+                DependencyMigrationStatus status = determineMigrationStatus(usage.getSeverity(), usage.getRecommendation());
+                info.setMigrationStatus(status);
+
+                // Set Jakarta compatibility status
+                info.setJakartaCompatibilityStatus(determineJakartaCompatibilityStatus(usage.getSeverity()));
+
+                // Set recommended version if available
+                if (usage.getAlternativeVersions() != null && !usage.getAlternativeVersions().isEmpty()) {
+                    info.setRecommendedVersion(usage.getAlternativeVersions().get(0));
+                }
+
+                dependencyMap.put(artifactKey, info);
+            }
+        }
+
+        return new ArrayList<>(dependencyMap.values());
+    }
+
+    private DependencyMigrationStatus determineMigrationStatus(String severity, String recommendation) {
+        if (severity == null) {
+            return DependencyMigrationStatus.NO_JAKARTA_VERSION;
+        }
+
+        switch (severity.toLowerCase()) {
+            case "critical":
+            case "high":
+                return DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION;
+            case "medium":
+                return DependencyMigrationStatus.NEEDS_UPGRADE;
+            case "low":
+                return DependencyMigrationStatus.COMPATIBLE;
+            default:
+                return DependencyMigrationStatus.NO_JAKARTA_VERSION;
+        }
+    }
+
+    private String determineJakartaCompatibilityStatus(String severity) {
+        if (severity == null) {
+            return "unknown";
+        }
+
+        switch (severity.toLowerCase()) {
+            case "low":
+                return "compatible";
+            case "medium":
+                return "upgrade-available";
+            case "high":
+            case "critical":
+                return "requires-migration";
+            default:
+                return "unknown";
+        }
     }
 
     public DependencyGraph buildDependencyGraphFromDeepResult(TransitiveDependencyProjectScanResult deepResult) {
-        // TODO: Build full dependency graph including transitive edges
-        return new DependencyGraph();
+        if (deepResult == null) {
+            return new DependencyGraph();
+        }
+
+        Set<Artifact> nodes = new HashSet<>();
+        Set<Dependency> edges = new HashSet<>();
+
+        // Map from artifact key to Artifact object for deduplication
+        Map<String, Artifact> artifactMap = new HashMap<>();
+
+        // Access edges through fileResults since getAllEdges() might not be available in all versions
+        for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult fileResult : deepResult.getFileResults()) {
+            for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyEdge edge : fileResult.getEdges()) {
+                String parentKey = edge.parentArtifactKey();
+                String childKey = edge.childArtifactKey();
+
+                // Parse or create parent artifact
+                Artifact parentArtifact = artifactMap.computeIfAbsent(parentKey, key -> {
+                    String[] parts = key.split(":");
+                    if (parts.length >= 3) {
+                        return new Artifact(parts[0], parts[1], parts[2], "compile", true);
+                    }
+                    return null;
+                });
+
+                // Parse or create child artifact
+                Artifact childArtifact = artifactMap.computeIfAbsent(childKey, key -> {
+                    String[] parts = key.split(":");
+                    if (parts.length >= 3) {
+                        return new Artifact(parts[0], parts[1], parts[2], "compile", true);
+                    }
+                    return null;
+                });
+
+                // Create dependency edge if both artifacts were parsed successfully
+                if (parentArtifact != null && childArtifact != null) {
+                    nodes.add(parentArtifact);
+                    nodes.add(childArtifact);
+                    edges.add(new Dependency(parentArtifact, childArtifact, "compile", false));
+                }
+            }
+        }
+
+        return new DependencyGraph(nodes, edges);
     }
 
     public TransitiveDependencyProjectScanResult scanDependenciesDeep(Path projectPath, ScanProgressListener progressListener) {

@@ -33,8 +33,11 @@ public class DependencyTreeRenderer extends DefaultTreeCellRenderer {
             // Set text
             setText(node.getDisplayText());
 
-            // Set icon based on migration status
-            setIcon(getStatusIcon(dep.getMigrationStatus()));
+            // Only set custom icon for leaf nodes (nodes without children)
+            // Parent nodes use default tree icons to preserve expand/collapse handles
+            if (!node.hasChildDependencies()) {
+                setIcon(getStatusIcon(dep.getMigrationStatus()));
+            }
 
             // Set tooltip
             setToolTipText(buildTooltip(dep));

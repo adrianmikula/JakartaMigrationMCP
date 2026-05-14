@@ -54,4 +54,33 @@ public class DependencyTreeNode extends DefaultMutableTreeNode {
     public String toString() {
         return getDisplayText();
     }
+
+    /**
+     * Recursively filter this node and its children.
+     * If this node is transitive, returns null (indicating it should be removed).
+     * If this node is not transitive, filters its children recursively.
+     *
+     * @return The filtered node, or null if this node should be removed
+     */
+    public DependencyTreeNode filterTransitive() {
+        if (dependency.isTransitive()) {
+            // Remove this node and all its children
+            return null;
+        }
+
+        // This node is not transitive, keep it and filter its children
+        DependencyTreeNode filteredNode = new DependencyTreeNode(dependency);
+
+        if (dependency.getChildren() != null) {
+            for (DependencyInfo childDep : dependency.getChildren()) {
+                DependencyTreeNode childNode = new DependencyTreeNode(childDep);
+                DependencyTreeNode filteredChild = childNode.filterTransitive();
+                if (filteredChild != null) {
+                    filteredNode.add(filteredChild);
+                }
+            }
+        }
+
+        return filteredNode;
+    }
 }

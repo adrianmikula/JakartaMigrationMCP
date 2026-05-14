@@ -120,46 +120,51 @@ public class DependenciesTreeComponent extends AbstractDependencyUIComponent {
      */
     private void applyFilters() {
         filteredDependencies = new ArrayList<>();
-        
+
         boolean hideTransitive = transitiveFilter.isSelected();
         boolean showOrganizational = organizationalFilter.isSelected();
         boolean mergeDuplicates = mergeDuplicatesFilter.isSelected();
 
         for (DependencyInfo dep : allDependencies) {
-            // Transitive filter
-            if (hideTransitive && dep.isTransitive()) {
-                continue;
-            }
-            
-            // Organizational filter
+            // Organizational filter (apply to flat list before tree building)
             if (!showOrganizational && dep.isOrganizational()) {
                 continue;
             }
-            
+
             filteredDependencies.add(dep);
         }
 
-        rebuildTree(mergeDuplicates);
+        // Build tree from organizational-filtered dependencies
+        rebuildTree(filteredDependencies, mergeDuplicates, hideTransitive);
     }
 
     /**
      * Rebuild the tree from filtered dependencies.
      */
-    private void rebuildTree(boolean mergeDuplicates) {
+    private void rebuildTree(List<DependencyInfo> dependencies, boolean mergeDuplicates, boolean hideTransitive) {
         // Build tree structure
-        List<DependencyInfo> treeRoots = treeBuilder.buildTree(filteredDependencies, mergeDuplicates);
-        
+        List<DependencyInfo> treeRoots = treeBuilder.buildTree(dependencies, mergeDuplicates);
+
         // Create tree nodes
         DefaultMutableTreeNode root = new DefaultMutableTreeNode("Dependencies");
         for (DependencyInfo dep : treeRoots) {
             DependencyTreeNode node = new DependencyTreeNode(dep);
             node.buildChildNodes();
-            root.add(node);
+
+            // Apply transitive filtering to the tree structure
+            if (hideTransitive) {
+                DependencyTreeNode filteredNode = node.filterTransitive();
+                if (filteredNode != null) {
+                    root.add(filteredNode);
+                }
+            } else {
+                root.add(node);
+            }
         }
-        
+
         // Update tree model
         tree.setModel(new javax.swing.tree.DefaultTreeModel(root));
-        
+
         // Expand first level
         for (int i = 0; i < tree.getRowCount(); i++) {
             tree.expandRow(i);
@@ -221,5 +226,9 @@ public class DependenciesTreeComponent extends AbstractDependencyUIComponent {
 
     public JCheckBox getMergeDuplicatesFilter() {
         return mergeDuplicatesFilter;
+    }
+
+    JTree getTree() {
+        return tree;
     }
 }

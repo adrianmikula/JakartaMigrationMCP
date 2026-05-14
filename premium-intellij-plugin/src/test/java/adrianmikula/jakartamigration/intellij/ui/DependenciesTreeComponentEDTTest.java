@@ -2,10 +2,12 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
+import adrianmikula.jakartamigration.intellij.ui.tree.DependencyTreeNode;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.junit.Test;
 
+import javax.swing.tree.TreePath;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -186,6 +188,90 @@ public class DependenciesTreeComponentEDTTest extends BasePlatformTestCase {
         
         // Verify the component still exists (direct dependencies should remain visible)
         assertThat(treeComponent.getPanel()).isNotNull();
+    }
+
+    @Test
+    public void testHideTransitiveDependenciesActuallyHidesTransitiveNodes() throws Exception {
+        // Test that hiding transitive dependencies actually removes them from the tree
+        // This test verifies the bug: transitive dependencies are NOT being hidden
+        List<DependencyInfo> dependencies = createTestDependenciesWithTreeStructure();
+        
+        ApplicationManager.getApplication().invokeAndWait(() -> {
+            treeComponent.setDependencies(dependencies);
+            
+            // Initially, both direct and transitive should be visible
+            int initialRowCount = treeComponent.getTree().getRowCount();
+            assertThat(initialRowCount).isGreaterThan(1); // At least root + direct + transitive
+            
+            // Enable the hide transitive filter
+            treeComponent.getTransitiveFilter().setSelected(true);
+        });
+        
+        Thread.sleep(200);
+        
+        ApplicationManager.getApplication().invokeAndWait(() -> {
+            // Count how many nodes in the tree are transitive
+            int transitiveNodeCount = countTransitiveNodesInTree();
+            
+            // This assertion will fail with the current bug - transitive nodes are NOT hidden
+            assertThat(transitiveNodeCount).isEqualTo(0);
+        });
+    }
+
+    /**
+     * Helper method to create test dependencies with a proper tree structure.
+     * Creates a direct dependency with a transitive child.
+     */
+    private List<DependencyInfo> createTestDependenciesWithTreeStructure() {
+        List<DependencyInfo> dependencies = new ArrayList<>();
+        
+        // Direct dependency at depth 0
+        DependencyInfo parent = new DependencyInfo();
+        parent.setGroupId("org.example");
+        parent.setArtifactId("parent-lib");
+        parent.setCurrentVersion("1.0.0");
+        parent.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
+        parent.setTransitive(false);
+        parent.setOrganizational(false);
+        parent.setDepth(0);
+        parent.setScope("compile");
+        dependencies.add(parent);
+
+        // Transitive dependency at depth 1 (child of parent)
+        DependencyInfo child = new DependencyInfo();
+        child.setGroupId("org.example");
+        child.setArtifactId("child-lib");
+        child.setCurrentVersion("2.0.0");
+        child.setMigrationStatus(DependencyMigrationStatus.COMPATIBLE);
+        child.setTransitive(true);
+        child.setOrganizational(false);
+        child.setDepth(1);
+        child.setScope("compile");
+        dependencies.add(child);
+
+        return dependencies;
+    }
+
+    /**
+     * Helper method to count transitive nodes in the tree.
+     * Traverses the tree and counts nodes where isTransitive() is true.
+     */
+    private int countTransitiveNodesInTree() {
+        javax.swing.JTree tree = treeComponent.getTree();
+        int count = 0;
+        
+        for (int i = 0; i < tree.getRowCount(); i++) {
+            TreePath path = tree.getPathForRow(i);
+            Object lastComponent = path.getLastPathComponent();
+            if (lastComponent instanceof DependencyTreeNode) {
+                DependencyTreeNode node = (DependencyTreeNode) lastComponent;
+                if (node.getDependency().isTransitive()) {
+                    count++;
+                }
+            }
+        }
+        
+        return count;
     }
 
     /**
