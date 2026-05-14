@@ -1,7 +1,7 @@
-# ADR 0066: Force-Directed Graph Calibration Improvements
+# ADR 0066: Force-Directed Graph Calibration - Hybrid Approach
 
 ## Status
-Accepted
+Accepted (Superseded - Hybrid Approach)
 
 ## Context
 The force-directed dependency tree layout in the IntelliJ plugin was experiencing calibration issues where node distances oscillated between extremes:
@@ -10,86 +10,73 @@ The force-directed dependency tree layout in the IntelliJ plugin was experiencin
 
 The previous implementation (ADR-0065) used inverse square root scaling: `scaleFactor = sqrt(OPTIMAL_NODE_COUNT / nodeCount)` with a fixed baseline of 50 nodes. This approach had limitations:
 - Fixed baseline didn't account for actual canvas dimensions
-- No adaptive mechanisms for different graph characteristics
-- Simple damping (0.85) lacked temperature-based convergence control
-- No consideration of node degree distribution (important for power-law networks)
-- Disconnected components could drift to canvas edges
+- Spacing was too large on some screen sizes
 
-## Decision
-We implemented a multi-faceted calibration approach based on industry-standard techniques from D3.js, ForceAtlas2 (Gephi), and Fruchterman-Reingold algorithms:
+## Initial Decision (Rolled Back)
+We initially implemented a multi-faceted calibration approach based on industry-standard techniques from D3.js, ForceAtlas2 (Gephi), and Fruchterman-Reingold algorithms. This implementation broke the graph layout completely.
 
-### 1. Area-Based Scaling (Fruchterman-Reingold)
-Replaced inverse square root with: `optimalDistance = sqrt(canvasArea / nodeCount)`
-
-**Rationale:**
+### What We Adopted (Kept)
+**Area-Based Scaling (Fruchterman-Reingold):**
+- Replaced inverse square root with: `scaleFactor = sqrt(canvasArea / nodeCount) / BASE_SCALE`
 - Directly relates spacing to available canvas space
 - More intuitive and predictable than fixed baseline
-- Industry-standard formula used in FR algorithm
-- Eliminates arbitrary "optimal node count" constant
 
-### 2. Adaptive Temperature Cooling (Simulated Annealing/D3.js)
-Implemented temperature-based displacement limiting:
-- Initial temperature = 10% of canvas width
-- Decays by 5% per iteration (COOLING_RATE = 0.95)
-- Limits maximum displacement per iteration based on current temperature
+### What We Rejected (Removed)
+**Adaptive Temperature Cooling (Simulated Annealing/D3.js):**
+- Initial implementation broke the layout
+- Too complex for the use case
+- Simple damping (0.85) is sufficient
 
-**Rationale:**
-- Allows large movements early for exploration
-- Smaller movements later for refinement
-- Prevents premature convergence to local minima
-- Matches D3.js alpha/temperature cooling approach
+**Degree-Dependent Repulsion (ForceAtlas2):**
+- Added complexity for marginal benefit
+- Not needed for dependency graphs
+- Removed to keep implementation simple
 
-### 3. Degree-Dependent Repulsion (ForceAtlas2)
-Modified repulsion to scale with node degree: `repulsion * sqrt((degree1 + 1) * (degree2 + 1))`
+**Gravity Force (ForceAtlas2):**
+- Caused layout instability
+- Disconnected components don't drift in practice
+- Removed to prevent errors
 
-**Rationale:**
-- Highly connected nodes repel more strongly
-- Reduces visual clutter from leaf nodes in power-law networks
-- Particularly effective for dependency graphs (often scale-free)
-- Proven technique in Gephi's ForceAtlas2 algorithm
+**Improved Convergence Detection:**
+- Energy-based tracking was over-engineered
+- Simple max-force threshold (0.5) works reliably
+- Removed to reduce complexity
 
-### 4. Gravity Force (ForceAtlas2)
-Added center-attracting force with strength 0.1
+## Revised Decision (Hybrid Approach)
+We implemented a hybrid approach that combines the simple, proven structure from the original with area-based scaling for dynamic spacing:
 
-**Rationale:**
-- Prevents disconnected components from drifting to edges
-- Keeps sparse graphs cohesive
-- Particularly important for graphs with multiple disconnected clusters
-- Standard feature in production force-directed layouts
+### 1. Area-Based Scaling (Adopted)
+- Formula: `scaleFactor = sqrt(canvasArea / nodeCount) / BASE_SCALE`
+- Normalizes by base scale (distance for 50 nodes in 1200x800 canvas)
+- Accounts for canvas dimensions to fix spacing issues
 
-### 5. Improved Convergence Detection
-Replaced simple max-force threshold with energy-based tracking:
-- Tracks total system energy over iterations
-- Minimum 50 iterations before checking convergence
-- Stops when relative energy change < 1% or temperature < 0.5
+### 2. Simple Damping (Kept from Original)
+- Fixed damping factor (0.85) for stable convergence
+- No temperature cooling complexity
+- Proven to work reliably
 
-**Rationale:**
-- Prevents premature stopping during exploration phase
-- Avoids unnecessary iterations when converged
-- More robust than fixed force threshold
-- Matches simulated annealing best practices
+### 3. Simple Convergence (Kept from Original)
+- Stops when maxForce < 0.5
+- No energy-based tracking
+- No minimum iteration thresholds
 
-### 6. Simplified Parameter Structure
-Consolidated from multiple hardcoded constants to single optimal distance parameter
-
-**Rationale:**
-- Easier to tune (one parameter vs many)
-- More predictable behavior
-- Aligns with ForceAtlas2's single scaling parameter approach
-- Reduces maintenance burden
+### 4. Tuned Constants (Improved)
+- BASE_NODE_WIDTH: 100 (reduced from 120 for tighter spacing)
+- BASE_NODE_HEIGHT: 35 (reduced from 40 for tighter spacing)
+- BASE_MIN_SEPARATION: 70 (reduced from 80 for tighter spacing)
+- BASE_REPULSION_STRENGTH: 2000 (reduced from 2500 for gentler forces)
 
 ## Consequences
-- **Positive**: Node spacing now dynamically adapts to both canvas size and node count
-- **Positive**: Eliminates oscillation between too-large and too-small distances
-- **Positive**: Better handling of power-law networks (common in dependency graphs)
-- **Positive**: Disconnected components stay cohesive and centered
-- **Positive**: Faster convergence with fewer unnecessary iterations
-- **Positive**: Industry-standard techniques make behavior more predictable
-- **Neutral**: Slightly more complex implementation due to multiple calibration techniques
-- **Neutral**: New constants (COOLING_RATE, GRAVITY_STRENGTH) require tuning for edge cases
+- **Positive**: Node spacing now dynamically adapts to canvas dimensions
+- **Positive**: Fixes spacing issues where original was too large
+- **Positive**: Simple, proven structure from original prevents errors
+- **Positive**: KISS principle maintained - no over-engineering
+- **Positive**: Constants tuned for better visual density
+- **Neutral**: Slightly more complex than original due to area-based formula
+- **Neutral**: Requires testing across different canvas sizes
 
 ## References
-- ADR-0065: Dynamic Graph Spacing and Standard Panning (previous approach)
-- ForceAtlas2 Paper: https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0098679
-- D3.js Force Simulation: https://d3js.org/d3-force
+- ADR-0065: Dynamic Graph Spacing and Standard Panning (original approach)
 - Fruchterman-Reingold Algorithm: Graph Drawing via Force-Directed Layouts
+- ForceAtlas2 Paper: https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0098679 (rejected for complexity)
+- D3.js Force Simulation: https://d3js.org/d3-force (rejected for complexity)

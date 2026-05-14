@@ -87,17 +87,16 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         this.truncationHelper = new TruncationHelper();
         this.panel = new JBPanel<>(new BorderLayout());
 
-        // Columns with Jakarta Equivalent information, Maven Coordinates, Depth and Scope
+        // Columns with Jakarta Equivalent information and Scope
         String[] columns = {
                 "Group ID",
                 "Artifact ID",
                 "Current Version",
-                "Depth",  // 0=direct, 1+=transitive level from deep scanning
                 "Scope",  // compile, test, provided, runtime
                 "Jakarta Equivalent",
-                "Recommended Version",
-                "Maven Coordinates",
                 "Compatibility Status",
+                "Jakarta Compatibility Status",
+                "Reason",
                 "Type",
                 "" // Hidden column for DependencyInfo object
         };
@@ -143,9 +142,9 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             
             isRendering = true;
             try {
-            // Status column is at index 8, Jakarta Equivalent at index 5, Maven Coordinates at index 7, DependencyInfo at index 10
-            if ((column == 8 || column == 5) && row < table.getModel().getRowCount()) {
-                Object depObj = table.getModel().getValueAt(row, 10);
+            // Status column is at index 5, Jakarta Equivalent at index 4, DependencyInfo at index 9
+            if ((column == 5 || column == 4) && row < table.getModel().getRowCount()) {
+                Object depObj = table.getModel().getValueAt(row, 9);
                 if (depObj instanceof DependencyInfo) {
                     DependencyInfo dep = (DependencyInfo) depObj;
                     JPanel panel = new JPanel(new BorderLayout());
@@ -197,10 +196,10 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             if (isSelected) {
                 label.setBackground(table.getSelectionBackground());
             } else {
-                // Determine if this row is organizational (check hidden column at index 8)
+                // Determine if this row is organizational (check hidden column at index 9)
                 boolean isOrg = false;
                 if (row < table.getModel().getRowCount()) {
-                    Object depObj = table.getModel().getValueAt(row, 8);
+                    Object depObj = table.getModel().getValueAt(row, 9);
                     if (depObj instanceof DependencyInfo) {
                         isOrg = ((DependencyInfo) depObj).isOrganizational();
                     }
@@ -273,18 +272,19 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         table.setFillsViewportHeight(true);
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
-        // Set column widths (8 columns + 1 hidden)
+        // Set column widths (9 columns + 1 hidden)
         table.getColumnModel().getColumn(0).setPreferredWidth(150); // Group ID
         table.getColumnModel().getColumn(1).setPreferredWidth(150); // Artifact ID
         table.getColumnModel().getColumn(2).setPreferredWidth(90);  // Current Version
-        table.getColumnModel().getColumn(3).setPreferredWidth(150); // Jakarta Equivalent
-        table.getColumnModel().getColumn(4).setPreferredWidth(100); // Recommended Version
-        table.getColumnModel().getColumn(5).setPreferredWidth(200); // Maven Coordinates
-        table.getColumnModel().getColumn(6).setPreferredWidth(120); // Status (color-coded)
-        table.getColumnModel().getColumn(7).setPreferredWidth(80);  // Type
-        table.getColumnModel().getColumn(8).setMinWidth(0);       // Hidden DependencyInfo
-        table.getColumnModel().getColumn(8).setMaxWidth(0);
-        table.getColumnModel().getColumn(8).setWidth(0);
+        table.getColumnModel().getColumn(3).setPreferredWidth(100); // Scope
+        table.getColumnModel().getColumn(4).setPreferredWidth(150); // Jakarta Equivalent
+        table.getColumnModel().getColumn(5).setPreferredWidth(120); // Status (color-coded)
+        table.getColumnModel().getColumn(6).setPreferredWidth(150); // Jakarta Compatibility Status
+        table.getColumnModel().getColumn(7).setPreferredWidth(200); // Reason
+        table.getColumnModel().getColumn(8).setPreferredWidth(80);  // Type
+        table.getColumnModel().getColumn(9).setMinWidth(0);       // Hidden DependencyInfo
+        table.getColumnModel().getColumn(9).setMaxWidth(0);
+        table.getColumnModel().getColumn(9).setWidth(0);
 
         // Add mouse listener for double-click navigation
         table.addMouseListener(new MouseInputAdapter() {
@@ -472,9 +472,6 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         // Determine dependency type
         String dependencyType = dep.isTransitive() ? "Transitive" : "Direct";
 
-        // Depth - show as integer (0=direct, 1+=transitive level)
-        String depthStr = String.valueOf(dep.getDepth());
-
         // Scope - show scope (compile, test, provided, runtime)
         String scopeStr = dep.getScope() != null ? dep.getScope() : "-";
 
@@ -497,30 +494,28 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             statusText = "? Unknown";
         }
 
-        // Build Maven Coordinates string (groupId:artifactId:version)
-        String mavenCoordinates = "-";
-        if (dep.getRecommendedGroupId() != null && dep.getRecommendedArtifactId() != null) {
-            mavenCoordinates = dep.getRecommendedGroupId() + ":" +
-                              dep.getRecommendedArtifactId() +
-                              (dep.getRecommendedVersion() != null ? ":" + dep.getRecommendedVersion() : "");
-        } else if (hasJakartaEquivalent) {
-            // Fallback to using the Jakarta Equivalent coordinates
-            mavenCoordinates = jakartaEquivalent;
-        }
+        // Jakarta Compatibility Status
+        String jakartaCompatibilityStatus = dep.getJakartaCompatibilityStatus() != null
+                ? dep.getJakartaCompatibilityStatus()
+                : "-";
 
-        // Add row with all columns - DependencyInfo at column 10 (hidden)
+        // Reason (scan reason)
+        String reason = dep.getScanReason() != null
+                ? dep.getScanReason()
+                : "-";
+
+        // Add row with all columns - DependencyInfo at column 9 (hidden)
         tableModel.addRow(new Object[] {
                 dep.getGroupId(),
                 dep.getArtifactId(),
                 dep.getCurrentVersion(),
-                depthStr,           // Column 3: Depth
-                scopeStr,           // Column 4: Scope
-                jakartaEquivalent,  // Column 5: Jakarta Equivalent
-                dep.getRecommendedVersion() != null ? dep.getRecommendedVersion() : "-",  // Column 6: Recommended Version
-                mavenCoordinates,   // Column 7: Maven Coordinates
-                statusText,         // Column 8: Status
-                dependencyType,     // Column 9: Type
-                dep // Column 10: Full object for renderer (hidden column)
+                scopeStr,           // Column 3: Scope
+                jakartaEquivalent,  // Column 4: Jakarta Equivalent
+                statusText,         // Column 5: Status
+                jakartaCompatibilityStatus,  // Column 6: Jakarta Compatibility Status
+                reason,             // Column 7: Reason
+                dependencyType,     // Column 8: Type
+                dep // Column 9: Full object for renderer (hidden column)
         });
     }
     
