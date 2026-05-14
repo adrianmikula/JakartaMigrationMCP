@@ -23,7 +23,7 @@ import java.util.List;
  * Dependency graph component that displays module dependency graph with interactive visualization.
  * Uses the real DependencyGraph from migration-core library.
  */
-public class DependencyGraphComponent extends AbstractDependencyUIComponent {
+public class DependencyGraphComponent {
     private final JPanel panel;
     private final Project project;
     private final GraphCanvas graphCanvas;
@@ -114,19 +114,19 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
         legendPanel.setBackground(new Color(245, 245, 245));
 
         // Compatible (Green)
-        JPanel legendItem1 = createLegendItem(DependencyStatusColors.STATUS_COMPATIBLE, "Jakarta Compatible");
+        JPanel legendItem1 = createLegendItem(new Color(40, 167, 69), "Jakarta Compatible");
         legendPanel.add(legendItem1);
 
         // Needs Upgrade (Yellow)
-        JPanel legendItem2 = createLegendItem(DependencyStatusColors.STATUS_NEEDS_UPGRADE, "Needs Upgrade");
+        JPanel legendItem2 = createLegendItem(new Color(255, 193, 7), "Needs Upgrade");
         legendPanel.add(legendItem2);
 
         // No Jakarta Version (Red)
-        JPanel legendItem3 = createLegendItem(DependencyStatusColors.STATUS_NO_JAKARTA, "No Jakarta Version");
+        JPanel legendItem3 = createLegendItem(new Color(220, 53, 69), "No Jakarta Version");
         legendPanel.add(legendItem3);
 
         // Organisational - Thicker border indicator
-        JPanel legendItem4 = createLegendItemWithBorder(DependencyStatusColors.STATUS_UNKNOWN, "Organisational (thicker border)");
+        JPanel legendItem4 = createLegendItemWithBorder(new Color(108, 117, 125), "Organisational (thicker border)");
         legendPanel.add(legendItem4);
 
         // Combine controls and legend in a wrapper panel
@@ -239,10 +239,8 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
 
         for (DependencyInfo dep : deps) {
             // Artifact record requires 5 params: groupId, artifactId, version, scope, transitive
-            // Use "unknown" as fallback if currentVersion is null
-            String version = dep.getCurrentVersion() != null ? dep.getCurrentVersion() : "unknown";
             Artifact artifact = new Artifact(dep.getGroupId(), dep.getArtifactId(),
-                version, "compile", dep.isTransitive());
+                dep.getCurrentVersion(), "compile", dep.isTransitive());
             nodes.add(artifact);
         }
 
@@ -261,12 +259,16 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
         updateGraphFromDependencyGraph();
     }
 
-    @Override
+    /**
+     * Set dependencies (for DependencyUIManager compatibility).
+     */
     public void setDependencies(List<DependencyInfo> dependencies) {
         updateGraph(dependencies);
     }
 
-    @Override
+    /**
+     * Clear dependencies (for DependencyUIManager compatibility).
+     */
     public void clearDependencies() {
         updateGraph(new ArrayList<>());
     }
@@ -274,7 +276,6 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
     /**
      * Update the graph with the real DependencyGraph from migration-core.
      */
-    @Override
     public void updateDependencyGraph(DependencyGraph graph) {
         this.dependencyGraph = graph != null ? graph : new DependencyGraph();
         this.artifactStatusMap = new HashMap<String, DependencyMigrationStatus>();
@@ -284,7 +285,6 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
     /**
      * Update the graph with the real DependencyGraph and status map.
      */
-    @Override
     public void updateDependencyGraph(DependencyGraph graph, Map<String, DependencyMigrationStatus> statusMap) {
         this.dependencyGraph = graph != null ? graph : new DependencyGraph();
         this.artifactStatusMap = statusMap != null ? statusMap : new HashMap<String, DependencyMigrationStatus>();
@@ -292,17 +292,21 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
     }
 
     /**
-     * Update the graph with the real DependencyGraph and status map (internal method).
+     * Update the graph with the real DependencyGraph from migration-core.
      */
     public void updateGraphFromDependencyGraph(DependencyGraph graph) {
-        updateDependencyGraph(graph);
+        this.dependencyGraph = graph != null ? graph : new DependencyGraph();
+        this.artifactStatusMap = new HashMap<String, DependencyMigrationStatus>();
+        updateGraphFromDependencyGraph();
     }
-
+    
     /**
-     * Update the graph with the real DependencyGraph and status map (internal method).
+     * Update the graph with the real DependencyGraph and status map.
      */
     public void updateGraphFromDependencyGraph(DependencyGraph graph, Map<String, DependencyMigrationStatus> statusMap) {
-        updateDependencyGraph(graph, statusMap);
+        this.dependencyGraph = graph != null ? graph : new DependencyGraph();
+        this.artifactStatusMap = statusMap != null ? statusMap : new HashMap<String, DependencyMigrationStatus>();
+        updateGraphFromDependencyGraph();
     }
 
     /**
