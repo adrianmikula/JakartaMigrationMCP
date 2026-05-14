@@ -2,6 +2,8 @@ plugins {
     id("org.springframework.boot")
     id("io.spring.dependency-management")
     java
+    id("com.github.spotbugs") version "6.0.25"
+    id("net.ltgt.errorprone") version "4.1.0"
 }
 
 dependencies {
@@ -25,7 +27,7 @@ tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion.set(JavaLanguageVersion.of(17))
     }
 }
 

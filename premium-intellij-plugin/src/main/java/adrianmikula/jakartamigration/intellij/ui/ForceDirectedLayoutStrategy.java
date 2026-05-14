@@ -5,55 +5,21 @@ import java.util.*;
 /**
  * Force-directed layout strategy that simulates physical forces.
  * Repulsive forces between nodes, attractive forces along edges.
- * 
- * <h2>Hybrid Calibration Approach</h2>
- * This implementation combines the simple, proven structure from the original with
- * area-based scaling for dynamic spacing that adapts to canvas dimensions:
- * 
- * <ul>
- *   <li><b>Area-based scaling</b> (Fruchterman-Reingold): optimal distance k = sqrt(canvasArea / nodeCount)
- *       - Directly relates spacing to available canvas space rather than fixed baseline
- *       - Fixes spacing issues where original inverse square root was too large
- *   
- *   <li><b>Simple damping</b> (Original approach):
- *       - Fixed damping factor (0.85) for stable convergence
- *       - No temperature cooling complexity
- *   
- *   <li><b>Simple convergence detection</b> (Original approach):
- *       - Stops when maxForce < 0.5
- *       - No energy-based tracking or minimum iteration thresholds
- *   
- *   <li><b>No degree-dependent repulsion</b>:
- *       - Removed to keep implementation simple and error-free
- *   
- *   <li><b>No gravity force</b>:
- *       - Removed to prevent layout instability
- * </ul>
- * 
- * <h2>Parameter Tuning</h2>
- * Key parameters tuned for better spacing than original:
- * - BASE_NODE_WIDTH: 100 (reduced from 120 for tighter spacing)
- * - BASE_NODE_HEIGHT: 35 (reduced from 40 for tighter spacing)
- * - BASE_MIN_SEPARATION: 70 (reduced from 80 for tighter spacing)
- * - BASE_REPULSION_STRENGTH: 2000 (reduced from 2500 for gentler forces)
- * - DAMPING: 0.85 (stable convergence)
- * - Minimum node sizes: 60px width, 25px height, 40px separation
- * 
+ * Node spacing automatically adjusts based on total node count to maintain
+ * consistent visual density for graphs of any size.
+ *
  * @see ADR-0065 (Dynamic Graph Spacing and Standard Panning)
- * @see ADR-0066 (Hybrid approach - area-based scaling without complexity)
  * @see spec/plugin-components.tsp GraphLayout.nodeSpacing
  */
 public class ForceDirectedLayoutStrategy implements GraphLayoutStrategy {
-    // Base constants tuned for better spacing (reduced from original)
-    private static final double BASE_REPULSION_STRENGTH = 2000;
-    private static final double BASE_NODE_WIDTH = 100;
-    private static final double BASE_NODE_HEIGHT = 35;
-    private static final double BASE_MIN_SEPARATION = 70;
-    
-    // Single scaling parameter that affects all distances
+    // Base constants optimized for ~50 nodes (medium graph)
+    private static final double BASE_REPULSION_STRENGTH = 2500;
     private static final double ATTRACTION_STRENGTH = 0.01;
-    private static final int BASE_MAX_ITERATIONS = 500;
     private static final double DAMPING = 0.85;
+    private static final int BASE_MAX_ITERATIONS = 500;
+    private static final double BASE_NODE_WIDTH = 120;
+    private static final double BASE_NODE_HEIGHT = 40;
+    private static final double BASE_MIN_SEPARATION = 80;
 
     // Minimum sizes to ensure readability
     private static final double MIN_NODE_WIDTH = 60;
@@ -66,12 +32,13 @@ public class ForceDirectedLayoutStrategy implements GraphLayoutStrategy {
 
         int nodeCount = nodes.size();
 
-        // Calculate scale factor using area-based formula from Fruchterman-Reingold
-        // scaleFactor = sqrt(canvasArea / nodeCount) / BASE_SCALE
-        // This directly relates spacing to available canvas space
-        double scaleFactor = calculateScaleFactor(nodeCount, canvasWidth, canvasHeight);
+        // Calculate dynamic scaling factor based on node count
+        // Implements spec: GraphLayout.nodeSpacing auto-adjusts for consistent visual density
+        // See spec/plugin-components.tsp - GraphLayout model with configurable nodeSpacing
+        // This implementation auto-calculates optimal spacing based on graph size
+        double scaleFactor = calculateScaleFactor(nodeCount);
 
-        // Apply scale factor to all parameters with minimum thresholds
+        // Apply scaling to all parameters
         double minSeparation = Math.max(BASE_MIN_SEPARATION * scaleFactor, MIN_MIN_SEPARATION);
         double nodeWidth = Math.max(BASE_NODE_WIDTH * scaleFactor, MIN_NODE_WIDTH);
         double nodeHeight = Math.max(BASE_NODE_HEIGHT * scaleFactor, MIN_NODE_HEIGHT);
@@ -83,7 +50,7 @@ public class ForceDirectedLayoutStrategy implements GraphLayoutStrategy {
         // Initialize positions in a grid with scaled spacing
         initializePositions(nodes, canvasWidth, canvasHeight, nodeWidth, nodeHeight);
 
-        // Run force simulation with simple damping
+        // Run force simulation with dynamic parameters
         for (int iter = 0; iter < maxIterations; iter++) {
             Map<String, Double> forcesX = new HashMap<>();
             Map<String, Double> forcesY = new HashMap<>();
@@ -108,7 +75,7 @@ public class ForceDirectedLayoutStrategy implements GraphLayoutStrategy {
                 calculateAttractiveForce(edge, forcesX, forcesY);
             }
 
-            // Apply forces with simple damping
+            // Apply forces with damping
             double maxForce = 0;
             for (GraphNode node : nodes) {
                 double fx = forcesX.get(node.getId());
@@ -129,21 +96,13 @@ public class ForceDirectedLayoutStrategy implements GraphLayoutStrategy {
     }
 
     /**
-     * Calculate scale factor using area-based formula from Fruchterman-Reingold.
-     * scaleFactor = sqrt(canvasArea / nodeCount) / BASE_SCALE
-     * This ensures consistent visual density across different graph sizes and canvas dimensions.
-     * Examples (1200x800 canvas): 10 nodes → 2.76x, 50 nodes → 1.23x, 200 nodes → 0.62x, 1000 nodes → 0.28x
-     * @param nodeCount Number of nodes in the graph
-     * @param canvasWidth Width of the canvas
-     * @param canvasHeight Height of the canvas
-     * @return Scale factor for dynamic spacing
+     * Calculate scale factor using inverse square root: sqrt(BASE / count).
+     * This ensures consistent visual density across different graph sizes.
+     * Examples: 10 nodes → 2.24x, 50 nodes → 1.0x, 200 nodes → 0.5x, 1000 nodes → 0.22x
      */
-    private double calculateScaleFactor(int nodeCount, int canvasWidth, int canvasHeight) {
-        double canvasArea = canvasWidth * canvasHeight;
-        double optimalDistance = Math.sqrt(canvasArea / nodeCount);
-        // Normalize by a base scale (e.g., distance for 50 nodes in 1200x800 canvas)
-        double baseScale = Math.sqrt((1200.0 * 800.0) / 50.0);
-        return optimalDistance / baseScale;
+    private double calculateScaleFactor(int nodeCount) {
+        final int OPTIMAL_NODE_COUNT = 50; // Base case: optimized for this size
+        return Math.sqrt(Math.max(1.0, (double) OPTIMAL_NODE_COUNT / nodeCount));
     }
 
     /**

@@ -43,7 +43,9 @@ public class DependencyUIManager {
     public void updateAllDependencies(List<DependencyInfo> dependencies) {
         List<DependencyInfo> deps = dependencies != null ? dependencies : new ArrayList<>();
         dependenciesComponent.setDependencies(deps);
-        dependenciesTreeComponent.setDependencies(deps);
+        if (dependenciesTreeComponent != null) {
+            dependenciesTreeComponent.setDependencies(deps);
+        }
         dependencyGraphComponent.setDependencies(deps);
     }
     
@@ -80,7 +82,9 @@ public class DependencyUIManager {
      */
     public void clearAllDependencies() {
         dependenciesComponent.clearDependencies();
-        dependenciesTreeComponent.clearDependencies();
+        if (dependenciesTreeComponent != null) {
+            dependenciesTreeComponent.clearDependencies();
+        }
         dependencyGraphComponent.clearDependencies();
     }
     

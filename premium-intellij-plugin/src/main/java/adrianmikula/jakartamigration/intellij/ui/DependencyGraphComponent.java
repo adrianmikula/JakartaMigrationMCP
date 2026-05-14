@@ -239,8 +239,10 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
 
         for (DependencyInfo dep : deps) {
             // Artifact record requires 5 params: groupId, artifactId, version, scope, transitive
+            // Use "unknown" as fallback if currentVersion is null
+            String version = dep.getCurrentVersion() != null ? dep.getCurrentVersion() : "unknown";
             Artifact artifact = new Artifact(dep.getGroupId(), dep.getArtifactId(),
-                dep.getCurrentVersion(), "compile", dep.isTransitive());
+                version, "compile", dep.isTransitive());
             nodes.add(artifact);
         }
 

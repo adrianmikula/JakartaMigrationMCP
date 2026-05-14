@@ -1,5 +1,7 @@
 plugins {
     `java-library`
+    // id("com.github.spotbugs") version "6.0.25" // Disabled due to configuration issues
+    // id("net.ltgt.errorprone") version "4.1.0" // Disabled due to configuration issues
 }
 
 dependencies {
@@ -45,7 +47,7 @@ dependencies {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion.set(JavaLanguageVersion.of(17))
     }
 }
 

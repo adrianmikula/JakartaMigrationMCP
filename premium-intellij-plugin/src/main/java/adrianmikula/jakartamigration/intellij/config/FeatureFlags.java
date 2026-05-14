@@ -137,8 +137,10 @@ public class FeatureFlags {
                 Map<String, Object> config = yaml.load(inputStream);
                 
                 if (config != null && config.containsKey("features")) {
+                    @SuppressWarnings("unchecked")
                     Map<String, Object> features = (Map<String, Object>) config.get("features");
                     for (Map.Entry<String, Object> entry : features.entrySet()) {
+                        @SuppressWarnings("unchecked")
                         Map<String, Object> feature = (Map<String, Object>) entry.getValue();
                         Boolean enabled = (Boolean) feature.get("enabled");
                         if (enabled != null) {

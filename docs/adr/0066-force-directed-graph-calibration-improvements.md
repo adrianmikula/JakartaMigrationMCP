@@ -1,7 +1,7 @@
-# ADR 0066: Force-Directed Graph Calibration - Hybrid Approach
+# ADR 0066: Force-Directed Graph Calibration - Rollback to Original
 
 ## Status
-Accepted (Superseded - Hybrid Approach)
+Rejected - Rolled Back to Original (ADR-0065)
 
 ## Context
 The force-directed dependency tree layout in the IntelliJ plugin was experiencing calibration issues where node distances oscillated between extremes:
@@ -12,71 +12,63 @@ The previous implementation (ADR-0065) used inverse square root scaling: `scaleF
 - Fixed baseline didn't account for actual canvas dimensions
 - Spacing was too large on some screen sizes
 
-## Initial Decision (Rolled Back)
+## Attempted Improvements (All Rejected)
+
+### First Attempt: Industry-Standard Techniques (Commit 5aa8744)
 We initially implemented a multi-faceted calibration approach based on industry-standard techniques from D3.js, ForceAtlas2 (Gephi), and Fruchterman-Reingold algorithms. This implementation broke the graph layout completely.
 
-### What We Adopted (Kept)
-**Area-Based Scaling (Fruchterman-Reingold):**
-- Replaced inverse square root with: `scaleFactor = sqrt(canvasArea / nodeCount) / BASE_SCALE`
-- Directly relates spacing to available canvas space
-- More intuitive and predictable than fixed baseline
+**Features Added:**
+- Area-based scaling (Fruchterman-Reingold)
+- Adaptive temperature cooling (simulated annealing)
+- Degree-dependent repulsion (ForceAtlas2)
+- Gravity force (ForceAtlas2)
+- Energy-based convergence detection
 
-### What We Rejected (Removed)
-**Adaptive Temperature Cooling (Simulated Annealing/D3.js):**
-- Initial implementation broke the layout
-- Too complex for the use case
-- Simple damping (0.85) is sufficient
+**Result:** Completely broke the graph layout - nodes were not positioned correctly.
 
-**Degree-Dependent Repulsion (ForceAtlas2):**
-- Added complexity for marginal benefit
-- Not needed for dependency graphs
-- Removed to keep implementation simple
+### Second Attempt: Hybrid Approach (Recent)
+We attempted a hybrid approach that combined the simple, proven structure from the original with area-based scaling for dynamic spacing.
 
-**Gravity Force (ForceAtlas2):**
-- Caused layout instability
-- Disconnected components don't drift in practice
-- Removed to prevent errors
+**Features Kept:**
+- Simple damping (0.85)
+- Simple convergence detection (maxForce < 0.5)
+- Area-based scaling formula
 
-**Improved Convergence Detection:**
-- Energy-based tracking was over-engineered
-- Simple max-force threshold (0.5) works reliably
-- Removed to reduce complexity
+**Features Rejected:**
+- Temperature cooling
+- Degree-dependent repulsion
+- Gravity force
+- Energy-based convergence
 
-## Revised Decision (Hybrid Approach)
-We implemented a hybrid approach that combines the simple, proven structure from the original with area-based scaling for dynamic spacing:
+**Result:** Still did not work correctly - the graph layout remained broken.
 
-### 1. Area-Based Scaling (Adopted)
-- Formula: `scaleFactor = sqrt(canvasArea / nodeCount) / BASE_SCALE`
-- Normalizes by base scale (distance for 50 nodes in 1200x800 canvas)
-- Accounts for canvas dimensions to fix spacing issues
+## Final Decision: Complete Rollback
+After two failed attempts to improve the layout, we decided to completely revert to the original working version (commit b3186b0cc52ca4b51420ef948d5a35614ff066b3).
 
-### 2. Simple Damping (Kept from Original)
-- Fixed damping factor (0.85) for stable convergence
-- No temperature cooling complexity
-- Proven to work reliably
+**Rationale:**
+- The original version (ADR-0065) was working correctly
+- Spacing issues (too large on some screens) are minor compared to a completely broken layout
+- We can address spacing separately in the future if needed
+- Attempting to fix spacing broke the fundamental layout algorithm
 
-### 3. Simple Convergence (Kept from Original)
-- Stops when maxForce < 0.5
-- No energy-based tracking
-- No minimum iteration thresholds
-
-### 4. Tuned Constants (Improved)
-- BASE_NODE_WIDTH: 100 (reduced from 120 for tighter spacing)
-- BASE_NODE_HEIGHT: 35 (reduced from 40 for tighter spacing)
-- BASE_MIN_SEPARATION: 70 (reduced from 80 for tighter spacing)
-- BASE_REPULSION_STRENGTH: 2000 (reduced from 2500 for gentler forces)
+**Reverted to Original (ADR-0065):**
+- Inverse square root scaling: `scaleFactor = sqrt(OPTIMAL_NODE_COUNT / nodeCount)`
+- BASE_REPULSION_STRENGTH = 2500
+- BASE_NODE_WIDTH = 120
+- BASE_NODE_HEIGHT = 40
+- BASE_MIN_SEPARATION = 80
+- Simple damping (0.85)
+- Simple convergence (maxForce < 0.5)
+- No temperature cooling, degree-dependent repulsion, or gravity force
 
 ## Consequences
-- **Positive**: Node spacing now dynamically adapts to canvas dimensions
-- **Positive**: Fixes spacing issues where original was too large
-- **Positive**: Simple, proven structure from original prevents errors
-- **Positive**: KISS principle maintained - no over-engineering
-- **Positive**: Constants tuned for better visual density
-- **Neutral**: Slightly more complex than original due to area-based formula
-- **Neutral**: Requires testing across different canvas sizes
+- **Positive**: Graph layout returns to working state
+- **Positive**: Simple, proven implementation
+- **Positive**: No risk of breaking the layout further
+- **Negative**: Spacing may still be too large on some screen sizes (known issue)
+- **Neutral**: Future work can address spacing with more careful testing
 
 ## References
-- ADR-0065: Dynamic Graph Spacing and Standard Panning (original approach)
-- Fruchterman-Reingold Algorithm: Graph Drawing via Force-Directed Layouts
-- ForceAtlas2 Paper: https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0098679 (rejected for complexity)
-- D3.js Force Simulation: https://d3js.org/d3-force (rejected for complexity)
+- ADR-0065: Dynamic Graph Spacing and Standard Panning (original working approach)
+- Commit b3186b0cc52ca4b51420ef948d5a35614ff066b3: Working version (reverted to this)
+- Commit 5aa8744343f23726e6e58bc4f21ded744f5a9069: First failed attempt (industry-standard techniques)

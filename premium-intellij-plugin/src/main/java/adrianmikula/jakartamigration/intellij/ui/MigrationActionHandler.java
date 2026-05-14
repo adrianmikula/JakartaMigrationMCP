@@ -58,10 +58,12 @@ public class MigrationActionHandler {
         // Check if Jakarta mapping exists for this dependency
         CompletableFuture.supplyAsync(() -> {
             try {
+                // Use "unknown" as fallback if currentVersion is null
+                String version = dep.getCurrentVersion() != null ? dep.getCurrentVersion() : "unknown";
                 Artifact artifact = new Artifact(
                         dep.getGroupId(),
                         dep.getArtifactId(),
-                        dep.getCurrentVersion(),
+                        version,
                         "compile",
                         false);
 

@@ -1451,19 +1451,31 @@ public class SourceScansComponent {
     }
 
     private void loadInitialState() {
-        String projectPathStr = project.getBasePath();
-        if (projectPathStr == null) {
-            projectPathStr = project.getProjectFilePath();
-        }
-if (projectPathStr != null) {
-            Path projectPath = Path.of(projectPathStr);
-            String stateJson = store.getPluginState(projectPath, "advancedScansSummary");
-            if (stateJson != null && !stateJson.isEmpty()) {
+        // Load initial state asynchronously to avoid blocking the UI thread
+        SwingWorker<String, Void> worker = new SwingWorker<>() {
+            @Override
+            protected String doInBackground() throws Exception {
+                String projectPathStr = project.getBasePath();
+                if (projectPathStr == null) {
+                    projectPathStr = project.getProjectFilePath();
+                }
+                if (projectPathStr != null) {
+                    Path projectPath = Path.of(projectPathStr);
+                    return store.getPluginState(projectPath, "advancedScansSummary");
+                }
+                return null;
+            }
+
+            @Override
+            protected void done() {
                 try {
-                    AdvancedScanningService.AdvancedScanSummary summary = objectMapper.fromJson(stateJson,
-                            AdvancedScanningService.AdvancedScanSummary.class);
-                    if (summary != null) {
-                        displayResults(summary);
+                    String stateJson = get();
+                    if (stateJson != null && !stateJson.isEmpty()) {
+                        AdvancedScanningService.AdvancedScanSummary summary = objectMapper.fromJson(stateJson,
+                                AdvancedScanningService.AdvancedScanSummary.class);
+                        if (summary != null) {
+                            displayResults(summary);
+                        }
                     }
                 } catch (Exception e) {
                     LOG.warn("Failed to load initial state for AdvancedScansComponent (may be due to schema changes): " + e.getMessage());
@@ -1472,7 +1484,8 @@ if (projectPathStr != null) {
                     errorReportingService.reportError(e, "Advanced Scans State Loading");
                 }
             }
-        }
+        };
+        worker.execute();
     }
 
 }

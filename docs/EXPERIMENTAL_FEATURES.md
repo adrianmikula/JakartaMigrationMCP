@@ -8,7 +8,7 @@ Experimental features in Jakarta Migration Plugin provide cutting-edge functiona
 
 ### 1. Runtime Tab ⚡ (Experimental)
 - **Purpose**: Diagnose runtime errors with AI-powered analysis
-- **Features**: 
+- **Features**:
   - Error pattern recognition
   - Automated remediation suggestions
   - Runtime error diagnosis and troubleshooting
@@ -22,6 +22,15 @@ Experimental features in Jakarta Migration Plugin provide cutting-edge functiona
   - Migration recommendations
   - Professional PDF export
 - **Requirements**: Premium subscription + Experimental features enabled
+
+### 3. Dependencies (Tree) Tab 🌳 (Experimental)
+- **Purpose**: Hierarchical view of project dependencies with transitive relationships
+- **Features**:
+  - Tree-based dependency visualization
+  - Transitive dependency expansion
+  - Jakarta compatibility indicators in tree structure
+  - Filter by direct vs transitive dependencies
+- **Requirements**: Experimental features enabled (available for both free and premium users)
 
 ## How to Enable Experimental Features
 
@@ -54,16 +63,19 @@ adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance()
 ### Premium Users with Experimental Features Enabled
 - ✅ Runtime ⚡ (Experimental) - Full functionality
 - ✅ Reports 📊 (Experimental) - Full functionality
+- ✅ Dependencies (Tree) 🌳 (Experimental) - Full functionality
 - ✅ All other premium tabs (Refactor, History, Advanced Scans)
 
 ### Premium Users with Experimental Features Disabled
 - ❌ Runtime tab - Hidden
-- ❌ Reports tab - Hidden  
+- ❌ Reports tab - Hidden
+- ❌ Dependencies (Tree) tab - Hidden
 - ✅ All other premium tabs (Refactor, History, Advanced Scans)
 
 ### Community Users (Free Tier)
 - 🔒 Runtime tab - Locked placeholder (if experimental enabled)
 - 🔒 Reports tab - Locked placeholder (if experimental enabled)
+- ✅ Dependencies (Tree) tab - Full functionality (if experimental enabled)
 - 🔒 Premium tabs - Locked placeholders
 - ✅ Community tabs (Dashboard, Dependencies, Dependency Graph, Migration Strategy, Support, AI)
 
