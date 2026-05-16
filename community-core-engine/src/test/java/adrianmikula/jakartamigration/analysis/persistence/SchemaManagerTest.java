@@ -186,4 +186,62 @@ class SchemaManagerTest {
             }
         }
     }
+
+    @Test
+    @DisplayName("Should delete scan data tables on upgrade while preserving recipe history")
+    void shouldDeleteScanDataTablesOnUpgrade() throws Exception {
+        Path dbPath = tempDir.resolve("test-upgrade-delete.db");
+
+        // Create old schema (version 1) using SchemaManager
+        try (Connection conn = getConnection(dbPath)) {
+            SchemaManager schemaManager = new SchemaManager(conn);
+            schemaManager.initializeSchema();
+            
+            // Manually set version to 1 to simulate old schema
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("UPDATE metadata SET value = '1' WHERE key = 'schema_version'");
+            }
+        }
+
+        // Verify old tables exist
+        try (Connection conn = getConnection(dbPath)) {
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT name FROM sqlite_master WHERE type='table'")) {
+                java.util.Set<String> tables = new java.util.HashSet<>();
+                while (rs.next()) {
+                    tables.add(rs.getString("name"));
+                }
+                assertThat(tables).contains("repositories", "dependencies", "analysis_reports", "recipes", "recipe_executions");
+            }
+        }
+
+        // Run upgrade to version 2
+        try (Connection conn = getConnection(dbPath)) {
+            SchemaManager schemaManager = new SchemaManager(conn);
+            schemaManager.initializeSchema();
+        }
+
+        // Verify scan data tables were deleted
+        try (Connection conn = getConnection(dbPath)) {
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT name FROM sqlite_master WHERE type='table'")) {
+                java.util.Set<String> tables = new java.util.HashSet<>();
+                while (rs.next()) {
+                    tables.add(rs.getString("name"));
+                }
+                assertThat(tables).doesNotContain("repositories", "dependencies", "analysis_reports");
+                // Recipe history should be preserved
+                assertThat(tables).contains("recipes", "recipe_executions");
+                // Metadata should be preserved
+                assertThat(tables).contains("metadata");
+            }
+
+            // Verify schema version was updated
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT value FROM metadata WHERE key = 'schema_version'")) {
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getString("value")).isEqualTo("2");
+            }
+        }
+    }
 }

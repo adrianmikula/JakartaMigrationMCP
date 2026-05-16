@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -126,15 +125,19 @@ public class ImprovedMavenCentralLookupService {
             return CompletableFuture.completedFuture(List.of());
         }
         
+        // Normalize to lowercase for case-insensitive matching
+        String normalizedGroupId = javaxGroupId.toLowerCase();
+        String normalizedArtifactId = javaxArtifactId.toLowerCase();
+        
         return CompletableFuture.supplyAsync(() -> {
             List<JakartaArtifactMatch> allResults = new ArrayList<>();
             
             // Try multiple search strategies for fuzzy matching
-            allResults.addAll(searchWithExactMatch(javaxGroupId, javaxArtifactId));
-            allResults.addAll(searchWithArtifactNameMapping(javaxGroupId, javaxArtifactId));
-            allResults.addAll(searchWithGroupNameMapping(javaxGroupId, javaxArtifactId));
-            allResults.addAll(searchWithNamingVariations(javaxGroupId, javaxArtifactId));
-            allResults.addAll(searchWithCaseInsensitiveVariations(javaxGroupId, javaxArtifactId));
+            allResults.addAll(searchWithExactMatch(normalizedGroupId, normalizedArtifactId));
+            allResults.addAll(searchWithArtifactNameMapping(normalizedGroupId, normalizedArtifactId));
+            allResults.addAll(searchWithGroupNameMapping(normalizedGroupId, normalizedArtifactId));
+            allResults.addAll(searchWithNamingVariations(normalizedGroupId, normalizedArtifactId));
+            allResults.addAll(searchWithCaseInsensitiveVariations(normalizedGroupId, normalizedArtifactId));
             
             // Remove duplicates and return first few results
             List<JakartaArtifactMatch> uniqueResults = allResults.stream()

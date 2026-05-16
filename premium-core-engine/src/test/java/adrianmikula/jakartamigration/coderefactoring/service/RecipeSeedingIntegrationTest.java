@@ -197,4 +197,64 @@ class RecipeSeedingIntegrationTest {
         List<RecipeDefinition> recipes = store.getRecipes();
         assertThat(recipes).isNotEmpty();
     }
+
+    @Test
+    @DisplayName("Should populate safety column in database after seeding")
+    void shouldPopulateSafetyColumnAfterSeeding() throws Exception {
+        // When
+        RecipeSeeder.seedDefaultRecipes(store);
+
+        // Then - verify safety column is populated in database
+        Path dbPath = store.getDbPath();
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                 "SELECT COUNT(*) FROM recipes WHERE safety IS NOT NULL AND safety != ''")) {
+
+            assertThat(rs.next()).isTrue();
+            int count = rs.getInt(1);
+            assertThat(count).isGreaterThan(0);
+        }
+    }
+
+    @Test
+    @DisplayName("Should populate all required database columns after seeding")
+    void shouldPopulateAllRequiredColumnsAfterSeeding() throws Exception {
+        // When
+        RecipeSeeder.seedDefaultRecipes(store);
+
+        // Then - verify all required columns are populated
+        Path dbPath = store.getDbPath();
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                 "SELECT COUNT(*) FROM recipes WHERE name IS NULL OR name = ''")) {
+
+            assertThat(rs.next()).isTrue();
+            int nullCount = rs.getInt(1);
+            assertThat(nullCount).isEqualTo(0);
+        }
+
+        // Verify category is populated
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                 "SELECT COUNT(*) FROM recipes WHERE category IS NULL OR category = ''")) {
+
+            assertThat(rs.next()).isTrue();
+            int nullCount = rs.getInt(1);
+            assertThat(nullCount).isEqualTo(0);
+        }
+
+        // Verify recipe_type is populated
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                 "SELECT COUNT(*) FROM recipes WHERE recipe_type IS NULL OR recipe_type = ''")) {
+
+            assertThat(rs.next()).isTrue();
+            int nullCount = rs.getInt(1);
+            assertThat(nullCount).isEqualTo(0);
+        }
+    }
 }

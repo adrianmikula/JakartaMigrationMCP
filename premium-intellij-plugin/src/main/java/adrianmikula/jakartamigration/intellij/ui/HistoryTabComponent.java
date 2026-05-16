@@ -7,6 +7,7 @@ import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
 import adrianmikula.jakartamigration.analytics.service.UsageService;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -190,7 +191,7 @@ public class HistoryTabComponent {
         if (selectedRow == -1) {
             // Use ApplicationManager.invokeLater for write-safe context
             ApplicationManager.getApplication().invokeLater(() ->
-                Messages.showWarningDialog(project, "Please select an execution to undo.", "No Selection"));
+                NotificationHelper.showWarning(project, "No Selection", "Please select an execution to undo."));
             return;
         }
 
@@ -200,13 +201,13 @@ public class HistoryTabComponent {
 
         if ("Undone".equals(status)) {
             ApplicationManager.getApplication().invokeLater(() ->
-                Messages.showErrorDialog(project, "This action has already been undone.", "Already Undone"));
+                NotificationHelper.showError(project, "Already Undone", "This action has already been undone."));
             return;
         }
 
         if ("Failed".equals(status)) {
             ApplicationManager.getApplication().invokeLater(() ->
-                Messages.showErrorDialog(project, "Cannot undo a failed execution.", "Cannot Undo"));
+                NotificationHelper.showError(project, "Cannot Undo", "Cannot undo a failed execution."));
             return;
         }
 

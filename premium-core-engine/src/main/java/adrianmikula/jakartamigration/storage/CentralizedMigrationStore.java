@@ -15,7 +15,7 @@ import java.util.*;
 @Slf4j
 public class CentralizedMigrationStore implements AutoCloseable {
 
-    private static final int DB_VERSION = 1;
+    private static final int DB_VERSION = 2;
     private static final String DEFAULT_DB_PATH = System.getProperty("user.home") + "/.jakartamigration/jakarta-migration.db";
 
     private final String dbPath;
@@ -61,11 +61,53 @@ public class CentralizedMigrationStore implements AutoCloseable {
 
     private void initializeDatabase() {
         try (Connection conn = getConnection()) {
+            updateSchema(conn);
             createTables(conn);
             conn.commit();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize centralized database", e);
         }
+    }
+
+    private void updateSchema(Connection conn) throws SQLException {
+        try (Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery("PRAGMA user_version")) {
+            int version = rs.getInt(1);
+            if (version < DB_VERSION) {
+                if (version < 2) {
+                    // Only delete scan data tables if upgrading from version 1 (not fresh install)
+                    if (version == 1) {
+                        deleteScanDataTables(stmt);
+                    }
+                }
+                stmt.execute("PRAGMA user_version = " + DB_VERSION);
+                log.info("Centralized database schema updated to version {}", DB_VERSION);
+            }
+        }
+    }
+
+    private void deleteScanDataTables(Statement stmt) throws SQLException {
+        // Delete scan-related tables (order matters due to foreign keys)
+        String[] scanDataTables = {
+            "blockers",
+            "recommendations",
+            "dependency_edges",
+            "dependencies",
+            "analysis_reports"
+        };
+
+        for (String tableName : scanDataTables) {
+            try {
+                stmt.execute("DROP TABLE IF EXISTS " + tableName);
+                log.info("Dropped scan data table: {}", tableName);
+            } catch (SQLException e) {
+                log.warn("Could not drop table {} (may not exist): {}", tableName, e.getMessage());
+            }
+        }
+
+        // Note: We preserve these tables:
+        // - projects (project metadata)
+        // Future: recipe_executions, recipe_changed_files (if added)
     }
 
     private void createTables(Connection conn) throws SQLException {

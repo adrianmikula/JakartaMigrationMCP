@@ -135,14 +135,14 @@ class RecipeSeederTest {
     void shouldHandleEmptyAssociatedRecipeNameGracefully() {
         // Given - Set dev mode to ensure validation is enforced
         System.setProperty("jakarta.migration.mode", "dev");
-        
+
         try {
             // When - seed upgrade recommendations
             RecipeSeeder.seedUpgradeRecommendations(store);
-            
+
             // Then - should not throw exception and should only insert valid recipes
             List<RecipeDefinition> recipes = store.getRecipes();
-            
+
             // Verify all recipes have non-blank names
             for (RecipeDefinition recipe : recipes) {
                 assertThat(recipe.getName())
@@ -152,6 +152,42 @@ class RecipeSeederTest {
         } finally {
             // Cleanup - Reset system property
             System.clearProperty("jakarta.migration.mode");
+        }
+    }
+
+    @Test
+    @DisplayName("Should extract safety field from JSON")
+    void shouldExtractSafetyFieldFromJson() throws Exception {
+        // When
+        RecipeSeeder.seedDefaultRecipes(store);
+
+        // Then - verify safety field is populated in database directly
+        java.nio.file.Path dbPath = store.getDbPath();
+        try (java.sql.Connection conn = java.sql.DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+             java.sql.Statement stmt = conn.createStatement();
+             java.sql.ResultSet rs = stmt.executeQuery(
+                 "SELECT COUNT(*) FROM recipes WHERE safety IS NOT NULL AND safety != ''")) {
+
+            assertThat(rs.next()).isTrue();
+            int count = rs.getInt(1);
+            assertThat(count).as("At least some recipes should have safety field populated").isGreaterThan(0);
+        }
+    }
+
+    @Test
+    @DisplayName("Should populate all domain fields from JSON")
+    void shouldPopulateAllDomainFieldsFromJson() {
+        // When
+        RecipeSeeder.seedDefaultRecipes(store);
+
+        // Then - verify critical fields are populated
+        List<RecipeDefinition> recipes = store.getRecipes();
+        
+        for (RecipeDefinition recipe : recipes) {
+            assertThat(recipe.getName()).isNotNull();
+            assertThat(recipe.getCategory()).isNotNull();
+            assertThat(recipe.getRecipeType()).isNotNull();
+            // safety can be null for some recipes, but should be populated for most
         }
     }
 }
