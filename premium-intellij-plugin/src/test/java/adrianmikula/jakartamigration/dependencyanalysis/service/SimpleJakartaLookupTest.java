@@ -4,6 +4,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCen
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -15,6 +16,8 @@ import static org.assertj.core.api.Assertions.*;
  * Simple test to verify our TDD improvements work
  */
 @DisplayName("Jakarta Lookup TDD Verification")
+@Tag("slow")
+@Tag("integration")
 public class SimpleJakartaLookupTest {
     
     private ImprovedMavenCentralLookupService lookupService;

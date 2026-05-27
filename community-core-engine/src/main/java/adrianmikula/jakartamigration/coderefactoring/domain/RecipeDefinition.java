@@ -30,6 +30,9 @@ public class RecipeDefinition {
     private String replacement;
     private String filePattern;
 
+    // Safety level (HIGH, MEDIUM, LOW)
+    private String safety;
+
     private boolean reversible;
     private Instant createdAt;
 

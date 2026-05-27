@@ -37,11 +37,14 @@ This project adheres to the Apache Software Foundation's [Code of Conduct](https
 git clone https://github.com/adrianmikula/jakarta-migration-mcp.git
 cd jakarta-migration-mcp
 
+# Install mise (https://mise.jdx.dev) then install tools
+mise install
+
 # Build the project
-./gradlew build
+mise run build
 
 # Run tests
-./gradlew test
+mise run test
 ```
 
 ---
@@ -94,8 +97,8 @@ git checkout -b feature/your-feature-name
 ### 4. Make Changes
 
 Follow the coding standards:
-- Use checkstyle (`./gradlew checkstyleMain checkstyleTest`)
-- Use spotbugs (`./gradlew spotbugsMain spotbugsTest`)
+- Run fast tests for quick feedback: `mise run fast-test`
+- Run the full test suite before submitting: `mise run test`
 - Write tests for new functionality
 
 ### 5. Submit a Pull Request

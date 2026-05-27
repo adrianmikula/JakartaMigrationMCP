@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
+import adrianmikula.jakartamigration.intellij.ui.UIColors;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBPanel;
@@ -80,7 +81,7 @@ public class MigrationStepsComponent {
         infoPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
         
         JLabel tipLabel = new JLabel("💡 Tip: Run analysis first to see dependency-specific steps");
-        tipLabel.setForeground(new Color(100, 100, 100));
+        tipLabel.setForeground(UIColors.TEXT_SECONDARY);
         tipLabel.setFont(tipLabel.getFont().deriveFont(Font.ITALIC));
         
         infoPanel.add(tipLabel);

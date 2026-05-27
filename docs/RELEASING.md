@@ -165,13 +165,7 @@ The project uses the IntelliJ Plugin Verifier to check binary compatibility betw
 Run as a standalone verification step (optional — not executed by default):
 
 ```bash
-# Build the plugin first, then verify
-./gradlew :premium-intellij-plugin:buildPlugin :premium-intellij-plugin:runPluginVerifier
-```
-
-On Windows:
-```powershell
-.\gradlew.bat :premium-intellij-plugin:buildPlugin :premium-intellij-plugin:runPluginVerifier
+mise run verify-plugin
 ```
 
 ### Configuring Target IDE Versions
@@ -220,9 +214,9 @@ The plugin.xml must pass all JetBrains Marketplace validation checks:
 1. **Version Update**: Update `gradle.properties`, `plugin.xml`, and `release-version`
 2. **Platform Config**: Verify `platforms.yaml` is up-to-date
 3. **Risk Scoring**: Test platform detection and risk calculation
-4. **Build Validation**: Ensure no IDE package bundling warnings
-5. **Compatibility Testing**: Test with target IntelliJ versions
-6. **Plugin Verification**: Run `runPluginVerifier` to check binary compatibility with target IDE versions (see [Plugin Verification](#plugin-verification) above)
+4. **Tests**: `mise run test`
+5. **Build Plugin ZIP**: `mise run build-plugin-zip`
+6. **Plugin Verification**: `mise run verify-plugin` (binary compatibility with target IDE versions)
 7. **Documentation**: Update changelog and release notes
 
 ### Post-Release:

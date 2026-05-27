@@ -1,7 +1,7 @@
 package adrianmikula.jakartamigration.intellij.ui.components;
 
-import org.junit.Test;
-import org.junit.Assert;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Simple test to verify NewFeatureNotification component compiles and works.
@@ -19,9 +19,9 @@ public class SimpleNotificationTest {
             () -> System.out.println("No clicked"));
         
         // Then
-        Assert.assertNotNull("Notification should be created", notification);
-        Assert.assertNotNull("Panel should be created", notification.getPanel());
-        Assert.assertTrue("Panel should be visible by default", notification.isVisible());
+        assertNotNull(notification);
+        assertNotNull(notification.getPanel());
+        assertTrue(notification.isVisible());
         
         System.out.println("✅ NewFeatureNotification component test passed!");
     }

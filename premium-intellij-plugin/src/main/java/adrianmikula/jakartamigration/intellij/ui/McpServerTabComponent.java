@@ -4,6 +4,7 @@ import adrianmikula.jakartamigration.intellij.JakartaMcpRegistrationActivity;
 import adrianmikula.jakartamigration.intellij.mcp.JakartaMcpServerProvider;
 import adrianmikula.jakartamigration.intellij.mcp.McpToolRegistry;
 import adrianmikula.jakartamigration.intellij.mcp.McpToolDefinition;
+import adrianmikula.jakartamigration.intellij.ui.UIColors;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 
@@ -220,11 +221,11 @@ public class McpServerTabComponent {
         
         JLabel titleLabel = new JLabel(title);
         titleLabel.setFont(new Font(titleLabel.getFont().getName(), Font.BOLD, 13));
-        titleLabel.setForeground(new Color(0, 100, 180));
+        titleLabel.setForeground(UIColors.LINK);
         
         JLabel descLabel = new JLabel(description);
         descLabel.setFont(new Font(descLabel.getFont().getName(), Font.PLAIN, 11));
-        descLabel.setForeground(Color.GRAY);
+        descLabel.setForeground(UIColors.TEXT_SECONDARY);
         
         JPanel textPanel = new JPanel();
         textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
@@ -233,7 +234,7 @@ public class McpServerTabComponent {
         
         JLabel arrowLabel = new JLabel("→");
         arrowLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 16));
-        arrowLabel.setForeground(new Color(0, 100, 180));
+        arrowLabel.setForeground(UIColors.LINK);
         
         linkPanel.add(textPanel, BorderLayout.CENTER);
         linkPanel.add(arrowLabel, BorderLayout.EAST);
@@ -246,7 +247,7 @@ public class McpServerTabComponent {
             
             @Override
             public void mouseEntered(MouseEvent e) {
-                linkPanel.setBackground(new Color(240, 245, 255));
+                linkPanel.setBackground(UIColors.PANEL_BACKGROUND_ALT);
                 linkPanel.repaint();
             }
             

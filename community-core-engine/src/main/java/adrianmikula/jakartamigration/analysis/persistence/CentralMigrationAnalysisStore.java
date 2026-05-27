@@ -28,9 +28,7 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
 
     private final Path dbPath;
     private final ObjectMapperService objectMapper;
-
-    // User-configurable org namespace patterns
-    private final Set<String> orgNamespacePatterns = new HashSet<>();
+    private final OrgNamespacePatternMatcher orgNamespaceMatcher;
 
     public CentralMigrationAnalysisStore() {
         this(getCentralDbPath());
@@ -39,6 +37,7 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
     public CentralMigrationAnalysisStore(Path dbPath) {
         this.dbPath = dbPath;
         this.objectMapper = new ObjectMapperService();
+        this.orgNamespaceMatcher = new OrgNamespacePatternMatcher();
         initializeDatabase();
     }
 
@@ -75,35 +74,14 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
      * Patterns are matched against groupId (supports wildcards like "com.myorg.*")
      */
     public void setOrgNamespacePatterns(Set<String> patterns) {
-        this.orgNamespacePatterns.clear();
-        this.orgNamespacePatterns.addAll(patterns);
+        orgNamespaceMatcher.setOrgNamespacePatterns(patterns);
     }
 
     /**
      * Checks if a dependency belongs to the organization.
      */
     public boolean isOrgDependency(String groupId) {
-        for (String pattern : orgNamespacePatterns) {
-            if (matchesPattern(groupId, pattern)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean matchesPattern(String groupId, String pattern) {
-        if (pattern.equals("*") || pattern.equals(groupId)) {
-            return true;
-        }
-        if (pattern.endsWith(".*")) {
-            String prefix = pattern.substring(0, pattern.length() - 2);
-            return groupId.equals(prefix) || groupId.startsWith(prefix + ".");
-        }
-        if (pattern.endsWith("*")) {
-            String prefix = pattern.substring(0, pattern.length() - 1);
-            return groupId.startsWith(prefix);
-        }
-        return groupId.equals(pattern);
+        return orgNamespaceMatcher.isOrgDependency(groupId);
     }
 
     private Connection getConnection() throws SQLException {
@@ -123,19 +101,28 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
     }
 
     private void initializeDatabase() {
-        // Check if database file exists and if it was created with manual migrations
+        // Check if database needs to be rebuilt (only for legacy non-SchemaManager databases)
         boolean needsRebuild = false;
         if (Files.exists(dbPath)) {
             try (Connection conn = getConnection()) {
-                // Check if DATABASECHANGELOG table exists (Liquibase marker)
+                // Check if metadata table exists (SchemaManager marker)
+                // This replaces the old Liquibase DATABASECHANGELOG check
                 DatabaseMetaData metaData = conn.getMetaData();
-                ResultSet tables = metaData.getTables(null, null, "DATABASECHANGELOG", null);
+                ResultSet tables = metaData.getTables(null, null, "metadata", null);
                 if (!tables.next()) {
-                    log.warn("Database exists but was not created with Liquibase. Rebuilding...");
-                    needsRebuild = true;
+                    // Check if it's a Liquibase database (legacy)
+                    ResultSet liquibaseTables = metaData.getTables(null, null, "DATABASECHANGELOG", null);
+                    if (liquibaseTables.next()) {
+                        log.info("Detected legacy Liquibase database, will migrate to SchemaManager");
+                        // Don't rebuild - SchemaManager will handle migration
+                    } else {
+                        log.warn("Database exists but has no metadata table (neither SchemaManager nor Liquibase). Rebuilding...");
+                        needsRebuild = true;
+                    }
                 }
+                // metadata table exists - SchemaManager is managing this database, no rebuild needed
             } catch (SQLException e) {
-                log.warn("Failed to check database version, rebuilding: {}", e.getMessage());
+                log.warn("Failed to check database version, will attempt rebuild: {}", e.getMessage());
                 needsRebuild = true;
             }
         }
@@ -150,7 +137,7 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
             }
         }
 
-        // Initialize database schema using custom JDBC-based migration
+        // Initialize database schema using custom JDBC-based migration (SchemaManager)
         // This replaces Liquibase to avoid ClassLoader issues in IntelliJ plugin environments
         try (Connection conn = getConnection()) {
             SchemaManager schemaManager = new SchemaManager(conn);
@@ -890,9 +877,9 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
             try (PreparedStatement stmt = conn.prepareStatement("""
                     INSERT INTO recipes (
                         name, description, category, recipe_type, openrewrite_recipe_name,
-                        pattern, replacement, file_pattern, reversible, created_at,
+                        pattern, safety, replacement, file_pattern, reversible, created_at,
                         added_in_plugin_version, archived
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
                     ON CONFLICT(name) DO NOTHING
                     """)) {
                 stmt.setString(1, recipe.getName());
@@ -901,11 +888,12 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                 stmt.setString(4, recipe.getRecipeType().name());
                 stmt.setString(5, recipe.getOpenRewriteRecipeName());
                 stmt.setString(6, recipe.getPattern());
-                stmt.setString(7, recipe.getReplacement());
-                stmt.setString(8, recipe.getFilePattern());
-                stmt.setBoolean(9, recipe.isReversible());
-                stmt.setString(10, recipe.getAddedInPluginVersion() != null ? recipe.getAddedInPluginVersion() : "unknown");
-                stmt.setBoolean(11, recipe.isArchived());
+                stmt.setString(7, recipe.getSafety());
+                stmt.setString(8, recipe.getReplacement());
+                stmt.setString(9, recipe.getFilePattern());
+                stmt.setBoolean(10, recipe.isReversible());
+                stmt.setString(11, recipe.getAddedInPluginVersion() != null ? recipe.getAddedInPluginVersion() : "unknown");
+                stmt.setBoolean(12, recipe.isArchived());
                 stmt.executeUpdate();
             }
             conn.commit();
@@ -926,15 +914,16 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
             try (PreparedStatement stmt = conn.prepareStatement("""
                     INSERT INTO recipes (
                         name, description, category, recipe_type, openrewrite_recipe_name,
-                        pattern, replacement, file_pattern, reversible, created_at,
+                        pattern, safety, replacement, file_pattern, reversible, created_at,
                         added_in_plugin_version, archived
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
                     ON CONFLICT(name) DO UPDATE SET
                         description = excluded.description,
                         category = excluded.category,
                         recipe_type = excluded.recipe_type,
                         openrewrite_recipe_name = excluded.openrewrite_recipe_name,
                         pattern = excluded.pattern,
+                        safety = excluded.safety,
                         replacement = excluded.replacement,
                         file_pattern = excluded.file_pattern,
                         reversible = excluded.reversible,
@@ -947,11 +936,12 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
                 stmt.setString(4, recipe.getRecipeType().name());
                 stmt.setString(5, recipe.getOpenRewriteRecipeName());
                 stmt.setString(6, recipe.getPattern());
-                stmt.setString(7, recipe.getReplacement());
-                stmt.setString(8, recipe.getFilePattern());
-                stmt.setBoolean(9, recipe.isReversible());
-                stmt.setString(10, recipe.getAddedInPluginVersion() != null ? recipe.getAddedInPluginVersion() : "unknown");
-                stmt.setBoolean(11, recipe.isArchived());
+                stmt.setString(7, recipe.getSafety());
+                stmt.setString(8, recipe.getReplacement());
+                stmt.setString(9, recipe.getFilePattern());
+                stmt.setBoolean(10, recipe.isReversible());
+                stmt.setString(11, recipe.getAddedInPluginVersion() != null ? recipe.getAddedInPluginVersion() : "unknown");
+                stmt.setBoolean(12, recipe.isArchived());
                 stmt.executeUpdate();
             }
             conn.commit();

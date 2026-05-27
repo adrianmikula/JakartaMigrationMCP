@@ -2,8 +2,6 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.Test;
-
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -22,7 +20,6 @@ public class MigrationToolWindowEDTTest extends BasePlatformTestCase {
      * This test simulates the scenario where runDeepDependencyAnalysis calls
      * updateDashboardFromReport from a background thread.
      */
-    @Test
     public void testUIUpdateFromBackgroundThreadIsSafe() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicBoolean success = new AtomicBoolean(false);
@@ -60,7 +57,6 @@ public class MigrationToolWindowEDTTest extends BasePlatformTestCase {
      * Test that verifies concurrent UI updates from multiple background threads
      * are handled safely without EDT violations.
      */
-    @Test
     public void testConcurrentUIUpdatesFromBackgroundThreads() throws Exception {
         CountDownLatch latch = new CountDownLatch(5);
         AtomicBoolean allSuccess = new AtomicBoolean(true);
@@ -100,7 +96,6 @@ public class MigrationToolWindowEDTTest extends BasePlatformTestCase {
      * is used consistently throughout the codebase.
      * This is a compile-time check that the correct pattern is being used.
      */
-    @Test
     public void testInvokeLaterPatternIsUsed() {
         // This test verifies that ApplicationManager.getApplication().invokeLater
         // is available and can be used for EDT-safe UI updates
@@ -114,7 +109,6 @@ public class MigrationToolWindowEDTTest extends BasePlatformTestCase {
     /**
      * Test that verifies EDT is accessible during tests.
      */
-    @Test
     public void testEDTIsAccessible() {
         // Verify we can check if we're on the EDT
         boolean isEDT = ApplicationManager.getApplication().isDispatchThread();

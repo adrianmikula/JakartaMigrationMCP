@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.intellij.ui.components;
 
 import adrianmikula.jakartamigration.analytics.service.UsageService;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 
@@ -83,7 +84,7 @@ public class PremiumUpgradeButton {
             try {
                 java.awt.Desktop.getDesktop().browse(new java.net.URI(MARKETPLACE_URL));
             } catch (Exception ex) {
-                Messages.showErrorDialog(project, "Could not open upgrade URL", "Error");
+                NotificationHelper.showError(project, "Error", "Could not open upgrade URL");
             }
         });
         

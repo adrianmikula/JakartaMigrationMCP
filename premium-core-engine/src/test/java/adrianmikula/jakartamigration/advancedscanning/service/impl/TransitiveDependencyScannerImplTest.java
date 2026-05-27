@@ -1,6 +1,7 @@
 package adrianmikula.jakartamigration.advancedscanning.service.impl;
 
 import adrianmikula.jakartamigration.advancedscanning.domain.DependencyTreeResult;
+import adrianmikula.jakartamigration.advancedscanning.domain.ScanReason;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyProjectScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage;
@@ -747,6 +748,261 @@ class TransitiveDependencyScannerImplTest {
         for (int i = 1; i <= 3; i++) {
             assertEquals(i, progressUpdates.get(i)[0]);
             assertEquals(3, progressUpdates.get(i)[1]);
+        }
+    }
+
+    @Test
+    void scanResult_shouldTrackErrorMessage() {
+        // Test that TransitiveDependencyScanResult properly tracks error messages
+        Path filePath = Path.of("/test/pom.xml");
+        String errorMessage = "mvn command not found";
+        
+        TransitiveDependencyScanResult result = new TransitiveDependencyScanResult(
+            filePath,
+            Collections.emptyList(),
+            "Maven",
+            Collections.emptySet(),
+            Collections.emptyList(),
+            errorMessage
+        );
+        
+        assertTrue(result.hasError());
+        assertEquals(errorMessage, result.getErrorMessage());
+    }
+
+    @Test
+    void scanResult_shouldNotHaveErrorWhenErrorMessageIsNull() {
+        // Test that hasError() returns false when errorMessage is null
+        Path filePath = Path.of("/test/pom.xml");
+        
+        TransitiveDependencyScanResult result = new TransitiveDependencyScanResult(
+            filePath,
+            Collections.emptyList(),
+            "Maven",
+            Collections.emptySet(),
+            Collections.emptyList(),
+            null
+        );
+        
+        assertFalse(result.hasError());
+        assertNull(result.getErrorMessage());
+    }
+
+    @Test
+    void scanResult_shouldNotHaveErrorWhenErrorMessageIsEmpty() {
+        // Test that hasError() returns false when errorMessage is empty
+        Path filePath = Path.of("/test/pom.xml");
+        
+        TransitiveDependencyScanResult result = new TransitiveDependencyScanResult(
+            filePath,
+            Collections.emptyList(),
+            "Maven",
+            Collections.emptySet(),
+            Collections.emptyList(),
+            ""
+        );
+        
+        assertFalse(result.hasError());
+    }
+
+    @Test
+    void projectScanResult_shouldTrackCommandErrors() {
+        // Test that TransitiveDependencyProjectScanResult properly tracks command errors
+        Path filePath = Path.of("/test/pom.xml");
+        String errorMessage = "mvn command not found";
+        
+        TransitiveDependencyScanResult fileResult = new TransitiveDependencyScanResult(
+            filePath,
+            Collections.emptyList(),
+            "Maven",
+            Collections.emptySet(),
+            Collections.emptyList(),
+            errorMessage
+        );
+        
+        TransitiveDependencyProjectScanResult result = new TransitiveDependencyProjectScanResult(
+            List.of(fileResult),
+            1, // totalBuildFilesScanned
+            0, // filesWithJavaxDependencies
+            0, // totalJavaxDependencies
+            1, // filesWithCommandErrors
+            true, // hadCommandNotFoundError
+            "Build tool not found"
+        );
+        
+        assertEquals(1, result.getFilesWithCommandErrors());
+        assertTrue(result.isHadCommandNotFoundError());
+        assertEquals("Build tool not found", result.getErrorMessage());
+    }
+
+    @Test
+    void projectScanResult_shouldHaveNoErrorsByDefault() {
+        // Test that default constructor initializes error fields to zero/false
+        TransitiveDependencyProjectScanResult result = new TransitiveDependencyProjectScanResult(
+            Collections.emptyList(),
+            0,
+            0,
+            0
+        );
+        
+        assertEquals(0, result.getFilesWithCommandErrors());
+        assertFalse(result.isHadCommandNotFoundError());
+        assertNull(result.getErrorMessage());
+    }
+
+    @Test
+    void scanFile_shouldCaptureErrorMessageWhenCommandFails(@TempDir Path tempDir) throws IOException {
+        String pomContent = """
+            <project>
+                <dependencies>
+                    <dependency>
+                        <groupId>javax.xml.bind</groupId>
+                        <artifactId>jaxb-api</artifactId>
+                        <version>2.3.1</version>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        Path pomFile = tempDir.resolve("pom.xml");
+        Files.writeString(pomFile, pomContent);
+
+        // Create mock executor that returns error with "not found" message
+        DependencyTreeCommandExecutor mockExecutor = mock(DependencyTreeCommandExecutor.class);
+        String errorMsg = "mvn command not found";
+        DependencyTreeResult errorResult = DependencyTreeResult.error(errorMsg);
+        when(mockExecutor.executeMavenDependencyTreeAsync(any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(errorResult));
+
+        DependencyDeduplicationService dedupService = new DependencyDeduplicationServiceImpl();
+        TransitiveDependencyScannerImpl scanner = new TransitiveDependencyScannerImpl(mockExecutor, dedupService);
+
+        TransitiveDependencyScanResult result = scanner.scanFile(pomFile);
+
+        // Verify error message is captured
+        assertTrue(result.hasError());
+        assertNotNull(result.getErrorMessage());
+        assertTrue(result.getErrorMessage().contains("not found"));
+    }
+
+    @Test
+    void scanProject_shouldAggregateErrorsFromMultipleFiles(@TempDir Path tempDir) throws IOException {
+        // Create multiple pom.xml files
+        Path module1 = tempDir.resolve("module1");
+        Path module2 = tempDir.resolve("module2");
+        Files.createDirectories(module1);
+        Files.createDirectories(module2);
+
+        String pomContent = """
+            <project>
+                <dependencies>
+                    <dependency>
+                        <groupId>javax.xml.bind</groupId>
+                        <artifactId>jaxb-api</artifactId>
+                        <version>2.3.1</version>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        
+        Files.writeString(module1.resolve("pom.xml"), pomContent);
+        Files.writeString(module2.resolve("pom.xml"), pomContent);
+
+        // Create mock executor that returns errors for both files
+        DependencyTreeCommandExecutor mockExecutor = mock(DependencyTreeCommandExecutor.class);
+        String errorMsg = "mvn command not found";
+        DependencyTreeResult errorResult = DependencyTreeResult.error(errorMsg);
+        when(mockExecutor.executeMavenDependencyTreeAsync(any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(errorResult));
+
+        DependencyDeduplicationService dedupService = new DependencyDeduplicationServiceImpl();
+        TransitiveDependencyScannerImpl scanner = new TransitiveDependencyScannerImpl(mockExecutor, dedupService);
+
+        TransitiveDependencyProjectScanResult result = scanner.scanProject(tempDir);
+
+        // Verify error aggregation
+        assertEquals(2, result.getTotalBuildFilesScanned());
+        assertTrue(result.getFilesWithCommandErrors() > 0, "Should have files with command errors");
+        assertTrue(result.isHadCommandNotFoundError(), "Should detect command not found error");
+        assertNotNull(result.getErrorMessage(), "Should have error message summary");
+    }
+
+    @Test
+    void scanFile_shouldSetBuildToolErrorScanReasonWhenCommandFails(@TempDir Path tempDir) throws IOException {
+        String pomContent = """
+            <project>
+                <dependencies>
+                    <dependency>
+                        <groupId>javax.servlet</groupId>
+                        <artifactId>javax.servlet-api</artifactId>
+                        <version>4.0.1</version>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        Path pomFile = tempDir.resolve("pom.xml");
+        Files.writeString(pomFile, pomContent);
+
+        // Create mock executor that returns error
+        DependencyTreeCommandExecutor mockExecutor = mock(DependencyTreeCommandExecutor.class);
+        String errorMsg = "mvn command not found";
+        DependencyTreeResult errorResult = DependencyTreeResult.error(errorMsg);
+        when(mockExecutor.executeMavenDependencyTreeAsync(any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(errorResult));
+
+        DependencyDeduplicationService dedupService = new DependencyDeduplicationServiceImpl();
+        TransitiveDependencyScannerImpl scanner = new TransitiveDependencyScannerImpl(mockExecutor, dedupService);
+
+        TransitiveDependencyScanResult result = scanner.scanFile(pomFile);
+
+        // Verify that dependencies have BUILD_TOOL_ERROR scan reason
+        assertFalse(result.getUsages().isEmpty(), "Should have fallback dependencies");
+        assertTrue(result.hasError(), "Should have error");
+        
+        // All usages should have BUILD_TOOL_ERROR scan reason
+        for (TransitiveDependencyUsage usage : result.getUsages()) {
+            assertEquals(ScanReason.BUILD_TOOL_ERROR, usage.getScanReason(),
+                "Usage should have BUILD_TOOL_ERROR scan reason when command fails");
+        }
+    }
+
+    @Test
+    void scanFile_shouldNotSetBuildToolErrorWhenCommandSucceeds(@TempDir Path tempDir) throws IOException {
+        String pomContent = """
+            <project>
+                <dependencies>
+                    <dependency>
+                        <groupId>javax.servlet</groupId>
+                        <artifactId>javax.servlet-api</artifactId>
+                        <version>4.0.1</version>
+                    </dependency>
+                </dependencies>
+            </project>
+            """;
+        Path pomFile = tempDir.resolve("pom.xml");
+        Files.writeString(pomFile, pomContent);
+
+        // Create mock executor that returns successful result
+        DependencyTreeCommandExecutor mockExecutor = mock(DependencyTreeCommandExecutor.class);
+        List<DependencyTreeResult.DependencyNode> nodes = Arrays.asList(
+            new DependencyTreeResult.DependencyNode("javax.servlet", "javax.servlet-api", "4.0.1", "compile", 0, false, null)
+        );
+        DependencyTreeResult successResult = new DependencyTreeResult(nodes, Set.of("compile"));
+        when(mockExecutor.executeMavenDependencyTreeAsync(any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(successResult));
+
+        DependencyDeduplicationService dedupService = new DependencyDeduplicationServiceImpl();
+        TransitiveDependencyScannerImpl scanner = new TransitiveDependencyScannerImpl(mockExecutor, dedupService);
+
+        TransitiveDependencyScanResult result = scanner.scanFile(pomFile);
+
+        // Verify that dependencies do NOT have BUILD_TOOL_ERROR scan reason
+        assertFalse(result.getUsages().isEmpty(), "Should have dependencies");
+        assertFalse(result.hasError(), "Should not have error");
+        
+        // Usages should NOT have BUILD_TOOL_ERROR scan reason
+        for (TransitiveDependencyUsage usage : result.getUsages()) {
+            assertNotEquals(ScanReason.BUILD_TOOL_ERROR, usage.getScanReason(),
+                "Usage should NOT have BUILD_TOOL_ERROR when command succeeds");
         }
     }
 }

@@ -5,7 +5,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyAnalysisReport;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -73,7 +73,7 @@ public class MigrationToolWindowDependencyInfoTest {
         graph.addNode(directDep);
         
         // Transitive dependency (has incoming edge from directDep)
-        Artifact transitiveDep = new Artifact("org.example", "transitive-lib", "2.0.0", "compile", false);
+        Artifact transitiveDep = new Artifact("org.example", "transitive-lib", "2.0.0", "compile", true);
         graph.addNode(transitiveDep);
         
         // Add edges
@@ -124,7 +124,7 @@ public class MigrationToolWindowDependencyInfoTest {
         graph.addNode(directDep2);
         
         // Shared transitive dependency (has incoming edges from both direct deps)
-        Artifact sharedTransitive = new Artifact("org.example", "shared-lib", "2.0.0", "compile", false);
+        Artifact sharedTransitive = new Artifact("org.example", "shared-lib", "2.0.0", "compile", true);
         graph.addNode(sharedTransitive);
         
         // Add edges
@@ -182,7 +182,7 @@ public class MigrationToolWindowDependencyInfoTest {
             return deps;
         }
 
-        // Build a set of artifacts that have incoming edges (transitive dependencies)
+        // Build a set of artifacts that have incoming edges (to determine depth)
         java.util.Set<String> hasIncomingEdges = new java.util.HashSet<>();
         for (adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency dep : report.dependencyGraph().getEdges()) {
             hasIncomingEdges.add(dep.to().groupId() + ":" + dep.to().artifactId());
@@ -193,13 +193,12 @@ public class MigrationToolWindowDependencyInfoTest {
             info.setArtifactId(artifact.artifactId());
             info.setGroupId(artifact.groupId());
             info.setCurrentVersion(artifact.version());
-            
-            // Determine if this is a transitive dependency based on incoming edges
-            String artifactId = artifact.groupId() + ":" + artifact.artifactId();
-            boolean isTransitive = hasIncomingEdges.contains(artifactId);
+
+            // Use the artifact's own transitive flag
+            boolean isTransitive = artifact.transitive();
             info.setTransitive(isTransitive);
             info.setDepth(isTransitive ? 1 : 0);
-            
+
             info.setScope(artifact.scope());
             deps.add(info);
         }

@@ -354,4 +354,423 @@ public class ComprehensiveJakartaLookupTest {
             assertThat(artifacts).isEmpty();
         }
     }
+
+    @Nested
+    @DisplayName("Spring Framework Ecosystem")
+    class SpringFrameworkEcosystem {
+        
+        @Test
+        @DisplayName("Should find Spring Boot 3.x starter for web")
+        void shouldFindSpringBootWebStarter() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.springframework.boot", "spring-boot-starter-web");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            // Spring Boot 3.x+ uses jakarta.* packages
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.springframework.boot");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("spring-boot-starter-web");
+            // Version should be 3.x or higher (Jakarta EE 9+)
+            String version = artifacts.get(0).version();
+            int majorVersion = Integer.parseInt(version.split("\\.")[0]);
+            assertThat(majorVersion).isGreaterThanOrEqualTo(3);
+        }
+        
+        @Test
+        @DisplayName("Should find Spring Boot 3.x starter for data JPA")
+        void shouldFindSpringBootDataJpaStarter() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.springframework.boot", "spring-boot-starter-data-jpa");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.springframework.boot");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("spring-boot-starter-data-jpa");
+        }
+        
+        @Test
+        @DisplayName("Should find Spring Boot 3.x starter for validation")
+        void shouldFindSpringBootValidationStarter() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.springframework.boot", "spring-boot-starter-validation");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("spring-boot-starter-validation");
+        }
+        
+        @Test
+        @DisplayName("Should find Spring Framework 6.x web")
+        void shouldFindSpringFramework6Web() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.springframework", "spring-web");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.springframework");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("spring-web");
+            // Spring Framework 6.x+ uses jakarta.* packages
+            String version = artifacts.get(0).version();
+            int majorVersion = Integer.parseInt(version.split("\\.")[0]);
+            assertThat(majorVersion).isGreaterThanOrEqualTo(6);
+        }
+        
+        @Test
+        @DisplayName("Should find Spring Security 6.x")
+        void shouldFindSpringSecurity6() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.springframework.security", "spring-security-config");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.springframework.security");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("spring-security-config");
+        }
+        
+        @Test
+        @DisplayName("Should find Spring Data JPA 3.x")
+        void shouldFindSpringDataJpa3() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.springframework.data", "spring-data-jpa");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.springframework.data");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("spring-data-jpa");
+            // Spring Data 3.x+ uses jakarta.* packages
+            String version = artifacts.get(0).version();
+            int majorVersion = Integer.parseInt(version.split("\\.")[0]);
+            assertThat(majorVersion).isGreaterThanOrEqualTo(3);
+        }
+    }
+
+    @Nested
+    @DisplayName("JAX-RS Implementation Frameworks")
+    class JaxRsImplementations {
+        
+        @Test
+        @DisplayName("Should find Jersey 3.x Jakarta artifacts")
+        void shouldFindJersey3() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.glassfish.jersey.core", "jersey-server");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.glassfish.jersey.core");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("jersey-server");
+            // Jersey 3.x+ uses jakarta.* packages
+            String version = artifacts.get(0).version();
+            int majorVersion = Integer.parseInt(version.split("\\.")[0]);
+            assertThat(majorVersion).isGreaterThanOrEqualTo(3);
+        }
+        
+        @Test
+        @DisplayName("Should migrate Jersey 1.x com.sun.jersey to org.glassfish.jersey")
+        void shouldMigrateJersey1ToJersey3() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("com.sun.jersey", "jersey-server");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            // Should find org.glassfish.jersey artifacts
+            boolean foundGlassfishGroup = artifacts.stream()
+                .anyMatch(a -> a.groupId().startsWith("org.glassfish.jersey"));
+            assertThat(foundGlassfishGroup).isTrue();
+        }
+        
+        @Test
+        @DisplayName("Should find RESTEasy 6.x Jakarta artifacts")
+        void shouldFindResteasy6() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.jboss.resteasy", "resteasy-core");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.jboss.resteasy");
+            // RESTEasy 6.x+ uses jakarta.* packages
+            String version = artifacts.get(0).version();
+            int majorVersion = Integer.parseInt(version.split("\\.")[0]);
+            assertThat(majorVersion).isGreaterThanOrEqualTo(6);
+        }
+        
+        @Test
+        @DisplayName("Should migrate resteasy-jaxrs to resteasy-core")
+        void shouldMigrateResteasyJaxrsToCore() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.jboss.resteasy", "resteasy-jaxrs");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            // Should find resteasy-core artifact
+            boolean foundResteasyCore = artifacts.stream()
+                .anyMatch(a -> a.artifactId().equals("resteasy-core"));
+            assertThat(foundResteasyCore).isTrue();
+        }
+        
+        @Test
+        @DisplayName("Should find Apache CXF 4.x Jakarta artifacts")
+        void shouldFindCxf4() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.apache.cxf", "cxf-rt-frontend-jaxrs");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.apache.cxf");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("cxf-rt-frontend-jaxrs");
+            // CXF 4.x+ uses jakarta.* packages
+            String version = artifacts.get(0).version();
+            int majorVersion = Integer.parseInt(version.split("\\.")[0]);
+            assertThat(majorVersion).isGreaterThanOrEqualTo(4);
+        }
+    }
+
+    @Nested
+    @DisplayName("Enterprise Frameworks")
+    class EnterpriseFrameworks {
+        
+        @Test
+        @DisplayName("Should find Apache Wicket 9.x/10.x Jakarta artifacts")
+        void shouldFindWicket9Or10() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.apache.wicket", "wicket-core");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.apache.wicket");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("wicket-core");
+            // Wicket 9.x+ uses jakarta.* packages
+            String version = artifacts.get(0).version();
+            int majorVersion = Integer.parseInt(version.split("\\.")[0]);
+            assertThat(majorVersion).isGreaterThanOrEqualTo(9);
+        }
+        
+        @Test
+        @DisplayName("Should find MyBatis-Spring-Boot 3.x Jakarta artifacts")
+        void shouldFindMyBatisSpringBoot3() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.mybatis.spring.boot", "mybatis-spring-boot-starter");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.mybatis.spring.boot");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("mybatis-spring-boot-starter");
+        }
+        
+        @Test
+        @DisplayName("Should find Hibernate 6.x (Jakarta JPA)")
+        void shouldFindHibernate6() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.hibernate", "hibernate-core");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.hibernate");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("hibernate-core");
+            // Hibernate 6.x+ uses jakarta.* packages
+            String version = artifacts.get(0).version();
+            int majorVersion = Integer.parseInt(version.split("\\.")[0]);
+            assertThat(majorVersion).isGreaterThanOrEqualTo(6);
+        }
+        
+        @Test
+        @DisplayName("Should migrate hibernate-entitymanager to hibernate-core")
+        void shouldMigrateHibernateEntityManager() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.hibernate", "hibernate-entitymanager");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            // hibernate-entitymanager was merged into hibernate-core in 5.2+
+            boolean foundHibernateCore = artifacts.stream()
+                .anyMatch(a -> a.artifactId().equals("hibernate-core"));
+            assertThat(foundHibernateCore).isTrue();
+        }
+        
+        @Test
+        @DisplayName("Should find Hibernate Validator 7.x (Jakarta)")
+        void shouldFindHibernateValidator7() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.hibernate.validator", "hibernate-validator");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.hibernate.validator");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("hibernate-validator");
+            // Hibernate Validator 7.x+ uses jakarta.* packages
+            String version = artifacts.get(0).version();
+            int majorVersion = Integer.parseInt(version.split("\\.")[0]);
+            assertThat(majorVersion).isGreaterThanOrEqualTo(7);
+        }
+    }
+
+    @Nested
+    @DisplayName("Complex Migration Scenarios")
+    class ComplexMigrationScenarios {
+        
+        @Test
+        @DisplayName("Should handle Spring Boot with Jersey integration")
+        void shouldHandleSpringBootWithJersey() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.springframework.boot", "spring-boot-starter-jersey");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.springframework.boot");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("spring-boot-starter-jersey");
+            // Boot 3.x includes Jersey 3.x (Jakarta EE 9+)
+            String version = artifacts.get(0).version();
+            int majorVersion = Integer.parseInt(version.split("\\.")[0]);
+            assertThat(majorVersion).isGreaterThanOrEqualTo(3);
+        }
+        
+        @Test
+        @DisplayName("Should handle Jersey servlet container migration")
+        void shouldHandleJerseyServletContainerMigration() throws Exception {
+            // Legacy jersey-servlet should map to jersey-container-servlet
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("com.sun.jersey", "jersey-servlet");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            // Should find container-servlet variant
+            boolean foundContainerServlet = artifacts.stream()
+                .anyMatch(a -> a.artifactId().contains("container"));
+            assertThat(foundContainerServlet).isTrue();
+        }
+    }
+    
+    @Nested
+    @DisplayName("Critical Real-World Framework Artifacts")
+    class CriticalFrameworkArtifacts {
+        
+        @Test
+        @DisplayName("Should find Jakarta equivalent for RESTEasy client")
+        void shouldFindJakartaForRestEasyClient() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.jboss.resteasy", "resteasy-client");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            // RESTEasy 6+ supports Jakarta EE
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.jboss.resteasy");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("resteasy-client");
+        }
+        
+        @Test
+        @DisplayName("Should find Jakarta equivalent for Jersey client")
+        void shouldFindJakartaForJerseyClient() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.glassfish.jersey.core", "jersey-client");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            // Jersey 3+ is Jakarta EE compatible
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.glassfish.jersey.core");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("jersey-client");
+        }
+        
+        @Test
+        @DisplayName("Should find Jakarta equivalent for GlassFish JSON implementation")
+        void shouldFindJakartaForGlassFishJson() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.glassfish", "javax.json");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            // Should map to jakarta.json implementation
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.eclipse.ee4j");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("jakarta.json");
+        }
+        
+        @Test
+        @DisplayName("Should find Jakarta equivalent for JAXB runtime")
+        void shouldFindJakartaForJaxbRuntime() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.glassfish.jaxb", "jaxb-runtime");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            // Eclipse JAXB supports Jakarta EE
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.glassfish.jaxb");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("jaxb-runtime");
+        }
+        
+        @Test
+        @DisplayName("Should find Jakarta equivalent for Arquillian protocol servlet")
+        void shouldFindJakartaForArquillianServlet() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.jboss.arquillian.protocol", "arquillian-protocol-servlet");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            // Arquillian 1.7+ supports Jakarta EE
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.jboss.arquillian.protocol");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("arquillian-protocol-servlet");
+        }
+        
+        @Test
+        @DisplayName("Should find Jakarta equivalent for TomEE embedded")
+        void shouldFindJakartaForTomEeEmbedded() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.apache.tomee", "tomee-embedded");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            // TomEE 9+ is Jakarta EE compatible
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.apache.tomee");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("tomee-embedded");
+        }
+        
+        @Test
+        @DisplayName("Should find Jakarta equivalent for WildFly Arquillian container")
+        void shouldFindJakartaForWildflyArquillian() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.wildfly.arquillian", "wildfly-arquillian-container-remote");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            // WildFly 27+ supports Jakarta EE
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.wildfly.arquillian");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("wildfly-arquillian-container-remote");
+        }
+        
+        @Test
+        @DisplayName("Should find Jakarta equivalent for ShrinkWrap resolver")
+        void shouldFindJakartaForShrinkWrapResolver() throws Exception {
+            CompletableFuture<List<JakartaArtifactMatch>> result = 
+                lookupService.findJakartaEquivalents("org.jboss.shrinkwrap.resolver", "shrinkwrap-resolver-impl-maven");
+            
+            List<JakartaArtifactMatch> artifacts = result.get(30, TimeUnit.SECONDS);
+            
+            assertThat(artifacts).isNotEmpty();
+            // ShrinkWrap resolver supports Jakarta EE in newer versions
+            assertThat(artifacts.get(0).groupId()).isEqualTo("org.jboss.shrinkwrap.resolver");
+            assertThat(artifacts.get(0).artifactId()).isEqualTo("shrinkwrap-resolver-impl-maven");
+        }
+    }
 }

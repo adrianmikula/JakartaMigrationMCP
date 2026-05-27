@@ -82,7 +82,7 @@ Changes:
   2. Map classification to `ScanReason`:
      - `JDK_PROVIDED` → `WHITELISTED` (with detail: "JDK-provided package")
      - `JAKARTA_REQUIRED` → `BLACKLISTED` (with detail: "Configured upgrade required")
-     - `CONTEXT_DEPENDENT` → `REVIEW_REQUIRED` (with detail: "Context-dependent, review needed")
+     - `CONTEXT_DEPENDENT` → `UNKNOWN` (with detail: "Context-dependent, review needed")
      - `UNKNOWN` → `UNKNOWN` (will be processed in next phase)
 
 - Process dependencies **in breadth-first order** (by increasing depth). This ensures top-level dependencies are classified before their transitive children.
@@ -321,7 +321,7 @@ Uses existing `compatibility.yaml` with categories mapped to reasons:
 - `jdk` → `JDK_PROVIDED`
 - `safe` → `WHITELISTED`
 - `upgrade` → `BLACKLISTED`
-- `review` → `REVIEW_REQUIRED`
+- `review` → `UNKNOWN`
 
 ## Dependencies
 - `JarCompatibilityScanner` (premium-core-engine)

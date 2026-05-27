@@ -27,7 +27,7 @@
     <idea-version since-build="242" />
 
     <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
-    <version>1.0.15</version>
+    <version>1.0.16</version>
 
     <name>Jakarta Migration (javax → jakarta)</name>
     <id>com.adrianmikula.jakarta-migration</id>
@@ -131,6 +131,11 @@
                     
         <!-- Notification Groups -->
 
+        <!-- General Notifications -->
+        <notificationGroup id="JakartaMigration.Notifications"
+                          displayType="BALLOON"
+                          key="general.notification"/>
+
         <!-- Application Service for MCP Client -->
         <service serviceImplementation="adrianmikula.jakartamigration.intellij.mcp.DefaultMcpClientService"
                  serviceInterface="adrianmikula.jakartamigration.intellij.mcp.McpClientService"/>
@@ -144,6 +149,26 @@
         <notificationGroup id="JakartaMigration.LicenseExpiration"
                           displayType="BALLOON"
                           key="license.expiration.notification"/>
+
+        <!-- Notification for Report Generation Errors -->
+        <notificationGroup id="JakartaMigration.ReportGeneration"
+                          displayType="BALLOON"
+                          key="report.generation.notification"/>
+
+        <!-- Notification for Scan Completion -->
+        <notificationGroup id="JakartaMigration.ScanCompletion"
+                          displayType="BALLOON"
+                          key="scan.completion.notification"/>
+
+        <!-- Notification for Credit Exhaustion -->
+        <notificationGroup id="JakartaMigration.CreditExhaustion"
+                          displayType="BALLOON"
+                          key="credit.exhaustion.notification"/>
+
+        <!-- Notification for Build Tool Errors (Maven/Gradle not found) -->
+        <notificationGroup id="JakartaMigration.BuildToolErrors"
+                          displayType="BALLOON"
+                          key="build.tool.errors.notification"/>
 
         <!-- License Expiration Notifier - Monitors license status and notifies on expiration -->
         <postStartupActivity implementation="adrianmikula.jakartamigration.intellij.license.LicenseExpirationNotifier"/>
@@ -174,6 +199,14 @@
 
 
     <change-notes><![CDATA[
+    <h>1.0.16 - 2026-05-27</h>
+    <ul>
+        <li>Fixed dependency graph panning and interaction issues</li>
+        <li>Improved deep transitive dependency scanning with metadata</li>
+        <li>Fixed UI async operations and threading issues</li>
+        <li>Added recipe safety field for safer refactoring operations</li>
+        <li>Improved selective table deletion on database upgrade</li>
+    </ul>
     <h>1.0.15 - 2026-04-24</h>
     <ul>
         <li>Fixed problems with platform detection for Tomcat, JBoss/Wildfly, Paraya, WebSphere</li>

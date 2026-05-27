@@ -60,14 +60,17 @@ public class DefaultJarCompatibilityScanner implements JarCompatibilityScanner {
                 return t;
             });
         }
-        if (config.isUseVirtualThreads()) {
-            ThreadFactory factory = r -> {
-                Thread t = Thread.ofVirtual().unstarted(r);
-                t.setName("jar-scanner-virtual-" + t.getId());
-                return t;
-            };
-            return Executors.newThreadPerTaskExecutor(factory);
-        }
+        // Virtual threads are disabled due to IntelliJ Platform Gradle Plugin compatibility
+        // The plugin enforces Java 17 for IntelliJ Platform 2024.3, even though we compile with Java 21
+        // See docs/techdebt/virtual-threads-limitation.md for details
+        // if (config.isUseVirtualThreads()) {
+        //     ThreadFactory factory = r -> {
+        //         Thread t = Thread.ofVirtual().unstarted(r);
+        //         t.setName("jar-scanner-virtual-" + t.getId());
+        //         return t;
+        //     };
+        //     return Executors.newThreadPerTaskExecutor(factory);
+        // }
         int parallelism = config.getMaxParallelism();
         ThreadFactory factory = r -> { Thread t = new Thread(r);
             t.setName("jar-scanner-" + t.getId()); t.setDaemon(true); return t; };

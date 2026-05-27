@@ -1,7 +1,5 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
-import adrianmikula.jakartamigration.intellij.JakartaMcpRegistrationActivity;
-import adrianmikula.jakartamigration.intellij.mcp.JakartaMcpServerProvider;
 import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
@@ -12,6 +10,7 @@ import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.credits.CreditType;
 import adrianmikula.jakartamigration.credits.FreemiumConfig;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
+import adrianmikula.jakartamigration.intellij.ui.UIColors;
 import adrianmikula.jakartamigration.intellij.ui.SupportComponent;
 import adrianmikula.jakartamigration.intellij.ui.components.TruncationHelper;
 import adrianmikula.jakartamigration.intellij.ui.components.RiskGauge;
@@ -62,6 +61,7 @@ public class DashboardComponent implements ScanProgressListener {
     private final TruncationHelper truncationHelper;
     private final EnhancedTestCoverageAnalysisService enhancedTestCoverageService;
     private PlatformsTabComponent platformsTabComponent;
+    private DashboardMcpStatusUpdater mcpStatusUpdater;
     
     // Cache for preventing unnecessary updates
     private Integer lastCalculatedRiskScore = null;
@@ -197,7 +197,20 @@ public class DashboardComponent implements ScanProgressListener {
         this.truncationHelper = new TruncationHelper();
         this.enhancedTestCoverageService = EnhancedTestCoverageAnalysisService.getInstance();
         this.panel = new JBPanel<>(new BorderLayout());
+        
+        // Initialize MCP UI components first
+        initializeMcpComponents();
+        
         initializeComponent();
+    }
+    
+    private void initializeMcpComponents() {
+        // Create MCP status panel to initialize UI components
+        createMcpStatusPanel();
+        
+        // Initialize the MCP status updater with the UI components
+        this.mcpStatusUpdater = new DashboardMcpStatusUpdater(
+            mcpStatusIndicator, mcpStatusValue, mcpToolsValue, mcpServerVersionValue);
     }
     
     /**
@@ -241,7 +254,7 @@ public class DashboardComponent implements ScanProgressListener {
 
         // Add version - show we're using the latest build
         JLabel versionLabel = new JLabel("(timestamp build)");
-        versionLabel.setForeground(new Color(100, 100, 100));
+        versionLabel.setForeground(UIColors.TEXT_SECONDARY);
         versionLabel.setFont(versionLabel.getFont().deriveFont(Font.ITALIC, 10f));
         titlePanel.add(versionLabel);
         contentPanel.add(titlePanel, BorderLayout.NORTH);
@@ -347,6 +360,7 @@ public class DashboardComponent implements ScanProgressListener {
         SwingUtilities.invokeLater(() -> {
             if (advancedScanProgressBar != null && total > 0) {
                 int percentage = (completed * 100) / total;
+                advancedScanProgressBar.setForeground(Color.WHITE);
                 advancedScanProgressBar.setValue(percentage);
                 advancedScanProgressBar.setString(completed + " / " + total + " scans");
             }
@@ -398,9 +412,9 @@ private void resetAdvancedScanCounts() {
     private JPanel createMcpStatusPanel() {
         mcpStatusPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 10, 5));
         mcpStatusPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(200, 200, 200)),
+                BorderFactory.createLineBorder(UIColors.BORDER),
                 BorderFactory.createEmptyBorder(8, 12, 8, 12)));
-        mcpStatusPanel.setBackground(new Color(245, 245, 250));
+        mcpStatusPanel.setBackground(UIColors.PANEL_BACKGROUND);
 
         // Title
         JLabel mcpTitleLabel = new JLabel("MCP Server:");
@@ -456,94 +470,9 @@ private void resetAdvancedScanCounts() {
      * Called on initialization and can be called to refresh.
      */
     public void updateMcpServerStatus() {
-        SwingUtilities.invokeLater(() -> {
-            // Check if MCP server is premium-only and user is not premium
-            boolean mcpServerPremiumOnly = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isMcpServerPremiumOnly();
-            boolean isPremium = adrianmikula.jakartamigration.intellij.license.CheckLicense.isLicensed();
-            
-            if (mcpServerPremiumOnly && !isPremium) {
-                // MCP server is premium-only but user is not premium
-                if (mcpStatusIndicator != null) {
-                    mcpStatusIndicator.setForeground(new Color(255, 140, 0)); // Orange for premium required
-                }
-                if (mcpStatusValue != null) {
-                    mcpStatusValue.setText("Premium Only");
-                    mcpStatusValue.setForeground(new Color(255, 140, 0));
-                }
-                if (mcpToolsValue != null) {
-                    mcpToolsValue.setText("🔒");
-                    mcpToolsValue.setForeground(new Color(255, 140, 0));
-                }
-                if (mcpServerVersionValue != null) {
-                    mcpServerVersionValue.setText("-");
-                }
-                LOG.info("MCP Server Status: Premium Only - user is not premium and MCP server is premium-only feature");
-                return;
-            }
-
-            JakartaMcpServerProvider provider = JakartaMcpRegistrationActivity.getServerProvider();
-
-            if (provider != null && provider.isReady()) {
-                // MCP is connected and ready
-                if (mcpStatusIndicator != null) {
-                    mcpStatusIndicator.setForeground(new Color(0, 180, 0));
-                }
-                if (mcpStatusValue != null) {
-                    mcpStatusValue.setText("Connected");
-                    mcpStatusValue.setForeground(new Color(0, 120, 0));
-                }
-
-                int toolCount = provider.getToolCount();
-                if (mcpToolsValue != null) {
-                    mcpToolsValue.setText(String.valueOf(toolCount));
-                    mcpToolsValue.setForeground(new Color(0, 100, 200));
-                }
-
-                if (mcpServerVersionValue != null) {
-                    mcpServerVersionValue.setText(provider.getServerVersion());
-                }
-
-                LOG.info("MCP Server Status: Connected with " + toolCount + " tools");
-            } else if (provider != null) {
-                // MCP provider exists but not ready
-                if (mcpStatusIndicator != null) {
-                    mcpStatusIndicator.setForeground(Color.ORANGE);
-                }
-                if (mcpStatusValue != null) {
-                    mcpStatusValue.setText("Initializing");
-                    mcpStatusValue.setForeground(Color.ORANGE);
-                }
-
-                if (mcpToolsValue != null) {
-                    mcpToolsValue.setText("-");
-                    mcpToolsValue.setForeground(Color.GRAY);
-                }
-
-                if (mcpServerVersionValue != null) {
-                    mcpServerVersionValue.setText(provider.getServerVersion());
-                }
-
-                LOG.info("MCP Server Status: Provider exists but not ready");
-            } else {
-                // MCP provider not initialized - check if AI Assistant is available
-                if (mcpStatusIndicator != null) {
-                    mcpStatusIndicator.setForeground(Color.GRAY);
-                }
-                if (mcpStatusValue != null) {
-                    mcpStatusValue.setText("Not Available");
-                    mcpStatusValue.setForeground(Color.GRAY);
-                }
-
-                if (mcpToolsValue != null) {
-                    mcpToolsValue.setText("-");
-                }
-                if (mcpServerVersionValue != null) {
-                    mcpServerVersionValue.setText("1.0.0");
-                }
-
-                LOG.info("MCP Server Status: Provider not initialized - AI Assistant may not be active");
-            }
-        });
+        if (mcpStatusUpdater != null) {
+            mcpStatusUpdater.updateMcpServerStatus();
+        }
     }
 
     /**
@@ -552,14 +481,10 @@ private void resetAdvancedScanCounts() {
      * @return "Connected", "Not Ready", or "Not Initialized"
      */
     public String getMcpStatus() {
-        JakartaMcpServerProvider provider = JakartaMcpRegistrationActivity.getServerProvider();
-        if (provider != null && provider.isReady()) {
-            return "Connected";
-        } else if (provider != null) {
-            return "Not Ready";
-        } else {
-            return "Not Initialized";
+        if (mcpStatusUpdater != null) {
+            return mcpStatusUpdater.getMcpStatus();
         }
+        return "Not Initialized";
     }
 
     /**
@@ -568,9 +493,8 @@ private void resetAdvancedScanCounts() {
      * @return Number of tools, or 0 if not ready
      */
     public int getMcpToolCount() {
-        JakartaMcpServerProvider provider = JakartaMcpRegistrationActivity.getServerProvider();
-        if (provider != null && provider.isReady()) {
-            return provider.getToolCount();
+        if (mcpStatusUpdater != null) {
+            return mcpStatusUpdater.getMcpToolCount();
         }
         return 0;
     }
@@ -639,6 +563,7 @@ private void resetAdvancedScanCounts() {
             
             // Update internal progress bar (if it exists)
             if (mainScanProgressBar != null) {
+                mainScanProgressBar.setForeground(Color.WHITE);
                 mainScanProgressBar.setIndeterminate(running);
                 if (running) {
                     mainScanProgressBar.setString("Scanning in progress... Please wait");
@@ -652,6 +577,7 @@ private void resetAdvancedScanCounts() {
             
             // Update external progress bar (from MigrationToolWindow)
             if (externalProgressBar != null) {
+                externalProgressBar.setForeground(Color.WHITE);
                 externalProgressBar.setIndeterminate(running);
                 if (running) {
                     externalProgressBar.setString("Scanning in progress... Please wait");
@@ -704,6 +630,7 @@ private void resetAdvancedScanCounts() {
         SwingUtilities.invokeLater(() -> {
             // Update internal progress bar (if it exists)
             if (mainScanProgressBar != null && mainScanProgressLabel != null) {
+                mainScanProgressBar.setForeground(Color.WHITE);
                 if (total > 0) {
                     // Show determinate progress
                     mainScanProgressBar.setIndeterminate(false);
@@ -721,6 +648,7 @@ private void resetAdvancedScanCounts() {
             
             // Update external progress bar (from MigrationToolWindow)
             if (externalProgressBar != null && externalProgressLabel != null) {
+                externalProgressBar.setForeground(Color.WHITE);
                 if (total > 0) {
                     // Show determinate progress
                     externalProgressBar.setIndeterminate(false);

@@ -8,6 +8,7 @@ import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
 import adrianmikula.jakartamigration.analytics.service.UsageService;
+import adrianmikula.jakartamigration.intellij.ui.UIColors;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -230,7 +231,7 @@ public class RefactorTabComponent {
 
         // File list panel
         fileListPanel.setLayout(new BoxLayout(fileListPanel, BoxLayout.Y_AXIS));
-        fileListPanel.setBackground(Color.WHITE);
+        fileListPanel.setBackground(UIColors.PANEL_BACKGROUND);
 
         fileListScrollPane.setViewportView(fileListPanel);
         fileResultsPanel.add(fileListScrollPane);
@@ -289,7 +290,7 @@ public class RefactorTabComponent {
             // File path label
             JLabel fileLabel = new JLabel(filePath);
             fileLabel.setFont(fileLabel.getFont().deriveFont(Font.PLAIN, 11f));
-            fileLabel.setForeground(new Color(60, 60, 60));
+            fileLabel.setForeground(UIColors.TEXT_SECONDARY);
             filePanel.add(fileLabel);
             
             fileListPanel.add(filePanel);
@@ -430,7 +431,7 @@ public class RefactorTabComponent {
         if (recipe.getLastRunDate() != null) {
             JLabel dateLabel = new JLabel(recipe.getLastRunDate().toString().substring(0, 10));
             dateLabel.setFont(dateLabel.getFont().deriveFont(Font.PLAIN, 10f));
-            dateLabel.setForeground(new Color(100, 100, 100));
+            dateLabel.setForeground(UIColors.TEXT_SECONDARY);
             infoPanel.add(Box.createVerticalStrut(2));
             infoPanel.add(dateLabel);
         }

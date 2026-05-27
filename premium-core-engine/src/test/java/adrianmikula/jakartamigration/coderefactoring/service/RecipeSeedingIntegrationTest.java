@@ -197,4 +197,127 @@ class RecipeSeedingIntegrationTest {
         List<RecipeDefinition> recipes = store.getRecipes();
         assertThat(recipes).isNotEmpty();
     }
+
+    @Test
+    @DisplayName("Should populate safety column in database after seeding")
+    void shouldPopulateSafetyColumnAfterSeeding() throws Exception {
+        // When
+        RecipeSeeder.seedDefaultRecipes(store);
+
+        // Then - verify safety column is populated in database
+        Path dbPath = store.getDbPath();
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                 "SELECT COUNT(*) FROM recipes WHERE safety IS NOT NULL AND safety != ''")) {
+
+            assertThat(rs.next()).isTrue();
+            int count = rs.getInt(1);
+            assertThat(count).isGreaterThan(0);
+        }
+    }
+
+    @Test
+    @DisplayName("Should populate all required database columns after seeding")
+    void shouldPopulateAllRequiredColumnsAfterSeeding() throws Exception {
+        // When
+        RecipeSeeder.seedDefaultRecipes(store);
+
+        // Then - verify all required columns are populated
+        Path dbPath = store.getDbPath();
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                 "SELECT COUNT(*) FROM recipes WHERE name IS NULL OR name = ''")) {
+
+            assertThat(rs.next()).isTrue();
+            int nullCount = rs.getInt(1);
+            assertThat(nullCount).isEqualTo(0);
+        }
+
+        // Verify category is populated
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                 "SELECT COUNT(*) FROM recipes WHERE category IS NULL OR category = ''")) {
+
+            assertThat(rs.next()).isTrue();
+            int nullCount = rs.getInt(1);
+            assertThat(nullCount).isEqualTo(0);
+        }
+
+        // Verify recipe_type is populated
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                 "SELECT COUNT(*) FROM recipes WHERE recipe_type IS NULL OR recipe_type = ''")) {
+
+            assertThat(rs.next()).isTrue();
+            int nullCount = rs.getInt(1);
+            assertThat(nullCount).isEqualTo(0);
+        }
+    }
+
+    @Test
+    @DisplayName("Should NOT rebuild database and wipe recipes when creating new store instance")
+    void shouldNotRebuildDatabaseAndWipeRecipes() {
+        // Given - seed recipes into database
+        RecipeSeeder.seedDefaultRecipes(store);
+        List<RecipeDefinition> recipesAfterSeeding = store.getRecipes();
+        int recipeCountAfterSeeding = recipesAfterSeeding.size();
+        assertThat(recipeCountAfterSeeding).isGreaterThan(0);
+
+        // When - create a NEW store instance pointing to the same database file
+        // This simulates what happens when multiple IDE windows open or plugin reloads
+        Path dbPath = store.getDbPath();
+        CentralMigrationAnalysisStore newStoreInstance = new CentralMigrationAnalysisStore(dbPath);
+
+        // Then - verify recipes are STILL present (not wiped by rebuild)
+        List<RecipeDefinition> recipesAfterReopen = newStoreInstance.getRecipes();
+        int recipeCountAfterReopen = recipesAfterReopen.size();
+
+        assertThat(recipeCountAfterReopen)
+            .as("Recipes should not be wiped when creating new store instance (was %d, now %d)",
+                recipeCountAfterSeeding, recipeCountAfterReopen)
+            .isEqualTo(recipeCountAfterSeeding);
+
+        // Verify all recipes are still accessible and have same data
+        for (RecipeDefinition originalRecipe : recipesAfterSeeding) {
+            RecipeDefinition reopenedRecipe = recipesAfterReopen.stream()
+                .filter(r -> r.getName().equals(originalRecipe.getName()))
+                .findFirst()
+                .orElse(null);
+
+            assertThat(reopenedRecipe)
+                .as("Recipe '%s' should still exist after reopening store", originalRecipe.getName())
+                .isNotNull();
+        }
+
+        // Cleanup
+        newStoreInstance.close();
+    }
+
+    @Test
+    @DisplayName("Should preserve recipes when multiple store instances are created sequentially")
+    void shouldPreserveRecipesWithMultipleStoreInstances() {
+        // Given - seed recipes
+        RecipeSeeder.seedDefaultRecipes(store);
+        int initialCount = store.getRecipes().size();
+        assertThat(initialCount).isGreaterThan(0);
+
+        Path dbPath = store.getDbPath();
+
+        // When - create multiple new store instances sequentially (simulating plugin restarts)
+        for (int i = 0; i < 3; i++) {
+            CentralMigrationAnalysisStore tempStore = new CentralMigrationAnalysisStore(dbPath);
+            List<RecipeDefinition> recipes = tempStore.getRecipes();
+
+            // Then - each instance should see all recipes
+            assertThat(recipes.size())
+                .as("Iteration %d: Recipe count should remain stable", i + 1)
+                .isEqualTo(initialCount);
+
+            tempStore.close();
+        }
+    }
 }

@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.intellij.ui.components;
 
+import adrianmikula.jakartamigration.intellij.ui.UIColors;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.Arc2D;
@@ -28,7 +29,7 @@ public abstract class ScoreGauge extends JPanel {
         this.title = title;
         setPreferredSize(new Dimension(DEFAULT_GAUGE_SIZE, DEFAULT_GAUGE_SIZE + 30)); // Extra space for title
         setMinimumSize(new Dimension(MIN_GAUGE_SIZE, MIN_GAUGE_SIZE + 20));
-        setBackground(Color.WHITE);
+        setBackground(UIColors.PANEL_BACKGROUND);
     }
 
     @Override
@@ -160,7 +161,7 @@ public abstract class ScoreGauge extends JPanel {
     }
 
     private void drawTickMarks(Graphics2D g2d, int centerX, int centerY) {
-        g2d.setColor(Color.DARK_GRAY);
+        g2d.setColor(UIColors.TEXT_SECONDARY);
         g2d.setStroke(new BasicStroke(1));
         
         // Get dynamic dimensions
@@ -218,12 +219,12 @@ public abstract class ScoreGauge extends JPanel {
     }
 
     private void drawCenterDot(Graphics2D g2d, int centerX, int centerY) {
-        g2d.setColor(Color.DARK_GRAY);
+        g2d.setColor(UIColors.TEXT_SECONDARY);
         g2d.fillOval(centerX - 5, centerY - 5, 10, 10);
     }
 
     private void drawTitle(Graphics2D g2d, int centerX, int y) {
-        g2d.setColor(Color.BLACK);
+        g2d.setColor(UIColors.TEXT_PRIMARY);
         int gaugeSize = getGaugeSize();
         int titleFontSize = Math.max(10, gaugeSize / 12); // Scale font size with gauge
         Font titleFont = new Font("Arial", Font.BOLD, titleFontSize);
@@ -249,7 +250,7 @@ public abstract class ScoreGauge extends JPanel {
         // Draw label if available with dynamic font size
         String label = getScoreLabel();
         if (label != null && !label.isEmpty()) {
-            g2d.setColor(Color.DARK_GRAY);
+            g2d.setColor(UIColors.TEXT_SECONDARY);
             int labelFontSize = Math.max(8, gaugeSize / 15); // Scale font size with gauge
             Font categoryFont = new Font("Arial", Font.PLAIN, labelFontSize);
             g2d.setFont(categoryFont);

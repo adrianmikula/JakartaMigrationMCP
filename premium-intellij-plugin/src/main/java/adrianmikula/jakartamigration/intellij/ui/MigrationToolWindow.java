@@ -32,6 +32,7 @@ import adrianmikula.jakartamigration.intellij.ui.components.NewFeatureNotificati
 import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
 import adrianmikula.jakartamigration.analytics.service.ErrorReportingService;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -130,8 +131,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
             this.refactorModule = new CodeRefactoringModule(this.store, this.projectStore);
             this.recipeService = this.refactorModule.getRecipeService();
             
-            // Initialize advanced scanning service with recipe service
-            this.advancedScanningService = new AdvancedScanningService(this.recipeService);
+            // Initialize advanced scanning service with recipe service and project for notifications
+            this.advancedScanningService = new AdvancedScanningService(this.recipeService, this.project);
             
             // Initialize credits service
             this.creditsService = new CreditsService();
@@ -214,10 +215,21 @@ public class MigrationToolWindow implements ToolWindowFactory {
             });
             tabbedPane.addTab("Dependencies", dependenciesComponent.getPanel());
 
+            // Check experimental features flag once for all experimental tabs
+            boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
+            System.out.println("DEBUG: MigrationToolWindow - experimentalEnabled = " + experimentalEnabled);
+
             // Dependencies Tree tab (experimental hierarchical view)
-            dependenciesTreeComponent = new DependenciesTreeComponent(project);
-            dependenciesTreeComponent.setPremiumUser(isPremium);
-            tabbedPane.addTab("Dependencies (Tree)", dependenciesTreeComponent.getPanel());
+            if (experimentalEnabled) {
+                dependenciesTreeComponent = new DependenciesTreeComponent(project);
+                dependenciesTreeComponent.setPremiumUser(isPremium);
+                String treeTabLabel = isPremium ? "Dependencies (Tree) 🌳 (Experimental)" : "Dependencies (Tree) (Experimental)";
+                tabbedPane.addTab(treeTabLabel, dependenciesTreeComponent.getPanel());
+                LOG.info("initializeContent: Added Dependencies (Tree) tab (experimental)");
+            } else {
+                dependenciesTreeComponent = null;
+                LOG.info("initializeContent: Dependencies (Tree) tab hidden (experimental features disabled)");
+            }
 
             // Dependency Graph tab
             dependencyGraphComponent = new DependencyGraphComponent(project);
@@ -335,10 +347,6 @@ public class MigrationToolWindow implements ToolWindowFactory {
             });
 
             // Runtime tab (Experimental features only)
-            System.out.println("DEBUG: MigrationToolWindow - About to check experimental features");
-            boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
-            System.out.println("DEBUG: MigrationToolWindow - experimentalEnabled = " + experimentalEnabled);
-
             if (experimentalEnabled) {
                 // Runtime tab - Available for all users with experimental features enabled
                 runtimeTabComponent = new RuntimeTabComponent(project);
@@ -462,12 +470,30 @@ public class MigrationToolWindow implements ToolWindowFactory {
             System.out.println("DEBUG: MigrationToolWindow.refreshExperimentalTabs() called");
             boolean experimentalEnabled = adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isExperimentalFeaturesEnabled();
             System.out.println("DEBUG: MigrationToolWindow - experimentalEnabled = " + experimentalEnabled);
-            
-            // Find the Runtime tab index if it exists
+
+            // Handle Dependencies (Tree) tab
+            int treeTabIndex = findTabIndex("Dependencies (Tree)");
+            boolean treeTabExists = treeTabIndex >= 0;
+
+            if (experimentalEnabled && !treeTabExists && dependenciesTreeComponent == null) {
+                dependenciesTreeComponent = new DependenciesTreeComponent(project);
+                dependenciesTreeComponent.setPremiumUser(isPremium);
+                String treeTabLabel = isPremium ? "Dependencies (Tree) 🌳 (Experimental)" : "Dependencies (Tree) (Experimental)";
+                // Insert after Dependencies tab
+                int dependenciesIndex = findTabIndex("Dependencies");
+                int insertIndex = dependenciesIndex >= 0 ? dependenciesIndex + 1 : tabbedPane.getTabCount();
+                tabbedPane.insertTab(treeTabLabel, null, dependenciesTreeComponent.getPanel(), null, insertIndex);
+                LOG.info("refreshExperimentalTabs: Dependencies (Tree) tab added at index " + insertIndex);
+            } else if (!experimentalEnabled && treeTabExists) {
+                tabbedPane.removeTabAt(treeTabIndex);
+                dependenciesTreeComponent = null;
+                LOG.info("refreshExperimentalTabs: Dependencies (Tree) tab removed");
+            }
+
+            // Handle Runtime tab
             int runtimeTabIndex = findTabIndex("Runtime");
             boolean runtimeTabExists = runtimeTabIndex >= 0;
-            
-            // Add or remove Runtime tab
+
             if (experimentalEnabled && !runtimeTabExists && runtimeTabComponent == null) {
                 runtimeTabComponent = new RuntimeTabComponent(project);
                 // Insert after Platforms tab
@@ -480,7 +506,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 runtimeTabComponent = null;
                 LOG.info("refreshExperimentalTabs: Runtime tab removed");
             }
-            
+
             contentPanel.revalidate();
             contentPanel.repaint();
         }
@@ -580,6 +606,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             scanProgressBar = new JProgressBar(0, 100);
             scanProgressBar.setValue(0);
             scanProgressBar.setStringPainted(true);
+            scanProgressBar.setForeground(Color.WHITE);
             scanProgressBar.setString("Ready to scan");
             // Match progress bar height to button height
             scanProgressBar.setPreferredSize(new Dimension(300, btnHeight));
@@ -747,8 +774,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             }
 
             if (projectPathStr == null) {
-                Messages.showWarningDialog(project, "Cannot determine project path. Please open a project first.",
-                        "Analysis Failed");
+                NotificationHelper.showWarning(project, "Analysis Failed", "Cannot determine project path. Please open a project first.");
                 return;
             }
 
@@ -814,9 +840,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         LOG.error("handleQuickScan: Scan failed", throwable);
                         dashboardComponent.setAnalysisRunning(false);
                         setScanButtonsEnabled(true);
-                        Messages.showWarningDialog(project,
-                                "Quick scan failed: " + throwable.getMessage(),
-                                "Scan Failed");
+                        NotificationHelper.showWarning(project,
+                                "Scan Failed",
+                                "Quick scan failed: " + throwable.getMessage());
                     } else {
                         dashboardComponent.onScanComplete();
                         setScanButtonsEnabled(true);
@@ -849,19 +875,19 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Check credits for free users
             if (!isPremium) {
                 if (!creditsService.hasCredits(CreditType.ACTIONS)) {
-                    Messages.showWarningDialog(project,
+                    NotificationHelper.showWarning(project,
+                            "Credits Exhausted",
                             "You've used all your free action credits. Upgrade to Premium to run deep scans.\n\n" +
                                     "Premium includes:\n" +
                                     "• Unlimited action credits\n" +
                                     "• Full transitive dependency analysis\n" +
-                                    "• Advanced scanning features",
-                            "Credits Exhausted");
+                                    "• Advanced scanning features");
                     return;
                 }
 
                 boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS, "Scanning", "deep_scan");
                 if (!creditConsumed) {
-                    Messages.showErrorDialog(project, "Failed to consume action credit. Please try again.", "Credit Error");
+                    NotificationHelper.showError(project, "Credit Error", "Failed to consume action credit. Please try again.");
                     return;
                 }
 
@@ -872,16 +898,21 @@ public class MigrationToolWindow implements ToolWindowFactory {
             setScanButtonsEnabled(false);
             dashboardComponent.setAnalysisRunning(true);
 
-            try {
-                performDeepScan(projectPath);
-            } catch (Exception ex) {
-                LOG.error("handleDeepScan: Unexpected error", ex);
-                dashboardComponent.setAnalysisRunning(false);
-                setScanButtonsEnabled(true);
-                Messages.showWarningDialog(project,
-                        "Deep scan failed: " + ex.getMessage(),
-                        "Scan Failed");
-            }
+            // FIX: Run performDeepScan asynchronously to avoid blocking EDT
+            CompletableFuture.runAsync(() -> {
+                try {
+                    performDeepScan(projectPath);
+                } catch (Exception ex) {
+                    LOG.error("handleDeepScan: Unexpected error", ex);
+                    ApplicationManager.getApplication().invokeLater(() -> {
+                        dashboardComponent.setAnalysisRunning(false);
+                        setScanButtonsEnabled(true);
+                        NotificationHelper.showWarning(project,
+                                "Scan Failed",
+                                "Deep scan failed: " + ex.getMessage());
+                    });
+                }
+            });
         }
 
         /**
@@ -920,7 +951,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 MigrationDashboard dashboard = buildDashboardFromDependencies(depInfos);
 
                 ApplicationManager.getApplication().invokeLater(() -> {
-                    dependenciesComponent.setDependencies(depInfos);
+                    dependencyUIManager.updateAllDependencies(depInfos);
                     migrationPhasesComponent.setDependencies(depInfos);
                     dependencyGraphComponent.updateGraphFromDependencyGraph(deepGraph, statusMap);
                     dashboardComponent.setDashboard(dashboard);
@@ -1002,9 +1033,13 @@ public class MigrationToolWindow implements ToolWindowFactory {
          * Runs deep dependency analysis using Maven/Gradle commands.
          * Falls back to basic analysis if Maven/Gradle are not available.
          *
+         * @deprecated Replaced by performDeepScan() which uses proper async/CompletableFuture pattern
+         *             to avoid blocking the EDT. This method is kept for backward compatibility but
+         *             is not used in the main UI code paths.
          * @param projectPath Path to the project root
          * @return List of DependencyInfo with deep transitive dependencies, or null if failed
          */
+        @Deprecated
         private List<DependencyInfo> runDeepDependencyAnalysis(Path projectPath) {
             LOG.info("runDeepDependencyAnalysis: Starting deep dependency scan");
 

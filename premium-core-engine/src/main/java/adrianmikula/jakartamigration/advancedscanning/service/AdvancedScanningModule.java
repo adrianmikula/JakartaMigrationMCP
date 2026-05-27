@@ -23,6 +23,9 @@ import adrianmikula.jakartamigration.advancedscanning.service.impl.TransitiveDep
 import adrianmikula.jakartamigration.advancedscanning.service.impl.UnitTestScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.ScanRecipeRecommendationServiceImpl;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
+import adrianmikula.jakartamigration.dependencyanalysis.service.JarResolver;
+import adrianmikula.jakartamigration.jaranalysis.service.JarCompatibilityScanner;
+import adrianmikula.jakartamigration.jaranalysis.service.DefaultJarCompatibilityScanner;
 
 /**
  * Module that provides access to all premium advanced scanning services.
@@ -54,6 +57,10 @@ public class AdvancedScanningModule {
     private final ScanRecipeRecommendationService recipeRecommendationService;
 
     public AdvancedScanningModule(RecipeService recipeService) {
+        // Initialize shared services for bytecode scanning
+        JarResolver jarResolver = new JarResolver();
+        JarCompatibilityScanner jarCompatibilityScanner = new DefaultJarCompatibilityScanner();
+
         // Initialize all scanners
         this.jpaAnnotationScanner = new JpaAnnotationScannerImpl();
         this.beanValidationScanner = new BeanValidationScannerImpl();
@@ -64,7 +71,14 @@ public class AdvancedScanningModule {
         this.deprecatedApiScanner = new DeprecatedApiScannerImpl();
         this.securityApiScanner = new SecurityApiScannerImpl();
         this.jmsMessagingScanner = new JmsMessagingScannerImpl();
-        this.transitiveDependencyScanner = new TransitiveDependencyScannerImpl();
+        this.transitiveDependencyScanner = new TransitiveDependencyScannerImpl(
+            new adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyTreeCommandExecutorImpl(),
+            new adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyDeduplicationServiceImpl(),
+            new adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader(),
+            jarCompatibilityScanner,
+            jarResolver,
+            new adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService()
+        );
         this.configFileScanner = new ConfigFileScannerImpl();
         this.classloaderModuleScanner = new ClassloaderModuleScannerImpl();
         this.loggingMetricsScanner = new LoggingMetricsScannerImpl();

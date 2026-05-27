@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.intellij.ui.tree;
 
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
+import adrianmikula.jakartamigration.intellij.ui.DependencyStatusColors;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultTreeCellRenderer;
@@ -12,14 +13,6 @@ import java.awt.*;
  * Provides color-coded icons based on migration status.
  */
 public class DependencyTreeRenderer extends DefaultTreeCellRenderer {
-
-    // Status colors - matches DependencyGraphComponent color schema
-    private static final Color STATUS_COMPATIBLE = new Color(40, 167, 69); // Green
-    private static final Color STATUS_NEEDS_UPGRADE = new Color(255, 193, 7); // Yellow
-    private static final Color STATUS_REQUIRES_MANUAL = new Color(255, 193, 7); // Yellow
-    private static final Color STATUS_NO_JAKARTA = new Color(220, 53, 69); // Red
-    private static final Color STATUS_MIGRATED = new Color(23, 162, 184); // Cyan
-    private static final Color STATUS_UNKNOWN = new Color(108, 117, 125); // Gray
 
     @Override
     public Component getTreeCellRendererComponent(JTree tree, Object value, boolean sel,
@@ -33,8 +26,11 @@ public class DependencyTreeRenderer extends DefaultTreeCellRenderer {
             // Set text
             setText(node.getDisplayText());
 
-            // Set icon based on migration status
-            setIcon(getStatusIcon(dep.getMigrationStatus()));
+            // Only set custom icon for leaf nodes (nodes without children)
+            // Parent nodes use default tree icons to preserve expand/collapse handles
+            if (!node.hasChildDependencies()) {
+                setIcon(getStatusIcon(dep.getMigrationStatus()));
+            }
 
             // Set tooltip
             setToolTipText(buildTooltip(dep));
@@ -70,20 +66,10 @@ public class DependencyTreeRenderer extends DefaultTreeCellRenderer {
     }
 
     /**
-     * Get color for a given migration status.
+     * Get color for a given migration status - uses shared DependencyStatusColors utility.
      */
     private Color getStatusColor(DependencyMigrationStatus status) {
-        if (status == null) {
-            return STATUS_UNKNOWN;
-        }
-        return switch (status) {
-            case COMPATIBLE -> STATUS_COMPATIBLE;
-            case NEEDS_UPGRADE, REQUIRES_MANUAL_MIGRATION -> STATUS_NEEDS_UPGRADE;
-            case UNKNOWN_REVIEW -> STATUS_UNKNOWN;
-            case NO_JAKARTA_VERSION -> STATUS_NO_JAKARTA;
-            case MIGRATED -> STATUS_MIGRATED;
-            default -> STATUS_UNKNOWN;
-        };
+        return DependencyStatusColors.getStatusColor(status);
     }
 
     /**

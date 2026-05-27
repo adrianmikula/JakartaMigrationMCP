@@ -16,13 +16,26 @@ public class TransitiveDependencyProjectScanResult {
     private final int totalBuildFilesScanned;
     private final int filesWithJavaxDependencies;
     private final int totalJavaxDependencies;
+    private final int filesWithCommandErrors;
+    private final boolean hadCommandNotFoundError;
+    private final String errorMessage;
 
     public TransitiveDependencyProjectScanResult(List<TransitiveDependencyScanResult> fileResults,
             int totalBuildFilesScanned, int filesWithJavaxDependencies, int totalJavaxDependencies) {
+        this(fileResults, totalBuildFilesScanned, filesWithJavaxDependencies, totalJavaxDependencies,
+             0, false, null);
+    }
+
+    public TransitiveDependencyProjectScanResult(List<TransitiveDependencyScanResult> fileResults,
+            int totalBuildFilesScanned, int filesWithJavaxDependencies, int totalJavaxDependencies,
+            int filesWithCommandErrors, boolean hadCommandNotFoundError, String errorMessage) {
         this.fileResults = fileResults != null ? fileResults : Collections.emptyList();
         this.totalBuildFilesScanned = totalBuildFilesScanned;
         this.filesWithJavaxDependencies = filesWithJavaxDependencies;
         this.totalJavaxDependencies = totalJavaxDependencies;
+        this.filesWithCommandErrors = filesWithCommandErrors;
+        this.hadCommandNotFoundError = hadCommandNotFoundError;
+        this.errorMessage = errorMessage;
     }
 
     public static TransitiveDependencyProjectScanResult empty() {

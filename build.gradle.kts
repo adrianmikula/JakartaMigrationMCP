@@ -6,7 +6,9 @@ plugins {
     java
     id("org.springframework.boot") version "3.2.0" apply false
     id("io.spring.dependency-management") version "1.1.4" apply false
-    id("org.jetbrains.intellij") version "1.17.2" apply false
+    id("org.jetbrains.intellij") version "1.17.3" apply false
+    id("com.github.spotbugs") version "6.0.25" apply false
+    id("net.ltgt.errorprone") version "4.1.0" apply false
 }
 
 // =============================================================================
@@ -188,6 +190,36 @@ tasks.register("generateUniqueVersion") {
 // =============================================================================
 
 // =============================================================================
+// STATIC ANALYSIS CONFIGURATION
+// =============================================================================
+
+// Note: SpotBugs and Error Prone configuration is handled at the subproject level
+// since plugins are applied with 'apply false' at the root level
+
+// =============================================================================
+// STATIC ANALYSIS AGGREGATE TASK
+// =============================================================================
+
+tasks.register("runStaticAnalysis") {
+    group = "verification"
+    description = "Runs all static analysis tools (SpotBugs with FindSecBugs, Error Prone)"
+    
+    // Run SpotBugs on all Java projects
+    subprojects.forEach { project ->
+        project.tasks.matching { it.name == "spotbugsMain" || it.name == "spotbugsTest" }.forEach {
+            dependsOn(it)
+        }
+    }
+    
+    // Error Prone runs automatically during compilation
+    
+    doLast {
+        println("✅ Static analysis complete")
+        println("📊 Tools run: SpotBugs (with FindSecBugs plugin), Error Prone")
+    }
+}
+
+// =============================================================================
 // LICENSING ENFORCEMENT
 // =============================================================================
 
@@ -348,6 +380,13 @@ tasks.register("validateAllWithBuildTests") {
 }
 
 // =============================================================================
+// BUILD TASK OVERRIDES
+// =============================================================================
+
+// Note: prepareSandbox is needed for runIde task - do not disable it
+// The prepareSandbox task creates the sandbox directory structure required by runIde
+
+// =============================================================================
 // BUILD HOOKS
 // =============================================================================
 
@@ -365,9 +404,7 @@ gradle.projectsEvaluated {
         // Configure build cache directory
         tasks.withType<Task>().configureEach {
             if (name.contains("build") || name.contains("compile") || name.contains("test")) {
-                doFirst {
-                    println("🔧 Configuring caching for task: $name in project: $project.name")
-                }
+                println("🔧 Configuring caching for task: $name in project: $project.name")
             }
         }
     }

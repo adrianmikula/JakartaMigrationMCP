@@ -7,11 +7,13 @@ import adrianmikula.jakartamigration.runtimeverification.domain.RemediationStep;
 import adrianmikula.jakartamigration.runtimeverification.domain.RuntimeError;
 import adrianmikula.jakartamigration.runtimeverification.domain.SimilarPastFailure;
 import adrianmikula.jakartamigration.runtimeverification.service.ErrorAnalyzer;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import adrianmikula.jakartamigration.intellij.ui.UIColors;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -84,7 +86,7 @@ public class RuntimeTabComponent {
         
         // Info text
         JLabel infoLabel = new JLabel("💡 Tip: Paste the full error output including stack traces for best results.");
-        infoLabel.setForeground(new Color(100, 100, 100));
+        infoLabel.setForeground(UIColors.TEXT_SECONDARY);
         infoLabel.setFont(infoLabel.getFont().deriveFont(Font.ITALIC));
         
         // Split pane
@@ -118,7 +120,7 @@ public class RuntimeTabComponent {
         JTextArea area = new JTextArea(15, 50);
         area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         area.setEditable(false);
-        area.setBackground(new Color(245, 245, 245));
+        area.setBackground(UIColors.PANEL_BACKGROUND_ALT);
         area.setText("Diagnosis results will appear here...\n\n" +
             "The analysis will include:\n" +
             "• Error category (NAMESPACE_MIGRATION, CLASSPATH_ISSUE, etc.)\n" +
@@ -146,7 +148,7 @@ public class RuntimeTabComponent {
         String errorText = errorInputArea.getText();
         
         if (errorText == null || errorText.trim().isEmpty()) {
-            Messages.showWarningDialog(project, "Please paste error output first.", "No Input");
+            NotificationHelper.showWarning(project, "No Input", "Please paste error output first.");
             return;
         }
         

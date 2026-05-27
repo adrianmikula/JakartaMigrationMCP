@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.intellij.ui.components;
 
+import adrianmikula.jakartamigration.intellij.ui.UIColors;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -29,26 +30,26 @@ public class NewFeatureNotification {
         // Create message label with small font
         this.messageLabel = new JLabel(message);
         this.messageLabel.setFont(this.messageLabel.getFont().deriveFont(Font.PLAIN, 10f));
-        this.messageLabel.setForeground(new Color(60, 60, 60));
+        this.messageLabel.setForeground(UIColors.TEXT_SECONDARY);
         
         // Create Yes link with web-link styling
         this.yesLink = new JLabel("Yes");
         this.yesLink.setFont(this.yesLink.getFont().deriveFont(Font.PLAIN, 10f));
-        this.yesLink.setForeground(new Color(0, 100, 180));
+        this.yesLink.setForeground(UIColors.LINK);
         this.yesLink.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         this.yesLink.addMouseListener(createLinkMouseListener(onYes));
         
         // Create No link with web-link styling
         this.noLink = new JLabel("No");
         this.noLink.setFont(this.noLink.getFont().deriveFont(Font.PLAIN, 10f));
-        this.noLink.setForeground(new Color(0, 100, 180));
+        this.noLink.setForeground(UIColors.LINK);
         this.noLink.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         this.noLink.addMouseListener(createLinkMouseListener(onNo));
         
         // Style the main panel
-        this.mainPanel.setBackground(new Color(248, 249, 250));
+        this.mainPanel.setBackground(UIColors.PANEL_BACKGROUND);
         this.mainPanel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(200, 200, 200)),
+            BorderFactory.createMatteBorder(0, 0, 1, 0, UIColors.BORDER),
             BorderFactory.createEmptyBorder(8, 12, 8, 12)
         ));
         
@@ -79,14 +80,14 @@ public class NewFeatureNotification {
             @Override
             public void mouseEntered(MouseEvent e) {
                 JLabel label = (JLabel) e.getSource();
-                label.setForeground(new Color(0, 80, 160));
+                label.setForeground(UIColors.LINK_HOVER);
                 label.setText(label.getText());
             }
             
             @Override
             public void mouseExited(MouseEvent e) {
                 JLabel label = (JLabel) e.getSource();
-                label.setForeground(new Color(0, 100, 180));
+                label.setForeground(UIColors.LINK);
                 label.setText(label.getText());
             }
         };

@@ -8,6 +8,7 @@ import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.intellij.model.RiskLevel;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
+import adrianmikula.jakartamigration.intellij.ui.UIColors;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBPanel;
@@ -23,7 +24,7 @@ import java.util.List;
  * Dependency graph component that displays module dependency graph with interactive visualization.
  * Uses the real DependencyGraph from migration-core library.
  */
-public class DependencyGraphComponent extends AbstractDependencyUIComponent {
+public class DependencyGraphComponent {
     private final JPanel panel;
     private final Project project;
     private final GraphCanvas graphCanvas;
@@ -111,7 +112,7 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
         // Legend panel
         JPanel legendPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 15, 5));
         legendPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-        legendPanel.setBackground(new Color(245, 245, 245));
+        legendPanel.setBackground(UIColors.PANEL_BACKGROUND_ALT);
 
         // Compatible (Green)
         JPanel legendItem1 = createLegendItem(new Color(40, 167, 69), "Jakarta Compatible");
@@ -146,7 +147,7 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
         JPanel colorBox = new JPanel();
         colorBox.setBackground(color);
         colorBox.setPreferredSize(new Dimension(16, 16));
-        colorBox.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
+        colorBox.setBorder(BorderFactory.createLineBorder(UIColors.BORDER));
 
         JLabel labelText = new JLabel(label);
         labelText.setFont(labelText.getFont().deriveFont(Font.PLAIN, 11f));
@@ -164,7 +165,7 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
         JPanel colorBox = new JPanel();
         colorBox.setBackground(color);
         colorBox.setPreferredSize(new Dimension(16, 16));
-        colorBox.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 3));
+        colorBox.setBorder(BorderFactory.createLineBorder(UIColors.BORDER, 3));
 
         JLabel labelText = new JLabel(label);
         labelText.setFont(labelText.getFont().deriveFont(Font.PLAIN, 11f));
@@ -232,39 +233,43 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
      * Update the graph with dependency data from a flat list (legacy method).
      */
     public void updateGraph(List<DependencyInfo> deps) {
+        // Handle null or empty dependency list
+        if (deps == null) {
+            deps = new ArrayList<>();
+        }
+
         // Convert flat list to DependencyGraph
-        DependencyGraph graph = new DependencyGraph();
         Set<Artifact> nodes = new HashSet<>();
         Set<Dependency> edges = new HashSet<>();
 
         for (DependencyInfo dep : deps) {
             // Artifact record requires 5 params: groupId, artifactId, version, scope, transitive
+            // Skip if required fields are null
+            if (dep == null || dep.getGroupId() == null || dep.getArtifactId() == null) {
+                continue;
+            }
+            String version = dep.getCurrentVersion() != null ? dep.getCurrentVersion() : "unknown";
             Artifact artifact = new Artifact(dep.getGroupId(), dep.getArtifactId(),
-                dep.getCurrentVersion(), "compile", dep.isTransitive());
+                version, "compile", dep.isTransitive());
             nodes.add(artifact);
         }
 
-        // Create root node
-        Artifact root = new Artifact("root", project.getName(), "1.0", "system", false);
-        nodes.add(root);
-
-        // Create edges from root to all dependencies
-        for (Artifact artifact : nodes) {
-            if (!artifact.equals(root)) {
-                edges.add(new Dependency(root, artifact, "compile", false));
-            }
-        }
-
+        // Create the dependency graph without a root node
+        // updateGraphFromDependencyGraph() will create the root node in the canvas
         this.dependencyGraph = new DependencyGraph(nodes, edges);
         updateGraphFromDependencyGraph();
     }
 
-    @Override
+    /**
+     * Set dependencies (for DependencyUIManager compatibility).
+     */
     public void setDependencies(List<DependencyInfo> dependencies) {
         updateGraph(dependencies);
     }
 
-    @Override
+    /**
+     * Clear dependencies (for DependencyUIManager compatibility).
+     */
     public void clearDependencies() {
         updateGraph(new ArrayList<>());
     }
@@ -272,7 +277,6 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
     /**
      * Update the graph with the real DependencyGraph from migration-core.
      */
-    @Override
     public void updateDependencyGraph(DependencyGraph graph) {
         this.dependencyGraph = graph != null ? graph : new DependencyGraph();
         this.artifactStatusMap = new HashMap<String, DependencyMigrationStatus>();
@@ -282,7 +286,6 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
     /**
      * Update the graph with the real DependencyGraph and status map.
      */
-    @Override
     public void updateDependencyGraph(DependencyGraph graph, Map<String, DependencyMigrationStatus> statusMap) {
         this.dependencyGraph = graph != null ? graph : new DependencyGraph();
         this.artifactStatusMap = statusMap != null ? statusMap : new HashMap<String, DependencyMigrationStatus>();
@@ -290,17 +293,21 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
     }
 
     /**
-     * Update the graph with the real DependencyGraph and status map (internal method).
+     * Update the graph with the real DependencyGraph from migration-core.
      */
     public void updateGraphFromDependencyGraph(DependencyGraph graph) {
-        updateDependencyGraph(graph);
+        this.dependencyGraph = graph != null ? graph : new DependencyGraph();
+        this.artifactStatusMap = new HashMap<String, DependencyMigrationStatus>();
+        updateGraphFromDependencyGraph();
     }
-
+    
     /**
-     * Update the graph with the real DependencyGraph and status map (internal method).
+     * Update the graph with the real DependencyGraph and status map.
      */
     public void updateGraphFromDependencyGraph(DependencyGraph graph, Map<String, DependencyMigrationStatus> statusMap) {
-        updateDependencyGraph(graph, statusMap);
+        this.dependencyGraph = graph != null ? graph : new DependencyGraph();
+        this.artifactStatusMap = statusMap != null ? statusMap : new HashMap<String, DependencyMigrationStatus>();
+        updateGraphFromDependencyGraph();
     }
 
     /**
@@ -345,11 +352,16 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
         // Also track nodes by toIdentifier() for edge lookup
         Map<String, Artifact> identifierToArtifact = new HashMap<>();
         for (Artifact artifact : dependencyGraph.getNodes()) {
+            // Skip artifacts with null groupId or artifactId
+            if (artifact.groupId() == null || artifact.artifactId() == null) {
+                continue;
+            }
             identifierToArtifact.put(artifact.toIdentifier(), artifact);
         }
 
         // Create root node for the project
-        GraphNode root = new GraphNode("root", project.getName(), GraphNode.NodeType.ROOT, RiskLevel.LOW);
+        String projectName = project.getName() != null ? project.getName() : "project";
+        GraphNode root = new GraphNode("root:root", "root", GraphNode.NodeType.ROOT, RiskLevel.LOW);
         nodes.add(root);
         artifactToNode.put("root:root", root);
 
@@ -357,10 +369,16 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
         for (Artifact artifact : dependencyGraph.getNodes()) {
             String artifactId = artifact.artifactId();
             String groupId = artifact.groupId();
+
+            // Skip artifacts with null groupId or artifactId
+            if (groupId == null || artifactId == null) {
+                continue;
+            }
+
             String id = groupId + ":" + artifactId;
 
-            // Skip the root node (already added)
-            if ("root".equals(groupId) && project.getName().equals(artifactId)) {
+            // Skip the canvas root node (already added above)
+            if ("root:root".equals(id)) {
                 continue;
             }
 
@@ -404,6 +422,17 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
 
         // Create edges from the real DependencyGraph
         for (Dependency dep : dependencyGraph.getEdges()) {
+            // Skip dependencies with null from/to artifacts
+            if (dep.from() == null || dep.to() == null) {
+                continue;
+            }
+            if (dep.from().groupId() == null || dep.from().artifactId() == null) {
+                continue;
+            }
+            if (dep.to().groupId() == null || dep.to().artifactId() == null) {
+                continue;
+            }
+
             String fromId = dep.from().groupId() + ":" + dep.from().artifactId();
             String toId = dep.to().groupId() + ":" + dep.to().artifactId();
 
@@ -419,6 +448,10 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
         // Add edges from root to all direct dependencies (those with no incoming edges)
         Set<String> hasIncomingEdges = new HashSet<>();
         for (Dependency dep : dependencyGraph.getEdges()) {
+            // Skip dependencies with null to artifact
+            if (dep.to() == null || dep.to().groupId() == null || dep.to().artifactId() == null) {
+                continue;
+            }
             String toId = dep.to().groupId() + ":" + dep.to().artifactId();
             hasIncomingEdges.add(toId);
         }
@@ -426,10 +459,17 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
         for (Artifact artifact : dependencyGraph.getNodes()) {
             String artifactId = artifact.artifactId();
             String groupId = artifact.groupId();
+
+            // Skip artifacts with null groupId or artifactId
+            if (groupId == null || artifactId == null) {
+                continue;
+            }
+
             String id = groupId + ":" + artifactId;
 
-            // Skip root
-            if ("root".equals(groupId) && project.getName().equals(artifactId)) {
+            // Skip canvas root node (already added above)
+            // But allow "root:project" and other root:* nodes from the graph
+            if ("root:root".equals(id)) {
                 continue;
             }
 
@@ -448,8 +488,7 @@ public class DependencyGraphComponent extends AbstractDependencyUIComponent {
             edges.add(new GraphEdge(root, node, GraphEdge.EdgeType.DEPENDENCY, false));
         }
 
-        graphCanvas.setNodes(nodes);
-        graphCanvas.setEdges(edges);
+        graphCanvas.setNodesAndEdges(nodes, edges);
         
         // Auto-select optimal layout based on dependency count
         selectOptimalLayout(nodes.size());

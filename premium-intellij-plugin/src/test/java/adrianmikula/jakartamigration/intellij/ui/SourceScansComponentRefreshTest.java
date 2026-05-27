@@ -3,15 +3,14 @@ package adrianmikula.jakartamigration.intellij.ui;
 /**
  * Tests for SourceScansComponent refresh functionality.
  * Implements plan: .kilo/plans/1778130109717-neon-tiger.md
+ * Test for SourceScansComponent refresh functionality.
+ * Verifies that refreshFromCachedResults() properly displays scan results.
  */
 import adrianmikula.jakartamigration.advancedscanning.domain.*;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import com.intellij.openapi.project.Project;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.Before;
-import org.junit.Test;
-import static org.junit.Assert.*;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -20,10 +19,6 @@ import java.util.ArrayList;
 
 import static org.mockito.Mockito.*;
 
-/**
- * Test for SourceScansComponent refresh functionality.
- * Verifies that refreshFromCachedResults() properly displays scan results.
- */
 public class SourceScansComponentRefreshTest extends BasePlatformTestCase {
 
     @Mock
@@ -33,8 +28,7 @@ public class SourceScansComponentRefreshTest extends BasePlatformTestCase {
     private RecipeService mockRecipeService;
     
     private SourceScansComponent component;
-    
-    @Before
+    @Override
     public void setUp() throws Exception {
         super.setUp();
         MockitoAnnotations.openMocks(this);
@@ -42,8 +36,6 @@ public class SourceScansComponentRefreshTest extends BasePlatformTestCase {
         Project project = getProject();
         component = new SourceScansComponent(project, mockScanningService);
     }
-    
-    @Test
     public void testRefreshFromCachedResults_DisplaysResults() {
         // Arrange: Create mock scan summary with JPA results
         ProjectScanResult<FileScanResult<JpaAnnotationUsage>> jpaResult = 
@@ -76,16 +68,17 @@ public class SourceScansComponentRefreshTest extends BasePlatformTestCase {
         component.refreshFromCachedResults();
         
         // Assert: Verify that JPA table shows results
-        assertEquals("JPA table should have 5 rows", 5, component.getJpaTable().getRowCount());
-        assertTrue("JPA status should indicate results found", 
-                component.getJpaStatusLabel().getText().contains("Found"));
+        if (component.getJpaTable().getRowCount() != 5) {
+            throw new RuntimeException("JPA table should have 5 rows but has " + component.getJpaTable().getRowCount());
+        }
+        if (!component.getJpaStatusLabel().getText().contains("Found")) {
+            throw new RuntimeException("JPA status should indicate results found");
+        }
         
         // Verify service methods were called
         verify(mockScanningService).hasCachedResults();
         verify(mockScanningService).getCachedSummary();
     }
-    
-    @Test
     public void testRefreshFromCachedResults_NoCachedResults() {
         // Arrange: No cached results available
         when(mockScanningService.hasCachedResults()).thenReturn(false);
@@ -94,9 +87,12 @@ public class SourceScansComponentRefreshTest extends BasePlatformTestCase {
         component.refreshFromCachedResults();
         
         // Assert: Table should remain empty
-        assertEquals("JPA table should remain empty", 0, component.getJpaTable().getRowCount());
-        assertEquals("JPA status should show not scanned", "Not scanned yet", 
-                component.getJpaStatusLabel().getText());
+        if (component.getJpaTable().getRowCount() != 0) {
+            throw new RuntimeException("JPA table should remain empty");
+        }
+        if (!component.getJpaStatusLabel().getText().equals("Not scanned yet")) {
+            throw new RuntimeException("JPA status should show not scanned");
+        }
         
         // Verify service methods were called
         verify(mockScanningService).hasCachedResults();

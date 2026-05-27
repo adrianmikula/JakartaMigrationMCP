@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.intellij;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
 import adrianmikula.jakartamigration.intellij.util.DevModeLogger;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
@@ -56,9 +57,9 @@ public class JakartaMigrationAction extends AnAction {
             if (isPremium) {
                 performAutoFix(project);
             } else {
-                Messages.showWarningDialog(project,
-                        "Apply Auto-Fixes requires a PREMIUM license. Please upgrade to unlock this feature.",
-                        "Upgrade Required");
+                NotificationHelper.showWarning(project,
+                        "Upgrade Required",
+                        "Apply Auto-Fixes requires a PREMIUM license. Please upgrade to unlock this feature.");
             }
         }
     }
@@ -70,7 +71,7 @@ public class JakartaMigrationAction extends AnAction {
         }
 
         if (projectPathStr == null) {
-            Messages.showWarningDialog(project, "Cannot determine project path. Please open a project first.", "Analysis Failed");
+            NotificationHelper.showWarning(project, "Analysis Failed", "Cannot determine project path. Please open a project first.");
             return;
         }
 
@@ -95,9 +96,9 @@ public class JakartaMigrationAction extends AnAction {
                 }
             })
             .exceptionally(ex -> {
-                Messages.showWarningDialog(project,
-                    "Analysis failed: " + ex.getMessage(),
-                    "Analysis Failed");
+                NotificationHelper.showWarning(project,
+                    "Analysis Failed",
+                    "Analysis failed: " + ex.getMessage());
                 return null;
             });
     }

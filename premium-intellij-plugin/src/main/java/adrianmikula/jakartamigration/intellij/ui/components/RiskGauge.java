@@ -48,6 +48,15 @@ public class RiskGauge extends ScoreGauge {
 
     @Override
     protected Color getScoreColor() {
-        return Color.BLACK;
+        // Color the score based on the risk level
+        if (score <= 25) {
+            return new Color(40, 167, 69);   // Green (Low risk)
+        } else if (score <= 50) {
+            return new Color(255, 193, 7);   // Yellow (Medium risk)
+        } else if (score <= 75) {
+            return new Color(255, 165, 0);   // Orange (High risk)
+        } else {
+            return new Color(220, 53, 69);   // Red (Critical risk)
+        }
     }
 }

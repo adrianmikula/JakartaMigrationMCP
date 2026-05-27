@@ -3,9 +3,6 @@ package adrianmikula.jakartamigration.intellij.license;
 import adrianmikula.jakartamigration.intellij.config.LicenseFailsafeConfig;
 import com.intellij.openapi.project.Project;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.Test;
-import org.junit.Before;
-import org.junit.After;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
@@ -17,7 +14,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
 
 /**
@@ -30,8 +26,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
 
     private MockedStatic<LicenseFailsafeConfig> mockedFailsafeConfig;
     private MockedStatic<CheckLicense> mockedCheckLicense;
-    
-    @Before
     public void setUp() throws Exception {
         super.setUp();
         mockedFailsafeConfig = mockStatic(LicenseFailsafeConfig.class);
@@ -40,8 +34,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
         // Clear license cache
         SafeLicenseChecker.clearCache();
     }
-    
-    @After
     public void tearDown() {
         if (mockedFailsafeConfig != null) {
             mockedFailsafeConfig.close();
@@ -58,8 +50,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
     }
     
     // ==================== Comprehensive Mode Tests ====================
-    
-    @Test
     public void testCheckLicenseSafe_AllFailsafeModes() {
         // Test all failsafe modes work correctly
         
@@ -90,8 +80,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
         SafeLicenseChecker.LicenseResult disabledResult = SafeLicenseChecker.checkLicenseSafe();
         assertThat(disabledResult.isFallback).isTrue();
     }
-    
-    @Test
     public void testCheckLicenseAsync_AllFailsafeModes() {
         // Test async with all failsafe modes
         
@@ -127,8 +115,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
     }
     
     // ==================== Timeout and Performance Tests ====================
-    
-    @Test
     public void testCheckLicenseWithTimeout_CustomTimeout() {
         // Given
         mockedFailsafeConfig.when(LicenseFailsafeConfig::getLicenseTimeoutMs).thenReturn(1000L); // 1 second
@@ -145,8 +131,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
         assertThat(endTime - startTime).isLessThan(2000); // Should complete within 2 seconds
         assertThat(result).isNotNull();
     }
-    
-    @Test
     public void testCheckLicenseWithTimeout_VeryShortTimeout() {
         // Given
         mockedFailsafeConfig.when(LicenseFailsafeConfig::getLicenseTimeoutMs).thenReturn(1L); // 1ms
@@ -161,8 +145,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
         assertThat(result).isNotNull();
         assertThat(result.isFallback).isTrue(); // Should fallback due to timeout
     }
-    
-    @Test
     public void testCheckLicenseWithTimeout_LongTimeout() {
         // Given
         mockedFailsafeConfig.when(LicenseFailsafeConfig::getLicenseTimeoutMs).thenReturn(10000L); // 10 seconds
@@ -181,8 +163,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
     }
     
     // ==================== Cache Behavior Tests ====================
-    
-    @Test
     public void testCacheBehavior_AfterModeChange() {
         // Given - start with normal mode
         mockedFailsafeConfig.when(LicenseFailsafeConfig::isDevMode).thenReturn(false);
@@ -206,8 +186,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
         assertThat(result3.status).isEqualTo("Development Mode");
         assertThat(result3.status).isNotEqualTo(result1.status);
     }
-    
-    @Test
     public void testCacheBehavior_Expiration() {
         // This test would require manipulating time or cache duration
         // For now, we test cache clearing behavior
@@ -227,8 +205,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
     }
     
     // ==================== Error Handling Tests ====================
-    
-    @Test
     public void testCheckLicenseSafe_WithCheckLicenseException() {
         // Given
         mockedFailsafeConfig.when(LicenseFailsafeConfig::isDevMode).thenReturn(false);
@@ -244,8 +220,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
         assertThat(result.isFallback).isTrue();
         assertThat(result.status).isEqualTo("Free");
     }
-    
-    @Test
     public void testCheckLicenseAsync_WithCheckLicenseException() {
         // Given
         mockedFailsafeConfig.when(LicenseFailsafeConfig::isDevMode).thenReturn(false);
@@ -262,8 +236,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
         assertThat(result.isFallback).isTrue();
         assertThat(result.status).isEqualTo("Free");
     }
-    
-    @Test
     public void testCheckLicenseWithTimeout_WithCheckLicenseException() {
         // Given
         mockedFailsafeConfig.when(LicenseFailsafeConfig::isDevMode).thenReturn(false);
@@ -281,8 +253,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
     }
     
     // ==================== Trial System Integration Tests ====================
-    
-    @Test
     public void trialStatus_WithForcedTrial() {
         // Given
         mockedFailsafeConfig.when(LicenseFailsafeConfig::isDevMode).thenReturn(false);
@@ -298,8 +268,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
         assertThat(result.isFallback).isTrue();
         assertThat(result.status).isEqualTo("Trial (Forced)");
     }
-    
-    @Test
     public void trialStatus_WithActiveTrial() {
         // Given
         mockedFailsafeConfig.when(LicenseFailsafeConfig::isDevMode).thenReturn(false);
@@ -325,8 +293,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
             System.clearProperty("jakarta.migration.trial.end");
         }
     }
-    
-    @Test
     public void trialStatus_WithExpiredTrial() {
         // Given
         mockedFailsafeConfig.when(LicenseFailsafeConfig::isDevMode).thenReturn(false);
@@ -354,8 +320,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
     }
     
     // ==================== Concurrent Access Tests ====================
-    
-    @Test
     public void testConcurrentLicenseChecks() throws InterruptedException, ExecutionException, TimeoutException {
         // Given
         mockedFailsafeConfig.when(LicenseFailsafeConfig::isDevMode).thenReturn(false);
@@ -394,8 +358,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
             assertThat(result.status).isNotNull();
         }
     }
-    
-    @Test
     public void testConcurrentAsyncLicenseChecks() throws InterruptedException, ExecutionException, TimeoutException {
         // Given
         mockedFailsafeConfig.when(LicenseFailsafeConfig::isDevMode).thenReturn(false);
@@ -430,8 +392,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
     }
     
     // ==================== Memory and Resource Tests ====================
-    
-    @Test
     public void testMemoryUsage_WithManyCalls() {
         // Given
         mockedFailsafeConfig.when(LicenseFailsafeConfig::isDevMode).thenReturn(false);
@@ -455,8 +415,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
         // Then - should not use excessive memory (allowing tolerance for natural GC)
         assertThat(memoryIncrease).isLessThan(10 * 1024 * 1024); // Increased tolerance for natural GC
     }
-    
-    @Test
     public void testResourceCleanup() {
         // Given
         mockedFailsafeConfig.when(LicenseFailsafeConfig::isDevMode).thenReturn(false);
@@ -473,8 +431,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
     }
     
     // ==================== Edge Case Tests ====================
-    
-    @Test
     public void testCheckLicenseSafe_WithNullCheckLicenseResult() {
         // Given
         mockedFailsafeConfig.when(LicenseFailsafeConfig::isDevMode).thenReturn(false);
@@ -490,8 +446,6 @@ public class SafeLicenseCheckerEnhancedTest extends BasePlatformTestCase {
         assertThat(result.isCertain).isFalse();
         assertThat(result.status).isEqualTo("Checking...");
     }
-    
-    @Test
     public void testIsPremiumAvailable_WithVariousStates() {
         // Test isPremiumAvailable with different license states
         

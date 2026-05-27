@@ -447,6 +447,7 @@ class DefaultJarCompatibilityScannerTest {
         when(config.isCachingEnabled()).thenReturn(false);
         when(config.isParallelScanEnabled()).thenReturn(true);
         when(config.isUseVirtualThreads()).thenReturn(true);
+        when(config.getMaxParallelism()).thenReturn(2);
         when(config.getMaximumJarSizeBytes()).thenReturn(50L * 1024 * 1024);
         when(config.getMaxClassesPerJar()).thenReturn(0);
         when(config.createScanOptions()).thenReturn(new JarScanOptions(true, true, true, 10, false, true, 0));

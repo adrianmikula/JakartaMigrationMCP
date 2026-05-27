@@ -180,4 +180,51 @@ public class DependenciesTableComponentTest extends BasePlatformTestCase {
         // Verify the Apply Recipe button is disabled when no recipe is available
         assertThat(tableComponent.getApplyRecipeButton().isEnabled()).isFalse();
     }
+
+    public void testEnhancedReasonMapping() {
+        // Test dependencies with different scan states to verify reason mapping
+        List<DependencyInfo> deps = new ArrayList<>();
+        
+        // Dependency with Maven lookup in progress
+        DependencyInfo mavenLookupDep = new DependencyInfo("javax.servlet", "javax.servlet-api", "4.0.1", 
+                null, null, null, "Unknown", null, DependencyMigrationStatus.UNKNOWN, false, false);
+        mavenLookupDep.setScanReason("UNKNOWN");
+        mavenLookupDep.setMavenLookupInProgress(true);
+        deps.add(mavenLookupDep);
+        
+        // Dependency with bytecode scan pending
+        DependencyInfo bytecodeScanDep = new DependencyInfo("org.example", "example-api", "1.0", 
+                null, null, null, "Unknown", null, DependencyMigrationStatus.UNKNOWN_REVIEW, false, false);
+        bytecodeScanDep.setScanReason("BYTECODE_SCAN_UNKNOWN");
+        deps.add(bytecodeScanDep);
+        
+        // Dependency with Maven lookup failure (warning, not definite incompatibility)
+        DependencyInfo mavenLookupFailedDep = new DependencyInfo("com.example", "no-jakarta-lib", "2.0", 
+                null, null, null, "Jakarta Version Not Found", null, DependencyMigrationStatus.MAVEN_LOOKUP_FAILED, false, false);
+        mavenLookupFailedDep.setScanReason("MAVEN_LOOKUP_NONE");
+        deps.add(mavenLookupFailedDep);
+        
+        // Dependency that is Jakarta compatible
+        DependencyInfo jakartaCompatibleDep = new DependencyInfo("jakarta.validation", "jakarta.validation-api", "3.0.0", 
+                null, null, null, "Compatible", null, DependencyMigrationStatus.COMPATIBLE, false, false);
+        jakartaCompatibleDep.setScanReason("BYTECODE_SCAN_JAKARTA");
+        deps.add(jakartaCompatibleDep);
+        
+        tableComponent.setDependencies(deps);
+        
+        // Verify the table has the expected number of rows
+        assertThat(tableComponent.getTableModel().getRowCount()).isEqualTo(4);
+        
+        // Verify reason column shows appropriate text for each dependency
+        assertThat(tableComponent.getTableModel().getValueAt(0, 6)).isEqualTo("Maven lookup in progress");
+        assertThat(tableComponent.getTableModel().getValueAt(1, 6)).isEqualTo("Bytecode scan pending");
+        assertThat(tableComponent.getTableModel().getValueAt(2, 6)).isEqualTo("Jakarta version not found - check naming patterns");
+        assertThat(tableComponent.getTableModel().getValueAt(3, 6)).isEqualTo("Jakarta compatible - bytecode verified");
+        
+        // Verify status column shows appropriate text
+        assertThat(tableComponent.getTableModel().getValueAt(0, 5)).isEqualTo("? Analysis in Progress");
+        assertThat(tableComponent.getTableModel().getValueAt(1, 5)).isEqualTo("? Analysis Pending");
+        assertThat(tableComponent.getTableModel().getValueAt(2, 5)).isEqualTo("⚠ Jakarta Version Not Found");
+        assertThat(tableComponent.getTableModel().getValueAt(3, 5)).isEqualTo("✓ Compatible");
+    }
 }

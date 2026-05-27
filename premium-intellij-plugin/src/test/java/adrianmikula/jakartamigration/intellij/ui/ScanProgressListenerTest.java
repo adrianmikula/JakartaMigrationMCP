@@ -10,10 +10,7 @@ import adrianmikula.jakartamigration.analysis.persistence.SqliteMigrationAnalysi
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.components.JBLabel;
-import org.junit.Test;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.*;
-
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -41,8 +38,6 @@ public class ScanProgressListenerTest extends BasePlatformTestCase {
         dashboardComponent = new DashboardComponent(getProject(), advancedScanningService, e -> {});
         testListener = new TestScanProgressListener();
     }
-
-    @Test
     public void testScanProgressPhaseUpdates() throws Exception {
         // Test that scan phase updates are properly handled
         dashboardComponent.onScanPhase("Test Phase", 1, 3);
@@ -55,8 +50,6 @@ public class ScanProgressListenerTest extends BasePlatformTestCase {
         // but we can verify no exceptions were thrown
         assertThat(true).isTrue(); // Placeholder assertion
     }
-
-    @Test
     public void testScanCompleteCallback() throws Exception {
         // Set up test dashboard data
         MigrationDashboard dashboard = new MigrationDashboard();
@@ -76,8 +69,6 @@ public class ScanProgressListenerTest extends BasePlatformTestCase {
         // Verify no exceptions were thrown during completion
         assertThat(true).isTrue(); // Placeholder assertion
     }
-
-    @Test
     public void testScanErrorCallback() throws Exception {
         // Test scan error callback
         Exception testError = new RuntimeException("Test error");
@@ -89,8 +80,6 @@ public class ScanProgressListenerTest extends BasePlatformTestCase {
         // Verify no exceptions were thrown during error handling
         assertThat(true).isTrue(); // Placeholder assertion
     }
-
-    @Test
     public void testSubScanCompleteCallback() throws Exception {
         // Test sub-scan completion callbacks for different scan types
         dashboardComponent.onSubScanComplete("JPA", 5);
@@ -107,8 +96,6 @@ public class ScanProgressListenerTest extends BasePlatformTestCase {
         // Verify no exceptions were thrown during sub-scan updates
         assertThat(true).isTrue(); // Placeholder assertion
     }
-
-    @Test
     public void testProgressListenerWithAdvancedScanningService() throws Exception {
         // Test that AdvancedScanningService can accept a progress listener
         AdvancedScanningService.AdvancedScanSummary summary = 
@@ -121,8 +108,6 @@ public class ScanProgressListenerTest extends BasePlatformTestCase {
         assertThat(testListener.phaseCalled).isTrue();
         assertThat(testListener.completeCalled).isTrue();
     }
-
-    @Test
     public void testProgressListenerThreadSafety() throws Exception {
         // Test that progress callbacks are thread-safe
         CountDownLatch latch = new CountDownLatch(10);
@@ -136,7 +121,7 @@ public class ScanProgressListenerTest extends BasePlatformTestCase {
                     latch.countDown();
                 } catch (Exception e) {
                     // Should not happen
-                    fail("Thread safety test failed: " + e.getMessage());
+                    throw new RuntimeException("Thread safety test failed: " + e.getMessage(), e);
                 }
             });
         }
@@ -181,8 +166,6 @@ public class ScanProgressListenerTest extends BasePlatformTestCase {
             // Track sub-scan completions if needed
         }
     }
-
-    @Test
     public void testProgressListenerStateTracking() throws Exception {
         TestScanProgressListener listener = new TestScanProgressListener();
         

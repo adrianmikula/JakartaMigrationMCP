@@ -15,6 +15,7 @@ import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
 import adrianmikula.jakartamigration.analytics.service.ErrorReportingService;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -462,7 +463,7 @@ public class ReportsTabComponent {
         String errorMessage = throwable.getCause() != null ? throwable.getCause().getMessage() : throwable.getMessage();
         outputArea.append("Error generating " + reportType + " report: " + errorMessage + "\n");
         setGenerationState(false, "Error generating " + reportType + " report");
-        Messages.showErrorDialog(project, "Failed to generate " + reportType + " report: " + errorMessage, "Error");
+        NotificationHelper.showError(project, "Error", "Failed to generate " + reportType + " report: " + errorMessage);
         
         // Report error to Supabase for analytics
         errorReportingService.reportError(throwable, "HTML " + reportType + " Report Generation");
@@ -688,7 +689,7 @@ public class ReportsTabComponent {
         try {
             Desktop.getDesktop().open(file.toFile());
         } catch (Exception e) {
-            Messages.showErrorDialog(project, "Failed to open HTML file: " + e.getMessage(), "Error");
+            NotificationHelper.showError(project, "Error", "Failed to open HTML file: " + e.getMessage());
             
             // Report error to Supabase for analytics
             errorReportingService.reportError(e, "HTML File Open Operation");

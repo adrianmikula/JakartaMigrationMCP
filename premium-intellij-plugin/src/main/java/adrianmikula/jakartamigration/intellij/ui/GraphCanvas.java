@@ -19,9 +19,6 @@ import java.util.List;
  * - Ctrl + scroll: Zoom in/out
  * - Scroll alone: Vertical pan
  * - Double-click: Reset view to default
- *
- * Implements spec GraphInteractionState (spec/plugin-components.tsp)
- * @see ADR-0065 (Dynamic Graph Spacing and Standard Panning)
  */
 public class GraphCanvas extends JPanel {
     private final List<GraphNode> nodes = new ArrayList<>();
@@ -89,6 +86,22 @@ public class GraphCanvas extends JPanel {
     public void setEdges(List<GraphEdge> edges) {
         this.edges.clear();
         this.edges.addAll(edges);
+        repaint();
+    }
+
+    public void setNodesAndEdges(List<GraphNode> nodes, List<GraphEdge> edges) {
+        this.nodes.clear();
+        this.nodes.addAll(nodes);
+        this.edges.clear();
+        this.edges.addAll(edges);
+        applyLayout();
+        repaint();
+    }
+
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        applyLayout();
         repaint();
     }
 
@@ -205,26 +218,6 @@ public class GraphCanvas extends JPanel {
         lastMousePos = e.getPoint();
     }
 
-    private void handleMouseReleased(MouseEvent e) {
-        if (leftButtonDown && !isDragging && pressPoint != null) {
-            // This was a tap (not drag) - select node at press position
-            Point worldPos = screenToWorld(pressPoint.x, pressPoint.y);
-            selectedNode = null;
-            for (GraphNode node : nodes) {
-                if (node.contains(worldPos.x, worldPos.y)) {
-                    selectedNode = node;
-                    break;
-                }
-            }
-            repaint();
-        }
-        // Reset interaction state
-        leftButtonDown = false;
-        pressPoint = null;
-        isDragging = false;
-        lastMousePos = null;
-    }
-
     private void handleMouseMoved(MouseEvent e) {
         Point worldPos = screenToWorld(e.getX(), e.getY());
         GraphNode hoveredNode = null;
@@ -260,6 +253,26 @@ public class GraphCanvas extends JPanel {
         } else {
             setToolTipText(null);
         }
+    }
+
+    private void handleMouseReleased(MouseEvent e) {
+        if (leftButtonDown && !isDragging && pressPoint != null) {
+            // This was a tap (not drag) - select node at press position
+            Point worldPos = screenToWorld(pressPoint.x, pressPoint.y);
+            selectedNode = null;
+            for (GraphNode node : nodes) {
+                if (node.contains(worldPos.x, worldPos.y)) {
+                    selectedNode = node;
+                    break;
+                }
+            }
+            repaint();
+        }
+        // Reset interaction state
+        leftButtonDown = false;
+        pressPoint = null;
+        isDragging = false;
+        lastMousePos = null;
     }
 
     private Point screenToWorld(int screenX, int screenY) {

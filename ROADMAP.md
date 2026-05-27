@@ -16,7 +16,15 @@
 
 # improvements for existing features
 
-3. Add a lookup service which takes a javax maven artifact, and finds the matching jakarta maven artifact.  The matching jakarta artifact should be displayed in the dependencies tab. None of the artifact matches should be hardocded in the code - use dynamic lookups in maven central or similar.  
+3. Add a lookup service which takes a javax maven artifact, and finds the matching jakarta maven artifact.  The matching jakarta artifact should be displayed in the dependencies tab. None of the artifact matches should be hardocded in the code - use dynamic lookups in maven central or similar.
+
+# static analysis improvements
+
+1. Add git pre-commit hook to run static analysis tools automatically before commits
+   - Currently implemented as manual Gradle task: ./gradlew runStaticAnalysis
+   - Future enhancement: Convert to automatic pre-commit hook using husky or similar
+   - Tools to include: FindSecBugs, Error Prone, Semgrep, Infer
+   - Consider performance impact and selective analysis based on changed files  
 
 
 
