@@ -184,9 +184,19 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                     .collect(Collectors.toList());
 
             int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
-            log.info("[DEBUG] Scan complete: {} files, {} total usages", results.size(), totalUsages);
+            int filesWithErrors = (int) results.stream().filter(r -> r.hasError()).count();
+            boolean hadCommandNotFound = results.stream()
+                .filter(r -> r.hasError())
+                .anyMatch(r -> r.getErrorMessage() != null &&
+                    (r.getErrorMessage().contains("mvn command not found") ||
+                     r.getErrorMessage().contains("gradle command not found") ||
+                     r.getErrorMessage().contains("not found")));
+            String errorSummary = hadCommandNotFound ?
+                "Build tool (Maven/Gradle) not found. Transitive dependency scanning fell back to regex parsing." : null;
+            log.info("[DEBUG] Scan complete: {} files, {} total usages, {} files with errors", results.size(), totalUsages, filesWithErrors);
 
-            return new TransitiveDependencyProjectScanResult(results, totalScanned.get(), results.size(), totalUsages);
+            return new TransitiveDependencyProjectScanResult(results, totalScanned.get(), results.size(), totalUsages,
+                filesWithErrors, hadCommandNotFound, errorSummary);
         } catch (Exception e) {
             log.error("[DEBUG] Error scanning project for transitive dependencies", e);
             return TransitiveDependencyProjectScanResult.empty();
@@ -215,8 +225,18 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
         int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
-        log.info("[DEBUG] Scan complete (parallel): {} files, {} total usages", results.size(), totalUsages);
-        return new TransitiveDependencyProjectScanResult(results, totalScanned.get(), results.size(), totalUsages);
+        int filesWithErrors = (int) results.stream().filter(r -> r.hasError()).count();
+        boolean hadCommandNotFound = results.stream()
+            .filter(r -> r.hasError())
+            .anyMatch(r -> r.getErrorMessage() != null &&
+                (r.getErrorMessage().contains("mvn command not found") ||
+                 r.getErrorMessage().contains("gradle command not found") ||
+                 r.getErrorMessage().contains("not found")));
+        String errorSummary = hadCommandNotFound ?
+            "Build tool (Maven/Gradle) not found. Transitive dependency scanning fell back to regex parsing." : null;
+        log.info("[DEBUG] Scan complete (parallel): {} files, {} total usages, {} files with errors", results.size(), totalUsages, filesWithErrors);
+        return new TransitiveDependencyProjectScanResult(results, totalScanned.get(), results.size(), totalUsages,
+            filesWithErrors, hadCommandNotFound, errorSummary);
     }
 
     @Override
@@ -245,8 +265,18 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         }
 
         int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
-        log.info("[DEBUG] Scan complete (sequential): {} files, {} total usages", results.size(), totalUsages);
-        return new TransitiveDependencyProjectScanResult(results, totalScanned.get(), results.size(), totalUsages);
+        int filesWithErrors = (int) results.stream().filter(r -> r.hasError()).count();
+        boolean hadCommandNotFound = results.stream()
+            .filter(r -> r.hasError())
+            .anyMatch(r -> r.getErrorMessage() != null &&
+                (r.getErrorMessage().contains("mvn command not found") ||
+                 r.getErrorMessage().contains("gradle command not found") ||
+                 r.getErrorMessage().contains("not found")));
+        String errorSummary = hadCommandNotFound ?
+            "Build tool (Maven/Gradle) not found. Transitive dependency scanning fell back to regex parsing." : null;
+        log.info("[DEBUG] Scan complete (sequential): {} files, {} total usages, {} files with errors", results.size(), totalUsages, filesWithErrors);
+        return new TransitiveDependencyProjectScanResult(results, totalScanned.get(), results.size(), totalUsages,
+            filesWithErrors, hadCommandNotFound, errorSummary);
     }
 
     /**
@@ -302,9 +332,19 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
             }
 
             int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
-            log.info("[DEBUG] Scan complete (sequential): {} files, {} total usages", results.size(), totalUsages);
+            int filesWithErrors = (int) results.stream().filter(r -> r.hasError()).count();
+            boolean hadCommandNotFound = results.stream()
+                .filter(r -> r.hasError())
+                .anyMatch(r -> r.getErrorMessage() != null &&
+                    (r.getErrorMessage().contains("mvn command not found") ||
+                     r.getErrorMessage().contains("gradle command not found") ||
+                     r.getErrorMessage().contains("not found")));
+            String errorSummary = hadCommandNotFound ?
+                "Build tool (Maven/Gradle) not found. Transitive dependency scanning fell back to regex parsing." : null;
+            log.info("[DEBUG] Scan complete (sequential): {} files, {} total usages, {} files with errors", results.size(), totalUsages, filesWithErrors);
 
-            return new TransitiveDependencyProjectScanResult(results, totalScanned.get(), results.size(), totalUsages);
+            return new TransitiveDependencyProjectScanResult(results, totalScanned.get(), results.size(), totalUsages,
+                filesWithErrors, hadCommandNotFound, errorSummary);
         } catch (Exception e) {
             log.error("[DEBUG] Error scanning project for transitive dependencies (sequential)", e);
             return TransitiveDependencyProjectScanResult.empty();
@@ -344,7 +384,7 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
 
              var treeResult = future.get(DependencyTreeCommandExecutor.DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
              if (!treeResult.isSuccess()) {
-                 log.warn("Command execution failed for {}: {}", filePath, treeResult.getErrorMessage());
+                 log.debug("Command execution failed for {}: {}", filePath, treeResult.getErrorMessage());
                  throw new RuntimeException(treeResult.getErrorMessage());
              }
              List<DependencyTreeResult.DependencyNode> dependencies = treeResult.getDependencies();
@@ -357,9 +397,31 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
              String buildFileType = isMaven ? "Maven" : "Gradle";
              return convertTreeResult(filePath, buildFileType, treeResult, listener);
          } catch (Exception e) {
-             log.warn("Async scanning failed for {}, falling back to regex: {}", filePath, e.getMessage());
+             log.debug("Async scanning failed for {}, falling back to regex: {}", filePath, e.getMessage());
              log.debug("Exception details:", e);
-             return scanFileFallback(filePath);
+             TransitiveDependencyScanResult fallback = scanFileFallback(filePath);
+             // Update scan reason to BUILD_TOOL_ERROR for all fallback dependencies
+             List<TransitiveDependencyUsage> usagesWithErrorReason = fallback.getUsages().stream()
+                 .map(usage -> new TransitiveDependencyUsage(
+                     usage.getArtifactId(),
+                     usage.getGroupId(),
+                     usage.getVersion(),
+                     usage.getJavaxPackage(),
+                     usage.getSeverity(),
+                     usage.getRecommendation(),
+                     usage.getScope(),
+                     usage.isTransitive(),
+                     usage.getDepth(),
+                     usage.getAlternativeVersions(),
+                     ScanReason.BUILD_TOOL_ERROR,  // Mark as build tool error
+                     "Dependency detected via regex fallback - Maven/Gradle command failed",
+                     usage.getConfidence(),
+                     usage.isIncompatibilityFromTransitive()
+                 ))
+                 .collect(Collectors.toList());
+             // Store error info in the result's metadata for aggregation
+             return new TransitiveDependencyScanResult(fallback.getFilePath(), usagesWithErrorReason,
+                 fallback.getBuildFileType(), fallback.getScopes(), fallback.getEdges(), e.getMessage());
          }
      }
 

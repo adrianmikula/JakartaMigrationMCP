@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.intellij.model.RiskLevel;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -160,6 +161,7 @@ class GraphLayoutStrategyTest {
     }
 
     @Test
+    @Tag("slow")
     @Disabled("Flaky test - force-directed layout occasionally converges to same position due to numerical precision. Not critical for release.")
     @DisplayName("ForceDirectedLayoutStrategy should position nodes without overlap")
     void testForceDirectedLayoutStrategy() {
@@ -231,6 +233,65 @@ class GraphLayoutStrategyTest {
         assertFalse(Double.isNaN(node.getY()), "Node Y should not be NaN");
         assertTrue(node.getWidth() > 0, "Node width should be positive");
         assertTrue(node.getHeight() > 0, "Node height should be positive");
+    }
+
+    @Test
+    @DisplayName("All layout strategies should use fallback dimensions when canvas size is 0")
+    void testLayoutFallbackWhenCanvasSizeIsZero() {
+        List<GraphLayoutStrategy> strategies = List.of(
+            new HierarchicalLayoutStrategy(),
+            new CircularLayoutStrategy(),
+            new TreeLayoutStrategy()
+        );
+
+        for (GraphLayoutStrategy strategy : strategies) {
+            List<GraphNode> nodes = createTestNodesWithRoot(4);
+            List<GraphEdge> edges = createTestEdgesFromRoot(nodes.get(0), nodes.subList(1, 4));
+
+            strategy.layout(nodes, edges, 0, 0);
+
+            for (GraphNode node : nodes) {
+                assertFalse(Double.isNaN(node.getX()), strategy.getClass().getSimpleName() + ": X should not be NaN");
+                assertFalse(Double.isNaN(node.getY()), strategy.getClass().getSimpleName() + ": Y should not be NaN");
+                assertTrue(node.getWidth() > 0, strategy.getClass().getSimpleName() + ": width should be positive");
+                assertTrue(node.getHeight() > 0, strategy.getClass().getSimpleName() + ": height should be positive");
+            }
+
+            boolean allSamePosition = true;
+            for (int i = 1; i < nodes.size(); i++) {
+                if (Math.abs(nodes.get(i).getX() - nodes.get(0).getX()) > 1 ||
+                    Math.abs(nodes.get(i).getY() - nodes.get(0).getY()) > 1) {
+                    allSamePosition = false;
+                    break;
+                }
+            }
+            assertFalse(allSamePosition, strategy.getClass().getSimpleName() + ": nodes should not all stack at same position");
+        }
+    }
+
+    @Test
+    @DisplayName("setNodesAndEdges should apply layout with edges available")
+    void testSetNodesAndEdgesAppliesLayoutWithEdges() throws Exception {
+        GraphCanvas canvas = new GraphCanvas();
+        canvas.setSize(800, 600);
+
+        List<GraphNode> nodes = createTestNodesWithRoot(3);
+        List<GraphEdge> edges = createTestEdgesFromRoot(nodes.get(0), nodes.subList(1, 3));
+
+        canvas.setNodesAndEdges(nodes, edges);
+
+        List<GraphNode> canvasNodes = GraphCanvasTestHelper.getNodes(canvas);
+        assertFalse(canvasNodes.isEmpty(), "Canvas should have nodes after setNodesAndEdges");
+
+        boolean allSamePosition = true;
+        for (int i = 1; i < canvasNodes.size(); i++) {
+            if (Math.abs(canvasNodes.get(i).getX() - canvasNodes.get(0).getX()) > 1 ||
+                Math.abs(canvasNodes.get(i).getY() - canvasNodes.get(0).getY()) > 1) {
+                allSamePosition = false;
+                break;
+            }
+        }
+        assertFalse(allSamePosition, "Nodes should have distinct positions after setNodesAndEdges");
     }
 
     // Helper methods

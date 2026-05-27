@@ -12,7 +12,8 @@ public enum DependencyMigrationStatus {
     REQUIRES_MANUAL_MIGRATION("REQUIRES_MANUAL_MIGRATION"),
     UNKNOWN_REVIEW("UNKNOWN_REVIEW"),
     MIGRATED("MIGRATED"),
-    UNKNOWN("UNKNOWN");
+    UNKNOWN("UNKNOWN"),
+    MAVEN_LOOKUP_FAILED("MAVEN_LOOKUP_FAILED");
 
     private final String value;
 

@@ -101,19 +101,28 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
     }
 
     private void initializeDatabase() {
-        // Check if database file exists and if it was created with manual migrations
+        // Check if database needs to be rebuilt (only for legacy non-SchemaManager databases)
         boolean needsRebuild = false;
         if (Files.exists(dbPath)) {
             try (Connection conn = getConnection()) {
-                // Check if DATABASECHANGELOG table exists (Liquibase marker)
+                // Check if metadata table exists (SchemaManager marker)
+                // This replaces the old Liquibase DATABASECHANGELOG check
                 DatabaseMetaData metaData = conn.getMetaData();
-                ResultSet tables = metaData.getTables(null, null, "DATABASECHANGELOG", null);
+                ResultSet tables = metaData.getTables(null, null, "metadata", null);
                 if (!tables.next()) {
-                    log.warn("Database exists but was not created with Liquibase. Rebuilding...");
-                    needsRebuild = true;
+                    // Check if it's a Liquibase database (legacy)
+                    ResultSet liquibaseTables = metaData.getTables(null, null, "DATABASECHANGELOG", null);
+                    if (liquibaseTables.next()) {
+                        log.info("Detected legacy Liquibase database, will migrate to SchemaManager");
+                        // Don't rebuild - SchemaManager will handle migration
+                    } else {
+                        log.warn("Database exists but has no metadata table (neither SchemaManager nor Liquibase). Rebuilding...");
+                        needsRebuild = true;
+                    }
                 }
+                // metadata table exists - SchemaManager is managing this database, no rebuild needed
             } catch (SQLException e) {
-                log.warn("Failed to check database version, rebuilding: {}", e.getMessage());
+                log.warn("Failed to check database version, will attempt rebuild: {}", e.getMessage());
                 needsRebuild = true;
             }
         }
@@ -128,7 +137,7 @@ public class CentralMigrationAnalysisStore implements AutoCloseable {
             }
         }
 
-        // Initialize database schema using custom JDBC-based migration
+        // Initialize database schema using custom JDBC-based migration (SchemaManager)
         // This replaces Liquibase to avoid ClassLoader issues in IntelliJ plugin environments
         try (Connection conn = getConnection()) {
             SchemaManager schemaManager = new SchemaManager(conn);

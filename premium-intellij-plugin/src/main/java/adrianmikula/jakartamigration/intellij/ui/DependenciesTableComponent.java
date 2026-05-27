@@ -483,33 +483,62 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         boolean hasJakartaEquivalent = jakartaEquivalent != null && !jakartaEquivalent.equals("-");
         String scanReason = dep.getScanReason();
 
-        // Check scan reason first before Jakarta equivalent presence
-        if ("BLACKLISTED".equals(scanReason)) {
-            if (dep.isMavenLookupInProgress()) {
-                statusText = "Researching Upgrade Paths";
-            } else if (hasJakartaEquivalent) {
+        // Enhanced status logic - differentiate pending vs final states
+        if (dep.isMavenLookupInProgress()) {
+            // Currently being analyzed
+            statusText = "? Analysis in Progress";
+        } else if ("UNKNOWN".equals(scanReason) || "BYTECODE_SCAN_UNKNOWN".equals(scanReason)) {
+            // Pending analysis
+            statusText = "? Analysis Pending";
+        } else if ("BLACKLISTED".equals(scanReason)) {
+            // Known javax dependencies
+            if (hasJakartaEquivalent) {
                 statusText = "↑ Upgrade Available";
             } else {
                 statusText = "⚠ Possible Blocker";
             }
-        } else if ("UNKNOWN".equals(scanReason)) {
-            statusText = "Review Required";
         } else if (dep.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE) {
             statusText = "✓ Compatible";
         } else if (dep.getMigrationStatus() == DependencyMigrationStatus.NO_JAKARTA_VERSION) {
             statusText = "✗ No Jakarta Version";
+        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.MAVEN_LOOKUP_FAILED) {
+            statusText = "⚠ Jakarta Version Not Found";
+        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.NEEDS_UPGRADE) {
+            statusText = "↑ Upgrade Available";
+        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION) {
+            statusText = "⚠ Manual Review Required";
         } else if (!hasJakartaEquivalent) {
             statusText = "✗ No Jakarta Version";
-        } else if (hasJakartaEquivalent && !"BLACKLISTED".equals(scanReason)) {
+        } else if (hasJakartaEquivalent) {
             statusText = "↑ Upgrade Available";
         } else {
             statusText = "? Unknown";
         }
 
-        // Reason (scan reason) - change UNKNOWN to "bytecode scan pending"
+        // Reason (scan reason) - provide specific pending states
         String reason = scanReason != null ? scanReason : "-";
-        if ("UNKNOWN".equals(reason)) {
-            reason = "bytecode scan pending";
+        
+        // Enhanced reason mapping for better clarity on pending states
+        if (dep.isMavenLookupInProgress()) {
+            reason = "Maven lookup in progress";
+        } else if ("UNKNOWN".equals(reason)) {
+            reason = "Analysis pending";
+        } else if ("BYTECODE_SCAN_UNKNOWN".equals(reason)) {
+            reason = "Bytecode scan pending";
+        } else if ("MAVEN_LOOKUP_NONE".equals(reason)) {
+            reason = "Jakarta version not found - check naming patterns";
+        } else if ("BLACKLISTED".equals(reason) && !dep.isMavenLookupInProgress()) {
+            reason = "Requires Jakarta upgrade";
+        } else if ("WHITELISTED".equals(reason)) {
+            reason = "JDK provided - compatible";
+        } else if ("BYTECODE_SCAN_JAKARTA".equals(reason)) {
+            reason = "Jakarta compatible - bytecode verified";
+        } else if ("BYTECODE_SCAN_JAVAX".equals(reason)) {
+            reason = "javax detected - upgrade required";
+        } else if ("BYTECODE_SCAN_MIXED".equals(reason)) {
+            reason = "Mixed javax/Jakarta - requires migration";
+        } else if ("BUILD_TOOL_ERROR".equals(reason)) {
+            reason = "Build tool error - regex fallback (deep scan unavailable)";
         }
 
         // Add row with all columns - DependencyInfo at column 8 (hidden)

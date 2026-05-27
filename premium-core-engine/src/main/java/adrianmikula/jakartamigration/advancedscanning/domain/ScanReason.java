@@ -53,5 +53,11 @@ public enum ScanReason {
     /**
      * No information available about the dependency.
      */
-    UNKNOWN
+    UNKNOWN,
+
+    /**
+     * Dependency detected via regex fallback because Maven/Gradle command failed.
+     * Deep dependency analysis was not possible due to build tool issues.
+     */
+    BUILD_TOOL_ERROR
 }

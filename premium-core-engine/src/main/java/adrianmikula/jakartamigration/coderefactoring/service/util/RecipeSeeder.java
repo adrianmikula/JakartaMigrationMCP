@@ -230,20 +230,43 @@ public class RecipeSeeder {
 
     @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> loadRecipesFromJson() {
+        log.info("loadRecipesFromJson() - attempting to load {}", RECIPES_JSON);
+        
         try (InputStream is = RecipeSeeder.class.getResourceAsStream("/" + RECIPES_JSON)) {
             if (is == null) {
-                log.warn("{} not found on classpath", RECIPES_JSON);
-                return Collections.emptyList();
+                log.error("{} not found on classpath via getResourceAsStream", RECIPES_JSON);
+                // Try alternative approach
+                try (InputStream is2 = RecipeSeeder.class.getClassLoader().getResourceAsStream(RECIPES_JSON)) {
+                    if (is2 == null) {
+                        log.error("{} also not found via ClassLoader.getResourceAsStream", RECIPES_JSON);
+                        return Collections.emptyList();
+                    }
+                    log.info("Found {} via ClassLoader, loading...", RECIPES_JSON);
+                    return parseRecipesJson(is2);
+                }
             }
-
-            ObjectMapper mapper = new ObjectMapper();
-            Map<String, Object> data = mapper.readValue(is, new TypeReference<Map<String, Object>>() {});
-
-            return (List<Map<String, Object>>) data.get("recipes");
+            log.info("Found {} via getResourceAsStream, loading...", RECIPES_JSON);
+            return parseRecipesJson(is);
         } catch (Exception e) {
-            log.error("Failed to load recipes from JSON", e);
+            log.error("Failed to load recipes from JSON: {}", e.getMessage(), e);
             return Collections.emptyList();
         }
+    }
+    
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> parseRecipesJson(InputStream is) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> data = mapper.readValue(is, new TypeReference<Map<String, Object>>() {});
+        
+        List<Map<String, Object>> recipes = (List<Map<String, Object>>) data.get("recipes");
+        log.info("Parsed {} recipes from JSON", recipes != null ? recipes.size() : 0);
+        
+        if (recipes == null) {
+            log.error("JSON 'recipes' field is null - check JSON structure");
+            return Collections.emptyList();
+        }
+        
+        return recipes;
     }
 
     public static void seedUpgradeRecommendations(CentralMigrationAnalysisStore store) {

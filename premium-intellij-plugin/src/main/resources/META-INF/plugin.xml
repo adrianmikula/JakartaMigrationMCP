@@ -160,6 +160,11 @@
                           displayType="BALLOON"
                           key="credit.exhaustion.notification"/>
 
+        <!-- Notification for Build Tool Errors (Maven/Gradle not found) -->
+        <notificationGroup id="JakartaMigration.BuildToolErrors"
+                          displayType="BALLOON"
+                          key="build.tool.errors.notification"/>
+
         <!-- License Expiration Notifier - Monitors license status and notifies on expiration -->
         <postStartupActivity implementation="adrianmikula.jakartamigration.intellij.license.LicenseExpirationNotifier"/>
 

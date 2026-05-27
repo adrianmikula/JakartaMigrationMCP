@@ -37,7 +37,7 @@ public final class DependencyStatusColors {
             case COMPATIBLE -> STATUS_COMPATIBLE;
             case NEEDS_UPGRADE, REQUIRES_MANUAL_MIGRATION -> STATUS_NEEDS_UPGRADE;
             case UNKNOWN_REVIEW -> STATUS_UNKNOWN;
-            case NO_JAKARTA_VERSION -> STATUS_NO_JAKARTA;
+            case NO_JAKARTA_VERSION, MAVEN_LOOKUP_FAILED -> STATUS_NO_JAKARTA;
             case MIGRATED -> STATUS_MIGRATED;
             default -> STATUS_UNKNOWN;
         };

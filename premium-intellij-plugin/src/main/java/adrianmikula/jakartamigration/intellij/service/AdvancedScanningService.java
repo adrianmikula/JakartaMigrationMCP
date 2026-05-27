@@ -32,8 +32,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+
+import com.intellij.openapi.project.Project;
 
 /**
  * Service for performing advanced scanning using premium core engine.
@@ -44,6 +47,7 @@ public class AdvancedScanningService {
 
     private final AdvancedScanningModule scanningModule;
     private final ThirdPartyLibScanner thirdPartyLibScanner;
+    private final Project project;
 
     // Cache for the last scan results using SoftReference to prevent OOM
     private java.lang.ref.SoftReference<AdvancedScanSummary> cachedSummaryRef = new java.lang.ref.SoftReference<>(null);
@@ -58,12 +62,26 @@ public class AdvancedScanningService {
     // Use a bounded thread pool to control memory usage
     private final java.util.concurrent.ExecutorService scanExecutor = java.util.concurrent.Executors
             .newFixedThreadPool(MAX_PARALLEL_SCANS);
+    
+    // Deduplication for build tool error notifications (project path -> last notification time)
+    private static final Map<String, Long> buildToolNotificationTimestamps = new ConcurrentHashMap<>();
+    private static final long NOTIFICATION_DEDUPLICATION_MS = 5 * 60 * 1000; // 5 minutes
 
-    public AdvancedScanningService(RecipeService recipeService) {
+    public AdvancedScanningService(RecipeService recipeService, Project project) {
         this.scanningModule = new AdvancedScanningModule(recipeService);
         this.thirdPartyLibScanner = scanningModule.getThirdPartyLibScanner();
+        this.project = project;
 
         LOG.info("AdvancedScanningService initialized with parallel scanning and memory optimizations");
+    }
+    
+    /**
+     * Legacy constructor for backward compatibility.
+     * @deprecated Use the constructor with Project parameter for proper notification support.
+     */
+    @Deprecated
+    public AdvancedScanningService(RecipeService recipeService) {
+        this(recipeService, null);
     }
 
     /**
@@ -437,17 +455,56 @@ public class AdvancedScanningService {
         // Check if build tools are available before scanning
         if (!isBuildToolAvailable()) {
             LOG.warn("Maven and Gradle are not available. Skipping transitive dependency scan.");
-            // Show a single notification balloon
-            NotificationHelper.showError(
-                null,
-                "Build Tools Not Found",
-                "Maven and/or Gradle are not installed. Transitive dependency scanning requires these tools. " +
-                "Please install Maven (https://maven.apache.org/download.cgi) or Gradle (https://gradle.org/install/) to enable deep scanning."
-            );
+            // Show a single notification balloon with deduplication
+            showBuildToolNotification();
             return TransitiveDependencyProjectScanResult.empty();
         }
         
-        return scanningModule.getTransitiveDependencyScanner().scanProject(buildFiles);
+        TransitiveDependencyProjectScanResult result = scanningModule.getTransitiveDependencyScanner().scanProject(buildFiles);
+        
+        // Check if there were command errors during scanning
+        if (result.isHadCommandNotFoundError()) {
+            LOG.warn("Command errors detected during transitive dependency scanning. Files with errors: " + result.getFilesWithCommandErrors());
+            showBuildToolNotification();
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Shows a notification about missing build tools with deduplication.
+     * Notifications are throttled to once per 5 minutes per project.
+     */
+    private void showBuildToolNotification() {
+        if (project == null) {
+            LOG.debug("Cannot show notification: project is null");
+            return;
+        }
+        
+        String projectKey = project.getBasePath();
+        if (projectKey == null) {
+            projectKey = project.getName();
+        }
+        
+        long now = System.currentTimeMillis();
+        Long lastNotification = buildToolNotificationTimestamps.get(projectKey);
+        
+        if (lastNotification != null && (now - lastNotification) < NOTIFICATION_DEDUPLICATION_MS) {
+            LOG.debug("Skipping build tool notification - already shown within last 5 minutes for project: " + projectKey);
+            return;
+        }
+        
+        // Update timestamp and show notification
+        buildToolNotificationTimestamps.put(projectKey, now);
+        
+        NotificationHelper.showError(
+            project,
+            "Build Tools Not Found",
+            "Maven and/or Gradle commands failed during transitive dependency scanning. " +
+            "Deep dependency analysis fell back to regex parsing. " +
+            "Please ensure Maven (https://maven.apache.org/download.cgi) or Gradle (https://gradle.org/install/) is properly installed."
+        );
+        LOG.info("Build tool notification shown for project: " + projectKey);
     }
     
     public ConfigFileProjectScanResult scanForConfigFiles(List<Path> configFiles) {
@@ -1046,7 +1103,7 @@ public class AdvancedScanningService {
             case BLACKLISTED, BYTECODE_SCAN_JAVAX, TRANSITIVE_INCOMPATIBLE -> "upgrade-available";
             case MAVEN_LOOKUP_NONE -> "no-jakarta-version";
             case BYTECODE_SCAN_MIXED -> "requires-migration";
-            case BYTECODE_SCAN_UNKNOWN, UNKNOWN -> "unknown";
+            case BYTECODE_SCAN_UNKNOWN, UNKNOWN, BUILD_TOOL_ERROR -> "unknown";
         };
     }
 
@@ -1173,9 +1230,9 @@ public class AdvancedScanningService {
         return switch (reason) {
             case WHITELISTED, BYTECODE_SCAN_JAKARTA, MAVEN_LOOKUP_FOUND -> DependencyMigrationStatus.COMPATIBLE;
             case BLACKLISTED, BYTECODE_SCAN_JAVAX, TRANSITIVE_INCOMPATIBLE -> DependencyMigrationStatus.NEEDS_UPGRADE;
-            case MAVEN_LOOKUP_NONE -> DependencyMigrationStatus.NO_JAKARTA_VERSION;
+            case MAVEN_LOOKUP_NONE -> DependencyMigrationStatus.MAVEN_LOOKUP_FAILED;
             case BYTECODE_SCAN_MIXED -> DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION;
-            case BYTECODE_SCAN_UNKNOWN, UNKNOWN -> DependencyMigrationStatus.UNKNOWN_REVIEW;
+            case BYTECODE_SCAN_UNKNOWN, UNKNOWN, BUILD_TOOL_ERROR -> DependencyMigrationStatus.UNKNOWN_REVIEW;
         };
     }
 }

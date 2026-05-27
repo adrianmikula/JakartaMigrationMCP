@@ -528,5 +528,135 @@ public class AdvancedScanningServiceTest {
         // Should set the first alternative version as recommended
         assertThat(infos.get(0).getRecommendedVersion()).isEqualTo("2.0");
     }
+
+    @Test
+    public void testTransitiveDependencyProjectScanResult_withErrorTracking() {
+        // Test that project scan result properly reports error tracking fields
+        TransitiveDependencyScanResult fileResult = new TransitiveDependencyScanResult(
+            Path.of("pom.xml"),
+            Collections.emptyList(),
+            "maven",
+            Collections.emptySet(),
+            Collections.emptyList(),
+            "mvn command not found"
+        );
+        
+        TransitiveDependencyProjectScanResult result = new TransitiveDependencyProjectScanResult(
+            List.of(fileResult),
+            1, // totalBuildFilesScanned
+            0, // filesWithJavaxDependencies
+            0, // totalJavaxDependencies
+            1, // filesWithCommandErrors
+            true, // hadCommandNotFoundError
+            "Build tool not found" // errorMessage
+        );
+        
+        assertThat(result.getFilesWithCommandErrors()).isEqualTo(1);
+        assertThat(result.isHadCommandNotFoundError()).isTrue();
+        assertThat(result.getErrorMessage()).isEqualTo("Build tool not found");
+    }
+
+    @Test
+    public void testTransitiveDependencyProjectScanResult_defaultConstructorHasNoErrors() {
+        // Test that default constructor initializes error fields properly
+        TransitiveDependencyProjectScanResult result = new TransitiveDependencyProjectScanResult(
+            Collections.emptyList(),
+            0,
+            0,
+            0
+        );
+        
+        assertThat(result.getFilesWithCommandErrors()).isEqualTo(0);
+        assertThat(result.isHadCommandNotFoundError()).isFalse();
+        assertThat(result.getErrorMessage()).isNull();
+    }
+
+    @Test
+    public void testTransitiveDependencyScanResult_hasErrorWithMessage() {
+        TransitiveDependencyScanResult result = new TransitiveDependencyScanResult(
+            Path.of("pom.xml"),
+            Collections.emptyList(),
+            "maven",
+            Collections.emptySet(),
+            Collections.emptyList(),
+            "Command failed"
+        );
+        
+        assertThat(result.hasError()).isTrue();
+        assertThat(result.getErrorMessage()).isEqualTo("Command failed");
+    }
+
+    @Test
+    public void testTransitiveDependencyScanResult_noErrorWhenMessageNull() {
+        TransitiveDependencyScanResult result = new TransitiveDependencyScanResult(
+            Path.of("pom.xml"),
+            Collections.emptyList(),
+            "maven",
+            Collections.emptySet(),
+            Collections.emptyList(),
+            null
+        );
+        
+        assertThat(result.hasError()).isFalse();
+        assertThat(result.getErrorMessage()).isNull();
+    }
+
+    @Test
+    public void testTransitiveDependencyScanResult_noErrorWhenMessageEmpty() {
+        TransitiveDependencyScanResult result = new TransitiveDependencyScanResult(
+            Path.of("pom.xml"),
+            Collections.emptyList(),
+            "maven",
+            Collections.emptySet(),
+            Collections.emptyList(),
+            ""
+        );
+        
+        assertThat(result.hasError()).isFalse();
+        assertThat(result.getErrorMessage()).isEqualTo("");
+    }
+
+    @Test
+    public void testScanReason_BUILD_TOOL_ERROR_Exists() {
+        // Verify BUILD_TOOL_ERROR scan reason exists and can be used
+        assertThat(ScanReason.BUILD_TOOL_ERROR).isNotNull();
+        assertThat(ScanReason.BUILD_TOOL_ERROR.name()).isEqualTo("BUILD_TOOL_ERROR");
+    }
+
+    @Test
+    public void testTransitiveDependencyUsage_withBuildToolErrorScanReason() {
+        TransitiveDependencyUsage usage = new TransitiveDependencyUsage(
+            "test-artifact",
+            "test-group",
+            "1.0",
+            null, // javaxPackage
+            "high", // severity
+            "upgrade", // recommendation
+            "compile", // scope
+            false, // transitive
+            0, // depth
+            null, // alternativeVersions
+            ScanReason.BUILD_TOOL_ERROR, // scanReason
+            "Build tool command failed", // detailMessage
+            0.5, // confidence
+            false // incompatibilityFromTransitive
+        );
+        
+        assertThat(usage.getScanReason()).isEqualTo(ScanReason.BUILD_TOOL_ERROR);
+        assertThat(usage.getDetailMessage()).contains("Build tool");
+    }
+
+    @Test
+    public void testDetermineMigrationStatus_CoversBuildToolError() {
+        AdvancedScanningService service = createService();
+        
+        TransitiveDependencyUsage usage = new TransitiveDependencyUsage(
+            "a","g","1.0",null,null,null,null,false,0,null,
+            ScanReason.BUILD_TOOL_ERROR,null,0.0,false);
+        
+        // BUILD_TOOL_ERROR should map to a valid status (not null)
+        DependencyMigrationStatus status = service.determineMigrationStatus(usage);
+        assertThat(status).isNotNull();
+    }
 }
 

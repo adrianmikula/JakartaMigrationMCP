@@ -487,8 +487,7 @@ public class DependencyGraphComponent {
             edges.add(new GraphEdge(root, node, GraphEdge.EdgeType.DEPENDENCY, false));
         }
 
-        graphCanvas.setNodes(nodes);
-        graphCanvas.setEdges(edges);
+        graphCanvas.setNodesAndEdges(nodes, edges);
         
         // Auto-select optimal layout based on dependency count
         selectOptimalLayout(nodes.size());

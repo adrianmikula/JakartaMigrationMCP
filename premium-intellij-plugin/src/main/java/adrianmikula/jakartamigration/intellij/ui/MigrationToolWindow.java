@@ -131,8 +131,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
             this.refactorModule = new CodeRefactoringModule(this.store, this.projectStore);
             this.recipeService = this.refactorModule.getRecipeService();
             
-            // Initialize advanced scanning service with recipe service
-            this.advancedScanningService = new AdvancedScanningService(this.recipeService);
+            // Initialize advanced scanning service with recipe service and project for notifications
+            this.advancedScanningService = new AdvancedScanningService(this.recipeService, this.project);
             
             // Initialize credits service
             this.creditsService = new CreditsService();
@@ -606,6 +606,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             scanProgressBar = new JProgressBar(0, 100);
             scanProgressBar.setValue(0);
             scanProgressBar.setStringPainted(true);
+            scanProgressBar.setForeground(Color.WHITE);
             scanProgressBar.setString("Ready to scan");
             // Match progress bar height to button height
             scanProgressBar.setPreferredSize(new Dimension(300, btnHeight));

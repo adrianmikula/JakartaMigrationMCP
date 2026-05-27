@@ -15,6 +15,8 @@ public class HierarchicalLayoutStrategy implements GraphLayoutStrategy {
     @Override
     public void layout(List<GraphNode> nodes, List<GraphEdge> edges, int canvasWidth, int canvasHeight) {
         if (nodes.isEmpty()) return;
+        canvasWidth = canvasWidth > 0 ? canvasWidth : 800;
+        canvasHeight = canvasHeight > 0 ? canvasHeight : 600;
 
         // Build adjacency list for dependencies
         Map<String, List<GraphNode>> dependents = new HashMap<>();

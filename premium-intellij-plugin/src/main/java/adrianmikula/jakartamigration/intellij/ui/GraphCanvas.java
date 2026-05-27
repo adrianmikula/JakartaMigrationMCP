@@ -89,6 +89,22 @@ public class GraphCanvas extends JPanel {
         repaint();
     }
 
+    public void setNodesAndEdges(List<GraphNode> nodes, List<GraphEdge> edges) {
+        this.nodes.clear();
+        this.nodes.addAll(nodes);
+        this.edges.clear();
+        this.edges.addAll(edges);
+        applyLayout();
+        repaint();
+    }
+
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        applyLayout();
+        repaint();
+    }
+
     public void setLayoutStrategy(GraphLayoutStrategy strategy) {
         this.layoutStrategy = strategy;
         applyLayout();
