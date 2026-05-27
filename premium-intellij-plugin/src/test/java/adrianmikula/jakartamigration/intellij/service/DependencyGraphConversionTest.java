@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import adrianmikula.jakartamigration.advancedscanning.domain.ScanReason;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyProjectScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyEdge;
@@ -194,7 +195,15 @@ public class DependencyGraphConversionTest {
             "1.0",
             null, // javaxPackage
             "high", // severity
-            "upgrade" // recommendation
+            "upgrade", // recommendation
+            "compile", // scope
+            false, // transitive
+            0, // depth
+            null, // alternativeVersions
+            ScanReason.BYTECODE_SCAN_MIXED, // scanReason
+            "Mixed javax and jakarta usage detected", // detailMessage
+            0.75, // confidence
+            false // incompatibilityFromTransitive
         );
         
         TransitiveDependencyScanResult fileResult = new TransitiveDependencyScanResult(
@@ -234,18 +243,34 @@ public class DependencyGraphConversionTest {
             "dep1",
             "com.example",
             "1.0",
-            null,
-            "low",
-            null
+            null, // javaxPackage
+            "low", // severity
+            null, // recommendation
+            "compile", // scope
+            false, // transitive
+            0, // depth
+            null, // alternativeVersions
+            ScanReason.BYTECODE_SCAN_JAKARTA, // scanReason - compatible
+            "Pure Jakarta EE implementation", // detailMessage
+            0.95, // confidence
+            false // incompatibilityFromTransitive
         );
         
         TransitiveDependencyUsage usage2 = new TransitiveDependencyUsage(
             "dep2",
             "com.example",
             "2.0",
-            null,
-            "medium",
-            null
+            null, // javaxPackage
+            "medium", // severity
+            null, // recommendation
+            "compile", // scope
+            true, // transitive
+            1, // depth
+            null, // alternativeVersions
+            ScanReason.BYTECODE_SCAN_JAVAX, // scanReason - needs upgrade
+            "Uses javax.* packages", // detailMessage
+            0.85, // confidence
+            false // incompatibilityFromTransitive
         );
         
         TransitiveDependencyScanResult fileResult = new TransitiveDependencyScanResult(
