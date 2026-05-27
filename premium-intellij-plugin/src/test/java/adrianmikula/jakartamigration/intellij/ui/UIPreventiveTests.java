@@ -2,10 +2,6 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import com.intellij.openapi.project.Project;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Minimal UI tests focused on core component initialization and robustness.
@@ -13,48 +9,49 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * NOTE: These tests require full IntelliJ Platform environment.
  */
-@org.junit.jupiter.api.Disabled("Requires full IntelliJ Platform environment - run in IDE")
+@SuppressWarnings("deprecation")
 public class UIPreventiveTests extends BasePlatformTestCase {
-    
-    @Test
-    @DisplayName("DashboardComponent should initialize without exceptions")
-    void testDashboardComponentInitialization() {
+    public void testDashboardComponentInitialization() {
         Project project = getProject();
-        assertDoesNotThrow(() -> {
+        try {
             DashboardComponent dashboard = new DashboardComponent(project, null, null);
-            assertNotNull(dashboard.getPanel());
-        });
+            if (dashboard.getPanel() == null) {
+                throw new RuntimeException("Panel should not be null");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("DashboardComponent initialization failed: " + e.getMessage(), e);
+        }
     }
-    
-    @Test
-    @DisplayName("DependenciesTableComponent should initialize without exceptions")
-    void testDependenciesTableComponentInitialization() {
+    public void testDependenciesTableComponentInitialization() {
         Project project = getProject();
-        assertDoesNotThrow(() -> {
+        try {
             DependenciesTableComponent component = new DependenciesTableComponent(project);
-            assertNotNull(component.getPanel());
-        });
+            if (component.getPanel() == null) {
+                throw new RuntimeException("Panel should not be null");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("DependenciesTableComponent initialization failed: " + e.getMessage(), e);
+        }
     }
-    
-    @Test
-    @DisplayName("PlatformsTabComponent should initialize without exceptions")
-    void testPlatformsTabComponentInitialization() {
+    public void testPlatformsTabComponentInitialization() {
         Project project = getProject();
-        assertDoesNotThrow(() -> {
+        try {
             PlatformsTabComponent component = new PlatformsTabComponent(project);
-            assertNotNull(component.getPanel());
-        });
+            if (component.getPanel() == null) {
+                throw new RuntimeException("Panel should not be null");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("PlatformsTabComponent initialization failed: " + e.getMessage(), e);
+        }
     }
-    
-        
-    @Test
-    @DisplayName("UI components should handle null services gracefully")
-    void testNullServiceHandling() {
+    public void testNullServiceHandling() {
         Project project = getProject();
-        assertDoesNotThrow(() -> {
+        try {
             // Components should handle null services without crashing
             new DashboardComponent(project, null, null);
             new DependenciesTableComponent(project);
-        });
+        } catch (Exception e) {
+            throw new RuntimeException("Null service handling failed: " + e.getMessage(), e);
+        }
     }
 }

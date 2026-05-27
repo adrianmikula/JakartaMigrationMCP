@@ -5,9 +5,6 @@ import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.intellij.ui.MigrationPhasesComponent;
 import adrianmikula.jakartamigration.intellij.ui.MigrationStrategyComponent.MigrationStrategy;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.jupiter.api.DisplayName;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
@@ -22,15 +19,11 @@ public class PhaseContentIntegrationTest extends BasePlatformTestCase {
 
     private MigrationPhasesComponent phasesComponent;
 
-    @Before
     @Override
     public void setUp() throws Exception {
         super.setUp();
         phasesComponent = new MigrationPhasesComponent(getProject());
     }
-
-    @Test
-    @DisplayName("Component should load expanded phase content from properties")
     public void testExpandedPhaseContentLoading() {
         // Test that expanded phase descriptions are loaded correctly
         phasesComponent.getStrategyComponent().setSelectedStrategy(MigrationStrategy.INCREMENTAL);
@@ -48,9 +41,6 @@ public class PhaseContentIntegrationTest extends BasePlatformTestCase {
         assertThat(phasesComponent.getPhaseTabs().getTitleAt(2)).isEqualTo("Testing & Verification");
         assertThat(phasesComponent.getPhaseTabs().getTitleAt(3)).isEqualTo("Production Rollout");
     }
-
-    @Test
-    @DisplayName("Component should handle complex dependency scenarios")
     public void testComplexDependencyScenarios() {
         // Test with multiple dependencies requiring migration
         List<DependencyInfo> complexDeps = new ArrayList<>();
@@ -70,9 +60,6 @@ public class PhaseContentIntegrationTest extends BasePlatformTestCase {
         // Verify phase 1 content is updated with dependency information
         assertThat(phasesComponent.getPhaseTabs().getTabCount()).isGreaterThan(0);
     }
-
-    @Test
-    @DisplayName("Phase content should be accessible for screen readers")
     public void testPhaseContentAccessibility() {
         phasesComponent.getStrategyComponent().setSelectedStrategy(MigrationStrategy.BIG_BANG);
         
@@ -85,9 +72,6 @@ public class PhaseContentIntegrationTest extends BasePlatformTestCase {
         // The expanded descriptions require proper accessibility features
         assertThat(phasesComponent.getPhaseTabs().getTabCount()).isGreaterThan(0);
     }
-
-    @Test
-    @DisplayName("Component should maintain state across strategy changes")
     public void testStateManagementAcrossStrategies() {
         // Test state persistence when switching strategies
         phasesComponent.getStrategyComponent().setSelectedStrategy(MigrationStrategy.MICROSERVICES);
@@ -105,9 +89,6 @@ public class PhaseContentIntegrationTest extends BasePlatformTestCase {
         assertThat(initialPhaseCount).isEqualTo(finalPhaseCount);
         assertThat(finalPhaseCount).isEqualTo(adapterPhaseCount);
     }
-
-    @Test
-    @DisplayName("Phase content should handle special characters correctly")
     public void testSpecialCharacterHandling() {
         phasesComponent.getStrategyComponent().setSelectedStrategy(MigrationStrategy.TRANSFORM);
         
@@ -120,9 +101,6 @@ public class PhaseContentIntegrationTest extends BasePlatformTestCase {
         // The expanded descriptions may contain special characters from 2026 standards
         assertThat(phasesComponent.getPhaseTabs().getTabCount()).isGreaterThan(0);
     }
-
-    @Test
-    @DisplayName("Component should perform well with large phase descriptions")
     public void testPerformanceWithLargeDescriptions() {
         // Test performance with all strategies having expanded content
         long startTime = System.currentTimeMillis();
@@ -138,9 +116,6 @@ public class PhaseContentIntegrationTest extends BasePlatformTestCase {
         // Should complete within reasonable time even with expanded content
         assertThat(duration).isLessThan(10000); // 10 seconds max for all strategies
     }
-
-    @Test
-    @DisplayName("Phase content validation should work with validator")
     public void testPhaseContentValidation() {
         // Test integration with PhaseContentValidator
         phasesComponent.getStrategyComponent().setSelectedStrategy(MigrationStrategy.INCREMENTAL);

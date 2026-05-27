@@ -6,7 +6,7 @@ Accepted
 ## Context
 The deep transitive dependency and bytecode scanning implementation had several performance bottlenecks that significantly impacted scan times, especially for projects with many unknown dependencies:
 
-1. **Sequential JAR scanning**: JAR resolution and bytecode scanning were performed sequentially in the main loop for each UNKNOWN/REVIEW_REQUIRED dependency, causing I/O and ASM parsing to block on each dependency.
+1. **Sequential JAR scanning**: JAR resolution and bytecode scanning were performed sequentially in the main loop for each UNKNOWN dependency, causing I/O and ASM parsing to block on each dependency.
 
 2. **Sequential Maven Central lookups**: Network-bound Maven Central lookups were performed sequentially one at a time instead of in parallel.
 

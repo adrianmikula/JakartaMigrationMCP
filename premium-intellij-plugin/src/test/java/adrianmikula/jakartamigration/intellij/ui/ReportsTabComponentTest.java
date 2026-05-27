@@ -1,3 +1,4 @@
+
 package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
@@ -6,8 +7,6 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import com.intellij.openapi.project.Project;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -16,7 +15,6 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
@@ -24,7 +22,7 @@ import static org.mockito.Mockito.*;
  *
  * NOTE: These tests require full IntelliJ Platform environment.
  */
-@org.junit.jupiter.api.Disabled("Requires full IntelliJ Platform environment - run in IDE")
+@SuppressWarnings("deprecation")
 public class ReportsTabComponentTest extends BasePlatformTestCase {
     
     @Mock
@@ -36,37 +34,40 @@ public class ReportsTabComponentTest extends BasePlatformTestCase {
     private ReportsTabComponent reportsTabComponent;
     
     @Override
-    @BeforeEach
     public void setUp() throws Exception {
         super.setUp();
         MockitoAnnotations.openMocks(this);
         reportsTabComponent = new ReportsTabComponent(getProject(), mockMigrationAnalysisService, mockAdvancedScanningService);
     }
-    
-    @Test
     public void testGetPanel() {
         // Act
         JPanel panel = reportsTabComponent.getPanel();
         
         // Assert
-        assertNotNull(panel);
-        assertTrue(panel.isVisible());
+        if (panel == null) {
+            throw new RuntimeException("Panel should not be null");
+        }
+        if (!panel.isVisible()) {
+            throw new RuntimeException("Panel should be visible");
+        }
     }
-    
-    @Test
     public void testRefresh() {
         // Act & Assert - Should not throw any exceptions
-        assertDoesNotThrow(() -> reportsTabComponent.refresh());
+        try {
+            reportsTabComponent.refresh();
+        } catch (Exception e) {
+            throw new RuntimeException("Refresh should not throw", e);
+        }
     }
-    
-    @Test
     public void testComponentInitialization() {
         // Assert
-        assertNotNull(reportsTabComponent);
-        assertNotNull(reportsTabComponent.getPanel());
+        if (reportsTabComponent == null) {
+            throw new RuntimeException("Component should not be null");
+        }
+        if (reportsTabComponent.getPanel() == null) {
+            throw new RuntimeException("Panel should not be null");
+        }
     }
-    
-    @Test
     public void testRefactoringActionReportContinuesWithoutAnalysisReport() {
         // Arrange - Mock dependency graph with data but no analysis report
         DependencyGraph mockDependencyGraph = mock(DependencyGraph.class);
@@ -83,15 +84,19 @@ public class ReportsTabComponentTest extends BasePlatformTestCase {
         // Act & Assert - Test that component can be created without errors
         // This test verifies that the fix allows report generation to continue
         // even when no analysis report exists, showing a warning instead
-        assertDoesNotThrow(() -> {
+        try {
             // The component should be created successfully
             // and the warning logic should be in place
-            assertNotNull(reportsTabComponent);
-            assertNotNull(reportsTabComponent.getPanel());
-        });
+            if (reportsTabComponent == null) {
+                throw new RuntimeException("Component should not be null");
+            }
+            if (reportsTabComponent.getPanel() == null) {
+                throw new RuntimeException("Panel should not be null");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Test failed", e);
+        }
     }
-    
-    @Test
     public void testRefactoringActionReportGeneratesWithScanDataOnly() {
         // Arrange - Mock dependency graph and scan results but no analysis report
         DependencyGraph mockDependencyGraph = mock(DependencyGraph.class);
@@ -106,15 +111,19 @@ public class ReportsTabComponentTest extends BasePlatformTestCase {
         when(mockAdvancedScanningService.hasCachedResults()).thenReturn(true);
         
         // Act & Assert - Test that component handles scan data gracefully
-        assertDoesNotThrow(() -> {
+        try {
             // The component should be created successfully
             // and should handle scan data without analysis report
-            assertNotNull(reportsTabComponent);
-            assertNotNull(reportsTabComponent.getPanel());
-        });
+            if (reportsTabComponent == null) {
+                throw new RuntimeException("Component should not be null");
+            }
+            if (reportsTabComponent.getPanel() == null) {
+                throw new RuntimeException("Panel should not be null");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Test failed", e);
+        }
     }
-    
-    @Test
     public void testEclipseProjectWithoutBuildFilesHandledGracefully() {
         // Arrange - Mock the "No build file found" exception for Eclipse projects
         when(getProject().getBasePath()).thenReturn("E:/Source/JakartaMigrationMCP/examples/old/hard/javaee-legacy-app-example-master");
@@ -128,15 +137,19 @@ public class ReportsTabComponentTest extends BasePlatformTestCase {
         // Act & Assert - Should not throw an exception when no build file exists
         // This test verifies that the fix prevents the "No build file found" error
         // and allows report generation to continue with available data
-        assertDoesNotThrow(() -> {
+        try {
             // The component should be created successfully
             // and should handle Eclipse projects gracefully
-            assertNotNull(reportsTabComponent);
-            assertNotNull(reportsTabComponent.getPanel());
-        });
+            if (reportsTabComponent == null) {
+                throw new RuntimeException("Component should not be null");
+            }
+            if (reportsTabComponent.getPanel() == null) {
+                throw new RuntimeException("Panel should not be null");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Test failed", e);
+        }
     }
-    
-    @Test
     public void testRiskAnalysisReportHandlesEclipseProjectGracefully() {
         // Arrange - Mock the "No build file found" exception for Eclipse projects
         when(getProject().getBasePath()).thenReturn("E:/Source/JakartaMigrationMCP/examples/old/hard/javaee-legacy-app-example-master");
@@ -150,11 +163,17 @@ public class ReportsTabComponentTest extends BasePlatformTestCase {
         // Act & Assert - Should not throw an exception for Risk Analysis report
         // This test verifies that both Risk Analysis and Refactoring Action reports
         // handle Eclipse projects without build files gracefully
-        assertDoesNotThrow(() -> {
+        try {
             // The component should be created successfully
             // and should handle Eclipse projects for Risk Analysis
-            assertNotNull(reportsTabComponent);
-            assertNotNull(reportsTabComponent.getPanel());
-        });
+            if (reportsTabComponent == null) {
+                throw new RuntimeException("Component should not be null");
+            }
+            if (reportsTabComponent.getPanel() == null) {
+                throw new RuntimeException("Panel should not be null");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Test failed", e);
+        }
     }
 }

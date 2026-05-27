@@ -5,6 +5,7 @@ import adrianmikula.jakartamigration.advancedscanning.service.*;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyTreeCommandExecutorImpl;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import adrianmikula.jakartamigration.intellij.ui.ScanProgressListener;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import adrianmikula.jakartamigration.intellij.ui.ThrottledProgressListener;
 import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 import adrianmikula.jakartamigration.advancedscanning.domain.DockerCicdUsage;
@@ -63,6 +64,16 @@ public class AdvancedScanningService {
         this.thirdPartyLibScanner = scanningModule.getThirdPartyLibScanner();
 
         LOG.info("AdvancedScanningService initialized with parallel scanning and memory optimizations");
+    }
+
+    /**
+     * Checks if Maven or Gradle is available on the system.
+     * @return true if at least one build tool is available
+     */
+    private boolean isBuildToolAvailable() {
+        boolean mavenAvailable = DependencyTreeCommandExecutorImpl.isMavenAvailable();
+        boolean gradleAvailable = DependencyTreeCommandExecutorImpl.isGradleAvailable();
+        return mavenAvailable || gradleAvailable;
     }
 
     /**
@@ -422,6 +433,20 @@ public class AdvancedScanningService {
     
     public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(List<Path> buildFiles) {
         LOG.info("Scanning " + buildFiles.size() + " build files for Transitive Dependencies");
+        
+        // Check if build tools are available before scanning
+        if (!isBuildToolAvailable()) {
+            LOG.warn("Maven and Gradle are not available. Skipping transitive dependency scan.");
+            // Show a single notification balloon
+            NotificationHelper.showError(
+                null,
+                "Build Tools Not Found",
+                "Maven and/or Gradle are not installed. Transitive dependency scanning requires these tools. " +
+                "Please install Maven (https://maven.apache.org/download.cgi) or Gradle (https://gradle.org/install/) to enable deep scanning."
+            );
+            return TransitiveDependencyProjectScanResult.empty();
+        }
+        
         return scanningModule.getTransitiveDependencyScanner().scanProject(buildFiles);
     }
     
@@ -511,6 +536,11 @@ public class AdvancedScanningService {
             SerializationCacheProjectScanResult serializationCacheResult = scanForSerializationCache(allFiles.get(FileCategory.JAVA));
             ReflectionUsageProjectScanResult reflectionUsageResult = scanForReflectionUsage(allFiles.get(FileCategory.JAVA));
             ThirdPartyLibProjectScanResult thirdPartyLibResult = scanForThirdPartyLib(allFiles.get(FileCategory.BUILD));
+            TransitiveDependencyProjectScanResult transitiveDependencyResult = scanForTransitiveDependencies(allFiles.get(FileCategory.BUILD));
+            if (progressListener != null && transitiveDependencyResult != null && !transitiveDependencyResult.getFileResults().isEmpty()) {
+                int totalFindings = transitiveDependencyResult.getTotalJavaxDependencies();
+                progressListener.onSubScanComplete("Transitive Dependencies", totalFindings);
+            }
             
             AdvancedScanSummary summary = new AdvancedScanSummary(
                     jpaResult,
@@ -522,7 +552,7 @@ public class AdvancedScanningService {
                     deprecatedApiResult,
                     securityApiResult,
                     jmsMessagingResult,
-                    null, // transitiveDependencyResult - EXCLUDED for quick scan
+                    transitiveDependencyResult,
                     configFileResult,
                     classloaderModuleResult,
                     loggingMetricsResult,
@@ -1015,7 +1045,7 @@ public class AdvancedScanningService {
             case WHITELISTED, BYTECODE_SCAN_JAKARTA, MAVEN_LOOKUP_FOUND -> "compatible";
             case BLACKLISTED, BYTECODE_SCAN_JAVAX, TRANSITIVE_INCOMPATIBLE -> "upgrade-available";
             case MAVEN_LOOKUP_NONE -> "no-jakarta-version";
-            case BYTECODE_SCAN_MIXED, REVIEW_REQUIRED -> "requires-migration";
+            case BYTECODE_SCAN_MIXED -> "requires-migration";
             case BYTECODE_SCAN_UNKNOWN, UNKNOWN -> "unknown";
         };
     }
@@ -1144,7 +1174,7 @@ public class AdvancedScanningService {
             case WHITELISTED, BYTECODE_SCAN_JAKARTA, MAVEN_LOOKUP_FOUND -> DependencyMigrationStatus.COMPATIBLE;
             case BLACKLISTED, BYTECODE_SCAN_JAVAX, TRANSITIVE_INCOMPATIBLE -> DependencyMigrationStatus.NEEDS_UPGRADE;
             case MAVEN_LOOKUP_NONE -> DependencyMigrationStatus.NO_JAKARTA_VERSION;
-            case BYTECODE_SCAN_MIXED, REVIEW_REQUIRED -> DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION;
+            case BYTECODE_SCAN_MIXED -> DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION;
             case BYTECODE_SCAN_UNKNOWN, UNKNOWN -> DependencyMigrationStatus.UNKNOWN_REVIEW;
         };
     }

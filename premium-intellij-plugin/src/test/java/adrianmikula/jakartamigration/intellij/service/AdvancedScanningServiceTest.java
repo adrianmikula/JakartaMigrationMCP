@@ -106,8 +106,8 @@ public class AdvancedScanningServiceTest {
 
         assertThat(service.determineMigrationStatus(
                 new TransitiveDependencyUsage("a","g","1.0",null,null,null,null,false,0,null,
-                        ScanReason.REVIEW_REQUIRED,null,0.0,false)))
-                .isEqualTo(DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION);
+                        ScanReason.UNKNOWN,null,0.0,false)))
+                .isEqualTo(DependencyMigrationStatus.UNKNOWN_REVIEW);
     }
 
     @Test

@@ -3,9 +3,6 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
 import com.intellij.openapi.project.Project;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.jupiter.api.DisplayName;
 
 import javax.swing.*;
 import java.awt.*;
@@ -22,16 +19,13 @@ public class MigrationToolWindowPermissionTest extends BasePlatformTestCase {
     
     private MigrationToolWindow.MigrationToolWindowContent toolWindowContent;
     
-    @Before
     @Override
     public void setUp() throws Exception {
         super.setUp();
         mockUserIdentificationService = mock(UserIdentificationService.class);
     }
     
-    @Test
-    @DisplayName("Should show notification when permission not requested")
-    public void shouldShowNotificationWhenPermissionNotRequested() {
+    public void testShouldShowNotificationWhenPermissionNotRequested() {
         when(mockUserIdentificationService.isUsagePermissionRequested()).thenReturn(false);
         Project project = getProject();
         
@@ -58,9 +52,7 @@ public class MigrationToolWindowPermissionTest extends BasePlatformTestCase {
         assertThat(noLink).as("No link should be present").isNotNull();
     }
     
-    @Test
-    @DisplayName("Should not show notification when permission already requested")
-    public void shouldNotShowNotificationWhenPermissionAlreadyRequested() {
+    public void testShouldNotShowNotificationWhenPermissionAlreadyRequested() {
         when(mockUserIdentificationService.isUsagePermissionRequested()).thenReturn(true);
         Project project = getProject();
         
@@ -78,9 +70,7 @@ public class MigrationToolWindowPermissionTest extends BasePlatformTestCase {
         assertThat(notificationPanel).as("Notification panel should not be present").isNull();
     }
     
-    @Test
-    @DisplayName("Should enable analytics when user clicks Yes")
-    public void shouldEnableAnalyticsWhenUserClicksYes() {
+    public void testShouldEnableAnalyticsWhenUserClicksYes() {
         when(mockUserIdentificationService.isUsagePermissionRequested()).thenReturn(false);
         Project project = getProject();
         
@@ -104,9 +94,7 @@ public class MigrationToolWindowPermissionTest extends BasePlatformTestCase {
         assertThat(notificationPanel.isVisible()).as("Notification should be hidden after user response").isFalse();
     }
     
-    @Test
-    @DisplayName("Should disable analytics when user clicks No")
-    public void shouldDisableAnalyticsWhenUserClicksNo() {
+    public void testShouldDisableAnalyticsWhenUserClicksNo() {
         when(mockUserIdentificationService.isUsagePermissionRequested()).thenReturn(false);
         Project project = getProject();
         
@@ -130,9 +118,7 @@ public class MigrationToolWindowPermissionTest extends BasePlatformTestCase {
         assertThat(notificationPanel.isVisible()).as("Notification should be hidden after user response").isFalse();
     }
     
-    @Test
-    @DisplayName("Should mark permission as requested even if user clicks No")
-    public void shouldMarkPermissionAsRequestedEvenWhenUserClicksNo() {
+    public void testShouldMarkPermissionAsRequestedEvenWhenUserClicksNo() {
         when(mockUserIdentificationService.isUsagePermissionRequested()).thenReturn(false);
         Project project = getProject();
         
@@ -166,9 +152,7 @@ public class MigrationToolWindowPermissionTest extends BasePlatformTestCase {
         assertThat(newNotificationPanel).as("Notification should not appear on subsequent initialization").isNull();
     }
     
-    @Test
-    @DisplayName("Should position notification at top of content panel")
-    public void shouldPositionNotificationAtTopOfContentPanel() {
+    public void testShouldPositionNotificationAtTopOfContentPanel() {
         when(mockUserIdentificationService.isUsagePermissionRequested()).thenReturn(false);
         Project project = getProject();
         

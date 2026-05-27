@@ -3,15 +3,11 @@ package adrianmikula.jakartamigration.intellij;
 import adrianmikula.jakartamigration.intellij.license.SafeLicenseChecker;
 import com.intellij.openapi.project.Project;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.Test;
-import org.junit.Before;
-import org.junit.After;
 import org.mockito.MockedStatic;
 
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
 
 /**
@@ -27,15 +23,13 @@ public class LicenseCheckStartupActivityTest extends BasePlatformTestCase {
 
     private LicenseCheckStartupActivity startupActivity;
     private MockedStatic<SafeLicenseChecker> mockedSafeLicenseChecker;
-    
-    @Before
+    @Override
     public void setUp() throws Exception {
         super.setUp();
         startupActivity = new LicenseCheckStartupActivity();
         mockedSafeLicenseChecker = mockStatic(SafeLicenseChecker.class);
     }
-    
-    @After
+    @Override
     public void tearDown() {
         if (mockedSafeLicenseChecker != null) {
             mockedSafeLicenseChecker.close();
@@ -46,8 +40,6 @@ public class LicenseCheckStartupActivityTest extends BasePlatformTestCase {
             // Ignore cleanup errors
         }
     }
-    
-    @Test
     public void testRunActivity_NeverBlocks() {
         // This test verifies that runActivity never blocks
         Project project = getProject();
@@ -66,18 +58,14 @@ public class LicenseCheckStartupActivityTest extends BasePlatformTestCase {
         mockedSafeLicenseChecker.verify(() -> 
             SafeLicenseChecker.checkLicenseOnStartup(project), times(1));
     }
-    
-    @Test
     public void testRunActivity_HandlesNullProject() {
         // Test with null project - should not throw
         try {
             startupActivity.runActivity(null);
         } catch (Exception e) {
-            fail("Should not throw exception for null project: " + e.getMessage());
+            throw new RuntimeException("Should not throw exception for null project: " + e.getMessage(), e);
         }
     }
-    
-    @Test
     public void testRunActivity_HandlesExceptionsInSafeLicenseChecker() {
         // Given
         Project project = getProject();
@@ -88,11 +76,9 @@ public class LicenseCheckStartupActivityTest extends BasePlatformTestCase {
         try {
             startupActivity.runActivity(project);
         } catch (Exception e) {
-            fail("Should not throw exception when SafeLicenseChecker throws: " + e.getMessage());
+            throw new RuntimeException("Should not throw exception when SafeLicenseChecker throws: " + e.getMessage(), e);
         }
     }
-    
-    @Test
     public void testRunActivity_LogsCorrectly() {
         // Given
         Project project = getProject();
@@ -104,8 +90,6 @@ public class LicenseCheckStartupActivityTest extends BasePlatformTestCase {
         mockedSafeLicenseChecker.verify(() -> 
             SafeLicenseChecker.checkLicenseOnStartup(project));
     }
-    
-    @Test
     public void testRunActivity_MultipleCalls() {
         // Given
         Project project = getProject();
@@ -119,8 +103,6 @@ public class LicenseCheckStartupActivityTest extends BasePlatformTestCase {
         mockedSafeLicenseChecker.verify(() -> 
             SafeLicenseChecker.checkLicenseOnStartup(project), times(3));
     }
-    
-    @Test
     public void testRunActivity_ConcurrentCalls() throws InterruptedException {
         // Given
         Project project = getProject();
@@ -153,8 +135,6 @@ public class LicenseCheckStartupActivityTest extends BasePlatformTestCase {
         mockedSafeLicenseChecker.verify(() -> 
             SafeLicenseChecker.checkLicenseOnStartup(project), times(threadCount));
     }
-    
-    @Test
     public void testRunActivity_WithDifferentProjects() {
         // Given
         Project project1 = getProject();
@@ -170,8 +150,6 @@ public class LicenseCheckStartupActivityTest extends BasePlatformTestCase {
         mockedSafeLicenseChecker.verify(() -> 
             SafeLicenseChecker.checkLicenseOnStartup(project2), times(1));
     }
-    
-    @Test
     public void testRunActivity_PerformanceUnderLoad() {
         // Given
         Project project = getProject();
@@ -191,8 +169,6 @@ public class LicenseCheckStartupActivityTest extends BasePlatformTestCase {
         mockedSafeLicenseChecker.verify(() -> 
             SafeLicenseChecker.checkLicenseOnStartup(project), times(callCount));
     }
-    
-    @Test
     public void testRunActivity_MemoryEfficiency() {
         // Given
         Project project = getProject();
@@ -216,8 +192,6 @@ public class LicenseCheckStartupActivityTest extends BasePlatformTestCase {
         // Should not use more than 1MB additional memory (allowing some tolerance for GC timing)
         assertThat(memoryIncrease).isLessThan(2 * 1024 * 1024); // Increased tolerance for natural GC
     }
-    
-    @Test
     public void testStartupActivity_InstanceCreation() {
         // Given/When
         LicenseCheckStartupActivity newActivity = new LicenseCheckStartupActivity();
@@ -225,14 +199,10 @@ public class LicenseCheckStartupActivityTest extends BasePlatformTestCase {
         // Then - should create successfully
         assertThat(newActivity).isNotNull();
     }
-    
-    @Test
     public void testStartupActivity_ImplementsCorrectInterface() {
         // Then - should implement StartupActivity
         assertThat(startupActivity).isInstanceOf(com.intellij.openapi.startup.StartupActivity.class);
     }
-    
-    @Test
     public void testRunActivity_InHeadlessEnvironment() {
         // Given - simulate headless environment
         System.setProperty("java.awt.headless", "true");
@@ -249,8 +219,6 @@ public class LicenseCheckStartupActivityTest extends BasePlatformTestCase {
             System.clearProperty("java.awt.headless");
         }
     }
-    
-    @Test
     public void testRunActivity_WithDevMode() {
         // Given
         System.setProperty("jakarta.migration.dev", "true");
@@ -267,8 +235,6 @@ public class LicenseCheckStartupActivityTest extends BasePlatformTestCase {
             System.clearProperty("jakarta.migration.dev");
         }
     }
-    
-    @Test
     public void testRunActivity_WithSafeMode() {
         // Given
         System.setProperty("jakarta.migration.safe", "true");

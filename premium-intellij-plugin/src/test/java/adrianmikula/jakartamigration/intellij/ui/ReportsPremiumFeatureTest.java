@@ -3,11 +3,6 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.intellij.config.FeatureFlags;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.jupiter.api.DisplayName;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -15,8 +10,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests that Reports tab is properly controlled by premium feature flags.
  */
 public class ReportsPremiumFeatureTest extends BasePlatformTestCase {
-
-    @Before
     @Override
     public void setUp() throws Exception {
         super.setUp();
@@ -25,8 +18,6 @@ public class ReportsPremiumFeatureTest extends BasePlatformTestCase {
         System.clearProperty("jakarta.migration.mode");
         CheckLicense.clearCache();
     }
-
-    @After
     @Override
     public void tearDown() {
         try {
@@ -39,9 +30,6 @@ public class ReportsPremiumFeatureTest extends BasePlatformTestCase {
         System.clearProperty("jakarta.migration.mode");
         CheckLicense.clearCache();
     }
-
-    @Test
-    @DisplayName("Reports tab should be hidden for free users when premium-only flag is enabled")
     public void testReportsTabHiddenForFreeUsersWhenPremiumOnly() {
         FeatureFlags.getInstance().setReportsPremiumOnly(true);
         System.setProperty("jakarta.migration.mode", "production");
@@ -54,9 +42,6 @@ public class ReportsPremiumFeatureTest extends BasePlatformTestCase {
         Boolean licensed = CheckLicense.isLicensed();
         assertThat(licensed).isFalse();
     }
-
-    @Test
-    @DisplayName("Reports tab should be visible for premium users when premium-only flag is enabled")
     public void testReportsTabVisibleForPremiumUsersWhenPremiumOnly() {
         FeatureFlags.getInstance().setReportsPremiumOnly(true);
         System.setProperty("jakarta.migration.mode", "dev");
@@ -72,9 +57,6 @@ public class ReportsPremiumFeatureTest extends BasePlatformTestCase {
         Boolean licensed = CheckLicense.isLicensed();
         assertThat(licensed).isTrue();
     }
-
-    @Test
-    @DisplayName("Reports tab should be visible for all users when premium-only flag is disabled")
     public void testReportsTabVisibleForAllUsersWhenPremiumOnlyDisabled() {
         FeatureFlags.getInstance().setReportsPremiumOnly(false);
         System.setProperty("jakarta.migration.mode", "production");
@@ -87,9 +69,6 @@ public class ReportsPremiumFeatureTest extends BasePlatformTestCase {
         Boolean licensed = CheckLicense.isLicensed();
         assertThat(licensed).isFalse();
     }
-
-    @Test
-    @DisplayName("Reports tab component should show upgrade prompt for free users")
     public void testReportsTabComponentShowsUpgradePromptForFreeUsers() {
         FeatureFlags.getInstance().setReportsPremiumOnly(true);
         System.setProperty("jakarta.migration.mode", "production");
@@ -99,9 +78,6 @@ public class ReportsPremiumFeatureTest extends BasePlatformTestCase {
         Boolean licensed = CheckLicense.isLicensed();
         assertThat(licensed).isFalse();
     }
-
-    @Test
-    @DisplayName("Reports tab component should show normal interface for premium users")
     public void testReportsTabComponentShowsNormalInterfaceForPremiumUsers() {
         FeatureFlags.getInstance().setReportsPremiumOnly(true);
         System.setProperty("jakarta.migration.mode", "dev");
@@ -112,9 +88,6 @@ public class ReportsPremiumFeatureTest extends BasePlatformTestCase {
         Boolean licensed = CheckLicense.isLicensed();
         assertThat(licensed).isTrue();
     }
-
-    @Test
-    @DisplayName("Feature flag should be configurable")
     public void testFeatureFlagConfigurable() {
         assertThat(FeatureFlags.getInstance().isReportsPremiumOnly()).isTrue();
 
@@ -124,9 +97,6 @@ public class ReportsPremiumFeatureTest extends BasePlatformTestCase {
         FeatureFlags.getInstance().setReportsPremiumOnly(true);
         assertThat(FeatureFlags.getInstance().isReportsPremiumOnly()).isTrue();
     }
-
-    @Test
-    @DisplayName("License check should work correctly in different modes")
     public void testLicenseCheckInDifferentModes() {
         System.setProperty("jakarta.migration.mode", "production");
         System.clearProperty("jakarta.migration.dev.simulate_premium");

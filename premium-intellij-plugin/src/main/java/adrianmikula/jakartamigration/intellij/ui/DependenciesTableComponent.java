@@ -481,21 +481,36 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         // Compatibility Status - determines color coding
         String statusText;
         boolean hasJakartaEquivalent = jakartaEquivalent != null && !jakartaEquivalent.equals("-");
+        String scanReason = dep.getScanReason();
 
-        if (dep.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE) {
+        // Check scan reason first before Jakarta equivalent presence
+        if ("BLACKLISTED".equals(scanReason)) {
+            if (dep.isMavenLookupInProgress()) {
+                statusText = "Researching Upgrade Paths";
+            } else if (hasJakartaEquivalent) {
+                statusText = "↑ Upgrade Available";
+            } else {
+                statusText = "⚠ Possible Blocker";
+            }
+        } else if ("UNKNOWN".equals(scanReason)) {
+            statusText = "Review Required";
+        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE) {
             statusText = "✓ Compatible";
-        } else if (hasJakartaEquivalent) {
-            statusText = "↑ Upgrade Available";
         } else if (dep.getMigrationStatus() == DependencyMigrationStatus.NO_JAKARTA_VERSION) {
             statusText = "✗ No Jakarta Version";
+        } else if (!hasJakartaEquivalent) {
+            statusText = "✗ No Jakarta Version";
+        } else if (hasJakartaEquivalent && !"BLACKLISTED".equals(scanReason)) {
+            statusText = "↑ Upgrade Available";
         } else {
             statusText = "? Unknown";
         }
 
-        // Reason (scan reason)
-        String reason = dep.getScanReason() != null
-                ? dep.getScanReason()
-                : "-";
+        // Reason (scan reason) - change UNKNOWN to "bytecode scan pending"
+        String reason = scanReason != null ? scanReason : "-";
+        if ("UNKNOWN".equals(reason)) {
+            reason = "bytecode scan pending";
+        }
 
         // Add row with all columns - DependencyInfo at column 8 (hidden)
         tableModel.addRow(new Object[] {
@@ -639,10 +654,18 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         
         // Continue with Maven Central lookup for remaining javax dependencies
         isQueryingMaven = true;
+        
+        // Set lookup state for all dependencies before starting lookup
+        for (DependencyInfo dep : javaxDependencies) {
+            dep.setMavenLookupInProgress(true);
+        }
+        
         SwingUtilities.invokeLater(() -> {
             progressBar.setVisible(true);
             progressBar.setIndeterminate(true);
             progressBar.setString("Querying Maven Central for " + javaxDependencies.size() + " dependencies...");
+            // Refresh UI to show "Researching Upgrade Paths" status for BLACKLISTED dependencies
+            filterDependencies();
         });
         
         ImprovedMavenCentralLookupService mavenService = new ImprovedMavenCentralLookupService();
@@ -713,6 +736,9 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
      * @param jakartaArtifacts list of Jakarta artifacts found
      */
     private synchronized void updateDependencyWithJakartaInfo(DependencyInfo javaxDep, List<JakartaArtifactMatch> jakartaArtifacts) {
+        // Clear lookup state when lookup completes
+        javaxDep.setMavenLookupInProgress(false);
+        
         if (jakartaArtifacts == null || jakartaArtifacts.isEmpty()) {
             // No Jakarta artifacts found - mark as UNKNOWN
             javaxDep.setMigrationStatus(DependencyMigrationStatus.UNKNOWN);

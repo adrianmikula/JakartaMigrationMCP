@@ -1,7 +1,7 @@
 package adrianmikula.jakartamigration.intellij.model;
 
 import adrianmikula.jakartamigration.intellij.ui.tree.DependencyTreeNode;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 

@@ -79,9 +79,9 @@ public class HtmlValidationTest {
             System.out.println(html);
             System.out.println("=== End of HTML ===");
             
-            fail("Generated HTML is not well-formed XML: " + e.getMessage());
+            throw new RuntimeException("Generated HTML is not well-formed XML: " + e.getMessage(), e);
         } catch (ParserConfigurationException e) {
-            fail("XML parser configuration error: " + e.getMessage());
+            throw new RuntimeException("XML parser configuration error: " + e.getMessage(), e);
         }
     }
 }

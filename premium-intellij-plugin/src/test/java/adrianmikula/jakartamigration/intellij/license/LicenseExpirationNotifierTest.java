@@ -264,7 +264,7 @@ public class LicenseExpirationNotifierTest {
                 "Manual trigger should complete"
             );
         } catch (Exception e) {
-            fail("Manual trigger should not throw: " + e.getMessage());
+            throw new RuntimeException("Manual trigger should not throw: " + e.getMessage(), e);
         }
     }
     

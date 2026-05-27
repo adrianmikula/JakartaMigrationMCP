@@ -232,29 +232,29 @@ public class DependencyGraphComponent {
      * Update the graph with dependency data from a flat list (legacy method).
      */
     public void updateGraph(List<DependencyInfo> deps) {
+        // Handle null or empty dependency list
+        if (deps == null) {
+            deps = new ArrayList<>();
+        }
+
         // Convert flat list to DependencyGraph
-        DependencyGraph graph = new DependencyGraph();
         Set<Artifact> nodes = new HashSet<>();
         Set<Dependency> edges = new HashSet<>();
 
         for (DependencyInfo dep : deps) {
             // Artifact record requires 5 params: groupId, artifactId, version, scope, transitive
+            // Skip if required fields are null
+            if (dep == null || dep.getGroupId() == null || dep.getArtifactId() == null) {
+                continue;
+            }
+            String version = dep.getCurrentVersion() != null ? dep.getCurrentVersion() : "unknown";
             Artifact artifact = new Artifact(dep.getGroupId(), dep.getArtifactId(),
-                dep.getCurrentVersion(), "compile", dep.isTransitive());
+                version, "compile", dep.isTransitive());
             nodes.add(artifact);
         }
 
-        // Create root node
-        Artifact root = new Artifact("root", project.getName(), "1.0", "system", false);
-        nodes.add(root);
-
-        // Create edges from root to all dependencies
-        for (Artifact artifact : nodes) {
-            if (!artifact.equals(root)) {
-                edges.add(new Dependency(root, artifact, "compile", false));
-            }
-        }
-
+        // Create the dependency graph without a root node
+        // updateGraphFromDependencyGraph() will create the root node in the canvas
         this.dependencyGraph = new DependencyGraph(nodes, edges);
         updateGraphFromDependencyGraph();
     }
@@ -351,11 +351,16 @@ public class DependencyGraphComponent {
         // Also track nodes by toIdentifier() for edge lookup
         Map<String, Artifact> identifierToArtifact = new HashMap<>();
         for (Artifact artifact : dependencyGraph.getNodes()) {
+            // Skip artifacts with null groupId or artifactId
+            if (artifact.groupId() == null || artifact.artifactId() == null) {
+                continue;
+            }
             identifierToArtifact.put(artifact.toIdentifier(), artifact);
         }
 
         // Create root node for the project
-        GraphNode root = new GraphNode("root", project.getName(), GraphNode.NodeType.ROOT, RiskLevel.LOW);
+        String projectName = project.getName() != null ? project.getName() : "project";
+        GraphNode root = new GraphNode("root:root", "root", GraphNode.NodeType.ROOT, RiskLevel.LOW);
         nodes.add(root);
         artifactToNode.put("root:root", root);
 
@@ -363,10 +368,16 @@ public class DependencyGraphComponent {
         for (Artifact artifact : dependencyGraph.getNodes()) {
             String artifactId = artifact.artifactId();
             String groupId = artifact.groupId();
+
+            // Skip artifacts with null groupId or artifactId
+            if (groupId == null || artifactId == null) {
+                continue;
+            }
+
             String id = groupId + ":" + artifactId;
 
-            // Skip the root node (already added)
-            if ("root".equals(groupId) && project.getName().equals(artifactId)) {
+            // Skip the canvas root node (already added above)
+            if ("root:root".equals(id)) {
                 continue;
             }
 
@@ -410,6 +421,17 @@ public class DependencyGraphComponent {
 
         // Create edges from the real DependencyGraph
         for (Dependency dep : dependencyGraph.getEdges()) {
+            // Skip dependencies with null from/to artifacts
+            if (dep.from() == null || dep.to() == null) {
+                continue;
+            }
+            if (dep.from().groupId() == null || dep.from().artifactId() == null) {
+                continue;
+            }
+            if (dep.to().groupId() == null || dep.to().artifactId() == null) {
+                continue;
+            }
+
             String fromId = dep.from().groupId() + ":" + dep.from().artifactId();
             String toId = dep.to().groupId() + ":" + dep.to().artifactId();
 
@@ -425,6 +447,10 @@ public class DependencyGraphComponent {
         // Add edges from root to all direct dependencies (those with no incoming edges)
         Set<String> hasIncomingEdges = new HashSet<>();
         for (Dependency dep : dependencyGraph.getEdges()) {
+            // Skip dependencies with null to artifact
+            if (dep.to() == null || dep.to().groupId() == null || dep.to().artifactId() == null) {
+                continue;
+            }
             String toId = dep.to().groupId() + ":" + dep.to().artifactId();
             hasIncomingEdges.add(toId);
         }
@@ -432,10 +458,17 @@ public class DependencyGraphComponent {
         for (Artifact artifact : dependencyGraph.getNodes()) {
             String artifactId = artifact.artifactId();
             String groupId = artifact.groupId();
+
+            // Skip artifacts with null groupId or artifactId
+            if (groupId == null || artifactId == null) {
+                continue;
+            }
+
             String id = groupId + ":" + artifactId;
 
-            // Skip root
-            if ("root".equals(groupId) && project.getName().equals(artifactId)) {
+            // Skip canvas root node (already added above)
+            // But allow "root:project" and other root:* nodes from the graph
+            if ("root:root".equals(id)) {
                 continue;
             }
 

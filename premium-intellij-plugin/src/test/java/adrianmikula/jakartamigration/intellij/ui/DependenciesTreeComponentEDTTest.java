@@ -5,8 +5,6 @@ import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.intellij.ui.tree.DependencyTreeNode;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.Test;
-
 import javax.swing.tree.TreePath;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,8 +27,6 @@ public class DependenciesTreeComponentEDTTest extends BasePlatformTestCase {
         super.setUp();
         treeComponent = new DependenciesTreeComponent(getProject());
     }
-
-    @Test
     public void testSetDependenciesFromEDT() {
         // This should work fine when called from EDT
         List<DependencyInfo> dependencies = createTestDependencies();
@@ -39,8 +35,6 @@ public class DependenciesTreeComponentEDTTest extends BasePlatformTestCase {
         // Verify no exceptions were thrown
         assertThat(treeComponent.getPanel()).isNotNull();
     }
-
-    @Test
     public void testSetDependenciesFromBackgroundThread() throws Exception {
         // Test that setDependencies can be called from background thread
         // without causing EDT violations (should be internally wrapped)
@@ -70,8 +64,6 @@ public class DependenciesTreeComponentEDTTest extends BasePlatformTestCase {
         // Verify the operation succeeded
         assertThat(success.get()).isTrue();
     }
-
-    @Test
     public void testApplyFiltersFromBackgroundThread() throws Exception {
         // Test that filter operations are thread-safe
         CountDownLatch latch = new CountDownLatch(1);
@@ -99,8 +91,6 @@ public class DependenciesTreeComponentEDTTest extends BasePlatformTestCase {
         Thread.sleep(200);
         assertThat(success.get()).isTrue();
     }
-
-    @Test
     public void testConcurrentSetDependenciesCalls() throws Exception {
         // Test that concurrent calls to setDependencies are handled safely
         CountDownLatch latch = new CountDownLatch(5);
@@ -126,8 +116,6 @@ public class DependenciesTreeComponentEDTTest extends BasePlatformTestCase {
         Thread.sleep(300);
         assertThat(allSuccess.get()).isTrue();
     }
-
-    @Test
     public void testHideTransitiveFilter() throws Exception {
         // Test that hiding transitive dependencies only hides transitive deps, not direct ones
         List<DependencyInfo> dependencies = createTestDependenciesWithDepth();
@@ -143,8 +131,6 @@ public class DependenciesTreeComponentEDTTest extends BasePlatformTestCase {
         // Verify the component still exists and is not empty
         assertThat(treeComponent.getPanel()).isNotNull();
     }
-
-    @Test
     public void testClickToExpandCollapse() throws Exception {
         // Test that click-to-expand/collapse is enabled
         List<DependencyInfo> dependencies = createTestDependenciesWithDepth();
@@ -159,8 +145,6 @@ public class DependenciesTreeComponentEDTTest extends BasePlatformTestCase {
         assertThat(treeComponent.getPanel()).isNotNull();
         // The actual click behavior is tested by UI integration tests
     }
-
-    @Test
     public void testIsTransitiveFlagCorrectness() throws Exception {
         // Test that isTransitive flag is set correctly based on depth
         List<DependencyInfo> dependencies = createTestDependenciesWithDepth();
@@ -173,8 +157,6 @@ public class DependenciesTreeComponentEDTTest extends BasePlatformTestCase {
         assertThat(dependencies.get(1).getDepth()).isEqualTo(1);
         assertThat(dependencies.get(1).isTransitive()).isTrue();
     }
-
-    @Test
     public void testFilterWithCorrectIsTransitiveData() throws Exception {
         // Test that filter works correctly when isTransitive flag is properly set
         List<DependencyInfo> dependencies = createTestDependenciesWithDepth();
@@ -189,8 +171,6 @@ public class DependenciesTreeComponentEDTTest extends BasePlatformTestCase {
         // Verify the component still exists (direct dependencies should remain visible)
         assertThat(treeComponent.getPanel()).isNotNull();
     }
-
-    @Test
     public void testHideTransitiveDependenciesActuallyHidesTransitiveNodes() throws Exception {
         // Test that hiding transitive dependencies actually removes them from the tree
         // This test verifies the bug: transitive dependencies are NOT being hidden
@@ -335,8 +315,6 @@ public class DependenciesTreeComponentEDTTest extends BasePlatformTestCase {
 
         return dependencies;
     }
-
-    @Test
     public void testTreeIndentationCorrect() throws Exception {
         // Test that child nodes are indented correctly from their parent
         // This test verifies the bug: setRootVisible(false) + setShowsRootHandles(true) causes incorrect indentation

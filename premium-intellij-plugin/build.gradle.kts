@@ -133,6 +133,13 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.0")
     testImplementation("org.assertj:assertj-core:3.24.2")
     
+    // JUnit 4 for IntelliJ Platform test framework compatibility
+    testImplementation("junit:junit:4.13.2")
+    testRuntimeOnly("junit:junit:4.13.2")
+    
+    // JUnit Vintage Engine for running JUnit 3/4 tests with JUnit Platform
+    testImplementation("org.junit.vintage:junit-vintage-engine:5.10.0")
+    
     // Kotest for property testing
     testImplementation("io.kotest:kotest-runner-junit5:5.8.0")
     testImplementation("io.kotest:kotest-assertions-core:5.8.0")
@@ -282,6 +289,7 @@ tasks {
         group = "verification"
         description = "Runs IntelliJ platform tests against version 2024.1.4"
 
+        // Use JUnit Platform for BasePlatformTestCase tests (custom mock uses JUnit 5 annotations)
         useJUnitPlatform()
 
         // Configure IntelliJ platform version
@@ -299,6 +307,11 @@ tasks {
         include("**/*ListenerTest.class")
         include("**/*Mcp*Test.class")
         include("**/*ActivityTest.class")
+
+        // Include dependency graph tests
+        include("**/DependencyGraphComponentLegacyApiTest.class")
+        include("**/DependencyGraphComponentNewApiTest.class")
+        include("**/DependencyGraphComponentTest.class")
 
         // Exclude tests that don't need platform
         exclude("**/BuildConfigurationValidationTest.class")

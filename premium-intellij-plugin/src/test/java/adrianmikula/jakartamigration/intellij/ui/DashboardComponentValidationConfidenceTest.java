@@ -1,12 +1,12 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
 import com.intellij.openapi.project.Project;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import java.awt.event.ActionEvent;
 import java.util.function.Consumer;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for Validation Confidence functionality in DashboardComponent.

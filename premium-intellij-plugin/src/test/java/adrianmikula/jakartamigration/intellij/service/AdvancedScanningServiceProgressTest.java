@@ -5,11 +5,8 @@ import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.analysis.persistence.SqliteMigrationAnalysisStore;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.Test;
 import org.assertj.core.api.Assertions;
 import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
-
 import java.nio.file.Paths;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -33,8 +30,6 @@ public class AdvancedScanningServiceProgressTest extends BasePlatformTestCase {
         advancedScanningService = new AdvancedScanningService(recipeService);
         progressListener = new TestProgressListener();
     }
-
-    @Test
     public void testScanAllWithProgressListener() throws Exception {
         // Test that scanAll with progress listener works without errors
         AdvancedScanningService.AdvancedScanSummary summary = 

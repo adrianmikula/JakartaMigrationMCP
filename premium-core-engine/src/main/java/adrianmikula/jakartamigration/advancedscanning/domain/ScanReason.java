@@ -51,11 +51,6 @@ public enum ScanReason {
     TRANSITIVE_INCOMPATIBLE,
 
     /**
-     * Dependency is context-dependent or ambiguous - requires manual review.
-     */
-    REVIEW_REQUIRED,
-
-    /**
      * No information available about the dependency.
      */
     UNKNOWN

@@ -3,11 +3,6 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.intellij.config.FeatureFlags;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.jupiter.api.DisplayName;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -15,8 +10,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests that MCP server tab and status are properly controlled by premium feature flags.
  */
 public class McpServerPremiumFeatureTest extends BasePlatformTestCase {
-
-    @Before
     @Override
     public void setUp() throws Exception {
         super.setUp();
@@ -25,8 +18,6 @@ public class McpServerPremiumFeatureTest extends BasePlatformTestCase {
         System.clearProperty("jakarta.migration.mode");
         CheckLicense.clearCache();
     }
-
-    @After
     @Override
     public void tearDown() {
         try {
@@ -39,9 +30,6 @@ public class McpServerPremiumFeatureTest extends BasePlatformTestCase {
         System.clearProperty("jakarta.migration.mode");
         CheckLicense.clearCache();
     }
-
-    @Test
-    @DisplayName("MCP server tab should be hidden for free users when premium-only flag is enabled")
     public void testMcpTabHiddenForFreeUsersWhenPremiumOnly() {
         FeatureFlags.getInstance().setMcpServerPremiumOnly(true);
         System.setProperty("jakarta.migration.mode", "production");
@@ -54,9 +42,6 @@ public class McpServerPremiumFeatureTest extends BasePlatformTestCase {
         Boolean licensed = CheckLicense.isLicensed();
         assertThat(licensed).isFalse();
     }
-
-    @Test
-    @DisplayName("MCP server tab should be visible for premium users when premium-only flag is enabled")
     public void testMcpTabVisibleForPremiumUsersWhenPremiumOnly() {
         FeatureFlags.getInstance().setMcpServerPremiumOnly(true);
         System.setProperty("jakarta.migration.mode", "dev");
@@ -72,9 +57,6 @@ public class McpServerPremiumFeatureTest extends BasePlatformTestCase {
         Boolean licensed = CheckLicense.isLicensed();
         assertThat(licensed).isTrue();
     }
-
-    @Test
-    @DisplayName("MCP server tab should be visible for all users when premium-only flag is disabled")
     public void testMcpTabVisibleForAllUsersWhenPremiumOnlyDisabled() {
         FeatureFlags.getInstance().setMcpServerPremiumOnly(false);
         System.setProperty("jakarta.migration.mode", "production");
@@ -87,9 +69,6 @@ public class McpServerPremiumFeatureTest extends BasePlatformTestCase {
         Boolean licensed = CheckLicense.isLicensed();
         assertThat(licensed).isFalse();
     }
-
-    @Test
-    @DisplayName("MCP server tab component should show upgrade prompt for free users")
     public void testMcpTabComponentShowsUpgradePromptForFreeUsers() {
         FeatureFlags.getInstance().setMcpServerPremiumOnly(true);
         System.setProperty("jakarta.migration.mode", "production");
@@ -101,9 +80,6 @@ public class McpServerPremiumFeatureTest extends BasePlatformTestCase {
         assertThat(component).isNotNull();
         assertThat(component.getPanel()).isNotNull();
     }
-
-    @Test
-    @DisplayName("MCP server tab component should show normal interface for premium users")
     public void testMcpTabComponentShowsNormalInterfaceForPremiumUsers() {
         FeatureFlags.getInstance().setMcpServerPremiumOnly(true);
         System.setProperty("jakarta.migration.mode", "dev");
@@ -116,9 +92,6 @@ public class McpServerPremiumFeatureTest extends BasePlatformTestCase {
         assertThat(component).isNotNull();
         assertThat(component.getPanel()).isNotNull();
     }
-
-    @Test
-    @DisplayName("Dashboard MCP status should show 'Premium Only' for free users when premium-only flag is enabled")
     public void testDashboardMcpStatusShowsPremiumOnlyForFreeUsers() {
         FeatureFlags.getInstance().setMcpServerPremiumOnly(true);
         System.setProperty("jakarta.migration.mode", "production");
@@ -131,9 +104,6 @@ public class McpServerPremiumFeatureTest extends BasePlatformTestCase {
         String mcpStatus = dashboard.getMcpStatus();
         assertThat(mcpStatus).isNotNull();
     }
-
-    @Test
-    @DisplayName("Feature flag should be configurable")
     public void testFeatureFlagConfigurable() {
         assertThat(FeatureFlags.getInstance().isMcpServerPremiumOnly()).isTrue();
 
@@ -143,9 +113,6 @@ public class McpServerPremiumFeatureTest extends BasePlatformTestCase {
         FeatureFlags.getInstance().setMcpServerPremiumOnly(true);
         assertThat(FeatureFlags.getInstance().isMcpServerPremiumOnly()).isTrue();
     }
-
-    @Test
-    @DisplayName("License check should work correctly in different modes")
     public void testLicenseCheckInDifferentModes() {
         System.setProperty("jakarta.migration.mode", "production");
         System.clearProperty("jakarta.migration.dev.simulate_premium");

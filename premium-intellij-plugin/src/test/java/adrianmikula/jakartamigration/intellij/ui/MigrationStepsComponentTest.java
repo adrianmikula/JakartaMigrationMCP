@@ -3,14 +3,11 @@ package adrianmikula.jakartamigration.intellij.ui;
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
-import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.fail;
-
 public class MigrationStepsComponentTest extends BasePlatformTestCase {
 
     private MigrationStepsComponent migrationStepsComponent;
@@ -21,7 +18,6 @@ public class MigrationStepsComponentTest extends BasePlatformTestCase {
         migrationStepsComponent = new MigrationStepsComponent(getProject());
     }
 
-    @Test
     public void testUpdateStepsWithNullMigrationStatus_ShouldNotThrowNPE() {
         // Given: A list of dependencies with null migration status
         List<DependencyInfo> dependencies = new ArrayList<>();
@@ -52,11 +48,10 @@ public class MigrationStepsComponentTest extends BasePlatformTestCase {
             assertThat(migrationStepsComponent).isNotNull();
             
         } catch (NullPointerException e) {
-            fail("MigrationStepsComponent should handle null migration status without throwing NPE: " + e.getMessage());
+            throw new RuntimeException("MigrationStepsComponent should handle null migration status without throwing NPE: " + e.getMessage(), e);
         }
     }
 
-    @Test
     public void testUpdateStepsWithMixedNullAndValidStatuses_ShouldHandleGracefully() {
         // Given: A mix of dependencies with null and valid migration statuses
         List<DependencyInfo> dependencies = new ArrayList<>();
@@ -95,11 +90,10 @@ public class MigrationStepsComponentTest extends BasePlatformTestCase {
             assertThat(migrationStepsComponent).isNotNull();
             
         } catch (NullPointerException e) {
-            fail("MigrationStepsComponent should handle mixed null/valid migration statuses without throwing NPE: " + e.getMessage());
+            throw new RuntimeException("MigrationStepsComponent should handle mixed null/valid migration statuses without throwing NPE: " + e.getMessage(), e);
         }
     }
 
-    @Test
     public void testUpdateStepsWithEmptyDependenciesList_ShouldHandleGracefully() {
         // Given: Empty dependencies list
         List<DependencyInfo> dependencies = new ArrayList<>();
@@ -113,11 +107,10 @@ public class MigrationStepsComponentTest extends BasePlatformTestCase {
             assertThat(migrationStepsComponent).isNotNull();
             
         } catch (NullPointerException e) {
-            fail("MigrationStepsComponent should handle empty dependencies list without throwing NPE: " + e.getMessage());
+            throw new RuntimeException("MigrationStepsComponent should handle empty dependencies list without throwing NPE: " + e.getMessage(), e);
         }
     }
 
-    @Test
     public void testUpdateStepsWithNullDependenciesList_ShouldHandleGracefully() {
         // When: Update steps with null dependencies list
         // Then: Should handle gracefully
@@ -128,7 +121,7 @@ public class MigrationStepsComponentTest extends BasePlatformTestCase {
             assertThat(migrationStepsComponent).isNotNull();
             
         } catch (NullPointerException e) {
-            fail("MigrationStepsComponent should handle null dependencies list without throwing NPE: " + e.getMessage());
+            throw new RuntimeException("MigrationStepsComponent should handle null dependencies list without throwing NPE: " + e.getMessage(), e);
         }
     }
 }

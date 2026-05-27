@@ -9,8 +9,6 @@ import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalys
 import adrianmikula.jakartamigration.analysis.persistence.SqliteMigrationAnalysisStore;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.fail;
-
 import java.time.Instant;
 import java.nio.file.Paths;
 
@@ -256,7 +254,7 @@ public class DashboardComponentTest extends BasePlatformTestCase {
             assertThat(true).isTrue();
         } catch (NullPointerException e) {
             // If we get an NPE, the fix didn't work properly
-            fail("updateMcpServerStatus() should not throw NPE even when MCP components are null: " + e.getMessage());
+            throw new RuntimeException("updateMcpServerStatus() should not throw NPE even when MCP components are null: " + e.getMessage(), e);
         }
     }
 
@@ -272,7 +270,7 @@ public class DashboardComponentTest extends BasePlatformTestCase {
                 // Small delay to allow for any async operations
                 Thread.sleep(10);
             } catch (NullPointerException e) {
-                fail("updateMcpServerStatus() should not throw NPE on iteration " + i + ": " + e.getMessage());
+                throw new RuntimeException("updateMcpServerStatus() should not throw NPE on iteration " + i + ": " + e.getMessage(), e);
             } catch (InterruptedException e) {
                 // Ignore interruption
                 Thread.currentThread().interrupt();
@@ -300,7 +298,7 @@ public class DashboardComponentTest extends BasePlatformTestCase {
             // If we reach here, all getters handled null components properly
             assertThat(true).isTrue();
         } catch (NullPointerException e) {
-            fail("MCP status getter methods should not throw NPE even when components are null: " + e.getMessage());
+            throw new RuntimeException("MCP status getter methods should not throw NPE even when components are null: " + e.getMessage(), e);
         }
     }
 

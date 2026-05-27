@@ -409,7 +409,7 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
 
              // Collect usages needing JAR scanning
              if (jarCompatibilityScanner != null && jarResolver != null) {
-                 if (usage.getScanReason() == ScanReason.UNKNOWN || usage.getScanReason() == ScanReason.REVIEW_REQUIRED) {
+                 if (usage.getScanReason() == ScanReason.UNKNOWN) {
                      usagesNeedingJarScan.add(usage);
                  }
              }
@@ -506,8 +506,8 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
      * or Optional.empty() if no scan was performed or scan failed (keep original).
      */
     private Optional<TransitiveDependencyUsage> enrichWithJarScan(TransitiveDependencyUsage usage) {
-        // Only scan UNKNOWN and REVIEW_REQUIRED dependencies
-        if (usage.getScanReason() != ScanReason.UNKNOWN && usage.getScanReason() != ScanReason.REVIEW_REQUIRED) {
+        // Only scan UNKNOWN dependencies
+        if (usage.getScanReason() != ScanReason.UNKNOWN) {
             return Optional.empty();
         }
 
@@ -756,7 +756,7 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         return switch (classification) {
             case JDK_PROVIDED -> ScanReason.WHITELISTED;
             case JAKARTA_REQUIRED -> ScanReason.BLACKLISTED;
-            case CONTEXT_DEPENDENT -> ScanReason.REVIEW_REQUIRED;
+            case CONTEXT_DEPENDENT -> ScanReason.UNKNOWN;
             case UNKNOWN -> ScanReason.UNKNOWN;
         };
     }

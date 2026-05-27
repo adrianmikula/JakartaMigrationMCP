@@ -62,6 +62,9 @@ public class DependencyInfo {
     @JsonProperty("incompatibilityFromTransitive")
     private boolean incompatibilityFromTransitive;
 
+    @JsonProperty("isMavenLookupInProgress")
+    private boolean isMavenLookupInProgress;
+
     public enum DependencyType {
         DIRECT("Direct"),
         TRANSITIVE("Transitive");
@@ -108,6 +111,19 @@ public class DependencyInfo {
             boolean isTransitive, boolean isOrganizational,
             int depth, String scope, String scanReason, String detailMessage,
             double confidence, boolean incompatibilityFromTransitive) {
+        this(groupId, artifactId, currentVersion, recommendedGroupId, recommendedArtifactId,
+            recommendedVersion, jakartaCompatibilityStatus, associatedRecipeName, migrationStatus,
+            isTransitive, isOrganizational, depth, scope, scanReason, detailMessage,
+            confidence, incompatibilityFromTransitive, false);
+    }
+
+    public DependencyInfo(String groupId, String artifactId, String currentVersion,
+            String recommendedGroupId, String recommendedArtifactId, String recommendedVersion,
+            String jakartaCompatibilityStatus, String associatedRecipeName,
+            DependencyMigrationStatus migrationStatus,
+            boolean isTransitive, boolean isOrganizational,
+            int depth, String scope, String scanReason, String detailMessage,
+            double confidence, boolean incompatibilityFromTransitive, boolean isMavenLookupInProgress) {
         this.groupId = groupId;
         this.artifactId = artifactId;
         this.currentVersion = currentVersion;
@@ -125,6 +141,7 @@ public class DependencyInfo {
         this.detailMessage = detailMessage;
         this.confidence = confidence;
         this.incompatibilityFromTransitive = incompatibilityFromTransitive;
+        this.isMavenLookupInProgress = isMavenLookupInProgress;
     }
 
     public String getGroupId() {
@@ -274,6 +291,14 @@ public class DependencyInfo {
 
     public void setIncompatibilityFromTransitive(boolean incompatibilityFromTransitive) {
         this.incompatibilityFromTransitive = incompatibilityFromTransitive;
+    }
+
+    public boolean isMavenLookupInProgress() {
+        return isMavenLookupInProgress;
+    }
+
+    public void setMavenLookupInProgress(boolean mavenLookupInProgress) {
+        isMavenLookupInProgress = mavenLookupInProgress;
     }
 
     public String getDisplayName() {
