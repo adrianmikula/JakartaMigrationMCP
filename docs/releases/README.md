@@ -141,9 +141,7 @@ If new tools were added or existing ones modified:
 Run all unit and integration tests:
 
 ```bash
-./gradlew :premium-intellij-plugin:test
-./gradlew :community-core-engine:test
-./gradlew :premium-core-engine:test
+mise run test
 ```
 
 #### Marketplace Validation
@@ -153,7 +151,7 @@ Run all unit and integration tests:
 
 #### Plugin Verifier (Recommended)
 ```bash
-./gradlew :premium-intellij-plugin:buildPlugin :premium-intellij-plugin:runPluginVerifier
+mise run verify-plugin
 ```
 
 #### Optional Tests (Ask Before Skipping)
@@ -177,8 +175,7 @@ The following tests may be skipped with explicit confirmation:
 Run the JetBrains Plugin Verifier on the bundled plugin ZIP before uploading:
 
 ```bash
-# Build and verify the plugin
-./gradlew :premium-intellij-plugin:buildPlugin :premium-intellij-plugin:runPluginVerifier
+mise run verify-plugin
 ```
 
 This validates:
@@ -200,7 +197,7 @@ Review the HTML/TXT report and resolve any compatibility problems before uploadi
 ### 4. Build Verification
 
 ```bash
-./gradlew :premium-intellij-plugin:buildPlugin
+mise run build-plugin-zip
 ```
 
 Verify the generated ZIP:
@@ -332,7 +329,8 @@ tasks.named<org.jetbrains.intellij.tasks.PrepareSandboxTask>("prepareSandbox") {
 ### 1. Build the Release
 
 ```bash
-./gradlew :premium-intellij-plugin:clean :premium-intellij-plugin:buildPlugin
+mise run clean
+mise run build-plugin-zip
 ```
 
 The plugin ZIP will be at:
@@ -403,16 +401,16 @@ Verify:
 
 ```bash
 # Full test suite
-./gradlew test
+mise run test
 
-# Marketplace validation
+# Marketplace validation (no mise task - run directly)
 ./gradlew :premium-intellij-plugin:validateMarketplaceRequirements
 
-# Build plugin
-./gradlew :premium-intellij-plugin:buildPlugin
+# Build plugin ZIP
+mise run build-plugin-zip
 
-# Verify against multiple IntelliJ versions
-./gradlew :premium-intellij-plugin:testIntelliJMatrix
+# Verify plugin binary compatibility
+mise run verify-plugin
 ```
 
 ---
