@@ -10,6 +10,7 @@ import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.credits.CreditType;
 import adrianmikula.jakartamigration.credits.FreemiumConfig;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
+import adrianmikula.jakartamigration.intellij.ui.UIColors;
 import adrianmikula.jakartamigration.intellij.ui.SupportComponent;
 import adrianmikula.jakartamigration.intellij.ui.components.TruncationHelper;
 import adrianmikula.jakartamigration.intellij.ui.components.RiskGauge;
@@ -253,7 +254,7 @@ public class DashboardComponent implements ScanProgressListener {
 
         // Add version - show we're using the latest build
         JLabel versionLabel = new JLabel("(timestamp build)");
-        versionLabel.setForeground(new Color(100, 100, 100));
+        versionLabel.setForeground(UIColors.TEXT_SECONDARY);
         versionLabel.setFont(versionLabel.getFont().deriveFont(Font.ITALIC, 10f));
         titlePanel.add(versionLabel);
         contentPanel.add(titlePanel, BorderLayout.NORTH);
@@ -411,9 +412,9 @@ private void resetAdvancedScanCounts() {
     private JPanel createMcpStatusPanel() {
         mcpStatusPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 10, 5));
         mcpStatusPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(200, 200, 200)),
+                BorderFactory.createLineBorder(UIColors.BORDER),
                 BorderFactory.createEmptyBorder(8, 12, 8, 12)));
-        mcpStatusPanel.setBackground(new Color(245, 245, 250));
+        mcpStatusPanel.setBackground(UIColors.PANEL_BACKGROUND);
 
         // Title
         JLabel mcpTitleLabel = new JLabel("MCP Server:");

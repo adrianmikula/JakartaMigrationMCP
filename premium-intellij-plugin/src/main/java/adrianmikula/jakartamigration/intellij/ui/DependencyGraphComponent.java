@@ -8,6 +8,7 @@ import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.intellij.model.RiskLevel;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
+import adrianmikula.jakartamigration.intellij.ui.UIColors;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBPanel;
@@ -111,7 +112,7 @@ public class DependencyGraphComponent {
         // Legend panel
         JPanel legendPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 15, 5));
         legendPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-        legendPanel.setBackground(new Color(245, 245, 245));
+        legendPanel.setBackground(UIColors.PANEL_BACKGROUND_ALT);
 
         // Compatible (Green)
         JPanel legendItem1 = createLegendItem(new Color(40, 167, 69), "Jakarta Compatible");
@@ -146,7 +147,7 @@ public class DependencyGraphComponent {
         JPanel colorBox = new JPanel();
         colorBox.setBackground(color);
         colorBox.setPreferredSize(new Dimension(16, 16));
-        colorBox.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
+        colorBox.setBorder(BorderFactory.createLineBorder(UIColors.BORDER));
 
         JLabel labelText = new JLabel(label);
         labelText.setFont(labelText.getFont().deriveFont(Font.PLAIN, 11f));
@@ -164,7 +165,7 @@ public class DependencyGraphComponent {
         JPanel colorBox = new JPanel();
         colorBox.setBackground(color);
         colorBox.setPreferredSize(new Dimension(16, 16));
-        colorBox.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 3));
+        colorBox.setBorder(BorderFactory.createLineBorder(UIColors.BORDER, 3));
 
         JLabel labelText = new JLabel(label);
         labelText.setFont(labelText.getFont().deriveFont(Font.PLAIN, 11f));

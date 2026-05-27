@@ -13,6 +13,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import adrianmikula.jakartamigration.intellij.ui.UIColors;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -85,7 +86,7 @@ public class RuntimeTabComponent {
         
         // Info text
         JLabel infoLabel = new JLabel("💡 Tip: Paste the full error output including stack traces for best results.");
-        infoLabel.setForeground(new Color(100, 100, 100));
+        infoLabel.setForeground(UIColors.TEXT_SECONDARY);
         infoLabel.setFont(infoLabel.getFont().deriveFont(Font.ITALIC));
         
         // Split pane
@@ -119,7 +120,7 @@ public class RuntimeTabComponent {
         JTextArea area = new JTextArea(15, 50);
         area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         area.setEditable(false);
-        area.setBackground(new Color(245, 245, 245));
+        area.setBackground(UIColors.PANEL_BACKGROUND_ALT);
         area.setText("Diagnosis results will appear here...\n\n" +
             "The analysis will include:\n" +
             "• Error category (NAMESPACE_MIGRATION, CLASSPATH_ISSUE, etc.)\n" +

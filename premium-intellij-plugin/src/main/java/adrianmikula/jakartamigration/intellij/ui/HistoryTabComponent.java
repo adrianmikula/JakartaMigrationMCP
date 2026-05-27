@@ -7,6 +7,7 @@ import adrianmikula.jakartamigration.credits.CreditsService;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
 import adrianmikula.jakartamigration.analytics.service.UsageService;
+import adrianmikula.jakartamigration.intellij.ui.UIColors;
 import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
@@ -331,7 +332,7 @@ class HistoryTableCellRenderer extends DefaultTableCellRenderer {
             } else if ("Undone".equals(status)) {
                 // Light gray for undone actions
                 component.setForeground(new Color(108, 117, 125)); // Gray
-                component.setBackground(new Color(248, 249, 250)); // Light gray background
+                component.setBackground(UIColors.PANEL_BACKGROUND); // Light gray background
             } else {
                 // Default colors
                 component.setForeground(table.getForeground());

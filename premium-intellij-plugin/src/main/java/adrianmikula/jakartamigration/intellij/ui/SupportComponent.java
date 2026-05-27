@@ -1,6 +1,7 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
+import adrianmikula.jakartamigration.intellij.ui.UIColors;
 import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
@@ -249,10 +250,10 @@ public class SupportComponent {
     private JPanel createLinkPanel(String title, String description, String url) {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(200, 200, 200)),
+                BorderFactory.createLineBorder(UIColors.BORDER),
                 BorderFactory.createEmptyBorder(8, 12, 8, 12)
         ));
-        panel.setBackground(new Color(245, 245, 250));
+        panel.setBackground(UIColors.PANEL_BACKGROUND);
         panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
         panel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         
@@ -289,13 +290,13 @@ public class SupportComponent {
             
             @Override
             public void mouseEntered(MouseEvent e) {
-                panel.setBackground(new Color(240, 245, 255));
+                panel.setBackground(UIColors.PANEL_BACKGROUND_ALT);
                 panel.repaint();
             }
             
             @Override
             public void mouseExited(MouseEvent e) {
-                panel.setBackground(new Color(245, 245, 250));
+                panel.setBackground(UIColors.PANEL_BACKGROUND);
                 panel.repaint();
             }
         });

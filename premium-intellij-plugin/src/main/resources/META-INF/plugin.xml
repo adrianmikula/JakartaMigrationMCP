@@ -131,6 +131,11 @@
                     
         <!-- Notification Groups -->
 
+        <!-- General Notifications -->
+        <notificationGroup id="JakartaMigration.Notifications"
+                          displayType="BALLOON"
+                          key="general.notification"/>
+
         <!-- Application Service for MCP Client -->
         <service serviceImplementation="adrianmikula.jakartamigration.intellij.mcp.DefaultMcpClientService"
                  serviceInterface="adrianmikula.jakartamigration.intellij.mcp.McpClientService"/>

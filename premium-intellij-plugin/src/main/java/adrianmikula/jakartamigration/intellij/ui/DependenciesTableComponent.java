@@ -507,6 +507,8 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             statusText = "↑ Upgrade Available";
         } else if (dep.getMigrationStatus() == DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION) {
             statusText = "⚠ Manual Review Required";
+        } else if ("BUILD_TOOL_ERROR".equals(scanReason)) {
+            statusText = "⚠ Build Tool Error";
         } else if (!hasJakartaEquivalent) {
             statusText = "✗ No Jakarta Version";
         } else if (hasJakartaEquivalent) {

@@ -1,5 +1,6 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
+import adrianmikula.jakartamigration.intellij.ui.UIColors;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBPanel;
 
@@ -191,7 +192,7 @@ public class MigrationStrategyComponent {
         JPanel colorIndicator = new JPanel();
         colorIndicator.setBackground(strategy.getColor());
         colorIndicator.setPreferredSize(new Dimension(12, 12));
-        colorIndicator.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
+        colorIndicator.setBorder(BorderFactory.createLineBorder(UIColors.BORDER));
         headerPanel.add(colorIndicator);
 
         JLabel nameLabel = new JLabel(strategy.getDisplayName());
@@ -269,7 +270,7 @@ public class MigrationStrategyComponent {
                         card.setBorder(BorderFactory.createCompoundBorder(
                                 BorderFactory.createLineBorder(cardStrategy.getColor(), 3),
                                 BorderFactory.createEmptyBorder(8, 8, 8, 8)));
-                        card.setBackground(new Color(245, 245, 245));
+                        card.setBackground(UIColors.PANEL_BACKGROUND_ALT);
                     } else {
                         card.setBorder(BorderFactory.createCompoundBorder(
                                 BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1),
