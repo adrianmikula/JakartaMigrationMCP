@@ -149,10 +149,12 @@ mise run test
 ./gradlew :premium-intellij-plugin:validateMarketplaceRequirements
 ```
 
-#### Plugin Verifier (Recommended)
+#### Plugin Verifier (Required)
 ```bash
 mise run verify-plugin
 ```
+
+Runs automatically on pull requests via GitHub Actions. Can also be triggered manually via the `release-verification` workflow.
 
 #### Optional Tests (Ask Before Skipping)
 The following tests may be skipped with explicit confirmation:
@@ -178,21 +180,21 @@ Run the JetBrains Plugin Verifier on the bundled plugin ZIP before uploading:
 mise run verify-plugin
 ```
 
-This validates:
+This validates against **2 IntelliJ versions**: 2024.3 and 2025.1.1 - the current and next major release
 - Binary compatibility with target IntelliJ versions
 - Missing classes or methods
 - Internal API usages
-- Deprecated API usages
+- Deprecated API usages (including scheduled for removal)
 - Plugin descriptor issues
 
-**Note**: Currently this is also available via the JetBrains Marketplace web UI after upload, but running it locally first catches issues earlier.
+**CI Integration**: The `release-verification` workflow runs automatically on PRs. For manual release preparation, trigger it from GitHub Actions.
 
 Reports are written to:
 ```
 premium-intellij-plugin/build/reports/pluginVerifier/
 ```
 
-Review the HTML/TXT report and resolve any compatibility problems before uploading.
+Review the HTML/TXT report and resolve any compatibility problems before uploading. All warnings cause build failure - no suppressions.
 
 ### 4. Build Verification
 
@@ -350,7 +352,16 @@ Verify:
 - No `until-build` attribute present
 - `product-descriptor` is properly configured
 
-### 3. Upload to Marketplace
+### 3. Run Release Verification (If Not Already Run on PR)
+
+Trigger the `release-verification` workflow manually from GitHub Actions to verify against 2 IntelliJ versions (2024.3, 2025.1.1):
+
+1. Go to GitHub → Actions → Release Verification
+2. Click "Run workflow"
+3. Verify all compatibility checks pass
+4. Download and review the verification reports
+
+### 4. Upload to Marketplace
 
 1. Log in to [JetBrains Marketplace Vendor Portal](https://plugins.jetbrains.com/author/me)
 2. Find "Jakarta Migration" in your plugins list
@@ -360,7 +371,7 @@ Verify:
 6. Add release notes (copy from `plugin.xml` changelog)
 7. Submit for review
 
-### 4. Post-Upload Verification
+### 5. Post-Upload Verification
 
 1. Wait for JetBrains approval email (typically 1-2 business days)
 2. Once approved, verify in the [Marketplace listing](https://plugins.jetbrains.com/plugin/26747-jakarta-migration)

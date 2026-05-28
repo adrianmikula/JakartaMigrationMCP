@@ -72,6 +72,7 @@ public class DefaultJarCompatibilityScanner implements JarCompatibilityScanner {
         //     return Executors.newThreadPerTaskExecutor(factory);
         // }
         int parallelism = config.getMaxParallelism();
+        @SuppressWarnings("deprecation")
         ThreadFactory factory = r -> { Thread t = new Thread(r);
             t.setName("jar-scanner-" + t.getId()); t.setDaemon(true); return t; };
         return Executors.newFixedThreadPool(parallelism, factory);

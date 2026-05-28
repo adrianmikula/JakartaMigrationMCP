@@ -155,13 +155,24 @@ intellij {
     plugins = listOf("com.intellij.java")
 }
 
+// Configure Plugin Verifier to check compatibility against latest version of each year
+tasks.withType<org.jetbrains.intellij.tasks.RunPluginVerifierTask> {
+    ideVersions.set(listOf(
+        "IC-2024.3",    // Latest 2024 release
+        "IC-2025.1.1"   // Latest 2025 release
+    ))
+    // No failureLevel override - fail on all compatibility problems (strict mode)
+}
+
 // Exclude IDE packages that should be provided by the IntelliJ platform
 tasks.named<org.jetbrains.intellij.tasks.PrepareSandboxTask>("prepareSandbox") {
     exclude { entry ->
         // Exclude org.jetbrains.concurrency package to prevent bundling
         // This package is provided by IntelliJ platform and bundling it causes compatibility issues
         entry.name.contains("org/jetbrains/concurrency/") ||
-        entry.name.contains("org/jetbrains/util/")
+        entry.name.contains("org/jetbrains/util/") ||
+        // Exclude kotlin-compiler-embeddable which bundles IDE packages
+        entry.name.contains("kotlin-compiler-embeddable")
     }
 }
 

@@ -162,34 +162,29 @@ The project uses the IntelliJ Plugin Verifier to check binary compatibility betw
 
 ### Running the Verifier
 
-Run as a standalone verification step (optional — not executed by default):
+Run locally to verify compatibility before submitting to the Marketplace:
 
 ```bash
 mise run verify-plugin
 ```
 
+The verifier also runs automatically on pull requests via the `release-verification` GitHub Actions workflow.
+
 ### Configuring Target IDE Versions
 
-To verify against specific IDE versions, configure the `runPluginVerifier` block in `premium-intellij-plugin/build.gradle.kts`:
+The plugin is configured to verify against the latest releases:
 
 ```kotlin
 runPluginVerifier {
-    ideVersions.set(listOf("IC-2023.3.4", "IC-2024.1.4", "IC-2025.1.1"))
+    ideVersions.set(listOf(
+        "IC-2024.3",    // Latest 2024 release
+        "IC-2025.1.1"   // Latest 2025 release
+    ))
+    // No failureLevel override - strict mode, fails on all compatibility problems
 }
 ```
 
-If left unconfigured, the verifier will use the IDE version defined in the `intellij` block (`2023.3.4`).
-
-### Ignoring Known Issues
-
-If the verifier reports acceptable warnings (e.g., experimental API usage), you can suppress them in the same block:
-
-```kotlin
-runPluginVerifier {
-    ideVersions.set(listOf("IC-2023.3.4"))
-    failureLevel.set(org.jetbrains.intellij.tasks.RunPluginVerifierTask.FailureLevel.COMPATIBILITY_PROBLEMS)
-}
-```
+This verifies compatibility against the current and next major release to catch API deprecation warnings early.
 
 ### Verification Reports
 

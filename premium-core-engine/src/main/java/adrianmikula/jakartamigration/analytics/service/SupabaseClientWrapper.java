@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -96,7 +97,7 @@ public class SupabaseClientWrapper implements AutoCloseable {
                 String supabaseUrl = config.getSupabaseUrl() + "/rest/v1/usage_events";
                 String apiKey = config.getSupabaseAnonKey();
                 
-                URL url = new URL(supabaseUrl);
+                URL url = new URI(supabaseUrl).toURL();
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 
                 try {
@@ -209,7 +210,7 @@ public class SupabaseClientWrapper implements AutoCloseable {
                 String supabaseUrl = config.getSupabaseUrl() + "/rest/v1/error_reports";
                 String apiKey = config.getSupabaseAnonKey();
                 
-                URL url = new URL(supabaseUrl);
+                URL url = new URI(supabaseUrl).toURL();
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 
                 try {

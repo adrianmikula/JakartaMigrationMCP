@@ -29,7 +29,7 @@
     <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
     <version>1.0.17</version>
 
-    <name>Jakarta Migration (javax → jakarta)</name>
+    <name>Jakarta Migration (javax to jakarta)</name>
     <id>com.adrianmikula.jakarta-migration</id>
     <vendor email="adrian.m@tuta.io" name="Adrian Mikula" url="https://github.com/adrianmikula/JakartaMigrationMCP">Adrian Mikula</vendor>
     <category>Framework Integration</category>

@@ -76,9 +76,9 @@ run_windows = "gradlew.bat :premium-intellij-plugin:buildPlugin --no-configurati
 run = "gradle :premium-intellij-plugin:buildPlugin --no-configuration-cache"
 
 [tasks.verify-plugin]
-description = "Verify plugin binary compatibility with IntelliJ Plugin Verifier"
-run_windows = "gradlew.bat :premium-intellij-plugin:buildPlugin :premium-intellij-plugin:runPluginVerifier"
-run = "gradle :premium-intellij-plugin:buildPlugin :premium-intellij-plugin:runPluginVerifier"
+description = "Verify plugin binary compatibility against IntelliJ 2024.3, 2025.1.1 (strict mode)"
+run_windows = "gradlew.bat :premium-intellij-plugin:buildPlugin :premium-intellij-plugin:runPluginVerifier --no-configuration-cache"
+run = "gradle :premium-intellij-plugin:buildPlugin :premium-intellij-plugin:runPluginVerifier --no-configuration-cache"
 
 # 5. RUN / DEV
 
