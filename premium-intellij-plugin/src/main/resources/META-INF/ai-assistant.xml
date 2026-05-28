@@ -9,4 +9,19 @@
                           implementation="adrianmikula.jakartamigration.intellij.mcp.JakartaMcpServerProvider"/>
     </extensions>
 
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Project Activity for MCP Server Auto-Registration -->
+        <!-- Automatically loads MCP server when plugin is enabled -->
+        <projectActivity implementation="adrianmikula.jakartamigration.intellij.JakartaMcpRegistrationActivity"/>
+
+        <!-- Application Service for MCP Client -->
+        <service serviceImplementation="adrianmikula.jakartamigration.intellij.mcp.DefaultMcpClientService"
+                 serviceInterface="adrianmikula.jakartamigration.intellij.mcp.McpClientService"/>
+
+        <!-- Notification for MCP Server Status -->
+        <notificationGroup id="JakartaMigration.McpStatus"
+                          displayType="BALLOON"
+                          key="mcp.status.notification"/>
+    </extensions>
+
 </idea-plugin>

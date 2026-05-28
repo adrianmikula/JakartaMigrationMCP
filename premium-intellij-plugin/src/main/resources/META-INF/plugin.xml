@@ -27,7 +27,7 @@
     <idea-version since-build="242" />
 
     <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
-    <version>1.0.16</version>
+    <version>1.0.17</version>
 
     <name>Jakarta Migration (javax → jakarta)</name>
     <id>com.adrianmikula.jakarta-migration</id>
@@ -106,14 +106,10 @@
     
     <!-- Premium module dependency for 2025.3+ unified distribution -->
     <!-- This ensures premium features are disabled when user lacks active subscription -->
-    <depends optional="true">com.intellij.modules.ultimate</depends>
+    <depends optional="true" config-file="ai-assistant.xml">com.intellij.modules.ultimate</depends>
 
-    <!-- Extensions for MCP Integration and Plugin Discoverability -->
+    <!-- Extensions for Plugin Discoverability -->
     <extensions defaultExtensionNs="com.intellij">
-        <!-- Project Activity for MCP Server Auto-Registration -->
-        <!-- Automatically loads MCP server when plugin is enabled -->
-        <projectActivity implementation="adrianmikula.jakartamigration.intellij.JakartaMcpRegistrationActivity"/>
-        
         <!-- Plugin Discoverability Service -->
         <!-- Automatically detects javax usage and suggests plugin installation -->
         <!--postStartupActivity implementation="adrianmikula.jakartamigration.intellij.discovery.JakartaMigrationDiscoverabilityService"/-->
@@ -135,15 +131,6 @@
         <notificationGroup id="JakartaMigration.Notifications"
                           displayType="BALLOON"
                           key="general.notification"/>
-
-        <!-- Application Service for MCP Client -->
-        <service serviceImplementation="adrianmikula.jakartamigration.intellij.mcp.DefaultMcpClientService"
-                 serviceInterface="adrianmikula.jakartamigration.intellij.mcp.McpClientService"/>
-
-        <!-- Notification for MCP Server Status -->
-        <notificationGroup id="JakartaMigration.McpStatus"
-                          displayType="BALLOON"
-                          key="mcp.status.notification"/>
 
         <!-- Notification for License Expiration -->
         <notificationGroup id="JakartaMigration.LicenseExpiration"
@@ -199,6 +186,10 @@
 
 
     <change-notes><![CDATA[
+    <h>1.0.17 - 2026-05-27</h>
+    <ul>
+        <li>Version bump to 1.0.17</li>
+    </ul>
     <h>1.0.16 - 2026-05-27</h>
     <ul>
         <li>Fixed dependency graph panning and interaction issues</li>
