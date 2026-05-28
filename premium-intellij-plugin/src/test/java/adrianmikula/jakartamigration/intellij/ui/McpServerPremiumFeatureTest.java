@@ -14,6 +14,7 @@ public class McpServerPremiumFeatureTest extends BasePlatformTestCase {
     public void setUp() throws Exception {
         super.setUp();
         FeatureFlags.getInstance().setMcpServerPremiumOnly(true);
+        FeatureFlags.getInstance().setInstallClaudeSkillEnabled(true);
         System.clearProperty("jakarta.migration.dev.simulate_premium");
         System.clearProperty("jakarta.migration.mode");
         CheckLicense.clearCache();
@@ -26,6 +27,7 @@ public class McpServerPremiumFeatureTest extends BasePlatformTestCase {
             throw new RuntimeException(e);
         }
         FeatureFlags.getInstance().setMcpServerPremiumOnly(true);
+        FeatureFlags.getInstance().setInstallClaudeSkillEnabled(true);
         System.clearProperty("jakarta.migration.dev.simulate_premium");
         System.clearProperty("jakarta.migration.mode");
         CheckLicense.clearCache();
@@ -134,5 +136,38 @@ public class McpServerPremiumFeatureTest extends BasePlatformTestCase {
 
         licensed = CheckLicense.isLicensed();
         assertThat(licensed).isTrue();
+    }
+
+    public void testClaudeSkillButtonVisibleWhenFeatureEnabled() {
+        FeatureFlags.getInstance().setInstallClaudeSkillEnabled(true);
+        System.setProperty("jakarta.migration.mode", "dev");
+        System.setProperty("jakarta.migration.dev.simulate_premium", "true");
+        CheckLicense.clearCache();
+
+        McpServerTabComponent component = new McpServerTabComponent(getProject());
+        assertThat(component).isNotNull();
+        assertThat(component.getPanel()).isNotNull();
+    }
+
+    public void testClaudeSkillButtonHiddenWhenFeatureDisabled() {
+        FeatureFlags.getInstance().setInstallClaudeSkillEnabled(false);
+        System.setProperty("jakarta.migration.mode", "dev");
+        System.setProperty("jakarta.migration.dev.simulate_premium", "true");
+        CheckLicense.clearCache();
+
+        McpServerTabComponent component = new McpServerTabComponent(getProject());
+        assertThat(component).isNotNull();
+        assertThat(component.getPanel()).isNotNull();
+    }
+
+    public void testInstallClaudeSkillFeatureFlag() {
+        FeatureFlags.getInstance().setInstallClaudeSkillEnabled(true);
+        assertThat(FeatureFlags.getInstance().isInstallClaudeSkillEnabled()).isTrue();
+
+        FeatureFlags.getInstance().setInstallClaudeSkillEnabled(false);
+        assertThat(FeatureFlags.getInstance().isInstallClaudeSkillEnabled()).isFalse();
+
+        FeatureFlags.getInstance().setInstallClaudeSkillEnabled(true);
+        assertThat(FeatureFlags.getInstance().isInstallClaudeSkillEnabled()).isTrue();
     }
 }

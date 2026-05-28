@@ -99,6 +99,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private HistoryTabComponent historyTabComponent;
         private PlatformsTabComponent platformsTabComponent;
         private RuntimeTabComponent runtimeTabComponent;
+        private VulnerabilityScanTabComponent vulnerabilityScanTabComponent;
         private ReportsTabComponent reportsTabComponent;
         private DevTabComponent devTabComponent;
         private CodeRefactoringModule refactorModule;
@@ -359,6 +360,18 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 LOG.info("initializeContent: Runtime tab hidden (experimental features disabled)");
             }
 
+            // AI Vulnerability Scan tab (Experimental + aiVulnerabilityScanTab flag)
+            boolean aiVulnEnabled = experimentalEnabled && adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isAiVulnerabilityScanEnabled();
+            if (aiVulnEnabled) {
+                vulnerabilityScanTabComponent = new VulnerabilityScanTabComponent(project);
+                String vulnLabel = isPremium ? "Vulnerabilities (Experimental)" : "Vulnerabilities (Experimental)";
+                tabbedPane.addTab(vulnLabel, vulnerabilityScanTabComponent.getPanel());
+                LOG.info("initializeContent: Added AI Vulnerability Scan tab (experimental)");
+            } else {
+                vulnerabilityScanTabComponent = null;
+                LOG.info("initializeContent: AI Vulnerability Scan tab hidden");
+            }
+
             // Load initial state (empty - wait for user to analyze)
             loadInitialState();
 
@@ -506,6 +519,23 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 tabbedPane.removeTabAt(runtimeTabIndex);
                 runtimeTabComponent = null;
                 LOG.info("refreshExperimentalTabs: Runtime tab removed");
+            }
+
+            // Handle AI Vulnerability Scan tab
+            boolean aiVulnEnabled = experimentalEnabled && adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isAiVulnerabilityScanEnabled();
+            int vulnTabIndex = findTabIndex("Vulnerabilities");
+            boolean vulnTabExists = vulnTabIndex >= 0;
+
+            if (aiVulnEnabled && !vulnTabExists && vulnerabilityScanTabComponent == null) {
+                vulnerabilityScanTabComponent = new VulnerabilityScanTabComponent(project);
+                int runtimeIndex = findTabIndex("Runtime");
+                int insertIndex = runtimeIndex >= 0 ? runtimeIndex + 1 : tabbedPane.getTabCount();
+                tabbedPane.insertTab("Vulnerabilities (Experimental)", null, vulnerabilityScanTabComponent.getPanel(), null, insertIndex);
+                LOG.info("refreshExperimentalTabs: AI Vulnerability Scan tab added at index " + insertIndex);
+            } else if (!aiVulnEnabled && vulnTabExists) {
+                tabbedPane.removeTabAt(vulnTabIndex);
+                vulnerabilityScanTabComponent = null;
+                LOG.info("refreshExperimentalTabs: AI Vulnerability Scan tab removed");
             }
 
             contentPanel.revalidate();
@@ -967,6 +997,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 ApplicationManager.getApplication().invokeLater(() -> {
                     dependencyUIManager.updateAllDependencies(depInfos);
                     migrationPhasesComponent.setDependencies(depInfos);
+                    if (vulnerabilityScanTabComponent != null) {
+                        vulnerabilityScanTabComponent.setDependencies(depInfos);
+                    }
                     dependencyGraphComponent.updateGraphFromDependencyGraph(deepGraph, statusMap);
                     dashboardComponent.setDashboard(dashboard);
                 });
@@ -1214,6 +1247,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             dashboardComponent.setDashboard(dashboard);
             dependencyUIManager.clearAllDependencies();
             migrationPhasesComponent.setDependencies(new ArrayList<>());
+            if (vulnerabilityScanTabComponent != null) {
+                vulnerabilityScanTabComponent.clearDependencies();
+            }
         }
 
         /**
@@ -1405,6 +1441,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             dashboardComponent.setDashboard(dashboard);
             dependencyUIManager.updateAllDependencies(deps);
             migrationPhasesComponent.setDependencies(deps);
+            if (vulnerabilityScanTabComponent != null) {
+                vulnerabilityScanTabComponent.setDependencies(deps);
+            }
         }
 
         /**
@@ -1589,6 +1628,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             dashboardComponent.setDashboard(dashboard);
             dependencyUIManager.clearAllDependencies();
             migrationPhasesComponent.setDependencies(new ArrayList<>());
+            if (vulnerabilityScanTabComponent != null) {
+                vulnerabilityScanTabComponent.clearDependencies();
+            }
         }
 
         /**

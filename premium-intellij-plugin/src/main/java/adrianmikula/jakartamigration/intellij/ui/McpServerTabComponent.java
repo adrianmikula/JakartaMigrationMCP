@@ -5,6 +5,8 @@ import adrianmikula.jakartamigration.intellij.mcp.JakartaMcpServerProvider;
 import adrianmikula.jakartamigration.intellij.mcp.McpToolRegistry;
 import adrianmikula.jakartamigration.intellij.mcp.McpToolDefinition;
 import adrianmikula.jakartamigration.intellij.ui.UIColors;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
+import adrianmikula.jakartamigration.intellij.service.ClaudeSkillInstaller;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 
@@ -76,7 +78,14 @@ public class McpServerTabComponent {
         // Documentation section
         contentPanel.add(createSectionHeader("Documentation"));
         contentPanel.add(createDocumentationPanel());
-        
+        contentPanel.add(Box.createVerticalStrut(20));
+
+        // Claude Skill section
+        if (adrianmikula.jakartamigration.intellij.config.FeatureFlags.getInstance().isInstallClaudeSkillEnabled()) {
+            contentPanel.add(createSectionHeader("Claude Code"));
+            contentPanel.add(createClaudeSkillPanel());
+        }
+
         // Wrap in scroll pane
         JScrollPane scrollPane = new JScrollPane(contentPanel);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
@@ -325,23 +334,79 @@ public class McpServerTabComponent {
         return mainPanel;
     }
     
+    private JPanel createClaudeSkillPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 5));
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1),
+                BorderFactory.createEmptyBorder(15, 15, 15, 15)));
+        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+
+        // Description text
+        JTextArea descArea = new JTextArea(
+            "Install the Jakarta Migration Assistant skill for Claude Code. "
+            + "This skill helps Claude provide specialized guidance for Jakarta EE migrations, "
+            + "including readiness analysis, dependency recommendations, and blocker detection."
+        );
+        descArea.setEditable(false);
+        descArea.setBackground(null);
+        descArea.setWrapStyleWord(true);
+        descArea.setLineWrap(true);
+        descArea.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        descArea.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+
+        // Install button
+        ClaudeSkillInstaller installer = new ClaudeSkillInstaller();
+        boolean alreadyInstalled = installer.isSkillInstalled();
+        String buttonText = alreadyInstalled ? "Reinstall Claude Skill" : "Install Claude Skill";
+        JButton installButton = new JButton(buttonText);
+        installButton.setFont(new Font(installButton.getFont().getName(), Font.BOLD, 12));
+        installButton.setFocusPainted(false);
+
+        installButton.addActionListener(e -> {
+            installButton.setEnabled(false);
+            installButton.setText("Installing...");
+
+            ClaudeSkillInstaller.InstallResult result = installer.install();
+
+            installButton.setEnabled(true);
+            if (result.isSuccess()) {
+                installButton.setText("Reinstall Claude Skill");
+                NotificationHelper.showInfo(project, "Claude Skill Installed", result.getMessage());
+            } else {
+                installButton.setText(buttonText);
+                NotificationHelper.showError(project, "Claude Skill Installation Failed", result.getMessage());
+            }
+        });
+
+        JPanel buttonWrapper = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        buttonWrapper.add(installButton);
+
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.add(descArea);
+        content.add(buttonWrapper);
+
+        panel.add(content, BorderLayout.CENTER);
+        return panel;
+    }
+
     private JPanel createUpgradeButtonPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        
+
         // Create upgrade button using existing PremiumUpgradeButton component
         JButton upgradeButton = adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton.createUpgradeButton(
-            project, 
+            project,
             "ai_tab",
             "⬆ Upgrade to Premium",
             "Unlock AI Assistant and all premium features for unlimited Jakarta EE migration support"
         );
-        
+
         // Add upgrade button to center
         JPanel buttonWrapper = new JPanel(new FlowLayout(FlowLayout.CENTER));
         buttonWrapper.add(upgradeButton);
         panel.add(buttonWrapper, BorderLayout.CENTER);
-        
+
         return panel;
     }
 }
