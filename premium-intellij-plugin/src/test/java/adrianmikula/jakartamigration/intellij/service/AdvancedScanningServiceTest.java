@@ -124,7 +124,7 @@ public class AdvancedScanningServiceTest {
         assertThat(service.determineMigrationStatus(
                 new TransitiveDependencyUsage("a","g","1.0",null,null,null,null,false,0,null,
                         ScanReason.MAVEN_LOOKUP_NONE,null,0.0,false)))
-                .isEqualTo(DependencyMigrationStatus.NO_JAKARTA_VERSION);
+                .isEqualTo(DependencyMigrationStatus.MAVEN_LOOKUP_FAILED);
     }
 
     @Test

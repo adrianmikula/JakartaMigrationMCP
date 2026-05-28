@@ -1,0 +1,46 @@
+{
+  "name": "jakarta-migration-marketplace",
+  "owner": {
+    "name": "Adrian Mikula",
+    "email": "adrian.m@tuta.io"
+  },
+  "plugins": [
+    {
+      "name": "jakarta-migration-assistant",
+      "displayName": "Jakarta Migration Assistant",
+      "source": {
+        "source": "github",
+        "repo": "adrianmikula/JakartaMigrationMCP"
+      },
+      "description": "Analyze, plan, and automate Java EE to Jakarta EE migration. Detects javax.* usage, identifies blockers, recommends compatible versions, and applies OpenRewrite-powered refactoring recipes.",
+      "version": "1.0.18",
+      "author": {
+        "name": "Adrian Mikula",
+        "email": "adrian.m@tuta.io",
+        "url": "https://github.com/adrianmikula"
+      },
+      "homepage": "https://github.com/adrianmikula/JakartaMigrationMCP#readme",
+      "repository": "https://github.com/adrianmikula/JakartaMigrationMCP",
+      "license": "Apache-2.0",
+      "keywords": [
+        "java",
+        "jakarta",
+        "migration",
+        "enterprise",
+        "spring-boot",
+        "javax",
+        "mcp",
+        "openrewrite"
+      ],
+      "category": "Code Analysis & Refactoring",
+      "tags": [
+        "java",
+        "jakarta-ee",
+        "migration",
+        "spring-boot",
+        "refactoring",
+        "enterprise"
+      ]
+    }
+  ]
+}

@@ -13,8 +13,11 @@ cd "$PROJECT_ROOT"
 echo "🚀 Building Jakarta Migration MCP Server..."
 echo ""
 
-# Get version from build.gradle.kts or package.json
-VERSION=$(grep -oP 'version\s*=\s*"\K[^"]+' build.gradle.kts | head -1 || echo "1.0.0-SNAPSHOT")
+# Sync versions first
+node "$SCRIPT_DIR/sync-versions.js" 2>/dev/null || true
+
+# Get version from gradle.properties (source of truth)
+VERSION=$(grep -oP '^version=\K[^#\s]+' "$PROJECT_ROOT/gradle.properties" | head -1 || echo "1.0.0-SNAPSHOT")
 VERSION_CLEAN=$(echo "$VERSION" | sed 's/-SNAPSHOT//')
 
 echo "📦 Version: $VERSION"
@@ -26,13 +29,13 @@ echo "🧹 Cleaning previous builds..."
 
 # Build JAR
 echo "🔨 Building JAR..."
-./gradlew bootJar --no-daemon
+./gradlew :community-mcp-server:bootJar --no-daemon
 
 # Find the built JAR
-JAR_FILE=$(find build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
+JAR_FILE=$(find community-mcp-server/build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
 
 if [ -z "$JAR_FILE" ]; then
-    echo "❌ ERROR: JAR file not found in build/libs/"
+    echo "❌ ERROR: JAR file not found in community-mcp-server/build/libs/"
     exit 1
 fi
 

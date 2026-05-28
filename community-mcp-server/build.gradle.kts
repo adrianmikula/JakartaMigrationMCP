@@ -3,7 +3,7 @@ plugins {
     id("io.spring.dependency-management")
     java
     id("com.github.spotbugs") version "6.0.25"
-    id("net.ltgt.errorprone") version "4.1.0"
+    // id("net.ltgt.errorprone") version "4.1.0"  // DISABLED: missing error_prone_core dependency
 }
 
 dependencies {

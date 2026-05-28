@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "jakarta-migration": {
+      "command": "npx",
+      "args": ["-y", "@jakarta-migration/mcp-server"]
+    }
+  }
+}

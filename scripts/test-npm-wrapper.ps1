@@ -3,7 +3,7 @@
 # This tests the complete npm package functionality including JAR execution and MCP communication
 
 param(
-    [string]$JarPath = "build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar",
+    [string]$JarPath = "community-mcp-server/build/libs/jakarta-migration-mcp.jar",
     [int]$TimeoutSeconds = 15
 )
 

@@ -5,14 +5,21 @@ import adrianmikula.jakartamigration.intellij.mcp.JakartaMcpServerProvider;
 import adrianmikula.jakartamigration.intellij.mcp.McpToolRegistry;
 import adrianmikula.jakartamigration.intellij.mcp.McpToolDefinition;
 import adrianmikula.jakartamigration.intellij.ui.UIColors;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.Messages;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Properties;
 
 /**
@@ -29,6 +36,8 @@ public class McpServerTabComponent {
     
     private static final String MCP_DOCS_URL = "https://github.com/adrianmikula/JakartaMigrationMCP#mcp-server";
     private static final String GITHUB_URL = "https://github.com/adrianmikula/JakartaMigrationMCP";
+    private static final String SKILL_RESOURCE_PATH = "/skills/jakarta-migration-assistant.md";
+    private static final String SKILL_TARGET_NAME = "jakarta-migration-assistant.md";
     
     public McpServerTabComponent(Project project) {
         this.project = project;
@@ -76,7 +85,12 @@ public class McpServerTabComponent {
         // Documentation section
         contentPanel.add(createSectionHeader("Documentation"));
         contentPanel.add(createDocumentationPanel());
-        
+        contentPanel.add(Box.createVerticalStrut(20));
+
+        // Claude Skill section
+        contentPanel.add(createSectionHeader("Claude Skill"));
+        contentPanel.add(createClaudeSkillPanel());
+
         // Wrap in scroll pane
         JScrollPane scrollPane = new JScrollPane(contentPanel);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
@@ -272,6 +286,70 @@ public class McpServerTabComponent {
         }
     }
     
+    private JPanel createClaudeSkillPanel() {
+        JPanel skillPanel = new JPanel();
+        skillPanel.setLayout(new BoxLayout(skillPanel, BoxLayout.Y_AXIS));
+        skillPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+
+        JLabel descLabel = new JLabel(
+            "Install the Jakarta Migration Assistant skill for Claude Code to analyze projects via natural language."
+        );
+        descLabel.setFont(new Font(descLabel.getFont().getName(), Font.PLAIN, 12));
+        descLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        descLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        skillPanel.add(descLabel);
+
+        JButton installButton = new JButton("Install Claude Skill");
+        installButton.setFont(new Font(installButton.getFont().getName(), Font.BOLD, 13));
+        installButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        installButton.addActionListener(e -> installClaudeSkill());
+        skillPanel.add(installButton);
+
+        return skillPanel;
+    }
+
+    void installClaudeSkill() {
+        Path homeDir = Paths.get(System.getProperty("user.home"));
+        Path claudeDir = homeDir.resolve(".claude");
+        Path skillsDir = claudeDir.resolve("skills");
+        Path targetFile = skillsDir.resolve(SKILL_TARGET_NAME);
+
+        if (!Files.exists(claudeDir)) {
+            Messages.showInfoMessage(
+                project,
+                "Claude Code was not detected on this system.\n\n"
+                    + "To install the skill manually, run this command in Claude Code:\n"
+                    + "  /plugin install jakarta-migration-assistant@jakarta-migration-marketplace\n\n"
+                    + "Or visit: " + GITHUB_URL,
+                "Claude Code Not Detected"
+            );
+            return;
+        }
+
+        try {
+            if (!Files.exists(skillsDir)) {
+                Files.createDirectories(skillsDir);
+            }
+
+            try (InputStream in = getClass().getResourceAsStream(SKILL_RESOURCE_PATH)) {
+                if (in == null) {
+                    NotificationHelper.showError(project, "Skill Installation Failed",
+                        "Bundled skill file not found. Please reinstall the plugin.");
+                    return;
+                }
+                Files.copy(in, targetFile, StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            NotificationHelper.showWarning(project, "Skill Installed",
+                "Jakarta Migration Assistant skill installed successfully to " + targetFile);
+            LOG.info("Claude skill installed to: " + targetFile);
+        } catch (IOException ex) {
+            LOG.error("Failed to install Claude skill", ex);
+            NotificationHelper.showError(project, "Skill Installation Failed",
+                "Could not write skill file: " + ex.getMessage());
+        }
+    }
+
     private JPanel createUpgradePromptPanel(JPanel mainPanel) {
         // Header
         JLabel headerLabel = new JLabel("AI Assistant (Premium)");

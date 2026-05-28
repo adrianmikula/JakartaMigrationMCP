@@ -52,11 +52,35 @@ Same functionality as the shell script, adapted for PowerShell.
 
 ## Release Process
 
+### Automated Release (Recommended)
+
+The `.github/workflows/release.yml` workflow automates the entire process:
+
+1. **Update version** in `gradle.properties` (source of truth):
+   ```properties
+   version=1.0.19
+   ```
+2. **Push a tag**:
+   ```bash
+   git tag -a v1.0.19 -m "Release version 1.0.19"
+   git push origin v1.0.19
+   ```
+3. **The workflow automatically**:
+   - Syncs `package.json` version from `gradle.properties`
+   - Builds the `community-mcp-server` JAR
+   - Creates a GitHub release with the JAR and SHA256 checksum
+   - Publishes the npm package (`@jakarta-migration/mcp-server`)
+
+### Manual Release
+
+If you prefer to build and publish manually:
+
 ### 1. Update Version
 
 Update the version in:
-- `build.gradle.kts` - `version = "1.0.0"`
-- `package.json` - `"version": "1.0.0"`
+- `gradle.properties` - `version=1.0.19` (source of truth)
+- Then run: `node scripts/sync-versions.js` to sync `package.json`
+- Verify with: `node scripts/check-version-sync.js`
 
 ### 2. Build Release Artifacts
 
@@ -176,10 +200,22 @@ Follow [Semantic Versioning](https://semver.org/):
 
 ### Version Synchronization
 
-Keep versions synchronized across:
-- `build.gradle.kts` - `version = "1.0.0"`
-- `package.json` - `"version": "1.0.0"`
-- Git tags - `v1.0.0`
+`gradle.properties` is the **source of truth** for the version number.
+
+Keep versions synchronized using the provided scripts:
+
+```bash
+# After updating gradle.properties, sync to package.json
+node scripts/sync-versions.js
+
+# Verify both files match
+node scripts/check-version-sync.js
+```
+
+All versioned artifacts:
+- `gradle.properties` - Source of truth: `version=1.0.18`
+- `package.json` - Auto-synced by `sync-versions.js`
+- Git tags - Format: `v1.0.18`
 
 ## Testing Releases
 
