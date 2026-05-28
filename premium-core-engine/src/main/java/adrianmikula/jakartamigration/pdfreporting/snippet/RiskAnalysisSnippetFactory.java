@@ -60,7 +60,8 @@ public class RiskAnalysisSnippetFactory {
         snippets.add(new RiskDialsSnippet(
             request.riskScore(),
             request.scanResults(),
-            request.dependencyGraph()
+            request.dependencyGraph(),
+            request.platformScanResults()
         ));
         
         // Enhanced snippets for comprehensive analysis

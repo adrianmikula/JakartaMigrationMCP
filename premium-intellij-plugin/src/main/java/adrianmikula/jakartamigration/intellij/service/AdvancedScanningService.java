@@ -370,10 +370,11 @@ public class AdvancedScanningService {
         // Config files
         files.put(FileCategory.CONFIG, scanner.findFiles(projectPath, List.of(".xml", ".properties", ".yaml", ".yml")));
         
-        // Build files (pom.xml, build.gradle, etc.)
+        // Build files (pom.xml, build.gradle, Eclipse .project/.classpath, etc.)
         files.put(FileCategory.BUILD, scanner.findFiles(projectPath, path -> {
             String name = path.getFileName().toString();
-            return name.equals("pom.xml") || name.startsWith("build.gradle") || name.endsWith(".gradle") || name.endsWith(".gradle.kts");
+            return name.equals("pom.xml") || name.startsWith("build.gradle") || name.endsWith(".gradle") || name.endsWith(".gradle.kts")
+                   || name.equals(".project") || name.equals(".classpath");
         }));
         
         // Dockerfiles
@@ -919,20 +920,113 @@ public class AdvancedScanningService {
         if (summary == null) {
             return null;
         }
+
+        // Convert generic ProjectScanResult<FileScanResult<T>> into typed domain records
+        JpaProjectScanResult jpaProjectResult = convertToJpaProjectScanResult(summary.jpaResult());
+        CdiInjectionProjectScanResult cdiProjectResult = convertToCdiProjectScanResult(summary.cdiInjectionResult());
+        ServletJspProjectScanResult servletProjectResult = convertToServletJspProjectScanResult(summary.servletJspResult());
+        BuildConfigProjectScanResult buildConfigProjectResult = convertToBuildConfigProjectScanResult(summary.buildConfigResult());
+
+        Map<String, Object> jpaResults = jpaProjectResult != null && jpaProjectResult.hasJavaxUsage()
+                ? Map.of("jpa", jpaProjectResult) : Map.of();
+        Map<String, Object> beanValidationResults = summary.beanValidationResult() != null && summary.beanValidationResult().hasIssues()
+                ? Map.of("beanValidation", summary.beanValidationResult()) : Map.of();
+        Map<String, Object> cdiResults = cdiProjectResult != null && cdiProjectResult.hasJavaxUsage()
+                ? Map.of("cdi", cdiProjectResult) : Map.of();
+        Map<String, Object> servletJspResults = servletProjectResult != null && servletProjectResult.hasJavaxUsage()
+                ? Map.of("servlet", servletProjectResult) : Map.of();
+        Map<String, Object> buildConfigResults = buildConfigProjectResult != null && buildConfigProjectResult.hasJavaxDependencies()
+                ? Map.of("buildConfig", buildConfigProjectResult) : Map.of();
+        Map<String, Object> thirdPartyLibResults = summary.thirdPartyLibResult() != null && summary.thirdPartyLibResult().hasFindings()
+                ? Map.of("thirdParty", summary.thirdPartyLibResult()) : Map.of();
+        Map<String, Object> transitiveDependencyResults = summary.transitiveDependencyResult() != null && summary.transitiveDependencyResult().getTotalJavaxDependencies() > 0
+                ? Map.of("transitive", summary.transitiveDependencyResult()) : Map.of();
+
+        int totalIssues = summary.getTotalIssuesFound();
+        int totalFilesScanned = computeTotalFilesScanned(summary);
+        int filesWithIssues = computeFilesWithIssues(summary);
+        double readinessScore = totalFilesScanned > 0 ? Math.max(0.0, 1.0 - (double) filesWithIssues / totalFilesScanned) : 1.0;
+
+        ComprehensiveScanResults.ScanSummary scanSummary = new ComprehensiveScanResults.ScanSummary(
+                totalFilesScanned,
+                filesWithIssues,
+                0, // criticalIssues - not tracked at this level
+                totalIssues,
+                0, // infoIssues - not tracked at this level
+                readinessScore
+        );
+
         return new ComprehensiveScanResults(
                 "",
                 LocalDateTime.now(),
-                Map.of(), // jpaResults
-                Map.of(), // beanValidationResults
-                Map.of(), // cdiResults
-                Map.of(), // servletJspResults
-                Map.of(), // thirdPartyLibResults
-                Map.of(), // transitiveDependencyResults
-                Map.of(), // buildConfigResults
+                jpaResults,
+                beanValidationResults,
+                cdiResults,
+                servletJspResults,
+                thirdPartyLibResults,
+                transitiveDependencyResults,
+                buildConfigResults,
                 List.of(),
-                0,
-                new ComprehensiveScanResults.ScanSummary(0, 0, 0, 0, 0, 0)
+                totalIssues,
+                scanSummary
         );
+    }
+
+    private JpaProjectScanResult convertToJpaProjectScanResult(ProjectScanResult<FileScanResult<JpaAnnotationUsage>> result) {
+        if (result == null) return JpaProjectScanResult.empty();
+        List<JpaScanResult> fileResults = result.fileResults().stream()
+                .map(fr -> new JpaScanResult(fr.filePath(), fr.usages(), fr.lineCount()))
+                .collect(Collectors.toList());
+        return new JpaProjectScanResult(fileResults, result.totalFilesScanned(), result.filesWithIssues(), result.totalIssuesFound());
+    }
+
+    private CdiInjectionProjectScanResult convertToCdiProjectScanResult(ProjectScanResult<FileScanResult<JavaxUsage>> result) {
+        if (result == null) return CdiInjectionProjectScanResult.empty();
+        List<CdiInjectionScanResult> fileResults = result.fileResults().stream()
+                .map(fr -> new CdiInjectionScanResult(fr.filePath(), convertToCdiUsages(fr.usages()), fr.lineCount()))
+                .collect(Collectors.toList());
+        return new CdiInjectionProjectScanResult(fileResults, result.totalFilesScanned(), result.filesWithIssues(), result.totalIssuesFound());
+    }
+
+    private List<CdiInjectionUsage> convertToCdiUsages(List<JavaxUsage> usages) {
+        return usages.stream()
+                .map(u -> new CdiInjectionUsage(u.className(), u.jakartaEquivalent(), u.lineNumber(), u.context(), u.context()))
+                .collect(Collectors.toList());
+    }
+
+    private ServletJspProjectScanResult convertToServletJspProjectScanResult(ProjectScanResult<FileScanResult<ServletJspUsage>> result) {
+        if (result == null) return ServletJspProjectScanResult.empty();
+        List<ServletJspScanResult> fileResults = result.fileResults().stream()
+                .map(fr -> new ServletJspScanResult(fr.filePath(), fr.usages(), fr.lineCount()))
+                .collect(Collectors.toList());
+        return new ServletJspProjectScanResult(fileResults, result.totalFilesScanned(), result.filesWithIssues(), result.totalIssuesFound());
+    }
+
+    private BuildConfigProjectScanResult convertToBuildConfigProjectScanResult(ProjectScanResult<FileScanResult<BuildConfigUsage>> result) {
+        if (result == null) return BuildConfigProjectScanResult.empty();
+        List<BuildConfigScanResult> fileResults = result.fileResults().stream()
+                .map(fr -> new BuildConfigScanResult(fr.filePath(), fr.usages(), ""))
+                .collect(Collectors.toList());
+        return new BuildConfigProjectScanResult(fileResults, result.totalFilesScanned(), result.filesWithIssues(), result.totalIssuesFound());
+    }
+
+    private int computeTotalFilesScanned(AdvancedScanSummary summary) {
+        int max = 0;
+        if (summary.jpaResult() != null) max = Math.max(max, summary.jpaResult().totalFilesScanned());
+        if (summary.beanValidationResult() != null) max = Math.max(max, summary.beanValidationResult().totalFilesScanned());
+        if (summary.cdiInjectionResult() != null) max = Math.max(max, summary.cdiInjectionResult().totalFilesScanned());
+        if (summary.servletJspResult() != null) max = Math.max(max, summary.servletJspResult().totalFilesScanned());
+        return max;
+    }
+
+    private int computeFilesWithIssues(AdvancedScanSummary summary) {
+        int total = 0;
+        if (summary.jpaResult() != null) total += summary.jpaResult().filesWithIssues();
+        if (summary.beanValidationResult() != null) total += summary.beanValidationResult().filesWithIssues();
+        if (summary.cdiInjectionResult() != null) total += summary.cdiInjectionResult().filesWithIssues();
+        if (summary.servletJspResult() != null) total += summary.servletJspResult().filesWithIssues();
+        if (summary.buildConfigResult() != null) total += summary.buildConfigResult().filesWithIssues();
+        return total;
     }
 
     /**

@@ -235,7 +235,19 @@ public class ReportsTabComponent {
             outputArea.append("Generation already in progress. Please wait or cancel current operation.\n");
             return;
         }
-        
+
+        // Check if scans have been completed
+        if (!hasCompletedScans()) {
+            showPrerequisiteMessage("No scan data available. Please run a scan before generating reports.");
+            return;
+        }
+
+        // Check if dependency analysis has been performed
+        if (!hasDependencyAnalysis()) {
+            showPrerequisiteMessage("Dependency analysis not available. Please run dependency analysis before generating reports.");
+            return;
+        }
+
         try {
             // Check if user is premium
             boolean isPremium = CheckLicense.isLicensed();
@@ -474,7 +486,19 @@ public class ReportsTabComponent {
             outputArea.append("Generation already in progress. Please wait or cancel current operation.\n");
             return;
         }
-        
+
+        // Check if scans have been completed
+        if (!hasCompletedScans()) {
+            showPrerequisiteMessage("No scan data available. Please run a scan before generating reports.");
+            return;
+        }
+
+        // Check if dependency analysis has been performed
+        if (!hasDependencyAnalysis()) {
+            showPrerequisiteMessage("Dependency analysis not available. Please run dependency analysis before generating reports.");
+            return;
+        }
+
         try {
             // Check if user is premium
             boolean isPremium = CheckLicense.isLicensed();
@@ -696,6 +720,32 @@ public class ReportsTabComponent {
         }
     }
     
+    // Helper method to check if scans have been completed
+    boolean hasCompletedScans() {
+        return advancedScanningService != null && advancedScanningService.hasCachedResults();
+    }
+
+    // Helper method to check if dependency analysis has been performed
+    boolean hasDependencyAnalysis() {
+        if (migrationAnalysisService == null) {
+            return false;
+        }
+        try {
+            Path projectPath = Paths.get(project.getBasePath());
+            DependencyGraph graph = migrationAnalysisService.getDependencyGraph(projectPath);
+            return graph != null && !graph.getNodes().isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // Helper method to show prerequisite message in UI
+    private void showPrerequisiteMessage(String message) {
+        statusLabel.setText(message);
+        outputArea.setText(message + "\n");
+        outputArea.append("Please run the required analysis before generating reports.\n");
+    }
+
     // Helper method to get real scan results from the advanced scanning service
     private ComprehensiveScanResults getRealScanResults() {
         if (advancedScanningService == null) {
@@ -711,13 +761,25 @@ public class ReportsTabComponent {
     }
     
     private void generateConsolidatedReport() {
+        // Check if scans have been completed
+        if (!hasCompletedScans()) {
+            showPrerequisiteMessage("No scan data available. Please run a scan before generating reports.");
+            return;
+        }
+
+        // Check if dependency analysis has been performed
+        if (!hasDependencyAnalysis()) {
+            showPrerequisiteMessage("Dependency analysis not available. Please run dependency analysis before generating reports.");
+            return;
+        }
+
         try {
             // Check if user is premium
             boolean isPremium = CheckLicense.isLicensed();
-            
+
             // HTML reports are premium-only feature
             if (!isPremium) {
-                showUpgradePrompt("Premium Feature Required", 
+                showUpgradePrompt("Premium Feature Required",
                     "Consolidated reports require Premium. Upgrade to generate unlimited consolidated HTML reports with professional styling.");
                 return;
             }

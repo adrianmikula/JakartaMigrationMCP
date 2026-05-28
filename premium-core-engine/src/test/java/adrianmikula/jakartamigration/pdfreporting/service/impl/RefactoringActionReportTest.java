@@ -435,13 +435,25 @@ class RefactoringActionReportTest {
         assertTrue(htmlContent.contains("85%") || htmlContent.contains("75%") || htmlContent.contains("confidence"),
             "Report should contain confidence scores");
 
-        // Verify Scan Findings by Category section is present
-        assertTrue(htmlContent.contains("Scan Findings by Category") || htmlContent.contains("findings-by-category"),
-            "Report should contain Scan Findings by Category section");
-        assertTrue(htmlContent.contains("JPA Findings") || htmlContent.contains("javax.persistence"),
-            "Report should contain JPA findings");
-        assertTrue(htmlContent.contains("Servlet/JSP Findings") || htmlContent.contains("javax.servlet"),
-            "Report should contain Servlet findings");
+        // Verify Scan Findings by File and Package section is present
+        assertTrue(htmlContent.contains("Scan Findings by File and Package") || htmlContent.contains("findings-by-file"),
+            "Report should contain Scan Findings by File and Package section");
+        // Package heading (directory path)
+        assertTrue(htmlContent.contains("/test/project"),
+            "Report should contain package heading from directory path");
+        // File headings
+        assertTrue(htmlContent.contains("User.java"),
+            "Report should contain file heading for User.java");
+        assertTrue(htmlContent.contains("UserController.java"),
+            "Report should contain file heading for UserController.java");
+        assertTrue(htmlContent.contains("UserServlet.java"),
+            "Report should contain file heading for UserServlet.java");
+        // Category badges
+        assertTrue(htmlContent.contains("category-badge"),
+            "Report should contain category badges");
+        // Javax references
+        assertTrue(htmlContent.contains("javax.persistence") || htmlContent.contains("javax.servlet"),
+            "Report should contain javax references");
 
         // Verify Scanner Recommendations section is present
         assertTrue(htmlContent.contains("Scanner Recommendations") || htmlContent.contains("scanner-recommendations"),

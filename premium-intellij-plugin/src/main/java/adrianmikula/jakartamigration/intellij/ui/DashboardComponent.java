@@ -690,10 +690,10 @@ private void resetAdvancedScanCounts() {
     public void onScanError(Exception error) {
         SwingUtilities.invokeLater(() -> {
             LOG.error("DashboardComponent: Scan failed", error);
-            
+
             // Set analysis running to false to re-enable the button
             setAnalysisRunning(false);
-            
+
             // Show error in progress bar instead of external label
             if (mainScanProgressBar != null) {
                 mainScanProgressBar.setIndeterminate(false);
@@ -703,7 +703,7 @@ private void resetAdvancedScanCounts() {
             if (mainScanProgressLabel != null) {
                 mainScanProgressLabel.setText(""); // Clear external label since error is now in progress bar
             }
-            
+
             // Show error in external progress bar
             if (externalProgressBar != null) {
                 externalProgressBar.setIndeterminate(false);
@@ -713,9 +713,39 @@ private void resetAdvancedScanCounts() {
             if (externalProgressLabel != null) {
                 externalProgressLabel.setText(""); // Clear external label since error is now in progress bar
             }
-            
+
             // Log the error for debugging
             LOG.error("Scan error details:", error);
+        });
+    }
+
+    @Override
+    public void onScanPartial() {
+        SwingUtilities.invokeLater(() -> {
+            LOG.warn("DashboardComponent: Scan partially completed");
+
+            // Set analysis running to false to re-enable the button
+            setAnalysisRunning(false);
+
+            // Show partial completion in progress bar
+            if (mainScanProgressBar != null) {
+                mainScanProgressBar.setIndeterminate(false);
+                mainScanProgressBar.setValue(100);
+                mainScanProgressBar.setString("Scan partially complete");
+            }
+            if (mainScanProgressLabel != null) {
+                mainScanProgressLabel.setText("");
+            }
+
+            // Show partial completion in external progress bar
+            if (externalProgressBar != null) {
+                externalProgressBar.setIndeterminate(false);
+                externalProgressBar.setValue(100);
+                externalProgressBar.setString("Scan partially complete");
+            }
+            if (externalProgressLabel != null) {
+                externalProgressLabel.setText("");
+            }
         });
     }
 

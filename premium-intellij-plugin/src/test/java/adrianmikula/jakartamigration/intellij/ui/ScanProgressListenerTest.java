@@ -73,11 +73,21 @@ public class ScanProgressListenerTest extends BasePlatformTestCase {
         // Test scan error callback
         Exception testError = new RuntimeException("Test error");
         dashboardComponent.onScanError(testError);
-        
+
         // Wait for UI thread to process the update
         Thread.sleep(100);
-        
+
         // Verify no exceptions were thrown during error handling
+        assertThat(true).isTrue(); // Placeholder assertion
+    }
+    public void testScanPartialCallback() throws Exception {
+        // Test scan partial callback
+        dashboardComponent.onScanPartial();
+
+        // Wait for UI thread to process the update
+        Thread.sleep(100);
+
+        // Verify no exceptions were thrown during partial handling
         assertThat(true).isTrue(); // Placeholder assertion
     }
     public void testSubScanCompleteCallback() throws Exception {
@@ -137,6 +147,7 @@ public class ScanProgressListenerTest extends BasePlatformTestCase {
         boolean phaseCalled = false;
         boolean completeCalled = false;
         boolean errorCalled = false;
+        boolean partialCalled = false;
         String lastPhase;
         Exception lastError;
         int lastCompleted = -1;
@@ -162,24 +173,33 @@ public class ScanProgressListenerTest extends BasePlatformTestCase {
         }
 
         @Override
+        public void onScanPartial() {
+            partialCalled = true;
+        }
+
+        @Override
         public void onSubScanComplete(String scanType, int resultCount) {
             // Track sub-scan completions if needed
         }
     }
     public void testProgressListenerStateTracking() throws Exception {
         TestScanProgressListener listener = new TestScanProgressListener();
-        
+
         // Test phase tracking
         listener.onScanPhase("Test Phase 1", 1, 3);
         assertThat(listener.phaseCalled).isTrue();
         assertThat(listener.lastPhase).isEqualTo("Test Phase 1");
         assertThat(listener.lastCompleted).isEqualTo(1);
         assertThat(listener.lastTotal).isEqualTo(3);
-        
+
         // Test completion tracking
         listener.onScanComplete();
         assertThat(listener.completeCalled).isTrue();
-        
+
+        // Test partial tracking
+        listener.onScanPartial();
+        assertThat(listener.partialCalled).isTrue();
+
         // Test error tracking
         Exception testError = new RuntimeException("Test error");
         listener.onScanError(testError);

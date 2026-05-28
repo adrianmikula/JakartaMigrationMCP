@@ -153,13 +153,13 @@ public class ReportsTabComponentTest extends BasePlatformTestCase {
     public void testRiskAnalysisReportHandlesEclipseProjectGracefully() {
         // Arrange - Mock the "No build file found" exception for Eclipse projects
         when(getProject().getBasePath()).thenReturn("E:/Source/JakartaMigrationMCP/examples/old/hard/javaee-legacy-app-example-master");
-        
+
         // Mock the dependency analysis service to throw the "No build file found" exception
         when(mockMigrationAnalysisService.getDependencyGraph(any()))
             .thenThrow(new RuntimeException("No build file found in project: E:/Source/JakartaMigrationMCP/examples/old/hard/javaee-legacy-app-example-master"));
-        
+
         when(mockAdvancedScanningService.hasCachedResults()).thenReturn(true);
-        
+
         // Act & Assert - Should not throw an exception for Risk Analysis report
         // This test verifies that both Risk Analysis and Refactoring Action reports
         // handle Eclipse projects without build files gracefully
@@ -174,6 +174,76 @@ public class ReportsTabComponentTest extends BasePlatformTestCase {
             }
         } catch (Exception e) {
             throw new RuntimeException("Test failed", e);
+        }
+    }
+    public void testHasCompletedScansReturnsTrueWhenCached() {
+        // Arrange
+        when(mockAdvancedScanningService.hasCachedResults()).thenReturn(true);
+
+        // Act
+        boolean result = reportsTabComponent.hasCompletedScans();
+
+        // Assert
+        if (!result) {
+            throw new RuntimeException("hasCompletedScans should return true when cached results exist");
+        }
+    }
+    public void testHasCompletedScansReturnsFalseWhenNoScans() {
+        // Arrange
+        when(mockAdvancedScanningService.hasCachedResults()).thenReturn(false);
+
+        // Act
+        boolean result = reportsTabComponent.hasCompletedScans();
+
+        // Assert
+        if (result) {
+            throw new RuntimeException("hasCompletedScans should return false when no cached results exist");
+        }
+    }
+    public void testHasDependencyAnalysisReturnsTrueWhenGraphExists() {
+        // Arrange
+        DependencyGraph mockDependencyGraph = mock(DependencyGraph.class);
+        Artifact mockArtifact = mock(Artifact.class);
+        when(mockArtifact.groupId()).thenReturn("javax.servlet");
+        when(mockArtifact.artifactId()).thenReturn("servlet-api");
+        when(mockArtifact.version()).thenReturn("2.5");
+
+        Set<Artifact> artifacts = Collections.singleton(mockArtifact);
+        when(mockDependencyGraph.getNodes()).thenReturn(artifacts);
+        when(mockMigrationAnalysisService.getDependencyGraph(any())).thenReturn(mockDependencyGraph);
+
+        // Act
+        boolean result = reportsTabComponent.hasDependencyAnalysis();
+
+        // Assert
+        if (!result) {
+            throw new RuntimeException("hasDependencyAnalysis should return true when graph has nodes");
+        }
+    }
+    public void testHasDependencyAnalysisReturnsFalseWhenNoGraph() {
+        // Arrange
+        when(mockMigrationAnalysisService.getDependencyGraph(any())).thenReturn(null);
+
+        // Act
+        boolean result = reportsTabComponent.hasDependencyAnalysis();
+
+        // Assert
+        if (result) {
+            throw new RuntimeException("hasDependencyAnalysis should return false when graph is null");
+        }
+    }
+    public void testHasDependencyAnalysisReturnsFalseWhenGraphIsEmpty() {
+        // Arrange
+        DependencyGraph mockDependencyGraph = mock(DependencyGraph.class);
+        when(mockDependencyGraph.getNodes()).thenReturn(Collections.emptySet());
+        when(mockMigrationAnalysisService.getDependencyGraph(any())).thenReturn(mockDependencyGraph);
+
+        // Act
+        boolean result = reportsTabComponent.hasDependencyAnalysis();
+
+        // Assert
+        if (result) {
+            throw new RuntimeException("hasDependencyAnalysis should return false when graph has no nodes");
         }
     }
 }

@@ -101,7 +101,7 @@ public class ThrottledProgressListener implements ScanProgressListener {
     public void onScanError(Exception error) {
         // Flush any pending updates before dispatching error
         flushPendingUpdates();
-        
+
         // Dispatch error immediately (this is important)
         ApplicationManager.getApplication().invokeLater(() -> {
             try {
@@ -111,7 +111,22 @@ public class ThrottledProgressListener implements ScanProgressListener {
             }
         });
     }
-    
+
+    @Override
+    public void onScanPartial() {
+        // Flush any pending updates before dispatching partial
+        flushPendingUpdates();
+
+        // Dispatch partial immediately
+        ApplicationManager.getApplication().invokeLater(() -> {
+            try {
+                delegate.onScanPartial();
+            } catch (Exception e) {
+                LOG.error("Error in delegate.onScanPartial", e);
+            }
+        });
+    }
+
     @Override
     public void onSubScanComplete(String scanType, int resultCount) {
         // Batch sub-scan updates

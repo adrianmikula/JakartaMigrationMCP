@@ -22,11 +22,19 @@ public interface ScanProgressListener {
     
     /**
      * Called when the scan operation fails with an error.
-     * 
+     *
      * @param error The exception that caused the failure
      */
     void onScanError(Exception error);
-    
+
+    /**
+     * Called when the scan operation partially completes (some phases succeeded, others failed).
+     */
+    default void onScanPartial() {
+        // Default implementation delegates to onScanError with a generic message
+        onScanError(new Exception("Scan partially completed"));
+    }
+
     /**
      * Called when a specific sub-scan type completes.
      * Optional method for more granular progress reporting.

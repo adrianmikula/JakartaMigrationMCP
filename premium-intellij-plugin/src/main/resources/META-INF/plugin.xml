@@ -27,7 +27,7 @@
     <idea-version since-build="242" />
 
     <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
-    <version>1.0.17</version>
+    <version>1.0.18</version>
 
     <name>Jakarta Migration (javax to jakarta)</name>
     <id>com.adrianmikula.jakarta-migration</id>
@@ -186,6 +186,10 @@
 
 
     <change-notes><![CDATA[
+    <h>1.0.18 - 2026-05-28</h>
+    <ul>
+        <li>Version bump to 1.0.18</li>
+    </ul>
     <h>1.0.17 - 2026-05-27</h>
     <ul>
         <li>Version bump to 1.0.17</li>

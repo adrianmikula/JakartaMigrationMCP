@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.pdfreporting.snippet;
 
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import adrianmikula.jakartamigration.risk.RiskScoringService;
 
 import java.util.Map;
@@ -16,13 +17,22 @@ public class RiskDialsSnippet extends BaseHtmlSnippet {
     private final RiskScoringService.RiskScore riskScore;
     private final ComprehensiveScanResults scanResults;
     private final DependencyGraph dependencyGraph;
+    private final EnhancedPlatformScanResult platformScanResult;
 
-    public RiskDialsSnippet(RiskScoringService.RiskScore riskScore, 
+    public RiskDialsSnippet(RiskScoringService.RiskScore riskScore,
                            ComprehensiveScanResults scanResults,
                            DependencyGraph dependencyGraph) {
+        this(riskScore, scanResults, dependencyGraph, null);
+    }
+
+    public RiskDialsSnippet(RiskScoringService.RiskScore riskScore,
+                           ComprehensiveScanResults scanResults,
+                           DependencyGraph dependencyGraph,
+                           EnhancedPlatformScanResult platformScanResult) {
         this.riskScore = riskScore;
         this.scanResults = scanResults;
         this.dependencyGraph = dependencyGraph;
+        this.platformScanResult = platformScanResult;
     }
 
     @Override
@@ -321,10 +331,16 @@ public class RiskDialsSnippet extends BaseHtmlSnippet {
     }
 
     private int getPlatformsNeedingUpgradeCount() {
-        if (scanResults == null) return 0;
-        // Would come from platform scan results
-        // For now, return 0 as platform detection is separate
-        return 0;
+        if (platformScanResult == null || platformScanResult.getDetectedPlatformDetails() == null) {
+            return 0;
+        }
+        int count = 0;
+        for (var platform : platformScanResult.getDetectedPlatformDetails()) {
+            if (!platform.isJakartaCompatible()) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private int getSourceCodeIssuesCount() {

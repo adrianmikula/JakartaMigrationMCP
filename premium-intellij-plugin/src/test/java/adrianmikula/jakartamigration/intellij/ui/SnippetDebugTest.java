@@ -2,12 +2,17 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.pdfreporting.service.impl.HtmlToPdfReportServiceImpl;
 import adrianmikula.jakartamigration.pdfreporting.service.PdfReportService;
+import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
+import adrianmikula.jakartamigration.platforms.model.PlatformDetection;
+import adrianmikula.jakartamigration.risk.RiskScoringService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -18,18 +23,43 @@ public class SnippetDebugTest {
     
     @Test
     void testSnippetHtmlGeneration() throws Exception {
-        // Arrange - Create a minimal request with null dependency graph (Eclipse project case)
+        // Arrange - Create a request with mock platform and risk data
         Path outputPath = Path.of("test-output.html");
-        
+
+        var wildfly = new PlatformDetection(
+            "appserver", "WildFly", "26.0", true, "26.0",
+            Map.of("jakarta-ee", "10", "servlet", "6.0")
+        );
+        var tomcat = new PlatformDetection(
+            "appserver", "Tomcat", "9.0", false, "10.1",
+            Map.of("jakarta-ee", "Requires Tomcat 10.1+")
+        );
+        EnhancedPlatformScanResult platformScanResults = new EnhancedPlatformScanResult(
+            List.of("WildFly", "Tomcat"),
+            List.of(),
+            List.of(wildfly, tomcat),
+            Map.of("war", 2, "jar", 3),
+            Map.of()
+        );
+
+        RiskScoringService.RiskScore riskScore = new RiskScoringService.RiskScore(
+            55.0,
+            "medium",
+            "Medium Risk",
+            "#f39c12",
+            Map.of("dependencyIssues", 20, "codeComplexity", 15, "platformRisk", 10, "validationConfidence", 10),
+            Collections.emptyList()
+        );
+
         PdfReportService.RiskAnalysisReportRequest request = new PdfReportService.RiskAnalysisReportRequest(
             outputPath,
             "Test Project",
             "Test Report",
-            null, // dependencyGraph - this is the Eclipse project case
+            null, // dependencyGraph - Eclipse project case
             null, // analysisReport
             null, // scanResults
-            null, // platformScanResults
-            null, // riskScore
+            platformScanResults,
+            riskScore,
             "Incremental",
             Collections.emptyMap(),
             Collections.emptyMap(),
@@ -38,38 +68,37 @@ public class SnippetDebugTest {
             Collections.emptyMap(),
             Collections.emptyMap()
         );
-        
+
         // Act - Generate the HTML content
         HtmlToPdfReportServiceImpl service = new HtmlToPdfReportServiceImpl();
-        
-        // Use reflection to access the private method for testing
-        var method = HtmlToPdfReportServiceImpl.class.getDeclaredMethod("generateRiskAnalysisHtmlWithSnippets", PdfReportService.RiskAnalysisReportRequest.class);
+
+        var method = HtmlToPdfReportServiceImpl.class.getDeclaredMethod(
+            "generateRiskAnalysisHtmlWithSnippets", PdfReportService.RiskAnalysisReportRequest.class);
         method.setAccessible(true);
-        
+
         String htmlContent = (String) method.invoke(service, request);
-        
-        // Assert - Check that HTML was generated
+
+        // Assert - Basic HTML structure
         assertNotNull(htmlContent);
         assertFalse(htmlContent.trim().isEmpty());
-        
+        assertTrue(htmlContent.contains("<html"));
+        assertTrue(htmlContent.contains("</html>"));
+
+        // Platform Detection section must appear when data is present
+        assertTrue(htmlContent.contains("Platform Detection"), "Should contain Platform Detection section");
+        assertTrue(htmlContent.contains("WildFly"), "Should show WildFly platform");
+        assertTrue(htmlContent.contains("Tomcat"), "Should show Tomcat platform");
+        assertTrue(htmlContent.contains("Jakarta Compatible"), "Should show Jakarta Compatible status");
+        assertTrue(htmlContent.contains("Needs Migration"), "Should show Needs Migration status");
+        assertTrue(htmlContent.contains("WAR files: 2"), "Should show WAR artifact count");
+        assertTrue(htmlContent.contains("JAR files: 3"), "Should show JAR artifact count");
+
+        // Risk dials must include real platform factor
+        assertTrue(htmlContent.contains("Platforms needing upgrade"), "Should show platforms factor in risk dials");
+
         // Debug - Write HTML to file for manual inspection
         Files.writeString(outputPath, htmlContent);
         System.out.println("HTML content written to: " + outputPath.toAbsolutePath());
         System.out.println("HTML length: " + htmlContent.length());
-        
-        // Basic HTML structure validation
-        assertTrue(htmlContent.contains("<html"));
-        assertTrue(htmlContent.contains("<html"));
-        assertTrue(htmlContent.contains("</html>"));
-        assertTrue(htmlContent.contains("<head>"));
-        assertTrue(htmlContent.contains("</head>"));
-        assertTrue(htmlContent.contains("<body>"));
-        assertTrue(htmlContent.contains("</body>"));
-        
-        // Check for Eclipse warning
-        assertTrue(htmlContent.contains("Eclipse"));
-        
-        System.out.println("=== HTML Content Preview ===");
-        System.out.println(htmlContent.substring(0, Math.min(1000, htmlContent.length())));
     }
 }

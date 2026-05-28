@@ -156,14 +156,31 @@ class MavenDependencyGraphBuilderTest {
     }
     
     @Test
-    @DisplayName("Should throw exception when no build file found")
+    @DisplayName("Should throw exception when no build file found and no JARs exist")
     void shouldThrowWhenNoBuildFileFound() {
         // Given - empty directory
-        
+
         // When & Then
-        assertThrows(DependencyGraphException.class, () -> 
+        assertThrows(DependencyGraphException.class, () ->
             builder.buildFromProject(tempDir)
         );
+    }
+
+    @Test
+    @DisplayName("Should fallback to directory crawler for Eclipse projects with JARs")
+    void shouldFallbackToDirectoryCrawlerForEclipseProjects() throws Exception {
+        // Given - Eclipse project with JARs but no Maven/Gradle files
+        Path libDir = tempDir.resolve("lib");
+        Files.createDirectory(libDir);
+        Files.createFile(libDir.resolve("javax.servlet-api-3.1.0.jar"));
+        Files.createFile(libDir.resolve("javax.persistence-api-2.2.jar"));
+
+        // When
+        DependencyGraph graph = builder.buildFromProject(tempDir);
+
+        // Then
+        assertNotNull(graph);
+        assertTrue(graph.nodeCount() >= 2, "Should find JAR dependencies via directory crawler");
     }
     
     @Test

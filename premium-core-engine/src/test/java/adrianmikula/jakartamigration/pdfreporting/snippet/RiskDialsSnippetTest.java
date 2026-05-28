@@ -4,6 +4,8 @@ import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanRe
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
+import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
+import adrianmikula.jakartamigration.platforms.model.PlatformDetection;
 import adrianmikula.jakartamigration.risk.RiskScoringService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
@@ -294,6 +297,48 @@ class RiskDialsSnippetTest {
         assertTrue(html.contains("#e74c3c"), "Should use red color for high risk");
     }
 
+    @Test
+    @DisplayName("Should calculate platform needing upgrade from real platform scan data")
+    void shouldCalculatePlatformsNeedingUpgradeFromRealData() throws SnippetGenerationException {
+        // Arrange
+        var riskScore = new RiskScoringService.RiskScore(
+            55.0, "medium", "Medium Risk", "#f39c12",
+            Map.of("dependencyIssues", 25, "codeComplexity", 20, "platformRisk", 10),
+            Collections.emptyList()
+        );
+
+        var platformResult = createMockPlatformResultWithIncompatible();
+        var snippet = new RiskDialsSnippet(riskScore, null, null, platformResult);
+
+        // Act
+        String html = snippet.generate();
+
+        // Assert
+        assertTrue(html.contains("Platforms needing upgrade"), "Should show platforms factor");
+        // One platform is not Jakarta compatible (Tomcat), so factor value should be 1
+        assertTrue(html.contains(">1</span>"), "Should show 1 platform needing upgrade");
+    }
+
+    @Test
+    @DisplayName("Should fallback to zero when no platform scan result provided")
+    void shouldFallbackToZeroPlatformsWhenNoPlatformResult() throws SnippetGenerationException {
+        // Arrange
+        var riskScore = new RiskScoringService.RiskScore(
+            30.0, "low", "Low Risk", "#27ae60",
+            Map.of("dependencyIssues", 10, "codeComplexity", 10, "platformRisk", 5),
+            Collections.emptyList()
+        );
+
+        var snippet = new RiskDialsSnippet(riskScore, null, null, null);
+
+        // Act
+        String html = snippet.generate();
+
+        // Assert
+        assertTrue(html.contains("Platforms needing upgrade"), "Should show platforms factor");
+        assertTrue(html.contains(">0</span>"), "Should show 0 platforms needing upgrade when no data");
+    }
+
     // Helper methods to create mock data
 
     private ComprehensiveScanResults createMockScanResults() {
@@ -341,5 +386,22 @@ class RiskDialsSnippetTest {
         edges.add(new Dependency(artifact1, artifact3, "compile", false));
         
         return new DependencyGraph(nodes, edges);
+    }
+
+    private EnhancedPlatformScanResult createMockPlatformResultWithIncompatible() {
+        var wildfly = new PlatformDetection(
+            "appserver", "WildFly", "26.0", true, "26.0", Map.of()
+        );
+        var tomcat = new PlatformDetection(
+            "appserver", "Tomcat", "9.0", false, "10.1", Map.of()
+        );
+
+        return new EnhancedPlatformScanResult(
+            List.of("WildFly", "Tomcat"),
+            List.of(),
+            List.of(wildfly, tomcat),
+            Map.of("war", 2, "jar", 3),
+            Map.of()
+        );
     }
 }

@@ -475,7 +475,7 @@
     <h1>Test Report</h1>
     <h2>Risk Analysis Report</h2>
     <p>Generated for: Test Project</p>
-    <p>Generated on: 2026-05-28 11:52:48</p>
+    <p>Generated on: 2026-05-28 19:08:09</p>
 </div>
 
 <div class="warning-box">
@@ -498,7 +498,7 @@
     <div class="executive-overview">
     <div class="overview-header">
         <h3>📊 Project Overview</h3>
-        <span class="report-date">Generated: 2026-05-28 11:52</span>
+        <span class="report-date">Generated: 2026-05-28 19:08</span>
     </div>
     <div class="overview-grid">
         <div class="overview-card">
@@ -523,25 +523,25 @@
     <div class="executive-risk-summary">
     <h3>🎯 Risk Assessment</h3>
     <div class="risk-summary-grid">
-        <div class="risk-gauge-card low">
-            <div class="risk-gauge-value">0</div>
+        <div class="risk-gauge-card medium">
+            <div class="risk-gauge-value">55</div>
             <div class="risk-gauge-label">Risk Score</div>
-            <div class="risk-gauge-level">LOW</div>
+            <div class="risk-gauge-level">MEDIUM</div>
         </div>
         <div class="readiness-card">
-            <div class="readiness-value">100%</div>
+            <div class="readiness-value">45%</div>
             <div class="readiness-label">Migration Readiness</div>
             <div class="readiness-bar">
-                <div class="readiness-fill" style="width: 100%"></div>
+                <div class="readiness-fill" style="width: 45%"></div>
             </div>
         </div>
     </div>
     <div class="risk-descriptions">
         <div class="risk-description-item">
-            <strong>Migration Complexity:</strong> Straightforward migration with minimal business risk.
+            <strong>Migration Complexity:</strong> Moderate complexity requiring planned approach and testing.
         </div>
         <div class="risk-description-item">
-            <strong>Business Impact:</strong> Minimal downtime expected. Standard deployment windows sufficient.
+            <strong>Business Impact:</strong> Plan for extended testing period. Consider staging environment validation.
         </div>
     </div>
 </div>
@@ -550,9 +550,10 @@
     <h3>💡 Strategic Recommendations</h3>
     <div class="recommendations-list">
         <ul>
-            <li>Plan migration during standard maintenance windows</li>
-<li>Allocate 2-3 developers for 2-4 weeks</li>
-<li>Standard regression testing should be sufficient</li>
+            <li>Schedule dedicated migration sprint(s)</li>
+<li>Include comprehensive integration testing</li>
+<li>Plan for staging environment validation</li>
+<li>Consider incremental migration by module</li>
 
         </ul>
     </div>
@@ -577,10 +578,48 @@
             <div class="metric-label">Issues Found</div>
         </div>
         <div class="metric-card">
-            <div class="metric-value">100%</div>
+            <div class="metric-value">45%</div>
             <div class="metric-label">Readiness Score</div>
         </div>
     </div>
+</div>
+
+<div class="section platform-detection">
+    <h2>Platform Detection</h2>
+    <p>Detected application servers and platforms from project analysis.</p>
+
+    <div class="platform-grid">
+        <div class="platform-card">
+            <h3>Detected Platforms</h3>
+            <ul class="platform-list"><li class="platform-item">
+    <span class="platform-name">WildFly 26.0</span>
+    <span class="platform-compat compatible">Jakarta Compatible</span>
+</li>
+<li class="platform-item">
+    <span class="platform-name">Tomcat 9.0</span>
+    <span class="platform-compat incompatible">Needs Migration</span>
+</li>
+</ul>
+        </div>
+
+        <div class="platform-card">
+            <h3>Deployment Artifacts</h3>
+            <ul class="artifact-list"><li>WAR files: 2</li>
+<li>JAR files: 3</li>
+</ul>
+        </div>
+    </div>
+
+    
+    <div class="platform-details"><h4>Platform Compatibility Details</h4><div class="platform-detail-item">
+    <strong>WildFly</strong>:
+Jakarta EE Compatible (min version: 26.0)
+<ul class="requirements-list"><li>servlet: 6.0</li>
+<li>jakarta-ee: 10</li>
+</ul></div><div class="platform-detail-item">
+    <strong>Tomcat</strong>:
+Requires migration to Jakarta EE%n<ul class="requirements-list"><li>jakarta-ee: Requires Tomcat 10.1+</li>
+</ul></div></div>
 </div>
 
 <div class="section risk-dials">
@@ -593,7 +632,7 @@
     <div class="gauge-container">
         <div id="migration-risk-gauge" class="gauge"></div>
     </div>
-    <div class="dial-score low">0</div>
+    <div class="dial-score medium">55</div>
     <div class="dial-label">Risk Score</div>
     <div class="factor-list">
         <div class="factor-item green">
@@ -606,9 +645,9 @@
     <span class="factor-value">0</span>
 </div>
 
-        <div class="factor-item green">
+        <div class="factor-item yellow">
     <span class="factor-label">Platforms needing upgrade</span>
-    <span class="factor-value">0</span>
+    <span class="factor-value">1</span>
 </div>
 
         <div class="factor-item green">
@@ -683,9 +722,9 @@
                 data: {
                     labels: ['Risk Score', 'Remaining'],
                     datasets: [{
-                        data: [0, 100 - 0],
+                        data: [55, 100 - 55],
                         backgroundColor: [
-                            '#27ae60',
+                            '#f39c12',
                             '#e9ecef'
                         ],
                         borderWidth: 0
@@ -794,11 +833,11 @@
 
     <div class="total-score-display">
         <span class="total-label">Total Risk Score:</span>
-        <span class="total-value 0.0</span>
+        <span class="total-value 55.0</span>
     </div>
 
     <div class="component-bars">
-        low
+        medium
     </div>
 
     <div class="component-table-container">
@@ -812,32 +851,32 @@
             </thead>
             <tbody>
                 <div class="component-bar-item">
-    <span class="component-name">platformRisk</span>
+    <span class="component-name">dependencyIssues</span>
     <div class="component-bar">
-        <div class="component-bar-fill low" style="width: 0.0%"></div>
+        <div class="component-bar-fill low" style="width: 36.4%"></div>
     </div>
-    <span class="component-score">0</span>
+    <span class="component-score">20</span>
 </div>
 <div class="component-bar-item">
     <span class="component-name">codeComplexity</span>
     <div class="component-bar">
-        <div class="component-bar-fill low" style="width: 0.0%"></div>
+        <div class="component-bar-fill low" style="width: 27.3%"></div>
     </div>
-    <span class="component-score">0</span>
+    <span class="component-score">15</span>
+</div>
+<div class="component-bar-item">
+    <span class="component-name">platformRisk</span>
+    <div class="component-bar">
+        <div class="component-bar-fill low" style="width: 18.2%"></div>
+    </div>
+    <span class="component-score">10</span>
 </div>
 <div class="component-bar-item">
     <span class="component-name">validationConfidence</span>
     <div class="component-bar">
-        <div class="component-bar-fill low" style="width: 0.0%"></div>
+        <div class="component-bar-fill low" style="width: 18.2%"></div>
     </div>
-    <span class="component-score">0</span>
-</div>
-<div class="component-bar-item">
-    <span class="component-name">dependencyIssues</span>
-    <div class="component-bar">
-        <div class="component-bar-fill low" style="width: 0.0%"></div>
-    </div>
-    <span class="component-score">0</span>
+    <span class="component-score">10</span>
 </div>
 
             </tbody>

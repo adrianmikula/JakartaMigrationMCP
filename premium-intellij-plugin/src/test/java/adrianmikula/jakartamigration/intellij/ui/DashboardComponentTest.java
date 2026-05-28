@@ -294,12 +294,58 @@ public class DashboardComponentTest extends BasePlatformTestCase {
             dashboardComponent.getCdiInjectionScanCountValue();
             dashboardComponent.getBuildConfigScanCountValue();
             dashboardComponent.getRestSoapScanCountValue();
-            
+
             // If we reach here, all getters handled null components properly
             assertThat(true).isTrue();
         } catch (NullPointerException e) {
             throw new RuntimeException("MCP status getter methods should not throw NPE even when components are null: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Test that onScanError sets the progress bar to 'Scan failed - Error'.
+     */
+    public void testOnScanError_SetsProgressBarText() throws Exception {
+        // Ensure the panel (and progress bar) is initialized
+        assertThat(dashboardComponent.getPanel()).isNotNull();
+
+        dashboardComponent.onScanError(new RuntimeException("Test error"));
+
+        // Wait for EDT to process the update
+        Thread.sleep(200);
+
+        // Use reflection to verify the progress bar text
+        java.lang.reflect.Field progressBarField = DashboardComponent.class.getDeclaredField("mainScanProgressBar");
+        progressBarField.setAccessible(true);
+        javax.swing.JProgressBar progressBar = (javax.swing.JProgressBar) progressBarField.get(dashboardComponent);
+
+        assertThat(progressBar).isNotNull();
+        assertThat(progressBar.getString()).isEqualTo("Scan failed - Error");
+        assertThat(progressBar.getValue()).isEqualTo(0);
+        assertThat(progressBar.isIndeterminate()).isFalse();
+    }
+
+    /**
+     * Test that onScanPartial sets the progress bar to 'Scan partially complete'.
+     */
+    public void testOnScanPartial_SetsProgressBarText() throws Exception {
+        // Ensure the panel (and progress bar) is initialized
+        assertThat(dashboardComponent.getPanel()).isNotNull();
+
+        dashboardComponent.onScanPartial();
+
+        // Wait for EDT to process the update
+        Thread.sleep(200);
+
+        // Use reflection to verify the progress bar text
+        java.lang.reflect.Field progressBarField = DashboardComponent.class.getDeclaredField("mainScanProgressBar");
+        progressBarField.setAccessible(true);
+        javax.swing.JProgressBar progressBar = (javax.swing.JProgressBar) progressBarField.get(dashboardComponent);
+
+        assertThat(progressBar).isNotNull();
+        assertThat(progressBar.getString()).isEqualTo("Scan partially complete");
+        assertThat(progressBar.getValue()).isEqualTo(100);
+        assertThat(progressBar.isIndeterminate()).isFalse();
     }
 
 }

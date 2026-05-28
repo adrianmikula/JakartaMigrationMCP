@@ -179,14 +179,78 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
     private List<DependencyTreeResult.DependencyNode> parseMavenJsonOutput(Process process, Set<String> scopes) throws IOException {
         List<DependencyTreeResult.DependencyNode> deps = new ArrayList<>();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-            StringBuilder json = new StringBuilder();
+            StringBuilder output = new StringBuilder();
             String line;
             while ((line = reader.readLine()) != null) {
-                if (line.trim().startsWith("{") || line.trim().startsWith("[")) json.append(line);
+                output.append(line).append('\n');
             }
-            if (json.length() > 0) parseMavenJsonNode(objectMapper.readTree(json.toString()), deps, 0, null, null);
+            String jsonStr = extractJson(output.toString());
+            if (jsonStr == null || jsonStr.isEmpty()) {
+                return deps;
+            }
+            JsonNode root = objectMapper.readTree(jsonStr);
+            if (root.isArray()) {
+                root.forEach(node -> parseMavenJsonNode(node, deps, 0, null, null));
+            } else {
+                parseMavenJsonNode(root, deps, 0, null, null);
+            }
         }
         return deps;
+    }
+
+    /**
+     * Extracts a JSON object or array from text that may contain other output.
+     * Finds the first '{' or '[' and returns the balanced substring.
+     */
+    private String extractJson(String text) {
+        int start = -1;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '{' || c == '[') {
+                // Skip bracket constructs like [INFO], [WARN], [ERROR] that appear
+                // in Maven log output before the actual JSON
+                if (c == '[' && i + 1 < text.length() && Character.isLetter(text.charAt(i + 1))) {
+                    continue;
+                }
+                start = i;
+                break;
+            }
+        }
+        if (start == -1) {
+            return null;
+        }
+
+        boolean inString = false;
+        boolean escape = false;
+        int braceDepth = 0;
+        int bracketDepth = 0;
+
+        for (int i = start; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (escape) {
+                escape = false;
+                continue;
+            }
+            if (c == '\\') {
+                escape = true;
+                continue;
+            }
+            if (c == '"') {
+                inString = !inString;
+                continue;
+            }
+            if (!inString) {
+                if (c == '{') braceDepth++;
+                else if (c == '}') braceDepth--;
+                else if (c == '[') bracketDepth++;
+                else if (c == ']') bracketDepth--;
+
+                if (braceDepth == 0 && bracketDepth == 0) {
+                    return text.substring(start, i + 1);
+                }
+            }
+        }
+        return text.substring(start);
     }
 
     private void parseMavenJsonNode(JsonNode node, List<DependencyTreeResult.DependencyNode> deps, int depth, String parentScope, String parentArtifactKey) {

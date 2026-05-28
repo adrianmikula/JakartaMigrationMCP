@@ -57,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
@@ -783,6 +784,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             setScanButtonsEnabled(false);
             dashboardComponent.setAnalysisRunning(true);
 
+            // Track whether any intermediate phase failed but the chain continued
+            AtomicBoolean hasPartialFailure = new AtomicBoolean(false);
+
             // Phase 1: Basic dependency analysis (direct dependencies)
             dashboardComponent.onScanPhase("Basic Dependency Analysis", 0, 3);
 
@@ -810,7 +814,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         return advancedScanningService.scanAllExcludingTransitive(projectPath, dashboardComponent);
                     } catch (Exception ex) {
                         LOG.warn("handleQuickScan: Advanced scans failed", ex);
-                        dashboardComponent.onScanError(ex);
+                        hasPartialFailure.set(true);
                         return null;
                     }
                 });
@@ -838,11 +842,18 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 ApplicationManager.getApplication().invokeLater(() -> {
                     if (throwable != null) {
                         LOG.error("handleQuickScan: Scan failed", throwable);
-                        dashboardComponent.setAnalysisRunning(false);
+                        dashboardComponent.onScanError(new Exception(throwable));
                         setScanButtonsEnabled(true);
                         NotificationHelper.showWarning(project,
                                 "Scan Failed",
                                 "Quick scan failed: " + throwable.getMessage());
+                    } else if (hasPartialFailure.get()) {
+                        LOG.warn("handleQuickScan: Scan partially completed");
+                        dashboardComponent.onScanPartial();
+                        setScanButtonsEnabled(true);
+                        Messages.showInfoMessage(project,
+                                "Quick scan partially complete. Some phases may have failed.",
+                                "Scan Partially Complete");
                     } else {
                         dashboardComponent.onScanComplete();
                         setScanButtonsEnabled(true);
@@ -905,7 +916,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 } catch (Exception ex) {
                     LOG.error("handleDeepScan: Unexpected error", ex);
                     ApplicationManager.getApplication().invokeLater(() -> {
-                        dashboardComponent.setAnalysisRunning(false);
+                        dashboardComponent.onScanError(ex);
                         setScanButtonsEnabled(true);
                         NotificationHelper.showWarning(project,
                                 "Scan Failed",
@@ -921,6 +932,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
          */
         private void performDeepScan(Path projectPath) {
             LOG.info("performDeepScan: Starting deep scan with full transitive dependency analysis");
+
+            // Track whether any intermediate phase failed but the chain continued
+            AtomicBoolean hasPartialFailure = new AtomicBoolean(false);
 
             // Phase 1: Deep dependency analysis
             dashboardComponent.onScanPhase("Deep Dependency Analysis", 0, 3);
@@ -967,7 +981,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         return advancedScanningService.scanAll(projectPath, dashboardComponent);
                     } catch (Exception ex) {
                         LOG.warn("performDeepScan: Advanced scans failed", ex);
-                        dashboardComponent.onScanError(ex);
+                        hasPartialFailure.set(true);
                         return null;
                     }
                 });
@@ -997,11 +1011,18 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 ApplicationManager.getApplication().invokeLater(() -> {
                     if (throwable != null) {
                         LOG.error("performDeepScan: Scan failed", throwable);
-                        dashboardComponent.setAnalysisRunning(false);
+                        dashboardComponent.onScanError(new Exception(throwable));
                         setScanButtonsEnabled(true);
                         Messages.showWarningDialog(project,
                                 "Deep scan failed: " + throwable.getMessage(),
                                 "Scan Failed");
+                    } else if (hasPartialFailure.get()) {
+                        LOG.warn("performDeepScan: Scan partially completed");
+                        dashboardComponent.onScanPartial();
+                        setScanButtonsEnabled(true);
+                        Messages.showInfoMessage(project,
+                                "Deep scan partially complete. Some phases may have failed.",
+                                "Scan Partially Complete");
                     } else {
                         dashboardComponent.onScanComplete();
                         setScanButtonsEnabled(true);

@@ -20,7 +20,15 @@ import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+
+import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
+import adrianmikula.jakartamigration.advancedscanning.domain.JpaAnnotationUsage;
+import adrianmikula.jakartamigration.advancedscanning.domain.JpaScanResult;
+import adrianmikula.jakartamigration.advancedscanning.domain.JpaProjectScanResult;
+import adrianmikula.jakartamigration.advancedscanning.domain.ProjectScanResult;
+import adrianmikula.jakartamigration.advancedscanning.domain.FileScanResult;
 
 /**
  * Tests for AdvancedScanningService
@@ -657,6 +665,74 @@ public class AdvancedScanningServiceTest {
         // BUILD_TOOL_ERROR should map to a valid status (not null)
         DependencyMigrationStatus status = service.determineMigrationStatus(usage);
         assertThat(status).isNotNull();
+    }
+
+    @Test
+    public void testGetLastScanResults_MapsJpaResultsCorrectly() {
+        AdvancedScanningService service = createService();
+
+        // Create a simple JPA usage
+        JpaAnnotationUsage usage = new JpaAnnotationUsage(
+            "javax.persistence.Entity",
+            "jakarta.persistence.Entity",
+            42,
+            "com.example.Entity",
+            "class declaration"
+        );
+        FileScanResult<JpaAnnotationUsage> fileResult = new FileScanResult<>(
+            Path.of("/project/src/main/java/com/example/Entity.java"),
+            List.of(usage),
+            50
+        );
+        ProjectScanResult<FileScanResult<JpaAnnotationUsage>> jpaResult =
+            new ProjectScanResult<>(List.of(fileResult), 1, 1, 1);
+
+        // Build a minimal AdvancedScanSummary with only JPA populated
+        AdvancedScanningService.AdvancedScanSummary summary = new AdvancedScanningService.AdvancedScanSummary(
+            jpaResult,
+            ProjectScanResult.empty(), // beanValidation
+            ProjectScanResult.empty(), // servletJsp
+            ProjectScanResult.empty(), // cdiInjection
+            ProjectScanResult.empty(), // buildConfig
+            ProjectScanResult.empty(), // restSoap
+            null, // deprecatedApi
+            null, // securityApi
+            null, // jmsMessaging
+            TransitiveDependencyProjectScanResult.empty(),
+            null, // configFile
+            null, // classloaderModule
+            null, // loggingMetrics
+            null, // serializationCache
+            null  // thirdPartyLib
+        );
+
+        service.setCachedSummary(summary);
+        ComprehensiveScanResults results = service.getLastScanResults();
+
+        assertThat(results).isNotNull();
+        assertThat(results.jpaResults()).isNotEmpty();
+        assertThat(results.totalIssuesFound()).isGreaterThan(0);
+        assertThat(results.summary()).isNotNull();
+        assertThat(results.summary().totalFilesScanned()).isGreaterThan(0);
+
+        // Verify the JPA result is extractable as JpaProjectScanResult
+        JpaProjectScanResult jpaProjectResult = null;
+        for (Object value : results.jpaResults().values()) {
+            if (value instanceof JpaProjectScanResult) {
+                jpaProjectResult = (JpaProjectScanResult) value;
+                break;
+            }
+        }
+        assertThat(jpaProjectResult).isNotNull();
+        assertThat(jpaProjectResult.totalAnnotationsFound()).isEqualTo(1);
+    }
+
+    @Test
+    public void testGetLastScanResults_NullCache_ReturnsNull() {
+        AdvancedScanningService service = createService();
+        // No cached summary set
+        ComprehensiveScanResults results = service.getLastScanResults();
+        assertThat(results).isNull();
     }
 }
 

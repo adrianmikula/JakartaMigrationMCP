@@ -5,8 +5,12 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.ByteArrayInputStream;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -193,5 +197,95 @@ class DependencyTreeCommandExecutorImplTest {
     void shutdown_shouldNotThrow() {
         DependencyTreeCommandExecutorImpl executor = new DependencyTreeCommandExecutorImpl();
         assertDoesNotThrow(executor::shutdown);
+    }
+
+    @Test
+    void extractJson_shouldExtractBalancedJsonFromMixedOutput() throws Exception {
+        DependencyTreeCommandExecutorImpl executor = new DependencyTreeCommandExecutorImpl();
+        Method method = DependencyTreeCommandExecutorImpl.class.getDeclaredMethod("extractJson", String.class);
+        method.setAccessible(true);
+
+        String mixedOutput = "[INFO] Some log line\n{\"groupId\":\"com.example\",\"artifactId\":\"app\",\"children\":[]}\n[WARN] Another line";
+        String result = (String) method.invoke(executor, mixedOutput);
+        assertEquals("{\"groupId\":\"com.example\",\"artifactId\":\"app\",\"children\":[]}", result);
+    }
+
+    @Test
+    void parseMavenJsonOutput_shouldParseMultiLineJsonWithTransitiveDeps() throws Exception {
+        String json = "[\n" +
+            "  {\n" +
+            "    \"groupId\": \"com.example\",\n" +
+            "    \"artifactId\": \"parent\",\n" +
+            "    \"version\": \"1.0.0\",\n" +
+            "    \"scope\": \"compile\",\n" +
+            "    \"children\": [\n" +
+            "      {\n" +
+            "        \"groupId\": \"javax.servlet\",\n" +
+            "        \"artifactId\": \"javax.servlet-api\",\n" +
+            "        \"version\": \"4.0.1\",\n" +
+            "        \"scope\": \"provided\",\n" +
+            "        \"children\": []\n" +
+            "      }\n" +
+            "    ]\n" +
+            "  }\n" +
+            "]";
+
+        java.lang.Process mockProcess = new java.lang.Process() {
+            @Override public java.io.OutputStream getOutputStream() { return null; }
+            @Override public java.io.InputStream getInputStream() { return new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)); }
+            @Override public java.io.InputStream getErrorStream() { return new ByteArrayInputStream(new byte[0]); }
+            @Override public int waitFor() { return 0; }
+            @Override public int exitValue() { return 0; }
+            @Override public void destroy() {}
+        };
+
+        DependencyTreeCommandExecutorImpl executor = new DependencyTreeCommandExecutorImpl();
+        Method method = DependencyTreeCommandExecutorImpl.class.getDeclaredMethod("parseMavenJsonOutput", java.lang.Process.class, Set.class);
+        method.setAccessible(true);
+
+        @SuppressWarnings("unchecked")
+        List<DependencyTreeResult.DependencyNode> deps =
+            (List<DependencyTreeResult.DependencyNode>) method.invoke(executor, mockProcess, Set.of());
+
+        assertEquals(2, deps.size());
+        assertEquals("com.example", deps.get(0).getGroupId());
+        assertEquals("parent", deps.get(0).getArtifactId());
+        assertFalse(deps.get(0).isTransitive());
+        assertEquals("javax.servlet", deps.get(1).getGroupId());
+        assertEquals("javax.servlet-api", deps.get(1).getArtifactId());
+        assertTrue(deps.get(1).isTransitive());
+        assertEquals("com.example:parent", deps.get(1).getParentArtifactKey());
+    }
+
+    @Test
+    void parseMavenJsonOutput_shouldHandleObjectRoot() throws Exception {
+        String json = "{\n" +
+            "  \"groupId\": \"com.example\",\n" +
+            "  \"artifactId\": \"app\",\n" +
+            "  \"version\": \"1.0.0\",\n" +
+            "  \"children\": []\n" +
+            "}";
+
+        java.lang.Process mockProcess = new java.lang.Process() {
+            @Override public java.io.OutputStream getOutputStream() { return null; }
+            @Override public java.io.InputStream getInputStream() { return new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)); }
+            @Override public java.io.InputStream getErrorStream() { return new ByteArrayInputStream(new byte[0]); }
+            @Override public int waitFor() { return 0; }
+            @Override public int exitValue() { return 0; }
+            @Override public void destroy() {}
+        };
+
+        DependencyTreeCommandExecutorImpl executor = new DependencyTreeCommandExecutorImpl();
+        Method method = DependencyTreeCommandExecutorImpl.class.getDeclaredMethod("parseMavenJsonOutput", java.lang.Process.class, Set.class);
+        method.setAccessible(true);
+
+        @SuppressWarnings("unchecked")
+        List<DependencyTreeResult.DependencyNode> deps =
+            (List<DependencyTreeResult.DependencyNode>) method.invoke(executor, mockProcess, Set.of());
+
+        assertEquals(1, deps.size());
+        assertEquals("com.example", deps.get(0).getGroupId());
+        assertEquals("app", deps.get(0).getArtifactId());
+        assertFalse(deps.get(0).isTransitive());
     }
 }

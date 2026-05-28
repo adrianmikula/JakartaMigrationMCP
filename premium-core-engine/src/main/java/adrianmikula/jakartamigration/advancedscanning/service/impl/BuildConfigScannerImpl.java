@@ -108,6 +108,8 @@ public class BuildConfigScannerImpl extends BaseScanner<BuildConfigUsage> implem
                 usages = parsePomXml(content, filePath);
             } else if (fileName.startsWith("build.gradle")) {
                 usages = parseGradle(content, filePath);
+            } else if (fileName.equals(".classpath")) {
+                usages = parseEclipseClasspath(content, filePath);
             }
 
             return new FileScanResult<>(filePath, usages, content.split("\n").length);
@@ -187,6 +189,41 @@ public class BuildConfigScannerImpl extends BaseScanner<BuildConfigUsage> implem
                         mapping != null ? mapping[0].split(":")[0] : groupId.replace("javax", "jakarta"),
                         mapping != null ? mapping[0].split(":")[1] : artifactId,
                         mapping != null ? mapping[1] : null,
+                        lineNumber));
+            }
+        }
+
+        return usages;
+    }
+
+    private List<BuildConfigUsage> parseEclipseClasspath(String content, Path filePath) {
+        List<BuildConfigUsage> usages = new ArrayList<>();
+        String[] lines = content.split("\n");
+
+        // Match <classpathentry kind="lib" path=".../javax.servlet-api-3.1.0.jar"/>
+        Pattern classpathPattern = Pattern.compile(
+                "<classpathentry[^>]+kind=\"lib\"[^>]+path=\"([^\"]+)\"");
+        Matcher matcher = classpathPattern.matcher(content);
+
+        while (matcher.find()) {
+            String jarPath = matcher.group(1);
+            String jarName = java.nio.file.Paths.get(jarPath).getFileName().toString();
+
+            // Extract potential javax artifact names from JAR filename
+            if (jarName.contains("javax") || jarName.contains("javaee")) {
+                String[] parts = jarName.replace(".jar", "").split("-");
+                String artifactId = parts[0];
+                String version = parts.length > 1 ? parts[1] : "unknown";
+
+                int lineNumber = findLineNumber(lines, jarPath);
+
+                usages.add(new BuildConfigUsage(
+                        "javax.unknown",
+                        artifactId,
+                        version,
+                        artifactId.replace("javax", "jakarta"),
+                        artifactId.replace("javax", "jakarta"),
+                        null,
                         lineNumber));
             }
         }

@@ -7,7 +7,7 @@ This document outlines the release management process, version number format req
 ### Plugin Version Format
 The plugin follows semantic versioning: `MAJOR.MINOR.PATCH`
 
-#### Current Version: `1.0.8`
+#### Current Version: `1.0.18`
 
 #### Version Components:
 - **MAJOR**: Breaking changes or major new features
@@ -15,8 +15,8 @@ The plugin follows semantic versioning: `MAJOR.MINOR.PATCH`
 - **PATCH**: Bug fixes and minor improvements
 
 #### Version Validation:
-- Plugin version in `gradle.properties`: `1.0.8`
-- Plugin version in `plugin.xml`: `<version>1.0.8</version>`
+- Plugin version in `gradle.properties`: `1.0.18`
+- Plugin version in `plugin.xml`: `<version>1.0.18</version>`
 - Both must match exactly for successful builds
 
 ### Marketplace Release Version Requirements
@@ -31,14 +31,20 @@ The plugin follows semantic versioning: `MAJOR.MINOR.PATCH`
 <!-- plugin.xml -->
 <product-descriptor 
     code="PJAKARTAMIGRATI" 
-    release-date="20250325" 
-    release-version="20218"/>
+    release-date="20260101" 
+    release-version="10"/>
 ```
+
+#### Release Date Guidelines:
+- **`release-date` should ONLY be updated for MAJOR version releases** (e.g., 1.0.x → 2.0.0)
+- For MINOR and PATCH releases, keep the existing `release-date` from the major release
+- This aligns with JetBrains Marketplace requirements where `release-date` represents the major version release date
 
 #### Validation Rules:
 - `release-version` must start with the same digits as plugin version
-- For `1.0.8`, the release version must be `20218` (both start with "2021")
-- `release-date` follows `YYYYMMDD` format (2025-03-25 → 20250325)
+- For `1.0.18`, the release version must be `10` (first 2 digits of version)
+- `release-date` follows `YYYYMMDD` format (2026-01-01 → 20260101)
+- **`release-date` is only updated for MAJOR version releases**
 
 ## Platform Detection Requirements
 
@@ -237,7 +243,19 @@ The plugin.xml must pass all JetBrains Marketplace validation checks:
 
 ## Version History
 
-### v1.0.11 (Current)
+### v1.0.18 (Current)
+- Version bump to 1.0.18
+
+### v1.0.17
+- Version bump to 1.0.17
+
+### v1.0.16
+- **Fixed**: Dependency graph panning and interaction issues
+- **Improved**: Deep transitive dependency scanning with metadata
+- **Fixed**: UI async operations and threading issues
+- **Added**: Recipe safety field for safer refactoring operations
+
+### v1.0.11
 - **API Compatibility**: Fixed 2 scheduled for removal API usages
   - Replaced `NotificationGroup.balloonGroup(String)` with `NotificationGroupManager.getInstance().getNotificationGroup()` in `JakartaMigrationDiscoverabilityService.java`
   - Replaced `AnActionEvent.createFromDataContext()` with `AnActionEvent.createFromAnAction()` in `CheckLicense.java`

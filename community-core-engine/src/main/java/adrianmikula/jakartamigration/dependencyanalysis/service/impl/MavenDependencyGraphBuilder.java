@@ -219,7 +219,21 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
             }
         }
         
-        log.error("No build file found in project: {}", projectRoot);
+        log.warn("No Maven or Gradle build file found in project: {}. Falling back to directory crawler.", projectRoot);
+        
+        // Fallback for Eclipse / legacy projects without Maven/Gradle
+        try {
+            DirectoryCrawlerDependencyGraphBuilder fallbackBuilder = new DirectoryCrawlerDependencyGraphBuilder();
+            DependencyGraph fallbackGraph = fallbackBuilder.buildFromProject(projectRoot);
+            if (fallbackGraph != null && !fallbackGraph.getNodes().isEmpty()) {
+                log.info("Directory crawler found {} dependencies for project: {}", 
+                        fallbackGraph.getNodes().size(), projectRoot);
+                return fallbackGraph;
+            }
+        } catch (Exception e) {
+            log.warn("Directory crawler fallback failed for project: {}", projectRoot, e);
+        }
+        
         throw new DependencyGraphException("No build file found in project: " + projectRoot);
     }
     
