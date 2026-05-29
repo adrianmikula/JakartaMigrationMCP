@@ -5,6 +5,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyAnalys
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
 import adrianmikula.jakartamigration.config.FeatureFlagsService;
 import adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner;
+import adrianmikula.jakartamigration.coderefactoring.domain.RecipeExecutionResult;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -132,25 +133,38 @@ class JakartaMigrationToolsTest {
     @Test
     @DisplayName("Should detect blockers successfully")
     void shouldDetectBlockersSuccessfully() throws Exception {
+        // Given
+        when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);
+
         // When
         String result = tools.detectBlockers(testProjectPath.toString());
 
-        // Then - detectBlockers requires premium license, so should return error
-        assertThat(result).contains("\"status\": \"error\"");
-        assertThat(result).contains("MCP Server features require Premium");
-        verify(dependencyAnalysisModule, never()).analyzeProject(any(Path.class));
+        // Then
+        assertThat(result).contains("\"status\"").contains("\"success\"");
+        assertThat(result).contains("\"edition\"").contains("\"premium\"");
+        verify(dependencyAnalysisModule, times(1)).analyzeProject(any(Path.class));
     }
 
     @Test
     @DisplayName("Should return empty blockers list when no blockers found")
     void shouldReturnEmptyBlockersListWhenNoBlockersFound() throws Exception {
+        // Given - report with no blockers
+        DependencyAnalysisReport emptyBlockersReport = new DependencyAnalysisReport(
+                mockGraph,
+                java.util.Map.of(),
+                List.of(),
+                List.of(),
+                new RiskAssessment(0.1, List.of("Low risk"), List.of()),
+                new MigrationReadinessScore(0.9, "Ready for migration"));
+        when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(emptyBlockersReport);
+
         // When
         String result = tools.detectBlockers(testProjectPath.toString());
 
-        // Then - detectBlockers requires premium license, so should return error
-        assertThat(result).contains("\"status\": \"error\"");
-        assertThat(result).contains("MCP Server features require Premium");
-        verify(dependencyAnalysisModule, never()).analyzeProject(any(Path.class));
+        // Then
+        assertThat(result).contains("\"status\"").contains("\"success\"");
+        assertThat(result).contains("\"blockerCount\"").contains("0");
+        verify(dependencyAnalysisModule, times(1)).analyzeProject(any(Path.class));
     }
 
     @Test
@@ -207,5 +221,132 @@ class JakartaMigrationToolsTest {
         // Check that newlines in content are escaped (the JSON structure can have
         // newlines for formatting)
         assertThat(result).contains("\\n"); // Newlines in content should be escaped
+    }
+
+    @Test
+    @DisplayName("Should analyze Jakarta readiness successfully")
+    void shouldAnalyzeJakartaReadinessSuccessfully() {
+        // Given
+        when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);
+
+        // When
+        String result = tools.analyzeJakartaReadiness(testProjectPath.toString(), true, "detailed");
+
+        // Then
+        assertThat(result).contains("\"status\"").contains("\"success\"");
+        assertThat(result).contains("\"readinessScore\":0.8");
+        assertThat(result).contains("\"totalDependencies\":2");
+        verify(dependencyAnalysisModule, times(1)).analyzeProject(any(Path.class));
+    }
+
+    @Test
+    @DisplayName("Should analyze migration impact successfully")
+    void shouldAnalyzeMigrationImpactSuccessfully() {
+        // Given
+        when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);
+
+        // When
+        String result = tools.analyzeMigrationImpact(testProjectPath.toString(), "all", true, "detailed");
+
+        // Then
+        assertThat(result).contains("\"status\"").contains("\"success\"");
+        assertThat(result).contains("\"projectPath\":\"" + testProjectPath.toString().replace("\\", "\\\\") + "\"");
+        assertThat(result).contains("\"scope\":\"all\"");
+        verify(dependencyAnalysisModule, times(1)).analyzeProject(any(Path.class));
+    }
+
+    @Test
+    @DisplayName("Should recommend versions successfully")
+    void shouldRecommendVersionsSuccessfully() {
+        // Given
+        when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);
+
+        // When
+        String result = tools.recommendVersions(testProjectPath.toString(), true, "10");
+
+        // Then
+        assertThat(result).contains("\"status\"").contains("\"success\"");
+        assertThat(result).contains("\"totalDependencies\":2");
+        verify(dependencyAnalysisModule, times(1)).analyzeProject(any(Path.class));
+    }
+
+    @Test
+    @DisplayName("Should generate migration plan successfully")
+    void shouldGenerateMigrationPlanSuccessfully() {
+        // Given
+        when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);
+
+        // When
+        String result = tools.generateMigrationPlan(testProjectPath.toString(), "incremental", "10");
+
+        // Then
+        assertThat(result).contains("\"status\"").contains("\"success\"");
+        assertThat(result).contains("\"strategy\":\"incremental\"");
+        assertThat(result).contains("\"targetVersion\":\"10\"");
+        verify(dependencyAnalysisModule, times(1)).analyzeProject(any(Path.class));
+    }
+
+    @Test
+    @DisplayName("Should validate migration successfully")
+    void shouldValidateMigrationSuccessfully() {
+        // Given
+        when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);
+
+        // When
+        String result = tools.validateMigration(testProjectPath.toString(), "standard");
+
+        // Then
+        assertThat(result).contains("\"status\"").contains("\"success\"");
+        assertThat(result).contains("\"ready\":true");
+        assertThat(result).contains("\"readinessScore\":0.8");
+        verify(dependencyAnalysisModule, times(1)).analyzeProject(any(Path.class));
+    }
+
+    @Test
+    @DisplayName("Should scan binary dependency successfully")
+    void shouldScanBinaryDependencySuccessfully() {
+        // When
+        String result = tools.scanBinaryDependency(testJarPath.toString(), false, "summary");
+
+        // Then - empty file returns UNKNOWN compatibility level
+        assertThat(result).contains("\"status\"").contains("\"success\"");
+        assertThat(result).contains("\"jarPath\":\"" + testJarPath.toString().replace("\\", "\\\\") + "\"");
+    }
+
+    @Test
+    @DisplayName("Should apply Jakarta recipe by delegating to applyRefactorRecipe")
+    void shouldApplyJakartaRecipeSuccessfully() throws Exception {
+        // Given
+        RecipeExecutionResult mockResult = new RecipeExecutionResult(
+                true, 5, 3, List.of("File1.java", "File2.java"), "Success", 1L);
+        when(recipeService.applyRecipe(anyString(), any(Path.class))).thenReturn(mockResult);
+
+        // When
+        String result = tools.applyJakartaRecipe(testProjectPath.toString(), "jakarta.servlet");
+
+        // Then
+        assertThat(result).contains("\"status\"").contains("\"success\"");
+        verify(recipeService, times(1)).applyRecipe(eq("jakarta.servlet"), any(Path.class));
+    }
+
+    @Test
+    @DisplayName("Should return error for invalid project path in new tools")
+    void shouldReturnErrorForInvalidPathInNewTools() {
+        String nonExistentPath = "/non/existent/path";
+
+        assertThat(tools.analyzeJakartaReadiness(nonExistentPath, false, "basic"))
+                .contains("\"status\"").contains("\"error\"").contains("does not exist");
+        assertThat(tools.analyzeMigrationImpact(nonExistentPath, "all", false, "json"))
+                .contains("\"status\"").contains("\"error\"").contains("does not exist");
+        assertThat(tools.recommendVersions(nonExistentPath, false, "10"))
+                .contains("\"status\"").contains("\"error\"").contains("does not exist");
+        assertThat(tools.generateMigrationPlan(nonExistentPath, "incremental", "10"))
+                .contains("\"status\"").contains("\"error\"").contains("does not exist");
+        assertThat(tools.validateMigration(nonExistentPath, "standard"))
+                .contains("\"status\"").contains("\"error\"").contains("does not exist");
+        assertThat(tools.generateHtmlReport(nonExistentPath, "riskAnalysis", null))
+                .contains("\"status\"").contains("\"error\"").contains("does not exist");
+        assertThat(tools.scanBinaryDependency(nonExistentPath, false, "summary"))
+                .contains("\"status\"").contains("\"error\"").contains("does not exist");
     }
 }

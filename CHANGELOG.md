@@ -5,6 +5,43 @@ All notable changes to the Jakarta Migration IntelliJ plugin will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.0.18] - 2026-05-28
+
+### Fixed
+- **Community dependency analysis**: `SimpleNamespaceClassifier` no longer misclassifies Spring Boot / Spring Framework artifacts with unresolvable versions as `JAVAX`. Artifacts with `"unknown"` or `${...}` versions are now correctly classified as `UNKNOWN`, preventing false-positive `NO_JAKARTA_EQUIVALENT` blockers.
+- **Community Gradle parser**: `MavenDependencyGraphBuilder` now loads and resolves `gradle/libs.versions.toml` version catalogs and skips `platform(...)` / `project(...)` references.
+
+### Added
+- **Premium dependency resolution**: New `PremiumDependencyGraphBuilder` in `premium-core-engine` runs actual `mvn dependency:tree` / `gradle dependencies` commands for accurate resolved-dependency graphs, then automatically falls back to the community regex parser when build tools are unavailable.
+- **Premium MCP server integration**: `PremiumDependencyAnalysisModule` and `PremiumMcpConfiguration` wire the build-tool-based resolver into the premium MCP server as the primary `DependencyAnalysisModule`.
+- **Roadmap documentation**: Added `docs/roadmap/dependency-resolution-fallback.md` documenting the 3-tier fallback strategy and future improvements.
+
+## [1.0.17] - 2026-05-27
+
+### Added
+- Tests and fixed selective table deletion on database upgrade
+
+### Changed
+- Refactored UI color constants for better theme support
+- Refactored large classes by extracting methods into utility classes and eliminating code duplication
+- Refactored CI/CD pipeline and updated developer/release documentation
+- Replaced modal dialogs with non-intrusive notifications
+
+## [1.0.16] - 2026-05-27
+
+### Fixed
+- Dependency graph panning and interaction issues
+- UI async operations and threading issues
+
+### Improved
+- Deep transitive dependency scanning with metadata
+- Selective table deletion on database upgrade
+
+### Added
+- Recipe safety field for safer refactoring operations
+
 ## [1.0.15] - 2026-04-24
 
 ### Fixed

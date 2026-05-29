@@ -36,49 +36,67 @@ public class SimpleNamespaceClassifier implements NamespaceClassifier {
     @Override
     public Namespace classify(Artifact artifact) {
         String identifier = artifact.toIdentifier();
-        
+        String version = artifact.version();
+
         // Check known Jakarta artifacts
         if (JAKARTA_ARTIFACTS.containsKey(identifier)) {
             String minVersion = JAKARTA_ARTIFACTS.get(identifier);
-            if (isVersionGreaterOrEqual(artifact.version(), minVersion)) {
+            if (isVersionGreaterOrEqual(version, minVersion)) {
                 return Namespace.JAKARTA;
             }
         }
-        
+
         // Check known javax artifacts
         if (JAVAX_ARTIFACTS.containsKey(identifier)) {
             return Namespace.JAVAX;
         }
-        
+
         // Check Spring Boot version
         if (identifier.startsWith("org.springframework.boot:")) {
-            if (isVersionGreaterOrEqual(artifact.version(), SPRING_BOOT_3_MIN_VERSION)) {
-                return Namespace.JAKARTA; // Spring Boot 3+ uses Jakarta
-            } else {
-                return Namespace.JAVAX; // Spring Boot 2.x uses javax
-            }
+            return classifySpringBoot(version);
         }
-        
+
         // Check Spring Framework version (Spring 6+ uses Jakarta)
         if (identifier.startsWith("org.springframework:spring-")) {
-            if (isVersionGreaterOrEqual(artifact.version(), "6.0.0")) {
-                return Namespace.JAKARTA;
-            } else {
-                return Namespace.JAVAX;
-            }
+            return classifySpringFramework(version);
         }
-        
+
         // Check groupId patterns
         if (artifact.groupId().startsWith("javax.")) {
             return Namespace.JAVAX;
         }
-        
+
         if (artifact.groupId().startsWith("jakarta.")) {
             return Namespace.JAKARTA;
         }
-        
+
         // Default to unknown
         return Namespace.UNKNOWN;
+    }
+
+    private Namespace classifySpringBoot(String version) {
+        if (isUnresolvableVersion(version)) {
+            // Cannot determine version: assume modern (UNKNOWN rather than falsely JAVAX)
+            return Namespace.UNKNOWN;
+        }
+        if (isVersionGreaterOrEqual(version, SPRING_BOOT_3_MIN_VERSION)) {
+            return Namespace.JAKARTA; // Spring Boot 3+ uses Jakarta
+        }
+        return Namespace.JAVAX; // Spring Boot 2.x uses javax
+    }
+
+    private Namespace classifySpringFramework(String version) {
+        if (isUnresolvableVersion(version)) {
+            return Namespace.UNKNOWN;
+        }
+        if (isVersionGreaterOrEqual(version, "6.0.0")) {
+            return Namespace.JAKARTA;
+        }
+        return Namespace.JAVAX;
+    }
+
+    private boolean isUnresolvableVersion(String version) {
+        return version == null || version.isEmpty() || "unknown".equals(version) || version.startsWith("${");
     }
     
     @Override

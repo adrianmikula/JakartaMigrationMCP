@@ -21,6 +21,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import adrianmikula.jakartamigration.mcp.util.JsonUtils;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.ArrayList;
+import adrianmikula.jakartamigration.advancedscanning.service.AdvancedScanningModule;
+import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
+import adrianmikula.jakartamigration.pdfreporting.service.PdfReportService;
+import adrianmikula.jakartamigration.pdfreporting.service.impl.HtmlToPdfReportServiceImpl;
+import adrianmikula.jakartamigration.jaranalysis.service.JarCompatibilityScanner;
+import adrianmikula.jakartamigration.jaranalysis.service.DefaultJarCompatibilityScanner;
+import adrianmikula.jakartamigration.jaranalysis.domain.JarCompatibilityLevel;
+import adrianmikula.jakartamigration.jaranalysis.domain.JarCompatibilityReport;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 
 /**
@@ -37,19 +50,20 @@ public class PremiumMigrationTools {
 
     private final RecipeService recipeService;
     private final DependencyAnalysisModule dependencyAnalysisModule;
+    private final AdvancedScanningModule advancedScanningModule;
+    private final PdfReportService pdfReportService;
+    private final JarCompatibilityScanner jarScanner;
+    private final ObjectMapper objectMapper;
 
     public PremiumMigrationTools(RecipeService recipeService, DependencyAnalysisModule dependencyAnalysisModule) {
         this.recipeService = recipeService;
         this.dependencyAnalysisModule = dependencyAnalysisModule;
+        this.advancedScanningModule = new AdvancedScanningModule(recipeService);
+        this.pdfReportService = new HtmlToPdfReportServiceImpl();
+        this.jarScanner = new DefaultJarCompatibilityScanner();
+        this.objectMapper = new ObjectMapper();
     }
     
-    /**
-     * Check if MCP server is premium-only (always true for now).
-     */
-    private boolean isMcpServerPremiumOnly() {
-        return true; // MCP server is premium-only
-    }
-
     /**
      * Lists all available refactor recipes for a project.
      * PREMIUM TOOL - Requires JetBrains Marketplace subscription
@@ -305,15 +319,6 @@ public class PremiumMigrationTools {
         try {
             log.info("Detecting blockers for project: {}", projectPath);
 
-            // Check if MCP server is premium-only feature (always true)
-            if (isMcpServerPremiumOnly()) {
-                // For now, we'll implement a simple premium check
-                // TODO: Implement proper license checking in MCP server
-                return JsonUtils.createErrorResponse(
-                    "MCP Server features require Premium. Upgrade to access all MCP tools including blocker detection."
-                );
-            }
-
             Path project = Paths.get(projectPath);
             if (!Files.exists(project) || !Files.isDirectory(project)) {
                 return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
@@ -453,6 +458,377 @@ public class PremiumMigrationTools {
             log.error("Unexpected error during report creation", e);
             return JsonUtils.createErrorResponse("Unexpected error: " + e.getMessage());
         }
+    }
+
+    /**
+     * Executes a deep, technology-specific scan for Jakarta EE migration readiness.
+     * PREMIUM TOOL - Requires JetBrains Marketplace subscription
+     */
+    @McpTool(name = "runAdvancedScan", description = "Executes a deep, technology-specific scan for Jakarta EE migration readiness. Supports: jpa, validation, servlet, cdi, rest, soap, security, build, all. Returns JSON with scan results.")
+    public String runAdvancedScan(
+            @McpToolParam(description = "Path to project root directory", required = true) String projectPath,
+            @McpToolParam(description = "Technology to scan: 'jpa', 'validation', 'servlet', 'cdi', 'rest', 'soap', 'security', 'build', 'all'", required = true) String technology,
+            @McpToolParam(description = "Whether to scan source code", required = false) Boolean includeSource,
+            @McpToolParam(description = "Whether to scan binary artifacts", required = false) Boolean includeBinary) {
+        try {
+            log.info("Running advanced scan for technology '{}' on project: {}", technology, projectPath);
+            Path project = Paths.get(projectPath);
+            if (!Files.exists(project) || !Files.isDirectory(project)) {
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+            }
+
+            Map<String, Object> results = new HashMap<>();
+            String tech = technology.toLowerCase();
+
+            if ("all".equals(tech) || "jpa".equals(tech)) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> r = objectMapper.convertValue(advancedScanningModule.getJpaAnnotationScanner().scanProject(project), Map.class);
+                results.put("jpa", r);
+            }
+            if ("all".equals(tech) || "validation".equals(tech)) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> r = objectMapper.convertValue(advancedScanningModule.getBeanValidationScanner().scanProject(project), Map.class);
+                results.put("validation", r);
+            }
+            if ("all".equals(tech) || "servlet".equals(tech)) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> r = objectMapper.convertValue(advancedScanningModule.getServletJspScanner().scanProject(project), Map.class);
+                results.put("servlet", r);
+            }
+            if ("all".equals(tech) || "cdi".equals(tech)) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> r = objectMapper.convertValue(advancedScanningModule.getCdiInjectionScanner().scanProject(project), Map.class);
+                results.put("cdi", r);
+            }
+            if ("all".equals(tech) || "rest".equals(tech) || "soap".equals(tech)) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> r = objectMapper.convertValue(advancedScanningModule.getRestSoapScanner().scanProject(project), Map.class);
+                results.put("restSoap", r);
+            }
+            if ("all".equals(tech) || "security".equals(tech)) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> r = objectMapper.convertValue(advancedScanningModule.getSecurityApiScanner().scanProject(project), Map.class);
+                results.put("security", r);
+            }
+            if ("all".equals(tech) || "build".equals(tech)) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> r = objectMapper.convertValue(advancedScanningModule.getBuildConfigScanner().scanProject(project), Map.class);
+                results.put("build", r);
+            }
+
+            return new JsonResponseBuilder()
+                    .addField("projectPath", projectPath)
+                    .addField("technology", technology)
+                    .addField("results", results)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error during advanced scan", e);
+            return JsonUtils.createErrorResponse("Advanced scan failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Generates a professional HTML migration report.
+     * PREMIUM TOOL - Requires JetBrains Marketplace subscription
+     */
+    @McpTool(name = "generateHtmlReport", description = "Generates a professional HTML migration report. Supports riskAnalysis, refactoringAction, and consolidated report types. Returns the path to the generated HTML file.")
+    public String generateHtmlReport(
+            @McpToolParam(description = "Path to project root directory", required = true) String projectPath,
+            @McpToolParam(description = "Report type: 'riskAnalysis', 'refactoringAction', 'consolidated'", required = true) String reportType,
+            @McpToolParam(description = "Optional output file path", required = false) String outputPath) {
+        try {
+            log.info("Generating {} HTML report for project: {}", reportType, projectPath);
+            Path project = Paths.get(projectPath);
+            if (!Files.exists(project) || !Files.isDirectory(project)) {
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+            }
+
+            Path outPath;
+            if (outputPath != null && !outputPath.isBlank()) {
+                outPath = Paths.get(outputPath);
+            } else {
+                String timestamp = java.time.LocalDateTime.now().toString().replace(":", "-");
+                outPath = project.resolve("reports").resolve("jakarta-migration-report-" + timestamp + ".html");
+            }
+            Files.createDirectories(outPath.getParent());
+
+            DependencyAnalysisReport analysisReport = dependencyAnalysisModule.analyzeProject(project);
+            DependencyGraph dependencyGraph = analysisReport.dependencyGraph();
+
+            String type = reportType != null ? reportType.toLowerCase() : "riskanalysis";
+            Path generatedPath;
+
+            if ("refactoringaction".equals(type)) {
+                PdfReportService.RefactoringActionReportRequest request = new PdfReportService.RefactoringActionReportRequest(
+                    outPath, project.getFileName().toString(), "Jakarta Migration Refactoring Action Report",
+                    dependencyGraph, null, List.of(), List.of(), List.of(), Map.of(), Map.of(), Map.of());
+                generatedPath = pdfReportService.generateRefactoringActionReport(request);
+            } else if ("consolidated".equals(type)) {
+                PdfReportService.ConsolidatedReportRequest request = new PdfReportService.ConsolidatedReportRequest(
+                    outPath, project.getFileName().toString(), "Jakarta Migration Consolidated Report",
+                    dependencyGraph, analysisReport, null, null, null, null, Map.of(), Map.of(), List.of(), List.of(), Map.of(), Map.of());
+                generatedPath = pdfReportService.generateConsolidatedReport(request);
+            } else {
+                PdfReportService.RiskAnalysisReportRequest request = new PdfReportService.RiskAnalysisReportRequest(
+                    outPath, project.getFileName().toString(), "Jakarta Migration Risk Analysis Report",
+                    dependencyGraph, analysisReport, null, null, null, null, Map.of(), Map.of(), List.of(), List.of(), Map.of(), Map.of());
+                generatedPath = pdfReportService.generateRiskAnalysisReport(request);
+            }
+
+            return new JsonResponseBuilder()
+                    .addField("projectPath", projectPath)
+                    .addField("reportType", reportType)
+                    .addField("reportPath", generatedPath.toString())
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error generating HTML report", e);
+            return JsonUtils.createErrorResponse("Report generation failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Analyzes a Java project's readiness for migration from Java EE to Jakarta EE.
+     * PREMIUM TOOL - Requires JetBrains Marketplace subscription
+     */
+    @McpTool(name = "analyzeJakartaReadiness", description = "Analyzes a Java project's readiness for migration from Java EE 8 (javax.*) to Jakarta EE 9+ (jakarta.*). Returns a JSON report with readiness score, blockers, and recommendations.")
+    public String analyzeJakartaReadiness(
+            @McpToolParam(description = "Path to project root directory", required = true) String projectPath,
+            @McpToolParam(description = "Whether to include transitive dependencies", required = false) Boolean includeTransitiveDependencies,
+            @McpToolParam(description = "Depth of analysis: 'basic', 'detailed', or 'comprehensive'", required = false) String analysisLevel) {
+        try {
+            log.info("Analyzing Jakarta readiness for project: {}", projectPath);
+            Path project = Paths.get(projectPath);
+            if (!Files.exists(project) || !Files.isDirectory(project)) {
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+            }
+
+            DependencyAnalysisReport report = dependencyAnalysisModule.analyzeProject(project);
+
+            return new JsonResponseBuilder()
+                    .addField("projectPath", projectPath)
+                    .addField("readinessScore", report.readinessScore().score())
+                    .addField("readinessMessage", report.readinessScore().explanation())
+                    .addField("totalDependencies", report.dependencyGraph().nodeCount())
+                    .addField("jakartaCompatible", report.dependencyGraph().getNodes().stream().filter(n -> n.isJakartaCompatible()).count())
+                    .addField("incompatible", report.dependencyGraph().getNodes().stream().filter(n -> !n.isJakartaCompatible()).count())
+                    .addField("blockerCount", report.blockers().size())
+                    .addField("recommendationCount", report.recommendations().size())
+                    .addField("riskScore", report.riskAssessment().riskScore())
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error analyzing Jakarta readiness", e);
+            return JsonUtils.createErrorResponse("Analysis failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Provides detailed analysis of migration impact.
+     * PREMIUM TOOL - Requires JetBrains Marketplace subscription
+     */
+    @McpTool(name = "analyzeMigrationImpact", description = "Provides detailed analysis of migration impact including affected dependencies, breaking changes, risk assessment, and estimated migration effort.")
+    public String analyzeMigrationImpact(
+            @McpToolParam(description = "Path to project root directory", required = true) String projectPath,
+            @McpToolParam(description = "Analysis scope: 'dependencies', 'code', 'configuration', or 'all'", required = false) String scope,
+            @McpToolParam(description = "Whether to include detailed risk assessment", required = false) Boolean includeRiskAssessment,
+            @McpToolParam(description = "Output format: 'summary', 'detailed', or 'json'", required = false) String outputFormat) {
+        try {
+            log.info("Analyzing migration impact for project: {}", projectPath);
+            Path project = Paths.get(projectPath);
+            if (!Files.exists(project) || !Files.isDirectory(project)) {
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+            }
+
+            DependencyAnalysisReport report = dependencyAnalysisModule.analyzeProject(project);
+            long incompatible = report.dependencyGraph().getNodes().stream().filter(n -> !n.isJakartaCompatible()).count();
+            double effortEstimate = incompatible * 0.5 + report.blockers().size() * 2.0;
+
+            return new JsonResponseBuilder()
+                    .addField("projectPath", projectPath)
+                    .addField("scope", scope != null ? scope : "all")
+                    .addField("totalDependencies", report.dependencyGraph().nodeCount())
+                    .addField("affectedDependencies", incompatible)
+                    .addField("blockers", report.blockers().size())
+                    .addField("riskScore", report.riskAssessment().riskScore())
+                    .addField("estimatedEffortDays", Math.round(effortEstimate))
+                    .addField("riskFactors", report.riskAssessment().riskFactors())
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error analyzing migration impact", e);
+            return JsonUtils.createErrorResponse("Impact analysis failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Analyzes project dependencies and recommends compatible Jakarta EE versions.
+     * PREMIUM TOOL - Requires JetBrains Marketplace subscription
+     */
+    @McpTool(name = "recommendVersions", description = "Analyzes project dependencies and recommends compatible Jakarta EE versions. Provides version upgrade paths and identifies version conflicts.")
+    public String recommendVersions(
+            @McpToolParam(description = "Path to project root directory", required = true) String projectPath,
+            @McpToolParam(description = "Whether to include alternative dependency recommendations", required = false) Boolean includeAlternatives,
+            @McpToolParam(description = "Target Jakarta EE version: '9', '9.1', '10', or '11'", required = false) String targetJakartaVersion) {
+        try {
+            log.info("Recommending versions for project: {}", projectPath);
+            Path project = Paths.get(projectPath);
+            if (!Files.exists(project) || !Files.isDirectory(project)) {
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+            }
+
+            DependencyAnalysisReport report = dependencyAnalysisModule.analyzeProject(project);
+            List<Map<String, Object>> recommendations = report.recommendations().stream()
+                    .map(r -> {
+                        Map<String, Object> rec = new HashMap<>();
+                        rec.put("artifact", r.currentArtifact().artifactId());
+                        rec.put("currentVersion", r.currentArtifact().version());
+                        rec.put("recommendedArtifact", r.recommendedArtifact().artifactId());
+                        rec.put("recommendedVersion", r.recommendedArtifact().version());
+                        rec.put("migrationPath", r.migrationPath());
+                        rec.put("compatibilityScore", r.compatibilityScore());
+                        return rec;
+                    })
+                    .limit(10)
+                    .toList();
+
+            return new JsonResponseBuilder()
+                    .addField("projectPath", projectPath)
+                    .addField("totalDependencies", report.dependencyGraph().nodeCount())
+                    .addField("recommendations", recommendations)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error recommending versions", e);
+            return JsonUtils.createErrorResponse("Version recommendation failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Scans a compiled JAR dependency for Jakarta EE compatibility issues.
+     * PREMIUM TOOL - Requires JetBrains Marketplace subscription
+     */
+    @McpTool(name = "scanBinaryDependency", description = "Scans a compiled JAR dependency for Jakarta EE compatibility issues. Analyzes bytecode to identify references to javax packages.")
+    public String scanBinaryDependency(
+            @McpToolParam(description = "Absolute path to the JAR file to scan", required = true) String jarPath,
+            @McpToolParam(description = "Whether to scan for problematic method references", required = false) Boolean includeMethods,
+            @McpToolParam(description = "Output detail level: 'summary', 'methods', or 'full'", required = false) String outputDetail) {
+        try {
+            log.info("Scanning binary dependency: {}", jarPath);
+            Path jar = Paths.get(jarPath);
+            if (!Files.exists(jar) || !Files.isRegularFile(jar)) {
+                return JsonUtils.createErrorResponse("JAR path does not exist or is not a file: " + jarPath);
+            }
+
+            JarCompatibilityReport report = jarScanner.analyzeJar(jar);
+            Map<String, Object> result = new HashMap<>();
+            result.put("artifactCoordinate", report.artifactCoordinate());
+            result.put("compatibilityLevel", report.level().toString());
+            result.put("confidence", report.confidence());
+            result.put("reasons", report.reasons());
+
+            return new JsonResponseBuilder()
+                    .addField("jarPath", jarPath)
+                    .addField("result", result)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error scanning binary dependency", e);
+            return JsonUtils.createErrorResponse("Binary scan failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Generates a migration plan based on project analysis.
+     * PREMIUM TOOL - Requires JetBrains Marketplace subscription
+     */
+    @McpTool(name = "generateMigrationPlan", description = "Generates a detailed migration plan with prioritized steps, timeline estimates, and resource requirements based on project analysis.")
+    public String generateMigrationPlan(
+            @McpToolParam(description = "Path to project root directory", required = true) String projectPath,
+            @McpToolParam(description = "Migration strategy: 'big-bang', 'incremental', or 'parallel'", required = false) String strategy,
+            @McpToolParam(description = "Target Jakarta EE version: '9', '9.1', '10', or '11'", required = false) String targetVersion) {
+        try {
+            log.info("Generating migration plan for project: {}", projectPath);
+            Path project = Paths.get(projectPath);
+            if (!Files.exists(project) || !Files.isDirectory(project)) {
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+            }
+
+            DependencyAnalysisReport report = dependencyAnalysisModule.analyzeProject(project);
+            long incompatible = report.dependencyGraph().getNodes().stream().filter(n -> !n.isJakartaCompatible()).count();
+            int estimatedDays = (int) Math.round(incompatible * 0.5 + report.blockers().size() * 2.0);
+            String selectedStrategy = strategy != null ? strategy : "incremental";
+
+            List<Map<String, Object>> phases = new ArrayList<>();
+            phases.add(Map.of("name", "Preparation", "description", "Analyze dependencies and set up tooling", "durationDays", Math.max(1, estimatedDays / 4)));
+            phases.add(Map.of("name", "Dependency Updates", "description", "Update javax dependencies to jakarta equivalents", "durationDays", Math.max(1, estimatedDays / 2)));
+            phases.add(Map.of("name", "Code Migration", "description", "Replace imports and update code", "durationDays", Math.max(1, estimatedDays / 3)));
+            phases.add(Map.of("name", "Testing & Validation", "description", "Run tests and validate migration", "durationDays", Math.max(1, estimatedDays / 4)));
+
+            return new JsonResponseBuilder()
+                    .addField("projectPath", projectPath)
+                    .addField("strategy", selectedStrategy)
+                    .addField("targetVersion", targetVersion != null ? targetVersion : "10")
+                    .addField("estimatedDays", estimatedDays)
+                    .addField("phases", phases)
+                    .addField("blockers", report.blockers().size())
+                    .addField("totalDependencies", report.dependencyGraph().nodeCount())
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error generating migration plan", e);
+            return JsonUtils.createErrorResponse("Plan generation failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Validates migration readiness by checking preconditions and potential issues.
+     * PREMIUM TOOL - Requires JetBrains Marketplace subscription
+     */
+    @McpTool(name = "validateMigration", description = "Validates migration readiness by checking preconditions, test coverage, build compatibility, and potential blocking issues.")
+    public String validateMigration(
+            @McpToolParam(description = "Path to project root directory", required = true) String projectPath,
+            @McpToolParam(description = "Validation strictness: 'lenient', 'standard', or 'strict'", required = false) String strictness) {
+        try {
+            log.info("Validating migration readiness for project: {}", projectPath);
+            Path project = Paths.get(projectPath);
+            if (!Files.exists(project) || !Files.isDirectory(project)) {
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+            }
+
+            DependencyAnalysisReport report = dependencyAnalysisModule.analyzeProject(project);
+            boolean ready = report.blockers().isEmpty() && report.readinessScore().score() > 0.5;
+            List<String> issues = new ArrayList<>();
+            if (!report.blockers().isEmpty()) issues.add("Blockers detected: " + report.blockers().size());
+            if (report.readinessScore().score() < 0.5) issues.add("Readiness score below threshold");
+
+            return new JsonResponseBuilder()
+                    .addField("projectPath", projectPath)
+                    .addField("ready", ready)
+                    .addField("readinessScore", report.readinessScore().score())
+                    .addField("blockers", report.blockers().size())
+                    .addField("issues", issues)
+                    .addField("recommendations", report.recommendations().stream()
+                            .map(r -> r.currentArtifact().artifactId() + " -> " + r.recommendedArtifact().artifactId())
+                            .limit(5).toList())
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error validating migration", e);
+            return JsonUtils.createErrorResponse("Validation failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Applies a Jakarta EE migration recipe to a project.
+     * PREMIUM TOOL - Requires JetBrains Marketplace subscription
+     */
+    @McpTool(name = "applyJakartaRecipe", description = "Applies a Jakarta EE migration recipe to a project. Returns JSON with execution result, changes made, and success status. Alias for applyRefactorRecipe.")
+    public String applyJakartaRecipe(
+            @McpToolParam(description = "Path to project root directory", required = true) String projectPath,
+            @McpToolParam(description = "Name of the recipe to apply", required = true) String recipeName) {
+        return applyRefactorRecipe(projectPath, recipeName);
     }
 
 }

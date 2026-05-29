@@ -52,8 +52,8 @@ public class JakartaMigrationTools {
     /**
      * Scans for Jakarta EE usage with basic analysis capabilities.
      * COMMUNITY TOOL - Free to use under Apache License 2.0
+     * Delegated to CommunityMigrationTools.
      */
-    @McpTool(name = "scanForJavaxBasic", description = "Performs basic Jakarta EE usage scanning with source code, dependencies, and configuration file analysis. Returns findings with migration recommendations.")
     public String scanForJavaxBasic(
             @McpToolParam(description = "Path to project root directory", required = true) String projectPath,
             @McpToolParam(description = "Scan types to run (source, dependencies, config)", required = false) String scanTypes) {
