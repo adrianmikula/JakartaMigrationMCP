@@ -5,6 +5,12 @@ All notable changes to the Jakarta Migration IntelliJ plugin will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.18] - 2026-05-29
+
+### Fixed
+- Fixed JSON parsing failures in Maven dependency tree analysis caused by ANSI escape sequences in colored Maven output
+- Added comprehensive unit tests for ANSI escape sequence handling
+
 ## [1.0.15] - 2026-04-24
 
 ### Fixed

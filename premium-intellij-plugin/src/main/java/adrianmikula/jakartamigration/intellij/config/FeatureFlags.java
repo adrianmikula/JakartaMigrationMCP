@@ -60,7 +60,6 @@ public class FeatureFlags {
         flags.put("mcpServerTab", true);
         flags.put("advancedScans", false);
         flags.put("platformsTab", false); // Add platforms tab flag
-        flags.put("aiVulnerabilityScanTab", false); // AI vulnerability scan tab (experimental)
         flags.put("experimental_features", false); // Experimental features disabled by default
         flags.put("mcpServerPremiumOnly", true); // MCP server premium only
         flags.put("pdfReportsPremiumOnly", true); // PDF reports premium only
@@ -104,14 +103,6 @@ public class FeatureFlags {
         platformsConfig.description = "Detect application servers and Jakarta EE compatibility";
         platformsConfig.beta = false;
         featureConfigs.put("platformsTab", platformsConfig);
-        
-        // AI Vulnerability Scan tab configuration
-        FeatureConfig aiVulnConfig = new FeatureConfig();
-        aiVulnConfig.enabled = false;
-        aiVulnConfig.name = "AI Vulnerability Scan";
-        aiVulnConfig.description = "Scan dependencies for AI-era vulnerabilities with no Jakarta upgrade path";
-        aiVulnConfig.beta = true;
-        featureConfigs.put("aiVulnerabilityScanTab", aiVulnConfig);
 
         // Install Claude Skill feature configuration
         FeatureConfig claudeSkillConfig = new FeatureConfig();
@@ -278,21 +269,6 @@ public class FeatureFlags {
         System.setProperty("jakarta.migration.beta_features", String.valueOf(enabled));
         // Update runtime tab flag
         flags.put("runtimeTab", enabled);
-    }
-    
-    /**
-     * Checks if AI vulnerability scan tab is enabled.
-     */
-    public boolean isAiVulnerabilityScanEnabled() {
-        return flags.getOrDefault("aiVulnerabilityScanTab", false);
-    }
-    
-    /**
-     * Enables or disables AI vulnerability scan tab.
-     */
-    public void setAiVulnerabilityScanEnabled(boolean enabled) {
-        flags.put("aiVulnerabilityScanTab", enabled);
-        LOG.info("AI Vulnerability Scan tab enabled: " + enabled);
     }
     
     /**

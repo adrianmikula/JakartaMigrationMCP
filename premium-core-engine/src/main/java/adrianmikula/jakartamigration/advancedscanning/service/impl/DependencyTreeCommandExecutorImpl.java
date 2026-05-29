@@ -184,7 +184,8 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
             while ((line = reader.readLine()) != null) {
                 output.append(line).append('\n');
             }
-            String jsonStr = extractJson(output.toString());
+            String cleanedOutput = stripAnsiEscapeSequences(output.toString());
+            String jsonStr = extractJson(cleanedOutput);
             if (jsonStr == null || jsonStr.isEmpty()) {
                 return deps;
             }
@@ -251,6 +252,23 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
             }
         }
         return text.substring(start);
+    }
+
+    /**
+     * Removes ANSI escape sequences from text.
+     * ANSI escape sequences are used for terminal formatting like colors and styles.
+     * This method strips patterns like \u001B[1;31m (red bold text) and \u001B[0m (reset).
+     * 
+     * @param text The text that may contain ANSI escape sequences
+     * @return The text with all ANSI escape sequences removed
+     */
+    private String stripAnsiEscapeSequences(String text) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        // ANSI escape sequence pattern: \x1b followed by [ and then parameters and letters
+        // Examples: \x1b[1;31m, \x1b[0m, \x1b[31m, \x1b[1m, \x1b[K, \x1b[H
+        return text.replaceAll("\\x1b\\[[0-9;]*[mGKHJABCDnsulhf]", "");
     }
 
     private void parseMavenJsonNode(JsonNode node, List<DependencyTreeResult.DependencyNode> deps, int depth, String parentScope, String parentArtifactKey) {
