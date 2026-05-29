@@ -32,7 +32,7 @@ public class MigrationActionHandlerTest extends BasePlatformTestCase {
             "org.example", "test-lib", null,
             null, null, null,
             "Unknown", null,
-            DependencyMigrationStatus.UNKNOWN, false, false);
+            DependencyMigrationStatus.UNKNOWN_PENDING, false, false);
 
         SubtaskTableComponent.SubtaskItem subtask = 
             new SubtaskTableComponent.SubtaskItem("Test Task", "Test description", depWithNullVersion, "binary-scan");

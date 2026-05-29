@@ -771,8 +771,8 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         javaxDep.setMavenLookupInProgress(false);
         
         if (jakartaArtifacts == null || jakartaArtifacts.isEmpty()) {
-            // No Jakarta artifacts found - mark as UNKNOWN
-            javaxDep.setMigrationStatus(DependencyMigrationStatus.UNKNOWN);
+            // No Jakarta artifacts found - mark as UNKNOWN_PENDING
+            javaxDep.setMigrationStatus(DependencyMigrationStatus.UNKNOWN_PENDING);
             javaxDep.setJakartaCompatibilityStatus("Unknown - No Jakarta equivalent found");
             System.out.println("[DEBUG] No Jakarta equivalent found for: " + javaxDep.getGroupId() + ":" + javaxDep.getArtifactId());
             return;
@@ -785,8 +785,8 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
                 .orElse(null);
         
         if (bestMatch == null) {
-            // No valid matches found - mark as UNKNOWN
-            javaxDep.setMigrationStatus(DependencyMigrationStatus.UNKNOWN);
+            // No valid matches found - mark as UNKNOWN_PENDING
+            javaxDep.setMigrationStatus(DependencyMigrationStatus.UNKNOWN_PENDING);
             javaxDep.setJakartaCompatibilityStatus("Unknown - No valid Jakarta match");
             System.out.println("[DEBUG] No valid Jakarta match for: " + javaxDep.getGroupId() + ":" + javaxDep.getArtifactId());
             return;
@@ -927,9 +927,9 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             case "migrated":
                 return DependencyMigrationStatus.MIGRATED;
             case "unknown":
-                return DependencyMigrationStatus.UNKNOWN;
+                return DependencyMigrationStatus.UNKNOWN_PENDING;
             default:
-                return DependencyMigrationStatus.UNKNOWN;
+                return DependencyMigrationStatus.UNKNOWN_PENDING;
         }
     }
 

@@ -101,6 +101,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private PlatformsTabComponent platformsTabComponent;
         private RuntimeTabComponent runtimeTabComponent;
         private VulnerabilityScanTabComponent vulnerabilityScanTabComponent;
+        private VulnerabilityScanResult lastVulnerabilityScanResult;
+        private List<DependencyInfo> lastVulnerabilityScanDependencies;
         private ReportsTabComponent reportsTabComponent;
         private DevTabComponent devTabComponent;
         private CodeRefactoringModule refactorModule;
@@ -129,7 +131,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
             this.errorReportingService = new ErrorReportingService(this.userIdentificationService);
 
             // Initialize project-specific store
-            Path projectPath = Paths.get(project.getBasePath());
+            String basePath = project.getBasePath();
+            Path projectPath = basePath != null ? Paths.get(basePath) : Paths.get(".");
             this.projectStore = new SqliteMigrationAnalysisStore(projectPath);
             this.refactorModule = new CodeRefactoringModule(this.store, this.projectStore);
             this.recipeService = this.refactorModule.getRecipeService();
@@ -365,6 +368,12 @@ public class MigrationToolWindow implements ToolWindowFactory {
             boolean aiVulnEnabled = experimentalEnabled;
             if (aiVulnEnabled) {
                 vulnerabilityScanTabComponent = new VulnerabilityScanTabComponent(project);
+                if (lastVulnerabilityScanDependencies != null) {
+                    vulnerabilityScanTabComponent.setDependencies(lastVulnerabilityScanDependencies);
+                }
+                if (lastVulnerabilityScanResult != null) {
+                    vulnerabilityScanTabComponent.setVulnerabilityScanResult(lastVulnerabilityScanResult);
+                }
                 String vulnLabel = isPremium ? "Vulnerabilities (Experimental)" : "Vulnerabilities (Experimental)";
                 tabbedPane.addTab(vulnLabel, vulnerabilityScanTabComponent.getPanel());
                 LOG.info("initializeContent: Added AI Vulnerability Scan tab (experimental)");
@@ -529,6 +538,12 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             if (aiVulnEnabled && !vulnTabExists && vulnerabilityScanTabComponent == null) {
                 vulnerabilityScanTabComponent = new VulnerabilityScanTabComponent(project);
+                if (lastVulnerabilityScanDependencies != null) {
+                    vulnerabilityScanTabComponent.setDependencies(lastVulnerabilityScanDependencies);
+                }
+                if (lastVulnerabilityScanResult != null) {
+                    vulnerabilityScanTabComponent.setVulnerabilityScanResult(lastVulnerabilityScanResult);
+                }
                 int runtimeIndex = findTabIndex("Runtime");
                 int insertIndex = runtimeIndex >= 0 ? runtimeIndex + 1 : tabbedPane.getTabCount();
                 tabbedPane.insertTab("Vulnerabilities (Experimental)", null, vulnerabilityScanTabComponent.getPanel(), null, insertIndex);
@@ -990,6 +1005,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         ));
                 // Build dashboard from deep dependencies
                 MigrationDashboard dashboard = buildDashboardFromDependencies(depInfos);
+                lastVulnerabilityScanDependencies = depInfos;
 
                 ApplicationManager.getApplication().invokeLater(() -> {
                     dependencyUIManager.updateAllDependencies(depInfos);
@@ -1046,6 +1062,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     try {
                         String projectPathStr = project.getBasePath() != null ? project.getBasePath() : "";
                         VulnerabilityScanResult vulnResult = advancedScanningService.scanVulnerabilities(depInfos, projectPathStr);
+                        lastVulnerabilityScanDependencies = depInfos;
+                        lastVulnerabilityScanResult = vulnResult;
                         ApplicationManager.getApplication().invokeLater(() -> {
                             if (vulnerabilityScanTabComponent != null) {
                                 vulnerabilityScanTabComponent.setVulnerabilityScanResult(vulnResult);
@@ -1710,6 +1728,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 }
                 if (creditsProgressBar != null) {
                     creditsProgressBar.dispose();
+                }
+                if (vulnerabilityScanTabComponent != null) {
+                    vulnerabilityScanTabComponent.dispose();
                 }
             } catch (Exception e) {
                 LOG.warn("Error disposing resources", e);

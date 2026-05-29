@@ -79,6 +79,19 @@ public class AdvancedScanningServiceTest {
     }
 
     @Test
+    public void testDetermineMigrationStatus_NullOrNullScanReason_ReturnsUnknownPending() {
+        AdvancedScanningService service = createService();
+
+        assertThat(service.determineMigrationStatus(null))
+                .isEqualTo(DependencyMigrationStatus.UNKNOWN_PENDING);
+
+        assertThat(service.determineMigrationStatus(
+                new TransitiveDependencyUsage("a","g","1.0",null,null,null,null,false,0,null,
+                        null,null,0.0,false)))
+                .isEqualTo(DependencyMigrationStatus.UNKNOWN_PENDING);
+    }
+
+    @Test
     public void testDetermineMigrationStatus_IncompatibleReasons() {
         TransitiveDependencyUsage usageBase = new TransitiveDependencyUsage(
                 "a","g","1.0",null,null,null,null,false,0,null,

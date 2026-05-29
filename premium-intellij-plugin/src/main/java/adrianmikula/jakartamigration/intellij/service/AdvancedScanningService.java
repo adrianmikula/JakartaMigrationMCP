@@ -1318,7 +1318,7 @@ public class AdvancedScanningService {
      */
     public DependencyMigrationStatus determineMigrationStatus(TransitiveDependencyUsage usage) {
         if (usage == null || usage.getScanReason() == null) {
-            return DependencyMigrationStatus.UNKNOWN;
+            return DependencyMigrationStatus.UNKNOWN_PENDING;
         }
         ScanReason reason = usage.getScanReason();
         return switch (reason) {
@@ -1343,11 +1343,14 @@ public class AdvancedScanningService {
 
         // Filter to only non-compatible, non-migrated dependencies (stranded)
         List<StrandedDependency> stranded = dependencies.stream()
-                .filter(d -> d.getMigrationStatus() != DependencyMigrationStatus.COMPATIBLE
-                        && d.getMigrationStatus() != DependencyMigrationStatus.MIGRATED)
+                .filter(d -> {
+                    DependencyMigrationStatus status = d.getMigrationStatus();
+                    return status != DependencyMigrationStatus.COMPATIBLE
+                            && status != DependencyMigrationStatus.MIGRATED;
+                })
                 .map(d -> new StrandedDependency(
-                        d.getGroupId(), 
-                        d.getArtifactId(), 
+                        d.getGroupId(),
+                        d.getArtifactId(),
                         d.getCurrentVersion(),
                         d.getMigrationStatus() != null ? d.getMigrationStatus().getValue() : null,
                         d.getRecommendedGroupId(),

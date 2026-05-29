@@ -108,7 +108,16 @@ enum DependencyMigrationStatus {
   RequiresManualMigration: "REQUIRES_MANUAL_MIGRATION",
   
   @doc("Already migrated")
-  Migrated: "MIGRATED"
+  Migrated: "MIGRATED",
+
+  @doc("Needs manual review — mixed bytecode signal or inconclusive scan")
+  UnknownReview: "UNKNOWN_REVIEW",
+
+  @doc("Not yet scanned — awaiting analysis, build error, or no scan reason available")
+  UnknownPending: "UNKNOWN_PENDING",
+
+  @doc("Maven lookup failed — could not determine Jakarta equivalent")
+  MavenLookupFailed: "MAVEN_LOOKUP_FAILED"
 }
 
 @doc("Risk level enumeration")
