@@ -349,4 +349,47 @@ class JakartaMigrationToolsTest {
         assertThat(tools.scanBinaryDependency(nonExistentPath, false, "summary"))
                 .contains("\"status\"").contains("\"error\"").contains("does not exist");
     }
+
+    @Test
+    @DisplayName("Should generate dependency graph visualization successfully")
+    void shouldGenerateDependencyGraphVisualizationSuccessfully() throws Exception {
+        // Given
+        when(dependencyAnalysisModule.analyzeProject(any(Path.class))).thenReturn(mockReport);
+
+        // When
+        String result = tools.generateDependencyGraphVisualization(testProjectPath.toString(), null);
+
+        // Then
+        assertThat(result).contains("\"status\":\"success\"");
+        assertThat(result).contains("\"reportPath\"");
+        assertThat(result).contains("\"totalDependencies\":2");
+        assertThat(result).contains("\"jakartaCompatible\"");
+        assertThat(result).contains("\"edgeCount\"");
+        verify(dependencyAnalysisModule, times(1)).analyzeProject(any(Path.class));
+
+        // Verify the HTML file was created
+        Path reportsDir = testProjectPath.resolve("reports");
+        assertThat(Files.exists(reportsDir)).isTrue();
+        java.util.Optional<Path> htmlFile = Files.list(reportsDir)
+                .filter(p -> p.toString().endsWith(".html"))
+                .findFirst();
+        assertThat(htmlFile).isPresent();
+
+        // Verify HTML content
+        String htmlContent = Files.readString(htmlFile.get());
+        assertThat(htmlContent).contains("vis-network.min.js");
+        assertThat(htmlContent).contains("Dependency Graph Visualization");
+        assertThat(htmlContent).contains("Jakarta Compatible");
+        assertThat(htmlContent).contains("Needs Upgrade");
+    }
+
+    @Test
+    @DisplayName("Should return error for invalid path in generateDependencyGraphVisualization")
+    void shouldReturnErrorForInvalidPathInGenerateDependencyGraphVisualization() {
+        String nonExistentPath = "/non/existent/path";
+
+        String result = tools.generateDependencyGraphVisualization(nonExistentPath, null);
+
+        assertThat(result).contains("\"status\"").contains("\"error\"").contains("does not exist");
+    }
 }

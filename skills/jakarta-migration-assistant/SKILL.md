@@ -39,6 +39,7 @@ Present the following numbered options and ask the user to choose one (or type `
 | 5 | **Compare migration strategies** | Synthesize a side-by-side comparison of Big Bang, Incremental, and Dependencies-First approaches using existing analysis data. |
 | 6 | **Automated refactor** | List available refactor recipes, let the user pick one, and apply it to the project. |
 | 7 | **Undo** | Show refactor execution history and allow undoing a previous execution. |
+| 8 | **Visual dependency graph** | Generate an interactive HTML visualization of dependencies with Jakarta compatibility color-coding. |
 
 After each action, return to this menu so the user can run another option or exit.
 
@@ -82,6 +83,13 @@ After each action, return to this menu so the user can run another option or exi
 - Ask the user which execution to undo (by ID).
 - Call `undoRefactorRecipe` with the chosen execution ID.
 - Report the undo result.
+
+### 8. Visual dependency graph
+- Call `generateDependencyGraphVisualization` to create an interactive HTML visualization.
+- Confirm the output file path (saved to `reports/dependency-graph-{timestamp}.html`).
+- Briefly describe the visualization: color-coded nodes showing Jakarta compatibility status (green=compatible, yellow=needs upgrade, red=no Jakarta version, grey=unknown).
+- Explain interactivity: zoom with mouse wheel, pan by dragging, hover for details, click nodes to focus.
+- Suggest opening the file in a web browser to explore the dependency network.
 
 ## 4. Error Handling
 

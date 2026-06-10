@@ -831,4 +831,317 @@ public class PremiumMigrationTools {
         return applyRefactorRecipe(projectPath, recipeName);
     }
 
+    /**
+     * Generates an interactive HTML visualization of the dependency graph with Jakarta compatibility color-coding.
+     * PREMIUM TOOL - Requires JetBrains Marketplace subscription
+     */
+    @McpTool(name = "generateDependencyGraphVisualization", description = "Generates an interactive HTML dependency graph visualization with Jakarta compatibility color-coding. Returns JSON with file path and statistics. Requires PREMIUM license.")
+    public String generateDependencyGraphVisualization(
+            @McpToolParam(description = "Path to project root directory", required = true) String projectPath,
+            @McpToolParam(description = "Optional output file path (defaults to reports/dependency-graph-{timestamp}.html)", required = false) String outputPath) {
+        try {
+            log.info("Generating dependency graph visualization for project: {}", projectPath);
+            Path project = Paths.get(projectPath);
+            if (!Files.exists(project) || !Files.isDirectory(project)) {
+                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
+            }
+
+            // Run dependency analysis
+            DependencyAnalysisReport report = dependencyAnalysisModule.analyzeProject(project);
+            DependencyGraph graph = report.dependencyGraph();
+
+            // Determine output path
+            Path reportPath;
+            if (outputPath != null && !outputPath.isBlank()) {
+                reportPath = Paths.get(outputPath);
+            } else {
+                String timestamp = java.time.LocalDateTime.now().toString().replace(":", "-");
+                reportPath = project.resolve("reports").resolve("dependency-graph-" + timestamp + ".html");
+            }
+
+            // Ensure reports directory exists
+            Files.createDirectories(reportPath.getParent());
+
+            // Generate the HTML visualization
+            String htmlContent = generateDependencyGraphHtml(graph, project.getFileName().toString());
+            Files.writeString(reportPath, htmlContent);
+
+            // Count nodes by status
+            long compatible = graph.getNodes().stream().filter(n -> n.isJakartaCompatible()).count();
+            long needsUpgrade = graph.getNodes().stream().filter(n -> !n.isJakartaCompatible() && n.groupId().startsWith("javax.")).count();
+            long noJakartaVersion = graph.getNodes().stream().filter(n -> !n.isJakartaCompatible() && !n.groupId().startsWith("javax.")).count();
+
+            return new JsonResponseBuilder()
+                    .addField("status", "success")
+                    .addField("projectPath", projectPath)
+                    .addField("reportPath", reportPath.toString())
+                    .addField("totalDependencies", graph.nodeCount())
+                    .addField("jakartaCompatible", compatible)
+                    .addField("needsUpgrade", needsUpgrade)
+                    .addField("noJakartaVersion", noJakartaVersion)
+                    .addField("edgeCount", graph.edgeCount())
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error generating dependency graph visualization", e);
+            return JsonUtils.createErrorResponse("Visualization generation failed: " + e.getMessage());
+        }
+    }
+
+    private String generateDependencyGraphHtml(DependencyGraph graph, String projectName) {
+        String nodesJson = generateGraphNodesJson(graph);
+        String edgesJson = generateGraphEdgesJson(graph);
+
+        return """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dependency Graph - %s</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; background: #f5f7fa; }
+        .header { background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); color: white; padding: 20px 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header h1 { font-size: 24px; font-weight: 600; margin-bottom: 5px; }
+        .header p { font-size: 14px; opacity: 0.9; }
+        .controls { background: white; padding: 15px 30px; border-bottom: 1px solid #e1e8ed; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+        .control-group { display: flex; align-items: center; gap: 8px; }
+        .control-group label { font-size: 13px; font-weight: 500; color: #555; }
+        .control-group input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+        .control-group button { padding: 6px 14px; border: 1px solid #ddd; background: #f8f9fa; border-radius: 4px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+        .control-group button:hover { background: #e9ecef; border-color: #adb5bd; }
+        .legend { display: flex; gap: 20px; align-items: center; }
+        .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; }
+        .legend-color { width: 14px; height: 14px; border-radius: 50%%; border: 2px solid; }
+        .legend-color.compatible { background: #28a745; border-color: #1e7e34; }
+        .legend-color.needs-upgrade { background: #ffc107; border-color: #d39e00; }
+        .legend-color.no-version { background: #dc3545; border-color: #c82333; }
+        .legend-color.unknown { background: #6c757d; border-color: #545b62; }
+        #graph-container { width: 100%%; height: calc(100vh - 180px); background: white; }
+        .tooltip { position: absolute; background: rgba(0,0,0,0.8); color: white; padding: 8px 12px; border-radius: 4px; font-size: 12px; pointer-events: none; z-index: 1000; max-width: 300px; }
+        .stats { background: #f8f9fa; padding: 10px 30px; border-bottom: 1px solid #e1e8ed; font-size: 13px; color: #666; }
+        .stats span { margin-right: 20px; }
+        .stats .stat-value { font-weight: 600; color: #333; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Dependency Graph Visualization</h1>
+        <p>%s - Jakarta Migration Analysis</p>
+    </div>
+    <div class="stats">
+        <span>Total Dependencies: <span class="stat-value">%d</span></span>
+        <span>Jakarta Compatible: <span class="stat-value" style="color: #28a745;">%d</span></span>
+        <span>Needs Upgrade: <span class="stat-value" style="color: #ffc107;">%d</span></span>
+        <span>No Jakarta Version: <span class="stat-value" style="color: #dc3545;">%d</span></span>
+    </div>
+    <div class="controls">
+        <div class="legend">
+            <div class="legend-item"><div class="legend-color compatible"></div> Jakarta Compatible</div>
+            <div class="legend-item"><div class="legend-color needs-upgrade"></div> Needs Upgrade</div>
+            <div class="legend-item"><div class="legend-color no-version"></div> No Jakarta Version</div>
+            <div class="legend-item"><div class="legend-color unknown"></div> Unknown Status</div>
+        </div>
+        <div style="flex: 1;"></div>
+        <div class="control-group">
+            <button onclick="fitGraph()">Fit to Screen</button>
+            <button onclick="resetZoom()">Reset View</button>
+        </div>
+    </div>
+    <div id="graph-container"></div>
+
+    <script type="text/javascript">
+        // Graph data
+        var nodes = new vis.DataSet(%s);
+        var edges = new vis.DataSet(%s);
+
+        // Network configuration
+        var container = document.getElementById('graph-container');
+        var data = { nodes: nodes, edges: edges };
+        var options = {
+            nodes: {
+                shape: 'dot',
+                size: 20,
+                font: { size: 12, face: 'Segoe UI', color: '#333', strokeWidth: 2, strokeColor: '#fff' },
+                borderWidth: 2,
+                shadow: { enabled: true, color: 'rgba(0,0,0,0.2)', size: 5, x: 2, y: 2 }
+            },
+            edges: {
+                width: 1.5,
+                color: { color: '#adb5bd', highlight: '#667eea', hover: '#667eea' },
+                smooth: { type: 'continuous', roundness: 0.5 },
+                arrows: { to: { enabled: true, scaleFactor: 0.8 } }
+            },
+            physics: {
+                forceAtlas2Based: {
+                    gravitationalConstant: -60,
+                    centralGravity: 0.005,
+                    springLength: 120,
+                    springConstant: 0.18,
+                    damping: 0.4,
+                    avoidOverlap: 0.5
+                },
+                maxVelocity: 50,
+                minVelocity: 0.1,
+                solver: 'forceAtlas2Based',
+                stabilization: {
+                    enabled: true,
+                    iterations: 200,
+                    updateInterval: 25,
+                    onlyDynamicEdges: false,
+                    fit: true
+                }
+            },
+            interaction: {
+                hover: true,
+                hoverConnectedEdges: true,
+                selectConnectedEdges: true,
+                zoomView: true,
+                dragView: true,
+                tooltipDelay: 200,
+                hideEdgesOnDrag: true
+            },
+            layout: {
+                randomSeed: 2
+            }
+        };
+
+        // Create network
+        var network = new vis.Network(container, data, options);
+
+        // Fit graph after stabilization
+        network.once('stabilizationIterationsDone', function() {
+            network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+        });
+
+        // Handle click events
+        network.on('click', function(params) {
+            if (params.nodes.length > 0) {
+                var nodeId = params.nodes[0];
+                var node = nodes.get(nodeId);
+                network.focus(nodeId, { scale: 1.2, animation: { duration: 300, easingFunction: 'easeInOutQuad' } });
+            }
+        });
+
+        // Control functions
+        function fitGraph() {
+            network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+        }
+
+        function resetZoom() {
+            network.moveTo({ scale: 1, position: { x: 0, y: 0 }, animation: { duration: 300 } });
+        }
+
+        // Filter functionality
+        function filterNodes(status) {
+            var allNodes = nodes.get();
+            var updateArray = [];
+            allNodes.forEach(function(node) {
+                if (status === 'all' || node.group === status) {
+                    updateArray.push({ id: node.id, hidden: false });
+                } else {
+                    updateArray.push({ id: node.id, hidden: true });
+                }
+            });
+            nodes.update(updateArray);
+        }
+    </script>
+</body>
+</html>
+""".formatted(
+            projectName,
+            projectName,
+            graph.nodeCount(),
+            graph.getNodes().stream().filter(n -> n.isJakartaCompatible()).count(),
+            graph.getNodes().stream().filter(n -> !n.isJakartaCompatible() && n.groupId().startsWith("javax.")).count(),
+            graph.getNodes().stream().filter(n -> !n.isJakartaCompatible() && !n.groupId().startsWith("javax.")).count(),
+            nodesJson,
+            edgesJson
+        );
+    }
+
+    private String generateGraphNodesJson(DependencyGraph graph) {
+        StringBuilder json = new StringBuilder();
+        json.append("[");
+
+        int count = 0;
+        for (var artifact : graph.getNodes()) {
+            if (count > 0) json.append(",");
+
+            String color = getNodeColor(artifact);
+            String group = getNodeGroup(artifact);
+            String title = String.format("%s:%s:%s<br>Scope: %s<br>Transitive: %s",
+                artifact.groupId(), artifact.artifactId(), artifact.version(),
+                artifact.scope(), artifact.transitive());
+
+            json.append(String.format(
+                "{\"id\":\"%s\",\"label\":\"%s\",\"title\":\"%s\",\"group\":\"%s\",\"color\":%s}",
+                escapeJson(artifact.toIdentifier()),
+                escapeJson(truncateLabel(artifact.artifactId())),
+                escapeJson(title),
+                group,
+                color
+            ));
+            count++;
+        }
+
+        json.append("]");
+        return json.toString();
+    }
+
+    private String generateGraphEdgesJson(DependencyGraph graph) {
+        StringBuilder json = new StringBuilder();
+        json.append("[");
+
+        int count = 0;
+        for (var edge : graph.getEdges()) {
+            if (count > 0) json.append(",");
+            json.append(String.format("{\"from\":\"%s\",\"to\":\"%s\"}",
+                escapeJson(edge.from().toIdentifier()),
+                escapeJson(edge.to().toIdentifier())));
+            count++;
+        }
+
+        json.append("]");
+        return json.toString();
+    }
+
+    private String getNodeColor(adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact artifact) {
+        String bg, border;
+        if (artifact.isJakartaCompatible()) {
+            bg = "#28a745"; border = "#1e7e34";
+        } else if (artifact.groupId().startsWith("javax.")) {
+            bg = "#ffc107"; border = "#d39e00";
+        } else if (artifact.groupId().contains("legacy") || artifact.artifactId().contains("old")) {
+            bg = "#dc3545"; border = "#c82333";
+        } else {
+            bg = "#6c757d"; border = "#545b62";
+        }
+        return String.format("{\"background\":\"%s\",\"border\":\"%s\"}", bg, border);
+    }
+
+    private String getNodeGroup(adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact artifact) {
+        if (artifact.isJakartaCompatible()) return "compatible";
+        if (artifact.groupId().startsWith("javax.")) return "needs-upgrade";
+        if (artifact.groupId().contains("legacy") || artifact.artifactId().contains("old")) return "no-version";
+        return "unknown";
+    }
+
+    private String truncateLabel(String label) {
+        if (label == null) return "unknown";
+        if (label.length() <= 25) return label;
+        return label.substring(0, 22) + "...";
+    }
+
+    private String escapeJson(String value) {
+        if (value == null) return "";
+        return value.replace("\\", "\\\\")
+                   .replace("\"", "\\\"")
+                   .replace("\n", "\\n")
+                   .replace("\r", "\\r")
+                   .replace("\t", "\\t");
+    }
+
 }
