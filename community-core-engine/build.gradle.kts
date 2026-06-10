@@ -6,7 +6,8 @@ plugins {
 
 dependencies {
     implementation("org.slf4j:slf4j-api:2.0.9")
-    runtimeOnly("org.slf4j:slf4j-simple:2.0.9")
+    // Note: slf4j-simple removed — library modules should only depend on slf4j-api.
+    // Application modules (e.g., community-mcp-server) provide their own binding.
     compileOnly("org.projectlombok:lombok:1.18.34")
     annotationProcessor("org.projectlombok:lombok:1.18.34")
     

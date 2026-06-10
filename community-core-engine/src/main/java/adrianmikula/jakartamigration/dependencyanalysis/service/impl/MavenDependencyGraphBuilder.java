@@ -162,7 +162,7 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
             graph.addNode(projectArtifact);
             
             // Parse dependencies
-            List<Artifact> dependencies = parseGradleDependencies(content);
+            List<Artifact> dependencies = parseGradleDependencies(content, buildFilePath);
             for (Artifact dependency : dependencies) {
                 graph.addNode(dependency);
                 graph.addEdge(new Dependency(
@@ -275,9 +275,12 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
         }
     }
     
-    private List<Artifact> parseGradleDependencies(String content) {
+    private List<Artifact> parseGradleDependencies(String content, Path buildFilePath) {
         List<Artifact> artifacts = new ArrayList<>();
-        
+
+        // Load version catalog if present
+        Map<String, Artifact> catalog = loadVersionCatalog(buildFilePath);
+
         // Match: implementation 'groupId:artifactId:version' (Groovy DSL with single quotes)
         // Match: implementation("groupId:artifactId:version") (Kotlin DSL with double quotes and parentheses)
         // Also match: api, compile, runtime, testImplementation, etc.
@@ -285,36 +288,111 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
         java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
             "(implementation|api|compile|runtime|testImplementation|testRuntime|compileOnly|runtimeOnly)\\s*[(]?\\s*['\"]([^:]+):([^:]+):([^'\"]+)['\"]\\s*[)]?"
         );
-        
+
         java.util.regex.Matcher matcher = pattern.matcher(content);
         while (matcher.find()) {
             String dependencyType = matcher.group(1);
             String groupId = matcher.group(2);
             String artifactId = matcher.group(3);
             String version = matcher.group(4);
-            
-            // Determine scope from the dependency type
-            String scope = "compile";
-            if (dependencyType.equals("testImplementation") || dependencyType.equals("testRuntime")) {
-                scope = "test";
-            } else if (dependencyType.equals("runtimeOnly") || dependencyType.equals("runtime")) {
-                scope = "runtime";
-            } else if (dependencyType.equals("compileOnly")) {
-                scope = "provided";
-            } else if (dependencyType.equals("api") || dependencyType.equals("implementation") || dependencyType.equals("compile")) {
-                scope = "compile";
+
+            // Skip BOM/platform declarations and project references
+            if (groupId.equals("platform") || groupId.equals("project")) {
+                continue;
             }
-            
-            artifacts.add(new Artifact(
-                groupId,
-                artifactId,
-                version,
-                scope,
-                false
-            ));
+
+            String scope = resolveGradleScope(dependencyType);
+            artifacts.add(new Artifact(groupId, artifactId, version, scope, false));
         }
-        
+
+        // Match version catalog references: implementation(libs.spring.boot.starter.web)
+        java.util.regex.Pattern catalogPattern = java.util.regex.Pattern.compile(
+            "(implementation|api|compile|runtime|testImplementation|testRuntime|compileOnly|runtimeOnly)\\s*[(]?\\s*(libs\\.\\w+(?:\\.\\w+)*)\\s*[)]?"
+        );
+        java.util.regex.Matcher catalogMatcher = catalogPattern.matcher(content);
+        while (catalogMatcher.find()) {
+            String dependencyType = catalogMatcher.group(1);
+            String alias = catalogMatcher.group(2);
+            Artifact catalogArtifact = catalog.get(alias);
+            if (catalogArtifact != null) {
+                String scope = resolveGradleScope(dependencyType);
+                artifacts.add(new Artifact(
+                    catalogArtifact.groupId(),
+                    catalogArtifact.artifactId(),
+                    catalogArtifact.version(),
+                    scope,
+                    false
+                ));
+            }
+        }
+
         return artifacts;
+    }
+
+    private String resolveGradleScope(String dependencyType) {
+        return switch (dependencyType) {
+            case "testImplementation", "testRuntime" -> "test";
+            case "runtimeOnly", "runtime" -> "runtime";
+            case "compileOnly" -> "provided";
+            default -> "compile";
+        };
+    }
+
+    /**
+     * Loads a Gradle version catalog from gradle/libs.versions.toml if present.
+     * Uses simple regex-based parsing to avoid adding a full TOML dependency.
+     */
+    private Map<String, Artifact> loadVersionCatalog(Path buildFilePath) {
+        Map<String, Artifact> catalog = new HashMap<>();
+        if (buildFilePath == null) {
+            return catalog;
+        }
+        Path tomlPath = buildFilePath.getParent().resolve("gradle").resolve("libs.versions.toml");
+        if (!Files.exists(tomlPath)) {
+            return catalog;
+        }
+
+        try {
+            String toml = Files.readString(tomlPath);
+            // Parse [libraries] section entries
+            // Example: spring-boot-starter-web = { group = "org.springframework.boot", name = "spring-boot-starter-web", version.ref = "springBoot" }
+            java.util.regex.Pattern libPattern = java.util.regex.Pattern.compile(
+                "(\\w+(?:[-.]\\w+)*)\\s*=\\s*\\{\\s*group\\s*=\\s*['\"]([^'\"]+)['\"]\\s*,\\s*name\\s*=\\s*['\"]([^'\"]+)['\"](?:\\s*,\\s*version\\s*=\\s*(?:['\"]([^'\"]+)['\"]|version\\.ref\\s*=\\s*['\"]([^'\"]+)['\"]))?\\s*\\}"
+            );
+            java.util.regex.Pattern versionPattern = java.util.regex.Pattern.compile(
+                "(\\w+(?:[-.]\\w+)*)\\s*=\\s*['\"]([^'\"]+)['\"]"
+            );
+
+            // Extract versions section first
+            Map<String, String> versions = new HashMap<>();
+            java.util.regex.Matcher versionMatcher = versionPattern.matcher(toml);
+            while (versionMatcher.find()) {
+                versions.put(versionMatcher.group(1), versionMatcher.group(2));
+            }
+
+            java.util.regex.Matcher libMatcher = libPattern.matcher(toml);
+            while (libMatcher.find()) {
+                String alias = libMatcher.group(1).replace('-', '.').replace('_', '.');
+                String groupId = libMatcher.group(2);
+                String artifactId = libMatcher.group(3);
+                String directVersion = libMatcher.group(4);
+                String versionRef = libMatcher.group(5);
+
+                String version = directVersion;
+                if (version == null && versionRef != null) {
+                    version = versions.getOrDefault(versionRef, "unknown");
+                }
+                if (version == null) {
+                    version = "unknown";
+                }
+
+                catalog.put("libs." + alias, new Artifact(groupId, artifactId, version, "compile", false));
+            }
+        } catch (IOException e) {
+            log.warn("Failed to load version catalog from {}: {}", tomlPath, e.getMessage());
+        }
+
+        return catalog;
     }
     
     private String extractProjectArtifactId(String content) {

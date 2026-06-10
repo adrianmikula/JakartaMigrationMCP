@@ -11,7 +11,7 @@ spring:
   ai:
     mcp:
       server:
-        transport: stdio
+        stdio: true
         # CRITICAL: Use SYNC type for synchronous methods
         type: SYNC
         annotation-scanner:

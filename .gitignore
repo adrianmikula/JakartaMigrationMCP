@@ -51,6 +51,11 @@ pom.xml
 .memory-bank/
 .cursor/mcp-config.json
 
+# MCP Server Build Outputs (exclude fat JARs, keep plain JARs for local dev)
+community-mcp-server/build/libs/*.jar
+!community-mcp-server/build/libs/*-plain.jar
+release/jakarta-migration-mcp-*.jar
+
 # Cursor MCP Configuration Files (may contain secrets)
 CURSOR_MCP_CONFIG_APIFY.json
 CURSOR_MCP_CONFIG_SSE.json

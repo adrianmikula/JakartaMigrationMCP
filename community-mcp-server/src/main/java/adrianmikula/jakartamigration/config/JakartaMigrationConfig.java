@@ -10,10 +10,12 @@ import adrianmikula.jakartamigration.dependencyanalysis.service.impl.DependencyA
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.JakartaMappingServiceImpl;
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.MavenDependencyGraphBuilder;
 import adrianmikula.jakartamigration.dependencyanalysis.service.impl.SimpleNamespaceClassifier;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+
+import jakarta.annotation.PostConstruct;
 
 /**
  * Configuration for Jakarta Migration modules.
@@ -24,8 +26,34 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @ComponentScan(basePackages = "adrianmikula.jakartamigration")
-@EnableConfigurationProperties(FeatureFlagsProperties.class)
 public class JakartaMigrationConfig {
+
+    /**
+     * Keep-alive for stdio mode.
+     * Spring AI MCP stdio transport may use a daemon thread for reading stdin,
+     * which doesn't prevent JVM exit. This bean spawns a non-daemon thread
+     * that blocks indefinitely while stdio transport is active.
+     */
+    @Bean
+    public KeepAlive keepAlive(Environment env) {
+        String transport = env.getProperty("spring.ai.mcp.server.transport", "stdio");
+        return new KeepAlive("stdio".equalsIgnoreCase(transport));
+    }
+
+    @Bean
+    public FeatureFlagsProperties featureFlagsProperties() {
+        return new FeatureFlagsProperties();
+    }
+
+    @Bean
+    public LicenseService licenseService(FeatureFlagsProperties properties) {
+        return new LicenseService(properties);
+    }
+
+    @Bean
+    public FeatureFlagsService featureFlagsService(FeatureFlagsProperties properties, LicenseService licenseService) {
+        return new FeatureFlagsService(properties, licenseService);
+    }
 
     @Bean
     public DependencyGraphBuilder dependencyGraphBuilder() {

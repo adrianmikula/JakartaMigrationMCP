@@ -188,12 +188,19 @@
     <change-notes><![CDATA[
     <h>1.0.18 - 2026-05-28</h>
     <ul>
-        <li>Version bump to 1.0.18</li>
+        <li><b>Fixed</b> Community dependency analysis: Spring Boot / Spring Framework artifacts with unresolvable versions are no longer misclassified as JAVAX, preventing false-positive NO_JAKARTA_EQUIVALENT blockers</li>
+        <li><b>Fixed</b> Community Gradle parser: now loads and resolves gradle/libs.versions.toml version catalogs and skips platform/project references</li>
+        <li><b>Added</b> Premium dependency resolution: new PremiumDependencyGraphBuilder runs actual Maven/Gradle commands for accurate resolved-dependency graphs, with automatic fallback to community regex parser when build tools are unavailable</li>
+        <li><b>Added</b> Premium MCP server integration: build-tool-based resolver wired into premium MCP server as primary DependencyAnalysisModule</li>
     </ul>
     <h>1.0.17 - 2026-05-27</h>
     <ul>
-        <li>Version bump to 1.0.17</li>
-    </ul>
+        <li><b>Added</b> tests and fixed selective table deletion on database upgrade</li>
+        <li><b>Refactored</b> UI color constants for better theme support</li>
+        <li><b>Refactored</b> large classes by extracting methods into utility classes and eliminating code duplication</li>
+        <li><b>Refactored</b> CI/CD pipeline and updated developer/release documentation</li>
+        <li><b>Replaced</b> modal dialogs with non-intrusive notifications</li>
+     </ul>
     <h>1.0.16 - 2026-05-27</h>
     <ul>
         <li>Fixed dependency graph panning and interaction issues</li>

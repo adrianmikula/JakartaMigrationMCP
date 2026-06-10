@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    name: Build JAR, Create GitHub Release, Publish to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Sync versions
+        run: node scripts/sync-versions.js
+
+      - name: Verify version sync
+        run: node scripts/check-version-sync.js
+
+      - name: Build JAR
+        run: ./gradlew :community-mcp-server:bootJar --no-daemon
+
+      - name: Build release artifacts
+        run: |
+          VERSION=$(grep -oP 'version\s*=\s*"\K[^"]+' gradle.properties | head -1)
+          VERSION_CLEAN=$(echo "$VERSION" | sed 's/-SNAPSHOT//')
+          mkdir -p release
+          cp community-mcp-server/build/libs/jakarta-migration-mcp.jar "release/jakarta-migration-mcp-${VERSION_CLEAN}.jar"
+          cd release
+          sha256sum "jakarta-migration-mcp-${VERSION_CLEAN}.jar" > "jakarta-migration-mcp-${VERSION_CLEAN}.jar.sha256"
+
+      - name: Get version from gradle.properties
+        id: get_version
+        run: |
+          VERSION=$(grep -oP 'version\s*=\s*"\K[^"]+' gradle.properties | head -1)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "jar_version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release v${{ steps.get_version.outputs.version }}
+          files: |
+            release/jakarta-migration-mcp-${{ steps.get_version.outputs.jar_version }}.jar
+            release/jakarta-migration-mcp-${{ steps.get_version.outputs.jar_version }}.jar.sha256
+          generate_release_notes: true
+
+      - name: Publish to npm
+        if: env.NPM_TOKEN != ''
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public

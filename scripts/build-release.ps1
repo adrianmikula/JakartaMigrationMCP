@@ -30,10 +30,14 @@ if (-not (Test-Path "gradlew.bat") -and -not (Test-Path "gradlew")) {
 }
 Write-Host ""
 
-# Get version from build.gradle.kts
-$VersionLine = Select-String -Path "build.gradle.kts" -Pattern 'version\s*=\s*"' | Select-Object -First 1
+# Sync versions first
+& node "$ScriptDir\sync-versions.js" 2>$null
+if ($LASTEXITCODE -ne 0) { Write-Host "[WARN] Version sync script failed, continuing..." -ForegroundColor Yellow }
+
+# Get version from gradle.properties (source of truth)
+$VersionLine = Select-String -Path "gradle.properties" -Pattern '^version=' | Select-Object -First 1
 $Version = if ($VersionLine) {
-    if ($VersionLine.Line -match 'version\s*=\s*"([^"]+)"') {
+    if ($VersionLine.Line -match '^version=([^#\s]+)') {
         $matches[1]
     } else {
         "1.0.0-SNAPSHOT"
@@ -74,19 +78,19 @@ if (Test-Path "gradlew.bat") {
 # Build JAR
 Write-Host "[BUILD] Building JAR..." -ForegroundColor Yellow
 if (Test-Path "gradlew.bat") {
-    & .\gradlew.bat bootJar --no-daemon
+    & .\gradlew.bat :community-mcp-server:bootJar --no-daemon
 } elseif (Test-Path "gradlew") {
-    & .\gradlew bootJar --no-daemon
+    & .\gradlew :community-mcp-server:bootJar --no-daemon
 } else {
     # Use mise exec or direct gradle command
     $gradleCmd = Get-Command gradle -ErrorAction SilentlyContinue
     if ($gradleCmd) {
-        & gradle bootJar --no-daemon
+        & gradle :community-mcp-server:bootJar --no-daemon
     } else {
         # Try mise exec
         $miseCmd = Get-Command mise -ErrorAction SilentlyContinue
         if ($miseCmd) {
-            mise exec -- gradle bootJar --no-daemon
+            mise exec -- gradle :community-mcp-server:bootJar --no-daemon
         } else {
             Write-Host "[ERROR] Gradle wrapper not found and 'gradle' command not available" -ForegroundColor Red
             Write-Host "   Please install Gradle or run: gradle wrapper" -ForegroundColor Yellow
@@ -96,11 +100,11 @@ if (Test-Path "gradlew.bat") {
 }
 
 # Find the built JAR
-$JarFiles = Get-ChildItem -Path "build\libs" -Filter "*.jar" | Where-Object { $_.Name -notlike "*-plain.jar" }
+$JarFiles = Get-ChildItem -Path "community-mcp-server\build\libs" -Filter "*.jar" | Where-Object { $_.Name -notlike "*-plain.jar" }
 $JarFile = $JarFiles | Select-Object -First 1
 
 if (-not $JarFile) {
-        Write-Host "[ERROR] JAR file not found in build\libs\" -ForegroundColor Red
+        Write-Host "[ERROR] JAR file not found in community-mcp-server\build\libs\" -ForegroundColor Red
     exit 1
 }
 
@@ -164,12 +168,6 @@ if (Test-Path $PackageJsonPath) {
                 Write-Host "   - $file" -ForegroundColor Yellow
             }
         }
-    }
-    
-    # Check if repository URL is still placeholder
-    if ($PackageJson.repository.url -like "*your-org*" -or $PackageJson.repository.url -like "*your-repo*") {
-        Write-Host "[WARN] package.json repository URL is still a placeholder" -ForegroundColor Yellow
-        Write-Host "   Update it with your actual GitHub repository URL before publishing" -ForegroundColor Yellow
     }
     
     # Check if main/bin files exist

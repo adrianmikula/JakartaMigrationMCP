@@ -37,12 +37,7 @@ if (!GITHUB_REPO && PACKAGE_JSON && PACKAGE_JSON.repository && PACKAGE_JSON.repo
     GITHUB_REPO = repoMatch[1];
   }
 }
-GITHUB_REPO = GITHUB_REPO || 'your-org/JakartaMigrationMCP';
-
-// Warn if using placeholder repository
-if (GITHUB_REPO.includes('your-org') || GITHUB_REPO.includes('your-repo')) {
-  console.error('WARNING: GitHub repository is still a placeholder. Set GITHUB_REPO environment variable or update package.json repository.url');
-}
+GITHUB_REPO = GITHUB_REPO || 'adrianmikula/JakartaMigrationMCP';
 
 const JAR_NAME = `jakarta-migration-mcp-${VERSION}.jar`;
 const GITHUB_RELEASES_URL = `https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}`;

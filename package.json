@@ -1,6 +1,6 @@
 {
     "name":  "@jakarta-migration/mcp-server",
-    "version":  "1.0.0",
+    "version":  "1.0.18",
     "description":  "MCP server for Jakarta EE migration analysis and automation",
     "main":  "index.js",
     "bin":  {
@@ -8,7 +8,9 @@
             },
     "scripts":  {
                     "postinstall":  "node scripts/postinstall.js",
-                    "test":  "node test-config-loading.js"
+                    "test":  "node test-config-loading.js",
+                    "check-version-sync":  "node scripts/check-version-sync.js",
+                    "prepublishOnly":  "npm run check-version-sync"
                 },
     "keywords":  [
                      "mcp",

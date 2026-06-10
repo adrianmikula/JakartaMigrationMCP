@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dependency Graph - JakartaMigrationMCP</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; background: #f5f7fa; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header h1 { font-size: 24px; font-weight: 600; margin-bottom: 5px; }
+        .header p { font-size: 14px; opacity: 0.9; }
+        .controls { background: white; padding: 15px 30px; border-bottom: 1px solid #e1e8ed; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+        .control-group { display: flex; align-items: center; gap: 8px; }
+        .control-group button { padding: 6px 14px; border: 1px solid #ddd; background: #f8f9fa; border-radius: 4px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+        .control-group button:hover { background: #e9ecef; border-color: #adb5bd; }
+        .legend { display: flex; gap: 20px; align-items: center; }
+        .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; }
+        .legend-color { width: 14px; height: 14px; border-radius: 50%; border: 2px solid; }
+        .legend-color.compatible { background: #28a745; border-color: #1e7e34; }
+        .legend-color.needs-upgrade { background: #ffc107; border-color: #d39e00; }
+        .legend-color.no-version { background: #dc3545; border-color: #c82333; }
+        .legend-color.unknown { background: #6c757d; border-color: #545b62; }
+        #graph-container { width: 100%; height: calc(100vh - 180px); background: white; }
+        .stats { background: #f8f9fa; padding: 10px 30px; border-bottom: 1px solid #e1e8ed; font-size: 13px; color: #666; }
+        .stats span { margin-right: 20px; }
+        .stats .stat-value { font-weight: 600; color: #333; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Dependency Graph Visualization</h1>
+        <p>JakartaMigrationMCP - Jakarta Migration Analysis</p>
+    </div>
+    <div class="stats">
+        <span>Total Dependencies: <span class="stat-value">6</span></span>
+        <span>Jakarta Compatible: <span class="stat-value" style="color: #28a745;">2</span></span>
+        <span>Needs Upgrade: <span class="stat-value" style="color: #ffc107;">3</span></span>
+        <span>No Jakarta Version: <span class="stat-value" style="color: #dc3545;">1</span></span>
+    </div>
+    <div class="controls">
+        <div class="legend">
+            <div class="legend-item"><div class="legend-color compatible"></div> Jakarta Compatible</div>
+            <div class="legend-item"><div class="legend-color needs-upgrade"></div> Needs Upgrade</div>
+            <div class="legend-item"><div class="legend-color no-version"></div> No Jakarta Version</div>
+            <div class="legend-item"><div class="legend-color unknown"></div> Unknown Status</div>
+        </div>
+        <div style="flex: 1;"></div>
+        <div class="control-group">
+            <button onclick="fitGraph()">Fit to Screen</button>
+            <button onclick="resetZoom()">Reset View</button>
+        </div>
+    </div>
+    <div id="graph-container"></div>
+
+    <script type="text/javascript">
+        // Sample graph data for demonstration
+        var nodes = new vis.DataSet([
+            {id: "jakarta.migration:core:1.0.0", label: "jakarta-core", title: "jakarta.migration:core:1.0.0<br>Scope: compile<br>Transitive: false", group: "compatible", color: {background: "#28a745", border: "#1e7e34"}},
+            {id: "jakarta.servlet:jakarta.servlet-api:5.0.0", label: "jakarta.servlet-api", title: "jakarta.servlet:jakarta.servlet-api:5.0.0<br>Scope: compile<br>Transitive: true", group: "compatible", color: {background: "#28a745", border: "#1e7e34"}},
+            {id: "javax.servlet:javax.servlet-api:4.0.1", label: "javax.servlet-api", title: "javax.servlet:javax.servlet-api:4.0.1<br>Scope: compile<br>Transitive: true", group: "needs-upgrade", color: {background: "#ffc107", border: "#d39e00"}},
+            {id: "javax.persistence:javax.persistence-api:2.2", label: "javax.persistence", title: "javax.persistence:javax.persistence-api:2.2<br>Scope: compile<br>Transitive: true", group: "needs-upgrade", color: {background: "#ffc107", border: "#d39e00"}},
+            {id: "javax.validation:validation-api:2.0.1", label: "validation-api", title: "javax.validation:validation-api:2.0.1<br>Scope: compile<br>Transitive: true", group: "needs-upgrade", color: {background: "#ffc107", border: "#d39e00"}},
+            {id: "legacy.framework:old-servlet:1.0", label: "old-servlet", title: "legacy.framework:old-servlet:1.0<br>Scope: compile<br>Transitive: false", group: "no-version", color: {background: "#dc3545", border: "#c82333"}}
+        ]);
+
+        var edges = new vis.DataSet([
+            {from: "jakarta.migration:core:1.0.0", to: "jakarta.servlet:jakarta.servlet-api:5.0.0"},
+            {from: "jakarta.migration:core:1.0.0", to: "javax.servlet:javax.servlet-api:4.0.1"},
+            {from: "jakarta.migration:core:1.0.0", to: "javax.persistence:javax.persistence-api:2.2"},
+            {from: "jakarta.migration:core:1.0.0", to: "javax.validation:validation-api:2.0.1"},
+            {from: "jakarta.migration:core:1.0.0", to: "legacy.framework:old-servlet:1.0"}
+        ]);
+
+        var container = document.getElementById('graph-container');
+        var data = { nodes: nodes, edges: edges };
+        var options = {
+            nodes: {
+                shape: 'dot',
+                size: 25,
+                font: { size: 12, face: 'Segoe UI', color: '#333', strokeWidth: 2, strokeColor: '#fff' },
+                borderWidth: 2,
+                shadow: { enabled: true, color: 'rgba(0,0,0,0.2)', size: 5, x: 2, y: 2 }
+            },
+            edges: {
+                width: 1.5,
+                color: { color: '#adb5bd', highlight: '#667eea', hover: '#667eea' },
+                smooth: { type: 'continuous', roundness: 0.5 },
+                arrows: { to: { enabled: true, scaleFactor: 0.8 } }
+            },
+            physics: {
+                forceAtlas2Based: {
+                    gravitationalConstant: -60,
+                    centralGravity: 0.005,
+                    springLength: 120,
+                    springConstant: 0.18,
+                    damping: 0.4,
+                    avoidOverlap: 0.5
+                },
+                maxVelocity: 50,
+                minVelocity: 0.1,
+                solver: 'forceAtlas2Based',
+                stabilization: { enabled: true, iterations: 200, updateInterval: 25, fit: true }
+            },
+            interaction: {
+                hover: true,
+                hoverConnectedEdges: true,
+                selectConnectedEdges: true,
+                zoomView: true,
+                dragView: true,
+                tooltipDelay: 200,
+                hideEdgesOnDrag: true
+            }
+        };
+
+        var network = new vis.Network(container, data, options);
+
+        network.once('stabilizationIterationsDone', function() {
+            network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+        });
+
+        network.on('click', function(params) {
+            if (params.nodes.length > 0) {
+                var nodeId = params.nodes[0];
+                network.focus(nodeId, { scale: 1.2, animation: { duration: 300, easingFunction: 'easeInOutQuad' } });
+            }
+        });
+
+        function fitGraph() {
+            network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+        }
+
+        function resetZoom() {
+            network.moveTo({ scale: 1, position: { x: 0, y: 0 }, animation: { duration: 300 } });
+        }
+    </script>
+</body>
+</html>

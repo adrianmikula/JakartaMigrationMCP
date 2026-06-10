@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.util.ClassUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +32,7 @@ public class McpStreamableHttpController {
     private static final Logger log = LoggerFactory.getLogger(McpStreamableHttpController.class);
 
     private final JakartaMigrationTools jakartaMigrationTools;
+    private final CommunityMigrationTools communityMigrationTools;
     private final SentinelTools sentinelTools;
     private final ObjectMapper objectMapper = new ObjectMapper();
     
@@ -126,6 +128,9 @@ public class McpStreamableHttpController {
         // Get tools from JakartaMigrationTools
         tools.addAll(getToolsFromClass(jakartaMigrationTools, enabledTools));
         
+        // Get tools from CommunityMigrationTools
+        tools.addAll(getToolsFromClass(communityMigrationTools, enabledTools));
+        
         // Get tools from SentinelTools
         tools.addAll(getToolsFromClass(sentinelTools, enabledTools));
         
@@ -135,7 +140,7 @@ public class McpStreamableHttpController {
     private List<Map<String, Object>> getToolsFromClass(Object toolClass, Set<String> enabledTools) {
         List<Map<String, Object>> tools = new ArrayList<>();
         
-        for (java.lang.reflect.Method method : toolClass.getClass().getDeclaredMethods()) {
+        for (java.lang.reflect.Method method : ClassUtils.getUserClass(toolClass.getClass()).getDeclaredMethods()) {
             org.springaicommunity.mcp.annotation.McpTool annotation = 
                 method.getAnnotation(org.springaicommunity.mcp.annotation.McpTool.class);
             
@@ -222,7 +227,7 @@ public class McpStreamableHttpController {
     
     private String executeTool(String toolName, Map<String, Object> arguments) throws IllegalArgumentException, ReflectiveOperationException {
         // Try JakartaMigrationTools first
-        for (java.lang.reflect.Method method : jakartaMigrationTools.getClass().getDeclaredMethods()) {
+        for (java.lang.reflect.Method method : ClassUtils.getUserClass(jakartaMigrationTools.getClass()).getDeclaredMethods()) {
             org.springaicommunity.mcp.annotation.McpTool annotation = 
                 method.getAnnotation(org.springaicommunity.mcp.annotation.McpTool.class);
             
@@ -231,8 +236,18 @@ public class McpStreamableHttpController {
             }
         }
         
+        // Try CommunityMigrationTools
+        for (java.lang.reflect.Method method : ClassUtils.getUserClass(communityMigrationTools.getClass()).getDeclaredMethods()) {
+            org.springaicommunity.mcp.annotation.McpTool annotation = 
+                method.getAnnotation(org.springaicommunity.mcp.annotation.McpTool.class);
+            
+            if (annotation != null && annotation.name().equals(toolName)) {
+                return invokeTool(method, communityMigrationTools, arguments);
+            }
+        }
+        
         // Try SentinelTools
-        for (java.lang.reflect.Method method : sentinelTools.getClass().getDeclaredMethods()) {
+        for (java.lang.reflect.Method method : ClassUtils.getUserClass(sentinelTools.getClass()).getDeclaredMethods()) {
             org.springaicommunity.mcp.annotation.McpTool annotation = 
                 method.getAnnotation(org.springaicommunity.mcp.annotation.McpTool.class);
             

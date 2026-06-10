@@ -74,6 +74,33 @@ You can **disable data collection** at any time:
 
 **[Get it from JetBrains Marketplace →](https://plugins.jetbrains.com/plugin/30093-jakarta-migration)**
 
+## 🤖 Claude Code Plugin
+
+### One-Click Install
+
+Install the `jakarta-migration-assistant` plugin directly in Claude Code:
+
+```
+/plugin marketplace add adrianmikula/JakartaMigrationMCP
+/plugin install jakarta-migration-assistant@jakarta-migration-marketplace
+```
+
+Or install directly from GitHub:
+
+```
+/plugin install github:adrianmikula/JakartaMigrationMCP
+```
+
+### What You Get
+
+- **Interactive Skill** — A guided migration analyzer that walks you through scanning, risk analysis, and strategy comparison
+- **MCP Server** — All migration tools (`analyzeJakartaReadiness`, `detectBlockers`, `recommendVersions`, `applyRefactorRecipe`, and more) available as native Claude Code tools
+
+### Prerequisites
+
+- **Node.js 18+** — Required for the bundled MCP server wrapper
+- **Java 21+** — Required to run the migration analysis engine
+
 ---
 
 ## 🔍 What You Can Do
