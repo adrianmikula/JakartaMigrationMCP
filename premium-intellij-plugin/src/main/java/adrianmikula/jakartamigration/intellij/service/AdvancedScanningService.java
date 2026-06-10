@@ -1245,6 +1245,26 @@ public class AdvancedScanningService {
             }
         }
 
+        // Also create nodes from usages to ensure all discovered dependencies are present
+        // even when edge information is missing (e.g. regex fallback scan)
+        for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult fileResult : deepResult.getFileResults()) {
+            for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage usage : fileResult.getUsages()) {
+                String groupId = usage.getGroupId();
+                String artifactId = usage.getArtifactId();
+                if (groupId == null || artifactId == null) {
+                    continue;
+                }
+                String version = usage.getVersion() != null ? usage.getVersion() : "unknown";
+                String scope = usage.getScope() != null ? usage.getScope() : "compile";
+                boolean transitive = usage.isTransitive();
+                String key = groupId + ":" + artifactId + ":" + version;
+
+                Artifact artifact = artifactMap.computeIfAbsent(key, k ->
+                        new Artifact(groupId, artifactId, version, scope, transitive));
+                nodes.add(artifact);
+            }
+        }
+
         return new DependencyGraph(nodes, edges);
     }
 
