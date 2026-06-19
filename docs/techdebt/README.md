@@ -130,4 +130,11 @@ We use a single plugin build that targets IntelliJ 2023.3.4 with open-ended comp
 
 ---
 
-*Last updated: 2026-03-02*
+## Agentic Velocity
+
+The following improvements for AI agent-assisted development are documented separately:
+- [Agentic Velocity Improvements](agentic-velocity-improvements.md) — Pre-commit hooks, PR templates, persistent test runner, codemap, CODEOWNERS, and more
+
+---
+
+*Last updated: 2026-06-19*

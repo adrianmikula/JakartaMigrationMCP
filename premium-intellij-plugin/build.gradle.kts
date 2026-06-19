@@ -95,9 +95,9 @@ tasks.named("classpathIndexCleanup") {
 tasks.register<JavaExec>("runFastTests") {
     group = "verification"
     description = "Runs fast subset of tests for quick feedback"
-    
+
     dependsOn("compileTestJava")
-    
+
     classpath = sourceSets.test.get().runtimeClasspath
     mainClass = "org.junit.platform.console.ConsoleLauncher"
     args = listOf(

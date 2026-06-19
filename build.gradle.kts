@@ -41,6 +41,8 @@ val javaHome = when {
     os.contains("linux") -> {
         // Try common Linux Java installation paths
         val possiblePaths = listOf(
+            "/usr/lib/jvm/zulu-21-crac-amd64",
+            "/usr/lib/jvm/zulu-25-crac-amd64",
             "/usr/lib/jvm/java-21-openjdk-amd64",
             "/usr/lib/jvm/java-21-openjdk",
             "/usr/lib/jvm/java-21-temurin",

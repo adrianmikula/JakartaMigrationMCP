@@ -8,6 +8,7 @@ dependencies {
     implementation("org.slf4j:slf4j-api:2.0.9")
     runtimeOnly("org.slf4j:slf4j-simple:2.0.9")
     compileOnly("org.projectlombok:lombok:1.18.34")
+    compileOnly("org.springframework.boot:spring-boot:3.2.0")
     annotationProcessor("org.projectlombok:lombok:1.18.34")
     
     // YAML processing

@@ -45,6 +45,16 @@
 | Check Docker status | `mise run docker-ps` or `docker compose ps` |
 | Clean build artifacts | `mise run clean` or `./gradlew clean` |
 | Fast test (single module) | `./gradlew :community-core-engine:fastTest` |
+| Fast test (all modules) | `./gradlew :community-core-engine:fastTest :premium-core-engine:fastTest :community-mcp-server:fastTest :premium-mcp-server:fastTest` |
+
+## CRaC (Coordinated Restore at Checkpoint)
+
+| Purpose | Command |
+|---------|---------|
+| Start server with checkpoint enabled | `mise run crac-start` |
+| Trigger checkpoint | `mise run crac-checkpoint` |
+| Restore from checkpoint | `mise run crac-restore` |
+| JDK path | `/usr/lib/jvm/zulu-21-crac-amd64` |
 
 ## Common gotchas
 

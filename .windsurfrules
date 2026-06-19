@@ -1,0 +1,33 @@
+# Windsurf Agent Rules — Jakarta Migration MCP
+
+## Available MCP Servers
+MCP servers are configured in `.mcp.json` at project root. Available servers:
+- `gradle` — Run Gradle build/test/lint commands
+- `github` — GitHub API access (issues, PRs, repos)
+- `filesystem` — Read/write project files
+- `sequentialthinking` — Structured reasoning
+- `memory` — Cross-session context persistence
+- `postgres` — PostgreSQL database access
+- `codebase-indexer` — Codebase search and indexing
+
+## Debugging Runtime Errors
+1. Check service status: `docker compose ps` or `curl http://localhost:8080/actuator/health`
+2. Enable debug mode: `LOG_LEVEL=debug`
+3. Check Docker logs: `docker compose logs -f`
+4. Review known issues: `docs/troubleshooting/COMMON_ISSUES.md`
+5. Run fast tests after fix: `./gradlew fastTest`
+
+## Logging
+- All production logging must use SLF4J (`log.info`, `log.debug`, `log.warn`, `log.error`)
+- Never use `System.out.println` in production code
+- Respect `LOG_LEVEL` env var: debug, info, warn, error
+
+## CI/CD Signal vs Confidence
+- Signal (inner loop): compile → fast tests — run before every commit
+- Confidence (CI only): integration → security → full matrix — run async in CI
+- Validate pipeline config: `gh workflow run --dry-run`
+
+## Fast Test Loop
+- `./gradlew :community-core-engine:fastTest` — Quick core engine feedback (<15s)
+- `./gradlew fastTest` — All module fast tests
+- See `COMMANDS.md` for full command catalogue

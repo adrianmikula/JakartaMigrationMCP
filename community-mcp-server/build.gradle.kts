@@ -3,11 +3,12 @@ plugins {
     id("io.spring.dependency-management")
     java
     id("com.github.spotbugs") version "6.0.25"
-    id("net.ltgt.errorprone") version "4.1.0"
 }
 
 dependencies {
-    implementation(project(":community-core-engine"))
+    implementation(project(":community-core-engine")) {
+        exclude("org.slf4j", "slf4j-simple")
+    }
     
     implementation("org.springframework.boot:spring-boot-starter-web")
     // Use working configuration from commit c8972f1

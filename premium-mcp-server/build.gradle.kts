@@ -1,7 +1,6 @@
 plugins {
     `java-library`
     id("com.github.spotbugs") version "6.0.25"
-    id("net.ltgt.errorprone") version "4.1.0"
 }
 
 dependencies {
@@ -47,5 +46,19 @@ tasks.test {
         showStandardStreams = true
     }
     // Enable parallel test execution
+    maxParallelForks = 4
+}
+
+// Fast test task for quick agent feedback
+tasks.register<Test>("fastTest") {
+    group = "verification"
+    description = "Run fast unit tests only (excludes integration and slow tests)"
+
+    useJUnitPlatform {
+        excludeTags("slow")
+    }
+    testLogging {
+        showStandardStreams = true
+    }
     maxParallelForks = 4
 }

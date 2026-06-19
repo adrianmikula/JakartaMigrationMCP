@@ -3,11 +3,12 @@
 # Install mise: https://mise.jdx.dev/getting-started.html
 
 [tools]
-java = "21.0.0"
+java = "zulu-21-crac"
 gradle = "8.5"
 node = "20.11.0"
 
 [env]
+JAVA_HOME = "/usr/lib/jvm/zulu-21-crac-amd64"
 DB_USERNAME = "postgres"
 DB_PASSWORD = "postgres"
 REDIS_HOST = "localhost"
@@ -55,8 +56,8 @@ run = "gradle test -Djakarta.migration.mode=dev --no-configuration-cache"
 
 [tasks.fast-test]
 description = "Run fast tests only (excludes @Tag(slow) and @Tag(integration))"
-run_windows = "gradlew.bat :premium-core-engine:fastTest :community-core-engine:fastTest -Djakarta.migration.mode=dev"
-run = "gradle :premium-core-engine:fastTest :community-core-engine:fastTest -Djakarta.migration.mode=dev"
+run_windows = "gradlew.bat :premium-core-engine:fastTest :community-core-engine:fastTest :community-mcp-server:fastTest :premium-mcp-server:fastTest -Djakarta.migration.mode=dev"
+run = "gradle :premium-core-engine:fastTest :community-core-engine:fastTest :community-mcp-server:fastTest :premium-mcp-server:fastTest -Djakarta.migration.mode=dev"
 
 [tasks.coverage]
 description = "Generate JaCoCo test coverage report"
@@ -110,3 +111,17 @@ run = "docker compose ps"
 [tasks.health]
 description = "Check MCP server health endpoint"
 run = "curl http://localhost:8080/actuator/health"
+
+# 7. CRaC (Coordinated Restore at Checkpoint)
+
+[tasks.crac-start]
+description = "Start MCP server with CRaC checkpoint enabled"
+run = "JAVA_HOME=/usr/lib/jvm/zulu-21-crac-amd64 java -XX:CRaCCheckpointTo=/tmp/crac-checkpoint -jar community-mcp-server/build/libs/jakarta-migration-mcp.jar"
+
+[tasks.crac-checkpoint]
+description = "Trigger CRaC checkpoint on running server"
+run = "jcmd $(jcmd -l | grep jakarta-migration | cut -d' ' -f1) JDK.checkpoint"
+
+[tasks.crac-restore]
+description = "Restore from CRaC checkpoint"
+run = "JAVA_HOME=/usr/lib/jvm/zulu-21-crac-amd64 java -XX:CRaCRestoreFrom=/tmp/crac-checkpoint"
