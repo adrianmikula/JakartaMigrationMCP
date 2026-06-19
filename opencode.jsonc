@@ -13,10 +13,7 @@
         "-e",
         "GITHUB_PERSONAL_ACCESS_TOKEN",
         "ghcr.io/github/github-mcp-server"
-      ],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
-      }
+      ]
     },
     "filesystem": {
       "command": "npx",
@@ -38,6 +35,22 @@
         "--connection-string",
         "postgresql://postgres:postgres@localhost:5432/jakarta_migration"
       ]
+    },
+    "codebase-indexer": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-server-codebase-indexer"]
     }
+  },
+  "permission": {
+    "allow": [
+      "bash: ./gradlew *",
+      "bash: gradle *",
+      "bash: npx *",
+      "bash: docker *",
+      "bash: npm *",
+      "bash: node *",
+      "bash: git *",
+      "bash: mise *"
+    ]
   }
 }

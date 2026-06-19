@@ -1,5 +1,9 @@
 {
   "mcpServers": {
+    "gradle": {
+      "command": "./gradlew",
+      "args": ["--no-daemon"]
+    },
     "github": {
       "command": "docker",
       "args": [
@@ -20,18 +24,25 @@
         "GITHUB_READ_ONLY": ""
       }
     },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    },
     "sequentialthinking": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-sequential-thinking"
-      ]
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
     },
     "memory": {
       "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "postgres": {
+      "command": "npx",
       "args": [
         "-y",
-        "@modelcontextprotocol/server-memory"
+        "@anthropic/mcp-server-postgres",
+        "--connection-string",
+        "postgresql://postgres:postgres@localhost:5432/jakarta_migration"
       ]
     }
   }

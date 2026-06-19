@@ -12,15 +12,17 @@
         "--rm",
         "-e",
         "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "-e",
+        "GITHUB_TOOLSETS",
+        "-e",
+        "GITHUB_READ_ONLY",
         "ghcr.io/github/github-mcp-server"
       ],
       "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "GITHUB_TOOLSETS": "",
+        "GITHUB_READ_ONLY": ""
       }
-    },
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
     },
     "sequentialthinking": {
       "command": "npx",
@@ -30,6 +32,14 @@
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-memory"]
     },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/home/adrian/Source/JakartaMigrationMCP"
+      ]
+    },
     "postgres": {
       "command": "npx",
       "args": [
@@ -37,6 +47,15 @@
         "@anthropic/mcp-server-postgres",
         "--connection-string",
         "postgresql://postgres:postgres@localhost:5432/jakarta_migration"
+      ]
+    },
+    "codebase-indexer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic/mcp-server-codebase-indexer",
+        "--project-root",
+        "/home/adrian/Source/JakartaMigrationMCP"
       ]
     }
   }

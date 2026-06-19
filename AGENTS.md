@@ -1,12 +1,61 @@
 
 # AI Agent Rules 
 
+## Command Catalogue
+See `COMMANDS.md` in the project root for all build, test, lint, run, and debug commands with expected execution times. Agents MUST check this file before guessing CLI syntax.
 
+## Known Issues
+See `docs/troubleshooting/COMMON_ISSUES.md` for catalogued error patterns and their resolutions. Always check there first when encountering errors — do not re-investigate known problems.
 
 ## Agent Setup
 - Set up any useful MCP servers which will significantly speed up agent context, simplify workflows, and speed up feedback loops.
 - Set up agent allowlist to include all common non-destructive development commands we will want to use, e.g. for build tools, test commands, etc.
 
+### Available MCP Servers
+MCP servers are configured per-agent for compatibility:
+
+| Server | Root `.mcp.json` | `opencode.jsonc` | `.cursor/mcp.json` | `.kilocode/mcp.json` | `.devin/config.json` |
+|--------|:-:|:-:|:-:|:-:|:-:|
+| gradle | yes | yes | yes | yes | yes |
+| github | yes | yes | yes | yes | yes |
+| filesystem | yes | yes | yes | yes | yes |
+| sequentialthinking | yes | yes | yes | yes | yes |
+| memory | yes | yes | yes | yes | yes |
+| postgres | yes | yes | yes | yes | yes |
+| codebase-indexer | yes | yes | — | — | yes |
+
+To add MCP servers for a specific agent, edit the corresponding file above.
+Windsurf uses the root `.mcp.json` and `.windsurfrules` for instructions.
+
+
+## Debugging Runtime Errors
+
+When encountering a runtime error, follow this workflow:
+1. **Prerequisite check** — Verify the dev server or service is running (`mise run docker-ps`, `mise run health`)
+2. **Diagnose** — Use MCP tools if available, or check logs directly:
+   - Enable debug mode: `LOG_LEVEL=debug mise run run`
+   - Check Docker logs: `mise run docker-logs`
+   - Review known issues: `docs/troubleshooting/COMMON_ISSUES.md`
+3. **Analyze** — Identify the root cause from log output
+4. **Fix** — Apply the fix
+5. **Verify** — Run the fast test loop (`mise run fast-test`) to confirm
+
+## CI/CD Workflow — Signal vs Confidence
+
+Split every pipeline into two tiers:
+- **Signal** (inner loop, <30s): lint → typecheck → fast tests — run before every commit
+- **Confidence** (CI only, minutes): integration → security → full matrix → deploy — run async in CI
+
+Validate pipeline config before pushing: `gh workflow run --dry-run`
+
+## Spec-Driven Development Workflow
+
+When starting a new feature:
+1. Write a spec file at `docs/spec/<feature>.md` describing expected behavior
+2. Implement code matching the spec
+3. Verify alignment — spec first, code second
+
+For data models, use the TypeSpec definitions in `spec/` as the source of truth.
 
 ## Tasks
 
@@ -31,11 +80,11 @@
 After completing a task list, do the following:
 - ensure all compile errors are fixed
 - Add any missing tests for important/critical code paths
-- ensure all tests pass.  
-- Review the code implementation to ensure it meets our code quality standards.
-- Update documentation under the docs folder to provide details of features and architecture.  
+- ensure all tests pass. Use `mise run fast-test` for quick signal, `mise run test` for full confidence
+- Review the code implementation to ensure it meets our code quality standards
+- Update documentation under the docs folder to provide details of features and architecture
 - update specifications under root level spec folder to reflect changes
-- Add code comments to mention the requirements and specifications in the source code and the test code.
+- Run `mise run build` to verify compilation before concluding
 
 
 
@@ -100,13 +149,16 @@ Full testing standards are documented in AgentRules\TESTING.md and docs/FAST_TES
 
 ## Debugging
 
-- Solutions to common code issues or persistent problems should be documented in docs/COMMON_ISSUES.md
-- When debugging persistent problems/errors, always check the list of known issues in docs/COMMON_ISSUES.md
-- Don't report that a bug is fixed based on a guess, assumption, or hunch. Always prove/test/verify that your solution actually fixed the problem. 
-- If a specific bug never gets fixed, even though the AI agent keeps trying different fixes and incorrectly reporting that the bug was successfully fixed, then we need to change our approach. Try the following:
-1. step back to look at the bigger picture
-2. Optimise the problematic part of the code for Simplicity and Consistency, following the guidelines in docs\standards\simplicity_and_consistency.md 
-3. As a last resort, consider deleting and completely re-implementing the feature.
+- Solutions to common code issues or persistent problems should be documented in docs/troubleshooting/COMMON_ISSUES.md
+- When debugging persistent problems/errors, always check the list of known issues in docs/troubleshooting/COMMON_ISSUES.md
+- Don't report that a bug is fixed based on a guess, assumption, or hunch. Always prove/test/verify that your solution actually fixed the problem
+- If a specific bug never gets fixed, even though the AI agent keeps trying different fixes and incorrectly reporting that the bug was successfully fixed, then change approach:
+  1. Step back to look at the bigger picture
+  2. Optimise the problematic part of the code for Simplicity and Consistency (see docs/standards/simplicity_and_consistency.md)
+  3. As a last resort, consider deleting and completely re-implementing the feature
+- Use the MCP server debugging flow: get_errors → get_logs → analyze → fix → verify
+- All logging must use SLF4J (`log.info`, `log.debug`, etc.) — never `System.out.println` in production code
+- Respect `LOG_LEVEL` env var: debug, info, warn, error
 
 
 
@@ -127,11 +179,12 @@ Full testing standards are documented in AgentRules\TESTING.md and docs/FAST_TES
 - We should run build/test commands using a fast-start JVM like Graal or CRAK to improve agent feedback time.
 
 ### Fast Test Loop
-Use `.\scripts\fast-test.ps1` for quick feedback during development:
-- `.\scripts\fast-test.ps1 compile` - Fast compilation (<10s)
-- `.\scripts\fast-test.ps1 fast` - Fast unit tests (excludes @Tag("slow"))
-- `.\scripts\fast-test.ps1 core` - Core functionality tests
-- Or direct Gradle: `.\gradlew :premium-core-engine:compileJava --configuration-cache`
+Use `mise` tasks for quick feedback, or `./scripts/fast-test.ps1` on Windows:
+- `mise run build` — Compile all modules (<15s)
+- `mise run fast-test` — Fast unit tests (excludes @Tag("slow"))
+- `mise run test` — Full test suite (~2min)
+- Direct Gradle: `./gradlew :community-core-engine:fastTest --configuration-cache`
 
-Full efficiency tweaks are documented in AgentRules\EFFICIENCy.md and docs/FAST_TEST_LOOP.md
+See `COMMANDS.md` for full command catalogue.
+Full efficiency tweaks are documented in AgentRules/EFFICIENCY.md and docs/ai/fast-test-loop.md
 
