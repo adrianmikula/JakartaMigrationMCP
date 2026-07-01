@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":community-core-engine"))
     implementation(project(":premium-core-engine"))
     implementation(project(":community-mcp-server"))
+    implementation(project(":premium-experiment-engine"))
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     
     // External dependencies (must be Apache 2.0 compatible)

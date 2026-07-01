@@ -188,6 +188,7 @@ tasks.register("generateUniqueVersion") {
 // - premium-core-engine: Premium features for core engine
 // - premium-mcp-server: Premium features for MCP server
 // - premium-intellij-plugin: Premium IntelliJ plugin features
+// - premium-experiment-engine: Migration sequence experimentation engine
 //
 // =============================================================================
 
@@ -302,7 +303,7 @@ tasks.register("validateModuleBoundaries") {
     group = "verification"
     
     doLast {
-        val proprietaryModules = setOf("premium-core-engine", "premium-mcp-server", "premium-intellij-plugin")
+        val proprietaryModules = setOf("premium-core-engine", "premium-mcp-server", "premium-intellij-plugin", "premium-experiment-engine")
         val communityModules = setOf("community-core-engine", "community-mcp-server", "community-intellij-plugin")
         val violations = mutableListOf<String>()
         
