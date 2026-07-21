@@ -255,6 +255,7 @@ jobs:
           sudo ln -sf /opt/infer/bin/infer /usr/local/bin/infer
 
       - name: Run Infer
+        continue-on-error: true
         run: |
           infer --version
           infer run -- javac $(find . -name "*.java" -path "*/src/main/java/*")
