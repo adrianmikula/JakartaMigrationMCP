@@ -126,6 +126,11 @@ dependencies {
     // Using 'api' to include classes in the final plugin JAR
     api(project(":premium-core-engine"))
     
+    // Premium Experiment Engine - local project dependency (Proprietary)
+    // Contains experiment engine for testing refactor sequences with testcontainers
+    // Using 'api' to include classes in the final plugin JAR
+    api(project(":premium-experiment-engine"))
+    
     // UI Testing dependencies
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.0")

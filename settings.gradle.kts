@@ -10,6 +10,6 @@ include("community-mcp-server")
 
 // Premium modules (Proprietary)
 include("premium-core-engine")
-include("premium-intellij-plugin")
+// include("premium-intellij-plugin") // disabled: ideDir/IDE download issue blocks other modules
 include("premium-mcp-server")
 include("premium-experiment-engine")

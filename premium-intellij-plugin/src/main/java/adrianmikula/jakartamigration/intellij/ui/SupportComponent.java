@@ -151,11 +151,18 @@ public class SupportComponent {
         
         // Sponsor link
         JPanel sponsorPanel = createLinkPanel(
-            supportUrls.getProperty("sponsor.project.title", "Sponsor This Project"),
-            supportUrls.getProperty("sponsor.project.description", "Support development of Jakarta EE migration tools"),
-            supportUrls.getProperty("sponsor.project.url", "https://github.com/sponsors/adrianmikula")
+            supportUrls.getProperty("sponsor.project.title", "Sponsor on GitHub"),
+            supportUrls.getProperty("sponsor.project.description", "Support development via GitHub Sponsors"),
+            supportUrls.getProperty("sponsor.project.url", "https://github.com/adrianmikula")
         );
-        
+
+        // Related product link
+        JPanel slopguardPanel = createLinkPanel(
+            supportUrls.getProperty("related.slopguard.title", "SlopGuard (formerly EntropyGuard)"),
+            supportUrls.getProperty("related.slopguard.description", "AI-powered code quality guard for IntelliJ IDEA"),
+            supportUrls.getProperty("related.slopguard.url", "https://plugins.jetbrains.com/plugin/31227-slopguard-formerly-entropyguard-")
+        );
+
         linksPanel.add(jakartaPanel);
         linksPanel.add(migrationPanel);
         linksPanel.add(compatibilityPanel);
@@ -163,6 +170,7 @@ public class SupportComponent {
         linksPanel.add(pluginPanel);
         linksPanel.add(linkedinPanel);
         linksPanel.add(sponsorPanel);
+        linksPanel.add(slopguardPanel);
         
         // Create buttons and experimental features panel
         JPanel controlPanel = new JPanel();

@@ -472,7 +472,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
          * Opens the sponsorship page in the browser and marks the notification as shown.
          */
         private void handleSponsorClick(String sponsorUrl) {
-            LOG.info("User clicked sponsor link: {}", sponsorUrl);
+            LOG.info("User clicked sponsor link: " + sponsorUrl);
 
             // Mark notification as shown so it doesn't reappear
             userIdentificationService.setTrialUnavailableNotificationShown();
@@ -485,9 +485,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Open the sponsor page in the browser
             try {
                 Desktop.getDesktop().browse(new URI(sponsorUrl));
-                LOG.info("Opened sponsor URL: {}", sponsorUrl);
+                LOG.info("Opened sponsor URL: " + sponsorUrl);
             } catch (Exception ex) {
-                LOG.warn("Failed to open sponsor URL: {}", sponsorUrl, ex);
+                LOG.warn("Failed to open sponsor URL: " + sponsorUrl, ex);
             }
         }
 

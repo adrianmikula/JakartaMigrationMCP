@@ -1,5 +1,7 @@
 package adrianmikula.jakartamigration.mcp;
 
+import adrianmikula.jakartamigration.config.FeatureFlag;
+import adrianmikula.jakartamigration.config.FeatureFlagsService;
 import adrianmikula.jakartamigration.experiment.domain.ExperimentStatus;
 import adrianmikula.jakartamigration.experiment.domain.ExperimentResult;
 import adrianmikula.jakartamigration.experiment.domain.MigrationSequence;
@@ -28,9 +30,11 @@ import adrianmikula.jakartamigration.mcp.util.JsonUtils;
 public class PremiumExperimentTools {
 
     private final ExperimentTools experimentTools;
+    private final FeatureFlagsService featureFlagsService;
 
-    public PremiumExperimentTools(ExperimentTools experimentTools) {
+    public PremiumExperimentTools(ExperimentTools experimentTools, FeatureFlagsService featureFlagsService) {
         this.experimentTools = experimentTools;
+        this.featureFlagsService = featureFlagsService;
     }
 
     @McpTool(name = "createMigrationSequence", description = "Creates a new named migration sequence with ordered steps. Returns the created sequence JSON. Requires PREMIUM license.")
@@ -39,6 +43,7 @@ public class PremiumExperimentTools {
             @McpToolParam(description = "Description of the sequence", required = false) String description,
             @McpToolParam(description = "JSON array of sequence steps", required = true) String stepsJson,
             @McpToolParam(description = "Comma-separated tags", required = false) String tags) {
+        featureFlagsService.requireEnabled(FeatureFlag.EXPERIMENT_ENGINE);
         try {
             log.info("Creating migration sequence: {}", name);
 
@@ -59,6 +64,7 @@ public class PremiumExperimentTools {
     public String addSequenceStep(
             @McpToolParam(description = "Name of the sequence", required = true) String sequenceName,
             @McpToolParam(description = "JSON of the step to add", required = true) String stepJson) {
+        featureFlagsService.requireEnabled(FeatureFlag.EXPERIMENT_ENGINE);
         try {
             log.info("Adding step to sequence: {}", sequenceName);
 
@@ -74,6 +80,7 @@ public class PremiumExperimentTools {
     @McpTool(name = "listMigrationSequences", description = "Lists saved migration sequences, optionally filtered by tag. Requires PREMIUM license.")
     public String listMigrationSequences(
             @McpToolParam(description = "Tag to filter by", required = false) String tag) {
+        featureFlagsService.requireEnabled(FeatureFlag.EXPERIMENT_ENGINE);
         try {
             log.info("Listing migration sequences");
 
@@ -88,6 +95,7 @@ public class PremiumExperimentTools {
     @McpTool(name = "getMigrationSequence", description = "Returns full JSON of a named migration sequence. Requires PREMIUM license.")
     public String getMigrationSequence(
             @McpToolParam(description = "Name of the sequence", required = true) String name) {
+        featureFlagsService.requireEnabled(FeatureFlag.EXPERIMENT_ENGINE);
         try {
             log.info("Getting migration sequence: {}", name);
 
@@ -104,6 +112,7 @@ public class PremiumExperimentTools {
             @McpToolParam(description = "Name of the sequence to run", required = true) String sequenceName,
             @McpToolParam(description = "Path to project root directory", required = true) String projectPath,
             @McpToolParam(description = "Git ref to snapshot (default HEAD)", required = false) String gitRef) {
+        featureFlagsService.requireEnabled(FeatureFlag.EXPERIMENT_ENGINE);
         try {
             log.info("Running migration experiment '{}' on project: {}", sequenceName, projectPath);
 
@@ -126,6 +135,7 @@ public class PremiumExperimentTools {
             @McpToolParam(description = "Filter by sequence name", required = false) String sequenceName,
             @McpToolParam(description = "Filter by status (RUNNING, SUCCESS, FAILED, CANCELLED)", required = false) String status,
             @McpToolParam(description = "Maximum results to return", required = false) Integer limit) {
+        featureFlagsService.requireEnabled(FeatureFlag.EXPERIMENT_ENGINE);
         try {
             log.info("Getting experiment history");
 
@@ -143,6 +153,7 @@ public class PremiumExperimentTools {
     @McpTool(name = "getExperimentResult", description = "Returns full JSON of a specific experiment run by runId. Requires PREMIUM license.")
     public String getExperimentResult(
             @McpToolParam(description = "Run ID to retrieve", required = true) String runId) {
+        featureFlagsService.requireEnabled(FeatureFlag.EXPERIMENT_ENGINE);
         try {
             log.info("Getting experiment result: {}", runId);
 
@@ -158,6 +169,7 @@ public class PremiumExperimentTools {
     public String compareExperiments(
             @McpToolParam(description = "First run ID", required = true) String runIdA,
             @McpToolParam(description = "Second run ID", required = true) String runIdB) {
+        featureFlagsService.requireEnabled(FeatureFlag.EXPERIMENT_ENGINE);
         try {
             log.info("Comparing experiments: {} vs {}", runIdA, runIdB);
 
