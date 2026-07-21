@@ -112,7 +112,7 @@ When Java 25 support is more mature:
 **Recommendation:** Stay with Gradle 8.5 + IntelliJ Plugin 1.17.2 + Java 21 until ecosystem stabilizes.
 
 **Reference:**  
-See `docs/standards/COMMON_ISSUES.md` for more details.
+See `docs/troubleshooting/COMMON_ISSUES.md` for more details.
 
 ---
 

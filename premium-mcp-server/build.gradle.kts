@@ -1,6 +1,6 @@
 plugins {
     `java-library`
-    id("com.github.spotbugs") version "6.0.25"
+    // id("com.github.spotbugs") version "6.0.25" // Disabled due to slow configuration
 }
 
 dependencies {

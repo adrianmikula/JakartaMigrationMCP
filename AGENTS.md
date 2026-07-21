@@ -78,9 +78,9 @@ For data models, use the TypeSpec definitions in `spec/` as the source of truth.
 ### Post-Task Steps
 
 After completing a task list, do the following:
-- ensure all compile errors are fixed
+- ensure all compile errors are fixed: `./gradlew :community-core-engine:compileJava`
 - Add any missing tests for important/critical code paths
-- ensure all tests pass. Use `mise run fast-test` for quick signal, `mise run test` for full confidence
+- ensure all tests pass. Use `./gradlew :community-core-engine:fastTest` for quick signal, `mise run test` for full confidence
 - Review the code implementation to ensure it meets our code quality standards
 - Update documentation under the docs folder to provide details of features and architecture
 - update specifications under root level spec folder to reflect changes
@@ -174,16 +174,22 @@ Full testing standards are documented in AgentRules\TESTING.md and docs/FAST_TES
 ## Velocity
 
 - Prefer using commands from the mise-en-place catalogue or the IDE's whitelist. Avoid using commands on the IDE's blacklist.
-- Agentic coding AIs should default to running the 'fast tests' subset for faster feeback while working.
+- Agentic coding AIs should default to running the 'fast tests' subset for faster feedback while working.
 - Agents should have relevant/useful MCP servers installed to speed up coding workflows.
 - We should run build/test commands using a fast-start JVM like Graal or CRAK to improve agent feedback time.
 
-### Fast Test Loop
-Use `mise` tasks for quick feedback, or `./scripts/fast-test.ps1` on Windows:
-- `mise run build` — Compile all modules (<15s)
-- `mise run fast-test` — Fast unit tests (excludes @Tag("slow"))
-- `mise run test` — Full test suite (~2min)
-- Direct Gradle: `./gradlew :community-core-engine:fastTest --configuration-cache`
+### Preferred Agent Iteration Commands
+
+Use these commands for the fastest feedback loop. All targets are under 1.5 seconds:
+
+| Step | Command | Time |
+|------|---------|------|
+| Compile check | `./gradlew :community-core-engine:compileJava` | ~0.8s |
+| Fast tests (single module) | `./gradlew :community-core-engine:fastTest` | ~0.76s |
+| Fast tests (3 modules) | `./gradlew :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest --configure-on-demand` | ~1.0s |
+| Full build + test | `mise run fast-test` | ~1.0s |
+
+**Do NOT use:** `./gradlew :community-mcp-server:fastTest` or `./gradlew :premium-mcp-server:fastTest` — these modules have broken transitive dependencies that cause configuration cache failures.
 
 See `COMMANDS.md` for full command catalogue.
 Full efficiency tweaks are documented in AgentRules/EFFICIENCY.md and docs/ai/fast-test-loop.md

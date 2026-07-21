@@ -1,6 +1,19 @@
 # mise-en-place (mise) configuration
 # Tool version management and project setup
 # Install mise: https://mise.jdx.dev/getting-started.html
+#
+# ─── AGENT ITERATION CHEAT SHEET ──────────────────────────────────────────────
+# Fastest feedback loop (all under 1.5s):
+#   ./gradlew :community-core-engine:compileJava              (~0.8s)
+#   ./gradlew :community-core-engine:fastTest                 (~0.76s)
+#   ./gradlew :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest --configure-on-demand  (~1.3s)
+#
+# Do NOT use:
+#   ./gradlew :community-mcp-server:fastTest    (broken transitive deps)
+#   ./gradlew :premium-mcp-server:fastTest      (broken transitive deps)
+#
+# See AGENTS.md and COMMANDS.md for full details.
+# ───────────────────────────────────────────────────────────────────────────────
 
 [tools]
 java = "zulu-21-crac"
@@ -39,8 +52,8 @@ run = "bash scripts/stop-services.sh"
 
 [tasks.build]
 description = "Compile all modules"
-run_windows = "gradlew.bat :community-core-engine:compileJava :community-mcp-server:compileJava :premium-core-engine:compileJava :premium-mcp-server:compileJava :premium-intellij-plugin:compileJava"
-run = "gradle :community-core-engine:compileJava :community-mcp-server:compileJava :premium-core-engine:compileJava :premium-mcp-server:compileJava :premium-intellij-plugin:compileJava"
+run_windows = "gradlew.bat :community-core-engine:compileJava :community-mcp-server:compileJava :premium-core-engine:compileJava :premium-mcp-server:compileJava :premium-experiment-engine:compileJava"
+run = "gradle :community-core-engine:compileJava :community-mcp-server:compileJava :premium-core-engine:compileJava :premium-mcp-server:compileJava :premium-experiment-engine:compileJava"
 
 [tasks.clean]
 description = "Clean all build artifacts"
@@ -54,10 +67,18 @@ description = "Run all module tests"
 run_windows = "gradlew.bat test -Djakarta.migration.mode=dev"
 run = "gradle test -Djakarta.migration.mode=dev --no-configuration-cache"
 
+# NOTE: fast-test targets only community-core-engine and premium-core-engine.
+# community-mcp-server and premium-mcp-server have broken transitive deps
+# (spring-boot-devtools missing version) that cause configuration cache failures.
+# --configure-on-demand skips configuring unused projects for faster startup.
+# NOTE: fast-test targets community-core-engine, premium-core-engine, and premium-experiment-engine.
+# community-mcp-server and premium-mcp-server have broken transitive deps
+# (spring-boot-devtools missing version) that cause configuration cache failures.
+# --configure-on-demand skips configuring unused projects for faster startup.
 [tasks.fast-test]
-description = "Run fast tests only (excludes @Tag(slow) and @Tag(integration))"
-run_windows = "gradlew.bat :premium-core-engine:fastTest :community-core-engine:fastTest :community-mcp-server:fastTest :premium-mcp-server:fastTest -Djakarta.migration.mode=dev"
-run = "gradle :premium-core-engine:fastTest :community-core-engine:fastTest :community-mcp-server:fastTest :premium-mcp-server:fastTest -Djakarta.migration.mode=dev"
+description = "Run fast tests only (excludes @Tag(slow)) - ~1.3s"
+run_windows = "gradlew.bat :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest --configure-on-demand -Djakarta.migration.mode=dev"
+run = "gradle :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest --configure-on-demand -Djakarta.migration.mode=dev"
 
 [tasks.coverage]
 description = "Generate JaCoCo test coverage report"

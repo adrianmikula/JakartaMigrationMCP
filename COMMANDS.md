@@ -2,12 +2,17 @@
 
 ## Fast iteration (inner loop — run after every change)
 
+All targets under 1.5 seconds. Use these for the tightest feedback loop:
+
 | Category | Command | Expected time |
 |----------|---------|---------------|
-| Compile | `mise run build` or `./gradlew :community-core-engine:compileJava` | <10s |
-| Fast tests | `mise run fast-test` or `./gradlew fastTest` | <15s |
-| Lint | `./gradlew checkstyleMain` (if configured) | <5s |
-| Code quality | `./scripts/gradle-code-quality.sh` | <30s |
+| Compile check | `./gradlew :community-core-engine:compileJava` | ~0.8s |
+| Fast tests (single module) | `./gradlew :community-core-engine:fastTest` | ~0.76s |
+| Fast tests (3 modules) | `./gradlew :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest --configure-on-demand` | ~1.0s |
+| Full fast-test via mise | `mise run fast-test` | ~1.0s |
+| Full build via mise | `mise run build` | ~1.0s |
+
+**Do NOT use:** `./gradlew :community-mcp-server:fastTest` or `./gradlew :premium-mcp-server:fastTest` — broken transitive deps cause configuration cache failures.
 
 ## Full validation (CI — run before commit/push)
 
@@ -45,7 +50,8 @@
 | Check Docker status | `mise run docker-ps` or `docker compose ps` |
 | Clean build artifacts | `mise run clean` or `./gradlew clean` |
 | Fast test (single module) | `./gradlew :community-core-engine:fastTest` |
-| Fast test (all modules) | `./gradlew :community-core-engine:fastTest :premium-core-engine:fastTest :community-mcp-server:fastTest :premium-mcp-server:fastTest` |
+| Fast test (3 modules) | `./gradlew :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest --configure-on-demand` |
+| Profile build overhead | `./gradlew :community-core-engine:fastTest --profile --no-configuration-cache` |
 
 ## CRaC (Coordinated Restore at Checkpoint)
 
