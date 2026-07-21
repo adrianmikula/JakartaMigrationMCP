@@ -120,7 +120,7 @@ class FeatureFlagTest {
         // Match values from production pricing.properties: 5.0 and 50.0
         assertThat(pricing).contains("$5/month");
         assertThat(pricing).contains("$50/year");
-        assertThat(pricing).contains("free 7-day trial");
+        assertThat(pricing).doesNotContain("trial");
     }
 
     @Test

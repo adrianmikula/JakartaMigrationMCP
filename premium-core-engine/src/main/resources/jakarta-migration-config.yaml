@@ -136,7 +136,7 @@ transitive_dependencies:
 
 # Support URLs
 support:
-  github: "https://github.com/sponsors/adrianmikula"
+  github: "https://github.com/adrianmikula"
   linkedin: "https://linkedin.com/in/adrianmikula"
   plugin_page: "https://plugins.jetbrains.com/plugin/30093-jakarta-migration-javax--jakarta-"
   plugin_updates: "https://plugins.jetbrains.com/plugin/30093-jakarta-migration-javax--jakarta-/versions"

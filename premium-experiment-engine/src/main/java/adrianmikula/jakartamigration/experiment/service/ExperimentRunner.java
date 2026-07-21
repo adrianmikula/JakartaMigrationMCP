@@ -8,6 +8,8 @@ import java.nio.file.*;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ExperimentRunner {
     private final SequenceService sequenceService;
@@ -102,14 +104,22 @@ public class ExperimentRunner {
         Files.createDirectories(snapshot);
 
         if (gitRef.isPresent()) {
-            ProcessBuilder pb = new ProcessBuilder("git", "archive", gitRef.get())
+            Path archive = snapshot.resolve("archive.tar");
+            ProcessBuilder archivePb = new ProcessBuilder("git", "archive", gitRef.get())
                 .directory(projectDir.toFile())
-                .redirectOutput(snapshot.resolve("archive.tar").toFile());
-            pb.start().waitFor();
+                .redirectOutput(archive.toFile());
+            int archiveExit = archivePb.start().waitFor();
+            if (archiveExit != 0) {
+                throw new IOException("git archive failed with exit code " + archiveExit);
+            }
+
             ProcessBuilder extractPb = new ProcessBuilder("tar", "-xf", "archive.tar")
                 .directory(snapshot.toFile());
-            extractPb.start().waitFor();
-            Files.deleteIfExists(snapshot.resolve("archive.tar"));
+            int extractExit = extractPb.start().waitFor();
+            Files.deleteIfExists(archive);
+            if (extractExit != 0) {
+                throw new IOException("tar extract failed with exit code " + extractExit);
+            }
         } else {
             copyDirectory(projectDir, snapshot);
         }
@@ -134,9 +144,9 @@ public class ExperimentRunner {
         }
 
         int total = countInReport(result.stdout(), "Tests run:");
-        int passed = total;
         int failed = countInReport(result.stdout(), "Failures:");
         int skipped = countInReport(result.stdout(), "Skipped:");
+        int passed = Math.max(0, total - failed - skipped);
         return new TestOutcome(total, passed, failed, skipped, Duration.ZERO);
     }
 
@@ -176,19 +186,13 @@ public class ExperimentRunner {
 
     private int countInReport(String output, String marker) {
         if (output == null || output.isEmpty()) return 0;
-        String[] lines = output.split("\n");
-        for (String line : lines) {
-            if (line.contains(marker)) {
-                String[] parts = line.split(",");
-                for (String part : parts) {
-                    part = part.trim().replaceAll("[^0-9]", "");
-                    if (!part.isEmpty()) {
-                        try {
-                            return Integer.parseInt(part);
-                        } catch (NumberFormatException ignored) {
-                        }
-                    }
-                }
+        String regex = Pattern.quote(marker) + "\\s*(\\d+)";
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(output);
+        if (matcher.find()) {
+            try {
+                return Integer.parseInt(matcher.group(1));
+            } catch (NumberFormatException ignored) {
             }
         }
         return 0;

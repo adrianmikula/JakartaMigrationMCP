@@ -226,6 +226,65 @@ public class NewFeatureNotificationTest {
         assertNotNull(yesLink);
         assertNotNull(noLink);
     }
+
+    @Test
+    @DisplayName("Should create trial unavailable notification with factory method")
+    void shouldCreateTrialUnavailableNotificationWithFactory() {
+        // When
+        AtomicBoolean sponsorClicked = new AtomicBoolean(false);
+        
+        notification = NewFeatureNotification.createTrialUnavailableNotification(
+            () -> sponsorClicked.set(true)
+        );
+        
+        // Then
+        assertNotNull(notification);
+        assertTrue(notification.isVisible());
+        
+        JPanel panel = notification.getPanel();
+        JLabel messageLabel = findLabelByText(panel, "Free trial is regrettably no longer available");
+        assertNotNull(messageLabel);
+        
+        // Verify Sponsor link is present
+        JLabel sponsorLink = findLabelByText(panel, "Sponsor");
+        assertNotNull(sponsorLink);
+        assertEquals(10f, sponsorLink.getFont().getSize(), 0.1f);
+        assertEquals(Cursor.HAND_CURSOR, sponsorLink.getCursor().getType());
+    }
+
+    @Test
+    @DisplayName("Should execute sponsor action when link is clicked in trial notification")
+    void shouldExecuteSponsorActionWhenLinkClicked() {
+        // Given
+        AtomicBoolean sponsorClicked = new AtomicBoolean(false);
+        
+        notification = NewFeatureNotification.createTrialUnavailableNotification(
+            () -> sponsorClicked.set(true)
+        );
+        
+        JPanel panel = notification.getPanel();
+        JLabel sponsorLink = findLabelByText(panel, "Sponsor");
+        
+        // When
+        simulateClick(sponsorLink);
+        
+        // Then
+        assertTrue(sponsorClicked.get());
+    }
+
+    @Test
+    @DisplayName("Should handle null action gracefully in single-link constructor")
+    void shouldHandleNullActionGracefullyInSingleLinkConstructor() {
+        // When - should not throw exception
+        assertDoesNotThrow(() -> {
+            notification = new NewFeatureNotification("Test message", null, "Link");
+        });
+        
+        // Then
+        assertNotNull(notification);
+        JPanel panel = notification.getPanel();
+        assertNotNull(panel);
+    }
     
     @Test
     @DisplayName("Should handle null actions gracefully")

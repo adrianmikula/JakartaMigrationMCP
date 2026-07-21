@@ -110,6 +110,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private CreditsProgressBar creditsProgressBar;
         private CreditsService creditsService;
         private NewFeatureNotification notificationComponent;
+        private NewFeatureNotification trialNotificationComponent;
         private boolean isPremium;
         
         // Scan controls components
@@ -362,18 +363,22 @@ public class MigrationToolWindow implements ToolWindowFactory {
             // Load initial state (empty - wait for user to analyze)
             loadInitialState();
 
-            // Create and configure usage permission notification
+            // Create and configure notifications
+            createTrialUnavailableNotification();
             createUsagePermissionNotification();
 
-            // Layout: Notification (top), credits bar, scan controls panel, then tabs
+            // Layout: Trial notification (top), usage notification, credits bar, scan controls, then tabs
             JPanel notificationContainer = new JPanel(new BorderLayout());
+            if (trialNotificationComponent != null) {
+                notificationContainer.add(trialNotificationComponent.getPanel(), BorderLayout.NORTH);
+            }
             if (notificationComponent != null) {
-                notificationContainer.add(notificationComponent.getPanel(), BorderLayout.NORTH);
+                notificationContainer.add(notificationComponent.getPanel(), BorderLayout.CENTER);
             }
             JPanel topPanel = new JPanel(new BorderLayout());
             topPanel.add(creditsProgressBar, BorderLayout.NORTH);
             topPanel.add(scanControlsPanel, BorderLayout.CENTER);
-            notificationContainer.add(topPanel, BorderLayout.CENTER);
+            notificationContainer.add(topPanel, BorderLayout.SOUTH);
             contentPanel.add(notificationContainer, BorderLayout.NORTH);
             contentPanel.add(tabbedPane, BorderLayout.CENTER);
 
@@ -428,20 +433,62 @@ public class MigrationToolWindow implements ToolWindowFactory {
          */
         private void handleUsagePermissionNo() {
             LOG.info("User opted out of usage data collection");
-            
+
             // Mark permission as requested
             userIdentificationService.setUsagePermissionRequested();
-            
+
             // Hide notification
             if (notificationComponent != null) {
                 notificationComponent.setVisible(false);
             }
-            
+
             // Disable both usage metrics and error reporting
             userIdentificationService.setUsageMetricsEnabled(false);
             userIdentificationService.setErrorReportingEnabled(false);
-            
+
             LOG.info("Usage permission denied - analytics disabled");
+        }
+
+        /**
+         * Creates trial-unavailable notification if it hasn't been shown yet.
+         * Informs users that the free trial is no longer available and asks them to sponsor.
+         */
+        private void createTrialUnavailableNotification() {
+            if (userIdentificationService.isTrialUnavailableNotificationShown()) {
+                LOG.info("Trial unavailable notification already shown, skipping");
+                return;
+            }
+
+            String sponsorUrl = "https://github.com/sponsors/adrianmikula";
+            trialNotificationComponent = NewFeatureNotification.createTrialUnavailableNotification(
+                () -> handleSponsorClick(sponsorUrl)
+            );
+
+            LOG.info("Created trial unavailable notification");
+        }
+
+        /**
+         * Handles user clicking the Sponsor link in the trial unavailable notification.
+         * Opens the sponsorship page in the browser and marks the notification as shown.
+         */
+        private void handleSponsorClick(String sponsorUrl) {
+            LOG.info("User clicked sponsor link: {}", sponsorUrl);
+
+            // Mark notification as shown so it doesn't reappear
+            userIdentificationService.setTrialUnavailableNotificationShown();
+
+            // Hide the notification
+            if (trialNotificationComponent != null) {
+                trialNotificationComponent.setVisible(false);
+            }
+
+            // Open the sponsor page in the browser
+            try {
+                Desktop.getDesktop().browse(new URI(sponsorUrl));
+                LOG.info("Opened sponsor URL: {}", sponsorUrl);
+            } catch (Exception ex) {
+                LOG.warn("Failed to open sponsor URL: {}", sponsorUrl, ex);
+            }
         }
 
         /**

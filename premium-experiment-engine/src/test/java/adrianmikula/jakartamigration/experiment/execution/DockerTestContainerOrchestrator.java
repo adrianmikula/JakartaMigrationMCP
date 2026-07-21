@@ -42,7 +42,7 @@ public class DockerTestContainerOrchestrator implements TestContainerOrchestrato
 
     @Override
     public ExecResult exec(String command, Path workDir, int timeoutSeconds) throws IOException {
-        String[] parts = command.split(" ");
+        String[] parts = CommandTokenizer.tokenize(command);
         org.testcontainers.containers.Container.ExecResult result;
         try {
             result = container.execInContainer(parts);
