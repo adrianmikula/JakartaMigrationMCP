@@ -19,7 +19,7 @@ dependencies {
     compileOnly("org.projectlombok:lombok:1.18.34")
     annotationProcessor("org.projectlombok:lombok:1.18.34")
     
-    runtimeOnly("org.springframework.boot:spring-boot-devtools")
+    runtimeOnly("org.springframework.boot:spring-boot-devtools:3.2.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }

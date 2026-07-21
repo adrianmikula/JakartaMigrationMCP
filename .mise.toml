@@ -3,14 +3,10 @@
 # Install mise: https://mise.jdx.dev/getting-started.html
 #
 # ─── AGENT ITERATION CHEAT SHEET ──────────────────────────────────────────────
-# Fastest feedback loop (all under 1.5s):
+# Fastest feedback loop (all under 2s):
 #   ./gradlew :community-core-engine:compileJava              (~0.8s)
 #   ./gradlew :community-core-engine:fastTest                 (~0.76s)
-#   ./gradlew :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest --configure-on-demand  (~1.3s)
-#
-# Do NOT use:
-#   ./gradlew :community-mcp-server:fastTest    (broken transitive deps)
-#   ./gradlew :premium-mcp-server:fastTest      (broken transitive deps)
+#   mise run fast-test                                         (~2.0s cold, ~1.9s warm — all 5 modules)
 #
 # See AGENTS.md and COMMANDS.md for full details.
 # ───────────────────────────────────────────────────────────────────────────────
@@ -71,14 +67,11 @@ run = "gradle test -Djakarta.migration.mode=dev --no-configuration-cache"
 # community-mcp-server and premium-mcp-server have broken transitive deps
 # (spring-boot-devtools missing version) that cause configuration cache failures.
 # --configure-on-demand skips configuring unused projects for faster startup.
-# NOTE: fast-test targets community-core-engine, premium-core-engine, and premium-experiment-engine.
-# community-mcp-server and premium-mcp-server have broken transitive deps
-# (spring-boot-devtools missing version) that cause configuration cache failures.
-# --configure-on-demand skips configuring unused projects for faster startup.
+# NOTE: fast-test targets all 5 modules with --configure-on-demand for faster startup.
 [tasks.fast-test]
-description = "Run fast tests only (excludes @Tag(slow)) - ~1.3s"
-run_windows = "gradlew.bat :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest --configure-on-demand -Djakarta.migration.mode=dev"
-run = "gradle :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest --configure-on-demand -Djakarta.migration.mode=dev"
+description = "Run fast tests only (excludes @Tag(slow)) - ~2.0s cold, ~1.9s warm"
+run_windows = "gradlew.bat :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest :community-mcp-server:fastTest :premium-mcp-server:fastTest --configure-on-demand -Djakarta.migration.mode=dev"
+run = "gradle :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest :community-mcp-server:fastTest :premium-mcp-server:fastTest --configure-on-demand -Djakarta.migration.mode=dev"
 
 [tasks.coverage]
 description = "Generate JaCoCo test coverage report"

@@ -180,16 +180,14 @@ Full testing standards are documented in AgentRules\TESTING.md and docs/FAST_TES
 
 ### Preferred Agent Iteration Commands
 
-Use these commands for the fastest feedback loop. All targets are under 1.5 seconds:
+Use these commands for the fastest feedback loop:
 
 | Step | Command | Time |
 |------|---------|------|
 | Compile check | `./gradlew :community-core-engine:compileJava` | ~0.8s |
 | Fast tests (single module) | `./gradlew :community-core-engine:fastTest` | ~0.76s |
-| Fast tests (3 modules) | `./gradlew :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest --configure-on-demand` | ~1.0s |
-| Full build + test | `mise run fast-test` | ~1.0s |
-
-**Do NOT use:** `./gradlew :community-mcp-server:fastTest` or `./gradlew :premium-mcp-server:fastTest` — these modules have broken transitive dependencies that cause configuration cache failures.
+| Fast tests (all modules) | `mise run fast-test` | ~2.0s (cold) / ~1.9s (warm) |
+| Direct Gradle (all modules) | `./gradlew :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest :community-mcp-server:fastTest :premium-mcp-server:fastTest --configure-on-demand` | ~2.0s (cold) / ~1.9s (warm) |
 
 See `COMMANDS.md` for full command catalogue.
 Full efficiency tweaks are documented in AgentRules/EFFICIENCY.md and docs/ai/fast-test-loop.md

@@ -8,7 +8,7 @@
 # Fastest: compilation only (target: <1s, current: ~0.8s ✅)
 mise run build
 
-# Fast unit tests - 3 modules (target: <1.5s, current: ~1.0s ✅)
+# Fast unit tests - all 5 modules (target: <3s, current: ~2.1s cold ✅)
 mise run fast-test
 
 # Single module fast test (fastest option)
@@ -24,8 +24,8 @@ mise run test
 |----------|------|--------|
 | Warm compile (community-core-engine) | ~0.8s | ✅ |
 | Warm fast-test (single module) | ~0.76s | ✅ |
-| Warm fast-test (3 modules + --configure-on-demand) | ~1.2s | ✅ |
-| Cold config cache fast-test (3 modules) | ~1.0s | ✅ |
+| Cold config cache fast-test (all 5 modules) | ~2.0s | ✅ |
+| Warm fast-test (all 5 modules) | ~1.9s | ✅ |
 | Incremental no-op fast-test | ~0.7s | ✅ |
 
 ## Configuration
@@ -76,7 +76,7 @@ tasks.register<Test>("coreTest") {
 ## Performance Targets
 
 - **Compilation**: <1s ✅ (currently ~0.8s with daemon)
-- **Fast Tests**: <1.5s ✅ (currently ~1.0s with 3 modules)
+- **Fast Tests**: <3s ✅ (currently ~2.1s cold with all 5 modules)
 - **Core Tests**: <30s
 - **Full Tests**: 1-2min (pre-commit)
 
@@ -110,8 +110,8 @@ tasks.register<Test>("coreTest") {
 # Fast tests (single module - fastest: ~0.76s)
 ./gradlew :community-core-engine:fastTest
 
-# Fast tests (3 modules with configure-on-demand: ~1.0s)
-./gradlew :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest --configure-on-demand
+# Fast tests (all 5 modules with configure-on-demand: ~2.1s cold)
+./gradlew :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest :community-mcp-server:fastTest :premium-mcp-server:fastTest --configure-on-demand
 
 # Profile build overhead
 ./gradlew :community-core-engine:fastTest --profile --no-configuration-cache
