@@ -153,6 +153,12 @@ intellij {
     version = "2024.3"
     type = "IC"
     plugins = listOf("com.intellij.java")
+    downloadSources = false
+    // When IDEA_HOME env var is set (CI), use pre-downloaded IDE to avoid slow download blocking configuration
+    val ideaHome = System.getenv("IDEA_HOME")
+    if (ideaHome != null) {
+        localPath = ideaHome
+    }
 }
 
 // Configure Plugin Verifier to check compatibility against latest version of each year

@@ -42,6 +42,24 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+      - name: Cache IntelliJ IDEA
+        id: cache-idea-release
+        uses: actions/cache@v4
+        with:
+          path: ~/idea
+          key: intellij-ideaIC-2024.3-${{ runner.os }}
+          restore-keys: |
+            intellij-ideaIC-2024.3-${{ runner.os }}
+
+      - name: Download IntelliJ IDEA
+        if: steps.cache-idea-release.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/idea
+          curl -L --retry 3 --retry-delay 5 "https://download.jetbrains.com/idea/ideaIC-2024.3.tar.gz" | tar -xz -C ~/idea --strip-components=1
+
+      - name: Set IDEA_HOME
+        run: echo "IDEA_HOME=${{ runner.home }}/idea" >> $GITHUB_ENV
+
       - name: Build plugin
         run: ./gradlew :premium-intellij-plugin:buildPlugin --no-configuration-cache
 

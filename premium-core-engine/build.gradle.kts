@@ -94,7 +94,15 @@ tasks.register<Test>("slowTest") {
     testLogging {
         showStandardStreams = true
     }
-    maxParallelForks = 2  // Fewer forks for network-heavy tests
+    
+    // Memory-heavy performance tests need more heap and single-fork execution
+    maxParallelForks = 1
+    maxHeapSize = "2g"
+    jvmArgs(
+        "-XX:MaxMetaspaceSize=512m",
+        "-XX:+UseG1GC",
+        "-XX:+HeapDumpOnOutOfMemoryError"
+    )
     
     // Automatically set dev environment for all test executions
     systemProperty("jakarta.migration.mode", "dev")

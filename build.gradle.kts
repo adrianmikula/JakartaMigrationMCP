@@ -125,6 +125,15 @@ allprojects {
     println(">>> Project: $name, Version: $version")
     println(">>> OS: $os, Java Home: ${extra.get("javaHome")}")
 
+    // Apply test JVM args from gradle.properties to all Test tasks
+    // test.jvmargs is NOT automatically applied by Gradle - must be configured explicitly
+    val testJvmArgs = props.getProperty("test.jvmargs", "")
+    if (testJvmArgs.isNotBlank()) {
+        tasks.withType<Test>().configureEach {
+            jvmArgs(testJvmArgs.split("\\s+".toRegex()).filter { it.isNotBlank() })
+        }
+    }
+
     repositories {
         mavenCentral()
         maven { url = uri("https://repo.spring.io/milestone") }
@@ -193,6 +202,25 @@ tasks.register("generateUniqueVersion") {
 // =============================================================================
 
 // =============================================================================
+// JACOCO COVERAGE CONFIGURATION
+// =============================================================================
+
+subprojects {
+    plugins.withId("java") {
+        apply(plugin = "jacoco")
+
+        tasks.withType<JacocoReport> {
+            dependsOn("test")
+
+            reports {
+                xml.required.set(true)
+                html.required.set(true)
+            }
+        }
+    }
+}
+
+// =============================================================================
 // STATIC ANALYSIS CONFIGURATION
 // =============================================================================
 
@@ -231,16 +259,17 @@ tasks.register("validateLicenseHeaders") {
     group = "verification"
     
     doLast {
+        val rootProject = project.rootProject
         val apacheHeader = "Licensed under the Apache License"
         val proprietaryHeader = "This software is proprietary"
         
         val violations = mutableListOf<String>()
         
-        allprojects.forEach { project ->
-            val extraProps = project.extra.properties
+        rootProject.allprojects.forEach { proj ->
+            val extraProps = proj.extra.properties
             if (extraProps.containsKey("licenseType")) {
                 val expectedType = extraProps["licenseType"] as String
-                val sourceDirs = project.sourceSets.flatMap { it.java.srcDirs }
+                val sourceDirs = proj.sourceSets.flatMap { it.java.srcDirs }
                 
                 sourceDirs.forEach { dir ->
                     if (dir.exists()) {
@@ -254,12 +283,12 @@ tasks.register("validateLicenseHeaders") {
                                 when (expectedType) {
                                     "APACHE_2.0" -> {
                                         if (!hasApache && !hasProprietary) {
-                                            violations.add("${project.name}:${file.relativeTo(project.projectDir)} - Missing Apache 2.0 header")
+                                            violations.add("${proj.name}:${file.relativeTo(proj.projectDir)} - Missing Apache 2.0 header")
                                         }
                                     }
                                     "PROPRIETARY" -> {
                                         if (!hasProprietary) {
-                                            violations.add("${project.name}:${file.relativeTo(project.projectDir)} - Missing proprietary header")
+                                            violations.add("${proj.name}:${file.relativeTo(proj.projectDir)} - Missing proprietary header")
                                         }
                                     }
                                 }
@@ -303,23 +332,21 @@ tasks.register("validateModuleBoundaries") {
     group = "verification"
     
     doLast {
+        val rootProject = project.rootProject
         val proprietaryModules = setOf("premium-core-engine", "premium-mcp-server", "premium-intellij-plugin", "premium-experiment-engine")
         val communityModules = setOf("community-core-engine", "community-mcp-server", "community-intellij-plugin")
         val violations = mutableListOf<String>()
         
-        allprojects.forEach { project ->
-            if (communityModules.contains(project.name)) {
-                // Community modules - check they don't depend on proprietary modules
-                project.configurations.forEach { config ->
+        rootProject.allprojects.forEach { proj ->
+            if (communityModules.contains(proj.name)) {
+                proj.configurations.forEach { config ->
                     config.dependencies.forEach { dep ->
-                        // Check for direct dependency on proprietary modules
                         if (proprietaryModules.any { proprietary -> 
                             dep.name.contains(proprietary, ignoreCase = true) 
                         }) {
-                            violations.add("Direct dependency: ${project.name} -> ${dep.name}")
+                            violations.add("Direct dependency: ${proj.name} -> ${dep.name}")
                         }
                         
-                        // Check for transitive dependencies that bring in proprietary modules
                         try {
                             config.resolvedConfiguration.resolvedArtifacts.forEach { artifact ->
                                 if (artifact.moduleVersion?.id?.name?.let { moduleId ->
@@ -327,25 +354,23 @@ tasks.register("validateModuleBoundaries") {
                                         moduleId.contains(proprietary, ignoreCase = true)
                                     }
                                 } == true) {
-                                    violations.add("Transitive dependency: ${project.name} -> ${artifact.moduleVersion.id.name}")
+                                    violations.add("Transitive dependency: ${proj.name} -> ${artifact.moduleVersion.id.name}")
                                 }
                             }
                         } catch (e: Exception) {
-                            // If resolution fails, still check basic dependency names
                             if (dep.group != null && dep.name != null) {
                                 val depNotation = "${dep.group}:${dep.name}"
                                 if (proprietaryModules.any { proprietary -> 
                                     depNotation.contains(proprietary, ignoreCase = true)
                                 }) {
-                                    violations.add("Dependency notation: ${project.name} -> ${depNotation}")
+                                    violations.add("Dependency notation: ${proj.name} -> ${depNotation}")
                                 }
                             }
                         }
                     }
                 }
-            } else if (proprietaryModules.contains(project.name)) {
-                // Premium modules - they can depend on community modules, but we log for awareness
-                println("🔍 Premium module ${project.name} dependencies checked")
+            } else if (proprietaryModules.contains(proj.name)) {
+                println("Premium module ${proj.name} dependencies checked")
             }
         }
         

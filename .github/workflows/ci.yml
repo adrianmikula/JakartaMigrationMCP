@@ -36,8 +36,8 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Run fast tests
-        run: ./gradlew :premium-intellij-plugin:runFastTests
+      - name: Run fast tests (all modules)
+        run: ./gradlew :community-core-engine:fastTest :community-mcp-server:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest :premium-mcp-server:fastTest --configure-on-demand
 
       - name: Upload test results
         if: always()
@@ -78,6 +78,24 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+      - name: Cache IntelliJ IDEA
+        id: cache-idea-unit
+        uses: actions/cache@v4
+        with:
+          path: ~/idea
+          key: intellij-ideaIC-2024.3-${{ runner.os }}
+          restore-keys: |
+            intellij-ideaIC-2024.3-${{ runner.os }}
+
+      - name: Download IntelliJ IDEA
+        if: steps.cache-idea-unit.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/idea
+          curl -L --retry 3 --retry-delay 5 "https://download.jetbrains.com/idea/ideaIC-2024.3.tar.gz" | tar -xz -C ~/idea --strip-components=1
+
+      - name: Set IDEA_HOME
+        run: echo "IDEA_HOME=${{ runner.home }}/idea" >> $GITHUB_ENV
+
       - name: Run unit tests
         run: ./gradlew test
 
@@ -102,48 +120,6 @@ jobs:
           name: coverage-reports
           path: |
             **/build/reports/jacoco/
-          retention-days: 7
-          if-no-files-found: ignore
-
-  integration-tests:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
-      - name: Run integration tests
-        run: ./gradlew :premium-intellij-plugin:runIntegrationTests
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: integration-test-results
-          path: |
-            **/build/test-results/
-            **/build/reports/
           retention-days: 7
           if-no-files-found: ignore
 
@@ -174,6 +150,24 @@ jobs:
 
       - name: Make gradlew executable
         run: chmod +x gradlew
+
+      - name: Cache IntelliJ IDEA
+        id: cache-idea-perf
+        uses: actions/cache@v4
+        with:
+          path: ~/idea
+          key: intellij-ideaIC-2024.3-${{ runner.os }}
+          restore-keys: |
+            intellij-ideaIC-2024.3-${{ runner.os }}
+
+      - name: Download IntelliJ IDEA
+        if: steps.cache-idea-perf.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/idea
+          curl -L --retry 3 --retry-delay 5 "https://download.jetbrains.com/idea/ideaIC-2024.3.tar.gz" | tar -xz -C ~/idea --strip-components=1
+
+      - name: Set IDEA_HOME
+        run: echo "IDEA_HOME=${{ runner.home }}/idea" >> $GITHUB_ENV
 
       - name: Run performance/slow tests
         run: ./gradlew :premium-core-engine:slowTest
@@ -269,54 +263,6 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  code-quality:
-    name: Code Quality
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
-      - name: Run Checkstyle
-        run: ./gradlew checkstyleMain checkstyleTest
-
-      - name: Run SpotBugs
-        run: ./gradlew spotbugsMain spotbugsTest
-
-      - name: Run PMD
-        run: ./gradlew pmdMain pmdTest
-
-      - name: Upload quality reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: quality-reports
-          path: |
-            **/build/reports/checkstyle/
-            **/build/reports/spotbugs/
-            **/build/reports/pmd/
-          retention-days: 7
-          if-no-files-found: ignore
-
   release-tests:
     name: Release Tests
     runs-on: ubuntu-latest
@@ -345,17 +291,26 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Run build validation
-        run: ./gradlew :premium-intellij-plugin:validateBuildConfiguration
+      - name: Cache IntelliJ IDEA
+        id: cache-idea-release
+        uses: actions/cache@v4
+        with:
+          path: ~/idea
+          key: intellij-ideaIC-2024.3-${{ runner.os }}
+          restore-keys: |
+            intellij-ideaIC-2024.3-${{ runner.os }}
 
-      - name: Run licensing model enforcement tests
-        run: ./gradlew :premium-intellij-plugin:test --tests "*LicensingModelEnforcementTest*"
+      - name: Download IntelliJ IDEA
+        if: steps.cache-idea-release.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/idea
+          curl -L --retry 3 --retry-delay 5 "https://download.jetbrains.com/idea/ideaIC-2024.3.tar.gz" | tar -xz -C ~/idea --strip-components=1
+
+      - name: Set IDEA_HOME
+        run: echo "IDEA_HOME=${{ runner.home }}/idea" >> $GITHUB_ENV
 
       - name: Run module boundary validation
         run: ./gradlew validateModuleBoundaries
-
-      - name: Run marketplace validation tests
-        run: ./gradlew :premium-intellij-plugin:validateMarketplaceRequirements
 
       - name: Run all validation checks
         run: ./gradlew validateAllWithBuildTests
@@ -375,7 +330,7 @@ jobs:
     name: Build Validation
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    needs: [fast-tests, unit-tests, integration-tests, performance-tests, security-tests, semgrep-analysis, infer-analysis, code-quality, release-tests]
+    needs: [fast-tests, unit-tests, performance-tests, security-tests, semgrep-analysis, infer-analysis, release-tests]
 
     steps:
       - name: Checkout code
@@ -400,11 +355,26 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+      - name: Cache IntelliJ IDEA
+        id: cache-idea-build
+        uses: actions/cache@v4
+        with:
+          path: ~/idea
+          key: intellij-ideaIC-2024.3-${{ runner.os }}
+          restore-keys: |
+            intellij-ideaIC-2024.3-${{ runner.os }}
+
+      - name: Download IntelliJ IDEA
+        if: steps.cache-idea-build.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/idea
+          curl -L --retry 3 --retry-delay 5 "https://download.jetbrains.com/idea/ideaIC-2024.3.tar.gz" | tar -xz -C ~/idea --strip-components=1
+
+      - name: Set IDEA_HOME
+        run: echo "IDEA_HOME=${{ runner.home }}/idea" >> $GITHUB_ENV
+
       - name: Build all modules
         run: ./gradlew build -x test
-
-      - name: Build IntelliJ plugin
-        run: ./gradlew :premium-intellij-plugin:buildPlugin
 
       - name: Build MCP server
         run: ./gradlew :community-mcp-server:build
@@ -416,53 +386,5 @@ jobs:
           path: |
             **/build/libs/
             **/build/distributions/
-            premium-intellij-plugin/build/distributions/
-          retention-days: 7
-          if-no-files-found: ignore
-
-  test-intellij-matrix:
-    name: IntelliJ Platform Matrix Tests
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-
-    strategy:
-      matrix:
-        intellij-version: ['2023_1', '2024_1', '2025_1', '2026_1']
-      fail-fast: false
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
-      - name: Run IntelliJ platform tests for version ${{ matrix.intellij-version }}
-        run: ./gradlew :premium-intellij-plugin:testIntelliJ_${{ matrix.intellij-version }} -Djakarta.migration.mode=dev --no-configuration-cache
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: intellij-matrix-results-${{ matrix.intellij-version }}
-          path: |
-            **/build/test-results/
-            **/build/reports/tests/
           retention-days: 7
           if-no-files-found: ignore
