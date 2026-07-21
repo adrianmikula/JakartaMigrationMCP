@@ -95,9 +95,9 @@ tasks.named("classpathIndexCleanup") {
 tasks.register<JavaExec>("runFastTests") {
     group = "verification"
     description = "Runs fast subset of tests for quick feedback"
-    
+
     dependsOn("compileTestJava")
-    
+
     classpath = sourceSets.test.get().runtimeClasspath
     mainClass = "org.junit.platform.console.ConsoleLauncher"
     args = listOf(
@@ -153,6 +153,12 @@ intellij {
     version = "2024.3"
     type = "IC"
     plugins = listOf("com.intellij.java")
+    downloadSources = false
+    // When IDEA_HOME env var is set (CI), use pre-downloaded IDE to avoid slow download blocking configuration
+    val ideaHome = System.getenv("IDEA_HOME")
+    if (ideaHome != null) {
+        localPath = ideaHome
+    }
 }
 
 // Configure Plugin Verifier to check compatibility against latest version of each year

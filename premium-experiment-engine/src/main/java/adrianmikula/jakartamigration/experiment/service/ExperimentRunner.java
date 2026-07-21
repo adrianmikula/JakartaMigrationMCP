@@ -1,0 +1,211 @@
+package adrianmikula.jakartamigration.experiment.service;
+
+import adrianmikula.jakartamigration.experiment.domain.*;
+import adrianmikula.jakartamigration.experiment.execution.*;
+
+import java.io.IOException;
+import java.nio.file.*;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+
+public class ExperimentRunner {
+    private final SequenceService sequenceService;
+    private final HistoryService historyService;
+    private final TestContainerOrchestratorFactory containerFactory;
+    private final String dockerImage;
+    private final int testTimeoutSeconds;
+
+    @FunctionalInterface
+    public interface TestContainerOrchestratorFactory {
+        TestContainerOrchestrator create(String imageName) throws IOException;
+    }
+
+    public ExperimentRunner(Path projectRoot, TestContainerOrchestratorFactory containerFactory, String dockerImage, int testTimeoutSeconds) {
+        this.sequenceService = new SequenceService(projectRoot);
+        this.historyService = new HistoryService(projectRoot);
+        this.containerFactory = containerFactory;
+        this.dockerImage = dockerImage;
+        this.testTimeoutSeconds = testTimeoutSeconds;
+    }
+
+    public ExperimentResult run(String sequenceName, Path projectDir, Optional<String> gitRef) throws Exception {
+        MigrationSequence sequence = sequenceService.loadSequence(sequenceName)
+            .orElseThrow(() -> new NoSuchElementException("Sequence not found: " + sequenceName));
+
+        String runId = UUID.randomUUID().toString();
+        Instant startedAt = Instant.now();
+        Path tempDir = Files.createTempDirectory("migration-experiment-");
+        Path experimentsTmp = tempDir.resolve(".experiments/tmp/" + runId + "-");
+        Files.createDirectories(experimentsTmp);
+
+        try {
+            Path snapshot = copyProjectToSnapshot(projectDir, experimentsTmp, gitRef);
+            TestContainerOrchestrator container = containerFactory.create(dockerImage);
+            container.start();
+
+            try {
+                List<StepResult> stepResults = new ArrayList<>();
+                for (int i = 0; i < sequence.steps().size(); i++) {
+                    SequenceStep step = sequence.steps().get(i);
+                    StepExecutor executor = resolveExecutor(step);
+                    StepResult stepResult = executor.execute(step, snapshot, container);
+                    stepResults.add(stepResult);
+                    if (!stepResult.success()) {
+                        return buildFailedResult(runId, sequenceName, startedAt, stepResults, "Step " + i + " failed: " + stepResult.message());
+                    }
+                }
+
+                TestOutcome testOutcome = runTests(snapshot, container);
+                Instant finishedAt = Instant.now();
+                String diffSummary = buildDiffSummary(stepResults, testOutcome);
+
+                ExperimentResult result = new ExperimentResult(
+                    runId,
+                    sequenceName,
+                    startedAt,
+                    finishedAt,
+                    ExperimentStatus.SUCCESS,
+                    stepResults,
+                    testOutcome,
+                    diffSummary,
+                    null
+                );
+
+                historyService.recordRun(result);
+                return result;
+
+            } finally {
+                container.stop();
+            }
+
+        } catch (Exception e) {
+            Instant finishedAt = Instant.now();
+            ExperimentResult result = new ExperimentResult(
+                runId,
+                sequenceName,
+                startedAt,
+                finishedAt,
+                ExperimentStatus.FAILED,
+                List.of(),
+                null,
+                null,
+                e.getMessage()
+            );
+            historyService.recordRun(result);
+            return result;
+        }
+    }
+
+    private Path copyProjectToSnapshot(Path projectDir, Path tempDir, Optional<String> gitRef) throws Exception {
+        Path snapshot = tempDir.resolve("workspace");
+        Files.createDirectories(snapshot);
+
+        if (gitRef.isPresent()) {
+            ProcessBuilder pb = new ProcessBuilder("git", "archive", gitRef.get())
+                .directory(projectDir.toFile())
+                .redirectOutput(snapshot.resolve("archive.tar").toFile());
+            pb.start().waitFor();
+            ProcessBuilder extractPb = new ProcessBuilder("tar", "-xf", "archive.tar")
+                .directory(snapshot.toFile());
+            extractPb.start().waitFor();
+            Files.deleteIfExists(snapshot.resolve("archive.tar"));
+        } else {
+            copyDirectory(projectDir, snapshot);
+        }
+
+        return snapshot;
+    }
+
+    private TestOutcome runTests(Path projectDir, TestContainerOrchestrator container) throws Exception {
+        String buildTool = detectBuildTool(projectDir);
+        String command;
+        if ("maven".equals(buildTool)) {
+            command = "mvn test -B";
+        } else if ("gradle".equals(buildTool)) {
+            command = "gradle test --no-daemon";
+        } else {
+            return new TestOutcome(0, 0, 0, 0, Duration.ZERO);
+        }
+
+        ExecResult result = container.exec(command, projectDir, testTimeoutSeconds);
+        if (!result.isSuccess()) {
+            return new TestOutcome(0, 0, 1, 0, Duration.ZERO);
+        }
+
+        int total = countInReport(result.stdout(), "Tests run:");
+        int passed = total;
+        int failed = countInReport(result.stdout(), "Failures:");
+        int skipped = countInReport(result.stdout(), "Skipped:");
+        return new TestOutcome(total, passed, failed, skipped, Duration.ZERO);
+    }
+
+    private String detectBuildTool(Path projectDir) {
+        if (projectDir.resolve("pom.xml").toFile().exists()) return "maven";
+        if (projectDir.resolve("build.gradle").toFile().exists()) return "gradle";
+        if (projectDir.resolve("build.gradle.kts").toFile().exists()) return "gradle";
+        return "unknown";
+    }
+
+    private StepExecutor resolveExecutor(SequenceStep step) {
+        return switch (step.type()) {
+            case OPENREWRITE -> new OpenRewriteStepExecutor();
+            case DEPENDENCY_UPGRADE -> new DependencyUpgradeStepExecutor();
+            case ECLIPSE_TRANSFORMER -> new EclipseTransformerStepExecutor();
+            case GRADLE_JAKARTA_PLUGIN -> new GradleJakartaPluginStepExecutor();
+            case REGEX_REPLACEMENT -> new RegexStepExecutor();
+        };
+    }
+
+    private ExperimentResult buildFailedResult(String runId, String sequenceName, Instant startedAt, List<StepResult> stepResults, String errorMessage) {
+        return new ExperimentResult(
+            runId, sequenceName, startedAt, Instant.now(),
+            ExperimentStatus.FAILED, stepResults, null, null, errorMessage
+        );
+    }
+
+    private String buildDiffSummary(List<StepResult> stepResults, TestOutcome testOutcome) {
+        int totalFiles = stepResults.stream().mapToInt(StepResult::filesChanged).sum();
+        StringBuilder sb = new StringBuilder();
+        sb.append(totalFiles).append(" files modified");
+        if (testOutcome != null) {
+            sb.append(", ").append(testOutcome.failed()).append(" test failures");
+        }
+        return sb.toString();
+    }
+
+    private int countInReport(String output, String marker) {
+        if (output == null || output.isEmpty()) return 0;
+        String[] lines = output.split("\n");
+        for (String line : lines) {
+            if (line.contains(marker)) {
+                String[] parts = line.split(",");
+                for (String part : parts) {
+                    part = part.trim().replaceAll("[^0-9]", "");
+                    if (!part.isEmpty()) {
+                        try {
+                            return Integer.parseInt(part);
+                        } catch (NumberFormatException ignored) {
+                        }
+                    }
+                }
+            }
+        }
+        return 0;
+    }
+
+    private void copyDirectory(Path source, Path target) throws Exception {
+        Files.walk(source).forEach(sourcePath -> {
+            try {
+                Path targetPath = target.resolve(source.relativize(sourcePath).toString());
+                if (Files.isDirectory(sourcePath)) {
+                    Files.createDirectories(targetPath);
+                } else {
+                    Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to copy directory", e);
+            }
+        });
+    }
+}

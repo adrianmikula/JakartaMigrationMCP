@@ -598,7 +598,7 @@ public class ImprovedMavenCentralLookupService {
             
             log.info("Querying Maven Central: {}", url);
             
-            System.out.println("[MavenLookup] Querying: " + url);
+            log.debug("[MavenLookup] Querying: {}", url);
             
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
@@ -611,13 +611,13 @@ public class ImprovedMavenCentralLookupService {
             
             log.info("Maven Central response status: {} for query: {}", response.statusCode(), searchQuery);
             
-            System.out.println("[MavenLookup] Response status: " + response.statusCode());
+            log.debug("[MavenLookup] Response status: {}", response.statusCode());
             
             if (response.statusCode() == 200) {
                 String body = response.body();
-                System.out.println("[MavenLookup] Response body (first 300 chars): " + body.substring(0, Math.min(300, body.length())));
+                log.debug("[MavenLookup] Response body (first 300 chars): {}", body.substring(0, Math.min(300, body.length())));
                 List<JakartaArtifactMatch> matches = parseMavenCentralResponse(body);
-                System.out.println("[MavenLookup] Parsed " + matches.size() + " matches");
+                log.debug("[MavenLookup] Parsed {} matches", matches.size());
                 return matches;
             } else {
                 log.warn("Failed to query Maven Central endpoint {}: HTTP {}", endpoint, response.statusCode());
@@ -648,17 +648,16 @@ public class ImprovedMavenCentralLookupService {
             JsonNode responseNode = rootNode.path("response");
             JsonNode docsNode = responseNode.path("docs");
             
-            System.out.println("[MavenLookup] Response numFound: " + responseNode.path("numFound").asInt());
-            System.out.println("[MavenLookup] Docs array size: " + docsNode.size());
+            log.debug("[MavenLookup] Response numFound: {}", responseNode.path("numFound").asInt());
+            log.debug("[MavenLookup] Docs array size: {}", docsNode.size());
             
             if (docsNode.isArray() && docsNode.size() > 0) {
                 for (JsonNode docNode : docsNode) {
-                    // Extract groupId, artifactId, and version
                     String foundGroupId = docNode.path("g").asText();
                     String foundArtifactId = docNode.path("a").asText();
                     String version = docNode.path("latestVersion").asText();
                     
-                    System.out.println("[MavenLookup] Found artifact: " + foundGroupId + ":" + foundArtifactId + ":" + version);
+                    log.debug("[MavenLookup] Found artifact: {}:{}:{}", foundGroupId, foundArtifactId, version);
                     
                     if (!foundGroupId.isEmpty() && !foundArtifactId.isEmpty() && !version.isEmpty()) {
                         results.add(JakartaArtifactMatch.of(foundGroupId, foundArtifactId, version));
@@ -669,7 +668,7 @@ public class ImprovedMavenCentralLookupService {
             
         } catch (Exception e) {
             log.warn("Error parsing Maven Central response", e);
-            System.out.println("[MavenLookup] Parse error: " + e.getMessage());
+            log.warn("[MavenLookup] Parse error: {}", e.getMessage());
         }
         
         return results;

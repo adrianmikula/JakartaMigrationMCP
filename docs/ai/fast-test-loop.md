@@ -1,25 +1,32 @@
 # Fast Test Loop
 
-**Goal**: Provide agentic AI with <10s compilation and <10s test feedback for rapid iteration.
+**Goal**: Provide agentic AI with <2s compilation and <2s test feedback for rapid iteration.
 
 ## Quick Commands
 
-```powershell
-# Fastest: compilation only (target: <10s, current: ~3s ✅)
-.\scripts\fast-test.ps1 compile
+```bash
+# Fastest: compilation only (target: <1s, current: ~0.8s ✅)
+mise run build
 
-# Fast unit tests (excludes @Tag("slow"))
-.\scripts\fast-test.ps1 fast
+# Fast unit tests - all 5 modules (target: <3s, current: ~2.1s cold ✅)
+mise run fast-test
 
-# Core functionality tests
-.\scripts\fast-test.ps1 core
-
-# PDF tests only
-.\scripts\fast-test.ps1 pdf
+# Single module fast test (fastest option)
+./gradlew :community-core-engine:fastTest
 
 # All tests (pre-commit)
-.\scripts\fast-test.ps1 all
+mise run test
 ```
+
+## Benchmark Results (2026-07-21)
+
+| Scenario | Time | Status |
+|----------|------|--------|
+| Warm compile (community-core-engine) | ~0.8s | ✅ |
+| Warm fast-test (single module) | ~0.76s | ✅ |
+| Cold config cache fast-test (all 5 modules) | ~2.0s | ✅ |
+| Warm fast-test (all 5 modules) | ~1.9s | ✅ |
+| Incremental no-op fast-test | ~0.7s | ✅ |
 
 ## Configuration
 
@@ -68,8 +75,8 @@ tasks.register<Test>("coreTest") {
 
 ## Performance Targets
 
-- **Compilation**: <10s ✅ (currently ~3s with daemon)
-- **Fast Tests**: <10s
+- **Compilation**: <1s ✅ (currently ~0.8s with daemon)
+- **Fast Tests**: <3s ✅ (currently ~2.1s cold with all 5 modules)
 - **Core Tests**: <30s
 - **Full Tests**: 1-2min (pre-commit)
 
@@ -97,12 +104,26 @@ tasks.register<Test>("coreTest") {
 ## Direct Gradle Commands
 
 ```bash
-# Compile (daemon enabled for <10s target)
-./gradlew :premium-core-engine:compileJava --configuration-cache
+# Compile (daemon enabled)
+./gradlew :community-core-engine:compileJava
 
-# Fast tests
-./gradlew :premium-core-engine:fastTest --configuration-cache --parallel
+# Fast tests (single module - fastest: ~0.76s)
+./gradlew :community-core-engine:fastTest
 
-# Core tests
-./gradlew :premium-core-engine:coreTest --configuration-cache --parallel
+# Fast tests (all 5 modules with configure-on-demand: ~2.1s cold)
+./gradlew :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest :community-mcp-server:fastTest :premium-mcp-server:fastTest --configure-on-demand
+
+# Profile build overhead
+./gradlew :community-core-engine:fastTest --profile --no-configuration-cache
 ```
+
+## Profile Breakdown (community-core-engine:fastTest)
+
+| Phase | Time |
+|-------|------|
+| Startup (JVM daemon) | ~594ms |
+| Configuration (all 5 projects) | ~281ms |
+| Task execution | ~41ms |
+| **Total** | **~916ms** |
+
+The `--configure-on-demand` flag skips configuring unused projects, saving ~100ms on cold config cache.

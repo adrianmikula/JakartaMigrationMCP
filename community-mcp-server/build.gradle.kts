@@ -2,12 +2,13 @@ plugins {
     id("org.springframework.boot")
     id("io.spring.dependency-management")
     java
-    id("com.github.spotbugs") version "6.0.25"
-    id("net.ltgt.errorprone") version "4.1.0"
+    // id("com.github.spotbugs") version "6.0.25" // Disabled due to slow configuration
 }
 
 dependencies {
-    implementation(project(":community-core-engine"))
+    implementation(project(":community-core-engine")) {
+        exclude("org.slf4j", "slf4j-simple")
+    }
     
     implementation("org.springframework.boot:spring-boot-starter-web")
     // Use working configuration from commit c8972f1
@@ -18,6 +19,8 @@ dependencies {
     compileOnly("org.projectlombok:lombok:1.18.34")
     annotationProcessor("org.projectlombok:lombok:1.18.34")
     
+    runtimeOnly("org.springframework.boot:spring-boot-devtools:3.2.0")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
 

@@ -53,6 +53,18 @@ public class JakartaMigrationConfig {
     }
 
     @Bean
+    public LicenseService licenseService(FeatureFlagsProperties featureFlagsProperties) {
+        return new LicenseService(featureFlagsProperties);
+    }
+
+    @Bean
+    public FeatureFlagsService featureFlagsService(
+            FeatureFlagsProperties featureFlagsProperties,
+            LicenseService licenseService) {
+        return new FeatureFlagsService(featureFlagsProperties, licenseService);
+    }
+
+    @Bean
     public DependencyAnalysisModule dependencyAnalysisModule(
             DependencyGraphBuilder dependencyGraphBuilder,
             NamespaceClassifier namespaceClassifier,

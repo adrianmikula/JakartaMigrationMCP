@@ -314,6 +314,29 @@ public ReportsTabComponent(Project project,
 
 ---
 
+## Build Issues
+
+### [ERR-005] ErrorProne plugin compilation failure
+
+**Symptom:**
+```
+error: plug-in not found: ErrorProne
+```
+
+**Cause:**
+The `net.ltgt.errorprone` plugin (version 4.1.0) is incompatible with the current Gradle/Java setup. This affects `:community-mcp-server` and `:premium-mcp-server` modules where the plugin is enabled.
+
+**Fix:**
+The plugin is disabled in most modules. For affected modules, either:
+- Remove the plugin declaration: `id("net.ltgt.errorprone") version "4.1.0"`
+- Or add a compile-time suppression
+
+**Diagnosis command:** `./gradlew :community-mcp-server:compileJava`
+
+**Status:** Pre-existing issue, documented in `docs/techdebt/gradle-8.5-intellij-plugin-compatibility.md`
+
+---
+
 ## Related Documentation
 
 See also:

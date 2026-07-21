@@ -1,0 +1,86 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "gradle": {
+      "type": "local",
+      "enabled": true,
+      "command": ["./gradlew", "--no-daemon"]
+    },
+    "github": {
+      "type": "local",
+      "enabled": true,
+      "command": [
+        "docker",
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "-e",
+        "GITHUB_TOOLSETS",
+        "-e",
+        "GITHUB_READ_ONLY",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "environment": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "GITHUB_TOOLSETS": "",
+        "GITHUB_READ_ONLY": ""
+      }
+    },
+    "filesystem": {
+      "type": "local",
+      "enabled": true,
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/home/adrian/Source/JakartaMigrationMCP"
+      ]
+    },
+    "sequentialthinking": {
+      "type": "local",
+      "enabled": true,
+      "command": ["npx", "-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "memory": {
+      "type": "local",
+      "enabled": true,
+      "command": ["npx", "-y", "@modelcontextprotocol/server-memory"]
+    },
+    "postgres": {
+      "type": "local",
+      "enabled": true,
+      "command": [
+        "npx",
+        "-y",
+        "@anthropic/mcp-server-postgres",
+        "--connection-string",
+        "postgresql://postgres:postgres@localhost:5432/jakarta_migration"
+      ]
+    },
+    "codebase-indexer": {
+      "type": "local",
+      "enabled": true,
+      "command": [
+        "npx",
+        "-y",
+        "@anthropic/mcp-server-codebase-indexer",
+        "--project-root",
+        "/home/adrian/Source/JakartaMigrationMCP"
+      ]
+    }
+  },
+  "permission": {
+    "bash": {
+      "./gradlew *": "allow",
+      "gradle *": "allow",
+      "npx *": "allow",
+      "docker *": "allow",
+      "npm *": "allow",
+      "node *": "allow",
+      "git *": "allow",
+      "mise *": "allow"
+    }
+  }
+}

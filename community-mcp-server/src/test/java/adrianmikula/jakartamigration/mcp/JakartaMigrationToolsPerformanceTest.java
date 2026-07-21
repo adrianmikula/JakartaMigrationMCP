@@ -106,7 +106,7 @@ class JakartaMigrationToolsPerformanceTest {
 
                 // When
                 long startTime = System.currentTimeMillis();
-                String result = tools.scanForJavaxBasic(testProjectPath.toString(), "source,dependencies,config");
+                String result = communityTools.scanForJavaxBasic(testProjectPath.toString(), "source,dependencies,config");
                 long duration = System.currentTimeMillis() - startTime;
 
                 // Then
@@ -140,7 +140,7 @@ class JakartaMigrationToolsPerformanceTest {
 
                 // When
                 long startTime = System.currentTimeMillis();
-                String result = tools.scanForJavaxBasic(testProjectPath.toString(), "dependencies,config");
+                String result = communityTools.scanForJavaxBasic(testProjectPath.toString(), "dependencies,config");
                 long duration = System.currentTimeMillis() - startTime;
 
                 // Then
@@ -174,7 +174,7 @@ class JakartaMigrationToolsPerformanceTest {
 
                 // When
                 long startTime = System.currentTimeMillis();
-                String result = tools.scanForJavaxBasic(testProjectPath.toString(), "dependencies");
+                String result = communityTools.scanForJavaxBasic(testProjectPath.toString(), "dependencies");
                 long duration = System.currentTimeMillis() - startTime;
 
                 // Then
@@ -208,7 +208,7 @@ class JakartaMigrationToolsPerformanceTest {
 
                 // When
                 long startTime = System.currentTimeMillis();
-                String result = tools.scanForJavaxBasic(testProjectPath.toString(), "source,dependencies,config");
+                String result = communityTools.scanForJavaxBasic(testProjectPath.toString(), "source,dependencies,config");
                 long duration = System.currentTimeMillis() - startTime;
 
                 // Then
@@ -240,7 +240,7 @@ class JakartaMigrationToolsPerformanceTest {
 
                 // When
                 long startTime = System.currentTimeMillis();
-                String result = tools.scanForJavaxBasic(testProjectPath.toString(), "dependencies,config");
+                String result = communityTools.scanForJavaxBasic(testProjectPath.toString(), "dependencies,config");
                 long duration = System.currentTimeMillis() - startTime;
 
                 // Then
@@ -280,7 +280,7 @@ class JakartaMigrationToolsPerformanceTest {
                         final int index = i;
                         threads[i] = new Thread(() -> {
                                 long start = System.currentTimeMillis();
-                                tools.scanForJavaxBasic(testProjectPath.toString(), "source,dependencies,config");
+                                communityTools.scanForJavaxBasic(testProjectPath.toString(), "source,dependencies,config");
                                 durations[index] = System.currentTimeMillis() - start;
                         });
                 }
