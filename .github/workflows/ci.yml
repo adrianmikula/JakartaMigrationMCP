@@ -219,7 +219,6 @@ jobs:
       - name: Run Semgrep
         id: semgrep
         uses: semgrep/semgrep-action@v1
-        continue-on-error: true
         with:
           config: auto
           generateSarif: true
@@ -231,6 +230,12 @@ jobs:
         if: always() && hashFiles('semgrep.sarif') != ''
         with:
           sarif_file: semgrep.sarif
+
+      - name: Mark as warning
+        if: always()
+        run: |
+          echo "::warning::Semgrep analysis completed. Review results in the Security tab or uploaded SARIF."
+          exit 1
 
   infer-analysis:
     name: Infer Static Analysis
@@ -255,7 +260,6 @@ jobs:
           sudo ln -sf /opt/infer/bin/infer /usr/local/bin/infer
 
       - name: Run Infer
-        continue-on-error: true
         run: |
           infer --version
           infer run -- javac $(find . -name "*.java" -path "*/src/main/java/*")
@@ -268,6 +272,12 @@ jobs:
           path: infer-out/
           retention-days: 7
           if-no-files-found: ignore
+
+      - name: Mark as warning
+        if: always()
+        run: |
+          echo "::warning::Infer analysis completed. Review results in the uploaded infer-results artifact."
+          exit 1
 
   release-tests:
     name: Release Tests
