@@ -59,7 +59,6 @@
 
 ## Common gotchas
 
-- Gradle commands with `--no-configuration-cache` are needed for validation tasks (license headers, module boundaries).
 - `MCP_TRANSPORT` environment variable selects the transport mode: `stdio` (default), `sse`, or `streamable-http`.
 - Set `LOG_LEVEL=debug` before running for verbose diagnostic output.
 - MCP stdio mode requires all logs go to stderr — stdout is reserved for JSON-RPC protocol messages.
