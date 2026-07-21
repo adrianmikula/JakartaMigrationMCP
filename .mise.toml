@@ -1,13 +1,23 @@
 # mise-en-place (mise) configuration
 # Tool version management and project setup
 # Install mise: https://mise.jdx.dev/getting-started.html
+#
+# ─── AGENT ITERATION CHEAT SHEET ──────────────────────────────────────────────
+# Fastest feedback loop (all under 2s):
+#   ./gradlew :community-core-engine:compileJava              (~0.8s)
+#   ./gradlew :community-core-engine:fastTest                 (~0.76s)
+#   mise run fast-test                                         (~2.0s cold, ~1.9s warm — all 5 modules)
+#
+# See AGENTS.md and COMMANDS.md for full details.
+# ───────────────────────────────────────────────────────────────────────────────
 
 [tools]
-java = "21.0.0"
+java = "zulu-21-crac"
 gradle = "8.5"
 node = "20.11.0"
 
 [env]
+JAVA_HOME = "/usr/lib/jvm/zulu-21-crac-amd64"
 DB_USERNAME = "postgres"
 DB_PASSWORD = "postgres"
 REDIS_HOST = "localhost"
@@ -38,8 +48,8 @@ run = "bash scripts/stop-services.sh"
 
 [tasks.build]
 description = "Compile all modules"
-run_windows = "gradlew.bat :community-core-engine:compileJava :community-mcp-server:compileJava :premium-core-engine:compileJava :premium-mcp-server:compileJava :premium-intellij-plugin:compileJava"
-run = "gradle :community-core-engine:compileJava :community-mcp-server:compileJava :premium-core-engine:compileJava :premium-mcp-server:compileJava :premium-intellij-plugin:compileJava"
+run_windows = "gradlew.bat :community-core-engine:compileJava :community-mcp-server:compileJava :premium-core-engine:compileJava :premium-mcp-server:compileJava :premium-experiment-engine:compileJava"
+run = "gradle :community-core-engine:compileJava :community-mcp-server:compileJava :premium-core-engine:compileJava :premium-mcp-server:compileJava :premium-experiment-engine:compileJava"
 
 [tasks.clean]
 description = "Clean all build artifacts"
@@ -53,10 +63,15 @@ description = "Run all module tests"
 run_windows = "gradlew.bat test -Djakarta.migration.mode=dev"
 run = "gradle test -Djakarta.migration.mode=dev --no-configuration-cache"
 
+# NOTE: fast-test targets only community-core-engine and premium-core-engine.
+# community-mcp-server and premium-mcp-server have broken transitive deps
+# (spring-boot-devtools missing version) that cause configuration cache failures.
+# --configure-on-demand skips configuring unused projects for faster startup.
+# NOTE: fast-test targets all 5 modules with --configure-on-demand for faster startup.
 [tasks.fast-test]
-description = "Run fast tests only (excludes @Tag(slow) and @Tag(integration))"
-run_windows = "gradlew.bat :premium-core-engine:fastTest :community-core-engine:fastTest -Djakarta.migration.mode=dev"
-run = "gradle :premium-core-engine:fastTest :community-core-engine:fastTest -Djakarta.migration.mode=dev"
+description = "Run fast tests only (excludes @Tag(slow)) - ~2.0s cold, ~1.9s warm"
+run_windows = "gradlew.bat :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest :community-mcp-server:fastTest :premium-mcp-server:fastTest --configure-on-demand -Djakarta.migration.mode=dev"
+run = "gradle :community-core-engine:fastTest :premium-core-engine:fastTest :premium-experiment-engine:fastTest :community-mcp-server:fastTest :premium-mcp-server:fastTest --configure-on-demand -Djakarta.migration.mode=dev"
 
 [tasks.coverage]
 description = "Generate JaCoCo test coverage report"
@@ -110,3 +125,17 @@ run = "docker compose ps"
 [tasks.health]
 description = "Check MCP server health endpoint"
 run = "curl http://localhost:8080/actuator/health"
+
+# 7. CRaC (Coordinated Restore at Checkpoint)
+
+[tasks.crac-start]
+description = "Start MCP server with CRaC checkpoint enabled"
+run = "JAVA_HOME=/usr/lib/jvm/zulu-21-crac-amd64 java -XX:CRaCCheckpointTo=/tmp/crac-checkpoint -jar community-mcp-server/build/libs/jakarta-migration-mcp.jar"
+
+[tasks.crac-checkpoint]
+description = "Trigger CRaC checkpoint on running server"
+run = "jcmd $(jcmd -l | grep jakarta-migration | cut -d' ' -f1) JDK.checkpoint"
+
+[tasks.crac-restore]
+description = "Restore from CRaC checkpoint"
+run = "JAVA_HOME=/usr/lib/jvm/zulu-21-crac-amd64 java -XX:CRaCRestoreFrom=/tmp/crac-checkpoint"

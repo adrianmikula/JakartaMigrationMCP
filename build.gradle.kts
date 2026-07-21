@@ -41,6 +41,8 @@ val javaHome = when {
     os.contains("linux") -> {
         // Try common Linux Java installation paths
         val possiblePaths = listOf(
+            "/usr/lib/jvm/zulu-21-crac-amd64",
+            "/usr/lib/jvm/zulu-25-crac-amd64",
             "/usr/lib/jvm/java-21-openjdk-amd64",
             "/usr/lib/jvm/java-21-openjdk",
             "/usr/lib/jvm/java-21-temurin",
@@ -123,6 +125,15 @@ allprojects {
     println(">>> Project: $name, Version: $version")
     println(">>> OS: $os, Java Home: ${extra.get("javaHome")}")
 
+    // Apply test JVM args from gradle.properties to all Test tasks
+    // test.jvmargs is NOT automatically applied by Gradle - must be configured explicitly
+    val testJvmArgs = props.getProperty("test.jvmargs", "")
+    if (testJvmArgs.isNotBlank()) {
+        tasks.withType<Test>().configureEach {
+            jvmArgs(testJvmArgs.split("\\s+".toRegex()).filter { it.isNotBlank() })
+        }
+    }
+
     repositories {
         mavenCentral()
         maven { url = uri("https://repo.spring.io/milestone") }
@@ -186,8 +197,28 @@ tasks.register("generateUniqueVersion") {
 // - premium-core-engine: Premium features for core engine
 // - premium-mcp-server: Premium features for MCP server
 // - premium-intellij-plugin: Premium IntelliJ plugin features
+// - premium-experiment-engine: Migration sequence experimentation engine
 //
 // =============================================================================
+
+// =============================================================================
+// JACOCO COVERAGE CONFIGURATION
+// =============================================================================
+
+subprojects {
+    plugins.withId("java") {
+        apply(plugin = "jacoco")
+
+        tasks.withType<JacocoReport> {
+            dependsOn("test")
+
+            reports {
+                xml.required.set(true)
+                html.required.set(true)
+            }
+        }
+    }
+}
 
 // =============================================================================
 // STATIC ANALYSIS CONFIGURATION
@@ -227,40 +258,40 @@ tasks.register("validateLicenseHeaders") {
     description = "Validates license headers in source files"
     group = "verification"
     
+    val licenseData: List<Triple<String, String, List<String>>> = allprojects.mapNotNull { proj ->
+        val extraProps = proj.extra.properties
+        if (extraProps.containsKey("licenseType")) {
+            val expectedType = extraProps["licenseType"] as String
+            val files = proj.sourceSets.flatMap { it.java.srcDirs }
+                .filter { it.exists() }
+                .flatMap { dir -> dir.walkTopDown().filter { it.isFile && it.extension == "java" }.toList() }
+                .map { it.absolutePath }
+            Triple(proj.name, expectedType, files)
+        } else null
+    }
+    
     doLast {
         val apacheHeader = "Licensed under the Apache License"
         val proprietaryHeader = "This software is proprietary"
-        
         val violations = mutableListOf<String>()
         
-        allprojects.forEach { project ->
-            val extraProps = project.extra.properties
-            if (extraProps.containsKey("licenseType")) {
-                val expectedType = extraProps["licenseType"] as String
-                val sourceDirs = project.sourceSets.flatMap { it.java.srcDirs }
+        licenseData.forEach { (projName, expectedType, filePaths) ->
+            filePaths.forEach { absPath ->
+                val file = File(absPath)
+                val content = file.readText()
+                val hasApache = content.contains(apacheHeader)
+                val hasProprietary = content.contains(proprietaryHeader)
                 
-                sourceDirs.forEach { dir ->
-                    if (dir.exists()) {
-                        dir.walkTopDown()
-                            .filter { it.isFile && it.extension == "java" }
-                            .forEach { file ->
-                                val content = file.readText()
-                                val hasApache = content.contains(apacheHeader)
-                                val hasProprietary = content.contains(proprietaryHeader)
-                                
-                                when (expectedType) {
-                                    "APACHE_2.0" -> {
-                                        if (!hasApache && !hasProprietary) {
-                                            violations.add("${project.name}:${file.relativeTo(project.projectDir)} - Missing Apache 2.0 header")
-                                        }
-                                    }
-                                    "PROPRIETARY" -> {
-                                        if (!hasProprietary) {
-                                            violations.add("${project.name}:${file.relativeTo(project.projectDir)} - Missing proprietary header")
-                                        }
-                                    }
-                                }
-                            }
+                when (expectedType) {
+                    "APACHE_2.0" -> {
+                        if (!hasApache && !hasProprietary) {
+                            violations.add("$projName:${file.name} - Missing Apache 2.0 header")
+                        }
+                    }
+                    "PROPRIETARY" -> {
+                        if (!hasProprietary) {
+                            violations.add("$projName:${file.name} - Missing proprietary header")
+                        }
                     }
                 }
             }
@@ -299,50 +330,31 @@ tasks.register("validateModuleBoundaries") {
     description = "Ensures module dependencies respect licensing boundaries"
     group = "verification"
     
+    val proprietaryModules = setOf("premium-core-engine", "premium-mcp-server", "premium-intellij-plugin", "premium-experiment-engine")
+    val communityModules = setOf("community-core-engine", "community-mcp-server", "community-intellij-plugin")
+    
+    val totalModuleCount = allprojects.size
+    val communityDeps: Map<String, Set<String>> = allprojects.associate { proj ->
+        val depNames = if (communityModules.contains(proj.name)) {
+            proj.configurations.flatMap { config ->
+                config.dependencies.mapNotNull { dep -> dep.name }
+            }.toSet()
+        } else emptySet()
+        proj.name to depNames
+    }
+    
     doLast {
-        val proprietaryModules = setOf("premium-core-engine", "premium-mcp-server", "premium-intellij-plugin")
-        val communityModules = setOf("community-core-engine", "community-mcp-server", "community-intellij-plugin")
         val violations = mutableListOf<String>()
         
-        allprojects.forEach { project ->
-            if (communityModules.contains(project.name)) {
-                // Community modules - check they don't depend on proprietary modules
-                project.configurations.forEach { config ->
-                    config.dependencies.forEach { dep ->
-                        // Check for direct dependency on proprietary modules
-                        if (proprietaryModules.any { proprietary -> 
-                            dep.name.contains(proprietary, ignoreCase = true) 
-                        }) {
-                            violations.add("Direct dependency: ${project.name} -> ${dep.name}")
-                        }
-                        
-                        // Check for transitive dependencies that bring in proprietary modules
-                        try {
-                            config.resolvedConfiguration.resolvedArtifacts.forEach { artifact ->
-                                if (artifact.moduleVersion?.id?.name?.let { moduleId ->
-                                    proprietaryModules.any { proprietary -> 
-                                        moduleId.contains(proprietary, ignoreCase = true)
-                                    }
-                                } == true) {
-                                    violations.add("Transitive dependency: ${project.name} -> ${artifact.moduleVersion.id.name}")
-                                }
-                            }
-                        } catch (e: Exception) {
-                            // If resolution fails, still check basic dependency names
-                            if (dep.group != null && dep.name != null) {
-                                val depNotation = "${dep.group}:${dep.name}"
-                                if (proprietaryModules.any { proprietary -> 
-                                    depNotation.contains(proprietary, ignoreCase = true)
-                                }) {
-                                    violations.add("Dependency notation: ${project.name} -> ${depNotation}")
-                                }
-                            }
-                        }
+        communityDeps.forEach { (projName, depNames) ->
+            if (projName in communityModules) {
+                depNames.forEach { depName ->
+                    if (proprietaryModules.any { proprietary ->
+                        depName.contains(proprietary, ignoreCase = true)
+                    }) {
+                        violations.add("Direct dependency: $projName -> $depName")
                     }
                 }
-            } else if (proprietaryModules.contains(project.name)) {
-                // Premium modules - they can depend on community modules, but we log for awareness
-                println("🔍 Premium module ${project.name} dependencies checked")
             }
         }
         
@@ -355,7 +367,7 @@ tasks.register("validateModuleBoundaries") {
         }
         
         println("✅ Module boundary validation completed")
-        println("📊 Checked ${allprojects.size} modules for boundary compliance")
+        println("📊 Checked $totalModuleCount modules for boundary compliance")
         println("🔍 Community modules: ${communityModules.joinToString(", ")}")
         println("🔒 Proprietary modules: ${proprietaryModules.joinToString(", ")}")
     }

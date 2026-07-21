@@ -1,6 +1,7 @@
 package adrianmikula.jakartamigration.config;
 
 import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.io.InputStream;
 import java.util.HashMap;
@@ -36,6 +37,7 @@ import java.util.Properties;
  * </pre>
  */
 @Data
+@ConfigurationProperties(prefix = "jakarta.migration.feature-flags")
 public class FeatureFlagsProperties {
 
     private static final Properties PRICING_PROPERTIES = loadPricingProperties();

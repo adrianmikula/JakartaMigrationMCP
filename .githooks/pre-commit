@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Running fast tests before commit..."
+./gradlew :community-core-engine:fastTest --no-daemon
