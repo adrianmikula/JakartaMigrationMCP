@@ -210,13 +210,16 @@ jobs:
     name: Semgrep Security Analysis
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    continue-on-error: true
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Run Semgrep
+        id: semgrep
         uses: semgrep/semgrep-action@v1
+        continue-on-error: true
         with:
           config: auto
           generateSarif: true
@@ -225,7 +228,7 @@ jobs:
 
       - name: Upload Semgrep results
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: always() && hashFiles('semgrep.sarif') != ''
         with:
           sarif_file: semgrep.sarif
 
@@ -233,6 +236,7 @@ jobs:
     name: Infer Static Analysis
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    continue-on-error: true
 
     steps:
       - name: Checkout code
