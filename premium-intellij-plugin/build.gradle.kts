@@ -1,6 +1,10 @@
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.io.File
+import java.util.jar.JarFile
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+import java.nio.charset.StandardCharsets
 
 plugins {
     id("org.jetbrains.intellij") version "1.17.3"
@@ -696,7 +700,6 @@ tasks.register("buildDevPlugin") {
     
     // Set development environment
     doLast {        
-        project.ext.set("environment", "dev")
         println("\n=== Building in DEV MODE (skipping all licensing checks) ===")
         
         // Build and run
@@ -704,72 +707,6 @@ tasks.register("buildDevPlugin") {
         
         println("\n=== Development Build Complete ===")
         println("Plugin built with development configuration (no licensing checks)")
-    }
-}
-
-/**
- * Disable product descriptor for development (prevents license dialog)
- * 
- * Usage: ./gradlew :premium-intellij-plugin:disableProductDescriptor --no-configuration-cache
- */
-tasks.register<DefaultTask>("disableProductDescriptor") {
-    group = "build"
-    description = "Disable product descriptor to prevent license dialog during development"
-    
-    doLast {
-        val pluginXml = file("src/main/resources/META-INF/plugin.xml")
-        if (!pluginXml.exists()) {
-            println(" plugin.xml not found at ${pluginXml.absolutePath}")
-            return@doLast
-        }
-        
-        val content = pluginXml.readText()
-        
-        if (content.contains("<!-- <product-descriptor")) {
-            println(" Product descriptor is already disabled for development")
-        } else {
-            // Comment out the product descriptor
-            val updatedContent = content.replace(
-                "<product-descriptor code=\"PJAKARTAMIGRATI\" release-date=\"20250326\" release-version=\"108\"/>",
-                "<!-- <product-descriptor code=\"PJAKARTAMIGRATI\" release-date=\"20250326\" release-version=\"108\"/> -->"
-            )
-            
-            pluginXml.writeText(updatedContent)
-            println(" Product descriptor disabled - no license dialog during development")
-        }
-    }
-}
-
-/**
- * Enable product descriptor for production
- * 
- * Usage: ./gradlew :premium-intellij-plugin:enableProductDescriptor --no-configuration-cache
- */
-tasks.register<DefaultTask>("enableProductDescriptor") {
-    group = "build"
-    description = "Enable product descriptor for production builds"
-    
-    doLast {
-        val pluginXml = file("src/main/resources/META-INF/plugin.xml")
-        if (!pluginXml.exists()) {
-            println(" plugin.xml not found at ${pluginXml.absolutePath}")
-            return@doLast
-        }
-        
-        val content = pluginXml.readText()
-        
-        if (content.contains("<product-descriptor code=\"PJAKARTAMIGRATI\"") && !content.contains("<!-- <product-descriptor")) {
-            println(" Product descriptor is already enabled for production")
-        } else {
-            // Uncomment the product descriptor
-            val updatedContent = content.replace(
-                "<!-- <product-descriptor code=\"PJAKARTAMIGRATI\" release-date=\"20250326\" release-version=\"108\"/> -->",
-                "<product-descriptor code=\"PJAKARTAMIGRATI\" release-date=\"20250326\" release-version=\"108\"/>"
-            )
-            
-            pluginXml.writeText(updatedContent)
-            println(" Product descriptor enabled - ready for production")
-        }
     }
 }
 
@@ -786,7 +723,6 @@ tasks.register("runIdeDev") {
     dependsOn("runIde")
     
     doFirst {
-        project.ext.set("environment", "dev")
         println("\n=== Running IDE in DEV MODE (skipping all licensing checks) ===")
         println("Dev tab will be available with premium simulation settings")
     }
@@ -795,6 +731,43 @@ tasks.register("runIdeDev") {
 // Configure the standard runIde task with development mode
 tasks.named<org.jetbrains.intellij.tasks.RunIdeTask>("runIde") {
     systemProperty("jakarta.migration.mode", "dev")
+    
+    doFirst {
+        val libDir = File("${System.getProperty("user.dir")}/premium-intellij-plugin/build/idea-sandbox/plugins/premium-intellij-plugin/lib")
+        if (libDir.exists()) {
+            libDir.listFiles { f -> f.name.endsWith(".jar") && f.name.contains("premium-intellij-plugin") }.forEach { jar ->
+                try {
+                    JarFile(jar).use { jarFile ->
+                        val entry = jarFile.getJarEntry("META-INF/plugin.xml")
+                        if (entry != null) {
+                            val content = jarFile.getInputStream(entry).readBytes().toString(StandardCharsets.UTF_8)
+                            if (content.contains("optional=\"false\"")) {
+                                val updated = content.replace("optional=\"false\"", "optional=\"true\"")
+                                val tempFile = File.createTempFile("plugin-", ".jar")
+                                tempFile.deleteOnExit()
+                                ZipOutputStream(tempFile.outputStream()).use { zos ->
+                                    jarFile.entries().asIterator().forEach { e ->
+                                        if (e.name != "META-INF/plugin.xml") {
+                                            zos.putNextEntry(ZipEntry(e.name))
+                                            jarFile.getInputStream(e).copyTo(zos)
+                                            zos.closeEntry()
+                                        }
+                                    }
+                                    zos.putNextEntry(ZipEntry("META-INF/plugin.xml"))
+                                    updated.byteInputStream(StandardCharsets.UTF_8).copyTo(zos)
+                                    zos.closeEntry()
+                                }
+                                tempFile.copyTo(jar, overwrite = true)
+                                println("[dev-mode] Patched plugin.xml in ${jar.name}: optional=false -> true")
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    println("Warning: Could not patch ${jar.name}: ${e.message}")
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -810,7 +783,6 @@ tasks.register<org.jetbrains.intellij.tasks.RunIdeTask>("runIdeDemo") {
     systemProperty("jakarta.migration.mode", "demo")
     
     doFirst {
-        project.ext.set("environment", "demo")
         println("\n=== Running IDE in DEMO MODE (JetBrains Demo Marketplace) ===")
         println("NOTE: Make sure product descriptor is enabled in plugin.xml")
         println("Run: .\\fix-license-dialog.bat enable if needed")
@@ -831,7 +803,6 @@ tasks.register<org.jetbrains.intellij.tasks.RunIdeTask>("runIdeDevPremium") {
     systemProperty("jakarta.migration.dev.simulate_premium", "true")
     
     doFirst {
-        project.ext.set("environment", "dev")
         println("\n=== Running IDE in DEV MODE with PREMIUM SIMULATION ===")
         println("Dev tab will be available with premium simulation ENABLED by default")
     }
@@ -846,14 +817,10 @@ tasks.register<org.jetbrains.intellij.tasks.RunIdeTask>("runIdeProd") {
     group = "build"
     description = "Run IDE in production marketplace mode (production - uses JetBrains Production Marketplace)"
     
-    // Enable product descriptor for production marketplace
-    dependsOn("enableProductDescriptor")
-    
     // Set production environment system properties
     systemProperty("jakarta.migration.mode", "production")
     
     doFirst {
-        project.ext.set("environment", "production")
         println("\n=== Running IDE in PRODUCTION MODE (JetBrains Production Marketplace) ===")
     }
 }
@@ -875,7 +842,6 @@ tasks.register("buildProductionPlugin") {
     
     // Set production environment
     doLast {
-        project.ext.set("environment", "production")
         println("\n=== Building in PRODUCTION MODE (JetBrains Production Marketplace) ===")
         
         // Build and run

@@ -155,6 +155,15 @@ public class AdvancedRefactorComponent {
                     "Cannot Run Experiment", JOptionPane.WARNING_MESSAGE);
                 return;
             }
+            try {
+                experimentService.saveSequence(sequence);
+            } catch (Exception e) {
+                LOG.error("Failed to save sequence before running experiment", e);
+                JOptionPane.showMessageDialog(panel,
+                    "Failed to save sequence: " + e.getMessage(),
+                    "Experiment Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
             experimentResultsPanel.runExperiment(sequence, Optional.empty());
             subTabs.setSelectedIndex(1);
         });
