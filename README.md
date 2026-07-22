@@ -15,6 +15,8 @@ This plugin detects migration blockers, analyzes dependencies, and helps you ref
 > **[Sponsor this project on GitHub](https://github.com/sponsors/adrianmikula)** to help cover the time and effort of ongoing development. If this plugin has saved you hours of migration work, please consider giving back so we can continue building features and restore free trial access for the wider Java community.
 >
 > Premium features (Advanced Refactor, platform detection, advanced scans, PDF reports, and AI-assisted migration) are available with a paid subscription. The free tier still includes migration risk analysis, dependency scans, version recommendations, and strategy insights.
+>
+> *Note: The free trial can still be accessed by installing v1.0 of this plugin.*
 
 ---
 

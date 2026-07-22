@@ -1,8 +1,10 @@
 package adrianmikula.jakartamigration.advancedscanning.service.impl;
 
+import adrianmikula.jakartamigration.advancedscanning.domain.DependencyTreeResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyProjectScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage;
+import adrianmikula.jakartamigration.advancedscanning.service.DependencyTreeCommandExecutor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -10,8 +12,13 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for TransitiveDependencyScannerImpl using synthetic test projects.
@@ -388,5 +395,136 @@ class TransitiveDependencyScannerUnitTest {
         // Check javaxPackage field instead of hasJavaxUsage method
         assertNotNull(usage.getJavaxPackage());
         assertNotNull(usage.getRecommendation());
+    }
+
+    @Test
+    void scanProject_shouldDetectMultiModuleGradle_withSettingsGradle(@TempDir Path tempDir) throws IOException {
+        Path root = tempDir.resolve("gradle-multi");
+        Path module1 = root.resolve("module1");
+        Path module2 = root.resolve("module2");
+        Files.createDirectories(module1);
+        Files.createDirectories(module2);
+
+        Files.writeString(root.resolve("settings.gradle"), "include 'module1', 'module2'");
+
+        String buildGradle = """
+            dependencies {
+                implementation 'javax.servlet:javax.servlet-api:4.0.1'
+            }
+            """;
+        Files.writeString(module1.resolve("build.gradle"), buildGradle);
+        Files.writeString(module2.resolve("build.gradle"), buildGradle);
+
+        DependencyTreeCommandExecutor mockExecutor = mock(DependencyTreeCommandExecutor.class);
+        List<DependencyTreeResult.DependencyNode> rootDeps = Arrays.asList(
+            new DependencyTreeResult.DependencyNode("javax.servlet", "javax.servlet-api", "4.0.1", "compile", 0, false, null),
+            new DependencyTreeResult.DependencyNode("javax.xml.bind", "jaxb-api", "2.3.1", "compile", 0, false, null)
+        );
+        when(mockExecutor.executeGradleDependenciesAsync(any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(new DependencyTreeResult(rootDeps, Set.of("compile"))));
+
+        TransitiveDependencyScannerImpl scanner = new TransitiveDependencyScannerImpl(mockExecutor,
+                new adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyDeduplicationServiceImpl());
+
+        TransitiveDependencyProjectScanResult result = scanner.scanProject(root);
+
+        assertFalse(result.getFileResults().isEmpty());
+        long totalUsages = result.getFileResults().stream()
+                .mapToLong(r -> r.getUsages().size())
+                .sum();
+        assertEquals(2, totalUsages, "Should find all dependencies from root-level scan");
+    }
+
+    @Test
+    void scanProject_shouldFallbackToPerFile_whenMultiModuleRootFails(@TempDir Path tempDir) throws IOException {
+        Path root = tempDir.resolve("maven-multi");
+        Path module1 = root.resolve("module1");
+        Files.createDirectories(module1);
+
+        Files.writeString(root.resolve("pom.xml"),
+            "<project><modelVersion>4.0.0</modelVersion><groupId>com.test</groupId>" +
+            "<artifactId>parent</artifactId><version>1.0.0</version><packaging>pom</packaging>" +
+            "<modules><module>module1</module></modules></project>");
+
+        Files.writeString(module1.resolve("pom.xml"),
+            "<project><modelVersion>4.0.0</modelVersion><parent><groupId>com.test</groupId>" +
+            "<artifactId>parent</artifactId><version>1.0.0</version></parent>" +
+            "<artifactId>module1</artifactId><dependencies>" +
+            "<dependency><groupId>javax.servlet</groupId><artifactId>javax.servlet-api</artifactId>" +
+            "<version>4.0.1</version></dependency></dependencies></project>");
+
+        DependencyTreeCommandExecutor mockExecutor = mock(DependencyTreeCommandExecutor.class);
+        when(mockExecutor.executeMavenDependencyTreeAsync(any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(DependencyTreeResult.error("mvn command not found")));
+
+        TransitiveDependencyScannerImpl scanner = new TransitiveDependencyScannerImpl(mockExecutor,
+                new adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyDeduplicationServiceImpl());
+
+        TransitiveDependencyProjectScanResult result = scanner.scanProject(root);
+
+        assertFalse(result.getFileResults().isEmpty());
+        boolean foundServlet = result.getFileResults().stream()
+                .flatMap(r -> r.getUsages().stream())
+                .anyMatch(u -> u.getArtifactId().equals("javax.servlet-api"));
+        assertTrue(foundServlet, "Should find servlet-api via regex fallback");
+    }
+
+    @Test
+    void scanProject_singleModuleGradle_shouldNotTriggerMultiModulePath(@TempDir Path tempDir) throws IOException {
+        Path project = tempDir.resolve("single-gradle");
+        Files.createDirectories(project);
+
+        Files.writeString(project.resolve("build.gradle"),
+            "dependencies { implementation 'javax.jms:javax.jms-api:2.0.1' }");
+
+        DependencyTreeCommandExecutor mockExecutor = mock(DependencyTreeCommandExecutor.class);
+        List<DependencyTreeResult.DependencyNode> deps = Arrays.asList(
+            new DependencyTreeResult.DependencyNode("javax.jms", "javax.jms-api", "2.0.1", "compile", 0, false, null)
+        );
+        when(mockExecutor.executeGradleDependenciesAsync(any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(new DependencyTreeResult(deps, Set.of("compile"))));
+
+        TransitiveDependencyScannerImpl scanner = new TransitiveDependencyScannerImpl(mockExecutor,
+                new adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyDeduplicationServiceImpl());
+
+        TransitiveDependencyProjectScanResult result = scanner.scanProject(project);
+
+        assertEquals(1, result.getFileResults().size());
+        assertTrue(result.getFileResults().get(0).getUsages().stream()
+                .anyMatch(u -> u.getArtifactId().equals("javax.jms-api")));
+    }
+
+    @Test
+    void scanProject_multiModuleMaven_fallsBackPerFile_whenRootReturnsEmpty(@TempDir Path tempDir) throws IOException {
+        Path root = tempDir.resolve("maven-multi-empty");
+        Path module1 = root.resolve("module1");
+        Files.createDirectories(module1);
+
+        Files.writeString(root.resolve("pom.xml"),
+            "<project><modelVersion>4.0.0</modelVersion><groupId>com.test</groupId>" +
+            "<artifactId>parent</artifactId><version>1.0.0</version><packaging>pom</packaging>" +
+            "<modules><module>module1</module></modules></project>");
+
+        Files.writeString(module1.resolve("pom.xml"),
+            "<project><modelVersion>4.0.0</modelVersion><parent><groupId>com.test</groupId>" +
+            "<artifactId>parent</artifactId><version>1.0.0</version></parent>" +
+            "<artifactId>module1</artifactId><dependencies>" +
+            "<dependency><groupId>javax.xml.bind</groupId><artifactId>jaxb-api</artifactId>" +
+            "<version>2.3.1</version></dependency></dependencies></project>");
+
+        DependencyTreeCommandExecutor mockExecutor = mock(DependencyTreeCommandExecutor.class);
+        when(mockExecutor.executeMavenDependencyTreeAsync(any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(DependencyTreeResult.empty()));
+
+        TransitiveDependencyScannerImpl scanner = new TransitiveDependencyScannerImpl(mockExecutor,
+                new adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyDeduplicationServiceImpl());
+
+        TransitiveDependencyProjectScanResult result = scanner.scanProject(root);
+
+        assertFalse(result.getFileResults().isEmpty());
+        boolean foundJaxb = result.getFileResults().stream()
+                .flatMap(r -> r.getUsages().stream())
+                .anyMatch(u -> u.getArtifactId().equals("jaxb-api"));
+        assertTrue(foundJaxb, "Should find jaxb-api via regex fallback after empty root result");
     }
 }

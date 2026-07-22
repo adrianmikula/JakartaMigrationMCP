@@ -1,7 +1,8 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
 import com.intellij.ui.JBColor;
-
+import javax.swing.*;
+import javax.swing.plaf.basic.BasicProgressBarUI;
 import java.awt.Color;
 
 /**
@@ -37,4 +38,28 @@ public final class UIColors {
 
     /** Hyperlink text on hover. */
     public static final Color LINK_HOVER = new JBColor(new Color(0, 80, 160), new Color(100, 180, 255));
+
+    /**
+     * Configures a JProgressBar so that its string-painted text is always
+     * readable on both the filled and unfilled portions of the bar.
+     * <p>
+     * Without this, IntelliJ's Darcula theme renders the text in a dark
+     * colour that is nearly invisible on the dark-grey unfilled area when
+     * the progress percentage is low.
+     *
+     * @param bar the progress bar to configure
+     */
+    public static void configureProgressBarText(JProgressBar bar) {
+        bar.setUI(new BasicProgressBarUI() {
+            @Override
+            protected Color getSelectionForeground() {
+                return Color.WHITE;
+            }
+
+            @Override
+            protected Color getSelectionBackground() {
+                return Color.WHITE;
+            }
+        });
+    }
 }

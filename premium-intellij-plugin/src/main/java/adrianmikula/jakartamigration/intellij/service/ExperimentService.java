@@ -5,6 +5,8 @@ import adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import adrianmikula.jakartamigration.experiment.domain.*;
 import adrianmikula.jakartamigration.experiment.mcp.ExperimentTools;
+import adrianmikula.jakartamigration.experiment.service.ExperimentRunner;
+import adrianmikula.jakartamigration.experiment.service.NoOpOrchestratorFactory;
 import com.intellij.openapi.diagnostic.Logger;
 
 import java.nio.file.Path;
@@ -31,7 +33,7 @@ public class ExperimentService {
         // when actual testcontainers integration is added
         this.experimentTools = new ExperimentTools(
             projectRoot,
-            null, // TODO: Implement proper TestContainerOrchestratorFactory
+            new NoOpOrchestratorFactory(),
             "eclipse-temurin:17-jdk",
             300
         );

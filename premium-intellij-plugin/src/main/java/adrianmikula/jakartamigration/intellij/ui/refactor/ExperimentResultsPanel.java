@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.intellij.ui.refactor;
 import adrianmikula.jakartamigration.experiment.domain.ExperimentResult;
 import adrianmikula.jakartamigration.experiment.domain.ExperimentStatus;
 import adrianmikula.jakartamigration.experiment.domain.MigrationSequence;
+import adrianmikula.jakartamigration.intellij.service.ExperimentService;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBLabel;
@@ -33,6 +34,7 @@ public class ExperimentResultsPanel {
 
     private final JPanel panel;
     private final Project project;
+    private final ExperimentService experimentService;
 
     private JBLabel statusLabel;
     private JProgressBar progressBar;
@@ -45,9 +47,11 @@ public class ExperimentResultsPanel {
 
     private Consumer<MigrationSequence> onRerun;
     private Consumer<MigrationSequence> onClone;
+    private Consumer<ExperimentResult> onExperimentCompleted;
 
-    public ExperimentResultsPanel(@NotNull Project project) {
+    public ExperimentResultsPanel(@NotNull Project project, ExperimentService experimentService) {
         this.project = project;
+        this.experimentService = experimentService;
         this.panel = new JBPanel<>(new BorderLayout());
         initializeComponent();
     }
@@ -141,18 +145,7 @@ public class ExperimentResultsPanel {
 
         CompletableFuture.supplyAsync(() -> {
             try {
-                Thread.sleep(2000);
-                return new ExperimentResult(
-                    "run-" + System.currentTimeMillis(),
-                    sequence.name(),
-                    Instant.now(),
-                    Instant.now(),
-                    ExperimentStatus.SUCCESS,
-                    List.of(),
-                    null,
-                    "0 files modified, 0 test failures",
-                    null
-                );
+                return experimentService.runExperiment(sequence.name(), gitRef);
             } catch (Exception e) {
                 LOG.error("Experiment execution failed", e);
                 return new ExperimentResult(
@@ -170,6 +163,9 @@ public class ExperimentResultsPanel {
         }).thenAccept(result -> SwingUtilities.invokeLater(() -> {
             this.currentResult = result;
             displayResults(result);
+            if (onExperimentCompleted != null) {
+                onExperimentCompleted.accept(result);
+            }
         })).exceptionally(throwable -> {
             LOG.error("Unexpected error in experiment UI update", throwable);
             SwingUtilities.invokeLater(() -> {
@@ -282,6 +278,10 @@ public class ExperimentResultsPanel {
 
     public void setOnClone(Consumer<MigrationSequence> callback) {
         this.onClone = callback;
+    }
+
+    public void setOnExperimentCompleted(Consumer<ExperimentResult> callback) {
+        this.onExperimentCompleted = callback;
     }
 
     public JPanel getPanel() {

@@ -19,15 +19,15 @@
 
     <product-descriptor 
         code="PJAKARTAMIGRATI" 
-        release-date="20260101" 
-        release-version="10"
-        optional="true"/>
+        release-date="20260701" 
+        release-version="11"
+        optional="false"/>
     
     <!-- idea-version: Exclude the until-build attribute entirely, giving open-ended compatibility with all future IntelliJ versions. -->
     <idea-version since-build="242" />
 
     <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
-    <version>1.0.18</version>
+    <version>1.1.0</version>
 
     <name>Jakarta Migration (javax to jakarta)</name>
     <id>com.adrianmikula.jakarta-migration</id>
@@ -39,6 +39,11 @@
     <h2>Automate Your Java EE to Jakarta EE Migration</h2>
 
     <p>Migrate from Java EE 8 (javax.*) to Jakarta EE 9+ seamlessly. This plugin analyzes dependencies, detects migration blockers, and automates refactoring with OpenRewrite.</p>
+
+    <h3>⚠️ Free Trial Temporarily Unavailable</h3>
+    <p>The free trial has been paused. We want to bring it back, but we need your help to make this project sustainable.</p>
+    <p><b><a href="https://github.com/sponsors/adrianmikula">Sponsor this project on GitHub</a></b> to help cover the time and effort of ongoing development. If this plugin has saved you hours of migration work, please consider giving back so we can continue building features and restore free trial access.</p>
+    <p><i>Note: The free trial can still be accessed by installing v1.0 of this plugin.</i></p>
 
     <h3>Why Jakarta EE?</h3>
     <p>After Oracle donated Java EE to the Eclipse Foundation, the javax.* namespace became jakarta.*. If your code uses old application servers which depend on Java EE, you need this migration in order to upgrade.</p>

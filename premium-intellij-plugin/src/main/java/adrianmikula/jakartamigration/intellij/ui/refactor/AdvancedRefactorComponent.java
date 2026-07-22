@@ -5,7 +5,9 @@ import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import adrianmikula.jakartamigration.experiment.domain.MigrationSequence;
 import adrianmikula.jakartamigration.intellij.config.FeatureFlags;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
+import adrianmikula.jakartamigration.intellij.service.ExperimentService;
 import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBLabel;
@@ -15,6 +17,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,6 +39,7 @@ public class AdvancedRefactorComponent {
     private ExperimentResultsPanel experimentResultsPanel;
     private ExperimentHistoryPanel experimentHistoryPanel;
     private JTabbedPane subTabs;
+    private ExperimentService experimentService;
 
     public AdvancedRefactorComponent(@NotNull Project project, RecipeService recipeService) {
         this.project = project;
@@ -121,16 +125,19 @@ public class AdvancedRefactorComponent {
     private void showFullUI() {
         subTabs = new JTabbedPane();
 
+        Path projectRoot = Path.of(project.getBasePath());
+        experimentService = new ExperimentService(projectRoot, recipeService);
+
         // Sequence Builder tab
         sequenceBuilderPanel = new SequenceBuilderPanel(project, recipeService);
         subTabs.addTab("Sequence Builder", sequenceBuilderPanel.getPanel());
 
         // Experiment Results tab
-        experimentResultsPanel = new ExperimentResultsPanel(project);
+        experimentResultsPanel = new ExperimentResultsPanel(project, experimentService);
         subTabs.addTab("Experiment Results", experimentResultsPanel.getPanel());
 
         // Experiment History tab
-        experimentHistoryPanel = new ExperimentHistoryPanel(project);
+        experimentHistoryPanel = new ExperimentHistoryPanel(project, experimentService);
         subTabs.addTab("History", experimentHistoryPanel.getPanel());
 
         wirePanels();
@@ -173,6 +180,15 @@ public class AdvancedRefactorComponent {
                 sequenceBuilderPanel.loadSequence(sequence);
                 subTabs.setSelectedIndex(0);
             }
+        });
+
+        // When experiment completes, refresh history
+        experimentResultsPanel.setOnExperimentCompleted(result -> {
+            ApplicationManager.getApplication().invokeLater(() -> {
+                if (experimentHistoryPanel != null) {
+                    experimentHistoryPanel.refreshHistory();
+                }
+            });
         });
 
         // When Re-run is clicked, run experiment again

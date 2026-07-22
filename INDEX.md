@@ -157,7 +157,7 @@ Blacklisted Linux commands:
 ### AI Agents
 - [AGENTS.md](../AGENTS.md) - AI Agent rules and guidelines
 - [docs/FAST_TEST_LOOP.md](FAST_TEST_LOOP.md) - Fast test loop documentation
-- [docs/standards/simplicity_and_consistency.md](standards/simplicity_and_consistency.md) - Code simplicity guidelines
+- [docs/patterns/simplicity_and_consistency.md](patterns/simplicity_and_consistency.md) - Code simplicity guidelines
 
 ## Testing
 

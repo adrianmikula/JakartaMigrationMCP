@@ -19,6 +19,7 @@ import adrianmikula.jakartamigration.jaranalysis.domain.JarCompatibilityReport;
 import adrianmikula.jakartamigration.jaranalysis.service.JarCompatibilityScanner;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -165,23 +166,38 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                 return TransitiveDependencyProjectScanResult.empty();
             }
 
+            // For multi-module projects, run command once from root instead of per-file
+            boolean isMultiModule = buildFiles.size() > 1 && detectMultiModuleProject(projectPath);
+            List<TransitiveDependencyScanResult> results = null;
             AtomicInteger totalScanned = new AtomicInteger(0);
-            int parallelism = Math.min(MAX_PARALLELISM, buildFiles.size());
-            log.info("[DEBUG] Scanning {} files with parallelism {}", buildFiles.size(), parallelism);
 
-            List<TransitiveDependencyScanResult> results = buildFiles.parallelStream()
-                    .map(file -> {
-                        log.info("[DEBUG] Scanning file: {}", file);
-                        TransitiveDependencyScanResult result = scanFileWithTracking(file, totalScanned);
-                        if (result != null) {
-                            log.info("[DEBUG] File {} scanned: {} usages", file, result.getUsages().size());
-                        } else {
-                            log.warn("[DEBUG] File {} returned null result", file);
-                        }
-                        return result;
-                    })
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
+            if (isMultiModule) {
+                log.info("Multi-module project detected ({} build files), scanning from root", buildFiles.size());
+                results = scanMultiModuleProject(projectPath, buildFiles, null);
+                if (results != null) {
+                    totalScanned.set(1); // one root-level command
+                }
+            }
+
+            // Fallback to per-file scanning for single-module or if multi-module scan failed
+            if (results == null) {
+                int parallelism = Math.min(MAX_PARALLELISM, buildFiles.size());
+                log.info("[DEBUG] Scanning {} files with parallelism {}", buildFiles.size(), parallelism);
+
+                results = buildFiles.parallelStream()
+                        .map(file -> {
+                            log.info("[DEBUG] Scanning file: {}", file);
+                            TransitiveDependencyScanResult result = scanFileWithTracking(file, totalScanned);
+                            if (result != null) {
+                                log.info("[DEBUG] File {} scanned: {} usages", file, result.getUsages().size());
+                            } else {
+                                log.warn("[DEBUG] File {} returned null result", file);
+                            }
+                            return result;
+                        })
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+            }
 
             int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
             int filesWithErrors = (int) results.stream().filter(r -> r.hasError()).count();
@@ -306,29 +322,44 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                 return TransitiveDependencyProjectScanResult.empty();
             }
 
-            List<TransitiveDependencyScanResult> results = new ArrayList<>();
+            // For multi-module projects, run command once from root instead of per-file
+            boolean isMultiModule = buildFiles.size() > 1 && detectMultiModuleProject(projectPath);
+            List<TransitiveDependencyScanResult> results = null;
             AtomicInteger totalScanned = new AtomicInteger(0);
 
-            // Process build files sequentially to provide ordered progress updates
-            for (Path file : buildFiles) {
-                log.info("[DEBUG] Scanning file (sequential): {}", file);
-                String moduleName = "Scanning module: " + file.getFileName();
-
-                // Adapter to prefix phase with module name
-                ScanProgressCallback fileListener = (phase, completed, total) -> {
-                    dispatchProgressUpdateAsync(progressListener, moduleName, completed, total);
-                };
-
-                // Report start of module processing
-                dispatchProgressUpdateAsync(progressListener, "", 0, 0);
-
-                TransitiveDependencyScanResult result = scanFile(file, fileListener);
-                if (result != null) {
-                    results.add(result);
-                } else {
-                    log.warn("[DEBUG] File {} returned null result", file);
+            if (isMultiModule) {
+                log.info("Multi-module project detected ({} build files), scanning from root", buildFiles.size());
+                results = scanMultiModuleProject(projectPath, buildFiles, progressListener);
+                if (results != null) {
+                    totalScanned.set(1);
                 }
-                totalScanned.incrementAndGet();
+            }
+
+            // Fallback to per-file scanning for single-module or if multi-module scan failed
+            if (results == null) {
+                results = new ArrayList<>();
+
+                // Process build files sequentially to provide ordered progress updates
+                for (Path file : buildFiles) {
+                    log.info("[DEBUG] Scanning file (sequential): {}", file);
+                    String moduleName = "Scanning module: " + file.getFileName();
+
+                    // Adapter to prefix phase with module name
+                    ScanProgressCallback fileListener = (phase, completed, total) -> {
+                        dispatchProgressUpdateAsync(progressListener, moduleName, completed, total);
+                    };
+
+                    // Report start of module processing
+                    dispatchProgressUpdateAsync(progressListener, "", 0, 0);
+
+                    TransitiveDependencyScanResult result = scanFile(file, fileListener);
+                    if (result != null) {
+                        results.add(result);
+                    } else {
+                        log.warn("[DEBUG] File {} returned null result", file);
+                    }
+                    totalScanned.incrementAndGet();
+                }
             }
 
             int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
@@ -879,6 +910,197 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
             String name = path.getFileName().toString().toLowerCase();
             return name.equals("pom.xml") || name.endsWith(".gradle") || name.endsWith(".gradle.kts");
         });
+    }
+
+    /**
+     * Finds the project root directory by walking up from any build file.
+     * Looks for settings.gradle(.kts), settings.gradle, or root pom.xml with &lt;modules&gt;.
+     */
+    private Optional<Path> findRootDirectory(Path buildFilePath) {
+        Path current = buildFilePath.getParent();
+        while (current != null) {
+            // Check for Gradle root
+            if (Files.exists(current.resolve("settings.gradle")) ||
+                Files.exists(current.resolve("settings.gradle.kts"))) {
+                return Optional.of(current);
+            }
+            // Check for Maven root with modules
+            Path rootPom = current.resolve("pom.xml");
+            if (Files.exists(rootPom)) {
+                try {
+                    String content = Files.readString(rootPom);
+                    if (content.contains("<modules>")) {
+                        return Optional.of(current);
+                    }
+                } catch (IOException e) {
+                    // ignore
+                }
+            }
+            current = current.getParent();
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Detects if the project is multi-module by checking for settings.gradle(.kts)
+     * or pom.xml with &lt;modules&gt; at the project root.
+     */
+    private boolean detectMultiModuleProject(Path projectPath) {
+        // Gradle multi-module: settings.gradle(.kts) at root
+        if (Files.exists(projectPath.resolve("settings.gradle")) ||
+            Files.exists(projectPath.resolve("settings.gradle.kts"))) {
+            return true;
+        }
+        // Maven multi-module: pom.xml with <modules> at root
+        Path rootPom = projectPath.resolve("pom.xml");
+        if (Files.exists(rootPom)) {
+            try {
+                String content = Files.readString(rootPom);
+                return content.contains("<modules>");
+            } catch (IOException e) {
+                // ignore
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Scans a multi-module project by running the build tool command once from the root.
+     * This avoids running the command N times (once per submodule) which can fail
+     * for submodules that rely on the root project configuration.
+     *
+     * For Maven: runs mvn dependency:tree from root, distributes results per submodule
+     * by matching groupId prefixes.
+     * For Gradle: runs gradle dependencies from root, distributes results per submodule.
+     */
+    private List<TransitiveDependencyScanResult> scanMultiModuleProject(
+            Path projectPath, List<Path> buildFiles, ScanProgressCallback listener) {
+
+        // Determine build tool type from first build file
+        Path firstFile = buildFiles.get(0);
+        String firstName = firstFile.getFileName().toString().toLowerCase();
+        boolean isMavenRoot = firstName.equals("pom.xml");
+
+        log.info("Multi-module {} project detected, running from root: {}",
+                 isMavenRoot ? "Maven" : "Gradle", projectPath);
+
+        if (isMavenRoot) {
+            return scanMultiModuleMaven(projectPath, buildFiles, listener);
+        } else {
+            return scanMultiModuleGradle(projectPath, buildFiles, listener);
+        }
+    }
+
+    /**
+     * Scans a multi-module Maven project by running mvn dependency:tree from the root.
+     * The root command outputs all modules in a single JSON tree. All dependencies are
+     * returned as a single result for the root build file — this ensures no dependencies
+     * are missed due to imperfect module attribution.
+     */
+    private List<TransitiveDependencyScanResult> scanMultiModuleMaven(
+            Path projectPath, List<Path> buildFiles, ScanProgressCallback listener) {
+
+        Path rootPom = projectPath.resolve("pom.xml");
+        List<TransitiveDependencyScanResult> results = new ArrayList<>();
+
+        try {
+            var future = commandExecutor.executeMavenDependencyTreeAsync(rootPom, MAVEN_SCOPES);
+            var treeResult = future.get(DependencyTreeCommandExecutor.DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+            if (!treeResult.isSuccess() || treeResult.getDependencies().isEmpty()) {
+                log.warn("Root Maven command failed or returned empty, falling back to per-file scanning");
+                return null; // signal fallback
+            }
+
+            // Run full enrichment pipeline on root result — all deps are attributed here
+            ScanProgressCallback rootListener = listener != null ?
+                (phase, completed, total) -> dispatchProgressUpdateAsync(listener, "Root project", completed, total) :
+                null;
+            results.add(convertTreeResult(rootPom, "Maven", treeResult, rootListener));
+
+        } catch (Exception e) {
+            log.warn("Multi-module Maven scan failed: {}, falling back to per-file scanning", e.getMessage());
+            return null; // signal fallback
+        }
+
+        return results;
+    }
+
+    /**
+     * Scans a multi-module Gradle project by running gradle dependencies from the root.
+     * Falls back to per-file scanning if the root command fails.
+     */
+    private List<TransitiveDependencyScanResult> scanMultiModuleGradle(
+            Path projectPath, List<Path> buildFiles, ScanProgressCallback listener) {
+
+        Path rootBuildFile = findRootBuildFile(projectPath, buildFiles);
+        if (rootBuildFile == null) {
+            log.warn("Could not find root Gradle build file, falling back to per-file scanning");
+            return null;
+        }
+
+        List<TransitiveDependencyScanResult> results = new ArrayList<>();
+
+        try {
+            var future = commandExecutor.executeGradleDependenciesAsync(rootBuildFile, GRADLE_SCOPES);
+            var treeResult = future.get(DependencyTreeCommandExecutor.DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+            if (!treeResult.isSuccess() || treeResult.getDependencies().isEmpty()) {
+                log.warn("Root Gradle command failed or returned empty, falling back to per-file scanning");
+                return null;
+            }
+
+            List<DependencyTreeResult.DependencyNode> allDeps = treeResult.getDependencies();
+
+            // For Gradle, the root command output is a flat list grouped by configuration.
+            // We distribute deps by matching depth-0 artifacts against module names.
+            Set<String> moduleNames = new HashSet<>();
+            for (Path buildFile : buildFiles) {
+                Path parent = buildFile.getParent();
+                if (parent != null) {
+                    moduleNames.add(parent.getFileName().toString());
+                }
+            }
+
+            // Put all deps on the root build file result
+            Path rootResultFile = rootBuildFile;
+            DependencyTreeResult rootTreeResult = new DependencyTreeResult(allDeps, treeResult.getScopes());
+            String rootModuleName = "Root project";
+            ScanProgressCallback rootListener = listener != null ?
+                (phase, completed, total) -> dispatchProgressUpdateAsync(listener, rootModuleName, completed, total) :
+                null;
+            results.add(convertTreeResult(rootResultFile, "Gradle", rootTreeResult, rootListener));
+
+        } catch (Exception e) {
+            log.warn("Multi-module Gradle root scan failed: {}, falling back to per-file", e.getMessage());
+            return null;
+        }
+
+        return results;
+    }
+
+    /**
+     * Finds the root Gradle build file from a list of discovered build files.
+     * Looks for the build file whose parent directory contains settings.gradle(.kts).
+     */
+    private Path findRootBuildFile(Path projectPath, List<Path> buildFiles) {
+        // First check if any build file is directly in the project root
+        for (Path buildFile : buildFiles) {
+            if (buildFile.getParent() != null && buildFile.getParent().equals(projectPath)) {
+                return buildFile;
+            }
+        }
+        // Fallback: find the build file whose parent has settings.gradle
+        for (Path buildFile : buildFiles) {
+            Path parent = buildFile.getParent();
+            if (parent != null) {
+                if (Files.exists(parent.resolve("settings.gradle")) ||
+                    Files.exists(parent.resolve("settings.gradle.kts"))) {
+                    return buildFile;
+                }
+            }
+        }
+        return null;
     }
 
     private List<TransitiveDependencyUsage> parseDependencies(String content, Pattern pattern, int versionGroup) {

@@ -184,3 +184,61 @@ return new Graph(nodes, edges);  // constructor assigns directly: this.nodes = n
 | Unclosed file streams | Native resource leak | `Files.lines`, `Files.walk`, `Files.list` |
 | Unbounded result collection | All results held before processing | Parallel stream collectors |
 | Constructor defensive copy | O(n) per construction | Record/class constructors taking collections |
+
+## 9. Testing Memory Efficiency
+
+The patterns above are only enforceable if tests can detect regressions. Here is
+what to test and how.
+
+### Accessor identity tests
+
+Verify that collection accessors return the same instance, not a copy:
+
+```java
+@Test
+void getNodesShouldReturnSameInstance() {
+    graph.addNode(new Artifact("g", "a", "1.0", "compile", false));
+    assertThat(graph.getNodes()).isSameAs(graph.getNodes());
+}
+```
+
+These are fast, deterministic, and catch defensive-copy regressions immediately.
+
+### Memory budget tests
+
+Build a realistic-sized data structure (500-1000 nodes) and assert that
+processing it stays within a memory budget:
+
+```java
+@Test
+void analyzeLargeGraphShouldStayWithinBudget() {
+    DependencyGraph graph = buildLargeGraph(1000, 2000);
+    forceGC();
+    long before = usedHeap();
+    module.analyzeProject(path);
+    long after = usedHeap();
+    assertThat(after - before).isLessThan(100L * 1024 * 1024); // 100MB
+}
+```
+
+Key points:
+- Always `System.gc()` + sleep before measuring to get a stable baseline.
+- Use `MemoryMXBean.getHeapMemoryUsage().getUsed()` rather than
+  `Runtime.totalMemory() - freeMemory()` (the latter includes uncommitted space).
+- Budget should be generous enough to avoid flaky failures but tight enough to
+  catch a 2-3x regression from defensive copies.
+- Tag these `@Tag("slow")` so they run in CI but not in the fast test loop.
+
+### What was missing (post-mortem)
+
+The following gaps allowed defensive copies to ship undetected:
+
+| Gap | Impact | Fix applied |
+|-----|--------|-------------|
+| No identity tests on `DependencyGraph.getNodes()`/`getEdges()` | Defensive copies went unnoticed | Added `DependencyGraphMemoryTest` |
+| No memory budget tests for the analysis pipeline | Pipeline-level overhead invisible | Added `AnalysisPipelineMemoryBudgetTest` |
+| All test graphs had 2-5 nodes | Copy overhead was negligible at test scale | Budget tests use 500-1000 node graphs |
+| No `@Tag("slow")` task in community-core-engine | No place to run perf tests | Added `slowTest` task in `build.gradle.kts` |
+
+When adding a new domain class with collection accessors, add both identity
+tests and budget tests in the same PR.

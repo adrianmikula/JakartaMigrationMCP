@@ -3,6 +3,7 @@ package adrianmikula.jakartamigration.intellij.ui.refactor;
 import adrianmikula.jakartamigration.experiment.domain.ExperimentResult;
 import adrianmikula.jakartamigration.experiment.domain.ExperimentStatus;
 import adrianmikula.jakartamigration.experiment.domain.MigrationSequence;
+import adrianmikula.jakartamigration.intellij.service.ExperimentService;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBLabel;
@@ -34,6 +35,7 @@ public class ExperimentHistoryPanel {
 
     private final JPanel panel;
     private final Project project;
+    private final ExperimentService experimentService;
     
     // UI Components
     private JBTable historyTable;
@@ -45,8 +47,9 @@ public class ExperimentHistoryPanel {
     private Consumer<MigrationSequence> onSequenceLoaded;
     private Consumer<ExperimentResult> onExperimentSelected;
 
-    public ExperimentHistoryPanel(@NotNull Project project) {
+    public ExperimentHistoryPanel(@NotNull Project project, ExperimentService experimentService) {
         this.project = project;
+        this.experimentService = experimentService;
         this.panel = new JBPanel<>(new BorderLayout());
         
         initializeComponent();
@@ -163,13 +166,13 @@ public class ExperimentHistoryPanel {
     }
 
     public void refreshHistory() {
-        // TODO: Load from HistoryService
-        // ExperimentService experimentService = new ExperimentService(project);
-        // List<ExperimentResult> history = experimentService.getHistory(Optional.empty(), Optional.empty(), 50);
-        
-        // Placeholder data
-        List<ExperimentResult> history = new ArrayList<>();
-        tableModel.setHistory(history);
+        try {
+            List<ExperimentResult> history = experimentService.getHistory(Optional.empty(), Optional.empty(), 50);
+            tableModel.setHistory(history);
+        } catch (Exception e) {
+            LOG.error("Failed to load experiment history", e);
+            tableModel.setHistory(List.of());
+        }
     }
 
     private void filterHistory() {
@@ -181,9 +184,13 @@ public class ExperimentHistoryPanel {
             default -> Optional.empty();
         };
         
-        // TODO: Reload with filter
-        // List<ExperimentResult> history = experimentService.getHistory(Optional.empty(), statusFilterOpt, 50);
-        // tableModel.setHistory(history);
+        try {
+            List<ExperimentResult> history = experimentService.getHistory(Optional.empty(), statusFilterOpt, 50);
+            tableModel.setHistory(history);
+        } catch (Exception e) {
+            LOG.error("Failed to filter experiment history", e);
+            tableModel.setHistory(List.of());
+        }
     }
 
     private void loadSelectedSequence() {
@@ -194,16 +201,14 @@ public class ExperimentHistoryPanel {
         
         ExperimentResult result = tableModel.getExperimentAt(selectedRow);
         
-        // TODO: Load sequence from ExperimentService
-        // ExperimentService experimentService = new ExperimentService(project);
-        // MigrationSequence sequence = experimentService.getSequenceByResult(result.runId());
-        
-        // Placeholder
-        LOG.info("Loading sequence for experiment: " + result.runId());
-        
-        // if (onSequenceLoaded != null) {
-        //     onSequenceLoaded.accept(sequence);
-        // }
+        try {
+            var sequenceOpt = experimentService.getSequenceByResult(result.runId());
+            if (onSequenceLoaded != null) {
+                sequenceOpt.ifPresent(onSequenceLoaded);
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to load sequence for experiment: " + result.runId(), e);
+        }
     }
 
     private void viewSelectedDetails() {
