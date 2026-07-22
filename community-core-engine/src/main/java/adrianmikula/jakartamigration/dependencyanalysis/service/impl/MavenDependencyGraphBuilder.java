@@ -184,24 +184,38 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
     public DependencyGraph buildFromProject(Path projectRoot) {
         log.info("Searching for build files in project root: {}", projectRoot);
         
-        // First, try to find build files in the root directory
+        // Check for Maven project first
         Path pomXml = projectRoot.resolve("pom.xml");
         if (Files.exists(pomXml)) {
             log.info("Found pom.xml in root: {}", pomXml);
             return buildFromMaven(pomXml);
         }
         
+        // Check for Gradle project — prefer multi-module parser when settings file exists
+        Path settingsGradle = projectRoot.resolve("settings.gradle");
+        Path settingsGradleKts = projectRoot.resolve("settings.gradle.kts");
+        boolean hasSettings = Files.exists(settingsGradle) || Files.exists(settingsGradleKts);
+        
         Path buildGradle = projectRoot.resolve("build.gradle");
         Path buildGradleKts = projectRoot.resolve("build.gradle.kts");
+        boolean hasRootBuild = Files.exists(buildGradle) || Files.exists(buildGradleKts);
         
-        if (Files.exists(buildGradle)) {
-            log.info("Found build.gradle in root: {}", buildGradle);
-            return buildFromGradle(buildGradle);
-        }
-        
-        if (Files.exists(buildGradleKts)) {
-            log.info("Found build.gradle.kts in root: {}", buildGradleKts);
-            return buildFromGradle(buildGradleKts);
+        if (hasRootBuild) {
+            if (hasSettings) {
+                // Multi-module project — parse all modules via settings file
+                log.info("Found Gradle settings file, parsing as multi-module project");
+                GradleMultiModuleParser multiModuleParser = new GradleMultiModuleParser();
+                DependencyGraph graph = multiModuleParser.parseProject(projectRoot);
+                if (graph.nodeCount() > 1) {
+                    return graph;
+                }
+                log.info("Multi-module parser returned few nodes, falling back to single-file parse");
+            }
+            
+            // Single-module or fallback: parse root build file only
+            Path buildFile = Files.exists(buildGradleKts) ? buildGradleKts : buildGradle;
+            log.info("Found build file in root: {}", buildFile);
+            return buildFromGradle(buildFile);
         }
         
         log.info("No build files found in root, searching subdirectories...");

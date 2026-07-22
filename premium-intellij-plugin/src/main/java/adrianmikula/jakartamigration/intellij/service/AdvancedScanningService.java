@@ -5,22 +5,16 @@ import adrianmikula.jakartamigration.advancedscanning.service.*;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyTreeCommandExecutorImpl;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import adrianmikula.jakartamigration.intellij.ui.ScanProgressListener;
-import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import adrianmikula.jakartamigration.intellij.ui.ThrottledProgressListener;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
-import adrianmikula.jakartamigration.advancedscanning.domain.DockerCicdUsage;
-import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage;
-import adrianmikula.jakartamigration.intellij.ui.DashboardComponent;
-import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
-import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
-import adrianmikula.jakartamigration.advancedscanning.service.ScanRecipeRecommendationService;
-import com.intellij.openapi.diagnostic.Logger;
-
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import adrianmikula.jakartamigration.advancedscanning.service.ScanRecipeRecommendationService;
+import com.intellij.openapi.diagnostic.Logger;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
@@ -357,11 +351,11 @@ public class AdvancedScanningService {
         // Use gitignore-enabled scanner for better folder exclusion
         ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
         
-        // Java source files
-        files.put(FileCategory.JAVA, scanner.findFiles(projectPath, List.of(".java")));
-        
-        // Test files (filtered from .java files)
+        // Java source files - scan once, reuse for both JAVA and TEST categories
         List<Path> javaFiles = scanner.findFiles(projectPath, List.of(".java"));
+        files.put(FileCategory.JAVA, javaFiles);
+        
+        // Test files (filtered from the same .java scan)
         List<Path> testFiles = javaFiles.stream()
                 .filter(f -> isTestFile(f, projectPath))
                 .collect(Collectors.toList());

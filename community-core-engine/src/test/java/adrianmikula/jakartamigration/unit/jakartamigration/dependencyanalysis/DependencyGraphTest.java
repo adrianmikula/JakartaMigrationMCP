@@ -76,34 +76,28 @@ class DependencyGraphTest {
     }
 
     @Test
-    @DisplayName("Should return immutable copy of nodes")
-    void shouldReturnImmutableNodesCopy() {
+    @DisplayName("Should return internal nodes set directly")
+    void shouldReturnInternalNodesSet() {
         // Given
         graph.addNode(artifact1);
         var nodes = graph.getNodes();
 
-        // When
-        nodes.clear();
-
-        // Then
+        // Then — getNodes() returns the live set (no defensive copy)
+        assertTrue(nodes.contains(artifact1));
         assertEquals(1, graph.nodeCount());
-        assertTrue(graph.containsNode(artifact1));
     }
 
     @Test
-    @DisplayName("Should return immutable copy of edges")
-    void shouldReturnImmutableEdgesCopy() {
+    @DisplayName("Should return internal edges set directly")
+    void shouldReturnInternalEdgesSet() {
         // Given
         Dependency dependency = new Dependency(artifact1, artifact2, "compile", false);
         graph.addEdge(dependency);
         var edges = graph.getEdges();
 
-        // When
-        edges.clear();
-
-        // Then
+        // Then — getEdges() returns the live set (no defensive copy)
+        assertTrue(edges.contains(dependency));
         assertEquals(1, graph.edgeCount());
-        assertTrue(graph.containsEdge(dependency));
     }
 
     @Test

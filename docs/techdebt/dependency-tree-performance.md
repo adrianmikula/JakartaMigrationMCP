@@ -35,6 +35,13 @@ This is well within IntelliJ plugin memory budgets (100-500MB typical heap).
 - Previously only javax dependencies were captured; now all are included
 - Remaining: Ensure `MavenDependencyGraphBuilder` and Gradle parser also capture all (not filtered)
 
+### 5. Multi-Module Gradle Support (FIXED)
+- **Location**: `MavenDependencyGraphBuilder.buildFromProject()` — only parsed single build file
+- **Issue**: Multi-module Gradle projects returned only root-level dependencies (typically 0-2 nodes)
+- **Fix**: New `GradleMultiModuleParser` class reads `settings.gradle(.kts)`, discovers submodules via `include()` directives, parses each submodule's build file, and merges into a single `DependencyGraph`
+- **Includes**: Versionless deps (managed via BOM/platform), annotationProcessor/kapt configs, Groovy DSL `include` syntax
+- **Deduplication**: Artifacts deduplicated by `groupId:artifactId` across modules; edges preserved from all modules
+
 ## Potential Optimizations (Future Work)
 
 ### A. Streaming / Cursor-based Processing

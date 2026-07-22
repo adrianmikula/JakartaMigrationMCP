@@ -104,31 +104,17 @@ public class SourceCodeScannerImpl implements SourceCodeScanner {
         }
 
         try {
-            // Use streaming for memory efficiency with large files
-            long fileSize = Files.size(filePath);
-            String content;
-            
-            // For files larger than 10MB, use streaming approach
-            if (fileSize > 10 * 1024 * 1024) {
-                log.debug("Large file detected ({} bytes), using streaming for: {}", fileSize, filePath);
-                content = Files.lines(filePath).collect(java.util.stream.Collectors.joining("\n"));
-            } else {
-                // For smaller files, regular readString is more efficient
-                content = Files.readString(filePath);
+            String content = Files.readString(filePath);
+
+            // Count lines efficiently without splitting the content String into an array
+            int lineCount;
+            try (var lines = Files.lines(filePath)) {
+                lineCount = (int) lines.count();
             }
-            
-            int lineCount = countLines(content);
 
-            // Use ThreadLocal parser to avoid reset() issues when parsing files
-            // with the same fully qualified names in parallel
-            // Each thread gets its own parser instance, avoiding conflicts
             JavaParser parser = javaParserThreadLocal.get();
-
-            // Reset parser before parsing to avoid IllegalStateException when
-            // parsing files with duplicate fully qualified names
             parser.reset();
 
-            // Parse with OpenRewrite - using try-with-resources pattern
             List<SourceFile> sourceFiles;
             try (var stream = parser.parse(content)) {
                 sourceFiles = stream.collect(java.util.stream.Collectors.toList());

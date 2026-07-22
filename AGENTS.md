@@ -145,6 +145,8 @@ Full testing standards are documented in AgentRules\TESTING.md and docs/FAST_TES
 - Avoid manually forcing GC calls inside our code. 
 - if loading large DB datasets into memory, use cursors or paging where possible
 
+Full memory efficiency patterns are documented in docs\standards\memory_efficiency.md
+
 
 
 ## Debugging
