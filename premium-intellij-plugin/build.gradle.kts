@@ -159,6 +159,8 @@ intellij {
     type = "IC"
     plugins = listOf("com.intellij.java")
     downloadSources = false
+    // Deterministic path under global Gradle cache — cleared with `rm -rf ~/.gradle/caches`
+    ideaDependencyCachePath.set("${System.getProperty("user.home")}/.gradle/caches/intellij-ides")
     // When IDEA_HOME env var is set (CI), use pre-downloaded IDE to avoid slow download blocking configuration
     val ideaHome = System.getenv("IDEA_HOME")
     if (ideaHome != null) {
@@ -170,7 +172,10 @@ intellij {
 tasks.withType<org.jetbrains.intellij.tasks.RunPluginVerifierTask> {
     ideVersions.set(listOf(
         "IC-2024.3",    // Latest 2024 release
-        "IC-2025.1.1"   // Latest 2025 release
+        "IC-2025.1",    // 2025.1 release
+        "IC-2025.2",    // Latest 2025 release
+        "IC-2026.1",    // 2026.1 release
+        "IC-2026.2"     // Latest 2026 release
     ))
     // No failureLevel override - fail on all compatibility problems (strict mode)
 }
