@@ -1075,4 +1075,23 @@ public class SimplifiedPlatformDetectionServiceTest {
         assertThat(detectedServers).contains("payara");
         // Should detect Payara among potentially other platforms
     }
+    
+    @Test
+    @DisplayName("Should not throw when Gradle project has build.gradle.kts but no build.gradle")
+    void testScanGradleKtsProjectWithoutBuildGradle() throws IOException {
+        // Given - Kotlin DSL Gradle project (no build.gradle)
+        Path projectPath = tempDir.resolve("gradle-kts-project");
+        Files.createDirectories(projectPath);
+        Files.writeString(projectPath.resolve("build.gradle.kts"), """
+            dependencies {
+                implementation 'org.springframework.boot:spring-boot-starter-web'
+            }
+            """);
+
+        // When - should not throw NoSuchFileException
+        List<String> detectedServers = detectionService.scanProject(projectPath);
+
+        // Then - Spring Boot should be detected via Kotlin DSL build file
+        assertThat(detectedServers).contains("springboot");
+    }
 }

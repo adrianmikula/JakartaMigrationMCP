@@ -114,6 +114,14 @@ build_systems:
     description: " Project with no build system using javax packages"
     url: "https://github.com/fabiodomingues/javaee-legacy-app-example"
 
+  - name: "Spring Boot Multi-Module Gradle"
+    description: "Multi-module Gradle project with wrapper at root, tests wrapper finder from subdirectories"
+    url: "https://github.com/spring-projects/spring-petclinic"
+
+  - name: "J2EE7 Samples Multi-Module Maven"
+    description: "Multi-module Maven project with wrapper at root, tests Maven wrapper finder from subdirectories"
+    url: "https://github.com/tgupta018/J2EE7Samples"
+
 
 # =============================================================================
 # DEPENDENCY EXAMPLES

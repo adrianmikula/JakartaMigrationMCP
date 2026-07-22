@@ -346,25 +346,28 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
         
         // Check for Maven wrapper in current directory and parent directories
         Path currentDir = projectDir;
-        while (currentDir != null) {
+        int maxDepth = 10; // Reasonable limit to prevent infinite loops
+        int depth = 0;
+        while (currentDir != null && depth < maxDepth) {
             // Check Unix-style wrapper
             Path mvnw = currentDir.resolve("mvnw");
-            if (Files.isExecutable(mvnw)) {
+            if (Files.exists(mvnw)) {
                 log.debug("Found Maven wrapper: {}", mvnw);
                 return Optional.of(mvnw);
             }
             
             // Check Windows-style wrapper
             Path mvnwBat = currentDir.resolve("mvnw.bat");
-            if (Files.isExecutable(mvnwBat)) {
+            if (Files.exists(mvnwBat)) {
                 log.debug("Found Maven wrapper (Windows): {}", mvnwBat);
                 return Optional.of(mvnwBat);
             }
             
             // Move to parent directory
             currentDir = currentDir.getParent();
-            // Stop at filesystem root or after reasonable depth
-            if (currentDir == null || currentDir.getNameCount() < 2) break;
+            depth++;
+            // Stop at filesystem root
+            if (currentDir != null && currentDir.getNameCount() == 0) break;
         }
         
         return Optional.empty();
@@ -380,25 +383,28 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
         
         // Check for Gradle wrapper in current directory and parent directories
         Path currentDir = projectDir;
-        while (currentDir != null) {
+        int maxDepth = 10; // Reasonable limit to prevent infinite loops
+        int depth = 0;
+        while (currentDir != null && depth < maxDepth) {
             // Check Unix-style wrapper
             Path gradlew = currentDir.resolve("gradlew");
-            if (Files.isExecutable(gradlew)) {
+            if (Files.exists(gradlew)) {
                 log.debug("Found Gradle wrapper: {}", gradlew);
                 return Optional.of(gradlew);
             }
             
             // Check Windows-style wrapper
             Path gradlewBat = currentDir.resolve("gradlew.bat");
-            if (Files.isExecutable(gradlewBat)) {
+            if (Files.exists(gradlewBat)) {
                 log.debug("Found Gradle wrapper (Windows): {}", gradlewBat);
                 return Optional.of(gradlewBat);
             }
             
             // Move to parent directory
             currentDir = currentDir.getParent();
-            // Stop at filesystem root or after reasonable depth
-            if (currentDir == null || currentDir.getNameCount() < 2) break;
+            depth++;
+            // Stop at filesystem root
+            if (currentDir != null && currentDir.getNameCount() == 0) break;
         }
         
         return Optional.empty();

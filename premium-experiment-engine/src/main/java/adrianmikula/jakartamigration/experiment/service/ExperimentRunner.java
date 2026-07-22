@@ -224,11 +224,15 @@ public class ExperimentRunner {
                 Path targetPath = target.resolve(source.relativize(sourcePath).toString());
                 if (Files.isDirectory(sourcePath)) {
                     Files.createDirectories(targetPath);
-                } else {
+                } else if (Files.exists(sourcePath)) {
                     Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
+                } else {
+                    LOG.warn("Skipping missing file during copy: {}", sourcePath);
                 }
+            } catch (NoSuchFileException e) {
+                LOG.warn("File disappeared during copy, skipping: {}", sourcePath);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to copy directory", e);
+                LOG.warn("Failed to copy file {}, skipping: {}", sourcePath, e.getMessage());
             }
         });
     }

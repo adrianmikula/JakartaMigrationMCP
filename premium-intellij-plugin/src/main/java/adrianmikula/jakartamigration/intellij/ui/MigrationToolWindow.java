@@ -654,7 +654,6 @@ public class MigrationToolWindow implements ToolWindowFactory {
             scanProgressBar = new JProgressBar(0, 100);
             scanProgressBar.setValue(0);
             scanProgressBar.setStringPainted(true);
-            scanProgressBar.setForeground(Color.WHITE);
             UIColors.configureProgressBarText(scanProgressBar);
             scanProgressBar.setString("Ready to scan");
             // Match progress bar height to button height

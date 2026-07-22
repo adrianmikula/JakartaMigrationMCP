@@ -8,6 +8,7 @@ import adrianmikula.jakartamigration.platforms.model.JakartaCompatibility;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -60,13 +61,13 @@ public class SimplifiedPlatformDetectionService {
                 log.debug("No pom.xml found at: {}", projectPath.resolve("pom.xml"));
             }
             
-            if (Files.exists(projectPath.resolve("build.gradle"))) {
-                log.debug("Found build.gradle, scanning Gradle project...");
+            if (Files.exists(projectPath.resolve("build.gradle")) || Files.exists(projectPath.resolve("build.gradle.kts"))) {
+                log.debug("Found Gradle build file, scanning Gradle project...");
                 List<String> gradleServers = scanGradleProject(projectPath);
                 log.debug("Gradle scan found {} servers: {}", gradleServers.size(), gradleServers);
                 detectedServers.addAll(gradleServers);
             } else {
-                log.debug("No build.gradle found at: {}", projectPath.resolve("build.gradle"));
+                log.debug("No Gradle build file found at: {}", projectPath.resolve("build.gradle"));
             }
             
             // Simple server installation detection
@@ -496,9 +497,20 @@ public class SimplifiedPlatformDetectionService {
         log.debug("Loaded {} platform configurations from YAML", configs.size());
         
         try {
-            Path gradlePath = projectPath.resolve("build.gradle");
-            String gradleContent = Files.readString(gradlePath);
-            log.debug("Read build.gradle content ({} characters)", gradleContent.length());
+        String gradleFile = Files.exists(projectPath.resolve("build.gradle.kts")) ? "build.gradle.kts" : "build.gradle";
+        Path gradlePath = projectPath.resolve(gradleFile);
+        if (Files.notExists(gradlePath)) {
+            log.warn("No Gradle build file found at {}", gradlePath);
+            return servers;
+        }
+        String gradleContent;
+        try {
+            gradleContent = Files.readString(gradlePath);
+        } catch (NoSuchFileException e) {
+            log.debug("Gradle build file disappeared during scan: {}", gradlePath);
+            return servers;
+        }
+        log.debug("Read {} content ({} characters)", gradleFile, gradleContent.length());
             
             // First, extract variables from gradle.properties or libs.versions.toml
             Map<String, String> variables = extractGradleVariables(projectPath);

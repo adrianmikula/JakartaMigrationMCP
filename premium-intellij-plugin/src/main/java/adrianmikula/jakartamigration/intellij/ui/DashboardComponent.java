@@ -360,7 +360,6 @@ public class DashboardComponent implements ScanProgressListener {
         SwingUtilities.invokeLater(() -> {
             if (advancedScanProgressBar != null && total > 0) {
                 int percentage = (completed * 100) / total;
-                advancedScanProgressBar.setForeground(Color.WHITE);
                 advancedScanProgressBar.setValue(percentage);
                 advancedScanProgressBar.setString(completed + " / " + total + " scans");
             }
@@ -563,7 +562,6 @@ private void resetAdvancedScanCounts() {
             
             // Update internal progress bar (if it exists)
             if (mainScanProgressBar != null) {
-                mainScanProgressBar.setForeground(Color.WHITE);
                 mainScanProgressBar.setIndeterminate(running);
                 if (running) {
                     mainScanProgressBar.setString("Scanning in progress... Please wait");
@@ -577,7 +575,6 @@ private void resetAdvancedScanCounts() {
             
             // Update external progress bar (from MigrationToolWindow)
             if (externalProgressBar != null) {
-                externalProgressBar.setForeground(Color.WHITE);
                 externalProgressBar.setIndeterminate(running);
                 if (running) {
                     externalProgressBar.setString("Scanning in progress... Please wait");
@@ -630,7 +627,6 @@ private void resetAdvancedScanCounts() {
         SwingUtilities.invokeLater(() -> {
             // Update internal progress bar (if it exists)
             if (mainScanProgressBar != null && mainScanProgressLabel != null) {
-                mainScanProgressBar.setForeground(Color.WHITE);
                 if (total > 0) {
                     // Show determinate progress
                     mainScanProgressBar.setIndeterminate(false);
@@ -648,7 +644,6 @@ private void resetAdvancedScanCounts() {
             
             // Update external progress bar (from MigrationToolWindow)
             if (externalProgressBar != null && externalProgressLabel != null) {
-                externalProgressBar.setForeground(Color.WHITE);
                 if (total > 0) {
                     // Show determinate progress
                     externalProgressBar.setIndeterminate(false);

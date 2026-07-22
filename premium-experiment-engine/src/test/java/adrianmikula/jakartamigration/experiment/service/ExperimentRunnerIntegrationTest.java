@@ -8,6 +8,8 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
@@ -227,5 +229,26 @@ class ExperimentRunnerIntegrationTest {
         Optional<ExperimentResult> recorded = historyService.getRun(result.runId());
         assertTrue(recorded.isPresent());
         assertEquals(ExperimentStatus.FAILED, recorded.get().status());
+    }
+
+    @Test
+    void copyDirectory_skipsDeletedFiles(@TempDir Path tempDir) throws Exception {
+        Path sourceDir = tempDir.resolve("source");
+        sourceDir.toFile().mkdirs();
+        Files.writeString(sourceDir.resolve("keep.txt"), "keep");
+        Files.writeString(sourceDir.resolve("delete.txt"), "delete");
+
+        Path targetDir = tempDir.resolve("target");
+        targetDir.toFile().mkdirs();
+
+        Files.delete(sourceDir.resolve("delete.txt"));
+
+        ExperimentRunner runner = new ExperimentRunner(tempDir, imageName -> null, "test-image", 120);
+        Method copyMethod = ExperimentRunner.class.getDeclaredMethod("copyDirectory", Path.class, Path.class);
+        copyMethod.setAccessible(true);
+        copyMethod.invoke(runner, sourceDir, targetDir);
+
+        assertTrue(Files.exists(targetDir.resolve("keep.txt")));
+        assertFalse(Files.exists(targetDir.resolve("delete.txt")));
     }
 }

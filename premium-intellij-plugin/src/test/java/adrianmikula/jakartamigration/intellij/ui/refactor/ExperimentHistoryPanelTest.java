@@ -8,10 +8,12 @@ import adrianmikula.jakartamigration.intellij.service.ExperimentService;
 import com.intellij.openapi.project.Project;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.io.TempDir;
 import static org.mockito.Mockito.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 
@@ -89,6 +91,28 @@ class ExperimentHistoryPanelTest {
 
         // loadSelectedSequence requires a row to be selected; selection behavior
         // is Swing-bound, so we just verify the service is callable without exceptions
+        assertThat(panel.getPanel()).isNotNull();
+    }
+
+    @Test
+    void testFormatInstantDoesNotThrowUnsupportedTemporalTypeException(@TempDir Path tempDir) throws Exception {
+        ExperimentResult result = new ExperimentResult(
+            "run-1",
+            "Test Sequence",
+            Instant.parse("2024-01-15T10:30:00Z"),
+            Instant.parse("2024-01-15T10:30:00Z"),
+            ExperimentStatus.SUCCESS,
+            List.of(),
+            null,
+            null,
+            null
+        );
+
+        when(mockExperimentService.getHistory(any(), any(), anyInt()))
+            .thenReturn(List.of(result));
+
+        ExperimentHistoryPanel panel = new ExperimentHistoryPanel(mockProject, mockExperimentService);
+
         assertThat(panel.getPanel()).isNotNull();
     }
 }

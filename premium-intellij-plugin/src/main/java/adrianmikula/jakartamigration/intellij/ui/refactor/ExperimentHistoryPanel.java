@@ -270,7 +270,7 @@ public class ExperimentHistoryPanel {
     }
 
     private String formatInstant(Instant instant) {
-        return FORMATTER.format(instant);
+        return FORMATTER.format(instant.atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
     }
 
     public void setOnSequenceLoaded(Consumer<MigrationSequence> callback) {
@@ -300,7 +300,6 @@ public class ExperimentHistoryPanel {
     private static class HistoryTableModel extends AbstractTableModel {
         private List<ExperimentResult> history = new ArrayList<>();
         private final String[] columnNames = {"Date", "Sequence Name", "Status", "Files Modified", "Test Results"};
-        private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
         public void setHistory(List<ExperimentResult> history) {
             this.history = history;
@@ -330,7 +329,7 @@ public class ExperimentHistoryPanel {
         public Object getValueAt(int rowIndex, int columnIndex) {
             ExperimentResult result = history.get(rowIndex);
             return switch (columnIndex) {
-                case 0 -> formatter.format(result.startedAt());
+                case 0 -> FORMATTER.format(result.startedAt().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
                 case 1 -> result.sequenceName();
                 case 2 -> result.status();
                 case 3 -> String.valueOf(result.stepResults().stream().mapToInt(s -> s.filesChanged()).sum());
