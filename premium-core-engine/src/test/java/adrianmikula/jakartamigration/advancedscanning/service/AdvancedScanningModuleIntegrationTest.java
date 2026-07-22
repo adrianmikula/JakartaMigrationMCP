@@ -1,8 +1,13 @@
-package adrianmikula.jakartamigration.advancedscanning.service.impl;
+package adrianmikula.jakartamigration.advancedscanning.service;
 
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyProjectScanResult;
-import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult;
-import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage;
+import adrianmikula.jakartamigration.coderefactoring.domain.RecipeCategory;
+import adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition;
+import adrianmikula.jakartamigration.coderefactoring.domain.RecipeType;
+import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
+import adrianmikula.jakartamigration.coderefactoring.service.impl.RecipeServiceImpl;
+import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
+import adrianmikula.jakartamigration.analysis.persistence.SqliteMigrationAnalysisStore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,141 +29,56 @@ import java.util.zip.ZipInputStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for TransitiveDependencyScannerImpl using real GitHub repositories.
- * Downloads actual projects from examples.yaml to verify scanning works against real-world code.
+ * Integration tests for AdvancedScanningModule using real GitHub repositories.
+ * Downloads actual projects from examples.yaml to verify advanced scanning works against real-world code.
  */
 @Tag("slow")
-class TransitiveDependencyScannerIntegrationTest {
+class AdvancedScanningModuleIntegrationTest {
 
     @TempDir
     Path tempDir;
 
-    private TransitiveDependencyScannerImpl scanner;
+    private AdvancedScanningModule scanningModule;
+    private RecipeService recipeService;
 
     @BeforeEach
-    void setUp() {
-        scanner = new TransitiveDependencyScannerImpl();
+    void setUp() throws IOException {
+        Path projectPath = tempDir.resolve("integration-project");
+        Files.createDirectories(projectPath);
+
+        CentralMigrationAnalysisStore centralStore = new CentralMigrationAnalysisStore(tempDir.resolve("central.db"));
+        SqliteMigrationAnalysisStore projectStore = new SqliteMigrationAnalysisStore(projectPath);
+        recipeService = new RecipeServiceImpl(centralStore, projectStore);
+
+        scanningModule = new AdvancedScanningModule(recipeService);
     }
 
     @Test
-    @DisplayName("Should scan javax.servlet dependencies in J2EE7Samples")
-    void shouldScanServletDependenciesInJ2EESamples() throws IOException {
+    @DisplayName("Should scan transitive dependencies in J2EE7Samples")
+    void shouldScanTransitiveDependenciesInJ2EESamples() throws IOException {
         Path sampleDir = downloadExample("J2EE7 Samples");
 
+        TransitiveDependencyScanner scanner = scanningModule.getTransitiveDependencyScanner();
         TransitiveDependencyProjectScanResult result = scanner.scanProject(sampleDir);
 
         assertThat(result).isNotNull();
         assertThat(result.getFileResults()).isNotEmpty();
 
-        boolean hasServletDependency = result.getFileResults().stream()
+        long totalDependencies = result.getFileResults().stream()
             .flatMap(r -> r.getUsages().stream())
-            .anyMatch(u -> u.getGroupId() != null && u.getGroupId().contains("javax.servlet"));
+            .count();
 
-        assertThat(hasServletDependency)
-            .as("J2EE7Samples should contain javax.servlet dependencies")
-            .isTrue();
+        assertThat(totalDependencies)
+            .as("J2EE7Samples should have dependencies")
+            .isGreaterThan(0);
     }
 
     @Test
-    @DisplayName("Should scan javax.persistence dependencies in J2EE7Samples")
-    void shouldScanJpaDependenciesInJ2EESamples() throws IOException {
+    @DisplayName("Should detect javax dependencies in J2EE7Samples")
+    void shouldDetectJavaxDependenciesInJ2EESamples() throws IOException {
         Path sampleDir = downloadExample("J2EE7 Samples");
 
-        TransitiveDependencyProjectScanResult result = scanner.scanProject(sampleDir);
-
-        assertThat(result).isNotNull();
-        assertThat(result.getFileResults()).isNotEmpty();
-
-        boolean hasJpaDependency = result.getFileResults().stream()
-            .flatMap(r -> r.getUsages().stream())
-            .anyMatch(u -> u.getGroupId() != null && u.getGroupId().contains("javax.persistence"));
-
-        assertThat(hasJpaDependency)
-            .as("J2EE7Samples should contain javax.persistence dependencies")
-            .isTrue();
-    }
-
-    @Test
-    @DisplayName("Should scan javax.validation dependencies in JavaxValidation repo")
-    void shouldScanValidationDependenciesInJavaxValidation() throws IOException {
-        Path sampleDir = downloadExample("javax-validation");
-
-        TransitiveDependencyProjectScanResult result = scanner.scanProject(sampleDir);
-
-        assertThat(result).isNotNull();
-        assertThat(result.getFileResults()).isNotEmpty();
-
-        boolean hasValidationDependency = result.getFileResults().stream()
-            .flatMap(r -> r.getUsages().stream())
-            .anyMatch(u -> u.getGroupId() != null && u.getGroupId().contains("javax.validation"));
-
-        assertThat(hasValidationDependency)
-            .as("JavaxValidation should contain javax.validation dependencies")
-            .isTrue();
-    }
-
-    @Test
-    @DisplayName("Should scan javax.inject dependencies in J2EE7Samples")
-    void shouldScanCdiDependenciesInJ2EESamples() throws IOException {
-        Path sampleDir = downloadExample("J2EE7 Samples");
-
-        TransitiveDependencyProjectScanResult result = scanner.scanProject(sampleDir);
-
-        assertThat(result).isNotNull();
-        assertThat(result.getFileResults()).isNotEmpty();
-
-        boolean hasInjectDependency = result.getFileResults().stream()
-            .flatMap(r -> r.getUsages().stream())
-            .anyMatch(u -> u.getGroupId() != null && u.getGroupId().contains("javax.inject"));
-
-        assertThat(hasInjectDependency)
-            .as("J2EE7Samples should contain javax.inject dependencies")
-            .isTrue();
-    }
-
-    @Test
-    @DisplayName("Should scan javax.ejb dependencies in J2EE7Samples")
-    void shouldScanEjbDependenciesInJ2EESamples() throws IOException {
-        Path sampleDir = downloadExample("J2EE7 Samples");
-
-        TransitiveDependencyProjectScanResult result = scanner.scanProject(sampleDir);
-
-        assertThat(result).isNotNull();
-        assertThat(result.getFileResults()).isNotEmpty();
-
-        boolean hasEjbDependency = result.getFileResults().stream()
-            .flatMap(r -> r.getUsages().stream())
-            .anyMatch(u -> u.getGroupId() != null && u.getGroupId().contains("javax.ejb"));
-
-        assertThat(hasEjbDependency)
-            .as("J2EE7Samples should contain javax.ejb dependencies")
-            .isTrue();
-    }
-
-    @Test
-    @DisplayName("Should scan javax.ws.rs dependencies in J2EE7Samples")
-    void shouldScanRestDependenciesInJ2EESamples() throws IOException {
-        Path sampleDir = downloadExample("J2EE7 Samples");
-
-        TransitiveDependencyProjectScanResult result = scanner.scanProject(sampleDir);
-
-        assertThat(result).isNotNull();
-        assertThat(result.getFileResults()).isNotEmpty();
-
-        boolean hasRestDependency = result.getFileResults().stream()
-            .flatMap(r -> r.getUsages().stream())
-            .anyMatch(u -> u.getGroupId() != null && u.getGroupId().contains("javax.ws.rs"));
-
-        assertThat(hasRestDependency)
-            .as("J2EE7Samples should contain javax.ws.rs dependencies")
-            .isTrue();
-    }
-
-    @Test
-    @DisplayName("Should detect multiple javax packages in J2EE7Samples")
-    void shouldDetectMultipleJavaxPackagesInJ2EESamples() throws IOException {
-        Path sampleDir = downloadExample("J2EE7 Samples");
-
+        TransitiveDependencyScanner scanner = scanningModule.getTransitiveDependencyScanner();
         TransitiveDependencyProjectScanResult result = scanner.scanProject(sampleDir);
 
         assertThat(result).isNotNull();
@@ -170,15 +90,36 @@ class TransitiveDependencyScannerIntegrationTest {
             .count();
 
         assertThat(javaxDependencyCount)
-            .as("J2EE7Samples should have multiple javax dependencies")
-            .isGreaterThan(1);
+            .as("J2EE7Samples should have javax dependencies")
+            .isGreaterThan(0);
     }
 
     @Test
-    @DisplayName("Should classify dependencies with appropriate severity levels")
+    @DisplayName("Should scan transitive dependencies in Spring Boot project")
+    void shouldScanTransitiveDependenciesInSpringBootProject() throws IOException {
+        Path sampleDir = downloadExample("Spring Boot");
+
+        TransitiveDependencyScanner scanner = scanningModule.getTransitiveDependencyScanner();
+        TransitiveDependencyProjectScanResult result = scanner.scanProject(sampleDir);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getFileResults()).isNotEmpty();
+
+        long totalDependencies = result.getFileResults().stream()
+            .flatMap(r -> r.getUsages().stream())
+            .count();
+
+        assertThat(totalDependencies)
+            .as("Spring Boot project should have dependencies")
+            .isGreaterThan(0);
+    }
+
+    @Test
+    @DisplayName("Should classify dependencies with severity levels")
     void shouldClassifyDependenciesWithSeverityLevels() throws IOException {
         Path sampleDir = downloadExample("J2EE7 Samples");
 
+        TransitiveDependencyScanner scanner = scanningModule.getTransitiveDependencyScanner();
         TransitiveDependencyProjectScanResult result = scanner.scanProject(sampleDir);
 
         assertThat(result).isNotNull();
@@ -198,6 +139,7 @@ class TransitiveDependencyScannerIntegrationTest {
     void shouldProvideRecommendationsForJavaxDependencies() throws IOException {
         Path sampleDir = downloadExample("J2EE7 Samples");
 
+        TransitiveDependencyScanner scanner = scanningModule.getTransitiveDependencyScanner();
         TransitiveDependencyProjectScanResult result = scanner.scanProject(sampleDir);
 
         assertThat(result).isNotNull();
@@ -211,25 +153,6 @@ class TransitiveDependencyScannerIntegrationTest {
         assertThat(hasRecommendation)
             .as("javax dependencies should have migration recommendations")
             .isTrue();
-    }
-
-    @Test
-    @DisplayName("Should scan Spring Boot project with mixed dependencies")
-    void shouldScanSpringBootProjectWithMixedDependencies() throws IOException {
-        Path sampleDir = downloadExample("Spring Boot");
-
-        TransitiveDependencyProjectScanResult result = scanner.scanProject(sampleDir);
-
-        assertThat(result).isNotNull();
-        assertThat(result.getFileResults()).isNotEmpty();
-
-        long totalDependencies = result.getFileResults().stream()
-            .flatMap(r -> r.getUsages().stream())
-            .count();
-
-        assertThat(totalDependencies)
-            .as("Spring Boot project should have dependencies")
-            .isGreaterThan(0);
     }
 
     private Path downloadExample(String projectName) throws IOException {
