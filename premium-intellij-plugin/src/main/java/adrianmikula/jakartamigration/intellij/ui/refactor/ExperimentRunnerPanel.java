@@ -232,6 +232,15 @@ public class ExperimentRunnerPanel {
                     onExperimentCompleted.run();
                 }
             });
+        }).exceptionally(throwable -> {
+            LOG.error("Unexpected error in experiment execution", throwable);
+            SwingUtilities.invokeLater(() -> {
+                setRunning(false);
+                statusLabel.setText("Experiment failed unexpectedly");
+                statusLabel.setForeground(Color.RED);
+                resultsArea.setText("An unexpected error occurred: " + throwable.getMessage());
+            });
+            return null;
         });
     }
 

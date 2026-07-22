@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.intellij.ui.refactor;
 
 import adrianmikula.jakartamigration.config.FeatureFlag;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
+import adrianmikula.jakartamigration.experiment.domain.MigrationSequence;
 import adrianmikula.jakartamigration.intellij.config.FeatureFlags;
 import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
@@ -14,6 +15,8 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Advanced Refactor component - provides multi-recipe sequence testing functionality.
@@ -30,8 +33,9 @@ public class AdvancedRefactorComponent {
     // Sub-components
     private JPanel premiumUpgradePanel;
     private SequenceBuilderPanel sequenceBuilderPanel;
-    private ExperimentRunnerPanel experimentRunnerPanel;
+    private ExperimentResultsPanel experimentResultsPanel;
     private ExperimentHistoryPanel experimentHistoryPanel;
+    private JTabbedPane subTabs;
 
     public AdvancedRefactorComponent(@NotNull Project project, RecipeService recipeService) {
         this.project = project;
@@ -43,10 +47,7 @@ public class AdvancedRefactorComponent {
     }
 
     private void initializeComponent() {
-        // Check if experiment engine feature is enabled
-        // For now, assume it's enabled since it's a premium feature
-        // TODO: Add proper feature flag integration when FeatureFlag.getFeatureKey() is available
-        boolean experimentEngineEnabled = true;
+        boolean experimentEngineEnabled = FeatureFlags.getInstance().isEnabled("experimentEngine");
         
         if (!experimentEngineEnabled) {
             showFeatureDisabledPanel();
@@ -58,7 +59,6 @@ public class AdvancedRefactorComponent {
             return;
         }
         
-        // Premium user with feature enabled - show full UI
         showFullUI();
     }
 
@@ -119,56 +119,71 @@ public class AdvancedRefactorComponent {
     }
 
     private void showFullUI() {
-        // Create tabbed pane for the three sub-panels
-        JTabbedPane subTabs = new JTabbedPane();
-        
+        subTabs = new JTabbedPane();
+
         // Sequence Builder tab
         sequenceBuilderPanel = new SequenceBuilderPanel(project, recipeService);
-        JBScrollPane builderScroll = new JBScrollPane(sequenceBuilderPanel.getPanel());
-        builderScroll.setBorder(null);
-        subTabs.addTab("Sequence Builder", builderScroll);
-        
-        // Experiment Runner tab
-        experimentRunnerPanel = new ExperimentRunnerPanel(project);
-        JBScrollPane runnerScroll = new JBScrollPane(experimentRunnerPanel.getPanel());
-        runnerScroll.setBorder(null);
-        subTabs.addTab("Run Experiment", runnerScroll);
-        
+        subTabs.addTab("Sequence Builder", sequenceBuilderPanel.getPanel());
+
+        // Experiment Results tab
+        experimentResultsPanel = new ExperimentResultsPanel(project);
+        subTabs.addTab("Experiment Results", experimentResultsPanel.getPanel());
+
         // Experiment History tab
         experimentHistoryPanel = new ExperimentHistoryPanel(project);
-        JBScrollPane historyScroll = new JBScrollPane(experimentHistoryPanel.getPanel());
-        historyScroll.setBorder(null);
-        subTabs.addTab("History", historyScroll);
-        
-        // Wire up cross-panel communication
+        subTabs.addTab("History", experimentHistoryPanel.getPanel());
+
         wirePanels();
-        
+
         panel.add(subTabs, BorderLayout.CENTER);
     }
 
     private void wirePanels() {
-        // When a sequence is saved in builder, refresh runner's sequence selector
+        // When Run Experiment is clicked in builder, run and switch to Results tab
+        sequenceBuilderPanel.setOnRunExperiment(() -> {
+            MigrationSequence sequence = sequenceBuilderPanel.getCurrentSequence();
+            if (sequence == null) {
+                JOptionPane.showMessageDialog(panel,
+                    "Please name the sequence and add at least one recipe.",
+                    "Cannot Run Experiment", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            experimentResultsPanel.runExperiment(sequence, Optional.empty());
+            subTabs.setSelectedIndex(1);
+        });
+
+        // When a sequence is saved in builder, refresh history
         sequenceBuilderPanel.setOnSequenceSaved(() -> {
-            if (experimentRunnerPanel != null) {
-                experimentRunnerPanel.refreshSequenceList();
+            if (experimentHistoryPanel != null) {
+                experimentHistoryPanel.refreshHistory();
             }
         });
-        
+
+        // When history item is viewed, show results in Results tab
+        experimentHistoryPanel.setOnExperimentSelected(result -> {
+            MigrationSequence sequence = new MigrationSequence(
+                result.sequenceName(), "", List.of(), null, List.of());
+            experimentResultsPanel.showResults(result, sequence);
+            subTabs.setSelectedIndex(1);
+        });
+
         // When history loads a sequence, populate builder
         experimentHistoryPanel.setOnSequenceLoaded(sequence -> {
             if (sequenceBuilderPanel != null) {
                 sequenceBuilderPanel.loadSequence(sequence);
-                // Switch to builder tab
-                JTabbedPane subTabs = (JTabbedPane) panel.getComponent(0);
                 subTabs.setSelectedIndex(0);
             }
         });
-        
-        // When experiment runs, refresh history
-        experimentRunnerPanel.setOnExperimentCompleted(() -> {
-            if (experimentHistoryPanel != null) {
-                experimentHistoryPanel.refreshHistory();
-            }
+
+        // When Re-run is clicked, run experiment again
+        experimentResultsPanel.setOnRerun(sequence -> {
+            experimentResultsPanel.runExperiment(sequence, Optional.empty());
+        });
+
+        // When Clone is clicked, load cloned sequence in Builder
+        experimentResultsPanel.setOnClone(sequence -> {
+            sequenceBuilderPanel.loadSequence(sequence);
+            subTabs.setSelectedIndex(0);
         });
     }
 

@@ -153,7 +153,7 @@ public class SupportComponent {
         JPanel sponsorPanel = createLinkPanel(
             supportUrls.getProperty("sponsor.project.title", "Sponsor on GitHub"),
             supportUrls.getProperty("sponsor.project.description", "Support development via GitHub Sponsors"),
-            supportUrls.getProperty("sponsor.project.url", "https://github.com/adrianmikula")
+            supportUrls.getProperty("sponsor.project.url", "https://github.com/sponsors/adrianmikula")
         );
 
         // Related product link

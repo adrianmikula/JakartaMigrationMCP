@@ -48,9 +48,9 @@ class ExperimentServiceTest {
         when(mockRecipeService.getRecipesByCategory(any(), any())).thenReturn(List.of());
         
         ExperimentService service = new ExperimentService(mockProjectRoot, mockRecipeService);
-        List<RecipeDefinition> recipes = service.getRecipesByCategory(RecipeCategory.JAKARTA_EE);
+        List<RecipeDefinition> recipes = service.getRecipesByCategory(RecipeCategory.ANNOTATIONS);
         
         assertThat(recipes).isNotNull();
-        verify(mockRecipeService).getRecipesByCategory(RecipeCategory.JAKARTA_EE, mockProjectRoot);
+        verify(mockRecipeService).getRecipesByCategory(RecipeCategory.ANNOTATIONS, mockProjectRoot);
     }
 }

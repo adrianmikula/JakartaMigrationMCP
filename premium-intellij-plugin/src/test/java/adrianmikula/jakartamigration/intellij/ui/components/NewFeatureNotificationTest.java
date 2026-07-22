@@ -242,7 +242,7 @@ public class NewFeatureNotificationTest {
         assertTrue(notification.isVisible());
         
         JPanel panel = notification.getPanel();
-        JLabel messageLabel = findLabelByText(panel, "Free trial is regrettably no longer available");
+        JLabel messageLabel = findLabelByText(panel, "Free trial is no longer available. Please consider sponsoring us.");
         assertNotNull(messageLabel);
         
         // Verify Sponsor link is present
@@ -273,6 +273,51 @@ public class NewFeatureNotificationTest {
     }
 
     @Test
+    @DisplayName("Should create advanced refactor notification with factory method")
+    void shouldCreateAdvancedRefactorNotificationWithFactory() {
+        // When
+        AtomicBoolean learnMoreClicked = new AtomicBoolean(false);
+        
+        notification = NewFeatureNotification.createAdvancedRefactorNotification(
+            () -> learnMoreClicked.set(true)
+        );
+        
+        // Then
+        assertNotNull(notification);
+        assertTrue(notification.isVisible());
+        
+        JPanel panel = notification.getPanel();
+        JLabel messageLabel = findLabelByText(panel, "Advanced Refactor is now available! Safely test complex refactor sequences in sandboxed testcontainers. ");
+        assertNotNull(messageLabel);
+        
+        // Verify Learn More link is present
+        JLabel learnMoreLink = findLabelByText(panel, "Learn More");
+        assertNotNull(learnMoreLink);
+        assertEquals(10f, learnMoreLink.getFont().getSize(), 0.1f);
+        assertEquals(Cursor.HAND_CURSOR, learnMoreLink.getCursor().getType());
+    }
+
+    @Test
+    @DisplayName("Should execute learn more action when link is clicked in advanced refactor notification")
+    void shouldExecuteLearnMoreActionWhenLinkClicked() {
+        // Given
+        AtomicBoolean learnMoreClicked = new AtomicBoolean(false);
+        
+        notification = NewFeatureNotification.createAdvancedRefactorNotification(
+            () -> learnMoreClicked.set(true)
+        );
+        
+        JPanel panel = notification.getPanel();
+        JLabel learnMoreLink = findLabelByText(panel, "Learn More");
+        
+        // When
+        simulateClick(learnMoreLink);
+        
+        // Then
+        assertTrue(learnMoreClicked.get());
+    }
+
+    @Test
     @DisplayName("Should handle null action gracefully in single-link constructor")
     void shouldHandleNullActionGracefullyInSingleLinkConstructor() {
         // When - should not throw exception
@@ -294,7 +339,7 @@ public class NewFeatureNotificationTest {
         
         // When - should not throw exception
         assertDoesNotThrow(() -> {
-            notification = new NewFeatureNotification(message, null, null);
+            notification = new NewFeatureNotification(message, (Runnable) null, (Runnable) null);
         });
         
         // Then

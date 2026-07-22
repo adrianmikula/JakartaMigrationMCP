@@ -1,10 +1,15 @@
 package adrianmikula.jakartamigration.experiment.execution;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
 class StreamGobbler extends Thread {
+    private static final Logger LOG = LoggerFactory.getLogger(StreamGobbler.class);
+
     private final java.io.InputStream inputStream;
     private final StringBuilder output;
 
@@ -21,7 +26,7 @@ class StreamGobbler extends Thread {
                 output.append(line).append(System.lineSeparator());
             }
         } catch (Exception e) {
-            // Ignore stream errors
+            LOG.debug("Stream gobbler read error (output may be incomplete)", e);
         }
     }
 }

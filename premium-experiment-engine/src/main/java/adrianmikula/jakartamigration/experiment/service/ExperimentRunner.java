@@ -3,6 +3,9 @@ package adrianmikula.jakartamigration.experiment.service;
 import adrianmikula.jakartamigration.experiment.domain.*;
 import adrianmikula.jakartamigration.experiment.execution.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.nio.file.*;
 import java.time.Duration;
@@ -12,6 +15,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ExperimentRunner {
+    private static final Logger LOG = LoggerFactory.getLogger(ExperimentRunner.class);
+
     private final SequenceService sequenceService;
     private final HistoryService historyService;
     private final TestContainerOrchestratorFactory containerFactory;
@@ -54,7 +59,9 @@ public class ExperimentRunner {
                     StepResult stepResult = executor.execute(step, snapshot, container);
                     stepResults.add(stepResult);
                     if (!stepResult.success()) {
-                        return buildFailedResult(runId, sequenceName, startedAt, stepResults, "Step " + i + " failed: " + stepResult.message());
+                        ExperimentResult failedResult = buildFailedResult(runId, sequenceName, startedAt, stepResults, "Step " + i + " failed: " + stepResult.message());
+                        recordToHistory(failedResult);
+                        return failedResult;
                     }
                 }
 
@@ -74,14 +81,19 @@ public class ExperimentRunner {
                     null
                 );
 
-                historyService.recordRun(result);
+                recordToHistory(result);
                 return result;
 
             } finally {
-                container.stop();
+                try {
+                    container.stop();
+                } catch (Exception e) {
+                    LOG.warn("Failed to stop container for run {}", runId, e);
+                }
             }
 
         } catch (Exception e) {
+            LOG.error("Experiment run {} failed", runId, e);
             Instant finishedAt = Instant.now();
             ExperimentResult result = new ExperimentResult(
                 runId,
@@ -94,8 +106,16 @@ public class ExperimentRunner {
                 null,
                 e.getMessage()
             );
-            historyService.recordRun(result);
+            recordToHistory(result);
             return result;
+        }
+    }
+
+    private void recordToHistory(ExperimentResult result) {
+        try {
+            historyService.recordRun(result);
+        } catch (Exception e) {
+            LOG.error("Failed to record experiment run {} to history", result.runId(), e);
         }
     }
 

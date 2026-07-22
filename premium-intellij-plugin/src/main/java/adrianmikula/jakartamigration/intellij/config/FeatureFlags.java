@@ -64,6 +64,7 @@ public class FeatureFlags {
         flags.put("mcpServerPremiumOnly", true); // MCP server premium only
         flags.put("pdfReportsPremiumOnly", true); // PDF reports premium only
         flags.put("reportsPremiumOnly", true); // Reports tab premium only
+        flags.put("experimentEngine", true); // Experiment engine premium feature
         
         // Feature configurations
         FeatureConfig runtimeConfig = new FeatureConfig();

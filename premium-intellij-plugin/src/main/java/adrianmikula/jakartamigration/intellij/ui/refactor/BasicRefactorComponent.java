@@ -567,6 +567,16 @@ public class BasicRefactorComponent {
                                 onRecipeExecuted.run();
                             }
                         });
+                    })
+                    .exceptionally(throwable -> {
+                        LOG.error("Unexpected error applying recipe: " + recipe.getName(), throwable);
+                        ApplicationManager.getApplication().invokeLater(() -> {
+                            setRunning(false);
+                            Messages.showErrorDialog(project, 
+                                "An unexpected error occurred: " + throwable.getMessage(), 
+                                "Recipe Application Failed");
+                        });
+                        return null;
                     });
         }
     }
@@ -658,6 +668,16 @@ public class BasicRefactorComponent {
                                 onRecipeExecuted.run();
                             }
                         });
+                    })
+                    .exceptionally(throwable -> {
+                        LOG.error("Unexpected error undoing recipe: " + recipe.getName(), throwable);
+                        ApplicationManager.getApplication().invokeLater(() -> {
+                            setRunning(false);
+                            Messages.showErrorDialog(project, 
+                                "An unexpected error occurred during undo: " + throwable.getMessage(), 
+                                "Undo Failed");
+                        });
+                        return null;
                     });
         }
     }

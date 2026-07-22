@@ -43,6 +43,7 @@ public class ExperimentHistoryPanel {
     
     // Callbacks
     private Consumer<MigrationSequence> onSequenceLoaded;
+    private Consumer<ExperimentResult> onExperimentSelected;
 
     public ExperimentHistoryPanel(@NotNull Project project) {
         this.project = project;
@@ -116,14 +117,24 @@ public class ExperimentHistoryPanel {
         
         JBScrollPane scrollPane = new JBScrollPane(historyTable);
         panel.add(scrollPane, BorderLayout.CENTER);
-        
+
+        // Double-click shows results in Experiment Results tab
+        historyTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    fireExperimentSelected();
+                }
+            }
+        });
+
         // Action buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JButton loadButton = new JButton("Load Sequence");
         JButton viewDetailsButton = new JButton("View Details");
         
         loadButton.addActionListener(e -> loadSelectedSequence());
-        viewDetailsButton.addActionListener(e -> viewSelectedDetails());
+        viewDetailsButton.addActionListener(e -> fireExperimentSelected());
         
         buttonPanel.add(loadButton);
         buttonPanel.add(viewDetailsButton);
@@ -259,6 +270,19 @@ public class ExperimentHistoryPanel {
 
     public void setOnSequenceLoaded(Consumer<MigrationSequence> callback) {
         this.onSequenceLoaded = callback;
+    }
+
+    public void setOnExperimentSelected(Consumer<ExperimentResult> callback) {
+        this.onExperimentSelected = callback;
+    }
+
+    private void fireExperimentSelected() {
+        int selectedRow = historyTable.getSelectedRow();
+        if (selectedRow < 0 || onExperimentSelected == null) {
+            return;
+        }
+        ExperimentResult result = tableModel.getExperimentAt(selectedRow);
+        onExperimentSelected.accept(result);
     }
 
     public JPanel getPanel() {

@@ -188,7 +188,18 @@ public class NewFeatureNotification {
      * @return Configured notification for trial unavailability
      */
     public static NewFeatureNotification createTrialUnavailableNotification(Runnable onSponsor) {
-        String message = "Free trial is regrettably no longer available. Please consider sponsoring us so we can build a better free tool for the Java community.";
+        String message = "Free trial is no longer available. Please consider sponsoring us.";
         return new NewFeatureNotification(message, onSponsor, "Sponsor");
+    }
+
+    /**
+     * Convenience method to create an advanced refactor notification with a learn-more link.
+     * 
+     * @param onLearnMore Action when user clicks the learn more link
+     * @return Configured notification for advanced refactor
+     */
+    public static NewFeatureNotification createAdvancedRefactorNotification(Runnable onLearnMore) {
+        String message = "Advanced Refactor is now available! Safely test complex refactor sequences in sandboxed testcontainers. ";
+        return new NewFeatureNotification(message, onLearnMore, "Learn More");
     }
 }

@@ -50,6 +50,7 @@
     <ul>
     <li>- <b>Risk Estimate</b> - Estimate the risk and effort of migrating</li>
     <li>- <b>Dependency Scans</b> - Detect which dependencies are Jakarta EE compatible</li>
+    <li>- <b>Deep Transitive Scanning</b> - Scan the full transitive dependency tree for hidden javax.* references</li>
     <li>- <b>Dependency Recommendations</b> - Find Jakarta-compatible versions</li>
     <li>- <b>Platform Scans</b> - Detect frameworks and appservers which need to be upgraded</li>
     <li>- <b>Source Scans</b> - Detect all code lines which need to be refactored</li>
@@ -58,6 +59,7 @@
     <li>- <b>Dependency Graphs</b> - Visualize your module dependencies</li>
     <li>- <b>Auto-Refactoring</b> - OpenRewrite-powered refactor recipes</li>
     <li>- <b>Undo history</b> - Undo previously applied refactors</li>
+    <li>- <b>Advanced Refactor</b> - Safely test complex refactor sequences in sandboxed testcontainers before applying</li>
     </ul>
 
     <h3>Experimental Features</h3>
@@ -186,6 +188,11 @@
 
 
     <change-notes><![CDATA[
+    <h>1.0.19 - 2026-07-22</h>
+    <ul>
+        <li><b>Added:</b> Advanced Refactor - Safely test complex refactor sequences in sandboxed testcontainers before applying to your codebase</li>
+        <li>Shortened free trial unavailable notification message</li>
+    </ul>
     <h>1.0.18 - 2026-05-28</h>
     <ul>
         <li>Version bump to 1.0.18</li>

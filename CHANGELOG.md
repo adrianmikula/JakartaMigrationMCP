@@ -5,6 +5,40 @@ All notable changes to the Jakarta Migration IntelliJ plugin will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.19] - 2026-07-22
+
+### Added
+- **Advanced Refactor** - Safely test complex multi-step refactor sequences in sandboxed testcontainers before applying to your codebase
+- Experiment history — compare results, re-run, and clone past experiments
+- Deep transitive dependency scanning now surfaced as a key feature in plugin metadata
+
+### Changed
+- Shortened free trial unavailable notification message
+- Updated plugin description and README to highlight Advanced Refactor and deep transitive scanning
+
+## [1.0.18] - 2026-05-28
+
+### Changed
+- Version bump to 1.0.18
+
+## [1.0.17] - 2026-05-27
+
+### Changed
+- Version bump to 1.0.17
+
+## [1.0.16] - 2026-05-27
+
+### Added
+- Recipe safety field for safer refactoring operations
+
+### Fixed
+- Dependency graph panning and interaction issues
+- UI async operations and threading issues
+
+### Improved
+- Deep transitive dependency scanning with metadata
+- Selective table deletion on database upgrade
+
 ## [1.0.15] - 2026-04-24
 
 ### Fixed

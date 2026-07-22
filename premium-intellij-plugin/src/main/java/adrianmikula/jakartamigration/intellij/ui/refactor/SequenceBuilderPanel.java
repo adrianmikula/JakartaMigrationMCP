@@ -44,6 +44,7 @@ public class SequenceBuilderPanel {
     
     // Callbacks
     private Runnable onSequenceSaved;
+    private Runnable onRunExperiment;
 
     public SequenceBuilderPanel(@NotNull Project project, RecipeService recipeService) {
         this.project = project;
@@ -57,16 +58,22 @@ public class SequenceBuilderPanel {
         JPanel headerPanel = createHeaderPanel();
         
         // Main content with two lists
-        JPanel mainPanel = new JPanel(new GridLayout(1, 2, 10, 0));
-        
+        JPanel mainPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints mainGbc = new GridBagConstraints();
+        mainGbc.fill = GridBagConstraints.BOTH;
+        mainGbc.weightx = 0.5;
+        mainGbc.weighty = 1.0;
+        mainGbc.insets = new Insets(0, 5, 0, 5);
+
         // Available recipes panel
         JPanel availablePanel = createAvailableRecipesPanel();
-        
+
         // Selected sequence panel
         JPanel selectedPanel = createSelectedSequencePanel();
-        
-        mainPanel.add(availablePanel);
-        mainPanel.add(selectedPanel);
+
+        mainPanel.add(availablePanel, mainGbc);
+        mainGbc.gridx = 1;
+        mainPanel.add(selectedPanel, mainGbc);
         
         // Button panel at bottom
         JPanel buttonPanel = createButtonPanel();
@@ -94,9 +101,21 @@ public class SequenceBuilderPanel {
         header.add(new JBLabel("Sequence Name:"), gbc);
         
         gbc.gridx = 1;
-        gbc.weightx = 0.9;
+        gbc.weightx = 0.7;
         sequenceNameField = new JBTextField(30);
         header.add(sequenceNameField, gbc);
+        
+        // Save button next to name
+        gbc.gridx = 2;
+        gbc.weightx = 0.0;
+        gbc.fill = GridBagConstraints.NONE;
+        JButton saveButton = new JButton("Save Sequence");
+        saveButton.addActionListener(e -> saveSequence());
+        header.add(saveButton, gbc);
+        
+        // Reset for description row
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridwidth = 1;
         
         // Sequence description
         gbc.gridx = 0;
@@ -105,6 +124,7 @@ public class SequenceBuilderPanel {
         header.add(new JBLabel("Description:"), gbc);
         
         gbc.gridx = 1;
+        gbc.gridwidth = 2;
         gbc.weightx = 0.9;
         sequenceDescriptionArea = new JTextArea(3, 30);
         sequenceDescriptionArea.setLineWrap(true);
@@ -180,21 +200,26 @@ public class SequenceBuilderPanel {
     }
 
     private JPanel createButtonPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        
-        JButton addButton = new JButton("Add Selected Recipe →");
-        JButton saveButton = new JButton("Save Sequence");
+
+        JButton addButton = new JButton("Add Selected Recipe \u2192");
+        JButton runButton = new JButton("Run Experiment");
         JButton clearButton = new JButton("Clear");
-        
+
         addButton.addActionListener(e -> addSelectedRecipe());
-        saveButton.addActionListener(e -> saveSequence());
+        runButton.addActionListener(e -> {
+            if (onRunExperiment != null) onRunExperiment.run();
+        });
         clearButton.addActionListener(e -> clearSequence());
-        
-        panel.add(addButton);
-        panel.add(saveButton);
-        panel.add(clearButton);
-        
+
+        JPanel buttonGroup = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonGroup.add(addButton);
+        buttonGroup.add(runButton);
+        buttonGroup.add(clearButton);
+
+        panel.add(buttonGroup, BorderLayout.EAST);
+
         return panel;
     }
 
@@ -311,6 +336,22 @@ public class SequenceBuilderPanel {
 
     public void setOnSequenceSaved(Runnable callback) {
         this.onSequenceSaved = callback;
+    }
+
+    public void setOnRunExperiment(Runnable callback) {
+        this.onRunExperiment = callback;
+    }
+
+    public MigrationSequence getCurrentSequence() {
+        String name = sequenceNameField.getText().trim();
+        if (name.isEmpty() || selectedSequenceModel.isEmpty()) {
+            return null;
+        }
+        List<SequenceStep> steps = new ArrayList<>();
+        for (int i = 0; i < selectedSequenceModel.size(); i++) {
+            steps.add(selectedSequenceModel.getElementAt(i));
+        }
+        return new MigrationSequence(name, sequenceDescriptionArea.getText().trim(), steps, null, List.of());
     }
 
     public JPanel getPanel() {

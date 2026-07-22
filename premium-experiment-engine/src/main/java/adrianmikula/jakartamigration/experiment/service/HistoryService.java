@@ -3,6 +3,9 @@ package adrianmikula.jakartamigration.experiment.service;
 import adrianmikula.jakartamigration.experiment.domain.ExperimentResult;
 import adrianmikula.jakartamigration.experiment.domain.ExperimentStatus;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -11,6 +14,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class HistoryService {
+    private static final Logger LOG = LoggerFactory.getLogger(HistoryService.class);
+
     private final Path experimentsDir;
     private final Path historyDir;
 
@@ -46,7 +51,8 @@ public class HistoryService {
                     try {
                         String json = Files.readString(p, StandardCharsets.UTF_8);
                         return fromJson(json, ExperimentResult.class);
-                    } catch (IOException e) {
+                    } catch (Exception e) {
+                        LOG.warn("Skipping corrupted history file: {}", p.getFileName(), e);
                         return null;
                     }
                 })
@@ -73,13 +79,13 @@ public class HistoryService {
         }
     }
 
-    private <T> T fromJson(String json, Class<T> clazz) {
+    private <T> T fromJson(String json, Class<T> clazz) throws IOException {
         try {
             return new com.fasterxml.jackson.databind.ObjectMapper()
                 .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
                 .readValue(json, clazz);
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to deserialize JSON", e);
+            throw new IOException("Failed to deserialize JSON", e);
         }
     }
 }
