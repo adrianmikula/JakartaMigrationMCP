@@ -123,23 +123,13 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
             int exitCode = process.waitFor();
             if (exitCode != 0) {
                 log.warn("{} exited with code {} in directory: {}", cmdName, exitCode, projectDir);
-                // Read error output for better diagnostics
-                try (BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-                    StringBuilder errorOutput = new StringBuilder();
-                    String line;
-                    while ((line = errorReader.readLine()) != null) {
-                        errorOutput.append(line).append("\n");
-                    }
-                    String errorMsg = errorOutput.toString().trim();
-                    if (!errorMsg.isEmpty()) {
-                        log.debug("Command error output: {}", errorMsg);
-                        // Check for common error patterns
-                        if (errorMsg.contains("not recognized") || errorMsg.contains("not found") || errorMsg.contains("cannot find the file")) {
-                            return DependencyTreeResult.error(String.format(
-                                "Command '%s' not found. Please install %s or ensure %s wrapper is available in project directory.", 
-                                command.get(0), cmdName.contains("Maven") ? "Maven" : "Gradle", cmdName.contains("Maven") ? "Maven" : "Gradle"));
-                        }
-                    }
+                // Note: redirectErrorStream(true) merges stderr into stdout, so getErrorStream() is empty.
+                // The parser already consumed stdout via process.getInputStream(). We check the parser's
+                // output for diagnostic clues. If we got no dependencies, the exit code itself signals failure.
+                if (deps.isEmpty()) {
+                    return DependencyTreeResult.error(String.format(
+                        "%s exited with code %d in %s. No dependencies were parsed.",
+                        cmdName, exitCode, projectDir));
                 }
             }
 

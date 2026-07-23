@@ -75,7 +75,10 @@ public class DefaultJarCompatibilityScanner implements JarCompatibilityScanner {
         @SuppressWarnings("deprecation")
         ThreadFactory factory = r -> { Thread t = new Thread(r);
             t.setName("jar-scanner-" + t.getId()); t.setDaemon(true); return t; };
-        return Executors.newFixedThreadPool(parallelism, factory);
+        return new java.util.concurrent.ThreadPoolExecutor(
+            parallelism, parallelism, 60L, TimeUnit.SECONDS,
+            new java.util.concurrent.LinkedBlockingQueue<>(100), factory,
+            new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
     }
 
     @Override

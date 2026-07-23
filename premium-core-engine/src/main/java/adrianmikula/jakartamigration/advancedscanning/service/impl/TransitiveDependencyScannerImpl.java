@@ -225,6 +225,34 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
             return TransitiveDependencyProjectScanResult.empty();
         }
         log.info("[DEBUG] scanProject with file list called with {} files", filesToScan.size());
+
+        // Check if this is a multi-module project and handle it accordingly
+        if (filesToScan.size() > 1) {
+            // Find a common project root from the build files
+            Optional<Path> projectRoot = findCommonProjectRoot(filesToScan);
+            if (projectRoot.isPresent() && detectMultiModuleProject(projectRoot.get())) {
+                log.info("Multi-module project detected from file list, scanning from root: {}", projectRoot.get());
+                TransitiveDependencyProjectScanResult result = scanProject(projectRoot.get());
+                // Filter results to only include files that were in the original list
+                if (!result.getFileResults().isEmpty()) {
+                    List<TransitiveDependencyScanResult> filteredResults = result.getFileResults().stream()
+                        .filter(r -> filesToScan.contains(r.getFilePath()))
+                        .collect(Collectors.toList());
+                    return new TransitiveDependencyProjectScanResult(
+                        filteredResults,
+                        result.getTotalBuildFilesScanned(),
+                        filteredResults.size(),
+                        filteredResults.stream().mapToInt(r -> r.getUsages().size()).sum(),
+                        (int) filteredResults.stream().filter(r -> r.hasError()).count(),
+                        result.isHadCommandNotFoundError(),
+                        result.getErrorMessage()
+                    );
+                }
+                return result;
+            }
+        }
+
+        // Fallback to per-file scanning for single-module or if multi-module detection failed
         AtomicInteger totalScanned = new AtomicInteger(0);
         int parallelism = Math.min(MAX_PARALLELISM, filesToScan.size());
         List<TransitiveDependencyScanResult> results = filesToScan.parallelStream()
@@ -261,6 +289,34 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
             return TransitiveDependencyProjectScanResult.empty();
         }
         log.info("[DEBUG] scanProject with progress listener (list) called with {} files", filesToScan.size());
+
+        // Check if this is a multi-module project and handle it accordingly
+        if (filesToScan.size() > 1) {
+            // Find a common project root from the build files
+            Optional<Path> projectRoot = findCommonProjectRoot(filesToScan);
+            if (projectRoot.isPresent() && detectMultiModuleProject(projectRoot.get())) {
+                log.info("Multi-module project detected from file list, scanning from root: {}", projectRoot.get());
+                TransitiveDependencyProjectScanResult result = scanProject(projectRoot.get(), progressListener);
+                // Filter results to only include files that were in the original list
+                if (!result.getFileResults().isEmpty()) {
+                    List<TransitiveDependencyScanResult> filteredResults = result.getFileResults().stream()
+                        .filter(r -> filesToScan.contains(r.getFilePath()))
+                        .collect(Collectors.toList());
+                    return new TransitiveDependencyProjectScanResult(
+                        filteredResults,
+                        result.getTotalBuildFilesScanned(),
+                        filteredResults.size(),
+                        filteredResults.stream().mapToInt(r -> r.getUsages().size()).sum(),
+                        (int) filteredResults.stream().filter(r -> r.hasError()).count(),
+                        result.isHadCommandNotFoundError(),
+                        result.getErrorMessage()
+                    );
+                }
+                return result;
+            }
+        }
+
+        // Fallback to per-file scanning for single-module or if multi-module detection failed
         List<TransitiveDependencyScanResult> results = new ArrayList<>();
         AtomicInteger totalScanned = new AtomicInteger(0);
 
@@ -427,33 +483,13 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
              log.debug("Successfully parsed {} dependencies via command execution for {}", dependencies.size(), filePath);
              String buildFileType = isMaven ? "Maven" : "Gradle";
              return convertTreeResult(filePath, buildFileType, treeResult, listener);
-         } catch (Exception e) {
-             log.debug("Async scanning failed for {}, falling back to regex: {}", filePath, e.getMessage());
-             log.debug("Exception details:", e);
-             TransitiveDependencyScanResult fallback = scanFileFallback(filePath);
-             // Update scan reason to BUILD_TOOL_ERROR for all fallback dependencies
-             List<TransitiveDependencyUsage> usagesWithErrorReason = fallback.getUsages().stream()
-                 .map(usage -> new TransitiveDependencyUsage(
-                     usage.getArtifactId(),
-                     usage.getGroupId(),
-                     usage.getVersion(),
-                     usage.getJavaxPackage(),
-                     usage.getSeverity(),
-                     usage.getRecommendation(),
-                     usage.getScope(),
-                     usage.isTransitive(),
-                     usage.getDepth(),
-                     usage.getAlternativeVersions(),
-                     ScanReason.BUILD_TOOL_ERROR,  // Mark as build tool error
-                     "Dependency detected via regex fallback - Maven/Gradle command failed",
-                     usage.getConfidence(),
-                     usage.isIncompatibilityFromTransitive()
-                 ))
-                 .collect(Collectors.toList());
-             // Store error info in the result's metadata for aggregation
-             return new TransitiveDependencyScanResult(fallback.getFilePath(), usagesWithErrorReason,
-                 fallback.getBuildFileType(), fallback.getScopes(), fallback.getEdges(), e.getMessage());
-         }
+          } catch (Exception e) {
+              log.debug("Async scanning failed for {}, falling back to regex: {}", filePath, e.getMessage());
+              log.debug("Exception details:", e);
+              // Fall back to regex scanning - retain the fallback's own classification
+              // instead of marking everything as BUILD_TOOL_ERROR
+              return scanFileFallback(filePath);
+          }
      }
 
      /**
@@ -913,11 +949,80 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
     }
 
     /**
-     * Finds the project root directory by walking up from any build file.
+     * Finds the common project root directory from a list of build files.
+     * This is used when scanning from a file list to detect multi-module projects.
+     */
+    private Optional<Path> findCommonProjectRoot(List<Path> buildFiles) {
+        if (buildFiles.isEmpty()) {
+            return Optional.empty();
+        }
+
+        // Start with the parent of the first file
+        Path commonRoot = buildFiles.get(0).getParent();
+        if (commonRoot == null) {
+            return Optional.empty();
+        }
+
+        // Find the common ancestor of all build file parents
+        for (Path file : buildFiles) {
+            Path parent = file.getParent();
+            if (parent == null) {
+                return Optional.empty();
+            }
+            commonRoot = findCommonAncestor(commonRoot, parent);
+            if (commonRoot == null) {
+                return Optional.empty();
+            }
+        }
+
+        // Walk up from the common root to find the actual project root
+        // (with settings.gradle or pom.xml with modules)
+        return findRootDirectory(commonRoot);
+    }
+
+    /**
+     * Finds the common ancestor of two paths.
+     */
+    private Path findCommonAncestor(Path path1, Path path2) {
+        Path p1 = path1.normalize();
+        Path p2 = path2.normalize();
+
+        // Convert to absolute paths if they aren't already
+        if (!p1.isAbsolute()) {
+            p1 = p1.toAbsolutePath();
+        }
+        if (!p2.isAbsolute()) {
+            p2 = p2.toAbsolutePath();
+        }
+
+        // Find the common prefix
+        int maxCommon = Math.min(p1.getNameCount(), p2.getNameCount());
+        int commonCount = 0;
+        for (int i = 0; i < maxCommon; i++) {
+            if (!p1.getName(i).equals(p2.getName(i))) {
+                break;
+            }
+            commonCount++;
+        }
+
+        if (commonCount == 0) {
+            return null; // No common ancestor
+        }
+
+        return p1.getRoot().resolve(p1.subpath(0, commonCount));
+    }
+
+    /**
+     * Finds the project root directory by walking up from any build file or directory.
      * Looks for settings.gradle(.kts), settings.gradle, or root pom.xml with &lt;modules&gt;.
      */
-    private Optional<Path> findRootDirectory(Path buildFilePath) {
-        Path current = buildFilePath.getParent();
+    private Optional<Path> findRootDirectory(Path startPath) {
+        Path current = startPath;
+        // If startPath is a file, start from its parent
+        if (Files.isRegularFile(current)) {
+            current = current.getParent();
+        }
+        
         while (current != null) {
             // Check for Gradle root
             if (Files.exists(current.resolve("settings.gradle")) ||

@@ -22,10 +22,16 @@ maven_artifacts:
     - org.slf4j
     - ch.qos.logback
     - com.fasterxml.jackson.core
+    - com.fasterxml.jackson.dataformat
+    - com.fasterxml.jackson.datatype
+    - com.fasterxml.jackson.module
     - org.junit.jupiter
+    - org.junit
     - org.mockito
     - org.hamcrest
     - com.google.guava
+    - com.google.code.findbugs
+    - com.google.errorprone
     - org.apache.logging.log4j
     - org.bouncycastle
     - org.jsoup
@@ -43,20 +49,34 @@ maven_artifacts:
     - io.opentracing
     - com.h2database
     - org.hsqldb
+    - org.slf4j
+    - ch.qos.logback
+    - org.apache.logging.log4j
+    - io.micrometer
+    - io.dropwizard.metrics
+    - org.mapstruct
+    - com.github.ben-manes.caffeine
+    - org.ehcache
+    - net.bytebuddy
+    - org.objenesis
+    - org.apiguardian
 
   review:
-    - javax.xml
-    - javax.transaction
-    - javax.xml.bind
-    - javax.xml.ws
+    - javax.xml.soap
     - javax.mail
     - javax.activation
     - javax.cache
     - javax.measure
+    - javax.annotation
+    - javax.inject
+    - javax.transaction
+    - javax.websocket
+    - javax.json
     - org.glassfish.grizzly
     - io.undertow
     - org.apache.tomcat
     - org.omnifaces
+    - org.apache.commons.fileupload
 
   upgrade:
     - javax.servlet
@@ -67,6 +87,8 @@ maven_artifacts:
     - javax.jms
     - javax.faces
     - javax.enterprise
+    - javax.xml.bind
+    - javax.xml.ws
     - javax
     - com.sun.xml.rpc
     - com.sun.xml.ws
@@ -74,6 +96,7 @@ maven_artifacts:
     - org.glassfish.jersey.core
     - org.glassfish.jersey.media
     - org.glassfish.jersey.containers
+    - org.glassfish.jersey.inject
     - org.glassfish.tyrus
     - org.glassfish.metro
     - org.jboss.resteasy
@@ -82,6 +105,8 @@ maven_artifacts:
     - org.apache.cxf
     - org.apache.batchee
     - org.apache.johnzon
+    - org.hibernate
+    - org.hibernate.validator
 
 java_packages:
   whitelist:
