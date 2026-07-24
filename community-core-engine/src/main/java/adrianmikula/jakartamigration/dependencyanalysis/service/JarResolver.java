@@ -54,7 +54,7 @@ public class JarResolver {
                     try (java.util.stream.Stream<Path> hashStream = Files.list(hashDir)) {
                         return hashStream;
                     } catch (Exception e) {
-                        log.debug("Error listing hash directory {}: {}", hashDir, e.getMessage());
+                        log.debug("Error listing hash directory {}: {}: {}", hashDir, e.getClass().getSimpleName(), e.getMessage());
                         return java.util.stream.Stream.empty();
                     }
                 })
@@ -65,7 +65,7 @@ public class JarResolver {
                 })
                 .findFirst();
         } catch (Exception e) {
-            log.debug("Error searching Gradle cache for {}: {}", artifact.toCoordinate(), e.getMessage());
+            log.debug("Error searching Gradle cache for {}: {}: {}", artifact.toCoordinate(), e.getClass().getSimpleName(), e.getMessage());
             return Optional.empty();
         }
     }

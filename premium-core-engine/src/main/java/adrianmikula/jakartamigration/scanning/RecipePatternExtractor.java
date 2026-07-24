@@ -103,7 +103,7 @@ public class RecipePatternExtractor {
             byte[] bytes = Files.readAllBytes(CACHE_FILE);
             return objectMapper.readValue(bytes, RecipePatterns.class);
         } catch (Exception e) {
-            log.debug("Failed to read cache file: {}", e.getMessage());
+            log.debug("Failed to read cache file: {}: {}", e.getClass().getSimpleName(), e.getMessage());
             return null;
         }
     }
@@ -114,7 +114,7 @@ public class RecipePatternExtractor {
             byte[] bytes = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(patterns);
             Files.write(CACHE_FILE, bytes);
         } catch (Exception e) {
-            log.debug("Failed to write cache file: {}", e.getMessage());
+            log.debug("Failed to write cache file: {}: {}", e.getClass().getSimpleName(), e.getMessage());
         }
     }
 

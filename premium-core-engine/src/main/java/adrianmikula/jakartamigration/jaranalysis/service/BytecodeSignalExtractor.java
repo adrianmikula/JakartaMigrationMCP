@@ -95,7 +95,7 @@ public class BytecodeSignalExtractor {
                         }
                     } catch (Exception e) {
                         log.trace("Failed to analyze class {} in {}: {}", 
-                            entryName, jarPath.getFileName(), e.getMessage());
+                            entryName, jarPath.getFileName(), e.getClass().getSimpleName() + ": " + e.getMessage());
                     }
                 }
                 
@@ -163,7 +163,7 @@ public class BytecodeSignalExtractor {
             }
         } catch (Exception e) {
             log.trace("No manifest or error reading manifest from {}: {}", 
-                jarFile.getName(), e.getMessage());
+                jarFile.getName(), e.getClass().getSimpleName() + ": " + e.getMessage());
         }
         return null;
     }

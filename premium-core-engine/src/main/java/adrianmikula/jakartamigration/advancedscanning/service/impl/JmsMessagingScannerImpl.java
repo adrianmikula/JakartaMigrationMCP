@@ -308,6 +308,7 @@ public class JmsMessagingScannerImpl implements JmsMessagingScanner {
 
             return new JmsMessagingScanResult(filePath, usages, lineCount);
         } catch (Exception e) {
+            log.warn("Failed to scan Java file {}: {}", filePath, e.getClass().getSimpleName() + ": " + e.getMessage());
             return JmsMessagingScanResult.empty(filePath);
         }
     }

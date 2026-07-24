@@ -366,8 +366,8 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
                 List<ImprovedMavenCentralLookupService.JakartaArtifactMatch> matches = future.get();
                 return !matches.isEmpty();
             } catch (Exception e) {
-                log.debug("Error checking Jakarta equivalent for {}:{}: {}", 
-                        artifact.groupId(), artifact.artifactId(), e.getMessage());
+                log.warn("Error checking Jakarta equivalent for {}:{}: {}", 
+                        artifact.groupId(), artifact.artifactId(), e.getClass().getSimpleName() + ": " + e.getMessage());
                 return false;
             }
         }
@@ -387,8 +387,8 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
                 List<ImprovedMavenCentralLookupService.JakartaArtifactMatch> matches = future.get();
                 return !matches.isEmpty();
             } catch (Exception e) {
-                log.debug("Error checking Jakarta equivalent for {}:{}: {}", 
-                        artifact.groupId(), artifact.artifactId(), e.getMessage());
+                log.warn("Error checking Jakarta equivalent for {}:{}: {}", 
+                        artifact.groupId(), artifact.artifactId(), e.getClass().getSimpleName() + ": " + e.getMessage());
                 return false;
             }
         }

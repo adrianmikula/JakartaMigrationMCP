@@ -152,6 +152,7 @@ public class ThirdPartyLibScannerImpl implements ThirdPartyLibScanner {
         try {
             return namespaceClassifier.classify(new Artifact(groupId, artifactId, "unknown", "compile", false));
         } catch (Exception e) {
+            log.warn("Namespace classification failed for {}:{}: {}", groupId, artifactId, e.getClass().getSimpleName() + ": " + e.getMessage());
             return Namespace.UNKNOWN;
         }
     }

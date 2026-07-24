@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -65,6 +66,10 @@ public class DashboardComponent implements ScanProgressListener {
     
     // Cache for preventing unnecessary updates
     private Integer lastCalculatedRiskScore = null;
+
+    // Cached file counts (computed asynchronously to avoid EDT freezes)
+    private volatile int cachedTotalFileCount = -1;
+    private volatile int cachedTestFileCount = -1;
 
     // UI Components for gauges (top section)
     private JPanel gaugesPanel;
@@ -232,6 +237,9 @@ public class DashboardComponent implements ScanProgressListener {
         // Update all components with new data
         updateGauges();
         updateSummary();
+
+        // Refresh file counts in background to avoid EDT freeze
+        refreshFileCountsInBackground();
     }
     
     /**
@@ -239,6 +247,25 @@ public class DashboardComponent implements ScanProgressListener {
      */
     public MigrationDashboard getDashboard() {
         return dashboard;
+    }
+
+    /**
+     * Refreshes file count caches in a background thread, then triggers a gauge
+     * update on the EDT. This prevents 10+ second freezes when updateGauges()
+     * is called on the EDT and has to walk the filesystem.
+     */
+    private void refreshFileCountsInBackground() {
+        if (project == null || project.getBasePath() == null) return;
+        CompletableFuture.supplyAsync(() -> {
+            int total = getTotalFileCount();
+            int tests = getTestFileCount();
+            return new int[]{total, tests};
+        }).thenAccept(counts -> {
+            cachedTotalFileCount = counts[0];
+            cachedTestFileCount = counts[1];
+            // Re-run gauges with the now-cached values (EDT-safe since setScore is swing)
+            SwingUtilities.invokeLater(this::updateGauges);
+        });
     }
 
     private void initializeComponent() {
@@ -1465,8 +1492,9 @@ private void resetAdvancedScanCounts() {
         
         // Note: Scan findings excluded from risk calculation per new formula
         // Calculate risk score without scan findings and validation confidence
-        int totalFileCount = getTotalFileCount();
-        int testFileCount = getTestFileCount();
+        // Use cached file counts to avoid blocking the EDT with filesystem walks
+        int totalFileCount = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
+        int testFileCount = cachedTestFileCount >= 0 ? cachedTestFileCount : 0;
         double platformRiskScore = getPlatformRiskScore();
         // Estimate integration tests and critical modules (simplified for now)
         int integrationTestCount = estimateIntegrationTestCount();
@@ -1595,9 +1623,9 @@ private void resetAdvancedScanCounts() {
 
         DependencySummary depSummary = dashboard.getDependencySummary();
 
-        // Get values for effort factors
+        // Get values for effort factors (use cached file counts to avoid EDT block)
         int recipesWithMatches = getRecipesWithMatchesCount();
-        int projectFiles = getTotalFileCount();
+        int projectFiles = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
         int orgDeps = depSummary != null && depSummary.getOrganisationalDependencies() != null
             ? depSummary.getOrganisationalDependencies() : 0;
 
@@ -1723,7 +1751,7 @@ private void resetAdvancedScanCounts() {
         double testCoverage = calculateTestCoverageEstimate();
         int integrationTestCount = estimateIntegrationTestCount();
         int criticalModulesTested = estimateCriticalModulesTested();
-        int totalFiles = getTotalFileCount();
+        int totalFiles = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
 
         // Unit test coverage below threshold (threshold 70%)
         int unitTestCoverageValue = (int) Math.round(testCoverage);
@@ -1830,8 +1858,8 @@ private void resetAdvancedScanCounts() {
                 }
             }
 
-            // Update project size (total file count)
-            int totalFiles = getTotalFileCount();
+            // Update project size (total file count, use cached value)
+            int totalFiles = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
             projectSizeValue.setText(String.valueOf(totalFiles));
             projectSizeValue.setForeground(totalFiles > 0 ? new Color(100, 100, 200) : Color.GRAY);
 
@@ -2375,11 +2403,11 @@ private void resetAdvancedScanCounts() {
                 }
 
                 // Calculate risk score with test coverage parameters
-                int testFileCount = getTestFileCount();
+                int testFileCount = cachedTestFileCount >= 0 ? cachedTestFileCount : 0;
                 int integrationTestCount = estimateIntegrationTestCount();
                 int criticalModulesTested = estimateCriticalModulesTested();
                 RiskScoringService.RiskScore currentScore = riskScoringService.calculateRiskScore(
-                    scanFindings, depIssues, getTotalFileCount(), getPlatformRiskScore(),
+                    scanFindings, depIssues, cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0, getPlatformRiskScore(),
                     testFileCount, integrationTestCount, criticalModulesTested);
                 currentRiskScore = currentScore.totalScore();
             } catch (Exception e) {
@@ -2611,8 +2639,8 @@ private void resetAdvancedScanCounts() {
      * - 100:1 ratio (1% test files) = 10% coverage
      */
     private double calculateTestCoverageEstimate() {
-        int totalFiles = getTotalFileCount();
-        int testFiles = getTestFileCount();
+        int totalFiles = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
+        int testFiles = cachedTestFileCount >= 0 ? cachedTestFileCount : 0;
 
         if (totalFiles == 0) {
             return 0.0;
@@ -2632,7 +2660,7 @@ private void resetAdvancedScanCounts() {
      * For now, assumes 20% of test files are integration tests.
      */
     private int estimateIntegrationTestCount() {
-        int testFiles = getTestFileCount();
+        int testFiles = cachedTestFileCount >= 0 ? cachedTestFileCount : 0;
         return (int) Math.round(testFiles * 0.2);
     }
 
@@ -2641,7 +2669,7 @@ private void resetAdvancedScanCounts() {
      * For now, assumes 30% of modules are critical and tested.
      */
     private int estimateCriticalModulesTested() {
-        int totalFiles = getTotalFileCount();
+        int totalFiles = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
         // Assume modules are roughly 50 files each
         int estimatedModules = Math.max(totalFiles / 50, 1);
         return (int) Math.round(estimatedModules * 0.3);

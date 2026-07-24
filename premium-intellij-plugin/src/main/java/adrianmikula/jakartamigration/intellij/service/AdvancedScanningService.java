@@ -14,6 +14,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.advancedscanning.service.ScanRecipeRecommendationService;
+import adrianmikula.jakartamigration.scanning.BalloonNotificationService;
 import com.intellij.openapi.diagnostic.Logger;
 
 import java.nio.file.Path;
@@ -71,7 +72,13 @@ public class AdvancedScanningService {
     private static final long NOTIFICATION_DEDUPLICATION_MS = 5 * 60 * 1000; // 5 minutes
 
     public AdvancedScanningService(RecipeService recipeService, Project project) {
-        this.scanningModule = new AdvancedScanningModule(recipeService);
+        // Wire IntelliJ notification balloon into the core engine
+        BalloonNotificationService balloonService = new BalloonNotificationService((title, message) -> {
+            if (project != null) {
+                NotificationHelper.showWarning(project, title, message);
+            }
+        });
+        this.scanningModule = new AdvancedScanningModule(recipeService, balloonService);
         this.thirdPartyLibScanner = scanningModule.getThirdPartyLibScanner();
         this.project = project;
 
@@ -1153,6 +1160,8 @@ public class AdvancedScanningService {
 
         // Process all file results and usages
         for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult fileResult : deepResult.getFileResults()) {
+            String fileErrorMessage = fileResult.hasError() ? fileResult.getErrorMessage() : null;
+
             for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage usage : fileResult.getUsages()) {
                 String artifactKey = usage.getArtifactKey();
 
@@ -1181,8 +1190,14 @@ public class AdvancedScanningService {
                     info.setScanReason(usage.getScanReason().name());
                 }
 
-                // Set detail message
-                info.setDetailMessage(usage.getDetailMessage());
+                // Set detail message — prefer file-level error if the file had a build tool error
+                String detailMsg = usage.getDetailMessage();
+                if (fileErrorMessage != null && usage.getScanReason() == ScanReason.BUILD_TOOL_ERROR) {
+                    detailMsg = friendlyErrorMessage(fileErrorMessage);
+                } else if (fileErrorMessage != null && detailMsg == null) {
+                    detailMsg = "Results based on regex fallback — build tool command failed";
+                }
+                info.setDetailMessage(detailMsg);
 
                 // Set confidence
                 info.setConfidence(usage.getConfidence());
@@ -1205,6 +1220,28 @@ public class AdvancedScanningService {
         }
 
         return new ArrayList<>(dependencyMap.values());
+    }
+
+    /**
+     * Generates a summary banner message describing project-level scan errors.
+     * Returns null when there are no errors to report.
+     */
+    public String buildErrorBanner(TransitiveDependencyProjectScanResult deepResult) {
+        if (deepResult == null) return null;
+        int filesWithErrors = deepResult.getFilesWithCommandErrors();
+        if (filesWithErrors <= 0) return null;
+        return "⚠ " + filesWithErrors + " build file" + (filesWithErrors > 1 ? "s" : "")
+            + " failed — results for those modules are based on regex fallback (partial)";
+    }
+
+    private static String friendlyErrorMessage(String raw) {
+        if (raw == null) return null;
+        String lower = raw.toLowerCase();
+        if (lower.contains("not found")) return "Build tool not found — install Maven/Gradle or add wrapper to project";
+        if (lower.contains("timeout")) return "Build command timed out — project may be too large or build too slow";
+        if (lower.contains("no dependencies")) return "Build command returned no dependencies — check build configuration";
+        if (lower.contains("exited with code") || lower.contains("command failed")) return "Build command failed — results based on regex fallback (partial)";
+        return "Build tool error — " + raw;
     }
 
     private String determineJakartaCompatibilityStatus(ScanReason scanReason) {
@@ -1385,7 +1422,8 @@ public class AdvancedScanningService {
             case BLACKLISTED, BYTECODE_SCAN_JAVAX, TRANSITIVE_INCOMPATIBLE -> DependencyMigrationStatus.NEEDS_UPGRADE;
             case MAVEN_LOOKUP_NONE -> DependencyMigrationStatus.MAVEN_LOOKUP_FAILED;
             case BYTECODE_SCAN_MIXED -> DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION;
-            case BYTECODE_SCAN_UNKNOWN, UNKNOWN, BUILD_TOOL_ERROR -> DependencyMigrationStatus.UNKNOWN_REVIEW;
+            case BUILD_TOOL_ERROR -> DependencyMigrationStatus.BUILD_TOOL_ERROR;
+            case BYTECODE_SCAN_UNKNOWN, UNKNOWN -> DependencyMigrationStatus.UNKNOWN_REVIEW;
         };
     }
 }

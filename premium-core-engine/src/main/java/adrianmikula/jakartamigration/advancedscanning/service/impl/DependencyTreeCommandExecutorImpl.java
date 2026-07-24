@@ -424,7 +424,7 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
             log.debug("Command '{}' check completed with exit code {}", command, exitCode);
             return exitCode == 0;
         } catch (IOException e) {
-            log.debug("Command '{}' not available: {}", command, e.getMessage());
+            log.debug("Command '{}' not available: {}: {}", command, e.getClass().getSimpleName(), e.getMessage());
             return false;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

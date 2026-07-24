@@ -26,6 +26,7 @@ import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JarResolver;
 import adrianmikula.jakartamigration.jaranalysis.service.JarCompatibilityScanner;
 import adrianmikula.jakartamigration.jaranalysis.service.DefaultJarCompatibilityScanner;
+import adrianmikula.jakartamigration.scanning.BalloonNotificationService;
 
 /**
  * Module that provides access to all premium advanced scanning services.
@@ -55,8 +56,15 @@ public class AdvancedScanningModule {
     private final AppServerScanner appServerScanner;
     private final DockerCicdScanner dockerCicdScanner;
     private final ScanRecipeRecommendationService recipeRecommendationService;
+    private final BalloonNotificationService balloonNotificationService;
 
     public AdvancedScanningModule(RecipeService recipeService) {
+        this(recipeService, null);
+    }
+
+    public AdvancedScanningModule(RecipeService recipeService, BalloonNotificationService balloonNotificationService) {
+        this.recipeRecommendationService = new ScanRecipeRecommendationServiceImpl(recipeService);
+        this.balloonNotificationService = balloonNotificationService;
         // Initialize shared services for bytecode scanning
         JarResolver jarResolver = new JarResolver();
         JarCompatibilityScanner jarCompatibilityScanner = new DefaultJarCompatibilityScanner();
@@ -77,7 +85,8 @@ public class AdvancedScanningModule {
             new adrianmikula.jakartamigration.scanning.RecipeBasedClassifier(),
             jarCompatibilityScanner,
             jarResolver,
-            new adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService()
+            new adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService(),
+            balloonNotificationService
         );
         this.configFileScanner = new ConfigFileScannerImpl();
         this.classloaderModuleScanner = new ClassloaderModuleScannerImpl();
@@ -90,7 +99,6 @@ public class AdvancedScanningModule {
         this.integrationPointsScanner = new IntegrationPointsScannerImpl();
         this.appServerScanner = new AppServerScannerImpl();
         this.dockerCicdScanner = new DockerCicdScannerImpl();
-        this.recipeRecommendationService = new ScanRecipeRecommendationServiceImpl(recipeService);
     }
 
     /**
@@ -233,5 +241,12 @@ public class AdvancedScanningModule {
      */
     public ScanRecipeRecommendationService getRecipeRecommendationService() {
         return recipeRecommendationService;
+    }
+
+    /**
+     * Gets the Balloon Notification Service.
+     */
+    public BalloonNotificationService getBalloonNotificationService() {
+        return balloonNotificationService;
     }
 }

@@ -131,7 +131,8 @@ public class DefaultJarCompatibilityScanner implements JarCompatibilityScanner {
                 try {
                     return analyzeJar(jarPath, opts);
                 } catch (Exception e) {
-                    return createUnknownReport(jarPath.toString(), e.getMessage(), 0, false);
+                    log.debug("Parallel JAR analysis failed for {}: {}", jarPath, e.getClass().getSimpleName() + ": " + e.getMessage());
+                    return createUnknownReport(jarPath.toString(), e.getClass().getSimpleName() + ": " + e.getMessage(), 0, false);
                 }
             })
             .collect(Collectors.toList());
@@ -209,7 +210,10 @@ public class DefaultJarCompatibilityScanner implements JarCompatibilityScanner {
     private String computeCacheKeyForPath(Path jarPath) {
         try {
             return jarPath.toAbsolutePath() + ":" + Files.getLastModifiedTime(jarPath).toMillis();
-        } catch (IOException e) { return jarPath.toAbsolutePath().toString(); }
+        } catch (IOException e) {
+            log.debug("Failed to get file modified time for {}: {}", jarPath, e.getClass().getSimpleName() + ": " + e.getMessage());
+            return jarPath.toAbsolutePath().toString();
+        }
     }
 
     public void shutdown() {

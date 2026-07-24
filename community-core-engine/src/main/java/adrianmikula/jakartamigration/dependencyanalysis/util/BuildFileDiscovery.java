@@ -1,5 +1,7 @@
 package adrianmikula.jakartamigration.dependencyanalysis.util;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -10,6 +12,7 @@ import java.util.stream.Stream;
  * Shared build file discovery utility.
  * Consolidates build file discovery logic across scanners.
  */
+@Slf4j
 public final class BuildFileDiscovery {
 
     private static final Set<String> MAVEN_FILE_NAMES = Set.of("pom.xml");
@@ -39,7 +42,7 @@ public final class BuildFileDiscovery {
                     .sorted()
                     .forEach(buildFiles::add);
         } catch (IOException e) {
-            // Return what we found so far
+            log.debug("Error walking directory tree for build files: {}", e.getClass().getSimpleName() + ": " + e.getMessage());
         }
 
         return buildFiles;
@@ -134,6 +137,7 @@ public final class BuildFileDiscovery {
                 String content = Files.readString(rootPom);
                 return content.contains("<modules>");
             } catch (IOException e) {
+                log.debug("Error reading pom.xml for multi-module check: {}", e.getClass().getSimpleName() + ": " + e.getMessage());
                 return false;
             }
         }
@@ -183,7 +187,7 @@ public final class BuildFileDiscovery {
                         return Optional.of(current);
                     }
                 } catch (IOException e) {
-                    // Continue walking up
+                    log.debug("Error reading pom.xml while finding root directory: {}", e.getClass().getSimpleName() + ": " + e.getMessage());
                 }
             }
 

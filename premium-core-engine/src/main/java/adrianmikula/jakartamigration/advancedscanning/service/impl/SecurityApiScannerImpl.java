@@ -269,6 +269,7 @@ public class SecurityApiScannerImpl implements SecurityApiScanner {
 
             return new SecurityApiScanResult(filePath, usages, lineCount);
         } catch (Exception e) {
+            log.warn("Failed to scan Java file {}: {}", filePath, e.getClass().getSimpleName() + ": " + e.getMessage());
             return SecurityApiScanResult.empty(filePath);
         }
     }

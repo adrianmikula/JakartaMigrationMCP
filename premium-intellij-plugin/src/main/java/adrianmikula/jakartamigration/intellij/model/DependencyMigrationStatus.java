@@ -13,7 +13,8 @@ public enum DependencyMigrationStatus {
     UNKNOWN_REVIEW("UNKNOWN_REVIEW"),
     MIGRATED("MIGRATED"),
     UNKNOWN("UNKNOWN"),
-    MAVEN_LOOKUP_FAILED("MAVEN_LOOKUP_FAILED");
+    MAVEN_LOOKUP_FAILED("MAVEN_LOOKUP_FAILED"),
+    BUILD_TOOL_ERROR("BUILD_TOOL_ERROR");
 
     private final String value;
 

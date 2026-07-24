@@ -205,7 +205,7 @@ public abstract class BaseScanner<T> {
         try {
             javaParserThreadLocal.remove();
         } catch (Exception e) {
-            log.debug("Error cleaning up ThreadLocal: {}", e.getMessage());
+            log.debug("Error cleaning up ThreadLocal: {}: {}", e.getClass().getSimpleName(), e.getMessage());
         }
     }
 }

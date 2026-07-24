@@ -66,6 +66,9 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
     // Truncation notice panel (shown for free users)
     private TruncationNoticePanel truncationNoticePanel;
 
+    // Error banner for build tool failures
+    private JLabel errorBannerLabel;
+
     // Recipes panel component (shared with tree view)
     private RecipesPanelComponent recipesPanel;
     private boolean isPremiumUser = false;
@@ -99,6 +102,7 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
                 "Compatibility Status",
                 "Reason",
                 "Type",
+                "Details",
                 "" // Hidden column for DependencyInfo object
         };
 
@@ -143,9 +147,9 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             
             isRendering = true;
             try {
-            // Status column is at index 5, Jakarta Equivalent at index 4, DependencyInfo at index 8
+            // Status column is at index 5, Jakarta Equivalent at index 4, DependencyInfo at index 9
             if (column == 5 && row < table.getModel().getRowCount()) {
-                Object depObj = table.getModel().getValueAt(row, 8);
+                Object depObj = table.getModel().getValueAt(row, 9);
                 if (depObj instanceof DependencyInfo) {
                     DependencyInfo dep = (DependencyInfo) depObj;
                     JPanel panel = new JPanel(new BorderLayout());
@@ -197,10 +201,10 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             if (isSelected) {
                 label.setBackground(table.getSelectionBackground());
             } else {
-                // Determine if this row is organizational (check hidden column at index 8)
+                // Determine if this row is organizational (check hidden column at index 9)
                 boolean isOrg = false;
                 if (row < table.getModel().getRowCount()) {
-                    Object depObj = table.getModel().getValueAt(row, 8);
+                    Object depObj = table.getModel().getValueAt(row, 9);
                     if (depObj instanceof DependencyInfo) {
                         isOrg = ((DependencyInfo) depObj).isOrganizational();
                     }
@@ -273,7 +277,7 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         table.setFillsViewportHeight(true);
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
-        // Set column widths (8 columns + 1 hidden)
+        // Set column widths (9 columns + 1 hidden)
         table.getColumnModel().getColumn(0).setPreferredWidth(150); // Group ID
         table.getColumnModel().getColumn(1).setPreferredWidth(150); // Artifact ID
         table.getColumnModel().getColumn(2).setPreferredWidth(90);  // Current Version
@@ -282,9 +286,10 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         table.getColumnModel().getColumn(5).setPreferredWidth(120); // Status (color-coded)
         table.getColumnModel().getColumn(6).setPreferredWidth(200); // Reason
         table.getColumnModel().getColumn(7).setPreferredWidth(80);  // Type
-        table.getColumnModel().getColumn(8).setMinWidth(0);       // Hidden DependencyInfo
-        table.getColumnModel().getColumn(8).setMaxWidth(0);
-        table.getColumnModel().getColumn(8).setWidth(0);
+        table.getColumnModel().getColumn(8).setPreferredWidth(250); // Details
+        table.getColumnModel().getColumn(9).setMinWidth(0);       // Hidden DependencyInfo
+        table.getColumnModel().getColumn(9).setMaxWidth(0);
+        table.getColumnModel().getColumn(9).setWidth(0);
 
         // Add mouse listener for double-click navigation
         table.addMouseListener(new MouseInputAdapter() {
@@ -326,8 +331,18 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         truncationNoticePanel = new TruncationNoticePanel();
         truncationNoticePanel.setVisible(false);
 
+        // Create error banner label (hidden by default)
+        errorBannerLabel = new JLabel();
+        errorBannerLabel.setOpaque(true);
+        errorBannerLabel.setBackground(new Color(255, 243, 224)); // Light orange
+        errorBannerLabel.setForeground(new Color(180, 80, 0));
+        errorBannerLabel.setBorder(new EmptyBorder(6, 10, 6, 10));
+        errorBannerLabel.setFont(errorBannerLabel.getFont().deriveFont(Font.BOLD));
+        errorBannerLabel.setVisible(false);
+
         // Create center panel with table, truncation notice, and recipes
         JPanel centerPanel = new JBPanel<>(new BorderLayout());
+        centerPanel.add(errorBannerLabel, BorderLayout.NORTH);
         centerPanel.add(scrollPane, BorderLayout.CENTER);
 
         // South panel containing truncation notice (above recipes)
@@ -373,6 +388,21 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
 
     public JPanel getPanel() {
         return panel;
+    }
+
+    /**
+     * Shows or hides the error banner above the dependency table.
+     * Used to inform users when build tool commands failed and results are partial.
+     *
+     * @param message the banner text, or null to hide the banner
+     */
+    public void setErrorBanner(String message) {
+        if (message == null || message.isEmpty()) {
+            errorBannerLabel.setVisible(false);
+        } else {
+            errorBannerLabel.setText(message);
+            errorBannerLabel.setVisible(true);
+        }
     }
 
     public void setDependencies(List<DependencyInfo> dependencies) {
@@ -509,6 +539,8 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             statusText = "↑ Upgrade Available";
         } else if (dep.getMigrationStatus() == DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION) {
             statusText = "⚠ Manual Review Required";
+        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.BUILD_TOOL_ERROR) {
+            statusText = "⚠ Build Tool Error";
         } else if ("BUILD_TOOL_ERROR".equals(scanReason)) {
             statusText = "⚠ Build Tool Error";
         } else if (!hasJakartaEquivalent) {
@@ -545,7 +577,10 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             reason = "Build tool error - regex fallback (deep scan unavailable)";
         }
 
-        // Add row with all columns - DependencyInfo at column 8 (hidden)
+        // Details column - human-friendly error/explanation text
+        String details = dep.getDetailMessage() != null ? dep.getDetailMessage() : "";
+
+        // Add row with all columns - DependencyInfo at column 9 (hidden)
         tableModel.addRow(new Object[] {
                 dep.getGroupId(),
                 dep.getArtifactId(),
@@ -555,7 +590,8 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
                 statusText,         // Column 5: Status
                 reason,             // Column 6: Reason
                 dependencyType,     // Column 7: Type
-                dep // Column 8: Full object for renderer (hidden column)
+                details,            // Column 8: Details
+                dep // Column 9: Full object for renderer (hidden column)
         });
     }
     

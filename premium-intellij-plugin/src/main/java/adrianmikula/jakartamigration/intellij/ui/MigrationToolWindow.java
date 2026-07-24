@@ -999,6 +999,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             deepFuture.thenAccept(deepResult -> {
                 List<DependencyInfo> depInfos = advancedScanningService.convertToDependencyInfo(deepResult);
+                String errorBanner = advancedScanningService.buildErrorBanner(deepResult);
                 // Build dependency graph from deep result
                 DependencyGraph deepGraph = advancedScanningService.buildDependencyGraphFromDeepResult(deepResult);
                 // Build status map for graph visualization
@@ -1013,6 +1014,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
                 ApplicationManager.getApplication().invokeLater(() -> {
                     dependencyUIManager.updateAllDependencies(depInfos);
+                    dependenciesComponent.setErrorBanner(errorBanner);
                     migrationPhasesComponent.setDependencies(depInfos);
                     dependencyGraphComponent.updateGraphFromDependencyGraph(deepGraph, statusMap);
                     dashboardComponent.setDashboard(dashboard);
@@ -1156,6 +1158,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
                 // Convert to DependencyInfo list
                 List<DependencyInfo> dependencyInfos = advancedScanningService.convertToDependencyInfo(deepResult);
+                String errorBanner = advancedScanningService.buildErrorBanner(deepResult);
 
                 LOG.info("runDeepDependencyAnalysis: Deep scan completed with " + dependencyInfos.size() + " dependencies");
 
@@ -1163,6 +1166,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 ApplicationManager.getApplication().invokeLater(() -> {
                     if (!dependencyInfos.isEmpty()) {
                         dependencyUIManager.updateAllDependencies(dependencyInfos);
+                        dependenciesComponent.setErrorBanner(errorBanner);
                         LOG.info("runDeepDependencyAnalysis: Updated Dependencies table and tree with deep scan results");
                     }
                 });

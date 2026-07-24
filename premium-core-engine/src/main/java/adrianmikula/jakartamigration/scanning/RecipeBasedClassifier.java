@@ -184,7 +184,7 @@ public class RecipeBasedClassifier implements NamespaceClassifier {
             }
             return scanJarForNamespaces(jarPath.get());
         } catch (Exception e) {
-            log.debug("JAR scan failed for {}: {}", artifact.toCoordinate(), e.getMessage());
+            log.debug("JAR scan failed for {}: {}", artifact.toCoordinate(), e.getClass().getSimpleName() + ": " + e.getMessage());
             return Namespace.UNKNOWN;
         }
     }
@@ -222,12 +222,12 @@ public class RecipeBasedClassifier implements NamespaceClassifier {
                             return Namespace.MIXED;
                         }
                     } catch (Exception e) {
-                        log.trace("Failed to read class entry {}: {}", name, e.getMessage());
+                        log.debug("Failed to read class entry {}: {}", name, e.getClass().getSimpleName() + ": " + e.getMessage());
                     }
                 }
             }
         } catch (Exception e) {
-            log.debug("Failed to open JAR {}: {}", jarPath, e.getMessage());
+            log.debug("Failed to open JAR {}: {}", jarPath, e.getClass().getSimpleName() + ": " + e.getMessage());
         }
 
         if (foundJakarta) return Namespace.JAKARTA;

@@ -246,6 +246,7 @@ public class DeprecatedApiScannerImpl implements DeprecatedApiScanner {
 
                         return new DeprecatedApiScanResult(filePath, usages, lineCount);
                 } catch (Exception e) {
+                        log.warn("Failed to scan Java file {}: {}", filePath, e.getClass().getSimpleName() + ": " + e.getMessage());
                         return DeprecatedApiScanResult.empty(filePath);
                 }
         }

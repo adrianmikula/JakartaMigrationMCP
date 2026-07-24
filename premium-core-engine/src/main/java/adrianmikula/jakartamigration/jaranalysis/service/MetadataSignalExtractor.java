@@ -78,7 +78,7 @@ public class MetadataSignalExtractor {
                         signals.javaxDepsInPom = true;
                     }
                 } catch (IOException e) {
-                    // Skip this entry
+                    log.debug("Failed to read JAR entry {}: {}", name, e.getClass().getSimpleName() + ": " + e.getMessage());
                 }
             }
         }
@@ -143,7 +143,7 @@ public class MetadataSignalExtractor {
             }
             return true;
         } catch (Exception e) {
-            log.trace("Failed to parse pom.xml {}: {}", entry.getName(), e.getMessage());
+            log.trace("Failed to parse pom.xml {}: {}", entry.getName(), e.getClass().getSimpleName() + ": " + e.getMessage());
             return false;
         }
     }
@@ -174,7 +174,7 @@ public class MetadataSignalExtractor {
                 }
             }
         } catch (IOException e) {
-            log.trace("Failed to read manifest: {}", e.getMessage());
+            log.trace("Failed to read manifest: {}: {}", e.getClass().getSimpleName(), e.getMessage());
         }
     }
 

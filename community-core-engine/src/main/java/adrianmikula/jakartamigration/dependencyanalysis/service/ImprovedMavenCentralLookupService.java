@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Simplified Maven Central lookup service with fuzzy matching capabilities.
@@ -24,15 +25,17 @@ import java.util.concurrent.CompletableFuture;
 public class ImprovedMavenCentralLookupService {
     
     private static final String MAVEN_CENTRAL_API = "https://search.maven.org/solrsearch/select";
-    private static final String MAVEN_CENTRAL_FALLBACK = "https://search.maven.org/solrsearch/select";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     
     // HTTP client is instance field to allow mocking in tests
     private HttpClient httpClient;
     
+    // Session-scoped cache: groupId:artifactId → results (includes misses)
+    private final ConcurrentHashMap<String, List<JakartaArtifactMatch>> lookupCache = new ConcurrentHashMap<>();
+    
     public ImprovedMavenCentralLookupService() {
         this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(15))
+                .connectTimeout(Duration.ofSeconds(5))
                 .build();
     }
     
@@ -200,6 +203,7 @@ public class ImprovedMavenCentralLookupService {
     
     /**
      * Finds Jakarta equivalent artifacts with fuzzy matching strategies.
+     * Uses session-scoped cache and static-mapping fast path to minimize network calls.
      */
     public CompletableFuture<List<JakartaArtifactMatch>> findJakartaEquivalents(
             String javaxGroupId, 
@@ -217,6 +221,22 @@ public class ImprovedMavenCentralLookupService {
         // Normalize to lowercase for case-insensitive matching
         String normalizedGroupId = javaxGroupId.toLowerCase();
         String normalizedArtifactId = javaxArtifactId.toLowerCase();
+        String cacheKey = normalizedGroupId + ":" + normalizedArtifactId;
+        
+        // T2: Session-scoped cache check
+        List<JakartaArtifactMatch> cached = lookupCache.get(cacheKey);
+        if (cached != null) {
+            log.debug("Cache hit for {}:{}", normalizedGroupId, normalizedArtifactId);
+            return CompletableFuture.completedFuture(cached);
+        }
+        
+        // T3: Static-mapping fast path — check ARTIFACT_MAPPINGS and GROUP_MAPPINGS before network calls
+        List<JakartaArtifactMatch> fastPathResult = tryStaticMappingFastPath(normalizedGroupId, normalizedArtifactId);
+        if (fastPathResult != null) {
+            lookupCache.put(cacheKey, fastPathResult);
+            log.info("Static mapping fast path found {} results for {}:{}", fastPathResult.size(), normalizedGroupId, normalizedArtifactId);
+            return CompletableFuture.completedFuture(fastPathResult);
+        }
         
         return CompletableFuture.supplyAsync(() -> {
             List<JakartaArtifactMatch> allResults = new ArrayList<>();
@@ -237,9 +257,37 @@ public class ImprovedMavenCentralLookupService {
                     .limit(5) // Limit to top 5 results
                     .toList();
             
+            // T2: Cache both hits and misses
+            lookupCache.put(cacheKey, uniqueResults);
+            
             log.info("Found {} unique Jakarta artifacts for {}:{}", uniqueResults.size(), javaxGroupId, javaxArtifactId);
             return uniqueResults;
         });
+    }
+    
+    /**
+     * T3: Static-mapping fast path — returns known Jakarta equivalents without network calls,
+     * or null if no static mapping exists.
+     */
+    private List<JakartaArtifactMatch> tryStaticMappingFastPath(String groupId, String artifactId) {
+        // Check artifact name mapping (e.g., javax.servlet-api → jakarta.servlet-api)
+        String mappedArtifactId = ARTIFACT_MAPPINGS.get(artifactId);
+        if (mappedArtifactId != null) {
+            // Derive jakarta groupId from javax groupId
+            String jakartaGroupId = groupId;
+            if (groupId.startsWith("javax.")) {
+                jakartaGroupId = "jakarta." + groupId.substring("javax.".length());
+            }
+            return List.of(JakartaArtifactMatch.of(jakartaGroupId, mappedArtifactId, null));
+        }
+        
+        // Check group name mapping (e.g., javax.servlet → jakarta.servlet)
+        String mappedGroupId = GROUP_MAPPINGS.get(groupId);
+        if (mappedGroupId != null) {
+            return List.of(JakartaArtifactMatch.of(mappedGroupId, artifactId, null));
+        }
+        
+        return null;
     }
     
     /**
@@ -571,21 +619,10 @@ public class ImprovedMavenCentralLookupService {
     }
 
     /**
-     * Performs the actual Maven Central search with fallback endpoints
+     * Performs the actual Maven Central search
      */
     private List<JakartaArtifactMatch> performMavenCentralSearch(String groupId, String artifactId) {
-        List<JakartaArtifactMatch> results = new ArrayList<>();
-        
-        // Try the primary endpoint first
-        results.addAll(performSearchWithEndpoint(MAVEN_CENTRAL_API, groupId, artifactId));
-        
-        // If no results, try alternative endpoint
-        if (results.isEmpty()) {
-            log.info("No results from primary endpoint, trying alternative...");
-            results.addAll(performSearchWithEndpoint(MAVEN_CENTRAL_FALLBACK, groupId, artifactId));
-        }
-        
-        return results;
+        return performSearchWithEndpoint(MAVEN_CENTRAL_API, groupId, artifactId);
     }
     
     /**
@@ -596,20 +633,16 @@ public class ImprovedMavenCentralLookupService {
             String searchQuery = "g:" + groupId + " AND a:" + artifactId;
             String url = endpoint + "?q=" + URLEncoder.encode(searchQuery, "UTF-8") + "&rows=5&wt=json";
             
-            log.info("Querying Maven Central: {}", url);
-            
             log.debug("[MavenLookup] Querying: {}", url);
             
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(15))
+                    .timeout(Duration.ofSeconds(5))
                     .GET()
                     .header("User-Agent", "Jakarta-Migration-MCP/1.0")
                     .build();
             
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            
-            log.info("Maven Central response status: {} for query: {}", response.statusCode(), searchQuery);
             
             log.debug("[MavenLookup] Response status: {}", response.statusCode());
             

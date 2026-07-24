@@ -259,7 +259,7 @@ Two core issues with the current dependency scanning architecture:
 
 **Discovered Issues:**
 
-#### Issue 1: Dependency Graph Edge Key Format Mismatch (CRITICAL)
+#### Issue 1: Dependency Graph Edge Key Format Mismatch (CRITICAL) ✅ COMPLETE
 
 `TransitiveDependencyEdge` uses 2-part keys (`groupId:artifactId`) via `buildParentMap()` which maps `childArtifactKey → parentArtifactKey`. However, `AdvancedScanningService.buildDependencyGraphFromDeepResult()` (lines 1237–1252) splits on `:` and requires `parts.length >= 3` (expects `groupId:artifactId:version`). **All inter-artifact edges are silently dropped** — the graph shows a flat star topology instead of the actual dependency tree.
 
@@ -269,7 +269,7 @@ Two core issues with the current dependency scanning architecture:
 
 ---
 
-#### Issue 2: Missing Field Mappings to DependencyInfo (Data Loss)
+#### Issue 2: Missing Field Mappings to DependencyInfo (Data Loss) ✅ COMPLETE
 
 `TransitiveDependencyUsage` exposes `severity`, `recommendation`, and `javaxPackage` fields, but `convertToDependencyInfo()` (lines 1147–1203) does not map them to `DependencyInfo`. This data is completely lost.
 
@@ -286,7 +286,7 @@ Additionally, only the first element of `alternativeVersions` is used; the rest 
 
 ---
 
-#### Issue 3: Progress Bar Shows No/Invisible Movement
+#### Issue 3: Progress Bar Shows No/Invisible Movement ✅ COMPLETE
 
 Multiple progress reporting gaps cause the scan progress bar to appear stuck:
 
@@ -310,7 +310,7 @@ Multiple progress reporting gaps cause the scan progress bar to appear stuck:
 
 ---
 
-#### Issue 4: scanFileFallback() Drops Listener
+#### Issue 4: scanFileFallback() Drops Listener ✅ COMPLETE
 
 When the regex fallback path is used (`scanFileFallback()`), the `ScanProgressListener` is not passed, so no progress is reported for the fallback scan.
 
@@ -320,7 +320,7 @@ When the regex fallback path is used (`scanFileFallback()`), the `ScanProgressLi
 
 ---
 
-#### Issue 5: Missing "Transitive Dependencies" Case in onSubScanComplete()
+#### Issue 5: Missing "Transitive Dependencies" Case in onSubScanComplete() ✅ COMPLETE
 
 `DashboardComponent.onSubScanComplete()` has a switch statement for scan types (JPA, Bean Validation, Servlet/JSP, etc.) but no case for `"Transitive Dependencies"`. It falls to the `default` log-only branch, so the transitive dependency count is never updated in the UI.
 
@@ -330,7 +330,7 @@ When the regex fallback path is used (`scanFileFallback()`), the `ScanProgressLi
 
 ---
 
-#### Issue 6: updateGauges() EDT Bottleneck
+#### Issue 6: updateGauges() EDT Bottleneck ✅ COMPLETE
 
 `DashboardComponent.updateGauges()` performs recursive filesystem walks (to count files, test files) directly on the EDT, causing 13+ second freezes. While the 44-second freeze observed in logs was partly from IntelliJ's TextMate lexer, the filesystem walks are still a real bottleneck.
 
@@ -340,12 +340,232 @@ When the regex fallback path is used (`scanFileFallback()`), the `ScanProgressLi
 
 ---
 
+#### Issue 7: Maven Central Timeout / Repeated Lookup Storm ✅ COMPLETE
+
+**File:** `community-core-engine/.../dependencyanalysis/service/ImprovedMavenCentralLookupService.java`
+
+**Problem:**
+From runtime logs, `javax.persistence:javax.persistence-api` repeatedly times out after ~15s. The code retries the same query across 8 strategies (`searchWithExactMatch`, `searchWithArtifactNameMapping`, `searchWithGroupNameMapping`, `searchWithNamingVariations`, `searchWithCaseInsensitiveVariations`, `searchWithFrameworkMappings`, `searchWithJerseyMigrationPath`, `searchWithSpringBootVersionStrategy`). Each strategy triggers its own network call(s), so one dependency can generate many parallel HTTP requests. Additionally:
+
+- **Identical fallback endpoint** — `MAVEN_CENTRAL_API` and `MAVEN_CENTRAL_FALLBACK` both point to `https://search.maven.org/solrsearch/select`, so the fallback is a duplicate request.
+- **No caching** — the same `groupId:artifactId` pair can be looked up multiple times in the same session.
+- **Static mappings not used as fast path** — large `ARTIFACT_MAPPINGS` and `GROUP_MAPPINGS` maps exist but only construct new search queries instead of short-circuiting with a known Jakarta replacement.
+
+Result: UI hangs for minutes on a single slow dependency, and tool window status updates are delayed.
+
+**Root Cause:**
+1. Timeout too long — `Duration.ofSeconds(15)` at lines 35 and 605. One timed-out request blocks the `CompletableFuture` for 15s.
+2. No deduplication / caching — `findJakartaEquivalents` runs all strategies without checking whether the same query was already issued.
+3. Static mappings only used to construct queries, not to short-circuit.
+
+**Fix (5 Tasks):**
+
+| Task | Change | Effort |
+|------|--------|--------|
+| **T1: Reduce HTTP timeouts** | Change both `Duration.ofSeconds(15)` to `Duration.ofSeconds(5)` (line 35 HttpClient connect timeout, line 605 per-request timeout) | Trivial |
+| **T2: Session-scoped cache** | Add `ConcurrentHashMap<String, List<JakartaArtifactMatch>> lookupCache`. Check cache at start of `findJakartaEquivalents`, cache both hits and misses. Scope: per-instance (UI creates one per scan). | Low |
+| **T3: Static-mapping fast path** | Before launching async strategies, check `ARTIFACT_MAPPINGS` and `GROUP_MAPPINGS`. If a known Jakarta mapping exists, return synthetic `JakartaArtifactMatch` immediately without network calls. | Low |
+| **T4: Remove useless fallback** | Delete `MAVEN_CENTRAL_FALLBACK` and fallback branch — it hits the same URL as the primary. Cache + static mappings reduce repeated calls instead. | Trivial |
+| **T5: Parallelism guard (optional)** | Wrap `performSearchWithEndpoint` in `CompletableFuture.supplyAsync` with short overall timeout, so one slow response doesn't block all strategies. Not strictly necessary after T1–T4 reduce calls to 1–2 per dependency. | Low |
+
+**Open Questions:**
+
+| Question | Recommendation |
+|----------|---------------|
+| Cache scope: per-instance or static singleton? | Per-instance — UI creates one per scan, avoids stale entries across IDE sessions |
+| Cache misses? | Yes — without caching misses, a timed-out dependency times out again in every subsequent strategy |
+| Fast-path version resolution? | Return coordinates only (`version = null`), defer version resolution to separate call |
+
+**Files to Modify:**
+- `community-core-engine/.../dependencyanalysis/service/ImprovedMavenCentralLookupService.java`
+- `community-core-engine/src/test/.../dependencyanalysis/service/MavenCentralApiTest.java` (align timeout with new value)
+
+---
+
+#### Issue 8: Build Tool Failure Notification Is a No-Op ✅ COMPLETE
+
+**Files:**
+- `premium-core-engine/.../scanning/BalloonNotificationService.java`
+- `premium-core-engine/.../advancedscanning/service/impl/TransitiveDependencyScannerImpl.java`
+- `premium-core-engine/.../advancedscanning/service/impl/DependencyTreeCommandExecutorImpl.java`
+
+**Problem:**
+When `gradle dependencies` (or `mvn dependency:tree`) exits with a non-zero code (e.g., code 1 for a subproject build failure), the user sees no IDE notification — only a WARN in the log file. The failure is silently swallowed:
+
+1. **`BalloonNotificationService` is a no-op** — `showOnce()` only calls `log.info("[NOTIFICATION] {}: {}", title, message)`. It never calls IntelliJ's `NotificationGroup` / `Notifications.Bus` API. No balloon is ever shown to the user, regardless of whether it's called.
+
+2. **Nobody calls it anyway** — `DependencyTreeCommandExecutorImpl.executeCommand()` (line 124–133) logs a WARN and returns `DependencyTreeResult.error(...)` (or a result with dependencies if some were parsed before the failure). `TransitiveDependencyScannerImpl` (line 349–367) catches the error, logs at DEBUG level, and silently falls back to regex scanning via `scanFileFallback()`. No notification is triggered at any point.
+
+3. **Error context is lost** — the `DependencyTreeResult.getErrorMessage()` contains useful diagnostic information (e.g., "gradle dependencies exited with code 1 in /path/to/project. No dependencies were parsed."), but it is only logged at DEBUG level and never surfaced to the user.
+
+**Fix (3 Tasks):**
+
+| Task | Change | Effort |
+|------|--------|--------|
+| **T1: Make `BalloonNotificationService` call IntelliJ APIs** | Replace the `log.info` call with IntelliJ's `NotificationGroupManager.getInstance().getNotificationGroup("Jakarta Migration").createNotification(title, message, NotificationType.WARNING).notify(project)`. Accept a `Project` parameter (nullable for headless/non-IDE usage — fall back to log-only when null). | Low |
+| **T2: Wire notification into `TransitiveDependencyScannerImpl`** | After the command fails (line 349–351), call `BalloonNotificationService.showOnce()` with key `"build-tool-failure:" + filePath`, title `"Build Tool Error"`, and message containing the error + suggestion to check the build log. Pass `BalloonNotificationService` as a constructor parameter (dependency injection). | Low |
+| **T3: Pass notification service from IntelliJ plugin** | In `AdvancedScanningService` (or the Guice module), create `BalloonNotificationService` and pass it to `TransitiveDependencyScannerImpl` during construction. The IntelliJ plugin is the only environment where IDE balloons make sense — library/headless callers pass `null`. | Trivial |
+
+**Note:** The `gradle dependencies` exit code 1 in the user's logs is expected for multi-module Gradle projects where some submodules fail to configure. The current regex fallback (from Phase 4) already handles this gracefully by scanning whatever it can — but the user should be informed that partial results are shown because of build tool failures.
+
+**Files to Modify:**
+- `premium-core-engine/.../scanning/BalloonNotificationService.java` — add IntelliJ notification API call
+- `premium-core-engine/.../advancedscanning/service/impl/TransitiveDependencyScannerImpl.java` — add notification trigger on build tool failure
+- `premium-intellij-plugin/.../service/AdvancedScanningService.java` — pass `BalloonNotificationService` to scanner
+- `premium-intellij-plugin/src/main/resources/META-INF/plugin.xml` — register notification group (if not already registered)
+
+---
+
 **Verification:**
 - Scan a real project and confirm the dependency graph shows parent → child edges (not a flat star)
 - Confirm `severity` / `recommendation` / `javaxPackage` are populated in `DependencyInfo`
 - Confirm the progress bar moves visibly during scan phases
 - Confirm "Transitive Dependencies" count appears in the dashboard
 - Confirm no EDT freezes during `updateGauges()`
+- Confirm Maven Central lookups complete without ~15s stalls per dependency (Issue 7)
+- Confirm repeated lookups of same dependency return from cache (Issue 7)
+- Confirm IDE balloon notification appears when `gradle dependencies` or `mvn dependency:tree` fails (Issue 8)
+- Confirm notification is deduplicated — shown once per failed build file, not once per dependency (Issue 8)
+
+---
+
+#### Issue 9: Scan Errors Not Propagated to User ✅ COMPLETE
+
+**Problem:**
+Two related issues prevent users from understanding why scan results are incomplete or missing:
+
+**Part A — Silently Swallowed Exceptions:** A systematic review found 11 HIGH-severity and 23 MEDIUM-severity catch blocks where exceptions are swallowed with no logging or debug-only logging. Users get no indication that scanning failed for specific files.
+
+**Part B — Errors Don't Reach the UI Table:** Error data already exists at every layer of the stack but isn't connected:
+
+```
+Scanner Domain                              Bridge Layer                           UI Table
+────────────────────────────────────────────────────────────────────────────────────────────────
+TransitiveDependencyProjectScanResult
+  ├─ filesWithCommandErrors ──────────► LOG WARN + balloon ──────────────X (not in table)
+  ├─ hadCommandNotFoundError ─────────► LOG WARN + balloon ──────────────X (not in table)
+  └─ errorMessage ────────────────────► LOG WARN only ──────────────────X (not in table)
+
+TransitiveDependencyScanResult
+  └─ errorMessage ────────────────────► NEVER READ by bridge ───────────X (not in table)
+
+TransitiveDependencyUsage
+  ├─ scanReason ──────────────────────► DependencyInfo.scanReason ───────► Col 6 (Reason)
+  ├─ detailMessage ───────────────────► DependencyInfo.detailMessage ────X (stored, not displayed)
+  └─ confidence ──────────────────────► DependencyInfo.confidence ───────X (stored, not displayed)
+
+ScanReason.BUILD_TOOL_ERROR ──────────► UNKNOWN_REVIEW ─────────────────► "? Unknown" (ambiguous)
+```
+
+The project-level `errorMessage`, `filesWithCommandErrors`, and `hadCommandNotFoundError` are only surfaced via IntelliJ notification balloons and log messages — they never reach the table model. Individual `TransitiveDependencyScanResult.errorMessage` is never read by the bridge layer. `DependencyInfo.detailMessage` is populated but has no table column. `BUILD_TOOL_ERROR` maps to `UNKNOWN_REVIEW` which displays as "? Unknown" — ambiguous.
+
+**HIGH Severity — No logging at all, results silently empty:**
+
+| # | File | Line | Operation Failed | Impact |
+|---|------|------|-----------------|--------|
+| H1 | `ThirdPartyLibScannerImpl.java` | ~154 | Namespace classification | Returns UNKNOWN with no log |
+| H2 | `TransitiveDependencyScannerImpl.java` | ~852 | Namespace classification | Returns UNKNOWN with no log |
+| H3 | `DeprecatedApiScannerImpl.java` | ~248 | Java file parsing + API extraction | Returns empty, no log |
+| H4 | `JmsMessagingScannerImpl.java` | ~310 | Java file parsing + JMS extraction | Returns empty, no log |
+| H5 | `ClassloaderModuleScannerImpl.java` | ~231 | Java file parsing + classloader extraction | Returns empty, no log |
+| H6 | `SecurityApiScannerImpl.java` | ~271 | Java file parsing + security API extraction | Returns empty, no log |
+| H7 | `TransitiveDependencyScannerImpl.java` | ~795 | Fallback regex scan of build file | Returns empty, no log |
+| H8 | `MetadataSignalExtractor.java` | ~80 | Reading JAR entry stream (pom.xml) | Entry silently skipped |
+| H9 | `BuildFileDiscovery.java` | ~41 | Walking directory tree for build files | Returns partial list silently |
+| H10 | `BuildFileDiscovery.java` | ~136 | Reading pom.xml for `<modules>` check | Returns false (not multi-module) |
+| H11 | `BuildFileDiscovery.java` | ~185 | Reading pom.xml while finding ancestor module | Continues silently, may find wrong ancestor |
+
+**MEDIUM Severity — Debug/trace-only logging, invisible in normal operation:**
+
+| # | File | Line | Operation Failed | Impact |
+|---|------|------|-----------------|--------|
+| M1 | `TransitiveDependencyScannerImpl.java` | ~362 | Async dependency tree execution | Falls back to regex (debug only) |
+| M2 | `TransitiveDependencyScannerImpl.java` | ~560 | JAR bytecode scanning | Enrichment skipped (debug only) |
+| M3 | `TransitiveDependencyScannerImpl.java` | ~636 | Maven Central API lookup | Lookup skipped (debug only) |
+| M4 | `BaseScanner.java` | ~207 | ThreadLocal cleanup | Leak risk (debug only) |
+| M5 | `DependencyTreeCommandExecutorImpl.java` | ~426 | Command availability check | Returns false (debug only) |
+| M6 | `RecipeBasedClassifier.java` | ~224 | Reading class entry from JAR | Entry skipped (trace only) |
+| M7 | `RecipeBasedClassifier.java` | ~229 | Opening JAR file for classification | Falls through to UNKNOWN (debug only) |
+| M8 | `RecipePatternExtractor.java` | ~105 | Reading recipe cache file | Falls back to network (debug only) |
+| M9 | `RecipePatternExtractor.java` | ~116 | Writing recipe cache file | Cache not written (debug only) |
+| M10 | `BytecodeSignalExtractor.java` | ~96 | Analyzing class in JAR | Class skipped (trace only) |
+| M11 | `BytecodeSignalExtractor.java` | ~164 | Reading JAR manifest | Returns null (trace only) |
+| M12 | `MetadataSignalExtractor.java` | ~145 | Parsing pom.xml in JAR | Returns false (trace only) |
+| M13 | `MetadataSignalExtractor.java` | ~176 | Reading JAR manifest | Signals not extracted (trace only) |
+| M14 | `ConfigFileScannerImpl.java` | ~221 | Scanning config file | Returns empty (debug only) |
+| M15 | `ScanRecipeRecommendationServiceImpl.java` | ~168 | Checking scan result for issues | Returns false — hides issues |
+| M16 | `ScanRecipeRecommendationServiceImpl.java` | ~240 | Extracting affected files | Returns empty — no file references |
+| M17 | `DependencyAnalysisModuleImpl.java` | ~368 | Maven Central Jakarta lookup | Returns false (debug only) |
+| M18 | `DependencyAnalysisModuleImpl.java` | ~389 | Maven Central Jakarta lookup (2nd path) | Returns false (debug only) |
+| M19 | `JarResolver.java` | ~56 | Listing Gradle cache directory | Returns empty stream (debug only) |
+| M20 | `JarResolver.java` | ~67 | Gradle cache search | Returns empty (debug only) |
+| M21 | `DefaultJarCompatibilityScanner.java` | ~133 | Parallel JAR analysis | Returns unknown report (no log) |
+| M22 | `ScanRecipeRecommendationServiceImpl.java` | ~168 | Checking scan result | Returns false |
+| M23 | `DefaultJarCompatibilityScanner.java` | ~212 | Getting file modified time | Falls back to path-only key (no log) |
+
+**Fix (8 Tasks):**
+
+**Part A — Logging (T1–T4):**
+
+| Task | Change | Effort |
+|------|--------|--------|
+| **T1: Fix HIGH-severity silent catch blocks (H1–H7)** | Add `log.warn(...)` with file path and error message to each of the 7 scanner catch blocks. Include the exception class name so intermittent issues are distinguishable. | Low |
+| **T2: Fix HIGH-severity infrastructure catch blocks (H8–H11)** | Add `log.debug(...)` to `MetadataSignalExtractor`, `BuildFileDiscovery` (3 locations). These are expected failure modes (corrupted JARs, permission errors) but should still be logged at debug level for diagnostics. | Trivial |
+| **T3: Promote critical MEDIUM-severity to WARN** | Promote M1 (async fallback), M2 (JAR scan), M3 (Maven Central lookup), M7 (JAR open), M15 (scan result check) from debug to `log.warn(...)` because they affect scan completeness and users should know when enrichment is skipped. | Trivial |
+| **T4: Add exception class to all debug-level catch blocks** | For remaining MEDIUM-severity blocks, change `e.getMessage()` to `e.getClass().getSimpleName() + ": " + e.getMessage()` so intermittent failures (e.g., `OutOfMemoryError` vs `IOException`) are distinguishable in logs. | Low |
+
+**Part B — UI Propagation (T5–T8):**
+
+| Task | Change | Effort |
+|------|--------|--------|
+| **T5: Add "Details" column to DependenciesTableComponent** | Add a 10th column (or make the hidden column 8 visible) showing `DependencyInfo.detailMessage` when non-empty. Width: 250px. Shows human-friendly error/explanation text. Render in muted grey italic to distinguish from data columns. | Low |
+| **T6: Annotate dependencies from failed files** | In `TransitiveDependencyScannerImpl.convertTreeResult()` and `scanFileFallback()`, when `TransitiveDependencyScanResult.hasError()`, set `detailMessage` on every `TransitiveDependencyUsage` from that file with a human-friendly message derived from the error. Add a constant map of error code → friendly message: | Low |
+| | `"command_not_found"` → `"Build tool not found — install Maven/Gradle or add wrapper to project"` | |
+| | `"command_failed"` → `"Build command failed — results based on regex fallback (partial)"` | |
+| | `"no_dependencies"` → `"Build command returned no dependencies — check build configuration"` | |
+| | `"timeout"` → `"Build command timed out — project may be too large or build too slow"` | |
+| | `"parse_error"` → `"Could not parse dependency tree — using regex fallback"` | |
+| | `"classification_error"` → `"Could not classify dependency — review manually"` | |
+| | `"jar_scan_error"` → `"Could not scan JAR file — JAR may be corrupted or inaccessible"` | |
+| | `"maven_lookup_error"` → `"Maven Central lookup failed — network or timeout issue"` | |
+| **T7: Fix BUILD_TOOL_ERROR status display** | In `AdvancedScanningService.determineMigrationStatus()`, map `ScanReason.BUILD_TOOL_ERROR` to a new `DependencyMigrationStatus.BUILD_TOOL_ERROR` (or use existing `UNKNOWN_REVIEW` with better display text). In `DependenciesTableComponent.addDependencyRow()`, show `"⚠ Build Tool Error"` with the `detailMessage` as tooltip. Currently it shows "? Unknown" which is ambiguous. | Low |
+| **T8: Propagate project-level errors into per-dependency rows** | In `AdvancedScanningService.convertToDependencyInfo()`, read `TransitiveDependencyProjectScanResult.errorMessage` and `filesWithCommandErrors`. When > 0, add a summary row at the top of the table (or a banner above it): `"⚠ {N} build files failed — results for those modules are based on regex fallback"`. Also propagate `TransitiveDependencyScanResult.errorMessage` into each dependency's `detailMessage` when the file-level error is set. | Medium |
+
+**Files to Modify (17 files):**
+
+| File | Changes |
+|------|---------|
+| **Part A — Logging:** | |
+| `ThirdPartyLibScannerImpl.java` | Add `log.warn` in `classify()` catch |
+| `TransitiveDependencyScannerImpl.java` | Add `log.warn` in `classify()` + `scanFileFallback()` catches; promote M1–M3 to `log.warn` |
+| `DeprecatedApiScannerImpl.java` | Add `log.warn` in `scanFile()` catch |
+| `JmsMessagingScannerImpl.java` | Add `log.warn` in `scanFile()` catch |
+| `ClassloaderModuleScannerImpl.java` | Add `log.warn` in `scanFile()` catch |
+| `SecurityApiScannerImpl.java` | Add `log.warn` in `scanFile()` catch |
+| `MetadataSignalExtractor.java` | Add `log.debug` in JAR entry catch |
+| `BuildFileDiscovery.java` | Add `log.debug` in 3 catch blocks |
+| `BaseScanner.java` | Promote ThreadLocal cleanup to `log.debug` with exception class |
+| `RecipeBasedClassifier.java` | Promote M6–M7 to `log.debug` with exception class |
+| `RecipePatternExtractor.java` | Promote M8–M9 to `log.debug` with exception class |
+| `ScanRecipeRecommendationServiceImpl.java` | Promote M15–M16 to `log.warn` |
+| `DependencyAnalysisModuleImpl.java` | Promote M17–M18 to `log.warn` |
+| **Part B — UI Propagation:** | |
+| `TransitiveDependencyScannerImpl.java` | Annotate dependencies from failed files with human-friendly `detailMessage` (T6) |
+| `AdvancedScanningService.java` | Propagate project/file-level errors into DependencyInfo rows; fix BUILD_TOOL_ERROR mapping (T7, T8) |
+| `DependenciesTableComponent.java` | Add "Details" column showing `detailMessage`; add error summary banner; fix BUILD_TOOL_ERROR display (T5, T7, T8) |
+| `DependencyMigrationStatus.java` | Add `BUILD_TOOL_ERROR` enum value (T7) |
+
+**Pattern Document:** [docs/patterns/error-propagation.md](../patterns/error-propagation.md) — defines the canonical error propagation pattern for all core logic. All new and modified scanners/modules must follow this pattern.
+
+**Verification:**
+- Compile check: `./gradlew :community-core-engine:compileJava :premium-core-engine:compileJava` — passes
+- Fast tests: `./gradlew :community-core-engine:fastTest :premium-core-engine:fastTest` — passes
+- Grep for empty catch blocks: `rg "catch.*Exception.*\{[\s]*\}" --include "*.java"` — no matches in scanning code
+- Grep for debug-only catch blocks: verify all remaining `log.debug` catch blocks include exception class name
+- "Details" column visible in dependencies table with human-friendly error messages when scan fails
+- Dependencies from failed build files show `"Build command failed — results based on regex fallback"` in Details column
+- `BUILD_TOOL_ERROR` status shows `"⚠ Build Tool Error"` (not "? Unknown")
+- Project-level error banner appears when any build file fails: `"⚠ N build files failed — results for those modules are based on regex fallback"`
 
 ---
 
