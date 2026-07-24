@@ -10,10 +10,16 @@ import adrianmikula.jakartamigration.advancedscanning.service.DependencyDeduplic
 import adrianmikula.jakartamigration.advancedscanning.service.DependencyTreeCommandExecutor;
 import adrianmikula.jakartamigration.advancedscanning.service.ScanProgressCallback;
 import adrianmikula.jakartamigration.advancedscanning.service.TransitiveDependencyScanner;
-import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Namespace;
+import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JarResolver;
+import adrianmikula.jakartamigration.dependencyanalysis.util.MavenPomParser;
+import adrianmikula.jakartamigration.dependencyanalysis.util.GradleBuildParser;
+import adrianmikula.jakartamigration.dependencyanalysis.util.BuildFileDiscovery;
+import adrianmikula.jakartamigration.dependencyanalysis.util.ScopeConstants;
+import adrianmikula.jakartamigration.scanning.RecipeBasedClassifier;
 import adrianmikula.jakartamigration.jaranalysis.domain.JarCompatibilityLevel;
 import adrianmikula.jakartamigration.jaranalysis.domain.JarCompatibilityReport;
 import adrianmikula.jakartamigration.jaranalysis.service.JarCompatibilityScanner;
@@ -26,8 +32,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
@@ -38,51 +42,50 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
     private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
     private final DependencyTreeCommandExecutor commandExecutor;
     private final DependencyDeduplicationService deduplicationService;
-    private final CompatibilityConfigLoader compatibilityConfigLoader;
+    private final NamespaceClassifier namespaceClassifier;
     private final JarCompatibilityScanner jarCompatibilityScanner;
     private final JarResolver jarResolver;
     private final ImprovedMavenCentralLookupService mavenCentralLookupService;
-    
-    // Classification cache to avoid repeated lookups for same artifact
-    private final Map<String, CompatibilityConfigLoader.ArtifactClassification> classificationCache = new HashMap<>(1000);
+
+    private final Map<String, Namespace> classificationCache = new HashMap<>(1000);
 
     // Scopes to include in transitive dependency scanning
-    private static final Set<String> MAVEN_SCOPES = Set.of("compile", "provided", "runtime", "test");
-    private static final Set<String> GRADLE_SCOPES = Set.of("compileClasspath", "runtimeClasspath", "testCompileClasspath");
+    private static final Set<String> MAVEN_SCOPES = ScopeConstants.DEFAULT_MAVEN_SCOPES;
+    private static final Set<String> GRADLE_SCOPES = ScopeConstants.GRADLE_COMPILE_CONFIGS;
 
     public TransitiveDependencyScannerImpl() {
-        this(new DependencyTreeCommandExecutorImpl(), new DependencyDeduplicationServiceImpl(), new CompatibilityConfigLoader(),
-             null, null, null);
+        this(new DependencyTreeCommandExecutorImpl(), new DependencyDeduplicationServiceImpl(),
+             new RecipeBasedClassifier(), null, null, null);
     }
 
     public TransitiveDependencyScannerImpl(DependencyTreeCommandExecutor commandExecutor,
                                           DependencyDeduplicationService deduplicationService) {
-        this(commandExecutor, deduplicationService, new CompatibilityConfigLoader(), null, null, null);
+        this(commandExecutor, deduplicationService, new RecipeBasedClassifier(), null, null, null);
     }
 
     public TransitiveDependencyScannerImpl(DependencyTreeCommandExecutor commandExecutor,
                                           DependencyDeduplicationService deduplicationService,
-                                          CompatibilityConfigLoader compatibilityConfigLoader) {
-        this(commandExecutor, deduplicationService, compatibilityConfigLoader, null, null, null);
+                                          NamespaceClassifier namespaceClassifier) {
+        this(commandExecutor, deduplicationService, namespaceClassifier, null, null, null);
     }
 
     public TransitiveDependencyScannerImpl(DependencyTreeCommandExecutor commandExecutor,
                                           DependencyDeduplicationService deduplicationService,
-                                          CompatibilityConfigLoader compatibilityConfigLoader,
+                                          NamespaceClassifier namespaceClassifier,
                                           JarCompatibilityScanner jarCompatibilityScanner,
                                           JarResolver jarResolver) {
-        this(commandExecutor, deduplicationService, compatibilityConfigLoader, jarCompatibilityScanner, jarResolver, null);
+        this(commandExecutor, deduplicationService, namespaceClassifier, jarCompatibilityScanner, jarResolver, null);
     }
 
     public TransitiveDependencyScannerImpl(DependencyTreeCommandExecutor commandExecutor,
                                           DependencyDeduplicationService deduplicationService,
-                                          CompatibilityConfigLoader compatibilityConfigLoader,
+                                          NamespaceClassifier namespaceClassifier,
                                           JarCompatibilityScanner jarCompatibilityScanner,
                                           JarResolver jarResolver,
                                           ImprovedMavenCentralLookupService mavenCentralLookupService) {
         this.commandExecutor = commandExecutor;
         this.deduplicationService = deduplicationService;
-        this.compatibilityConfigLoader = compatibilityConfigLoader;
+        this.namespaceClassifier = namespaceClassifier;
         this.jarCompatibilityScanner = jarCompatibilityScanner;
         this.jarResolver = jarResolver;
         this.mavenCentralLookupService = mavenCentralLookupService;
@@ -102,16 +105,6 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
     // Throttling for progress updates (max 10 updates per second)
     private volatile long lastProgressUpdateTime = 0;
     private static final long MIN_PROGRESS_UPDATE_INTERVAL_MS = 100;
-
-    // Patterns for Maven pom.xml - captures groupId, artifactId, version, and optional scope
-    private static final Pattern MAVEN_DEPENDENCY_PATTERN = Pattern.compile(
-            "<dependency>\\s*<groupId>([^<]+)</groupId>\\s*<artifactId>([^<]+)</artifactId>\\s*<version>([^<]*)</version>(?:\\s*<scope>([^<]*)</scope>)?",
-            Pattern.MULTILINE | Pattern.DOTALL);
-
-    // Patterns for Gradle
-    private static final Pattern GRADLE_DEPENDENCY_PATTERN = Pattern.compile(
-            "['\"]([^':]+):([^':]+):([^'\"]+)['\"]",
-            Pattern.MULTILINE);
 
     /**
      * Dispatches a progress update asynchronously with throttling to prevent flooding.
@@ -150,137 +143,12 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
 
     @Override
     public TransitiveDependencyProjectScanResult scanProject(Path projectPath) {
-        log.info("[DEBUG] scanProject called with path: {}", projectPath);
-
-        if (projectPath == null || !Files.exists(projectPath) || !Files.isDirectory(projectPath)) {
-            log.warn("[DEBUG] Invalid project path: {}", projectPath);
-            return TransitiveDependencyProjectScanResult.empty();
-        }
-
-        try {
-            List<Path> buildFiles = discoverBuildFiles(projectPath);
-            log.info("[DEBUG] Discovered {} build files: {}", buildFiles.size(), buildFiles);
-
-            if (buildFiles.isEmpty()) {
-                log.warn("[DEBUG] No build files found in {}", projectPath);
-                return TransitiveDependencyProjectScanResult.empty();
-            }
-
-            // For multi-module projects, run command once from root instead of per-file
-            boolean isMultiModule = buildFiles.size() > 1 && detectMultiModuleProject(projectPath);
-            List<TransitiveDependencyScanResult> results = null;
-            AtomicInteger totalScanned = new AtomicInteger(0);
-
-            if (isMultiModule) {
-                log.info("Multi-module project detected ({} build files), scanning from root", buildFiles.size());
-                results = scanMultiModuleProject(projectPath, buildFiles, null);
-                if (results != null) {
-                    totalScanned.set(1); // one root-level command
-                }
-            }
-
-            // Fallback to per-file scanning for single-module or if multi-module scan failed
-            if (results == null) {
-                int parallelism = Math.min(MAX_PARALLELISM, buildFiles.size());
-                log.info("[DEBUG] Scanning {} files with parallelism {}", buildFiles.size(), parallelism);
-
-                results = buildFiles.parallelStream()
-                        .map(file -> {
-                            log.info("[DEBUG] Scanning file: {}", file);
-                            TransitiveDependencyScanResult result = scanFileWithTracking(file, totalScanned);
-                            if (result != null) {
-                                log.info("[DEBUG] File {} scanned: {} usages", file, result.getUsages().size());
-                            } else {
-                                log.warn("[DEBUG] File {} returned null result", file);
-                            }
-                            return result;
-                        })
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-            }
-
-            int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
-            int filesWithErrors = (int) results.stream().filter(r -> r.hasError()).count();
-            boolean hadCommandNotFound = results.stream()
-                .filter(r -> r.hasError())
-                .anyMatch(r -> r.getErrorMessage() != null &&
-                    (r.getErrorMessage().contains("mvn command not found") ||
-                     r.getErrorMessage().contains("gradle command not found") ||
-                     r.getErrorMessage().contains("not found")));
-            String errorSummary = hadCommandNotFound ?
-                "Build tool (Maven/Gradle) not found. Transitive dependency scanning fell back to regex parsing." : null;
-            log.info("[DEBUG] Scan complete: {} files, {} total usages, {} files with errors", results.size(), totalUsages, filesWithErrors);
-
-            return new TransitiveDependencyProjectScanResult(results, totalScanned.get(), results.size(), totalUsages,
-                filesWithErrors, hadCommandNotFound, errorSummary);
-        } catch (Exception e) {
-            log.error("[DEBUG] Error scanning project for transitive dependencies", e);
-            return TransitiveDependencyProjectScanResult.empty();
-        }
+        return scanProject(projectPath, null);
     }
 
     @Override
     public TransitiveDependencyProjectScanResult scanProject(List<Path> filesToScan) {
-        if (filesToScan == null || filesToScan.isEmpty()) {
-            return TransitiveDependencyProjectScanResult.empty();
-        }
-        log.info("[DEBUG] scanProject with file list called with {} files", filesToScan.size());
-
-        // Check if this is a multi-module project and handle it accordingly
-        if (filesToScan.size() > 1) {
-            // Find a common project root from the build files
-            Optional<Path> projectRoot = findCommonProjectRoot(filesToScan);
-            if (projectRoot.isPresent() && detectMultiModuleProject(projectRoot.get())) {
-                log.info("Multi-module project detected from file list, scanning from root: {}", projectRoot.get());
-                TransitiveDependencyProjectScanResult result = scanProject(projectRoot.get());
-                // Filter results to only include files that were in the original list
-                if (!result.getFileResults().isEmpty()) {
-                    List<TransitiveDependencyScanResult> filteredResults = result.getFileResults().stream()
-                        .filter(r -> filesToScan.contains(r.getFilePath()))
-                        .collect(Collectors.toList());
-                    return new TransitiveDependencyProjectScanResult(
-                        filteredResults,
-                        result.getTotalBuildFilesScanned(),
-                        filteredResults.size(),
-                        filteredResults.stream().mapToInt(r -> r.getUsages().size()).sum(),
-                        (int) filteredResults.stream().filter(r -> r.hasError()).count(),
-                        result.isHadCommandNotFoundError(),
-                        result.getErrorMessage()
-                    );
-                }
-                return result;
-            }
-        }
-
-        // Fallback to per-file scanning for single-module or if multi-module detection failed
-        AtomicInteger totalScanned = new AtomicInteger(0);
-        int parallelism = Math.min(MAX_PARALLELISM, filesToScan.size());
-        List<TransitiveDependencyScanResult> results = filesToScan.parallelStream()
-                .map(file -> {
-                    log.info("[DEBUG] Scanning file: {}", file);
-                    TransitiveDependencyScanResult result = scanFileWithTracking(file, totalScanned);
-                    if (result != null) {
-                        log.info("[DEBUG] File {} scanned: {} usages", file, result.getUsages().size());
-                    } else {
-                        log.warn("[DEBUG] File {} returned null result", file);
-                    }
-                    return result;
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
-        int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
-        int filesWithErrors = (int) results.stream().filter(r -> r.hasError()).count();
-        boolean hadCommandNotFound = results.stream()
-            .filter(r -> r.hasError())
-            .anyMatch(r -> r.getErrorMessage() != null &&
-                (r.getErrorMessage().contains("mvn command not found") ||
-                 r.getErrorMessage().contains("gradle command not found") ||
-                 r.getErrorMessage().contains("not found")));
-        String errorSummary = hadCommandNotFound ?
-            "Build tool (Maven/Gradle) not found. Transitive dependency scanning fell back to regex parsing." : null;
-        log.info("[DEBUG] Scan complete (parallel): {} files, {} total usages, {} files with errors", results.size(), totalUsages, filesWithErrors);
-        return new TransitiveDependencyProjectScanResult(results, totalScanned.get(), results.size(), totalUsages,
-            filesWithErrors, hadCommandNotFound, errorSummary);
+        return scanProject(filesToScan, null);
     }
 
     @Override
@@ -293,8 +161,8 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         // Check if this is a multi-module project and handle it accordingly
         if (filesToScan.size() > 1) {
             // Find a common project root from the build files
-            Optional<Path> projectRoot = findCommonProjectRoot(filesToScan);
-            if (projectRoot.isPresent() && detectMultiModuleProject(projectRoot.get())) {
+            Optional<Path> projectRoot = BuildFileDiscovery.findCommonProjectRoot(filesToScan);
+            if (projectRoot.isPresent() && BuildFileDiscovery.detectMultiModuleProject(projectRoot.get())) {
                 log.info("Multi-module project detected from file list, scanning from root: {}", projectRoot.get());
                 TransitiveDependencyProjectScanResult result = scanProject(projectRoot.get(), progressListener);
                 // Filter results to only include files that were in the original list
@@ -370,16 +238,16 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         }
 
         try {
-            List<Path> buildFiles = discoverBuildFiles(projectPath);
-            log.info("[DEBUG] Discovered {} build files: {}", buildFiles.size(), buildFiles);
+             List<Path> buildFiles = BuildFileDiscovery.discoverBuildFiles(projectPath);
+             log.info("[DEBUG] Discovered {} build files: {}", buildFiles.size(), buildFiles);
 
-            if (buildFiles.isEmpty()) {
-                log.warn("[DEBUG] No build files found in {}", projectPath);
-                return TransitiveDependencyProjectScanResult.empty();
-            }
+             if (buildFiles.isEmpty()) {
+                 log.warn("[DEBUG] No build files found in {}", projectPath);
+                 return TransitiveDependencyProjectScanResult.empty();
+             }
 
-            // For multi-module projects, run command once from root instead of per-file
-            boolean isMultiModule = buildFiles.size() > 1 && detectMultiModuleProject(projectPath);
+             // For multi-module projects, run command once from root instead of per-file
+             boolean isMultiModule = buildFiles.size() > 1 && BuildFileDiscovery.detectMultiModuleProject(projectPath);
             List<TransitiveDependencyScanResult> results = null;
             AtomicInteger totalScanned = new AtomicInteger(0);
 
@@ -465,11 +333,19 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
          try {
              log.debug("Starting {} dependency scanning for file: {}", isMaven ? "Maven" : "Gradle", filePath);
              
+             if (listener != null) {
+                 listener.onPhaseProgress(isMaven ? "Executing Maven dependency:tree" : "Executing Gradle dependencies", 0, 1);
+             }
+             
              var future = isMaven
                  ? commandExecutor.executeMavenDependencyTreeAsync(filePath, MAVEN_SCOPES)
                  : commandExecutor.executeGradleDependenciesAsync(filePath, GRADLE_SCOPES);
 
              var treeResult = future.get(DependencyTreeCommandExecutor.DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+             
+             if (listener != null) {
+                 listener.onPhaseProgress(isMaven ? "Executing Maven dependency:tree" : "Executing Gradle dependencies", 1, 1);
+             }
              if (!treeResult.isSuccess()) {
                  log.debug("Command execution failed for {}: {}", filePath, treeResult.getErrorMessage());
                  throw new RuntimeException(treeResult.getErrorMessage());
@@ -486,9 +362,9 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
           } catch (Exception e) {
               log.debug("Async scanning failed for {}, falling back to regex: {}", filePath, e.getMessage());
               log.debug("Exception details:", e);
-              // Fall back to regex scanning - retain the fallback's own classification
-              // instead of marking everything as BUILD_TOOL_ERROR
-              return scanFileFallback(filePath);
+               // Fall back to regex scanning - retain the fallback's own classification
+               // instead of marking everything as BUILD_TOOL_ERROR
+               return scanFileFallback(filePath, listener);
           }
      }
 
@@ -522,15 +398,12 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
          List<TransitiveDependencyUsage> usagesNeedingMavenLookup = new ArrayList<>();
          Map<String, Integer> usageIndexMap = new HashMap<>(totalNodes);
 
-         for (DependencyTreeResult.DependencyNode node : nodes) {
-            // Classify using CompatibilityConfigLoader with caching
-            String artifactKey = node.getGroupId() + ":" + node.getArtifactId();
-            CompatibilityConfigLoader.ArtifactClassification classification =
-                    classificationCache.computeIfAbsent(artifactKey,
-                        k -> compatibilityConfigLoader.classifyArtifact(node.getGroupId(), node.getArtifactId()));
+          for (DependencyTreeResult.DependencyNode node : nodes) {
+             String artifactKey = node.getGroupId() + ":" + node.getArtifactId();
+             Namespace ns = classificationCache.computeIfAbsent(artifactKey,
+                 k -> namespaceClassifier.classify(new Artifact(node.getGroupId(), node.getArtifactId(), node.getVersion(), node.getScope(), node.isTransitive())));
 
-             // Create base usage from classification
-             TransitiveDependencyUsage usage = createBaseUsage(node, classification);
+             TransitiveDependencyUsage usage = createBaseUsage(node, ns);
              usages.add(usage);
              
              // Track index for later merging
@@ -553,12 +426,15 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
              processed++;
 
              if (listener != null) {
-                 listener.onPhaseProgress("", processed, totalNodes);
+                 listener.onPhaseProgress("Classifying dependencies", processed, totalNodes);
              }
          }
          
          // Batch JAR scanning in parallel
          if (!usagesNeedingJarScan.isEmpty()) {
+             if (listener != null) {
+                 listener.onPhaseProgress("Scanning JARs for javax/jakarta usage", 0, usagesNeedingJarScan.size());
+             }
              Map<String, TransitiveDependencyUsage> jarScanResults = enrichWithJarScansBatch(usagesNeedingJarScan);
              // Merge results back into usages list
              for (TransitiveDependencyUsage original : usagesNeedingJarScan) {
@@ -568,10 +444,16 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                      usages.set(index, enriched);
                  }
              }
+             if (listener != null) {
+                 listener.onPhaseProgress("Scanning JARs for javax/jakarta usage", usagesNeedingJarScan.size(), usagesNeedingJarScan.size());
+             }
          }
          
          // Batch Maven Central lookups in parallel
          if (!usagesNeedingMavenLookup.isEmpty()) {
+             if (listener != null) {
+                 listener.onPhaseProgress("Looking up Maven Central for Jakarta equivalents", 0, usagesNeedingMavenLookup.size());
+             }
              Map<String, TransitiveDependencyUsage> mavenLookupResults = enrichWithMavenLookupsBatch(usagesNeedingMavenLookup);
              // Merge results back into usages list
              for (TransitiveDependencyUsage original : usagesNeedingMavenLookup) {
@@ -580,6 +462,9 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                      int index = usageIndexMap.get(original.getArtifactKey());
                      usages.set(index, enriched);
                  }
+             }
+             if (listener != null) {
+                 listener.onPhaseProgress("Looking up Maven Central for Jakarta equivalents", usagesNeedingMavenLookup.size(), usagesNeedingMavenLookup.size());
              }
          }
 
@@ -601,15 +486,13 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
      * Creates a base TransitiveDependencyUsage from a dependency node and its classification.
      */
     private TransitiveDependencyUsage createBaseUsage(DependencyTreeResult.DependencyNode node,
-                                                        CompatibilityConfigLoader.ArtifactClassification classification) {
-        ScanReason scanReason = mapClassificationToScanReason(classification);
-        String severity = mapClassificationToSeverity(classification);
-        String recommendation = mapClassificationToRecommendation(classification, node.getGroupId(), node.getArtifactId());
-        String detailMessage = createDetailMessage(classification, node.getGroupId(), node.getArtifactId());
+                                                        Namespace ns) {
+        ScanReason scanReason = mapNamespaceToScanReason(ns);
+        String severity = mapNamespaceToSeverity(ns);
+        String recommendation = mapNamespaceToRecommendation(ns, node.getGroupId(), node.getArtifactId());
+        String detailMessage = detailMessage(ns, node.getGroupId(), node.getArtifactId());
         String artifactKey = node.getArtifactKey();
-        String javaxPackage = (classification == CompatibilityConfigLoader.ArtifactClassification.JAKARTA_REQUIRED ||
-                               classification == CompatibilityConfigLoader.ArtifactClassification.CONTEXT_DEPENDENT)
-                               ? artifactKey : null;
+        String javaxPackage = (ns == Namespace.JAVAX || ns == Namespace.MIXED) ? artifactKey : null;
 
         return new TransitiveDependencyUsage(
                 node.getArtifactId(),
@@ -879,194 +762,133 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         };
     }
 
-
-
-    private ScanReason mapClassificationToScanReason(CompatibilityConfigLoader.ArtifactClassification classification) {
-        return switch (classification) {
-            case JDK_PROVIDED -> ScanReason.WHITELISTED;
-            case JAKARTA_REQUIRED -> ScanReason.BLACKLISTED;
-            case CONTEXT_DEPENDENT -> ScanReason.UNKNOWN;
-            case UNKNOWN -> ScanReason.UNKNOWN;
-        };
-    }
-
-    private String mapClassificationToSeverity(CompatibilityConfigLoader.ArtifactClassification classification) {
-        return switch (classification) {
-            case JDK_PROVIDED -> "low";
-            case JAKARTA_REQUIRED -> "high";
-            case CONTEXT_DEPENDENT -> "medium";
-            case UNKNOWN -> "low";
-        };
-    }
-
-    private String mapClassificationToRecommendation(CompatibilityConfigLoader.ArtifactClassification classification,
-                                                      String groupId, String artifactId) {
-        return switch (classification) {
-            case JDK_PROVIDED -> "JDK-provided package, no migration needed";
-            case JAKARTA_REQUIRED -> "Configured upgrade required to Jakarta EE equivalent";
-            case CONTEXT_DEPENDENT -> "Context-dependent, review needed";
-            case UNKNOWN -> null;
-        };
-    }
-
-    private String createDetailMessage(CompatibilityConfigLoader.ArtifactClassification classification,
-                                       String groupId, String artifactId) {
-        return switch (classification) {
-            case JDK_PROVIDED -> "JDK-provided package: " + groupId + ":" + artifactId;
-            case JAKARTA_REQUIRED -> "Configured as requiring Jakarta migration: " + groupId + ":" + artifactId;
-            case CONTEXT_DEPENDENT -> "Context-dependent classification: " + groupId + ":" + artifactId;
-            case UNKNOWN -> "Unclassified artifact: " + groupId + ":" + artifactId;
-        };
-    }
-
-    private TransitiveDependencyScanResult scanFileFallback(Path filePath) {
+    private TransitiveDependencyScanResult scanFileFallback(Path filePath, ScanProgressCallback listener) {
         try {
+            if (listener != null) {
+                listener.onPhaseProgress("Fallback regex scan", 0, 1);
+            }
             String content = Files.readString(filePath);
             String fileName = filePath.getFileName().toString().toLowerCase();
 
             if (fileName.equals("pom.xml")) {
-                // For Maven: extract properties first, then parse dependencies with property resolution
-                Map<String, String> properties = extractMavenProperties(content);
-                return new TransitiveDependencyScanResult(filePath,
-                    parseDependenciesWithProperties(content, MAVEN_DEPENDENCY_PATTERN, 3, properties), "Maven");
+                List<Map<String, String>> dependencies = MavenPomParser.parseDependenciesFromContent(content);
+                var result = new TransitiveDependencyScanResult(filePath,
+                    toUsages(content, dependencies), "Maven");
+                if (listener != null) {
+                    listener.onPhaseProgress("Fallback regex scan", 1, 1);
+                }
+                return result;
             }
             if (fileName.endsWith(".gradle") || fileName.endsWith(".gradle.kts")) {
-                // For Gradle: group 3 contains version
-                return new TransitiveDependencyScanResult(filePath,
-                    parseDependencies(content, GRADLE_DEPENDENCY_PATTERN, 3), "Gradle");
+                List<Map<String, String>> dependencies = GradleBuildParser.parseDependencies(content);
+                var result = new TransitiveDependencyScanResult(filePath,
+                    toUsagesGradle(dependencies), "Gradle");
+                if (listener != null) {
+                    listener.onPhaseProgress("Fallback regex scan", 1, 1);
+                }
+                return result;
+            }
+            if (listener != null) {
+                listener.onPhaseProgress("Fallback regex scan", 1, 1);
             }
             return TransitiveDependencyScanResult.empty(filePath);
         } catch (Exception e) {
+            if (listener != null) {
+                listener.onPhaseProgress("Fallback regex scan", 1, 1);
+            }
             return TransitiveDependencyScanResult.empty(filePath);
         }
     }
 
-    private List<Path> discoverBuildFiles(Path projectPath) {
-        return fileScanner.findFiles(projectPath, path -> {
-            String name = path.getFileName().toString().toLowerCase();
-            return name.equals("pom.xml") || name.endsWith(".gradle") || name.endsWith(".gradle.kts");
-        });
+    private List<TransitiveDependencyUsage> toUsages(String pomContent, List<Map<String, String>> dependencies) {
+        Map<String, String> properties = MavenPomParser.extractProperties(pomContent);
+        List<TransitiveDependencyUsage> usages = new ArrayList<>();
+        for (Map<String, String> dep : dependencies) {
+            String groupId = dep.get("groupId");
+            String artifactId = dep.get("artifactId");
+            String version = dep.getOrDefault("version", "unknown");
+            String scope = dep.getOrDefault("scope", "compile");
+            String key = groupId + ":" + artifactId;
+
+            Namespace ns = classify(groupId, artifactId);
+            ScanReason scanReason = mapNamespaceToScanReason(ns);
+            String severity = mapNamespaceToSeverity(ns);
+            String recommendation = mapNamespaceToRecommendation(ns, groupId, artifactId);
+            String javaxPackage = (ns == Namespace.JAVAX || ns == Namespace.MIXED) ? key : null;
+
+            usages.add(new TransitiveDependencyUsage(
+                    artifactId, groupId, version, javaxPackage, severity, recommendation,
+                    scope, false, 0, null, scanReason, detailMessage(ns, groupId, artifactId), 0.0, false));
+        }
+        return usages;
     }
 
-    /**
-     * Finds the common project root directory from a list of build files.
-     * This is used when scanning from a file list to detect multi-module projects.
-     */
-    private Optional<Path> findCommonProjectRoot(List<Path> buildFiles) {
-        if (buildFiles.isEmpty()) {
-            return Optional.empty();
-        }
+    private List<TransitiveDependencyUsage> toUsagesGradle(List<Map<String, String>> dependencies) {
+        List<TransitiveDependencyUsage> usages = new ArrayList<>();
+        for (Map<String, String> dep : dependencies) {
+            String groupId = dep.get("groupId");
+            String artifactId = dep.get("artifactId");
+            String version = dep.getOrDefault("version", "unknown");
+            String scope = dep.getOrDefault("scope", "compile");
+            String key = groupId + ":" + artifactId;
 
-        // Start with the parent of the first file
-        Path commonRoot = buildFiles.get(0).getParent();
-        if (commonRoot == null) {
-            return Optional.empty();
-        }
+            Namespace ns = classify(groupId, artifactId);
+            ScanReason scanReason = mapNamespaceToScanReason(ns);
+            String severity = mapNamespaceToSeverity(ns);
+            String recommendation = mapNamespaceToRecommendation(ns, groupId, artifactId);
+            String javaxPackage = (ns == Namespace.JAVAX || ns == Namespace.MIXED) ? key : null;
 
-        // Find the common ancestor of all build file parents
-        for (Path file : buildFiles) {
-            Path parent = file.getParent();
-            if (parent == null) {
-                return Optional.empty();
-            }
-            commonRoot = findCommonAncestor(commonRoot, parent);
-            if (commonRoot == null) {
-                return Optional.empty();
-            }
+            usages.add(new TransitiveDependencyUsage(
+                    artifactId, groupId, version, javaxPackage, severity, recommendation,
+                    scope, false, 0, null, scanReason, detailMessage(ns, groupId, artifactId), 0.0, false));
         }
-
-        // Walk up from the common root to find the actual project root
-        // (with settings.gradle or pom.xml with modules)
-        return findRootDirectory(commonRoot);
+        return usages;
     }
 
-    /**
-     * Finds the common ancestor of two paths.
-     */
-    private Path findCommonAncestor(Path path1, Path path2) {
-        Path p1 = path1.normalize();
-        Path p2 = path2.normalize();
-
-        // Convert to absolute paths if they aren't already
-        if (!p1.isAbsolute()) {
-            p1 = p1.toAbsolutePath();
+    private Namespace classify(String groupId, String artifactId) {
+        if (namespaceClassifier == null) {
+            return Namespace.UNKNOWN;
         }
-        if (!p2.isAbsolute()) {
-            p2 = p2.toAbsolutePath();
+        try {
+            return namespaceClassifier.classify(new Artifact(groupId, artifactId, "unknown", "compile", false));
+        } catch (Exception e) {
+            return Namespace.UNKNOWN;
         }
-
-        // Find the common prefix
-        int maxCommon = Math.min(p1.getNameCount(), p2.getNameCount());
-        int commonCount = 0;
-        for (int i = 0; i < maxCommon; i++) {
-            if (!p1.getName(i).equals(p2.getName(i))) {
-                break;
-            }
-            commonCount++;
-        }
-
-        if (commonCount == 0) {
-            return null; // No common ancestor
-        }
-
-        return p1.getRoot().resolve(p1.subpath(0, commonCount));
     }
 
-    /**
-     * Finds the project root directory by walking up from any build file or directory.
-     * Looks for settings.gradle(.kts), settings.gradle, or root pom.xml with &lt;modules&gt;.
-     */
-    private Optional<Path> findRootDirectory(Path startPath) {
-        Path current = startPath;
-        // If startPath is a file, start from its parent
-        if (Files.isRegularFile(current)) {
-            current = current.getParent();
-        }
-        
-        while (current != null) {
-            // Check for Gradle root
-            if (Files.exists(current.resolve("settings.gradle")) ||
-                Files.exists(current.resolve("settings.gradle.kts"))) {
-                return Optional.of(current);
-            }
-            // Check for Maven root with modules
-            Path rootPom = current.resolve("pom.xml");
-            if (Files.exists(rootPom)) {
-                try {
-                    String content = Files.readString(rootPom);
-                    if (content.contains("<modules>")) {
-                        return Optional.of(current);
-                    }
-                } catch (IOException e) {
-                    // ignore
-                }
-            }
-            current = current.getParent();
-        }
-        return Optional.empty();
+    private ScanReason mapNamespaceToScanReason(Namespace ns) {
+        return switch (ns) {
+            case JAKARTA, JAVAX -> ns == Namespace.JAKARTA ? ScanReason.WHITELISTED : ScanReason.BLACKLISTED;
+            case MIXED -> ScanReason.UNKNOWN;
+            default -> ScanReason.UNKNOWN;
+        };
     }
 
-    /**
-     * Detects if the project is multi-module by checking for settings.gradle(.kts)
-     * or pom.xml with &lt;modules&gt; at the project root.
-     */
-    private boolean detectMultiModuleProject(Path projectPath) {
-        // Gradle multi-module: settings.gradle(.kts) at root
-        if (Files.exists(projectPath.resolve("settings.gradle")) ||
-            Files.exists(projectPath.resolve("settings.gradle.kts"))) {
-            return true;
-        }
-        // Maven multi-module: pom.xml with <modules> at root
-        Path rootPom = projectPath.resolve("pom.xml");
-        if (Files.exists(rootPom)) {
-            try {
-                String content = Files.readString(rootPom);
-                return content.contains("<modules>");
-            } catch (IOException e) {
-                // ignore
-            }
-        }
-        return false;
+    private String mapNamespaceToSeverity(Namespace ns) {
+        return switch (ns) {
+            case JAKARTA -> "low";
+            case JAVAX -> "high";
+            case MIXED -> "medium";
+            default -> "low";
+        };
+    }
+
+    private String mapNamespaceToRecommendation(Namespace ns, String groupId, String artifactId) {
+        return switch (ns) {
+            case JAKARTA -> "Known Jakarta artifact: " + groupId + ":" + artifactId;
+            case JAVAX -> "Jakarta migration required";
+            case MIXED -> "Mixed namespace, review needed";
+            default -> null;
+        };
+    }
+
+    private String detailMessage(Namespace ns, String groupId, String artifactId) {
+        return switch (ns) {
+            case JAKARTA -> "Known Jakarta artifact: " + groupId + ":" + artifactId;
+            case JAVAX -> "Uses javax namespace: " + groupId + ":" + artifactId;
+            case MIXED -> "Mixed namespace usage: " + groupId + ":" + artifactId;
+            default -> "Unclassified artifact: " + groupId + ":" + artifactId;
+        };
     }
 
     /**
@@ -1138,11 +960,7 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
     private List<TransitiveDependencyScanResult> scanMultiModuleGradle(
             Path projectPath, List<Path> buildFiles, ScanProgressCallback listener) {
 
-        Path rootBuildFile = findRootBuildFile(projectPath, buildFiles);
-        if (rootBuildFile == null) {
-            log.warn("Could not find root Gradle build file, falling back to per-file scanning");
-            return null;
-        }
+        Path rootBuildFile = buildFiles.get(0);
 
         List<TransitiveDependencyScanResult> results = new ArrayList<>();
 
@@ -1188,100 +1006,6 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
      * Finds the root Gradle build file from a list of discovered build files.
      * Looks for the build file whose parent directory contains settings.gradle(.kts).
      */
-    private Path findRootBuildFile(Path projectPath, List<Path> buildFiles) {
-        // First check if any build file is directly in the project root
-        for (Path buildFile : buildFiles) {
-            if (buildFile.getParent() != null && buildFile.getParent().equals(projectPath)) {
-                return buildFile;
-            }
-        }
-        // Fallback: find the build file whose parent has settings.gradle
-        for (Path buildFile : buildFiles) {
-            Path parent = buildFile.getParent();
-            if (parent != null) {
-                if (Files.exists(parent.resolve("settings.gradle")) ||
-                    Files.exists(parent.resolve("settings.gradle.kts"))) {
-                    return buildFile;
-                }
-            }
-        }
-        return null;
-    }
-
-    private List<TransitiveDependencyUsage> parseDependencies(String content, Pattern pattern, int versionGroup) {
-        return parseDependenciesWithProperties(content, pattern, versionGroup, Map.of());
-    }
-
-    private List<TransitiveDependencyUsage> parseDependenciesWithProperties(String content, Pattern pattern, int versionGroup, Map<String, String> properties) {
-        List<TransitiveDependencyUsage> usages = new ArrayList<>();
-        Matcher matcher = pattern.matcher(content);
-        while (matcher.find()) {
-            String groupId = matcher.group(1).trim();
-            String artifactId = matcher.group(2).trim();
-            String version = versionGroup > 0 && matcher.groupCount() >= versionGroup
-                    ? matcher.group(versionGroup).trim() : null;
-            
-            // Resolve version if it's a property reference
-            if (version != null && version.startsWith("${") && version.endsWith("}")) {
-                String propertyName = version.substring(2, version.length() - 1);
-                version = properties.get(propertyName);
-            }
-            
-            // For Maven pattern, scope is in group 4 when present
-            String scope = matcher.groupCount() >= 4 && matcher.group(4) != null
-                    ? matcher.group(4).trim() : null;
-            String key = groupId + ":" + artifactId;
-
-            // Classify using CompatibilityConfigLoader
-            CompatibilityConfigLoader.ArtifactClassification classification = 
-                    compatibilityConfigLoader.classifyArtifact(groupId, artifactId);
-
-            // Map classification to ScanReason and other fields
-            ScanReason scanReason = mapClassificationToScanReason(classification);
-            String severity = mapClassificationToSeverity(classification);
-            String recommendation = mapClassificationToRecommendation(classification, groupId, artifactId);
-            String detailMessage = createDetailMessage(classification, groupId, artifactId);
-            String javaxPackage = (classification == CompatibilityConfigLoader.ArtifactClassification.JAKARTA_REQUIRED ||
-                                   classification == CompatibilityConfigLoader.ArtifactClassification.CONTEXT_DEPENDENT) 
-                                   ? key : null;
-
-            // Add ALL dependencies, not just javax ones
-            usages.add(new TransitiveDependencyUsage(artifactId, groupId, version, javaxPackage, severity, recommendation,
-                    scope, false, 0, null, scanReason, detailMessage, 0.0, false));
-        }
-        return usages;
-    }
-
-    private Map<String, String> extractMavenProperties(String content) {
-        Map<String, String> properties = new HashMap<>();
-        
-        // Extract properties section using regex
-        Pattern propertiesPattern = Pattern.compile(
-            "<properties>\\s*(.*?)\\s*</properties>",
-            Pattern.DOTALL
-        );
-        Matcher propertiesMatcher = propertiesPattern.matcher(content);
-        
-        if (propertiesMatcher.find()) {
-            String propertiesContent = propertiesMatcher.group(1);
-            
-            // Extract individual properties
-            Pattern propertyPattern = Pattern.compile(
-                "<([^>]+)>([^<]*)</\\1>",
-                Pattern.DOTALL
-            );
-            Matcher propertyMatcher = propertyPattern.matcher(propertiesContent);
-            
-            while (propertyMatcher.find()) {
-                String propertyName = propertyMatcher.group(1).trim();
-                String propertyValue = propertyMatcher.group(2).trim();
-                properties.put(propertyName, propertyValue);
-            }
-        }
-        
-        return properties;
-    }
-
     /**
      * Scans a single file with tracking for parallel processing.
      * Returns all dependencies, not just those with javax usage.

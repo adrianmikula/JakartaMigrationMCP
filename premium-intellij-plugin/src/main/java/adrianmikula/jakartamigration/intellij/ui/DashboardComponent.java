@@ -779,6 +779,11 @@ private void resetAdvancedScanCounts() {
                         updateScanCountWithColor(restSoapScanCountValue, resultCount);
                     }
                     break;
+                case "Transitive Dependencies":
+                    if (transitiveDependencyScanCountValue != null) {
+                        updateScanCountWithColor(transitiveDependencyScanCountValue, resultCount);
+                    }
+                    break;
                 default:
                     // For other scan types, just log the completion
                     LOG.info("Sub-scan completed: " + scanType + " with " + resultCount + " results");

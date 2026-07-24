@@ -74,7 +74,7 @@ public class AdvancedScanningModule {
         this.transitiveDependencyScanner = new TransitiveDependencyScannerImpl(
             new adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyTreeCommandExecutorImpl(),
             new adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyDeduplicationServiceImpl(),
-            new adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader(),
+            new adrianmikula.jakartamigration.scanning.RecipeBasedClassifier(),
             jarCompatibilityScanner,
             jarResolver,
             new adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService()

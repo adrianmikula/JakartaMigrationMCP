@@ -1,7 +1,6 @@
 package adrianmikula.jakartamigration.advancedscanning.service.impl;
 
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyProjectScanResult;
-import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;

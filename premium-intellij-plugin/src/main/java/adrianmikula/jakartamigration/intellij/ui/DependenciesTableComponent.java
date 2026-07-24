@@ -8,8 +8,10 @@ import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService.JakartaArtifactMatch;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
-import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader;
-import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader.ArtifactClassification;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Namespace;
+import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
+import adrianmikula.jakartamigration.scanning.RecipeBasedClassifier;
 import adrianmikula.jakartamigration.platforms.config.PlatformConfigLoader;
 import adrianmikula.jakartamigration.platforms.model.PlatformConfig;
 import adrianmikula.jakartamigration.credits.CreditsService;
@@ -68,7 +70,7 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
     private RecipesPanelComponent recipesPanel;
     private boolean isPremiumUser = false;
     private final PlatformConfigLoader platformConfigLoader;
-    private final CompatibilityConfigLoader compatibilityConfigLoader;
+    private final NamespaceClassifier namespaceClassifier;
     private final CreditsService creditsService;
     private final TruncationHelper truncationHelper;
 
@@ -82,7 +84,7 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         this.project = project;
         this.allDependencies = new ArrayList<>();
         this.platformConfigLoader = new PlatformConfigLoader();
-        this.compatibilityConfigLoader = new CompatibilityConfigLoader();
+        this.namespaceClassifier = new RecipeBasedClassifier();
         this.creditsService = new CreditsService();
         this.truncationHelper = new TruncationHelper();
         this.panel = new JBPanel<>(new BorderLayout());
@@ -631,34 +633,32 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
                     }
                 }
             } else if (dep.getGroupId().startsWith("javax.")) {
-                // Use compatibility config to classify javax dependencies
-                ArtifactClassification classification = compatibilityConfigLoader.classifyArtifact(
-                    dep.getGroupId(), dep.getArtifactId());
-                
-                switch (classification) {
-                    case JDK_PROVIDED:
-                        // JDK-provided packages - no Jakarta migration needed
+                // Use RecipeBasedClassifier to classify javax dependencies
+                Namespace ns = namespaceClassifier.classify(new Artifact(
+                    dep.getGroupId(), dep.getArtifactId(), dep.getCurrentVersion(), "compile", false));
+
+                switch (ns) {
+                    case JAKARTA:
+                        // Known Jakarta artifact
                         dep.setMigrationStatus(DependencyMigrationStatus.COMPATIBLE);
-                        dep.setJakartaCompatibilityStatus("JDK Provided - No migration needed");
-                        System.out.println("[DEBUG] JDK-provided (no migration): " + dep.getGroupId() + ":" + dep.getArtifactId());
+                        dep.setJakartaCompatibilityStatus("Jakarta-compatible");
                         break;
-                        
-                    case JAKARTA_REQUIRED:
-                        // Must migrate to Jakarta EE - query Maven Central
+
+                    case JAVAX:
+                        // Uses javax namespace, must migrate
                         javaxDependencies.add(dep);
                         System.out.println("[DEBUG] Jakarta required: " + dep.getGroupId() + ":" + dep.getArtifactId());
                         break;
-                        
-                    case CONTEXT_DEPENDENT:
-                        // Ambiguous - requires manual review or Maven lookup
+
+                    case MIXED:
+                        // Mixed namespace, requires manual review
                         dep.setMigrationStatus(DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION);
-                        dep.setJakartaCompatibilityStatus("Review Required - Context dependent");
-                        // Also query Maven Central as a hint
+                        dep.setJakartaCompatibilityStatus("Review Required - Mixed namespace");
                         javaxDependencies.add(dep);
-                        System.out.println("[DEBUG] Context dependent (manual review): " + dep.getGroupId() + ":" + dep.getArtifactId());
                         break;
-                        
+
                     case UNKNOWN:
+                    default:
                         // Not in any list - query Maven Central as fallback
                         javaxDependencies.add(dep);
                         System.out.println("[DEBUG] Unknown (Maven lookup fallback): " + dep.getGroupId() + ":" + dep.getArtifactId());

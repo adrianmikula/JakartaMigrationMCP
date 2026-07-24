@@ -25,7 +25,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import adrianmikula.jakartamigration.advancedscanning.service.ScanProgressCallback;
-import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyDeduplicationServiceImpl;
 
 @Tag("slow")
@@ -715,11 +714,12 @@ class TransitiveDependencyScannerImplTest {
 
         // Real services for deduplication and classification
         DependencyDeduplicationService dedup = new DependencyDeduplicationServiceImpl();
-        CompatibilityConfigLoader configLoader = new CompatibilityConfigLoader();
+        adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier namespaceClassifier = 
+            new adrianmikula.jakartamigration.scanning.RecipeBasedClassifier();
 
         // Scanner with mocked executor; JAR/maven lookup disabled
         TransitiveDependencyScannerImpl scanner = new TransitiveDependencyScannerImpl(
-                mockExecutor, dedup, configLoader, null, null, null);
+                mockExecutor, dedup, namespaceClassifier, null, null, null);
 
         // Capture callback invocations
         List<String> phases = new ArrayList<>();

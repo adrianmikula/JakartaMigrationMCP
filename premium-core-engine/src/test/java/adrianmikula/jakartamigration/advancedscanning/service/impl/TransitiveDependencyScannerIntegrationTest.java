@@ -5,7 +5,9 @@ import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependenc
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyDeduplicationServiceImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyTreeCommandExecutorImpl;
-import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Namespace;
+import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
+import adrianmikula.jakartamigration.scanning.RecipeBasedClassifier;
 import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,10 +47,11 @@ public class TransitiveDependencyScannerIntegrationTest {
     void setUp() throws IOException {
         // Configure scanner with real Maven Central lookup capability
         // The 6-arg constructor accepts ImprovedMavenCentralLookupService
+        NamespaceClassifier namespaceClassifier = new RecipeBasedClassifier();
         this.scanner = new TransitiveDependencyScannerImpl(
                 new DependencyTreeCommandExecutorImpl(),
                 new DependencyDeduplicationServiceImpl(),
-                new CompatibilityConfigLoader(),
+                namespaceClassifier,
                 null, null,
                 new ImprovedMavenCentralLookupService()
         );
@@ -61,7 +64,7 @@ public class TransitiveDependencyScannerIntegrationTest {
         testPackageMapping(
             "javax.servlet", 
             "jakarta.servlet-api",
-            "Configured upgrade required to Jakarta EE equivalent",
+            "Jakarta migration required",
             "high"
         );
     }
@@ -72,7 +75,7 @@ public class TransitiveDependencyScannerIntegrationTest {
         testPackageMapping(
             "javax.persistence", 
             "jakarta.persistence-api",
-            "Configured upgrade required to Jakarta EE equivalent",
+            "Jakarta migration required",
             "high"
         );
     }
@@ -83,7 +86,7 @@ public class TransitiveDependencyScannerIntegrationTest {
         testPackageMapping(
             "javax.validation", 
             "jakarta.validation-api",
-            "Configured upgrade required to Jakarta EE equivalent",
+            "Jakarta migration required",
             "high"
         );
     }
@@ -94,7 +97,7 @@ public class TransitiveDependencyScannerIntegrationTest {
         testPackageMapping(
             "javax.ws.rs", 
             "jakarta.ws.rs-api",
-            "Configured upgrade required to Jakarta EE equivalent",
+            "Jakarta migration required",
             "high"
         );
     }
@@ -105,7 +108,7 @@ public class TransitiveDependencyScannerIntegrationTest {
         testPackageMapping(
             "javax.ejb", 
             "jakarta.ejb-api",
-            "Configured upgrade required to Jakarta EE equivalent",
+            "Jakarta migration required",
             "high"
         );
     }
@@ -116,7 +119,7 @@ public class TransitiveDependencyScannerIntegrationTest {
         testPackageMapping(
             "javax.inject", 
             "jakarta.inject-api",
-            "Configured upgrade required to Jakarta EE equivalent",
+            "Jakarta migration required",
             "high"
         );
     }
@@ -127,7 +130,7 @@ public class TransitiveDependencyScannerIntegrationTest {
         testPackageMapping(
             "javax.annotation-api", 
             "jakarta.annotation-api",
-            "Configured upgrade required to Jakarta EE equivalent",
+            "Jakarta migration required",
             "high"
         );
     }
@@ -138,7 +141,7 @@ public class TransitiveDependencyScannerIntegrationTest {
         testPackageMapping(
             "javax.transaction-api", 
             "jakarta.transaction-api",
-            "Configured upgrade required to Jakarta EE equivalent",
+            "Jakarta migration required",
             "high"
         );
     }
@@ -493,7 +496,7 @@ public class TransitiveDependencyScannerIntegrationTest {
                     u.getVersion().equals("2.2") &&  // Version should be preserved
                     u.getSeverity().equals("high") &&
                     u.getRecommendation() != null &&
-                    u.getRecommendation().startsWith("Configured upgrade required to Jakarta EE equivalent")
+                    u.getRecommendation().startsWith("Jakarta migration required")
                 );
             
             assertThat(foundWithVersion)

@@ -48,6 +48,15 @@ public class AdvancedScanningService {
     private Path cachedProjectPath;
     private long lastScanTime;
 
+    /**
+     * Bridges a ScanProgressListener (UI layer) to a ScanProgressCallback (core engine layer).
+     * Both have the same (phase, completed, total) signature, so this is a simple delegation.
+     */
+    static ScanProgressCallback toScanProgressCallback(ScanProgressListener listener) {
+        if (listener == null) return null;
+        return (phase, completed, total) -> listener.onScanPhase(phase, completed, total);
+    }
+
     private static final long CACHE_VALIDITY_MS = 5 * 60 * 1000; // 5 minutes
     
     // Memory optimization: Limit parallel scanning to prevent OOM
@@ -266,7 +275,7 @@ public class AdvancedScanningService {
             CompletableFuture<JmsMessagingProjectScanResult> jmFuture = CompletableFuture
                     .supplyAsync(() -> scanForJmsMessaging(allFiles.get(FileCategory.JAVA)), scanExecutor);
             CompletableFuture<TransitiveDependencyProjectScanResult> tdFuture = CompletableFuture
-                    .supplyAsync(() -> scanForTransitiveDependencies(allFiles.get(FileCategory.BUILD)), scanExecutor);
+                    .supplyAsync(() -> scanForTransitiveDependencies(allFiles.get(FileCategory.BUILD), progressListener), scanExecutor);
             CompletableFuture<ConfigFileProjectScanResult> cfFuture = CompletableFuture
                     .supplyAsync(() -> scanForConfigFiles(allFiles.get(FileCategory.CONFIG)), scanExecutor);
             CompletableFuture<ClassloaderModuleProjectScanResult> clFuture = CompletableFuture
@@ -444,7 +453,7 @@ public class AdvancedScanningService {
         return scanningModule.getJmsMessagingScanner().scanProject(javaFiles);
     }
     
-    public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(List<Path> buildFiles) {
+    public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(List<Path> buildFiles, ScanProgressListener progressListener) {
         LOG.info("Scanning " + buildFiles.size() + " build files for Transitive Dependencies");
         
         // Check if build tools are available before scanning
@@ -455,7 +464,8 @@ public class AdvancedScanningService {
             return TransitiveDependencyProjectScanResult.empty();
         }
         
-        TransitiveDependencyProjectScanResult result = scanningModule.getTransitiveDependencyScanner().scanProject(buildFiles);
+        ScanProgressCallback callback = toScanProgressCallback(progressListener);
+        TransitiveDependencyProjectScanResult result = scanningModule.getTransitiveDependencyScanner().scanProject(buildFiles, callback);
         
         // Check if there were command errors during scanning
         if (result.isHadCommandNotFoundError()) {
@@ -464,6 +474,13 @@ public class AdvancedScanningService {
         }
         
         return result;
+    }
+
+    /**
+     * Backward-compatible overload without progress listener.
+     */
+    public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(List<Path> buildFiles) {
+        return scanForTransitiveDependencies(buildFiles, null);
     }
     
     /**
@@ -588,7 +605,7 @@ public class AdvancedScanningService {
             SerializationCacheProjectScanResult serializationCacheResult = scanForSerializationCache(allFiles.get(FileCategory.JAVA));
             ReflectionUsageProjectScanResult reflectionUsageResult = scanForReflectionUsage(allFiles.get(FileCategory.JAVA));
             ThirdPartyLibProjectScanResult thirdPartyLibResult = scanForThirdPartyLib(allFiles.get(FileCategory.BUILD));
-            TransitiveDependencyProjectScanResult transitiveDependencyResult = scanForTransitiveDependencies(allFiles.get(FileCategory.BUILD));
+            TransitiveDependencyProjectScanResult transitiveDependencyResult = scanForTransitiveDependencies(allFiles.get(FileCategory.BUILD), progressListener);
             if (progressListener != null && transitiveDependencyResult != null && !transitiveDependencyResult.getFileResults().isEmpty()) {
                 int totalFindings = transitiveDependencyResult.getTotalJavaxDependencies();
                 progressListener.onSubScanComplete("Transitive Dependencies", totalFindings);
@@ -704,14 +721,18 @@ public class AdvancedScanningService {
     }
     
     @Deprecated
-    public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(Path projectPath) {
+    public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(Path projectPath, ScanProgressListener progressListener) {
         LOG.info("Scanning for Transitive Dependencies in: " + projectPath);
         ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
         List<Path> buildFiles = scanner.findFiles(projectPath, path -> {
             String name = path.getFileName().toString();
             return name.equals("pom.xml") || name.startsWith("build.gradle");
         });
-        return scanForTransitiveDependencies(buildFiles);
+        return scanForTransitiveDependencies(buildFiles, progressListener);
+    }
+
+    public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(Path projectPath) {
+        return scanForTransitiveDependencies(projectPath, null);
     }
     
     @Deprecated
@@ -1169,6 +1190,11 @@ public class AdvancedScanningService {
                 // Set incompatibility from transitive flag
                 info.setIncompatibilityFromTransitive(usage.isIncompatibilityFromTransitive());
 
+                // Map severity, recommendation, and javaxPackage
+                info.setSeverity(usage.getSeverity());
+                info.setRecommendation(usage.getRecommendation());
+                info.setJavaxPackage(usage.getJavaxPackage());
+
                 // Set recommended version if available
                 if (usage.getAlternativeVersions() != null && !usage.getAlternativeVersions().isEmpty()) {
                     info.setRecommendedVersion(usage.getAlternativeVersions().get(0));
@@ -1206,6 +1232,18 @@ public class AdvancedScanningService {
         // Map from artifact key to Artifact object for deduplication
         Map<String, Artifact> artifactMap = new HashMap<>();
 
+        // Build a lookup map from 2-part key (groupId:artifactId) → version from usages
+        // This is needed because TransitiveDependencyEdge uses 2-part keys
+        Map<String, String> versionLookup = new HashMap<>();
+        for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult fileResult : deepResult.getFileResults()) {
+            for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage usage : fileResult.getUsages()) {
+                String idKey = usage.getGroupId() + ":" + usage.getArtifactId();
+                if (usage.getVersion() != null) {
+                    versionLookup.putIfAbsent(idKey, usage.getVersion());
+                }
+            }
+        }
+
         // Access edges through fileResults since getAllEdges() might not be available in all versions
         for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult fileResult : deepResult.getFileResults()) {
             for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyEdge edge : fileResult.getEdges()) {
@@ -1218,6 +1256,10 @@ public class AdvancedScanningService {
                     if (parts.length >= 3) {
                         return new Artifact(parts[0], parts[1], parts[2], "compile", true);
                     }
+                    if (parts.length == 2) {
+                        String version = versionLookup.getOrDefault(key, "unknown");
+                        return new Artifact(parts[0], parts[1], version, "compile", true);
+                    }
                     return null;
                 });
 
@@ -1226,6 +1268,10 @@ public class AdvancedScanningService {
                     String[] parts = key.split(":");
                     if (parts.length >= 3) {
                         return new Artifact(parts[0], parts[1], parts[2], "compile", true);
+                    }
+                    if (parts.length == 2) {
+                        String version = versionLookup.getOrDefault(key, "unknown");
+                        return new Artifact(parts[0], parts[1], version, "compile", true);
                     }
                     return null;
                 });
@@ -1270,10 +1316,9 @@ public class AdvancedScanningService {
         }
         
         try {
-            // Full transitive dependency scan using scanner directly
-            // Note: The scanner doesn't support progress listeners yet, so we don't pass it through
-            // This is a synchronous call that can take a long time
-            return scanningModule.getTransitiveDependencyScanner().scanProject(projectPath);
+            // Full transitive dependency scan using scanner with progress callback
+            ScanProgressCallback callback = toScanProgressCallback(throttledListener);
+            return scanningModule.getTransitiveDependencyScanner().scanProject(projectPath, callback);
         } finally {
             // Clean up throttled listener
             if (throttledListener != null) {

@@ -65,6 +65,15 @@ public class DependencyInfo {
     @JsonProperty("isMavenLookupInProgress")
     private boolean isMavenLookupInProgress;
 
+    @JsonProperty("severity")
+    private String severity;
+
+    @JsonProperty("recommendation")
+    private String recommendation;
+
+    @JsonProperty("javaxPackage")
+    private String javaxPackage;
+
     public enum DependencyType {
         DIRECT("Direct"),
         TRANSITIVE("Transitive");
@@ -299,6 +308,30 @@ public class DependencyInfo {
 
     public void setMavenLookupInProgress(boolean mavenLookupInProgress) {
         isMavenLookupInProgress = mavenLookupInProgress;
+    }
+
+    public String getSeverity() {
+        return severity;
+    }
+
+    public void setSeverity(String severity) {
+        this.severity = severity;
+    }
+
+    public String getRecommendation() {
+        return recommendation;
+    }
+
+    public void setRecommendation(String recommendation) {
+        this.recommendation = recommendation;
+    }
+
+    public String getJavaxPackage() {
+        return javaxPackage;
+    }
+
+    public void setJavaxPackage(String javaxPackage) {
+        this.javaxPackage = javaxPackage;
     }
 
     public String getDisplayName() {

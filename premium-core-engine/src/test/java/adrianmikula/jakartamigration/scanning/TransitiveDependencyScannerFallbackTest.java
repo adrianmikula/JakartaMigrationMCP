@@ -4,7 +4,6 @@ import adrianmikula.jakartamigration.advancedscanning.domain.ScanReason;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.TransitiveDependencyScannerImpl;
-import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
