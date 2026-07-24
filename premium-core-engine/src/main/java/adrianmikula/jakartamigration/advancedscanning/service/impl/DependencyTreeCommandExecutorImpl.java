@@ -45,12 +45,13 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
     @Override
     public CompletableFuture<DependencyTreeResult> executeMavenDependencyTreeAsync(Path pomXmlPath, Set<String> scopes) {
         return CompletableFuture.supplyAsync(() -> {
-            // Fast-fail if Maven is not available in the environment
-            if (!isMavenAvailable()) {
+            Path projectDir = pomXmlPath.getParent();
+            // Fast-fail if neither Maven nor Maven wrapper is available
+            if (!isMavenAvailableForProject(projectDir)) {
                 return DependencyTreeResult.error("mvn command not found");
             }
-            List<String> command = buildMavenCommand(scopes, pomXmlPath.getParent());
-            return executeCommand(command, pomXmlPath.getParent(), "mvn dependency:tree",
+            List<String> command = buildMavenCommand(scopes, projectDir);
+            return executeCommand(command, projectDir, "mvn dependency:tree",
                 process -> parseMavenJsonOutput(process, scopes));
         }, executor);
     }
@@ -58,12 +59,32 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
     @Override
     public CompletableFuture<DependencyTreeResult> executeGradleDependenciesAsync(Path buildFilePath, Set<String> scopes) {
         return CompletableFuture.supplyAsync(() -> {
-            // Fast-fail if Gradle is not available in the environment
-            if (!isGradleAvailable()) {
+            Path projectDir = buildFilePath.getParent();
+
+            // In multi-module projects, running `gradle dependencies` from a submodule
+            // directory resolves to the root project (which may have no dependencies).
+            // Detect this and use task path notation: `:moduleName:dependencies` from root.
+            Optional<Path> projectRoot = findGradleProjectRoot(projectDir);
+            if (projectRoot.isPresent() && !projectRoot.get().equals(projectDir)) {
+                Path rootDir = projectRoot.get();
+                String moduleName = computeGradleModuleName(rootDir, projectDir);
+                log.debug("Multi-module detected: running {}:{} from root {}",
+                          moduleName, "dependencies", rootDir);
+
+                if (!isGradleAvailableForProject(rootDir)) {
+                    return DependencyTreeResult.error("gradle command not found");
+                }
+                List<String> command = buildGradleModuleCommand(scopes, rootDir, moduleName);
+                return executeCommand(command, rootDir, "gradle " + moduleName + ":dependencies",
+                    process -> parseGradleOutput(process, scopes));
+            }
+
+            // Single-module or root build file — run as before
+            if (!isGradleAvailableForProject(projectDir)) {
                 return DependencyTreeResult.error("gradle command not found");
             }
-            List<String> command = buildGradleCommand(scopes, buildFilePath.getParent());
-            return executeCommand(command, buildFilePath.getParent(), "gradle dependencies",
+            List<String> command = buildGradleCommand(scopes, projectDir);
+            return executeCommand(command, projectDir, "gradle dependencies",
                 process -> parseGradleOutput(process, scopes));
         }, executor);
     }
@@ -99,9 +120,56 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
             log.debug("Using system Gradle: {}", gradleCommand);
         }
         
-        List<String> cmd = new ArrayList<>(List.of(gradleCommand, "dependencies", "--quiet", "--no-daemon"));
-        scopes.forEach(s -> { cmd.add("--configuration"); cmd.add(s); });
-        return cmd;
+        // Do NOT pass --configuration: it only accepts a single value and passing
+        // multiple flags causes "Multiple arguments were provided" error (exit code 1).
+        // The parser already handles all configuration headers from the full output.
+        return new ArrayList<>(List.of(gradleCommand, "dependencies", "--quiet", "--no-daemon"));
+    }
+
+    /**
+     * Finds the Gradle project root by walking up directories looking for settings.gradle(.kts).
+     * In multi-module projects the root is identified by the presence of a settings file.
+     */
+    public static Optional<Path> findGradleProjectRoot(Path startDir) {
+        if (startDir == null) return Optional.empty();
+        Path current = startDir;
+        int depth = 0;
+        while (current != null && depth < 10) {
+            if (Files.exists(current.resolve("settings.gradle")) ||
+                Files.exists(current.resolve("settings.gradle.kts"))) {
+                return Optional.of(current);
+            }
+            current = current.getParent();
+            depth++;
+            if (current != null && current.getNameCount() == 0) break;
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Computes the Gradle module name as a colon-separated path relative to the project root.
+     * e.g. root=/a/b, submodule=/a/b/community-core-engine → ":community-core-engine"
+     */
+    public static String computeGradleModuleName(Path projectRoot, Path submoduleDir) {
+        Path relative = projectRoot.relativize(submoduleDir);
+        return ":" + relative.toString().replace(java.io.File.separatorChar, ':');
+    }
+
+    /**
+     * Builds a Gradle command using task path notation for a specific submodule.
+     * Runs from the project root so Gradle resolves the correct subproject.
+     */
+    private List<String> buildGradleModuleCommand(Set<String> scopes, Path rootDir, String moduleName) {
+        Optional<Path> gradleWrapper = findGradleWrapper(rootDir);
+        String gradleCommand;
+        if (gradleWrapper.isPresent()) {
+            gradleCommand = gradleWrapper.get().toString();
+            log.debug("Using Gradle wrapper for module: {}", gradleCommand);
+        } else {
+            gradleCommand = "gradle";
+            log.debug("Using system Gradle for module: {}", gradleCommand);
+        }
+        return new ArrayList<>(List.of(gradleCommand, moduleName + ":dependencies", "--quiet", "--no-daemon"));
     }
 
     @FunctionalInterface
@@ -327,11 +395,29 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
     }
 
     /**
+     * Check if Maven is available for a given project directory.
+     * Checks system Maven first, then looks for a Maven wrapper.
+     */
+    private static boolean isMavenAvailableForProject(Path projectDir) {
+        if (isMavenAvailable()) return true;
+        return findMavenWrapper(projectDir).isPresent();
+    }
+
+    /**
+     * Check if Gradle is available for a given project directory.
+     * Checks system Gradle first, then looks for a Gradle wrapper.
+     */
+    private static boolean isGradleAvailableForProject(Path projectDir) {
+        if (isGradleAvailable()) return true;
+        return findGradleWrapper(projectDir).isPresent();
+    }
+
+    /**
      * Find Maven wrapper in the project directory or its parents.
      * @param projectDir The project directory to search from
      * @return Optional Path to the Maven wrapper executable, empty if not found
      */
-    private Optional<Path> findMavenWrapper(Path projectDir) {
+    private static Optional<Path> findMavenWrapper(Path projectDir) {
         if (projectDir == null) return Optional.empty();
         
         // Check for Maven wrapper in current directory and parent directories
@@ -368,7 +454,7 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
      * @param projectDir The project directory to search from
      * @return Optional Path to the Gradle wrapper executable, empty if not found
      */
-    private Optional<Path> findGradleWrapper(Path projectDir) {
+    private static Optional<Path> findGradleWrapper(Path projectDir) {
         if (projectDir == null) return Optional.empty();
         
         // Check for Gradle wrapper in current directory and parent directories

@@ -3,10 +3,12 @@ package adrianmikula.jakartamigration.dependencyanalysis.util;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
-import java.util.stream.Stream;
 
 /**
  * Shared build file discovery utility.
@@ -16,8 +18,26 @@ import java.util.stream.Stream;
 public final class BuildFileDiscovery {
 
     private static final Set<String> MAVEN_FILE_NAMES = Set.of("pom.xml");
-    private static final Set<String> GRADLE_FILE_EXTENSIONS = Set.of(".gradle", ".gradle.kts");
     private static final Set<String> GRADLE_FILE_PREFIXES = Set.of("build.gradle");
+
+    /** Directories that contain build output, caches, or non-project build files. */
+    private static final Set<String> EXCLUDED_DIRECTORIES = Set.of(
+            // Build outputs
+            "target",   // Maven
+            "build",    // Gradle
+            "out",      // IntelliJ / Gradle
+            "bin",      // general
+            // Version control / IDE
+            ".git", ".svn", ".hg",
+            ".gradle",
+            ".mvn",
+            ".idea", ".vscode", ".eclipse",
+            // Vendor / temp
+            "vendor", "tmp", "temp",
+            // Generated
+            "site", "apidocs",
+            "docker-build"
+    );
 
     private BuildFileDiscovery() {
         // Utility class
@@ -25,6 +45,7 @@ public final class BuildFileDiscovery {
 
     /**
      * Discovers all build files (Maven and Gradle) in a directory tree.
+     * Excludes build output directories, caches, and non-project build files.
      */
     public static List<Path> discoverBuildFiles(Path projectPath) {
         return discoverBuildFiles(projectPath, Integer.MAX_VALUE);
@@ -32,20 +53,59 @@ public final class BuildFileDiscovery {
 
     /**
      * Discovers all build files in a directory tree with max depth.
+     * Excludes build output directories, caches, and non-project build files.
+     * Uses file tree walking with directory pruning for efficiency.
      */
     public static List<Path> discoverBuildFiles(Path projectPath, int maxDepth) {
         List<Path> buildFiles = new ArrayList<>();
 
-        try (Stream<Path> paths = Files.walk(projectPath, maxDepth)) {
-            paths.filter(Files::isRegularFile)
-                    .filter(BuildFileDiscovery::isBuildFile)
-                    .sorted()
-                    .forEach(buildFiles::add);
+        try {
+            Files.walkFileTree(projectPath, new SimpleFileVisitor<>() {
+                private int currentDepth = 0;
+
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                    if (currentDepth >= maxDepth) return FileVisitResult.SKIP_SUBTREE;
+                    currentDepth++;
+                    String dirName = dir.getFileName().toString();
+                    if (isExcludedDirectoryName(dirName)) {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
+                    currentDepth--;
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    if (BuildFileDiscovery.isBuildFile(file)) {
+                        buildFiles.add(file);
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFileFailed(Path file, IOException exc) {
+                    return FileVisitResult.CONTINUE;
+                }
+            });
         } catch (IOException e) {
             log.debug("Error walking directory tree for build files: {}", e.getClass().getSimpleName() + ": " + e.getMessage());
         }
 
+        Collections.sort(buildFiles);
         return buildFiles;
+    }
+
+    /**
+     * Checks if a directory name should be excluded from build file scanning.
+     */
+    private static boolean isExcludedDirectoryName(String dirName) {
+        return EXCLUDED_DIRECTORIES.contains(dirName);
     }
 
     /**
@@ -83,13 +143,12 @@ public final class BuildFileDiscovery {
 
     /**
      * Checks if a path is a Gradle build file.
+     * Only matches actual build files (build.gradle, build.gradle.kts),
+     * not arbitrary .gradle files like settings.gradle or test resources.
      */
     public static boolean isGradleFile(Path path) {
         String fileName = path.getFileName().toString().toLowerCase();
-        if (GRADLE_FILE_PREFIXES.stream().anyMatch(fileName::startsWith)) {
-            return true;
-        }
-        return GRADLE_FILE_EXTENSIONS.stream().anyMatch(fileName::endsWith);
+        return GRADLE_FILE_PREFIXES.stream().anyMatch(fileName::startsWith);
     }
 
     /**

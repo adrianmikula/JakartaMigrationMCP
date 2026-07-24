@@ -1,18 +1,17 @@
 package adrianmikula.jakartamigration.experiment.execution;
 
-import adrianmikula.jakartamigration.experiment.execution.ExecResult;
-import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.images.builder.ImageFromDockerfile;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.MountableFile;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-@Testcontainers
 public class DockerTestContainerOrchestrator implements TestContainerOrchestrator {
+    private static final Logger LOG = LoggerFactory.getLogger(DockerTestContainerOrchestrator.class);
+
     private final GenericContainer<?> container;
     private final String imageName;
 
@@ -25,12 +24,15 @@ public class DockerTestContainerOrchestrator implements TestContainerOrchestrato
 
     @Override
     public void start() throws IOException {
+        LOG.info("Starting Docker container with image: {}", imageName);
         container.start();
+        LOG.info("Docker container started successfully");
     }
 
     @Override
     public void stop() {
         if (container.isRunning()) {
+            LOG.info("Stopping Docker container");
             container.stop();
         }
     }
@@ -43,26 +45,29 @@ public class DockerTestContainerOrchestrator implements TestContainerOrchestrato
     @Override
     public ExecResult exec(String command, Path workDir, int timeoutSeconds) throws IOException {
         String[] parts = CommandTokenizer.tokenize(command);
+        LOG.debug("Executing in container: {} (working dir: {})", command, workDir);
         org.testcontainers.containers.Container.ExecResult result;
         try {
             result = container.execInContainer(parts);
         } catch (Exception e) {
             throw new IOException("Failed to exec in container: " + e.getMessage(), e);
         }
-        return new ExecResult(result.getExitCode(), result.getStdout(), result.getStderr());
+        ExecResult execResult = new ExecResult(result.getExitCode(), result.getStdout(), result.getStderr());
+        if (!execResult.isSuccess()) {
+            LOG.warn("Command failed in container (exit code {}): {}", result.getExitCode(), command);
+        }
+        return execResult;
     }
 
     @Override
     public void copyInto(Path localSource, Path containerTarget) throws IOException {
-        if (Files.isDirectory(localSource)) {
-            container.copyFileToContainer(MountableFile.forHostPath(localSource), containerTarget.toString());
-        } else {
-            container.copyFileToContainer(MountableFile.forHostPath(localSource), containerTarget.toString());
-        }
+        LOG.debug("Copying {} into container at {}", localSource, containerTarget);
+        container.copyFileToContainer(MountableFile.forHostPath(localSource), containerTarget.toString());
     }
 
     @Override
     public void copyOut(Path containerSource, Path localTarget) throws IOException {
+        LOG.debug("Copying {} from container to {}", containerSource, localTarget);
         Files.createDirectories(localTarget.getParent());
         container.copyFileFromContainer(containerSource.toString(), localTarget.toString());
     }

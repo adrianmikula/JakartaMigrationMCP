@@ -28,8 +28,9 @@ public final class ScopeConstants {
     );
 
     // Gradle configurations that map to compile scope
+    // Note: 'compile' was removed in Gradle 7+ and is not included here
     public static final Set<String> GRADLE_COMPILE_CONFIGS = Set.of(
-            "implementation", "api", "compile", "compileClasspath"
+            "implementation", "api", "compileClasspath"
     );
 
     // Gradle configurations that map to test scope
@@ -46,6 +47,15 @@ public final class ScopeConstants {
     // Gradle configurations that map to runtime scope
     public static final Set<String> GRADLE_RUNTIME_CONFIGS = Set.of(
             "runtime", "runtimeClasspath", "runtimeOnly"
+    );
+
+    // Resolvable Gradle configurations for the --configuration CLI flag.
+    // Only classpath configurations can be resolved by Gradle's dependencies task.
+    // Dependency buckets like 'implementation' and 'api' are NOT resolvable and
+    // will cause "Configuration with name 'implementation' not found" errors.
+    public static final Set<String> GRADLE_RESOLVABLE_CONFIGS = Set.of(
+            "compileClasspath", "runtimeClasspath",
+            "testCompileClasspath", "testRuntimeClasspath"
     );
 
     // Configuration to Maven scope mapping

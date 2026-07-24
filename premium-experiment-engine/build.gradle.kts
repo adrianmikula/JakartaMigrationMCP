@@ -23,8 +23,8 @@ dependencies {
     // Git operations (for apply safety)
     implementation("org.eclipse.jgit:org.eclipse.jgit:6.9.0.202403050737-r")
 
-    // Testcontainers (test-scoped only)
-    testImplementation("org.testcontainers:testcontainers:1.19.8")
+    // Testcontainers (needed for production Docker container orchestration)
+    implementation("org.testcontainers:testcontainers:1.19.8")
     testImplementation("org.testcontainers:junit-jupiter:1.19.8")
 
     // Testing

@@ -830,6 +830,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             setScanButtonsEnabled(false);
             dashboardComponent.setAnalysisRunning(true);
+            dependencyUIManager.resetAllToPending();
 
             // Track whether any intermediate phase failed but the chain continued
             AtomicBoolean hasPartialFailure = new AtomicBoolean(false);
@@ -955,6 +956,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             setScanButtonsEnabled(false);
             dashboardComponent.setAnalysisRunning(true);
+            dependencyUIManager.resetAllToPending();
 
             // FIX: Run performDeepScan asynchronously to avoid blocking EDT
             CompletableFuture.runAsync(() -> {

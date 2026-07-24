@@ -53,7 +53,9 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
 
     // Scopes to include in transitive dependency scanning
     private static final Set<String> MAVEN_SCOPES = ScopeConstants.DEFAULT_MAVEN_SCOPES;
-    private static final Set<String> GRADLE_SCOPES = ScopeConstants.GRADLE_COMPILE_CONFIGS;
+    // Only resolvable Gradle configurations for the --configuration CLI flag.
+    // Dependency buckets like 'implementation' are NOT resolvable.
+    private static final Set<String> GRADLE_SCOPES = ScopeConstants.GRADLE_RESOLVABLE_CONFIGS;
 
     public TransitiveDependencyScannerImpl() {
         this(new DependencyTreeCommandExecutorImpl(), new DependencyDeduplicationServiceImpl(),

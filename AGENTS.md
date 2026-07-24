@@ -147,6 +147,8 @@ Full testing standards are documented in AgentRules\TESTING.md and docs/FAST_TES
 
 Full memory efficiency patterns are documented in docs/patterns/memory_efficiency.md
 
+- When invoking external build tools (Gradle, Maven) from Java code, follow the standards in docs/patterns/build-tool-invocation.md — especially regarding resolvable configurations, wrapper detection, and build file discovery.
+
 
 
 ## Debugging

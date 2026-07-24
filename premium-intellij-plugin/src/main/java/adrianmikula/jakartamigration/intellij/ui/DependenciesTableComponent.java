@@ -420,6 +420,25 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         setDependencies(new ArrayList<>());
     }
 
+    /**
+     * Resets the table to show "Analysis Pending" for all currently displayed dependencies.
+     * Called when a new scan starts, so the user immediately sees that previous results are stale.
+     */
+    public void resetToPending() {
+        if (allDependencies.isEmpty()) {
+            return;
+        }
+        for (DependencyInfo dep : allDependencies) {
+            dep.setMavenLookupInProgress(false);
+            dep.setMigrationStatus(null);
+            dep.setScanReason("PENDING_SCAN");
+            dep.setRecommendedArtifactCoordinates(null);
+            dep.setJakartaCompatibilityStatus(null);
+            dep.setDetailMessage(null);
+        }
+        filterDependencies();
+    }
+
     public List<DependencyInfo> getSelectedDependencies() {
         int[] selectedRows = table.getSelectedRows();
         List<DependencyInfo> selected = new ArrayList<>();
@@ -519,6 +538,9 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         if (dep.isMavenLookupInProgress()) {
             // Currently being analyzed
             statusText = "? Analysis in Progress";
+        } else if ("PENDING_SCAN".equals(scanReason)) {
+            // Waiting for scan to complete
+            statusText = "? Scan Pending";
         } else if ("UNKNOWN".equals(scanReason) || "BYTECODE_SCAN_UNKNOWN".equals(scanReason)) {
             // Pending analysis
             statusText = "? Analysis Pending";
@@ -557,6 +579,8 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         // Enhanced reason mapping for better clarity on pending states
         if (dep.isMavenLookupInProgress()) {
             reason = "Maven lookup in progress";
+        } else if ("PENDING_SCAN".equals(reason)) {
+            reason = "Waiting for scan to start";
         } else if ("UNKNOWN".equals(reason)) {
             reason = "Analysis pending";
         } else if ("BYTECODE_SCAN_UNKNOWN".equals(reason)) {
