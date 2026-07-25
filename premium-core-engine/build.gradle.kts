@@ -32,6 +32,9 @@ dependencies {
     // HTTP client for Supabase API calls
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
+    // Gradle Tooling API for programmatic dependency resolution
+    implementation("org.gradle:gradle-tooling-api:8.5")
+
     // Test dependencies
     testImplementation(platform("org.junit:junit-bom:5.10.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")

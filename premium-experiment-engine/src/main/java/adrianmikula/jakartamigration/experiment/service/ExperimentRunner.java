@@ -50,6 +50,7 @@ public class ExperimentRunner {
             Path snapshot = copyProjectToSnapshot(projectDir, experimentsTmp, gitRef);
             TestContainerOrchestrator container = containerFactory.create(dockerImage);
             container.start();
+            copySnapshotIntoContainer(snapshot, container);
 
             try {
                 List<StepResult> stepResults = new ArrayList<>();
@@ -216,6 +217,19 @@ public class ExperimentRunner {
             }
         }
         return 0;
+    }
+
+    private void copySnapshotIntoContainer(Path snapshot, TestContainerOrchestrator container) throws IOException {
+        try (var paths = Files.walk(snapshot)) {
+            for (Path sourcePath : paths.toList()) {
+                if (Files.isRegularFile(sourcePath)) {
+                    Path relative = snapshot.relativize(sourcePath);
+                    Path targetPath = Path.of("/workspace").resolve(relative);
+                    LOG.debug("Copying {} into container at {}", sourcePath, targetPath);
+                    container.copyInto(sourcePath, targetPath);
+                }
+            }
+        }
     }
 
     private void copyDirectory(Path source, Path target) throws Exception {

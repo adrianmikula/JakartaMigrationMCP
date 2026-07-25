@@ -593,4 +593,48 @@ class AdvancedScanningServiceUnitTest {
         assertEquals(4, nonJavaxCount,
             "Should have 4 non-javax dependencies (spring-boot-starter, spring-boot-starter-web, jackson-databind, slf4j-api)");
     }
+
+    @Test
+    void convertToDependencyInfo_shouldParseRecommendationIntoCoordinates(@TempDir Path tempDir) {
+        var recommendation = "jakarta.servlet:jakarta.servlet-api:5.0.0";
+        var usage = new adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage(
+                "javax.servlet-api", "javax.servlet", "4.0.1",
+                "javax.servlet:javax.servlet-api", "high", recommendation,
+                "compile", false, 0, java.util.Collections.emptyList(),
+                adrianmikula.jakartamigration.advancedscanning.domain.ScanReason.MAVEN_LOOKUP_FOUND,
+                "Maven Central found Jakarta equivalent: " + recommendation, 0.7, false);
+
+        var fileResult = new adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult(
+                tempDir.resolve("pom.xml"), java.util.List.of(usage), "Maven");
+
+        var scanResult = new adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyProjectScanResult(
+                java.util.List.of(fileResult), 1, 1, 1);
+
+        List<DependencyInfo> infos = scanningService.convertToDependencyInfo(scanResult);
+
+        assertEquals(1, infos.size());
+        DependencyInfo info = infos.get(0);
+        assertEquals(recommendation, info.getRecommendedArtifactCoordinates(),
+                "Scanner recommendation should be parsed into structured group/artifact/version");
+        assertEquals("jakarta.servlet", info.getRecommendedGroupId());
+        assertEquals("jakarta.servlet-api", info.getRecommendedArtifactId());
+        assertEquals("5.0.0", info.getRecommendedVersion());
+        assertEquals(DependencyMigrationStatus.NEEDS_UPGRADE, info.getMigrationStatus(),
+                "MAVEN_LOOKUP_FOUND means an upgrade is available");
+    }
+
+    @Test
+    void determineMigrationStatus_mavenLookupFound_shouldNeedUpgrade(@TempDir Path tempDir) {
+        var usage = new adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage(
+                "javax.servlet-api", "javax.servlet", "4.0.1",
+                "javax.servlet:javax.servlet-api", "high", "jakarta.servlet:jakarta.servlet-api:5.0.0",
+                "compile", false, 0, java.util.Collections.emptyList(),
+                adrianmikula.jakartamigration.advancedscanning.domain.ScanReason.MAVEN_LOOKUP_FOUND,
+                "Maven Central found Jakarta equivalent", 0.7, false);
+
+        DependencyMigrationStatus status = scanningService.determineMigrationStatus(usage);
+
+        assertEquals(DependencyMigrationStatus.NEEDS_UPGRADE, status,
+                "Finding a Jakarta equivalent means the javax dependency needs an upgrade");
+    }
 }

@@ -6,6 +6,8 @@ This document defines standards and anti-patterns for invoking external build to
 
 When a plugin or tool needs to invoke build tools (e.g., to resolve dependencies, run tasks), several non-obvious pitfalls can cause silent failures, exit code 1, or incorrect results. This document codifies the rules we've learned.
 
+**Gradle dependency resolution in this codebase now uses the official Gradle Tooling API** (Rule 10). The earlier process-spawning rules (Rules 1, 4, 5, and 9) remain for the legacy path and for Maven, which is still invoked via `mvn`/`mvnw`.
+
 ---
 
 ## Rule 1: Never Pass Multiple `--configuration` Flags to Gradle
@@ -363,8 +365,9 @@ Files.walkFileTree(root, new SimpleFileVisitor<>() {
 
 ## Rule 9: Use Task Path Notation for Multi-Module Gradle Submodules
 
-> **Note**: This rule will become obsolete after the Gradle Tooling API migration.
-> The Tooling API handles multi-module detection natively via `GradleProject.getChildren()`.
+> **Note**: This rule has been superseded by the Gradle Tooling API migration (Rule 10).
+> For new code, use the Tooling API and `GradleProject.getChildren()` for multi-module detection.
+> Rule 9 remains documented for the legacy process-based path and Maven scenarios.
 > See [ADR 0005](../adr/0005-adopt-gradle-tooling-api.md) and [migration roadmap](../roadmap/gradle-tooling-api-migration.md).
 
 ### Anti-pattern
@@ -403,16 +406,91 @@ Detecting whether a build file is in a submodule is done by walking up directori
 
 ---
 
+## Rule 10: Use the Gradle Tooling API for Gradle Dependency Resolution
+
+### Anti-pattern
+
+```java
+// ❌ BAD: Spawning external gradle/gradlew processes and regex-parsing stdout
+List<String> cmd = List.of("gradlew", "dependencies", "--quiet", "--no-daemon");
+Process p = new ProcessBuilder(cmd).directory(projectRoot.toFile()).start();
+String output = new String(p.getInputStream().readAllBytes(), UTF_8);
+List<DependencyNode> deps = parseWithRegex(output);
+```
+
+### Correct
+
+```java
+// ✅ GOOD: Use the official Gradle Tooling API with explicit connection lifecycle
+ProjectConnection connection = null;
+try {
+    connection = GradleConnector.newConnector()
+            .forProjectDirectory(projectRoot.toFile())
+            .connect();
+
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    connection.newBuild()
+            .forTasks("dependencies")
+            .setStandardOutput(stdout)
+            .setStandardError(new ByteArrayOutputStream())
+            .run();
+
+    String output = stdout.toString(StandardCharsets.UTF_8);
+    // parse...
+} catch (Exception e) {
+    log.error("Tooling API execution failed for {}: {}", projectRoot, e.getMessage());
+    return DependencyTreeResult.error("Gradle Tooling API failed: " + e.getMessage());
+} finally {
+    closeQuietly(connection);
+}
+```
+
+### Why
+
+The Gradle Tooling API replaces the process-spawning path because it:
+
+- Reuses the Gradle daemon automatically, making repeated scans significantly faster
+- Detects `gradlew`/wrapper automatically without manual directory walking
+- Provides the `GradleProject` model for native multi-module enumeration (`getChildren()`, `getProjectDirectory()`, `getName()`, `getParent()`)
+- Avoids stdout parsing fragility and version-specific CLI differences
+
+Always close `ProjectConnection` in a `finally` block (or use a helper such as `closeQuietly`). Connections that are not closed leak file descriptors and daemon state.
+
+The Tooling API dependency version must match the project's Gradle wrapper version. This codebase uses Gradle `8.5`, so the `gradle-tooling-api` dependency is `org.gradle:gradle-tooling-api:8.5` resolved from `https://repo.gradle.org/gradle/libs-releases/`.
+
+### Multi-module projects
+
+Use the `GradleProject` model to enumerate subprojects instead of parsing `settings.gradle(.kts)` manually:
+
+```java
+GradleProject rootProject = connection.model(GradleProject.class).get();
+for (GradleProject child : rootProject.getChildren()) {
+    Path childDir = child.getProjectDirectory().toPath();
+    String taskPath = buildTaskPath(child); // e.g. ":app:dependencies"
+    // run dependencies for each child
+}
+```
+
+### Reference
+
+- `GradleToolingApiExecutor.java` — `executeViaToolingApiWithProjectModel()`, `findTargetProject()`, `buildTaskPath()`
+- `CompositeDependencyTreeCommandExecutor.java` — routing decision between Maven (process) and Gradle (Tooling API)
+
+---
+
 ## Summary Checklist
 
 When adding new build tool invocation code:
 
-- [ ] Are you passing only **resolvable** configurations to `--configuration`?
-- [ ] Are you excluding `build/`, `target/`, `.gradle/`, `.git/` when discovering build files?
-- [ ] Are you matching build files by **exact name** (not `*.gradle`)?
-- [ ] Are you walking up parent directories to find `gradlew`/`mvnw`?
-- [ ] Are you checking wrapper availability before failing on system command?
-- [ ] ~~For multi-module Gradle: are you using `:moduleName:dependencies` task path notation from the root?~~ (Being replaced by Tooling API — see ADR 0005)
-- [ ] Is the UI reset to a pending state before the async operation starts?
-- [ ] Are notification deduplication keys time-based (not permanent)?
-- [ ] Are you using `Files.walkFileTree` (not `Files.walk`) for deep directory traversal?
+- [ ] Are you using the **Gradle Tooling API** for Gradle dependency resolution? (Rule 10)
+- [ ] Are you closing `ProjectConnection` in `finally` (or `closeQuietly`)? (Rule 10)
+- [ ] Are you using `GradleProject.getChildren()` to enumerate multi-module Gradle subprojects? (Rule 10)
+- [ ] Are you passing only **resolvable** configurations to `--configuration`? (legacy process/Maven path — Rule 1)
+- [ ] Are you excluding `build/`, `target/`, `.gradle/`, `.git/` when discovering build files? (Rule 2)
+- [ ] Are you matching build files by **exact name** (not `*.gradle`)? (Rule 3)
+- [ ] Are you walking up parent directories to find `gradlew`/`mvnw`? (legacy process/Maven path — Rule 4)
+- [ ] Are you checking wrapper availability before failing on system command? (legacy process/Maven path — Rule 5)
+- [ ] ~~For multi-module Gradle: are you using `:moduleName:dependencies` task path notation from the root?~~ (legacy process path only — superseded by Rule 10)
+- [ ] Is the UI reset to a pending state before the async operation starts? (Rule 6)
+- [ ] Are notification deduplication keys time-based (not permanent)? (Rule 7)
+- [ ] Are you using `Files.walkFileTree` (not `Files.walk`) for deep directory traversal? (Rule 8)

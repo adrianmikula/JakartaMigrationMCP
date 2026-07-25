@@ -33,19 +33,23 @@ public class HierarchicalLayoutStrategy implements GraphLayoutStrategy {
             incomingCount.merge(targetId, 1, Integer::sum);
         }
 
-        // Assign nodes to layers based on longest path from root
+        // Assign nodes to layers based on longest path from root.
+        // Cycles in the dependency graph can cause layer numbers to keep increasing,
+        // so each node is re-enqueued a bounded number of times.
         Map<String, Integer> nodeLayer = new HashMap<>();
+        Map<String, Integer> enqueueCount = new HashMap<>();
         Queue<GraphNode> queue = new LinkedList<>();
 
         // Find root nodes (no incoming edges)
         for (GraphNode node : nodes) {
             if (incomingCount.get(node.getId()) == 0) {
                 nodeLayer.put(node.getId(), 0);
+                enqueueCount.put(node.getId(), 1);
                 queue.offer(node);
             }
         }
 
-        // BFS to assign layers
+        // BFS to assign layers, bounded to avoid infinite loops on cyclic graphs
         while (!queue.isEmpty()) {
             GraphNode current = queue.poll();
             int currentLayer = nodeLayer.get(current.getId());
@@ -55,9 +59,10 @@ public class HierarchicalLayoutStrategy implements GraphLayoutStrategy {
                 int existingLayer = nodeLayer.getOrDefault(dependent.getId(), 0);
                 if (newLayer > existingLayer) {
                     nodeLayer.put(dependent.getId(), newLayer);
-                }
-                if (!queue.contains(dependent)) {
-                    queue.offer(dependent);
+                    int count = enqueueCount.merge(dependent.getId(), 1, Integer::sum);
+                    if (count <= nodes.size()) {
+                        queue.offer(dependent);
+                    }
                 }
             }
         }

@@ -57,8 +57,23 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
     // Dependency buckets like 'implementation' are NOT resolvable.
     private static final Set<String> GRADLE_SCOPES = ScopeConstants.GRADLE_RESOLVABLE_CONFIGS;
 
+    /**
+     * Returns true when the active command executor handles multi-module Gradle projects
+     * internally. In that case the scanner should not perform its own list-level
+     * multi-module aggregation.
+     *
+     * This covers the dedicated {@link GradleToolingApiExecutor}, the composite router
+     * that delegates Gradle to it, and {@link DependencyTreeCommandExecutorImpl} which
+     * now delegates Gradle execution to the Tooling API.
+     */
+    private boolean usesToolingApiExecutor() {
+        return commandExecutor instanceof GradleToolingApiExecutor
+            || commandExecutor instanceof CompositeDependencyTreeCommandExecutor
+            || commandExecutor instanceof DependencyTreeCommandExecutorImpl;
+    }
+
     public TransitiveDependencyScannerImpl() {
-        this(new DependencyTreeCommandExecutorImpl(), new DependencyDeduplicationServiceImpl(),
+        this(new CompositeDependencyTreeCommandExecutor(), new DependencyDeduplicationServiceImpl(),
              new RecipeBasedClassifier(), null, null, null, null);
     }
 
@@ -127,8 +142,10 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         }
         log.info("[DEBUG] scanProject with progress listener (list) called with {} files", filesToScan.size());
 
-        // Check if this is a multi-module project and handle it accordingly
-        if (filesToScan.size() > 1) {
+        // Check if this is a multi-module project and handle it accordingly.
+        // When using the Gradle Tooling API executor, multi-module handling is done
+        // natively inside the executor, so skip the list-level aggregation.
+        if (filesToScan.size() > 1 && !usesToolingApiExecutor()) {
             // Find a common project root from the build files
             Optional<Path> projectRoot = BuildFileDiscovery.findCommonProjectRoot(filesToScan);
             if (projectRoot.isPresent() && BuildFileDiscovery.detectMultiModuleProject(projectRoot.get())) {
@@ -219,8 +236,11 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                  return TransitiveDependencyProjectScanResult.empty();
              }
 
-             // For multi-module projects, run command once from root instead of per-file
-             boolean isMultiModule = buildFiles.size() > 1 && BuildFileDiscovery.detectMultiModuleProject(projectPath);
+             // For multi-module projects, run command once from root instead of per-file,
+             // unless the Tooling API executor is handling multi-module natively per build file.
+             boolean isMultiModule = buildFiles.size() > 1
+                 && !usesToolingApiExecutor()
+                 && BuildFileDiscovery.detectMultiModuleProject(projectPath);
             List<TransitiveDependencyScanResult> results = null;
             AtomicInteger totalScanned = new AtomicInteger(0);
 

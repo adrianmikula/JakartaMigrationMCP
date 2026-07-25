@@ -36,10 +36,12 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
 
     private final ExecutorService executor;
     private final ObjectMapper objectMapper;
+    private final GradleToolingApiExecutor gradleToolingApiExecutor;
 
     public DependencyTreeCommandExecutorImpl() {
         this.executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
         this.objectMapper = new ObjectMapper();
+        this.gradleToolingApiExecutor = new GradleToolingApiExecutor();
     }
 
     @Override
@@ -58,35 +60,10 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
 
     @Override
     public CompletableFuture<DependencyTreeResult> executeGradleDependenciesAsync(Path buildFilePath, Set<String> scopes) {
-        return CompletableFuture.supplyAsync(() -> {
-            Path projectDir = buildFilePath.getParent();
-
-            // In multi-module projects, running `gradle dependencies` from a submodule
-            // directory resolves to the root project (which may have no dependencies).
-            // Detect this and use task path notation: `:moduleName:dependencies` from root.
-            Optional<Path> projectRoot = findGradleProjectRoot(projectDir);
-            if (projectRoot.isPresent() && !projectRoot.get().equals(projectDir)) {
-                Path rootDir = projectRoot.get();
-                String moduleName = computeGradleModuleName(rootDir, projectDir);
-                log.debug("Multi-module detected: running {}:{} from root {}",
-                          moduleName, "dependencies", rootDir);
-
-                if (!isGradleAvailableForProject(rootDir)) {
-                    return DependencyTreeResult.error("gradle command not found");
-                }
-                List<String> command = buildGradleModuleCommand(scopes, rootDir, moduleName);
-                return executeCommand(command, rootDir, "gradle " + moduleName + ":dependencies",
-                    process -> parseGradleOutput(process, scopes));
-            }
-
-            // Single-module or root build file — run as before
-            if (!isGradleAvailableForProject(projectDir)) {
-                return DependencyTreeResult.error("gradle command not found");
-            }
-            List<String> command = buildGradleCommand(scopes, projectDir);
-            return executeCommand(command, projectDir, "gradle dependencies",
-                process -> parseGradleOutput(process, scopes));
-        }, executor);
+        // Gradle dependency resolution has been migrated to the Gradle Tooling API.
+        // The old process-spawning implementation below is deprecated and kept only
+        // for reference; the active path delegates to GradleToolingApiExecutor.
+        return gradleToolingApiExecutor.executeGradleDependenciesAsync(buildFilePath, scopes);
     }
 
     private List<String> buildMavenCommand(Set<String> scopes, Path projectDir) {
@@ -376,6 +353,7 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
         executor.shutdown();
         try { if (!executor.awaitTermination(5, TimeUnit.SECONDS)) executor.shutdownNow(); }
         catch (InterruptedException e) { executor.shutdownNow(); Thread.currentThread().interrupt(); }
+        gradleToolingApiExecutor.shutdown();
     }
 
     /**

@@ -4,6 +4,7 @@ import adrianmikula.jakartamigration.experiment.domain.ExperimentResult;
 import adrianmikula.jakartamigration.experiment.domain.ExperimentStatus;
 import adrianmikula.jakartamigration.experiment.domain.MigrationSequence;
 import adrianmikula.jakartamigration.intellij.service.ExperimentService;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBLabel;
@@ -148,6 +149,18 @@ public class ExperimentResultsPanel {
                 return experimentService.runExperiment(sequence.name(), gitRef);
             } catch (Exception e) {
                 LOG.error("Experiment execution failed", e);
+                
+                // Check for Docker-related errors and show notification
+                if (isDockerError(e)) {
+                    SwingUtilities.invokeLater(() -> {
+                        NotificationHelper.showError(
+                            project,
+                            "Docker Environment Error",
+                            "Could not find a valid Docker environment. Please ensure Docker is running and you have the necessary permissions. See https://java.testcontainers.org/on_failure.html for more details."
+                        );
+                    });
+                }
+                
                 return new ExperimentResult(
                     "failed-" + System.currentTimeMillis(),
                     sequence.name(),
@@ -163,6 +176,13 @@ public class ExperimentResultsPanel {
         }).thenAccept(result -> SwingUtilities.invokeLater(() -> {
             this.currentResult = result;
             displayResults(result);
+            if (result.status() == ExperimentStatus.FAILED && isDockerError(result.errorMessage())) {
+                NotificationHelper.showError(
+                    project,
+                    "Docker Environment Error",
+                    "Could not find a valid Docker environment. Please ensure Docker is running and you have the necessary permissions. See https://java.testcontainers.org/on_failure.html for more details."
+                );
+            }
             if (onExperimentCompleted != null) {
                 onExperimentCompleted.accept(result);
             }
@@ -286,5 +306,25 @@ public class ExperimentResultsPanel {
 
     public JPanel getPanel() {
         return panel;
+    }
+
+    /**
+     * Checks if an exception is related to Docker environment issues.
+     */
+    private boolean isDockerError(Exception e) {
+        return e != null && isDockerError(e.getMessage());
+    }
+
+    /**
+     * Checks if a message is related to Docker environment issues.
+     */
+    private boolean isDockerError(String message) {
+        if (message == null) {
+            return false;
+        }
+        String lower = message.toLowerCase();
+        return message.contains("Could not find a valid Docker environment") ||
+               lower.contains("docker environment") ||
+               (lower.contains("docker") && lower.contains("permission"));
     }
 }

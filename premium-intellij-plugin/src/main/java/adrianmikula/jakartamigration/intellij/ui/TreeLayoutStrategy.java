@@ -54,12 +54,14 @@ public class TreeLayoutStrategy implements GraphLayoutStrategy {
 
         // Layout tree recursively
         double startY = VERTICAL_SPACING;
-        layoutNode(rootId, children, nodeMap, canvasWidth / 2, startY, canvasWidth / 4);
+        Set<String> visiting = new HashSet<>();
+        layoutNode(rootId, children, nodeMap, canvasWidth / 2, startY, canvasWidth / 4, visiting);
     }
 
     private double layoutNode(String nodeId, Map<String, List<String>> children,
-            Map<String, GraphNode> nodeMap, double x, double y, double subtreeWidth) {
-        if (nodeId == null || !nodeMap.containsKey(nodeId)) {
+            Map<String, GraphNode> nodeMap, double x, double y, double subtreeWidth,
+            Set<String> visiting) {
+        if (nodeId == null || !nodeMap.containsKey(nodeId) || !visiting.add(nodeId)) {
             return 0;
         }
 
@@ -71,6 +73,7 @@ public class TreeLayoutStrategy implements GraphLayoutStrategy {
 
         List<String> childIds = children.getOrDefault(nodeId, Collections.emptyList());
         if (childIds.isEmpty()) {
+            visiting.remove(nodeId);
             return NODE_WIDTH;
         }
 
@@ -79,7 +82,7 @@ public class TreeLayoutStrategy implements GraphLayoutStrategy {
         double startX = x - subtreeWidth / 2;
 
         for (String childId : childIds) {
-            double childWidth = layoutNode(childId, children, nodeMap, startX, y + VERTICAL_SPACING, subtreeWidth / childIds.size());
+            double childWidth = layoutNode(childId, children, nodeMap, startX, y + VERTICAL_SPACING, subtreeWidth / childIds.size(), visiting);
             totalWidth += childWidth + HORIZONTAL_SPACING;
             startX += childWidth + HORIZONTAL_SPACING;
         }
@@ -90,6 +93,7 @@ public class TreeLayoutStrategy implements GraphLayoutStrategy {
             node.setX(childrenCenter - NODE_WIDTH / 2);
         }
 
+        visiting.remove(nodeId);
         return Math.max(totalWidth, NODE_WIDTH);
     }
 }

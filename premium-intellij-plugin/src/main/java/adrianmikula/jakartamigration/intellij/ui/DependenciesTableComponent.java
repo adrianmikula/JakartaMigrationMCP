@@ -263,8 +263,9 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         });
         headerPanel.add(searchField);
 
+        // Status filter dropdown removed from the visible UI - not needed there,
+        // but keep the listener so programmatic/test selection still triggers filtering.
         statusFilter.addActionListener(e -> filterDependencies());
-        headerPanel.add(statusFilter);
 
         transitiveFilter.addActionListener(e -> filterDependencies());
         headerPanel.add(transitiveFilter);
@@ -524,14 +525,19 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         // Scope - show scope (compile, test, provided, runtime)
         String scopeStr = dep.getScope() != null ? dep.getScope() : "-";
 
-        // Jakarta Equivalent
-        String jakartaEquivalent = dep.getRecommendedArtifactCoordinates() != null
-                ? dep.getRecommendedArtifactCoordinates()
-                : "-";
+        // Jakarta Equivalent - prefer parsed coordinates, fall back to the raw recommendation string
+        String coordinates = dep.getRecommendedArtifactCoordinates();
+        String jakartaEquivalent = coordinates != null && !coordinates.isBlank() ? coordinates : "";
+        if (jakartaEquivalent.isBlank() && dep.getRecommendation() != null && !dep.getRecommendation().isBlank()) {
+            jakartaEquivalent = dep.getRecommendation();
+        }
+        if (jakartaEquivalent.isBlank()) {
+            jakartaEquivalent = "-";
+        }
 
         // Compatibility Status - determines color coding
         String statusText;
-        boolean hasJakartaEquivalent = jakartaEquivalent != null && !jakartaEquivalent.equals("-");
+        boolean hasJakartaEquivalent = !"-".equals(jakartaEquivalent);
         String scanReason = dep.getScanReason();
 
         // Enhanced status logic - differentiate pending vs final states
@@ -567,8 +573,10 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             statusText = "⚠ Build Tool Error";
         } else if (!hasJakartaEquivalent) {
             statusText = "✗ No Jakarta Version";
+            dep.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
         } else if (hasJakartaEquivalent) {
             statusText = "↑ Upgrade Available";
+            dep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
         } else {
             statusText = "? Unknown";
         }
@@ -829,41 +837,56 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
     private synchronized void updateDependencyWithJakartaInfo(DependencyInfo javaxDep, List<JakartaArtifactMatch> jakartaArtifacts) {
         // Clear lookup state when lookup completes
         javaxDep.setMavenLookupInProgress(false);
-        
+
+        boolean alreadyHasRecommendation = hasText(javaxDep.getRecommendedArtifactCoordinates())
+                || hasText(javaxDep.getRecommendation());
+
         if (jakartaArtifacts == null || jakartaArtifacts.isEmpty()) {
-            // No Jakarta artifacts found - mark as UNKNOWN
-            javaxDep.setMigrationStatus(DependencyMigrationStatus.UNKNOWN);
-            javaxDep.setJakartaCompatibilityStatus("Unknown - No Jakarta equivalent found");
+            // No Jakarta artifacts found - only mark as UNKNOWN if the scanner did not
+            // already provide a recommendation. Otherwise keep the existing status.
+            if (!alreadyHasRecommendation) {
+                javaxDep.setMigrationStatus(DependencyMigrationStatus.UNKNOWN);
+                javaxDep.setJakartaCompatibilityStatus("Unknown - No Jakarta equivalent found");
+            } else {
+                javaxDep.setJakartaCompatibilityStatus("Jakarta equivalent already identified");
+                javaxDep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
+            }
             System.out.println("[DEBUG] No Jakarta equivalent found for: " + javaxDep.getGroupId() + ":" + javaxDep.getArtifactId());
             return;
         }
-        
+
         // Filter to only found artifacts and get best match
         JakartaArtifactMatch bestMatch = jakartaArtifacts.stream()
                 .filter(JakartaArtifactMatch::found)
                 .findFirst()
                 .orElse(null);
-        
+
         if (bestMatch == null) {
-            // No valid matches found - mark as UNKNOWN
-            javaxDep.setMigrationStatus(DependencyMigrationStatus.UNKNOWN);
-            javaxDep.setJakartaCompatibilityStatus("Unknown - No valid Jakarta match");
+            // No valid matches found - only mark as UNKNOWN if the scanner did not
+            // already provide a recommendation.
+            if (!alreadyHasRecommendation) {
+                javaxDep.setMigrationStatus(DependencyMigrationStatus.UNKNOWN);
+                javaxDep.setJakartaCompatibilityStatus("Unknown - No valid Jakarta match");
+            } else {
+                javaxDep.setJakartaCompatibilityStatus("Jakarta equivalent already identified");
+                javaxDep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
+            }
             System.out.println("[DEBUG] No valid Jakarta match for: " + javaxDep.getGroupId() + ":" + javaxDep.getArtifactId());
             return;
         }
-        
+
         // Update dependency with Jakarta information
         String coordinates = bestMatch.groupId() + ":" + bestMatch.artifactId() + ":" + bestMatch.version();
         javaxDep.setRecommendedArtifactCoordinates(coordinates);
         javaxDep.setJakartaCompatibilityStatus("Compatible");
         javaxDep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
-        
+
         // Update dependency in master list
         for (int i = 0; i < allDependencies.size(); i++) {
             DependencyInfo dep = allDependencies.get(i);
-            if (dep.getGroupId().equals(javaxDep.getGroupId()) && 
+            if (dep.getGroupId().equals(javaxDep.getGroupId()) &&
                 dep.getArtifactId().equals(javaxDep.getArtifactId())) {
-                
+
                 // Create a new DependencyInfo object with updated information
                 DependencyInfo updatedDep = new DependencyInfo();
                 updatedDep.setGroupId(dep.getGroupId());
@@ -874,11 +897,17 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
                 updatedDep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
                 updatedDep.setTransitive(dep.isTransitive());
                 updatedDep.setOrganizational(dep.isOrganizational());
-                
+                updatedDep.setScanReason(dep.getScanReason());
+                updatedDep.setDetailMessage(dep.getDetailMessage());
+
                 allDependencies.set(i, updatedDep);
                 break;
             }
         }
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
     
     private void handleUpdate(ActionEvent e) {

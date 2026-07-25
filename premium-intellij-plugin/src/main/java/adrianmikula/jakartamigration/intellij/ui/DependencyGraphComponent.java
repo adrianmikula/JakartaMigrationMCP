@@ -539,7 +539,8 @@ public class DependencyGraphComponent {
      * Requirements:
      * - 5 or less: tree mode
      * - 5 to 25: circular mode
-     * - 25 or more: force-directed mode
+     * - 25 to 100: force-directed mode
+     * - more than 100: hierarchical mode (force-directed is too expensive for large graphs)
      */
     private void selectOptimalLayout(int nodeCount) {
         String optimalLayout;
@@ -547,8 +548,10 @@ public class DependencyGraphComponent {
             optimalLayout = "Tree";
         } else if (nodeCount <= 25) {
             optimalLayout = "Circular";
-        } else {
+        } else if (nodeCount <= 100) {
             optimalLayout = "Force-Directed";
+        } else {
+            optimalLayout = "Hierarchical";
         }
         
         layoutCombo.setSelectedItem(optimalLayout);

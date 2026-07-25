@@ -1215,6 +1215,12 @@ public class AdvancedScanningService {
                     info.setRecommendedVersion(usage.getAlternativeVersions().get(0));
                 }
 
+                // Parse the full recommendation (group:artifact:version) into structured fields
+                // so the UI can display a Jakarta equivalent in the dependencies table.
+                if (usage.getRecommendation() != null && !usage.getRecommendation().isBlank()) {
+                    info.setRecommendedArtifactCoordinates(usage.getRecommendation());
+                }
+
                 dependencyMap.put(artifactKey, info);
             }
         }
@@ -1418,8 +1424,8 @@ public class AdvancedScanningService {
         }
         ScanReason reason = usage.getScanReason();
         return switch (reason) {
-            case WHITELISTED, BYTECODE_SCAN_JAKARTA, MAVEN_LOOKUP_FOUND -> DependencyMigrationStatus.COMPATIBLE;
-            case BLACKLISTED, BYTECODE_SCAN_JAVAX, TRANSITIVE_INCOMPATIBLE -> DependencyMigrationStatus.NEEDS_UPGRADE;
+            case WHITELISTED, BYTECODE_SCAN_JAKARTA -> DependencyMigrationStatus.COMPATIBLE;
+            case BLACKLISTED, BYTECODE_SCAN_JAVAX, TRANSITIVE_INCOMPATIBLE, MAVEN_LOOKUP_FOUND -> DependencyMigrationStatus.NEEDS_UPGRADE;
             case MAVEN_LOOKUP_NONE -> DependencyMigrationStatus.MAVEN_LOOKUP_FAILED;
             case BYTECODE_SCAN_MIXED -> DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION;
             case BUILD_TOOL_ERROR -> DependencyMigrationStatus.BUILD_TOOL_ERROR;
