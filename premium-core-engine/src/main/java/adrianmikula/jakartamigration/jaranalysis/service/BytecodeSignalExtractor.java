@@ -45,6 +45,8 @@ public class BytecodeSignalExtractor {
         // Use sets to track unique class references with pre-sized collections
         Set<String> javaxClasses = new HashSet<>(estimatedSize / 4);
         Set<String> jakartaClasses = new HashSet<>(estimatedSize / 4);
+        Set<String> javaxPackages = new HashSet<>(16);
+        Set<String> jakartaPackages = new HashSet<>(16);
         Map<String, Integer> apiUsage = new HashMap<>(16);
         Set<String> reflectionStrings = new HashSet<>(estimatedSize / 10);
         boolean hasPomMetadata = false;
@@ -79,7 +81,7 @@ public class BytecodeSignalExtractor {
                     try (InputStream is = jarFile.getInputStream(entry)) {
                         ClassReader reader = new ClassReader(is);
                         SignalCollectingVisitor visitor = new SignalCollectingVisitor(
-                            javaxClasses, jakartaClasses, apiUsage, reflectionStrings);
+                            javaxClasses, jakartaClasses, javaxPackages, jakartaPackages, apiUsage, reflectionStrings);
                         reader.accept(visitor, 
                             ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
                         
@@ -132,6 +134,8 @@ public class BytecodeSignalExtractor {
             .automaticModuleName(automaticModuleName)
             .hasShadedPackages(hasShadedPackages)
             .testOnlyPatterns(testOnlyPatterns.toArray(new String[0]))
+            .javaxPackages(javaxPackages.toArray(new String[0]))
+            .jakartaPackages(jakartaPackages.toArray(new String[0]))
             .build();
     }
     
@@ -202,18 +206,23 @@ public class BytecodeSignalExtractor {
     private static class SignalCollectingVisitor extends ClassVisitor {
         private final Set<String> javaxClasses;
         private final Set<String> jakartaClasses;
+        private final Set<String> javaxPackages;
+        private final Set<String> jakartaPackages;
         private final Map<String, Integer> apiUsage;
         private final Set<String> reflectionStrings;
-        
+
         private String className;
         private boolean hasJavax = false;
         private boolean hasJakarta = false;
-        
+
         public SignalCollectingVisitor(Set<String> javaxClasses, Set<String> jakartaClasses,
+                Set<String> javaxPackages, Set<String> jakartaPackages,
                 Map<String, Integer> apiUsage, Set<String> reflectionStrings) {
             super(Opcodes.ASM9);
             this.javaxClasses = javaxClasses;
             this.jakartaClasses = jakartaClasses;
+            this.javaxPackages = javaxPackages;
+            this.jakartaPackages = jakartaPackages;
             this.apiUsage = apiUsage;
             this.reflectionStrings = reflectionStrings;
         }
@@ -274,17 +283,19 @@ public class BytecodeSignalExtractor {
         
         private void checkNamespace(String className) {
             if (className == null) return;
-            
+
             if (className.startsWith("javax.")) {
                 hasJavax = true;
-                // Track critical APIs
+                // Track critical APIs and exact package prefixes
                 trackApiUsage(className);
+                trackPackages(className, javaxPackages);
             } else if (className.startsWith("jakarta.")) {
                 hasJakarta = true;
                 trackApiUsage(className);
+                trackPackages(className, jakartaPackages);
             }
         }
-        
+
         private void trackApiUsage(String className) {
             // Extract top-level package after javax/jakarta
             // e.g., javax.servlet.http.HttpServlet → servlet
@@ -292,6 +303,18 @@ public class BytecodeSignalExtractor {
             if (parts.length >= 2) {
                 String apiCategory = parts[1].toLowerCase(); // servlet, persistence, etc.
                 apiUsage.merge(apiCategory, 1, Integer::sum);
+            }
+        }
+
+        private void trackPackages(String className, Set<String> target) {
+            // Capture the package prefixes most likely to appear in OpenRewrite package rename maps,
+            // e.g. javax.servlet, javax.servlet.http, javax.xml.rpc, javax.xml.bind
+            String[] parts = className.split("\\.");
+            if (parts.length >= 2) {
+                target.add(parts[0] + "." + parts[1]);
+                if (parts.length >= 3) {
+                    target.add(parts[0] + "." + parts[1] + "." + parts[2]);
+                }
             }
         }
         

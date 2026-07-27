@@ -21,6 +21,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.util.BuildFileDiscovery;
 import adrianmikula.jakartamigration.dependencyanalysis.util.ScopeConstants;
 import adrianmikula.jakartamigration.scanning.RecipeBasedClassifier;
 import adrianmikula.jakartamigration.scanning.BalloonNotificationService;
+import adrianmikula.jakartamigration.jaranalysis.classifier.BytecodeNamespaceClassifier;
 import adrianmikula.jakartamigration.jaranalysis.domain.JarCompatibilityLevel;
 import adrianmikula.jakartamigration.jaranalysis.domain.JarCompatibilityReport;
 import adrianmikula.jakartamigration.jaranalysis.service.JarCompatibilityScanner;
@@ -74,12 +75,12 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
 
     public TransitiveDependencyScannerImpl() {
         this(new CompositeDependencyTreeCommandExecutor(), new DependencyDeduplicationServiceImpl(),
-             new RecipeBasedClassifier(), null, null, null, null);
+             new BytecodeNamespaceClassifier(), null, null, null, null);
     }
 
     public TransitiveDependencyScannerImpl(DependencyTreeCommandExecutor commandExecutor,
                                           DependencyDeduplicationService deduplicationService) {
-        this(commandExecutor, deduplicationService, new RecipeBasedClassifier(), null, null, null, null);
+        this(commandExecutor, deduplicationService, new BytecodeNamespaceClassifier(), null, null, null, null);
     }
 
     public TransitiveDependencyScannerImpl(DependencyTreeCommandExecutor commandExecutor,
@@ -406,10 +407,20 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
 
           for (DependencyTreeResult.DependencyNode node : nodes) {
              String artifactKey = node.getGroupId() + ":" + node.getArtifactId();
-             Namespace ns = classificationCache.computeIfAbsent(artifactKey,
-                 k -> namespaceClassifier.classify(new Artifact(node.getGroupId(), node.getArtifactId(), node.getVersion(), node.getScope(), node.isTransitive())));
+             Artifact artifact = new Artifact(node.getGroupId(), node.getArtifactId(), node.getVersion(), node.getScope(), node.isTransitive());
+             Namespace ns;
+             JarCompatibilityReport jarReport = null;
+             if (namespaceClassifier instanceof BytecodeNamespaceClassifier bnc) {
+                 var cr = bnc.classifyWithScanning(artifact, false);
+                 ns = cr.namespace();
+                 jarReport = cr.report();
+                 classificationCache.put(artifactKey, ns);
+             } else {
+                 ns = classificationCache.computeIfAbsent(artifactKey,
+                     k -> namespaceClassifier.classify(artifact));
+             }
 
-             TransitiveDependencyUsage usage = createBaseUsage(node, ns);
+             TransitiveDependencyUsage usage = createBaseUsage(node, ns, jarReport);
              usages.add(usage);
              
              // Track index for later merging
@@ -424,7 +435,11 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
 
              // Collect usages needing Maven Central lookup
              if (mavenCentralLookupService != null) {
-                 if (usage.getScanReason() == ScanReason.UNKNOWN || usage.getScanReason() == ScanReason.BYTECODE_SCAN_UNKNOWN) {
+                 if (usage.getScanReason() == ScanReason.UNKNOWN
+                    || usage.getScanReason() == ScanReason.BYTECODE_SCAN_UNKNOWN
+                    || usage.getScanReason() == ScanReason.BLACKLISTED
+                    || usage.getScanReason() == ScanReason.BYTECODE_SCAN_JAVAX
+                    || usage.getScanReason() == ScanReason.BYTECODE_SCAN_MIXED) {
                      usagesNeedingMavenLookup.add(usage);
                  }
              }
@@ -493,12 +508,26 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
      */
     private TransitiveDependencyUsage createBaseUsage(DependencyTreeResult.DependencyNode node,
                                                         Namespace ns) {
-        ScanReason scanReason = mapNamespaceToScanReason(ns);
+        return createBaseUsage(node, ns, null);
+    }
+
+    private TransitiveDependencyUsage createBaseUsage(DependencyTreeResult.DependencyNode node,
+                                                        Namespace ns,
+                                                        JarCompatibilityReport report) {
+        ScanReason scanReason;
+        String javaxPackage;
+        if (report != null && report.signal() != null) {
+            scanReason = mapJarLevelToScanReason(report.level());
+            javaxPackage = report.signal().javaxPackages().length > 0
+                ? String.join(",", report.signal().javaxPackages())
+                : null;
+        } else {
+            scanReason = mapNamespaceToScanReason(ns);
+            javaxPackage = (ns == Namespace.JAVAX || ns == Namespace.MIXED) ? node.getArtifactKey() : null;
+        }
         String severity = mapNamespaceToSeverity(ns);
         String recommendation = mapNamespaceToRecommendation(ns, node.getGroupId(), node.getArtifactId());
         String detailMessage = detailMessage(ns, node.getGroupId(), node.getArtifactId());
-        String artifactKey = node.getArtifactKey();
-        String javaxPackage = (ns == Namespace.JAVAX || ns == Namespace.MIXED) ? artifactKey : null;
 
         return new TransitiveDependencyUsage(
                 node.getArtifactId(),
@@ -590,18 +619,26 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
      */
     private Optional<TransitiveDependencyUsage> enrichWithMavenLookup(TransitiveDependencyUsage usage) {
         ScanReason reason = usage.getScanReason();
-        // Only lookup UNKNOWN and BYTECODE_SCAN_UNKNOWN dependencies
-        if (reason != ScanReason.UNKNOWN && reason != ScanReason.BYTECODE_SCAN_UNKNOWN) {
+        // Only lookup dependencies that might have a Jakarta equivalent
+        if (reason != ScanReason.UNKNOWN && reason != ScanReason.BYTECODE_SCAN_UNKNOWN
+                && reason != ScanReason.BLACKLISTED && reason != ScanReason.BYTECODE_SCAN_JAVAX
+                && reason != ScanReason.BYTECODE_SCAN_MIXED) {
             return Optional.empty();
         }
 
         try {
-            var future = mavenCentralLookupService.findJakartaEquivalents(usage.getGroupId(), usage.getArtifactId());
+            Collection<String> packages = parseJavaxPackages(usage.getJavaxPackage());
+            var future = (packages != null && !packages.isEmpty())
+                ? mavenCentralLookupService.findJakartaEquivalents(usage.getGroupId(), usage.getArtifactId(), packages)
+                : mavenCentralLookupService.findJakartaEquivalents(usage.getGroupId(), usage.getArtifactId());
             var matches = future.get();
             if (matches != null && !matches.isEmpty()) {
                 ImprovedMavenCentralLookupService.JakartaArtifactMatch firstMatch = matches.get(0);
-                String newRecommendation = firstMatch.groupId() + ":" + firstMatch.artifactId() +
+                String coordinate = firstMatch.groupId() + ":" + firstMatch.artifactId() +
                         (firstMatch.version() != null ? ":" + firstMatch.version() : "");
+                String newRecommendation = reason == ScanReason.BLACKLISTED
+                        ? "Jakarta migration required: " + coordinate
+                        : coordinate;
                 TransitiveDependencyUsage updated = new TransitiveDependencyUsage(
                         usage.getArtifactId(),
                         usage.getGroupId(),
@@ -614,19 +651,21 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                         usage.getDepth(),
                         usage.getAlternativeVersions(),
                         ScanReason.MAVEN_LOOKUP_FOUND,
-                        "Maven Central found Jakarta equivalent: " + newRecommendation,
+                        "Maven Central found Jakarta equivalent: " + coordinate,
                         0.7, // heuristic confidence
                         usage.isIncompatibilityFromTransitive()
                 );
                 return Optional.of(updated);
             } else {
                 // No Jakarta equivalent found
+                boolean wasBlacklisted = reason == ScanReason.BLACKLISTED;
+                String severity = wasBlacklisted ? usage.getSeverity() : "low";
                 TransitiveDependencyUsage updated = new TransitiveDependencyUsage(
                         usage.getArtifactId(),
                         usage.getGroupId(),
                         usage.getVersion(),
                         usage.getJavaxPackage(),
-                        "low", // downgrade severity since nothing found
+                        severity,
                         usage.getRecommendation(),
                         usage.getScope(),
                         usage.isTransitive(),
@@ -643,6 +682,19 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
             log.warn("Maven Central lookup failed for {}: {}", usage.getArtifactKey(), e.getClass().getSimpleName() + ": " + e.getMessage());
         }
         return Optional.empty();
+    }
+
+    private Collection<String> parseJavaxPackages(String javaxPackage) {
+        if (javaxPackage == null || javaxPackage.isEmpty() || javaxPackage.contains(":")) {
+            return null;
+        }
+        if (javaxPackage.contains(",")) {
+            return List.of(javaxPackage.split(","));
+        }
+        if (javaxPackage.contains(".")) {
+            return List.of(javaxPackage);
+        }
+        return null;
     }
     
     /**

@@ -3,13 +3,13 @@ package adrianmikula.jakartamigration.scanning;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Namespace;
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
+import adrianmikula.jakartamigration.jaranalysis.domain.JarCompatibilityLevel;
+import adrianmikula.jakartamigration.jaranalysis.domain.JarCompatibilityReport;
 import adrianmikula.jakartamigration.jaranalysis.service.DefaultJarCompatibilityScanner;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
 
 /**
  * Hybrid classifier that uses recipe-derived coordinate mappings and package rename patterns
@@ -34,7 +34,7 @@ public class RecipeBasedClassifier implements NamespaceClassifier {
     private volatile Set<String> jakartaGroupPrefixes = Set.of();
 
     public RecipeBasedClassifier() {
-        this(new RecipePatternExtractor(), null);
+        this(new RecipePatternExtractor(), new DefaultJarCompatibilityScanner());
     }
 
     public RecipeBasedClassifier(RecipePatternExtractor patternExtractor,
@@ -182,57 +182,22 @@ public class RecipeBasedClassifier implements NamespaceClassifier {
             if (jarPath.isEmpty()) {
                 return Namespace.UNKNOWN;
             }
-            return scanJarForNamespaces(jarPath.get());
+            JarCompatibilityReport report = jarScanner.analyzeJar(jarPath.get(), null);
+            return mapJarLevelToNamespace(report.level());
         } catch (Exception e) {
             log.debug("JAR scan failed for {}: {}", artifact.toCoordinate(), e.getClass().getSimpleName() + ": " + e.getMessage());
             return Namespace.UNKNOWN;
         }
     }
 
-    /**
-     * Scans a JAR file's class entries for javax/jakarta namespace usage.
-     */
-    private Namespace scanJarForNamespaces(java.nio.file.Path jarPath) {
-        boolean foundJavax = false;
-        boolean foundJakarta = false;
-
-        try (JarFile jarFile = new JarFile(jarPath.toFile())) {
-            Enumeration<JarEntry> entries = jarFile.entries();
-            while (entries.hasMoreElements()) {
-                JarEntry entry = entries.nextElement();
-                String name = entry.getName();
-
-                if (name.endsWith(".class") && !name.contains("$")) {
-                    try (var is = jarFile.getInputStream(entry)) {
-                        byte[] classBytes = is.readAllBytes();
-                        String content = new String(classBytes, java.nio.charset.StandardCharsets.ISO_8859_1);
-
-                        if (content.contains("javax/servlet") || content.contains("javax/persistence") ||
-                            content.contains("javax/validation") || content.contains("javax/ws/rs") ||
-                            content.contains("javax/ejb") || content.contains("javax/enterprise")) {
-                            foundJavax = true;
-                        }
-                        if (content.contains("jakarta/servlet") || content.contains("jakarta/persistence") ||
-                            content.contains("jakarta/validation") || content.contains("jakarta/ws/rs") ||
-                            content.contains("jakarta/ejb") || content.contains("jakarta/enterprise")) {
-                            foundJakarta = true;
-                        }
-
-                        if (foundJavax && foundJakarta) {
-                            return Namespace.MIXED;
-                        }
-                    } catch (Exception e) {
-                        log.debug("Failed to read class entry {}: {}", name, e.getClass().getSimpleName() + ": " + e.getMessage());
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.debug("Failed to open JAR {}: {}", jarPath, e.getClass().getSimpleName() + ": " + e.getMessage());
-        }
-
-        if (foundJakarta) return Namespace.JAKARTA;
-        if (foundJavax) return Namespace.JAVAX;
-        return Namespace.UNKNOWN;
+    private Namespace mapJarLevelToNamespace(JarCompatibilityLevel level) {
+        return switch (level) {
+            case JAVAX -> Namespace.JAVAX;
+            case JAKARTA -> Namespace.JAKARTA;
+            case MIXED -> Namespace.MIXED;
+            case DUAL_COMPATIBLE -> Namespace.JAKARTA;
+            case UNKNOWN -> Namespace.UNKNOWN;
+        };
     }
 
     /**

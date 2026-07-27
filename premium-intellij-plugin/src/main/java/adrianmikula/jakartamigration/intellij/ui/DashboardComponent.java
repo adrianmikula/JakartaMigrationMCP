@@ -18,6 +18,7 @@ import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton
 import adrianmikula.jakartamigration.intellij.ui.components.ConfidenceGauge;
 import adrianmikula.jakartamigration.intellij.ui.components.EffortGauge;
 import adrianmikula.jakartamigration.intellij.ui.components.CombinedConfidenceGauge;
+import adrianmikula.jakartamigration.intellij.ui.components.PieChartPanel;
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
 import com.intellij.openapi.diagnostic.Logger;
@@ -76,6 +77,11 @@ public class DashboardComponent implements ScanProgressListener {
     private CombinedConfidenceGauge confidenceGauge;
     private RiskGauge migrationRiskGauge;
     private EffortGauge effortScoreGauge;
+
+    // Pie chart summary components (above gauges)
+    private PieChartPanel compatibilityChart;
+    private PieChartPanel sourceFindingsChart;
+    private PieChartPanel automationChart;
 
     // Explanation panels for grid layout (column 2)
     private JPanel riskExplanationPanel;
@@ -289,6 +295,11 @@ public class DashboardComponent implements ScanProgressListener {
         // Main dashboard content with multiple sections using BoxLayout for vertical stacking
         JPanel mainPanel = new JBPanel<>();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+
+        // Summary pie charts (above dials)
+        JPanel chartsPanel = createChartsPanel();
+        chartsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.add(chartsPanel);
 
         // Top: Gauges (Risk Assessment)
         gaugesPanel = createGaugesPanel();
@@ -659,7 +670,7 @@ private void resetAdvancedScanCounts() {
                     mainScanProgressBar.setIndeterminate(false);
                     int percentage = (completed * 100) / total;
                     mainScanProgressBar.setValue(percentage);
-                    mainScanProgressBar.setString(phase + " (" + completed + "/" + total + ") - " + phase + " in progress...");
+                    mainScanProgressBar.setString(phase + " (" + completed + "/" + total + ")");
                     mainScanProgressLabel.setText(""); // Clear external label since text is now in progress bar
                 } else {
                     // Show indeterminate progress for unknown total
@@ -676,7 +687,7 @@ private void resetAdvancedScanCounts() {
                     externalProgressBar.setIndeterminate(false);
                     int percentage = (completed * 100) / total;
                     externalProgressBar.setValue(percentage);
-                    externalProgressBar.setString(phase + " (" + completed + "/" + total + ") - " + phase + " in progress...");
+                    externalProgressBar.setString(phase + " (" + completed + "/" + total + ")");
                     externalProgressLabel.setText(""); // Clear external label since text is now in progress bar
                 } else {
                     // Show indeterminate progress for unknown total
@@ -889,6 +900,122 @@ private void resetAdvancedScanCounts() {
         panel.add(slidersPanel, BorderLayout.SOUTH);
 
         return panel;
+    }
+
+    /**
+     * Creates the summary pie charts panel shown above the risk dials.
+     */
+    private JPanel createChartsPanel() {
+        JPanel panel = new JBPanel<>(new GridLayout(1, 3, 10, 10));
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                createTransparentTitledBorder("Overview"),
+                BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        ));
+
+        compatibilityChart = new PieChartPanel("Dependencies");
+        sourceFindingsChart = new PieChartPanel("Source Findings");
+        automationChart = new PieChartPanel("Automation");
+
+        panel.add(compatibilityChart);
+        panel.add(sourceFindingsChart);
+        panel.add(automationChart);
+
+        return panel;
+    }
+
+    /**
+     * Refreshes the three summary pie charts with current scan data.
+     */
+    private void updateCharts() {
+        if (dashboard == null) {
+            return;
+        }
+        updateCompatibilityChart();
+        updateSourceFindingsChart();
+        updateAutomationChart();
+    }
+
+    private void updateCompatibilityChart() {
+        DependencySummary depSummary = dashboard.getDependencySummary();
+        List<PieChartPanel.Slice> slices = new ArrayList<>();
+        if (depSummary != null) {
+            int compatible = depSummary.getJakartaCompatibleCount() != null ? depSummary.getJakartaCompatibleCount() : 0;
+            int upgrade = depSummary.getJakartaUpgradeCount() != null ? depSummary.getJakartaUpgradeCount() : 0;
+            int noJakarta = depSummary.getNoJakartaSupportCount() != null ? depSummary.getNoJakartaSupportCount() : 0;
+            int review = depSummary.getUnknownReviewCount() != null ? depSummary.getUnknownReviewCount() : 0;
+
+            if (compatible > 0) {
+                slices.add(new PieChartPanel.Slice("Compatible", compatible, DependencyStatusColors.STATUS_COMPATIBLE));
+            }
+            if (upgrade > 0) {
+                slices.add(new PieChartPanel.Slice("Upgrade Available", upgrade, DependencyStatusColors.STATUS_NEEDS_UPGRADE));
+            }
+            if (noJakarta > 0) {
+                slices.add(new PieChartPanel.Slice("No Jakarta Version", noJakarta, DependencyStatusColors.STATUS_NO_JAKARTA));
+            }
+            if (review > 0) {
+                slices.add(new PieChartPanel.Slice("Review Required", review, new Color(255, 165, 0)));
+            }
+
+            int buildToolError = depSummary.getBuildToolErrorCount() != null ? depSummary.getBuildToolErrorCount() : 0;
+            int unknown = depSummary.getUnknownCount() != null ? depSummary.getUnknownCount() : 0;
+            if (buildToolError > 0) {
+                slices.add(new PieChartPanel.Slice("Build Tool Error", buildToolError, new Color(255, 99, 132)));
+            }
+            if (unknown > 0) {
+                slices.add(new PieChartPanel.Slice("Unknown", unknown, new Color(108, 117, 125)));
+            }
+        }
+        compatibilityChart.setSlices(slices);
+    }
+
+    private void updateSourceFindingsChart() {
+        List<PieChartPanel.Slice> slices = new ArrayList<>();
+        if (advancedScanningService != null && advancedScanningService.hasCachedResults()) {
+            AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
+            if (summary != null) {
+                Color[] colors = new Color[]{
+                        new Color(54, 162, 235), new Color(255, 99, 132), new Color(255, 205, 86),
+                        new Color(75, 192, 192), new Color(153, 102, 255), new Color(255, 159, 64),
+                        new Color(199, 199, 199), new Color(83, 102, 255)
+                };
+                String[] labels = {
+                        "JPA", "Bean Validation", "Servlet/JSP", "CDI Injection",
+                        "REST/SOAP", "Deprecated API", "Security API", "JMS Messaging"
+                };
+                int[] counts = {
+                        summary.getJpaCount(), summary.getBeanValidationCount(), summary.getServletJspCount(),
+                        summary.getCdiInjectionCount(), summary.getRestSoapCount(), summary.getDeprecatedApiCount(),
+                        summary.getSecurityApiCount(), summary.getJmsMessagingCount()
+                };
+                for (int i = 0; i < counts.length; i++) {
+                    if (counts[i] > 0) {
+                        slices.add(new PieChartPanel.Slice(labels[i], counts[i], colors[i % colors.length]));
+                    }
+                }
+            }
+        }
+        sourceFindingsChart.setSlices(slices);
+    }
+
+    private void updateAutomationChart() {
+        List<PieChartPanel.Slice> slices = new ArrayList<>();
+        if (advancedScanningService != null && advancedScanningService.hasCachedResults()) {
+            AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
+            if (summary != null && summary.getTotalIssuesFound() > 0) {
+                int total = summary.getTotalIssuesFound();
+                int withRecipes = getIssuesWithMatchingRecipes(summary);
+                int withoutRecipes = total - withRecipes;
+
+                if (withRecipes > 0) {
+                    slices.add(new PieChartPanel.Slice("With Recipes", withRecipes, new Color(40, 167, 69)));
+                }
+                if (withoutRecipes > 0) {
+                    slices.add(new PieChartPanel.Slice("Without Recipes", withoutRecipes, new Color(220, 53, 69)));
+                }
+            }
+        }
+        automationChart.setSlices(slices);
     }
 
     /**
@@ -1530,6 +1657,9 @@ private void resetAdvancedScanCounts() {
         updateRiskExplanation();
         updateEffortExplanation();
         updateConfidenceExplanation();
+
+        // Refresh summary pie charts
+        updateCharts();
         
     }
 

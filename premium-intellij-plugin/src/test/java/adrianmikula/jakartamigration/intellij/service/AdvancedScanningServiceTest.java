@@ -101,6 +101,12 @@ public class AdvancedScanningServiceTest {
                 new TransitiveDependencyUsage("a","g","1.0",null,null,null,null,false,0,null,
                         ScanReason.TRANSITIVE_INCOMPATIBLE,null,0.0,true)))
                 .isEqualTo(DependencyMigrationStatus.NEEDS_UPGRADE);
+
+        // MAVEN_LOOKUP_FOUND -> NEEDS_UPGRADE (a Jakarta equivalent exists for the javax dependency)
+        assertThat(createService().determineMigrationStatus(
+                new TransitiveDependencyUsage("a","g","1.0",null,null,null,null,false,0,null,
+                        ScanReason.MAVEN_LOOKUP_FOUND,null,0.7,false)))
+                .isEqualTo(DependencyMigrationStatus.NEEDS_UPGRADE);
     }
 
     @Test
@@ -139,11 +145,6 @@ public class AdvancedScanningServiceTest {
         assertThat(service.determineMigrationStatus(
                 new TransitiveDependencyUsage("a","g","1.0",null,null,null,null,false,0,null,
                         ScanReason.BYTECODE_SCAN_JAKARTA,null,0.0,false)))
-                .isEqualTo(DependencyMigrationStatus.COMPATIBLE);
-
-        assertThat(service.determineMigrationStatus(
-                new TransitiveDependencyUsage("a","g","1.0",null,null,null,null,false,0,null,
-                        ScanReason.MAVEN_LOOKUP_FOUND,null,0.7,false)))
                 .isEqualTo(DependencyMigrationStatus.COMPATIBLE);
     }
 

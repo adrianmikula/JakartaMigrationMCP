@@ -23,10 +23,15 @@ import adrianmikula.jakartamigration.advancedscanning.service.impl.TransitiveDep
 import adrianmikula.jakartamigration.advancedscanning.service.impl.UnitTestScannerImpl;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.ScanRecipeRecommendationServiceImpl;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
+import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JarResolver;
+import adrianmikula.jakartamigration.jaranalysis.classifier.BytecodeNamespaceClassifier;
 import adrianmikula.jakartamigration.jaranalysis.service.JarCompatibilityScanner;
 import adrianmikula.jakartamigration.jaranalysis.service.DefaultJarCompatibilityScanner;
 import adrianmikula.jakartamigration.scanning.BalloonNotificationService;
+import adrianmikula.jakartamigration.scanning.RecipePatternExtractor;
+
+import java.util.Map;
 
 /**
  * Module that provides access to all premium advanced scanning services.
@@ -69,6 +74,10 @@ public class AdvancedScanningModule {
         JarResolver jarResolver = new JarResolver();
         JarCompatibilityScanner jarCompatibilityScanner = new DefaultJarCompatibilityScanner();
 
+        // Load OpenRewrite package rename patterns for dynamic Maven Central lookup
+        RecipePatternExtractor recipePatternExtractor = new RecipePatternExtractor();
+        Map<String, String> packageRenameMap = recipePatternExtractor.getPatterns().toPackageRenameMap();
+
         // Initialize all scanners
         this.jpaAnnotationScanner = new JpaAnnotationScannerImpl();
         this.beanValidationScanner = new BeanValidationScannerImpl();
@@ -82,10 +91,10 @@ public class AdvancedScanningModule {
         this.transitiveDependencyScanner = new TransitiveDependencyScannerImpl(
             new adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyTreeCommandExecutorImpl(),
             new adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyDeduplicationServiceImpl(),
-            new adrianmikula.jakartamigration.scanning.RecipeBasedClassifier(),
+            new BytecodeNamespaceClassifier(),
             jarCompatibilityScanner,
             jarResolver,
-            new adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService(),
+            new ImprovedMavenCentralLookupService(packageRenameMap),
             balloonNotificationService
         );
         this.configFileScanner = new ConfigFileScannerImpl();

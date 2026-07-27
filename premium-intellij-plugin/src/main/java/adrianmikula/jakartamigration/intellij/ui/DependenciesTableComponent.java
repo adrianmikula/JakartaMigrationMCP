@@ -550,35 +550,17 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         } else if ("UNKNOWN".equals(scanReason) || "BYTECODE_SCAN_UNKNOWN".equals(scanReason)) {
             // Pending analysis
             statusText = "? Analysis Pending";
-        } else if ("BLACKLISTED".equals(scanReason)) {
-            // Known javax dependencies
-            if (hasJakartaEquivalent) {
-                statusText = "↑ Upgrade Available";
-            } else {
-                statusText = "⚠ Possible Blocker";
-            }
-        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE) {
-            statusText = "✓ Compatible";
-        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.NO_JAKARTA_VERSION) {
-            statusText = "✗ No Jakarta Version";
-        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.MAVEN_LOOKUP_FAILED) {
-            statusText = "⚠ Jakarta Version Not Found";
-        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.NEEDS_UPGRADE) {
-            statusText = "↑ Upgrade Available";
-        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION) {
-            statusText = "⚠ Manual Review Required";
-        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.BUILD_TOOL_ERROR) {
-            statusText = "⚠ Build Tool Error";
-        } else if ("BUILD_TOOL_ERROR".equals(scanReason)) {
-            statusText = "⚠ Build Tool Error";
-        } else if (!hasJakartaEquivalent) {
-            statusText = "✗ No Jakarta Version";
-            dep.setMigrationStatus(DependencyMigrationStatus.NO_JAKARTA_VERSION);
-        } else if (hasJakartaEquivalent) {
-            statusText = "↑ Upgrade Available";
-            dep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
+        } else if ("BLACKLISTED".equals(scanReason) && !hasJakartaEquivalent) {
+            // Known javax dependency with no known Jakarta equivalent
+            statusText = "⚠ Possible Blocker";
         } else {
-            statusText = "? Unknown";
+            // Infer a concrete status from the available recommendation when still unknown
+            if (dep.getMigrationStatus() == null || dep.getMigrationStatus() == DependencyMigrationStatus.UNKNOWN) {
+                dep.setMigrationStatus(hasJakartaEquivalent
+                        ? DependencyMigrationStatus.NEEDS_UPGRADE
+                        : DependencyMigrationStatus.NO_JAKARTA_VERSION);
+            }
+            statusText = DependencyStatusColors.getStatusText(dep.getMigrationStatus());
         }
 
         // Reason (scan reason) - provide specific pending states

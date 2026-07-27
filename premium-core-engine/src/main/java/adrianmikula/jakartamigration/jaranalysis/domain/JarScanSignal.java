@@ -29,7 +29,11 @@ public record JarScanSignal(
 
     boolean hasShadedPackages,
 
-    String[] testOnlyPatterns) {
+    String[] testOnlyPatterns,
+
+    String[] javaxPackages,
+
+    String[] jakartaPackages) {
 
     /**
      * Constructs a new JarScanSignal with validation.
@@ -39,6 +43,8 @@ public record JarScanSignal(
         Objects.requireNonNull(apiUsage, "apiUsage cannot be null");
         Objects.requireNonNull(reflectionStrings, "reflectionStrings cannot be null");
         Objects.requireNonNull(testOnlyPatterns, "testOnlyPatterns cannot be null");
+        Objects.requireNonNull(javaxPackages, "javaxPackages cannot be null");
+        Objects.requireNonNull(jakartaPackages, "jakartaPackages cannot be null");
 
         if (javaxClassRefs < 0) {
             throw new IllegalArgumentException("javaxClassRefs cannot be negative");
@@ -98,6 +104,8 @@ public record JarScanSignal(
         private String automaticModuleName;
         private boolean hasShadedPackages;
         private String[] testOnlyPatterns = new String[0];
+        private String[] javaxPackages = new String[0];
+        private String[] jakartaPackages = new String[0];
 
         public Builder artifactCoordinate(String artifactCoordinate) {
             this.artifactCoordinate = artifactCoordinate;
@@ -154,6 +162,16 @@ public record JarScanSignal(
             return this;
         }
 
+        public Builder javaxPackages(String[] javaxPackages) {
+            this.javaxPackages = javaxPackages != null ? javaxPackages : new String[0];
+            return this;
+        }
+
+        public Builder jakartaPackages(String[] jakartaPackages) {
+            this.jakartaPackages = jakartaPackages != null ? jakartaPackages : new String[0];
+            return this;
+        }
+
         public JarScanSignal build() {
             return new JarScanSignal(
                 artifactCoordinate,
@@ -166,7 +184,9 @@ public record JarScanSignal(
                 pomIndicatesJakarta,
                 automaticModuleName,
                 hasShadedPackages,
-                testOnlyPatterns
+                testOnlyPatterns,
+                javaxPackages,
+                jakartaPackages
             );
         }
     }

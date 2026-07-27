@@ -129,4 +129,74 @@ public class JakartaLookupVerificationTest {
             System.out.println("✅ " + testCase + " → " + artifacts.size() + " Jakarta results found");
         }
     }
+
+    @Test
+    @DisplayName("Should find Jakarta equivalents for 5 popular third-party javax libraries")
+    void shouldFindJakartaForRealWorldArtifacts() throws Exception {
+        // 3rd-party javax libraries not covered by the static whitelist/blacklist.
+        // Verification is purely through live Maven Central lookups.
+        String[][] withJakartaCases = {
+            {"org.apache.cxf", "cxf-rt-frontend-jaxws", "org.apache.cxf", "cxf-rt-frontend-jaxws"},
+            {"org.apache.cxf", "cxf-rt-frontend-jaxrs", "org.apache.cxf", "cxf-rt-frontend-jaxrs"},
+            {"org.hibernate", "hibernate-core", "org.hibernate", "hibernate-core"},
+            {"org.apache.wicket", "wicket", "org.apache.wicket", "wicket"},
+            {"org.apache.myfaces.core", "myfaces-api", "org.apache.myfaces.core", "myfaces-api"}
+        };
+
+        for (String[] c : withJakartaCases) {
+            String inputGroup = c[0];
+            String inputArtifact = c[1];
+            String expectedGroup = c[2];
+            String expectedArtifact = c[3];
+
+            CompletableFuture<List<JakartaArtifactMatch>> result =
+                lookupService.findJakartaEquivalents(inputGroup, inputArtifact);
+            List<JakartaArtifactMatch> matches = result.get(30, TimeUnit.SECONDS);
+
+            assertThat(matches)
+                .withFailMessage("Expected at least one match for %s:%s", inputGroup, inputArtifact)
+                .isNotEmpty();
+
+            boolean foundExpected = matches.stream()
+                .anyMatch(m -> expectedGroup.equals(m.groupId())
+                    && expectedArtifact.equals(m.artifactId()));
+
+            assertThat(foundExpected)
+                .withFailMessage("Expected to find %s:%s for %s:%s",
+                    expectedGroup, expectedArtifact, inputGroup, inputArtifact)
+                .isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("Should not find Jakarta equivalents for 5 legacy third-party javax libraries")
+    void shouldNotFindJakartaEquivalentsForLegacyThirdPartyLibraries() throws Exception {
+        // Popular 3rd-party javax libraries that never received a Jakarta EE migration.
+        String[][] withoutJakartaCases = {
+            {"com.google.code.findbugs", "jsr305"},
+            {"org.codehaus.jackson", "jackson-jaxrs"},
+            {"org.codehaus.jackson", "jackson-xc"},
+            {"org.apache.axis", "axis"},
+            {"org.apache.axis", "axis-jaxrpc"}
+        };
+
+        for (String[] c : withoutJakartaCases) {
+            String groupId = c[0];
+            String artifactId = c[1];
+
+            CompletableFuture<List<JakartaArtifactMatch>> result =
+                lookupService.findJakartaEquivalents(groupId, artifactId);
+            List<JakartaArtifactMatch> matches = result.get(30, TimeUnit.SECONDS);
+
+            boolean noJakartaMatch = matches.stream().noneMatch(m -> {
+                String g = m.groupId() == null ? "" : m.groupId();
+                String a = m.artifactId() == null ? "" : m.artifactId();
+                return g.startsWith("jakarta.") || a.startsWith("jakarta.");
+            });
+
+            assertThat(noJakartaMatch)
+                .withFailMessage("Did not expect any jakarta.* match for %s:%s", groupId, artifactId)
+                .isTrue();
+        }
+    }
 }

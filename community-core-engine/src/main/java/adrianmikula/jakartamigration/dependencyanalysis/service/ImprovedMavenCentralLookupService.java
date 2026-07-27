@@ -32,16 +32,30 @@ public class ImprovedMavenCentralLookupService {
     
     // Session-scoped cache: groupId:artifactId → results (includes misses)
     private final ConcurrentHashMap<String, List<JakartaArtifactMatch>> lookupCache = new ConcurrentHashMap<>();
-    
+
+    // OpenRewrite package renames used when coordinate searches fail for unknown libraries.
+    private final Map<String, String> packageRenameMap;
+
     public ImprovedMavenCentralLookupService() {
-        this.httpClient = HttpClient.newBuilder()
+        this(HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
-                .build();
+                .build(), Map.of());
     }
-    
+
+    public ImprovedMavenCentralLookupService(Map<String, String> packageRenameMap) {
+        this(HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .build(), packageRenameMap);
+    }
+
     // Package-private constructor for testing with mocked HTTP client
     ImprovedMavenCentralLookupService(HttpClient httpClient) {
+        this(httpClient, Map.of());
+    }
+
+    ImprovedMavenCentralLookupService(HttpClient httpClient, Map<String, String> packageRenameMap) {
         this.httpClient = httpClient;
+        this.packageRenameMap = packageRenameMap != null ? packageRenameMap : Map.of();
     }
     
     // Common artifact name mappings for fuzzy matching
@@ -67,6 +81,9 @@ public class ImprovedMavenCentralLookupService {
         ARTIFACT_MAPPINGS.put("javax.mail-api", "jakarta.mail-api");
         ARTIFACT_MAPPINGS.put("javax.enterprise.cdi-api", "jakarta.enterprise.cdi-api");
         ARTIFACT_MAPPINGS.put("javax.security.enterprise-api", "jakarta.security.enterprise-api");
+        ARTIFACT_MAPPINGS.put("jaxb-api", "jakarta.xml.bind-api");
+        ARTIFACT_MAPPINGS.put("jaxws-api", "jakarta.xml.ws-api");
+        ARTIFACT_MAPPINGS.put("javax.json.bind-api", "jakarta.json.bind-api");
 
         // Spring Framework Ecosystem mappings (Boot 2.x → 3.x, Framework 5.x → 6.x)
         ARTIFACT_MAPPINGS.put("spring-boot-starter-web", "spring-boot-starter-web");
@@ -147,6 +164,8 @@ public class ImprovedMavenCentralLookupService {
         GROUP_MAPPINGS.put("javax.security", "jakarta.security");
         GROUP_MAPPINGS.put("javax.servlet.jsp", "jakarta.servlet.jsp");
         GROUP_MAPPINGS.put("javax.servlet.jsp.jstl", "jakarta.servlet.jsp.jstl");
+        GROUP_MAPPINGS.put("javax.json.bind", "jakarta.json.bind");
+        GROUP_MAPPINGS.put("javax.xml.soap", "jakarta.xml.soap");
 
         // Spring Framework Ecosystem group mappings
         // Spring Boot and Framework stay in org.springframework.boot|framework groups
@@ -252,8 +271,16 @@ public class ImprovedMavenCentralLookupService {
             allResults.addAll(searchWithSpringBootVersionStrategy(normalizedGroupId, normalizedArtifactId));
             
             // Remove duplicates and return first few results
+            // Prefer Jakarta-namespace matches and drop the original javax coordinate
+            String originalKey = normalizedGroupId + ":" + normalizedArtifactId;
             List<JakartaArtifactMatch> uniqueResults = allResults.stream()
                     .distinct()
+                    .filter(match -> match.groupId() != null && match.artifactId() != null)
+                    .filter(match -> {
+                        String key = match.groupId() + ":" + match.artifactId();
+                        return !(key.equals(originalKey) && normalizedGroupId.startsWith("javax."));
+                    })
+                    .sorted((a, b) -> Integer.compare(jakartaScore(b), jakartaScore(a)))
                     .limit(5) // Limit to top 5 results
                     .toList();
             
@@ -266,28 +293,110 @@ public class ImprovedMavenCentralLookupService {
     }
     
     /**
+     * Finds Jakarta equivalents, optionally using detected javax package names to drive
+     * the search via OpenRewrite package rename mappings.
+     */
+    public CompletableFuture<List<JakartaArtifactMatch>> findJakartaEquivalents(
+            String javaxGroupId,
+            String javaxArtifactId,
+            java.util.Collection<String> javaxPackages) {
+
+        return CompletableFuture.supplyAsync(() -> {
+            List<JakartaArtifactMatch> coordinateMatches = findJakartaEquivalents(javaxGroupId, javaxArtifactId).join();
+            if (!coordinateMatches.isEmpty()) {
+                return coordinateMatches;
+            }
+            if (javaxPackages == null || javaxPackages.isEmpty() || packageRenameMap.isEmpty()) {
+                return List.of();
+            }
+            List<JakartaArtifactMatch> packageMatches = searchByPackageRename(javaxPackages);
+            if (!packageMatches.isEmpty()) {
+                log.info("Package-rename search found {} candidate(s) for {}:{}",
+                    packageMatches.size(), javaxGroupId, javaxArtifactId);
+            }
+            return packageMatches;
+        });
+    }
+
+    private List<JakartaArtifactMatch> searchByPackageRename(java.util.Collection<String> javaxPackages) {
+        List<JakartaArtifactMatch> all = new ArrayList<>();
+        for (String javaxPackage : javaxPackages) {
+            String jakartaPackage = packageRenameMap.get(javaxPackage);
+            if (jakartaPackage != null && !jakartaPackage.isEmpty()) {
+                all.addAll(performSearchByGroup(jakartaPackage));
+            }
+        }
+        return all.stream()
+                .distinct()
+                .filter(match -> match.groupId() != null && match.artifactId() != null)
+                .sorted((a, b) -> Integer.compare(jakartaScore(b), jakartaScore(a)))
+                .limit(5)
+                .toList();
+    }
+
+    private List<JakartaArtifactMatch> performSearchByGroup(String groupId) {
+        return performSearchWithEndpoint(MAVEN_CENTRAL_API, groupId, null);
+    }
+
+    /**
+     * Scores a match by how strongly it looks like a Jakarta artifact.
+     */
+    private static int jakartaScore(JakartaArtifactMatch match) {
+        int score = 0;
+        if (match.groupId() != null) {
+            if (match.groupId().startsWith("jakarta.")) score += 20;
+            if (match.groupId().contains("jakarta")) score += 5;
+        }
+        if (match.artifactId() != null) {
+            if (match.artifactId().startsWith("jakarta.")) score += 10;
+            if (match.artifactId().contains("jakarta")) score += 3;
+        }
+        return score;
+    }
+
+    /**
      * T3: Static-mapping fast path — returns known Jakarta equivalents without network calls,
      * or null if no static mapping exists.
      */
     private List<JakartaArtifactMatch> tryStaticMappingFastPath(String groupId, String artifactId) {
+        String mappedGroupId = groupId;
+        String mappedArtifactId = artifactId;
+
         // Check artifact name mapping (e.g., javax.servlet-api → jakarta.servlet-api)
-        String mappedArtifactId = ARTIFACT_MAPPINGS.get(artifactId);
-        if (mappedArtifactId != null) {
-            // Derive jakarta groupId from javax groupId
-            String jakartaGroupId = groupId;
+        String artifactMapping = ARTIFACT_MAPPINGS.get(artifactId);
+        if (artifactMapping != null) {
+            mappedArtifactId = artifactMapping;
             if (groupId.startsWith("javax.")) {
-                jakartaGroupId = "jakarta." + groupId.substring("javax.".length());
+                mappedGroupId = "jakarta." + groupId.substring("javax.".length());
             }
-            return List.of(JakartaArtifactMatch.of(jakartaGroupId, mappedArtifactId, null));
+            // A group mapping may override the derived jakarta group (e.g. com.sun.jersey)
+            String groupMapping = GROUP_MAPPINGS.get(groupId);
+            if (groupMapping != null) {
+                mappedGroupId = groupMapping;
+            }
+        } else {
+            // Check group name mapping (e.g., javax.servlet → jakarta.servlet)
+            String groupMapping = GROUP_MAPPINGS.get(groupId);
+            if (groupMapping == null) {
+                return null;
+            }
+            mappedGroupId = groupMapping;
         }
-        
-        // Check group name mapping (e.g., javax.servlet → jakarta.servlet)
-        String mappedGroupId = GROUP_MAPPINGS.get(groupId);
-        if (mappedGroupId != null) {
-            return List.of(JakartaArtifactMatch.of(mappedGroupId, artifactId, null));
+
+        // Trivial self-mapping (e.g. org.apache.cxf → org.apache.cxf): don't duplicate
+        // the exact-match network call; return the mapped coordinate straight away.
+        if (mappedGroupId.equals(groupId) && mappedArtifactId.equals(artifactId)) {
+            return List.of(JakartaArtifactMatch.of(mappedGroupId, mappedArtifactId, null));
         }
-        
-        return null;
+
+        // Hydrate the static mapping with a live Maven Central lookup so the result
+        // includes the real latestVersion. Fall back to the mapped coordinate with a
+        // null version if Maven Central is unreachable or has no match.
+        List<JakartaArtifactMatch> liveResults = performMavenCentralSearch(mappedGroupId, mappedArtifactId);
+        if (!liveResults.isEmpty()) {
+            return liveResults;
+        }
+        return List.of(JakartaArtifactMatch.of(mappedGroupId, mappedArtifactId, null));
     }
     
     /**
@@ -630,8 +739,11 @@ public class ImprovedMavenCentralLookupService {
      */
     private List<JakartaArtifactMatch> performSearchWithEndpoint(String endpoint, String groupId, String artifactId) {
         try {
-            String searchQuery = "g:" + groupId + " AND a:" + artifactId;
-            String url = endpoint + "?q=" + URLEncoder.encode(searchQuery, "UTF-8") + "&rows=5&wt=json";
+            String searchQuery = (artifactId != null && !artifactId.isEmpty())
+                    ? "g:" + groupId + " AND a:" + artifactId
+                    : "g:" + groupId;
+            int rows = (artifactId != null && !artifactId.isEmpty()) ? 5 : 20;
+            String url = endpoint + "?q=" + URLEncoder.encode(searchQuery, "UTF-8") + "&rows=" + rows + "&wt=json";
             
             log.debug("[MavenLookup] Querying: {}", url);
             
@@ -689,6 +801,9 @@ public class ImprovedMavenCentralLookupService {
                     String foundGroupId = docNode.path("g").asText();
                     String foundArtifactId = docNode.path("a").asText();
                     String version = docNode.path("latestVersion").asText();
+                    if (version.isEmpty()) {
+                        version = docNode.path("v").asText();
+                    }
                     
                     log.debug("[MavenLookup] Found artifact: {}:{}:{}", foundGroupId, foundArtifactId, version);
                     

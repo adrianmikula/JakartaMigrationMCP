@@ -21,6 +21,7 @@ import adrianmikula.jakartamigration.intellij.model.MigrationStatus;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
 import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
+import adrianmikula.jakartamigration.analysis.persistence.ObjectMapperService;
 import adrianmikula.jakartamigration.analysis.persistence.SqliteMigrationAnalysisStore;
 import adrianmikula.jakartamigration.coderefactoring.service.CodeRefactoringModule;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
@@ -82,6 +83,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private final Project project;
         private final MigrationAnalysisService analysisService;
         private final CentralMigrationAnalysisStore store;
+        private final ObjectMapperService objectMapper;
         private final ErrorReportingService errorReportingService;
         private final UserIdentificationService userIdentificationService;
 
@@ -123,6 +125,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             this.project = project;
             this.analysisService = new MigrationAnalysisService();
             this.store = new CentralMigrationAnalysisStore();
+            this.objectMapper = new ObjectMapperService();
             this.creditsService = new CreditsService();
             this.userIdentificationService = createUserIdentificationService();
             this.errorReportingService = new ErrorReportingService(this.userIdentificationService);
@@ -869,6 +872,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             });
 
             advFuture.thenAccept(summary -> {
+                persistAdvancedScanSummary(projectPath, summary);
                 ApplicationManager.getApplication().invokeLater(() -> {
                     if (sourceScansComponent != null) {
                         sourceScansComponent.refreshFromCachedResults();
@@ -1039,6 +1043,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
             });
 
             advFuture.thenAccept(summary -> {
+                persistAdvancedScanSummary(projectPath, summary);
                 ApplicationManager.getApplication().invokeLater(() -> {
                     if (summary != null) {
                         dashboardComponent.updateAdvancedScanCounts();
@@ -1059,6 +1064,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             // Final completion handling
             platformFuture.whenComplete((v, throwable) -> {
+                if (throwable == null && !hasPartialFailure.get()) {
+                    persistDeepAnalysisReport(projectPath);
+                }
                 ApplicationManager.getApplication().invokeLater(() -> {
                     if (throwable != null) {
                         LOG.error("performDeepScan: Scan failed", throwable);
@@ -1247,6 +1255,37 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         /**
+         * Persists the advanced source scan summary to the central store.
+         */
+        private void persistAdvancedScanSummary(Path projectPath, AdvancedScanningService.AdvancedScanSummary summary) {
+            if (summary == null) {
+                return;
+            }
+            try {
+                String stateJson = objectMapper.toJson(summary);
+                if (stateJson != null && !stateJson.isEmpty()) {
+                    store.savePluginState(projectPath, "advancedScansSummary", stateJson);
+                }
+            } catch (Exception e) {
+                LOG.warn("Failed to persist advanced scan summary", e);
+            }
+        }
+
+        /**
+         * Persists a full dependency analysis report after a deep scan.
+         */
+        private void persistDeepAnalysisReport(Path projectPath) {
+            try {
+                DependencyAnalysisReport report = analysisService.analyzeProject(projectPath);
+                if (report != null && report.dependencyGraph() != null && !report.dependencyGraph().getNodes().isEmpty()) {
+                    store.saveAnalysisReport(projectPath, report, false);
+                }
+            } catch (Exception e) {
+                LOG.warn("Failed to persist deep analysis report", e);
+            }
+        }
+
+        /**
          * Show empty results state when no issues are found
          */
         private void showEmptyResultsState() {
@@ -1431,6 +1470,12 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.UNKNOWN_REVIEW ||
                                  d.getMigrationStatus() == DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION)
                     .count();
+            long buildToolError = deps.stream()
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.BUILD_TOOL_ERROR)
+                    .count();
+            long unknown = deps.stream()
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.UNKNOWN)
+                    .count();
             long transitive = deps.stream().filter(d -> d.isTransitive()).count();
 
             int score = calculateReadinessScore(deps);
@@ -1451,6 +1496,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
             summary.setJakartaCompatibleCount((int) jakartaCompatible);
             summary.setOrganisationalDependencies((int) organisational);
             summary.setUnknownReviewCount((int) unknownReview);
+            summary.setBuildToolErrorCount((int) buildToolError);
+            summary.setUnknownCount((int) unknown);
             summary.setTransitiveDependencies((int) transitive);
             dashboard.setDependencySummary(summary);
 
@@ -1588,6 +1635,12 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.UNKNOWN_REVIEW ||
                                  d.getMigrationStatus() == DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION)
                     .count();
+            long buildToolError = deps.stream()
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.BUILD_TOOL_ERROR)
+                    .count();
+            long unknown = deps.stream()
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.UNKNOWN)
+                    .count();
             long transitive = deps.stream().filter(DependencyInfo::isTransitive).count();
 
             int score = calculateReadinessScore(deps);
@@ -1606,6 +1659,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
             summary.setJakartaCompatibleCount((int) jakartaCompatible);
             summary.setOrganisationalDependencies((int) organisational);
             summary.setUnknownReviewCount((int) unknownReview);
+            summary.setBuildToolErrorCount((int) buildToolError);
+            summary.setUnknownCount((int) unknown);
             summary.setTransitiveDependencies((int) transitive);
             dashboard.setDependencySummary(summary);
 
