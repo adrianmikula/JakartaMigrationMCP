@@ -5,6 +5,28 @@ All notable changes to the Jakarta Migration IntelliJ plugin will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-07-27
+
+### Added
+- **Dynamic Jakarta compatibility detection** - Bytecode-driven fallback classification now detects any `javax.*` / `jakarta.*` package usage, not only the six hardcoded packages
+- **Package-rename-driven Maven Central lookup** - When a coordinate is unknown, the scanner maps detected `javax.*` packages to `jakarta.*` groups and searches Maven Central for compatible artifacts
+- **Multi-module Gradle project support** - Corrected Gradle `--configuration` flag usage and improved parsing for multi-module builds
+- **Gradle Tooling API integration** - Hardened dependency scanning with proper Gradle Tooling API adoption
+
+### Changed
+- Version bump to 1.1.0
+- **Dependency scanning overhaul** - Consolidated namespace classification, shared parsing utilities, and IntelliJ UI integration
+- Improved Jakarta detection confidence scoring and caching
+- Expanded bytecode signal coverage for more accurate JAR classification
+
+### Fixed
+- ~90% false negatives in quick and deep dependency scans
+- Dependency graph scanning and UI progress bar styling
+- Experiments not appearing in the History UI
+- Gradle `--configuration` flag misuse
+- Error propagation and EDT optimization in dependency scanning
+- IDE dev mode launch now works without requiring a license
+
 ## [1.0.19] - 2026-07-22
 
 ### Added

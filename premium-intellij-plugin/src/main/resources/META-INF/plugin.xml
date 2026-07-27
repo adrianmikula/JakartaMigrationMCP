@@ -193,6 +193,19 @@
 
 
     <change-notes><![CDATA[
+    <h>1.1.0 - 2026-07-27</h>
+    <ul>
+        <li><b>Added:</b> Dynamic Jakarta compatibility detection - bytecode-driven fallback classification detects any <code>javax.*</code> / <code>jakarta.*</code> package usage, not only the six hardcoded packages</li>
+        <li><b>Added:</b> Package-rename-driven Maven Central lookup - when a coordinate is unknown, the scanner maps detected <code>javax.*</code> packages to <code>jakarta.*</code> groups and searches Maven Central for compatible artifacts</li>
+        <li><b>Added:</b> Multi-module Gradle project support and Gradle Tooling API integration for more reliable dependency scanning</li>
+        <li><b>Improved:</b> Jakarta detection confidence scoring, caching, and expanded bytecode signal coverage</li>
+        <li><b>Fixed:</b> ~90% false negatives in quick and deep dependency scans</li>
+        <li><b>Fixed:</b> Dependency graph scanning and progress bar styling</li>
+        <li><b>Fixed:</b> Experiments not appearing in the History UI</li>
+        <li><b>Fixed:</b> Gradle <code>--configuration</code> flag misuse in multi-module builds</li>
+        <li><b>Fixed:</b> Error propagation and EDT threading issues in dependency scanning</li>
+        <li><b>Fixed:</b> IDE dev-mode launch no longer requires a license</li>
+    </ul>
     <h>1.0.19 - 2026-07-22</h>
     <ul>
         <li><b>Added:</b> Advanced Refactor - Safely test complex refactor sequences in sandboxed testcontainers before applying to your codebase</li>

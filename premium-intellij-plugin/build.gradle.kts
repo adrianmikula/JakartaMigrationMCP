@@ -166,7 +166,7 @@ intellij {
     ideaDependencyCachePath.set("${System.getProperty("user.home")}/.gradle/caches/intellij-ides")
     // When IDEA_HOME env var is set (CI), use pre-downloaded IDE to avoid slow download blocking configuration
     val ideaHome = System.getenv("IDEA_HOME")
-    if (ideaHome != null) {
+    if (ideaHome != null && File(ideaHome).isDirectory) {
         localPath = ideaHome
     } else {
         version = "2024.3"
