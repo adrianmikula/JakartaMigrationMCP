@@ -23,6 +23,7 @@ class ExperimentRunnerIntegrationTest {
 
     @Test
     void run_regex_sequence_in_real_docker_container(@TempDir Path tempDir) throws Exception {
+        Assumptions.assumeTrue(dockerAvailable(), "Docker is required for this integration test");
         Path projectDir = tempDir.resolve("project");
         Files.createDirectories(projectDir.resolve("src/main/java"));
         Files.writeString(projectDir.resolve("pom.xml"), "<project></project>\n");
@@ -80,6 +81,7 @@ class ExperimentRunnerIntegrationTest {
 
     @Test
     void docker_test_container_orchestrator_executes_command(@TempDir Path tempDir) throws Exception {
+        Assumptions.assumeTrue(dockerAvailable(), "Docker is required for this integration test");
         DockerTestContainerOrchestrator container = new DockerTestContainerOrchestrator("eclipse-temurin:17-jdk");
         try {
             container.start();

@@ -31,7 +31,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -126,6 +129,28 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
     private static final int MAX_PARALLELISM = Integer.parseInt(
             System.getProperty("advanced.scan.parallelism", "4"));
 
+    private static final AtomicInteger LOOKUP_THREAD_COUNTER = new AtomicInteger(0);
+
+    private static final ExecutorService LOOKUP_EXECUTOR = Executors.newFixedThreadPool(
+            MAX_PARALLELISM,
+            r -> {
+                Thread t = new Thread(r, "maven-lookup-" + LOOKUP_THREAD_COUNTER.incrementAndGet());
+                t.setDaemon(true);
+                return t;
+            });
+
+    private static int commandTimeoutSeconds() {
+        return Integer.parseInt(System.getProperty(
+                "advanced.scan.command.timeout.seconds",
+                String.valueOf(DependencyTreeCommandExecutor.DEFAULT_TIMEOUT_SECONDS)));
+    }
+
+    private static final int LOOKUP_TIMEOUT_SECONDS = Integer.parseInt(
+            System.getProperty("advanced.scan.lookup.timeout.seconds", "30"));
+
+    private static final int LOOKUP_BATCH_TIMEOUT_SECONDS = Integer.parseInt(
+            System.getProperty("advanced.scan.lookup.batch.timeout.seconds", "120"));
+
     @Override
     public TransitiveDependencyProjectScanResult scanProject(Path projectPath) {
         return scanProject(projectPath, null);
@@ -174,6 +199,7 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         // Fallback to per-file scanning for single-module or if multi-module detection failed
         List<TransitiveDependencyScanResult> results = new ArrayList<>();
         AtomicInteger totalScanned = new AtomicInteger(0);
+        String previousFailedBuildFile = null;
 
         for (Path file : filesToScan) {
             log.info("[DEBUG] Scanning file (sequential): {}", file);
@@ -186,8 +212,19 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
             if (progressListener != null) {
                 progressListener.onPhaseProgress(moduleName, 0, 0);
             }
-            TransitiveDependencyScanResult result = scanFile(file, fileListener);
+
+            String fileName = file.getFileName().toString().toLowerCase();
+            boolean shouldSkip = previousFailedBuildFile != null && fileName.equals(previousFailedBuildFile);
+            TransitiveDependencyScanResult result = shouldSkip
+                    ? scanFileFallback(file, fileListener, "Build command previously failed for " + fileName)
+                    : scanFile(file, fileListener);
+
             if (result != null) {
+                if (!shouldSkip && result.hasError() && result.getErrorMessage() != null
+                        && (result.getErrorMessage().contains("no dependencies")
+                            || result.getErrorMessage().contains("not found"))) {
+                    previousFailedBuildFile = fileName;
+                }
                 results.add(result);
             } else {
                 log.warn("[DEBUG] File {} returned null result", file);
@@ -256,6 +293,7 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
             // Fallback to per-file scanning for single-module or if multi-module scan failed
             if (results == null) {
                 results = new ArrayList<>();
+                String previousFailedBuildFile = null;
 
                 // Process build files sequentially to provide ordered progress updates
                 for (Path file : buildFiles) {
@@ -274,8 +312,18 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                         progressListener.onPhaseProgress(moduleName, 0, 0);
                     }
 
-                    TransitiveDependencyScanResult result = scanFile(file, fileListener);
+                    String fileName = file.getFileName().toString().toLowerCase();
+                    boolean shouldSkip = previousFailedBuildFile != null && fileName.equals(previousFailedBuildFile);
+                    TransitiveDependencyScanResult result = shouldSkip
+                            ? scanFileFallback(file, fileListener, "Build command previously failed for " + fileName)
+                            : scanFile(file, fileListener);
+
                     if (result != null) {
+                        if (!shouldSkip && result.hasError() && result.getErrorMessage() != null
+                                && (result.getErrorMessage().contains("no dependencies")
+                                    || result.getErrorMessage().contains("not found"))) {
+                            previousFailedBuildFile = fileName;
+                        }
                         results.add(result);
                     } else {
                         log.warn("[DEBUG] File {} returned null result", file);
@@ -339,7 +387,7 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                  ? commandExecutor.executeMavenDependencyTreeAsync(filePath, MAVEN_SCOPES)
                  : commandExecutor.executeGradleDependenciesAsync(filePath, GRADLE_SCOPES);
 
-             var treeResult = future.get(DependencyTreeCommandExecutor.DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+             var treeResult = future.get(commandTimeoutSeconds(), TimeUnit.SECONDS);
              
              if (listener != null) {
                  listener.onPhaseProgress(isMaven ? "Executing Maven dependency:tree" : "Executing Gradle dependencies", 1, 1);
@@ -631,7 +679,7 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
             var future = (packages != null && !packages.isEmpty())
                 ? mavenCentralLookupService.findJakartaEquivalents(usage.getGroupId(), usage.getArtifactId(), packages)
                 : mavenCentralLookupService.findJakartaEquivalents(usage.getGroupId(), usage.getArtifactId());
-            var matches = future.get();
+            var matches = future.get(LOOKUP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (matches != null && !matches.isEmpty()) {
                 ImprovedMavenCentralLookupService.JakartaArtifactMatch firstMatch = matches.get(0);
                 String coordinate = firstMatch.groupId() + ":" + firstMatch.artifactId() +
@@ -703,12 +751,23 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
      */
     private Map<String, TransitiveDependencyUsage> enrichWithMavenLookupsBatch(List<TransitiveDependencyUsage> usages) {
         Map<String, TransitiveDependencyUsage> results = new ConcurrentHashMap<>();
-        
-        usages.parallelStream().forEach(usage -> {
-            Optional<TransitiveDependencyUsage> enriched = enrichWithMavenLookup(usage);
-            enriched.ifPresent(u -> results.put(u.getArtifactKey(), u));
-        });
-        
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+        for (TransitiveDependencyUsage usage : usages) {
+            futures.add(CompletableFuture.supplyAsync(() -> enrichWithMavenLookup(usage), LOOKUP_EXECUTOR)
+                    .thenAccept(enriched -> enriched.ifPresent(u -> results.put(u.getArtifactKey(), u))));
+        }
+
+        if (!futures.isEmpty()) {
+            try {
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                        .get(LOOKUP_BATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.warn("Batch Maven Central lookup did not complete within {} seconds: {}",
+                        LOOKUP_BATCH_TIMEOUT_SECONDS, e.getMessage());
+            }
+        }
+
         return results;
     }
 
@@ -876,7 +935,8 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                 }
             }
 
-            return new TransitiveDependencyScanResult(filePath, usages, buildFileType);
+            return new TransitiveDependencyScanResult(filePath, usages, buildFileType,
+                    Collections.emptySet(), Collections.emptyList(), errorMessage);
         } catch (Exception e) {
             log.warn("Fallback regex scan failed for {}: {}", filePath, e.getClass().getSimpleName() + ": " + e.getMessage());
             if (listener != null) {
@@ -1021,7 +1081,7 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
 
         try {
             var future = commandExecutor.executeMavenDependencyTreeAsync(rootPom, MAVEN_SCOPES);
-            var treeResult = future.get(DependencyTreeCommandExecutor.DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            var treeResult = future.get(commandTimeoutSeconds(), TimeUnit.SECONDS);
 
             if (!treeResult.isSuccess() || treeResult.getDependencies().isEmpty()) {
                 log.warn("Root Maven command failed or returned empty, falling back to per-file scanning");
@@ -1055,7 +1115,7 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
 
         try {
             var future = commandExecutor.executeGradleDependenciesAsync(rootBuildFile, GRADLE_SCOPES);
-            var treeResult = future.get(DependencyTreeCommandExecutor.DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            var treeResult = future.get(commandTimeoutSeconds(), TimeUnit.SECONDS);
 
             if (!treeResult.isSuccess() || treeResult.getDependencies().isEmpty()) {
                 log.warn("Root Gradle command failed or returned empty, falling back to per-file scanning");

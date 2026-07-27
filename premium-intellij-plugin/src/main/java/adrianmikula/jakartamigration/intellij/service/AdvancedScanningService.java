@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -1224,8 +1225,38 @@ public class AdvancedScanningService {
             return thirdPartyLibResult != null ? thirdPartyLibResult.getTotalLibraries() : 0;
         }
 
+        public int getCount(AdvancedScanCategory category) {
+            if (category == null) {
+                return 0;
+            }
+            return category.getCount(this);
+        }
+
         public int getTotalIssuesFound() {
-            return getJpaCount() + getBeanValidationCount() + getServletJspCount() + getCdiInjectionCount() + getBuildConfigCount() + getRestSoapCount() + getDeprecatedApiCount() + getSecurityApiCount() + getJmsMessagingCount() + getConfigFileCount() + getTransitiveDependencyCount() + getClassloaderModuleCount() + getLoggingMetricsCount() + getSerializationCacheCount() + getThirdPartyLibCount();
+            return Arrays.stream(AdvancedScanCategory.values())
+                    .mapToInt(this::getCount)
+                    .sum();
+        }
+
+        public int getTotalIssuesWithRecipes() {
+            return Arrays.stream(AdvancedScanCategory.values())
+                    .filter(AdvancedScanCategory::hasRecipe)
+                    .mapToInt(this::getCount)
+                    .sum();
+        }
+
+        public int getTotalSourceIssues() {
+            return Arrays.stream(AdvancedScanCategory.values())
+                    .filter(AdvancedScanCategory::isSourceIssue)
+                    .mapToInt(this::getCount)
+                    .sum();
+        }
+
+        public int getTotalConfigIssues() {
+            return Arrays.stream(AdvancedScanCategory.values())
+                    .filter(AdvancedScanCategory::isConfigIssue)
+                    .mapToInt(this::getCount)
+                    .sum();
         }
     }
 
@@ -1274,6 +1305,9 @@ public class AdvancedScanningService {
                 // Determine migration status based on scan reason
                 DependencyMigrationStatus status = determineMigrationStatus(usage);
                 info.setMigrationStatus(status);
+
+                // Set a non-null recipe name for UI display
+                info.setAssociatedRecipeName(determineAssociatedRecipeName(usage, status));
 
                 // Set Jakarta compatibility status based on scan reason
                 info.setJakartaCompatibilityStatus(determineJakartaCompatibilityStatus(usage.getScanReason()));
@@ -1345,6 +1379,19 @@ public class AdvancedScanningService {
 
     private String determineJakartaCompatibilityStatus(ScanReason scanReason) {
         return DependencyStatusColors.getStatusSlug(determineMigrationStatus(scanReason));
+    }
+
+    private String determineAssociatedRecipeName(TransitiveDependencyUsage usage, DependencyMigrationStatus status) {
+        if (status == DependencyMigrationStatus.COMPATIBLE || status == DependencyMigrationStatus.MIGRATED) {
+            return "Compatible with Jakarta EE";
+        }
+        if (usage.getGroupId() != null && usage.getGroupId().startsWith("javax.")) {
+            return "Migrate " + usage.getGroupId() + " to Jakarta EE";
+        }
+        if (status == DependencyMigrationStatus.NEEDS_UPGRADE) {
+            return "Upgrade to Jakarta EE equivalent";
+        }
+        return "Review dependency";
     }
 
     private static DependencyMigrationStatus determineMigrationStatus(ScanReason reason) {
@@ -1516,9 +1563,24 @@ public class AdvancedScanningService {
      * Maps ScanReason to a user-facing DependencyMigrationStatus.
      */
     public DependencyMigrationStatus determineMigrationStatus(TransitiveDependencyUsage usage) {
-        if (usage == null || usage.getScanReason() == null) {
+        if (usage == null) {
             return DependencyMigrationStatus.UNKNOWN;
         }
-        return determineMigrationStatus(usage.getScanReason());
+        if (usage.getScanReason() != null) {
+            return determineMigrationStatus(usage.getScanReason());
+        }
+        return mapSeverityToMigrationStatus(usage.getSeverity());
+    }
+
+    private static DependencyMigrationStatus mapSeverityToMigrationStatus(String severity) {
+        if (severity == null) {
+            return DependencyMigrationStatus.UNKNOWN_REVIEW;
+        }
+        return switch (severity.toLowerCase()) {
+            case "high", "critical", "medium" -> DependencyMigrationStatus.NEEDS_UPGRADE;
+            case "low", "none" -> DependencyMigrationStatus.COMPATIBLE;
+            case "unknown" -> DependencyMigrationStatus.UNKNOWN_REVIEW;
+            default -> DependencyMigrationStatus.UNKNOWN_REVIEW;
+        };
     }
 }

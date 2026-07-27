@@ -103,3 +103,228 @@ mappings:
       "1.1": "2.1.0"
       "1.0": "2.0.0"
 
+  - javax:
+      groupId: "javax.ws.rs"
+      artifactId: "javax.ws.rs-api"
+    jakarta:
+      groupId: "jakarta.ws.rs"
+      artifactId: "jakarta.ws.rs-api"
+    versionMapping:
+      "2.1.1": "3.0.0"
+
+  - javax:
+      groupId: "javax.xml.bind"
+      artifactId: "jaxb-api"
+    jakarta:
+      groupId: "jakarta.xml.bind"
+      artifactId: "jakarta.xml.bind-api"
+    versionMapping:
+      "2.3.1": "3.0.0"
+
+  - javax:
+      groupId: "javax.xml.ws"
+      artifactId: "jaxws-api"
+    jakarta:
+      groupId: "jakarta.xml.ws"
+      artifactId: "jakarta.xml.ws-api"
+    versionMapping:
+      "2.3.1": "3.0.0"
+
+  - javax:
+      groupId: "javax.xml.soap"
+      artifactId: "javax.xml.soap-api"
+    jakarta:
+      groupId: "jakarta.xml.soap"
+      artifactId: "jakarta.xml.soap-api"
+    versionMapping:
+      "1.4.0": "2.0.0"
+
+  - javax:
+      groupId: "javax.jws"
+      artifactId: "javax.jws-api"
+    jakarta:
+      groupId: "jakarta.jws"
+      artifactId: "jakarta.jws-api"
+    versionMapping:
+      "1.1": "3.0.0"
+
+  - javax:
+      groupId: "javax.json"
+      artifactId: "javax.json-api"
+    jakarta:
+      groupId: "jakarta.json"
+      artifactId: "jakarta.json-api"
+    versionMapping:
+      "1.1.4": "2.0.0"
+
+  - javax:
+      groupId: "javax.json.bind"
+      artifactId: "javax.json.bind-api"
+    jakarta:
+      groupId: "jakarta.json.bind"
+      artifactId: "jakarta.json.bind-api"
+    versionMapping:
+      "1.0.1": "2.0.0"
+
+  - javax:
+      groupId: "javax.jms"
+      artifactId: "javax.jms-api"
+    jakarta:
+      groupId: "jakarta.jms"
+      artifactId: "jakarta.jms-api"
+    versionMapping:
+      "2.0.1": "3.0.0"
+
+  - javax:
+      groupId: "javax.resource"
+      artifactId: "javax.resource-api"
+    jakarta:
+      groupId: "jakarta.resource"
+      artifactId: "jakarta.resource-api"
+    versionMapping:
+      "1.7.1": "2.0.0"
+
+  - javax:
+      groupId: "javax.faces"
+      artifactId: "javax.faces-api"
+    jakarta:
+      groupId: "jakarta.faces"
+      artifactId: "jakarta.faces-api"
+    versionMapping:
+      "2.3": "3.0.0"
+
+  - javax:
+      groupId: "javax.el"
+      artifactId: "javax.el-api"
+    jakarta:
+      groupId: "jakarta.el"
+      artifactId: "jakarta.el-api"
+    versionMapping:
+      "3.0.0": "4.0.0"
+
+  - javax:
+      groupId: "javax.servlet.jsp"
+      artifactId: "javax.servlet.jsp-api"
+    jakarta:
+      groupId: "jakarta.servlet.jsp"
+      artifactId: "jakarta.servlet.jsp-api"
+    versionMapping:
+      "2.3.3": "3.0.0"
+
+  - javax:
+      groupId: "javax.servlet.jsp.jstl"
+      artifactId: "javax.servlet.jsp.jstl-api"
+    jakarta:
+      groupId: "jakarta.servlet.jsp.jstl"
+      artifactId: "jakarta.servlet.jsp.jstl-api"
+    versionMapping:
+      "1.2.2": "2.0.0"
+
+  - javax:
+      groupId: "javax.websocket"
+      artifactId: "javax.websocket-all"
+    jakarta:
+      groupId: "jakarta.websocket"
+      artifactId: "jakarta.websocket-all"
+    versionMapping:
+      "1.1": "2.0.0"
+
+  - javax:
+      groupId: "javax.websocket"
+      artifactId: "javax.websocket-client-api"
+    jakarta:
+      groupId: "jakarta.websocket"
+      artifactId: "jakarta.websocket-client-api"
+    versionMapping:
+      "1.1": "2.0.0"
+
+  - javax:
+      groupId: "javax.interceptor"
+      artifactId: "javax.interceptor-api"
+    jakarta:
+      groupId: "jakarta.interceptor"
+      artifactId: "jakarta.interceptor-api"
+    versionMapping:
+      "1.2.2": "2.0.0"
+
+  - javax:
+      groupId: "javax.enterprise.concurrent"
+      artifactId: "javax.enterprise.concurrent-api"
+    jakarta:
+      groupId: "jakarta.enterprise.concurrent"
+      artifactId: "jakarta.enterprise.concurrent-api"
+    versionMapping:
+      "1.0": "2.0.0"
+
+  - javax:
+      groupId: "javax.enterprise"
+      artifactId: "cdi-api"
+    jakarta:
+      groupId: "jakarta.enterprise"
+      artifactId: "jakarta.enterprise.cdi-api"
+    versionMapping:
+      "2.0.SP1": "3.0.0"
+
+  - javax:
+      groupId: "javax.security.enterprise"
+      artifactId: "javax.security.enterprise-api"
+    jakarta:
+      groupId: "jakarta.security.enterprise"
+      artifactId: "jakarta.security.enterprise-api"
+    versionMapping:
+      "1.1": "2.0.0"
+
+  - javax:
+      groupId: "javax.security.auth.message"
+      artifactId: "javax.security.auth.message-api"
+    jakarta:
+      groupId: "jakarta.security.auth.message"
+      artifactId: "jakarta.security.auth.message-api"
+    versionMapping:
+      "1.1.1": "2.0.0"
+
+  - javax:
+      groupId: "javax.security.jacc"
+      artifactId: "javax.security.jacc-api"
+    jakarta:
+      groupId: "jakarta.security.jacc"
+      artifactId: "jakarta.security.jacc-api"
+    versionMapping:
+      "1.6": "2.0.0"
+
+  - javax:
+      groupId: "javax.batch"
+      artifactId: "javax.batch-api"
+    jakarta:
+      groupId: "jakarta.batch"
+      artifactId: "jakarta.batch-api"
+    versionMapping:
+      "1.0.1": "2.0.0"
+
+  - javax:
+      groupId: "javax"
+      artifactId: "javaee-api"
+    jakarta:
+      groupId: "jakarta.platform"
+      artifactId: "jakarta.jakartaee-api"
+    versionMapping:
+      "8.0.1": "9.0.0"
+
+  - javax:
+      groupId: "javax"
+      artifactId: "javaee-web-api"
+    jakarta:
+      groupId: "jakarta.platform"
+      artifactId: "jakarta.jakartaee-web-api"
+    versionMapping:
+      "8.0.1": "9.0.0"
+
+  - javax:
+      groupId: "javax.mail"
+      artifactId: "javax.mail-api"
+    jakarta:
+      groupId: "jakarta.mail"
+      artifactId: "jakarta.mail-api"
+    versionMapping:
+      "1.6.2": "2.0.0"
+

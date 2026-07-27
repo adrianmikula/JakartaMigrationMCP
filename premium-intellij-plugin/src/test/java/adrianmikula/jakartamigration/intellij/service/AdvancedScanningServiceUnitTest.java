@@ -289,9 +289,10 @@ class AdvancedScanningServiceUnitTest {
     }
 
     private adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage createUsageWithSeverity(String severity) {
+        String artifactId = "test-artifact-" + severity;
         return new adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage(
-                "test-artifact", "javax.test", "1.0.0",
-                "javax.test:test-artifact", severity, "Test recommendation",
+                artifactId, "javax.test", "1.0.0",
+                "javax.test:" + artifactId, severity, "Test recommendation",
                 "compile", false, 0
         );
     }
@@ -524,7 +525,7 @@ class AdvancedScanningServiceUnitTest {
                 <dependencies>
                     <dependency>
                         <groupId>org.springframework.boot</groupId>
-                        <artifactId>spring-boot-starter</groupId>
+                        <artifactId>spring-boot-starter</artifactId>
                         <version>2.7.0</version>
                     </dependency>
                     <dependency>

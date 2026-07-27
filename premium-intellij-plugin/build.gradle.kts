@@ -5,6 +5,8 @@ import java.util.jar.JarFile
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 plugins {
     id("org.jetbrains.intellij") version "1.17.3"
@@ -748,7 +750,7 @@ tasks.named<org.jetbrains.intellij.tasks.RunIdeTask>("runIde") {
                             val content = jarFile.getInputStream(entry).readBytes().toString(StandardCharsets.UTF_8)
                             if (content.contains("optional=\"false\"")) {
                                 val updated = content.replace("optional=\"false\"", "optional=\"true\"")
-                                val tempFile = File.createTempFile("plugin-", ".jar")
+                                val tempFile = File.createTempFile("plugin-", ".jar", libDir)
                                 tempFile.deleteOnExit()
                                 ZipOutputStream(tempFile.outputStream()).use { zos ->
                                     jarFile.entries().asIterator().forEach { e ->
@@ -762,7 +764,11 @@ tasks.named<org.jetbrains.intellij.tasks.RunIdeTask>("runIde") {
                                     updated.byteInputStream(StandardCharsets.UTF_8).copyTo(zos)
                                     zos.closeEntry()
                                 }
-                                tempFile.copyTo(jar, overwrite = true)
+                                try {
+                                    Files.move(tempFile.toPath(), jar.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+                                } catch (e: Exception) {
+                                    tempFile.copyTo(jar, overwrite = true)
+                                }
                                 println("[dev-mode] Patched plugin.xml in ${jar.name}: optional=false -> true")
                             }
                         }

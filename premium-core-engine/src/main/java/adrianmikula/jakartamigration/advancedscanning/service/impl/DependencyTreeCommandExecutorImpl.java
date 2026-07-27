@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -52,9 +53,39 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
             if (!isMavenAvailableForProject(projectDir)) {
                 return DependencyTreeResult.error("mvn command not found");
             }
-            List<String> command = buildMavenCommand(scopes, projectDir);
-            return executeCommand(command, projectDir, "mvn dependency:tree",
-                process -> parseMavenJsonOutput(process, scopes));
+            if (scopes.size() <= 1) {
+                List<String> command = buildMavenCommand(scopes, projectDir);
+                return executeCommand(command, projectDir, "mvn dependency:tree",
+                    process -> parseMavenJsonOutput(process, scopes));
+            }
+
+            // dependency:tree's -Dscope parameter only supports a single scope.
+            // Run once per requested scope and merge the results.
+            Set<String> seen = new HashSet<>();
+            List<DependencyTreeResult.DependencyNode> merged = new ArrayList<>();
+            boolean anySuccess = false;
+            String lastError = null;
+            for (String scope : scopes) {
+                Set<String> singleScope = Set.of(scope);
+                List<String> command = buildMavenCommand(singleScope, projectDir);
+                DependencyTreeResult result = executeCommand(command, projectDir, "mvn dependency:tree",
+                    process -> parseMavenJsonOutput(process, singleScope));
+                if (result.isSuccess()) {
+                    anySuccess = true;
+                    for (DependencyTreeResult.DependencyNode node : result.getDependencies()) {
+                        if (seen.add(node.getArtifactKey())) {
+                            merged.add(node);
+                        }
+                    }
+                } else if (lastError == null) {
+                    lastError = result.getErrorMessage();
+                }
+            }
+
+            if (!anySuccess) {
+                return DependencyTreeResult.error(lastError != null ? lastError : "mvn dependency:tree failed for all scopes");
+            }
+            return new DependencyTreeResult(merged, scopes);
         }, executor);
     }
 
@@ -69,7 +100,7 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
     private List<String> buildMavenCommand(Set<String> scopes, Path projectDir) {
         // First try to find Maven wrapper
         Optional<Path> mavenWrapper = findMavenWrapper(projectDir);
-        
+
         String mavenCommand;
         if (mavenWrapper.isPresent()) {
             mavenCommand = mavenWrapper.get().toString();
@@ -78,9 +109,10 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
             mavenCommand = "mvn";
             log.debug("Using system Maven: {}", mavenCommand);
         }
-        
+
         List<String> cmd = new ArrayList<>(List.of(mavenCommand, "dependency:tree", "-DoutputType=json", "-q"));
-        if (!scopes.isEmpty()) cmd.add("-Dscope=" + String.join(",", scopes));
+        // dependency:tree's -Dscope only supports a single scope; omit it for the default all-scopes run.
+        if (scopes.size() == 1) cmd.add("-Dscope=" + scopes.iterator().next());
         return cmd;
     }
 

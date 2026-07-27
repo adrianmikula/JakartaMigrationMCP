@@ -52,22 +52,22 @@ public class BalloonNotificationService {
      */
     public boolean showOnce(String key, String title, String message) {
         long now = System.currentTimeMillis();
-        Long lastShown = lastShownTimestamps.get(key);
+        Long existing = lastShownTimestamps.get(key);
 
-        if (lastShown != null && (now - lastShown) < COOLDOWN_MS) {
+        if (existing != null && (now - existing) < COOLDOWN_MS) {
             log.debug("Skipping notification within cooldown window: {}", key);
             return false;
         }
 
-        // CAS to avoid duplicate shows from concurrent threads
-        if (lastShown != null) {
-            Long prev = lastShownTimestamps.replace(key, now);
-            // Another thread beat us to it within the same millisecond – rare but safe to skip
-            if (prev != null && prev == now) {
-                return false;
-            }
-        } else {
-            lastShownTimestamps.put(key, now);
+        // Atomic update: only show if this thread actually installed the new timestamp.
+        // putIfAbsent covers the first-show race; replace covers the re-show race.
+        boolean updated = (existing == null)
+                ? lastShownTimestamps.putIfAbsent(key, now) == null
+                : lastShownTimestamps.replace(key, existing, now);
+
+        if (!updated) {
+            log.debug("Notification for {} already handled by another thread", key);
+            return false;
         }
 
         if (notificationHandler != null) {

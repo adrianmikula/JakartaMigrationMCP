@@ -8,6 +8,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.net.URLEncoder;
 import java.time.Duration;
 import java.time.Instant;
@@ -17,6 +18,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Simplified Maven Central lookup service with fuzzy matching capabilities.
@@ -35,10 +39,24 @@ public class ImprovedMavenCentralLookupService {
     private static final Duration LOOKUP_CACHE_TTL = Duration.ofMinutes(
             Long.getLong("jakarta.maven.cache.ttl.minutes", 30L));
 
+    // Per-request timeout for Maven Central API calls; configurable via system property (seconds)
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(
+            Long.getLong("jakarta.maven.lookup.timeout.seconds", 15L));
+
     private record CacheEntry(List<JakartaArtifactMatch> results, Instant cachedAt) {}
 
     // Session-scoped cache: groupId:artifactId → results (includes misses)
     private final ConcurrentHashMap<String, CacheEntry> lookupCache = new ConcurrentHashMap<>();
+
+    // Dedicated worker pool for blocking Maven Central HTTP calls so we don't exhaust the ForkJoinPool common pool
+    private static final AtomicInteger LOOKUP_THREAD_COUNTER = new AtomicInteger(0);
+    private static final ExecutorService LOOKUP_WORKER = Executors.newFixedThreadPool(
+            Integer.getInteger("jakarta.maven.lookup.threads", 4),
+            r -> {
+                Thread t = new Thread(r, "maven-lookup-worker-" + LOOKUP_THREAD_COUNTER.incrementAndGet());
+                t.setDaemon(true);
+                return t;
+            });
 
     // OpenRewrite package renames used when coordinate searches fail for unknown libraries.
     private final Map<String, String> packageRenameMap;
@@ -241,8 +259,8 @@ public class ImprovedMavenCentralLookupService {
             String javaxGroupId, 
             String javaxArtifactId) {
         
-        log.info("Searching for Jakarta equivalents for javax dependency: {}:{}", javaxGroupId, javaxArtifactId);
-        
+        log.debug("Searching for Jakarta equivalents for {}:{}", javaxGroupId, javaxArtifactId);
+
         // Input validation
         if (javaxGroupId == null || javaxGroupId.trim().isEmpty() || 
             javaxArtifactId == null || javaxArtifactId.trim().isEmpty()) {
@@ -268,6 +286,11 @@ public class ImprovedMavenCentralLookupService {
             putCache(cacheKey, fastPathResult);
             log.info("Static mapping fast path found {} results for {}:{}", fastPathResult.size(), normalizedGroupId, normalizedArtifactId);
             return CompletableFuture.completedFuture(fastPathResult);
+        }
+        
+        // Skip network lookup for coordinates that are not plausible Jakarta candidates
+        if (!isJakartaCandidate(normalizedGroupId, normalizedArtifactId)) {
+            return CompletableFuture.completedFuture(List.of());
         }
         
         return CompletableFuture.supplyAsync(() -> {
@@ -302,7 +325,7 @@ public class ImprovedMavenCentralLookupService {
             
             log.info("Found {} unique Jakarta artifacts for {}:{}", uniqueResults.size(), javaxGroupId, javaxArtifactId);
             return uniqueResults;
-        });
+        }, LOOKUP_WORKER);
     }
     
     /**
@@ -328,7 +351,7 @@ public class ImprovedMavenCentralLookupService {
                     packageMatches.size(), javaxGroupId, javaxArtifactId);
             }
             return packageMatches;
-        });
+        }, LOOKUP_WORKER);
     }
 
     private List<JakartaArtifactMatch> searchByPackageRename(java.util.Collection<String> javaxPackages) {
@@ -405,6 +428,24 @@ public class ImprovedMavenCentralLookupService {
     /**
      * Scores a match by how strongly it looks like a Jakarta artifact.
      */
+    private static boolean isJakartaCandidate(String groupId, String artifactId) {
+        if (groupId.startsWith("javax.") || groupId.startsWith("jakarta.")
+                || groupId.contains("jakarta") || groupId.contains("javax") || groupId.contains("ee4j")) {
+            return true;
+        }
+        if (ARTIFACT_MAPPINGS.containsKey(artifactId) || GROUP_MAPPINGS.containsKey(groupId)) {
+            return true;
+        }
+        for (String prefix : GROUP_MAPPINGS.keySet()) {
+            if (groupId.equals(prefix) || groupId.startsWith(prefix + ".")) {
+                return true;
+            }
+        }
+        String lowerArtifact = artifactId.toLowerCase();
+        return lowerArtifact.startsWith("javax.") || lowerArtifact.startsWith("jakarta.")
+                || lowerArtifact.contains("jakarta") || lowerArtifact.contains("javax");
+    }
+
     private static int jakartaScore(JakartaArtifactMatch match) {
         int score = 0;
         if (match.groupId() != null) {
@@ -813,7 +854,7 @@ public class ImprovedMavenCentralLookupService {
             
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(5))
+                    .timeout(REQUEST_TIMEOUT)
                     .GET()
                     .header("User-Agent", "Jakarta-Migration-MCP/1.0")
                     .build();
@@ -837,6 +878,9 @@ public class ImprovedMavenCentralLookupService {
             return new ArrayList<>();
         } catch (java.net.SocketTimeoutException e) {
             log.warn("Timeout connecting to Maven Central endpoint {}: {}", endpoint, e.getMessage());
+            return new ArrayList<>();
+        } catch (HttpTimeoutException e) {
+            log.warn("Request timed out querying Maven Central endpoint {} for {}:{}", endpoint, groupId, artifactId);
             return new ArrayList<>();
         } catch (Exception e) {
             log.warn("Error querying Maven Central endpoint {} for {}:{}", endpoint, groupId, artifactId, e);

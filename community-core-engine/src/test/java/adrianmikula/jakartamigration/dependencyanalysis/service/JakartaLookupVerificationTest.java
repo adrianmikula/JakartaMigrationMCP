@@ -9,7 +9,11 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-import java.net.InetAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,8 +42,17 @@ public class JakartaLookupVerificationTest {
     
     private boolean isMavenCentralReachable() {
         try {
-            InetAddress.getByName("repo1.maven.org").isReachable(3000);
-            return true;
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://search.maven.org/solrsearch/select?q=g:junit+AND+a:junit&rows=1&wt=json"))
+                    .timeout(Duration.ofSeconds(5))
+                    .GET()
+                    .header("User-Agent", "Jakarta-Migration-MCP/1.0")
+                    .build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            return response.statusCode() == 200;
         } catch (Exception e) {
             return false;
         }

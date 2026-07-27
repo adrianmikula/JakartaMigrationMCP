@@ -23,8 +23,8 @@ public class PieChartPanel extends JBPanel<PieChartPanel> {
     public PieChartPanel(String title) {
         setLayout(new BorderLayout(8, 8));
         setOpaque(false);
-        setPreferredSize(new Dimension(260, 170));
-        setMinimumSize(new Dimension(200, 140));
+        setPreferredSize(new Dimension(360, 240));
+        setMinimumSize(new Dimension(260, 180));
 
         titleLabel = new JBLabel(title, SwingConstants.CENTER);
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 12f));
@@ -38,9 +38,9 @@ public class PieChartPanel extends JBPanel<PieChartPanel> {
         legendPanel = new JBPanel<>();
         legendPanel.setLayout(new BoxLayout(legendPanel, BoxLayout.Y_AXIS));
         legendPanel.setOpaque(false);
-        legendPanel.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 0));
-        legendPanel.setPreferredSize(new Dimension(110, 120));
-        legendPanel.setMinimumSize(new Dimension(100, 80));
+        legendPanel.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 4));
+        legendPanel.setPreferredSize(new Dimension(150, 220));
+        legendPanel.setMinimumSize(new Dimension(120, 120));
         add(legendPanel, BorderLayout.EAST);
     }
 
@@ -85,7 +85,7 @@ public class PieChartPanel extends JBPanel<PieChartPanel> {
             }
             String text = slice.label + " (" + slice.value + ")";
 
-            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 5));
             row.setOpaque(false);
 
             JPanel swatch = new JPanel();
@@ -95,7 +95,7 @@ public class PieChartPanel extends JBPanel<PieChartPanel> {
             swatch.setOpaque(true);
             swatch.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
 
-            JBLabel valueLabel = new JBLabel("<html><div style='width:82px'>" + text + "</div></html>");
+            JBLabel valueLabel = new JBLabel("<html><div style='width:130px'>" + text + "</div></html>");
             valueLabel.setFont(valueLabel.getFont().deriveFont(Font.PLAIN, 10f));
             valueLabel.setOpaque(false);
 

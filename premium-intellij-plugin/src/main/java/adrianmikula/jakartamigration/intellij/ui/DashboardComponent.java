@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
+import adrianmikula.jakartamigration.intellij.service.AdvancedScanCategory;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.platforms.config.RiskScoringConfig;
 import adrianmikula.jakartamigration.risk.RiskScoringService;
@@ -974,23 +975,10 @@ private void resetAdvancedScanCounts() {
         if (advancedScanningService != null && advancedScanningService.hasCachedResults()) {
             AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
             if (summary != null) {
-                Color[] colors = new Color[]{
-                        new Color(54, 162, 235), new Color(255, 99, 132), new Color(255, 205, 86),
-                        new Color(75, 192, 192), new Color(153, 102, 255), new Color(255, 159, 64),
-                        new Color(199, 199, 199), new Color(83, 102, 255)
-                };
-                String[] labels = {
-                        "JPA", "Bean Validation", "Servlet/JSP", "CDI Injection",
-                        "REST/SOAP", "Deprecated API", "Security API", "JMS Messaging"
-                };
-                int[] counts = {
-                        summary.getJpaCount(), summary.getBeanValidationCount(), summary.getServletJspCount(),
-                        summary.getCdiInjectionCount(), summary.getRestSoapCount(), summary.getDeprecatedApiCount(),
-                        summary.getSecurityApiCount(), summary.getJmsMessagingCount()
-                };
-                for (int i = 0; i < counts.length; i++) {
-                    if (counts[i] > 0) {
-                        slices.add(new PieChartPanel.Slice(labels[i], counts[i], colors[i % colors.length]));
+                for (AdvancedScanCategory category : AdvancedScanCategory.uiTabCategories()) {
+                    int count = summary.getCount(category);
+                    if (count > 0) {
+                        slices.add(new PieChartPanel.Slice(category.getTabLabel(), count, category.getChartColor()));
                     }
                 }
             }
@@ -1928,10 +1916,7 @@ private void resetAdvancedScanCounts() {
         AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
         if (summary == null) return 0;
 
-        // Sum all source code related scan issues
-        return summary.getJpaCount() + summary.getBeanValidationCount() + summary.getServletJspCount()
-            + summary.getCdiInjectionCount() + summary.getRestSoapCount() + summary.getDeprecatedApiCount()
-            + summary.getSecurityApiCount() + summary.getJmsMessagingCount();
+        return summary.getTotalSourceIssues();
     }
 
     /**
@@ -1944,8 +1929,7 @@ private void resetAdvancedScanCounts() {
         AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
         if (summary == null) return 0;
 
-        // Sum all config related scan issues
-        return summary.getBuildConfigCount() + summary.getConfigFileCount();
+        return summary.getTotalConfigIssues();
     }
 
     /**
@@ -2461,43 +2445,7 @@ private void resetAdvancedScanCounts() {
         if (summary == null) {
             return 0;
         }
-
-        int issuesWithRecipes = 0;
-
-        // Map of scan types to their recipe availability
-        // These scan types have matching recipes in ScanRecipeRecommendationServiceImpl.SCAN_TO_RECIPE_MAPPING
-        Map<String, Integer> scanTypeCounts = new HashMap<>();
-        scanTypeCounts.put("jpa", summary.getJpaCount());
-        scanTypeCounts.put("beanValidation", summary.getBeanValidationCount());
-        scanTypeCounts.put("servletJsp", summary.getServletJspCount());
-        scanTypeCounts.put("cdiInjection", summary.getCdiInjectionCount());
-        scanTypeCounts.put("restSoap", summary.getRestSoapCount());
-        scanTypeCounts.put("securityApi", summary.getSecurityApiCount());
-        scanTypeCounts.put("jmsMessaging", summary.getJmsMessagingCount());
-        scanTypeCounts.put("buildConfig", summary.getBuildConfigCount());
-        scanTypeCounts.put("configFiles", summary.getConfigFileCount());
-        scanTypeCounts.put("deprecatedApi", summary.getDeprecatedApiCount());
-        scanTypeCounts.put("transitiveDependency", summary.getTransitiveDependencyCount());
-
-        // Scan types with matching recipes (from ScanRecipeRecommendationServiceImpl.SCAN_TO_RECIPE_MAPPING)
-        // These scan types have recipes available, so their issues can be automated
-        String[] scanTypesWithRecipes = {
-            "jpa", "beanValidation", "servletJsp", "cdiInjection", "restSoap",
-            "securityApi", "jmsMessaging", "buildConfig", "configFiles", "deprecatedApi"
-        };
-
-        // Count issues that have matching recipes
-        for (String scanType : scanTypesWithRecipes) {
-            Integer count = scanTypeCounts.get(scanType);
-            if (count != null && count > 0) {
-                issuesWithRecipes += count;
-            }
-        }
-
-        // For transitive dependencies and other scans without direct recipes,
-        // we don't count them as having recipe matches
-
-        return issuesWithRecipes;
+        return summary.getTotalIssuesWithRecipes();
     }
 
     private int calculateEffortWeeks() {

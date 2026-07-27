@@ -111,7 +111,11 @@ public class BytecodeNamespaceClassifier implements NamespaceClassifier {
     }
 
     private ClassificationResult handleMissingJar(Artifact artifact, Namespace fastResult, String reasoningBase, long startTime) {
-        log.warn("JAR not found for {}, using fast: {}", artifact.toCoordinate(), fastResult);
+        if (fastResult == Namespace.JAVAX || fastResult == Namespace.JAKARTA) {
+            log.warn("JAR not found for {}, using fast: {}", artifact.toCoordinate(), fastResult);
+        } else {
+            log.debug("JAR not found for {}, using fast: {}", artifact.toCoordinate(), fastResult);
+        }
         Namespace fn = (fastResult == Namespace.UNKNOWN) ? Namespace.MIXED : fastResult;
         ClassificationResult result = new ClassificationResult(
             artifact, fn, 0.6,

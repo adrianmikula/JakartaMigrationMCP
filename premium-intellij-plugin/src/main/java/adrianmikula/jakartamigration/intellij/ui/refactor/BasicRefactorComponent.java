@@ -356,7 +356,10 @@ public class BasicRefactorComponent {
     public void refreshAllRecipes() {
         if (recipeService == null)
             return;
-        java.nio.file.Path projectPath = java.nio.file.Paths.get(project.getBasePath());
+        String basePath = project.getBasePath();
+        if (basePath == null)
+            return;
+        java.nio.file.Path projectPath = java.nio.file.Paths.get(basePath);
         for (RecipeCategory category : RecipeCategory.values()) {
             List<RecipeDefinition> recipes = recipeService.getRecipesByCategory(category, projectPath);
             updateCategoryGrid(category, recipes);
@@ -367,6 +370,8 @@ public class BasicRefactorComponent {
         JPanel grid = gridMap.get(category);
         if (grid == null)
             return;
+        if (recipes == null)
+            recipes = Collections.emptyList();
 
         grid.removeAll();
         GridBagConstraints gbc = new GridBagConstraints();
