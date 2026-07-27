@@ -1714,8 +1714,12 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 
                 // Update dependency graph with new statuses
                 dependencyUIManager.updateNodeStatuses(updatedStatusMap);
-                
-                LOG.info("Dependency graph refreshed with " + updatedDependencies.size() + " updated statuses");
+
+                // Rebuild dashboard summary now that Maven Central lookup has resolved statuses
+                MigrationDashboard updatedDashboard = buildDashboardFromDependencies(updatedDependencies);
+                dashboardComponent.setDashboard(updatedDashboard);
+
+                LOG.info("Dependency graph and dashboard refreshed with " + updatedDependencies.size() + " updated statuses");
             });
         }
 

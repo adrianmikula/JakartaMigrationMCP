@@ -652,7 +652,7 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                         usage.getAlternativeVersions(),
                         ScanReason.MAVEN_LOOKUP_FOUND,
                         "Maven Central found Jakarta equivalent: " + coordinate,
-                        0.7, // heuristic confidence
+                        firstMatch.confidence(),
                         usage.isIncompatibilityFromTransitive()
                 );
                 return Optional.of(updated);

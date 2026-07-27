@@ -76,7 +76,7 @@ public class AdvancedScanningModule {
 
         // Load OpenRewrite package rename patterns for dynamic Maven Central lookup
         RecipePatternExtractor recipePatternExtractor = new RecipePatternExtractor();
-        Map<String, String> packageRenameMap = recipePatternExtractor.getPatterns().toPackageRenameMap();
+        Map<String, String> packageRenameMap = recipePatternExtractor.getPackageRenameMap();
 
         // Initialize all scanners
         this.jpaAnnotationScanner = new JpaAnnotationScannerImpl();

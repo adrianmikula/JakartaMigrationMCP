@@ -39,6 +39,12 @@ public class RecipePatternExtractor {
     private final ObjectMapper objectMapper;
     private volatile RecipePatterns cachedPatterns;
 
+    // Per-JVM caches for the derived quick-lookup maps so that multiple scanner
+    // instances do not repeatedly re-parse the recipe patterns file.
+    private static volatile Map<String, String> coordinateMapCache;
+    private static volatile Map<String, String> packageRenameMapCache;
+    private static final Object MAP_CACHE_LOCK = new Object();
+
     public RecipePatternExtractor() {
         this(new ObjectMapper());
     }
@@ -242,6 +248,42 @@ public class RecipePatternExtractor {
             value = value.substring(1, value.length() - 1);
         }
         return value.isEmpty() ? null : value;
+    }
+
+    /**
+     * Returns a quick-lookup map of "groupId:artifactId" → "newGroupId:newArtifactId".
+     * The map is built once per JVM and reused across instances.
+     */
+    public Map<String, String> getCoordinateMap() {
+        Map<String, String> cache = coordinateMapCache;
+        if (cache != null) {
+            return cache;
+        }
+        synchronized (MAP_CACHE_LOCK) {
+            if (coordinateMapCache != null) {
+                return coordinateMapCache;
+            }
+            coordinateMapCache = Map.copyOf(getPatterns().toCoordinateMap());
+            return coordinateMapCache;
+        }
+    }
+
+    /**
+     * Returns a quick-lookup map of "javax.*" → "jakarta.*" package prefixes.
+     * The map is built once per JVM and reused across instances.
+     */
+    public Map<String, String> getPackageRenameMap() {
+        Map<String, String> cache = packageRenameMapCache;
+        if (cache != null) {
+            return cache;
+        }
+        synchronized (MAP_CACHE_LOCK) {
+            if (packageRenameMapCache != null) {
+                return packageRenameMapCache;
+            }
+            packageRenameMapCache = Map.copyOf(getPatterns().toPackageRenameMap());
+            return packageRenameMapCache;
+        }
     }
 
     // --- Domain records ---

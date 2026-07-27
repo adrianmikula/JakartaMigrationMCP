@@ -6,9 +6,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.net.InetAddress;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -198,5 +202,61 @@ public class JakartaLookupVerificationTest {
                 .withFailMessage("Did not expect any jakarta.* match for %s:%s", groupId, artifactId)
                 .isTrue();
         }
+    }
+
+    @Test
+    @DisplayName("Should find Jakarta equivalent for Apache Axis via package-rename search")
+    void shouldFindJakartaEquivalentForAxisViaPackageRename() throws Exception {
+        // Package-rename search uses detected javax packages to look up the corresponding
+        // jakarta group on Maven Central, even when the artifact coordinates have no match.
+        ImprovedMavenCentralLookupService packageRenameLookup =
+            new ImprovedMavenCentralLookupService(Map.of("javax.xml.rpc", "jakarta.xml.rpc"));
+
+        List<JakartaArtifactMatch> matches = packageRenameLookup
+            .findJakartaEquivalents("org.apache.axis", "axis", Set.of("javax.xml.rpc"))
+            .get(30, TimeUnit.SECONDS);
+
+        assertThat(matches)
+            .withFailMessage("Expected a jakarta.xml.rpc candidate for org.apache.axis via package-rename lookup")
+            .isNotEmpty();
+
+        boolean foundJakartaXmlRpc = matches.stream()
+            .anyMatch(m -> "jakarta.xml.rpc".equals(m.groupId()) ||
+                          (m.groupId() != null && m.groupId().startsWith("jakarta.xml.rpc")));
+        assertThat(foundJakartaXmlRpc).isTrue();
+    }
+
+    @ParameterizedTest(name = "Package-rename lookup for {0} should discover candidates under {1}")
+    @CsvSource({
+        "javax.servlet, jakarta.servlet",
+        "javax.servlet.jsp, jakarta.servlet.jsp",
+        "javax.persistence, jakarta.persistence",
+        "javax.validation, jakarta.validation",
+        "javax.ws.rs, jakarta.ws.rs",
+        "javax.xml.bind, jakarta.xml.bind",
+        "javax.ejb, jakarta.ejb",
+        "javax.enterprise, jakarta.enterprise",
+        "javax.annotation, jakarta.annotation",
+        "javax.faces, jakarta.faces"
+    })
+    @DisplayName("Should find Jakarta equivalents for common/popular javax packages via package-rename search")
+    void shouldFindJakartaEquivalentsForCommonPackagesViaPackageRename(String javaxPackage, String jakartaPrefix) throws Exception {
+        ImprovedMavenCentralLookupService packageRenameLookup =
+            new ImprovedMavenCentralLookupService(Map.of(javaxPackage, jakartaPrefix));
+
+        List<JakartaArtifactMatch> matches = packageRenameLookup
+            .findJakartaEquivalents("unknown.group", "unknown-artifact", Set.of(javaxPackage))
+            .get(30, TimeUnit.SECONDS);
+
+        assertThat(matches)
+            .withFailMessage("Expected at least one %s candidate for %s", jakartaPrefix, javaxPackage)
+            .isNotEmpty();
+
+        boolean foundJakartaPrefix = matches.stream()
+            .anyMatch(m -> m.groupId() != null && m.groupId().startsWith(jakartaPrefix));
+
+        assertThat(foundJakartaPrefix)
+            .withFailMessage("Expected a candidate under %s for %s", jakartaPrefix, javaxPackage)
+            .isTrue();
     }
 }

@@ -22,8 +22,8 @@ tasks.withType<JacocoReport> {
     // and tests often use these instrumented classes.
     classDirectories.setFrom(
         files(
-            "$buildDir/classes/java/main",
-            "$buildDir/instrumented/instrumentCode"
+            layout.buildDirectory.dir("classes/java/main").get().asFile,
+            layout.buildDirectory.dir("instrumented/instrumentCode").get().asFile
         )
     )
     
@@ -159,7 +159,6 @@ dependencies {
 }
 
 intellij {
-    version = "2024.3"
     type = "IC"
     plugins = listOf("com.intellij.java")
     downloadSources = false
@@ -169,6 +168,8 @@ intellij {
     val ideaHome = System.getenv("IDEA_HOME")
     if (ideaHome != null) {
         localPath = ideaHome
+    } else {
+        version = "2024.3"
     }
 }
 
@@ -207,7 +208,7 @@ tasks {
     val projectVersion = project.version.toString()
     
     // Create build info file using a simple file task
-    val generateBuildInfo = register<DefaultTask>("generateBuildInfo") {
+    register<DefaultTask>("generateBuildInfo") {
         description = "Generates build info properties file"
         group = "build"
         
@@ -510,7 +511,7 @@ tasks.withType<Jar> {
 // Create a task to generate MCP tool definitions JSON
 tasks.register("generateMcpToolsJson") {
     doLast {
-        val toolsJson = File(project.buildDir, "mcp-tools.json")
+        val toolsJson = layout.buildDirectory.file("mcp-tools.json").get().asFile
         toolsJson.parentFile.mkdirs()
         toolsJson.writeText("""
             |{

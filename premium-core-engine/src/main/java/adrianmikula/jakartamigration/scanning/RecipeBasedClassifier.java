@@ -59,9 +59,8 @@ public class RecipeBasedClassifier implements NamespaceClassifier {
      * Refreshes the internal coordinate and package rename maps from the pattern extractor.
      */
     public void refreshMaps() {
-        RecipePatternExtractor.RecipePatterns patterns = patternExtractor.getPatterns();
-        coordinateMap = patterns.toCoordinateMap();
-        packageRenameMap = patterns.toPackageRenameMap();
+        coordinateMap = patternExtractor.getCoordinateMap();
+        packageRenameMap = patternExtractor.getPackageRenameMap();
 
         // Build set of known Jakarta group ID prefixes from coordinate mappings
         Set<String> prefixes = new HashSet<>();

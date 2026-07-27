@@ -7,8 +7,10 @@ import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
+import org.objectweb.asm.Handle;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.TypePath;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -83,7 +85,7 @@ public class BytecodeSignalExtractor {
                         SignalCollectingVisitor visitor = new SignalCollectingVisitor(
                             javaxClasses, jakartaClasses, javaxPackages, jakartaPackages, apiUsage, reflectionStrings);
                         reader.accept(visitor, 
-                            ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+                            ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
                         
                         // Update running score for early exit
                         if (earlyExitEnabled) {
@@ -102,7 +104,8 @@ public class BytecodeSignalExtractor {
                 }
                 
                 // Check for shaded/relocated packages
-                if (entryName.endsWith(".class") && entryName.contains("/shaded/") || entryName.contains("/repackaged/")) {
+                if (entryName.contains("/shaded/") || entryName.contains("/repackaged/")
+                        || entryName.contains("/relocated/") || entryName.contains("/thirdparty/")) {
                     hasShadedPackages = true;
                 }
                 
@@ -214,6 +217,7 @@ public class BytecodeSignalExtractor {
         private String className;
         private boolean hasJavax = false;
         private boolean hasJakarta = false;
+        private final Set<String> currentClassApiCategories = new HashSet<>();
 
         public SignalCollectingVisitor(Set<String> javaxClasses, Set<String> jakartaClasses,
                 Set<String> javaxPackages, Set<String> jakartaPackages,
@@ -231,6 +235,7 @@ public class BytecodeSignalExtractor {
         public void visit(int version, int access, String name, 
                 String signature, String superName, String[] interfaces) {
             this.className = name.replace('/', '.');
+            this.currentClassApiCategories.clear();
             
             checkNamespace(className);
             
@@ -252,7 +257,13 @@ public class BytecodeSignalExtractor {
         @Override
         public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
             checkDescriptor(descriptor);
-            return super.visitAnnotation(descriptor, visible);
+            return new AnnotationSignalVisitor();
+        }
+
+        @Override
+        public AnnotationVisitor visitTypeAnnotation(int typeRef, TypePath typePath, String descriptor, boolean visible) {
+            checkDescriptor(descriptor);
+            return new AnnotationSignalVisitor();
         }
         
         @Override
@@ -261,6 +272,9 @@ public class BytecodeSignalExtractor {
             checkDescriptor(descriptor);
             if (signature != null) {
                 checkSignature(signature);
+            }
+            if (value instanceof String s) {
+                checkReflectionString(s);
             }
             return super.visitField(access, name, descriptor, signature, value);
         }
@@ -302,7 +316,8 @@ public class BytecodeSignalExtractor {
             String[] parts = className.split("\\.");
             if (parts.length >= 2) {
                 String apiCategory = parts[1].toLowerCase(); // servlet, persistence, etc.
-                apiUsage.merge(apiCategory, 1, Integer::sum);
+                // De-duplicate within a class; each class contributes at most one count per category.
+                currentClassApiCategories.add(apiCategory);
             }
         }
 
@@ -348,6 +363,54 @@ public class BytecodeSignalExtractor {
             }
         }
         
+        private void checkReflectionString(String s) {
+            if (s == null) return;
+            if (s.contains("javax.")) {
+                hasJavax = true;
+                reflectionStrings.add("javax.");
+            }
+            if (s.contains("jakarta.")) {
+                hasJakarta = true;
+                reflectionStrings.add("jakarta.");
+            }
+        }
+
+        /**
+         * ASM AnnotationVisitor that scans string/enum values and nested annotation descriptors.
+         */
+        private class AnnotationSignalVisitor extends AnnotationVisitor {
+            public AnnotationSignalVisitor() {
+                super(Opcodes.ASM9);
+            }
+
+            @Override
+            public void visit(String name, Object value) {
+                if (value instanceof String s) {
+                    checkReflectionString(s);
+                } else if (value instanceof String[] arr) {
+                    for (String s : arr) {
+                        checkReflectionString(s);
+                    }
+                }
+            }
+
+            @Override
+            public void visitEnum(String name, String descriptor, String value) {
+                checkDescriptor(descriptor);
+            }
+
+            @Override
+            public AnnotationVisitor visitAnnotation(String name, String descriptor) {
+                checkDescriptor(descriptor);
+                return this;
+            }
+
+            @Override
+            public AnnotationVisitor visitArray(String name) {
+                return this;
+            }
+        }
+
         /**
          * MethodVisitor that tracks namespace usage in method bodies.
          */
@@ -377,18 +440,30 @@ public class BytecodeSignalExtractor {
             
             @Override
             public void visitLdcInsn(Object value) {
-                if (value instanceof String) {
-                    String str = (String) value;
-                    if (str.contains("javax.")) {
-                        hasJavax = true;
-                        reflectionStrings.add("javax.");
-                    }
-                    if (str.contains("jakarta.")) {
-                        hasJakarta = true;
-                        reflectionStrings.add("jakarta.");
-                    }
+                if (value instanceof String str) {
+                    checkReflectionString(str);
+                } else if (value instanceof Handle handle) {
+                    checkNamespace(handle.getOwner().replace('/', '.'));
                 }
                 super.visitLdcInsn(value);
+            }
+
+            @Override
+            public void visitInvokeDynamicInsn(String name, String descriptor, Handle bsm, Object... bsmArgs) {
+                checkDescriptor(descriptor);
+                if (bsm != null) {
+                    checkNamespace(bsm.getOwner().replace('/', '.'));
+                }
+                if (bsmArgs != null) {
+                    for (Object arg : bsmArgs) {
+                        if (arg instanceof Handle h) {
+                            checkNamespace(h.getOwner().replace('/', '.'));
+                        } else if (arg instanceof String s) {
+                            checkReflectionString(s);
+                        }
+                    }
+                }
+                super.visitInvokeDynamicInsn(name, descriptor, bsm, bsmArgs);
             }
         }
         
@@ -400,6 +475,10 @@ public class BytecodeSignalExtractor {
             }
             if (hasJakarta) {
                 jakartaClasses.add(className);
+            }
+            // Flush per-class API categories into the global map
+            for (String category : currentClassApiCategories) {
+                apiUsage.merge(category, 1, Integer::sum);
             }
         }
     }

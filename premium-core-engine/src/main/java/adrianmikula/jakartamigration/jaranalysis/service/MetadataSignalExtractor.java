@@ -160,6 +160,10 @@ public class MetadataSignalExtractor {
 
             String moduleName = manifest.getMainAttributes()
                 .getValue("Automatic-Module-Name");
+            if (moduleName == null) {
+                // OSGi bundles often declare their symbolic name instead of a JPMS module name
+                moduleName = manifest.getMainAttributes().getValue("Bundle-SymbolicName");
+            }
             if (moduleName != null) {
                 signals.manifestModuleName = moduleName.trim();
             }

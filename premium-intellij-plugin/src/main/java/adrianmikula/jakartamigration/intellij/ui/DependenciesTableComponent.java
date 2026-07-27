@@ -92,7 +92,7 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         this.truncationHelper = new TruncationHelper();
         this.panel = new JBPanel<>(new BorderLayout());
 
-        // Columns with Jakarta Equivalent information and Scope
+        // Columns with Jakarta Equivalent information, Scope and Confidence
         String[] columns = {
                 "Group ID",
                 "Artifact ID",
@@ -103,6 +103,7 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
                 "Reason",
                 "Type",
                 "Details",
+                "Confidence",
                 "" // Hidden column for DependencyInfo object
         };
 
@@ -147,9 +148,9 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             
             isRendering = true;
             try {
-            // Status column is at index 5, Jakarta Equivalent at index 4, DependencyInfo at index 9
+            // Status column is at index 5, Jakarta Equivalent at index 4, DependencyInfo at index 10
             if (column == 5 && row < table.getModel().getRowCount()) {
-                Object depObj = table.getModel().getValueAt(row, 9);
+                Object depObj = table.getModel().getValueAt(row, 10);
                 if (depObj instanceof DependencyInfo) {
                     DependencyInfo dep = (DependencyInfo) depObj;
                     JPanel panel = new JPanel(new BorderLayout());
@@ -201,10 +202,10 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             if (isSelected) {
                 label.setBackground(table.getSelectionBackground());
             } else {
-                // Determine if this row is organizational (check hidden column at index 9)
+                // Determine if this row is organizational (check hidden column at index 10)
                 boolean isOrg = false;
                 if (row < table.getModel().getRowCount()) {
-                    Object depObj = table.getModel().getValueAt(row, 9);
+                    Object depObj = table.getModel().getValueAt(row, 10);
                     if (depObj instanceof DependencyInfo) {
                         isOrg = ((DependencyInfo) depObj).isOrganizational();
                     }
@@ -278,7 +279,7 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         table.setFillsViewportHeight(true);
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
-        // Set column widths (9 columns + 1 hidden)
+        // Set column widths (10 columns + 1 hidden)
         table.getColumnModel().getColumn(0).setPreferredWidth(150); // Group ID
         table.getColumnModel().getColumn(1).setPreferredWidth(150); // Artifact ID
         table.getColumnModel().getColumn(2).setPreferredWidth(90);  // Current Version
@@ -288,9 +289,10 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         table.getColumnModel().getColumn(6).setPreferredWidth(200); // Reason
         table.getColumnModel().getColumn(7).setPreferredWidth(80);  // Type
         table.getColumnModel().getColumn(8).setPreferredWidth(250); // Details
-        table.getColumnModel().getColumn(9).setMinWidth(0);       // Hidden DependencyInfo
-        table.getColumnModel().getColumn(9).setMaxWidth(0);
-        table.getColumnModel().getColumn(9).setWidth(0);
+        table.getColumnModel().getColumn(9).setPreferredWidth(80); // Confidence
+        table.getColumnModel().getColumn(10).setMinWidth(0);       // Hidden DependencyInfo
+        table.getColumnModel().getColumn(10).setMaxWidth(0);
+        table.getColumnModel().getColumn(10).setWidth(0);
 
         // Add mouse listener for double-click navigation
         table.addMouseListener(new MouseInputAdapter() {
@@ -594,7 +596,11 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         // Details column - human-friendly error/explanation text
         String details = dep.getDetailMessage() != null ? dep.getDetailMessage() : "";
 
-        // Add row with all columns - DependencyInfo at column 9 (hidden)
+        String confidence = dep.getConfidence() > 0.0
+                ? String.format("%.0f%%", dep.getConfidence() * 100)
+                : "";
+
+        // Add row with all columns - DependencyInfo at column 10 (hidden)
         tableModel.addRow(new Object[] {
                 dep.getGroupId(),
                 dep.getArtifactId(),
@@ -605,7 +611,8 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
                 reason,             // Column 6: Reason
                 dependencyType,     // Column 7: Type
                 details,            // Column 8: Details
-                dep // Column 9: Full object for renderer (hidden column)
+                confidence,         // Column 9: Confidence
+                dep // Column 10: Full object for renderer (hidden column)
         });
     }
     

@@ -10,6 +10,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.URLEncoder;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,8 +31,14 @@ public class ImprovedMavenCentralLookupService {
     // HTTP client is instance field to allow mocking in tests
     private HttpClient httpClient;
     
+    // TTL for cached Maven Central lookup results; configurable via system property (minutes)
+    private static final Duration LOOKUP_CACHE_TTL = Duration.ofMinutes(
+            Long.getLong("jakarta.maven.cache.ttl.minutes", 30L));
+
+    private record CacheEntry(List<JakartaArtifactMatch> results, Instant cachedAt) {}
+
     // Session-scoped cache: groupId:artifactId → results (includes misses)
-    private final ConcurrentHashMap<String, List<JakartaArtifactMatch>> lookupCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, CacheEntry> lookupCache = new ConcurrentHashMap<>();
 
     // OpenRewrite package renames used when coordinate searches fail for unknown libraries.
     private final Map<String, String> packageRenameMap;
@@ -209,14 +216,20 @@ public class ImprovedMavenCentralLookupService {
             String groupId,
             String artifactId,
             String version,
-            boolean found
+            boolean found,
+            double confidence
     ) {
         public static JakartaArtifactMatch notFound() {
-            return new JakartaArtifactMatch(null, null, null, false);
+            return new JakartaArtifactMatch(null, null, null, false, 0.0);
         }
         
         public static JakartaArtifactMatch of(String groupId, String artifactId, String version) {
-            return new JakartaArtifactMatch(groupId, artifactId, version, true);
+            return new JakartaArtifactMatch(groupId, artifactId, version, true, 1.0);
+        }
+
+        public static JakartaArtifactMatch of(String groupId, String artifactId, String version, double confidence) {
+            double clamped = Math.max(0.0, Math.min(1.0, confidence));
+            return new JakartaArtifactMatch(groupId, artifactId, version, true, clamped);
         }
     }
     
@@ -243,7 +256,7 @@ public class ImprovedMavenCentralLookupService {
         String cacheKey = normalizedGroupId + ":" + normalizedArtifactId;
         
         // T2: Session-scoped cache check
-        List<JakartaArtifactMatch> cached = lookupCache.get(cacheKey);
+        List<JakartaArtifactMatch> cached = getCached(cacheKey);
         if (cached != null) {
             log.debug("Cache hit for {}:{}", normalizedGroupId, normalizedArtifactId);
             return CompletableFuture.completedFuture(cached);
@@ -252,7 +265,7 @@ public class ImprovedMavenCentralLookupService {
         // T3: Static-mapping fast path — check ARTIFACT_MAPPINGS and GROUP_MAPPINGS before network calls
         List<JakartaArtifactMatch> fastPathResult = tryStaticMappingFastPath(normalizedGroupId, normalizedArtifactId);
         if (fastPathResult != null) {
-            lookupCache.put(cacheKey, fastPathResult);
+            putCache(cacheKey, fastPathResult);
             log.info("Static mapping fast path found {} results for {}:{}", fastPathResult.size(), normalizedGroupId, normalizedArtifactId);
             return CompletableFuture.completedFuture(fastPathResult);
         }
@@ -285,7 +298,7 @@ public class ImprovedMavenCentralLookupService {
                     .toList();
             
             // T2: Cache both hits and misses
-            lookupCache.put(cacheKey, uniqueResults);
+            putCache(cacheKey, uniqueResults);
             
             log.info("Found {} unique Jakarta artifacts for {}:{}", uniqueResults.size(), javaxGroupId, javaxArtifactId);
             return uniqueResults;
@@ -323,7 +336,12 @@ public class ImprovedMavenCentralLookupService {
         for (String javaxPackage : javaxPackages) {
             String jakartaPackage = packageRenameMap.get(javaxPackage);
             if (jakartaPackage != null && !jakartaPackage.isEmpty()) {
-                all.addAll(performSearchByGroup(jakartaPackage));
+                List<JakartaArtifactMatch> candidates = performSearchByGroup(jakartaPackage);
+                for (JakartaArtifactMatch candidate : candidates) {
+                    double confidence = confidenceForPackageRename(jakartaPackage, candidate);
+                    all.add(JakartaArtifactMatch.of(
+                            candidate.groupId(), candidate.artifactId(), candidate.version(), confidence));
+                }
             }
         }
         return all.stream()
@@ -334,8 +352,54 @@ public class ImprovedMavenCentralLookupService {
                 .toList();
     }
 
+    /**
+     * Scores how confident we are that a Maven Central candidate is the Jakarta equivalent
+     * of a package detected in the bytecode. Higher when the candidate's groupId exactly matches
+     * the expected jakarta package prefix and when the artifactId contains the package's tail segment.
+     */
+    private double confidenceForPackageRename(String expectedJakartaPackage, JakartaArtifactMatch match) {
+        double confidence = 0.5;
+        String groupId = match.groupId();
+        String artifactId = match.artifactId();
+        if (expectedJakartaPackage.equals(groupId)) {
+            confidence += 0.4;
+        } else if (groupId != null && groupId.startsWith(expectedJakartaPackage + ".")) {
+            confidence += 0.2;
+        }
+        if (artifactId != null) {
+            int lastDot = expectedJakartaPackage.lastIndexOf('.');
+            String tail = lastDot >= 0 ? expectedJakartaPackage.substring(lastDot + 1) : expectedJakartaPackage;
+            if (artifactId.contains(tail)) {
+                confidence += 0.1;
+            }
+        }
+        return Math.min(1.0, confidence);
+    }
+
     private List<JakartaArtifactMatch> performSearchByGroup(String groupId) {
         return performSearchWithEndpoint(MAVEN_CENTRAL_API, groupId, null);
+    }
+
+    /**
+     * Returns a cached result only if it has not exceeded the configured TTL; stale entries are removed.
+     */
+    private List<JakartaArtifactMatch> getCached(String key) {
+        CacheEntry entry = lookupCache.get(key);
+        if (entry == null) {
+            return null;
+        }
+        if (Duration.between(entry.cachedAt(), Instant.now()).compareTo(LOOKUP_CACHE_TTL) > 0) {
+            lookupCache.remove(key, entry);
+            return null;
+        }
+        return entry.results();
+    }
+
+    /**
+     * Stores a lookup result with the current timestamp.
+     */
+    private void putCache(String key, List<JakartaArtifactMatch> results) {
+        lookupCache.put(key, new CacheEntry(results, Instant.now()));
     }
 
     /**
