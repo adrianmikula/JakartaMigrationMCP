@@ -12,15 +12,15 @@ import adrianmikula.jakartamigration.advancedscanning.domain.DockerCicdUsage;
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage;
 import adrianmikula.jakartamigration.intellij.ui.DashboardComponent;
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
+import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.advancedscanning.service.ScanRecipeRecommendationService;
 import com.intellij.openapi.diagnostic.Logger;
-
-import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
-import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
-import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import adrianmikula.jakartamigration.vulnerability.domain.StrandedDependency;
+import adrianmikula.jakartamigration.vulnerability.domain.VulnerabilityScanResult;
+import adrianmikula.jakartamigration.vulnerability.service.VulnerabilityScannerService;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
@@ -1318,7 +1318,7 @@ public class AdvancedScanningService {
      */
     public DependencyMigrationStatus determineMigrationStatus(TransitiveDependencyUsage usage) {
         if (usage == null || usage.getScanReason() == null) {
-            return DependencyMigrationStatus.UNKNOWN;
+            return DependencyMigrationStatus.UNKNOWN_PENDING;
         }
         ScanReason reason = usage.getScanReason();
         return switch (reason) {
@@ -1328,5 +1328,49 @@ public class AdvancedScanningService {
             case BYTECODE_SCAN_MIXED -> DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION;
             case BYTECODE_SCAN_UNKNOWN, UNKNOWN, BUILD_TOOL_ERROR -> DependencyMigrationStatus.UNKNOWN_REVIEW;
         };
+    }
+
+    /**
+     * Scans dependencies for AI-era vulnerabilities using deps.dev and OSV APIs.
+     * Only evaluates dependencies that have no Jakarta upgrade path (stranded dependencies).
+     *
+     * @param dependencies list of dependency info from the deep scan
+     * @param projectPath  project base path for result metadata
+     * @return vulnerability scan result with findings categorized by severity
+     */
+    public VulnerabilityScanResult scanVulnerabilities(List<DependencyInfo> dependencies, String projectPath) {
+        LOG.info("Scanning " + dependencies.size() + " dependencies for vulnerabilities");
+
+        // Filter to only non-compatible, non-migrated dependencies (stranded)
+        List<StrandedDependency> stranded = dependencies.stream()
+                .filter(d -> {
+                    DependencyMigrationStatus status = d.getMigrationStatus();
+                    return status != DependencyMigrationStatus.COMPATIBLE
+                            && status != DependencyMigrationStatus.MIGRATED;
+                })
+                .map(d -> new StrandedDependency(
+                        d.getGroupId(),
+                        d.getArtifactId(),
+                        d.getCurrentVersion(),
+                        d.getMigrationStatus() != null ? d.getMigrationStatus().getValue() : null,
+                        d.getRecommendedGroupId(),
+                        d.getRecommendedArtifactId(),
+                        d.getRecommendedVersion(),
+                        d.getAssociatedRecipeName()
+                ))
+                .collect(Collectors.toList());
+
+        LOG.info("Vulnerability scan: " + dependencies.size() + " total deps, " + stranded.size() + " stranded for scanning");
+
+        if (stranded.isEmpty()) {
+            return new VulnerabilityScanResult(java.time.Instant.now(), projectPath, List.of(), 0);
+        }
+
+        VulnerabilityScannerService scannerService = new VulnerabilityScannerService();
+        try {
+            return scannerService.scanDependencies(stranded, projectPath);
+        } finally {
+            scannerService.shutdown();
+        }
     }
 }

@@ -44,7 +44,7 @@ public class DependencyGraphComponentTest extends BasePlatformTestCase {
             "org.example", "test-lib", null, 
             null, null, null,
             "Unknown", null, 
-            DependencyMigrationStatus.UNKNOWN, false, false);
+            DependencyMigrationStatus.UNKNOWN_PENDING, false, false);
         deps.add(depWithNullVersion);
 
         // This should not throw NullPointerException
@@ -73,7 +73,7 @@ public class DependencyGraphComponentTest extends BasePlatformTestCase {
             "org.example", "null-lib", null,
             null, null, null,
             "Unknown", null,
-            DependencyMigrationStatus.UNKNOWN, false, false));
+            DependencyMigrationStatus.UNKNOWN_PENDING, false, false));
 
         // This should not throw NullPointerException
         graphComponent.updateGraph(deps);
@@ -119,7 +119,7 @@ public class DependencyGraphComponentTest extends BasePlatformTestCase {
             null, "test-lib", "1.0.0",
             null, null, null,
             "Unknown", null,
-            DependencyMigrationStatus.UNKNOWN, false, false);
+            DependencyMigrationStatus.UNKNOWN_PENDING, false, false);
         deps.add(depWithNullGroupId);
 
         // This should not throw NullPointerException
@@ -142,7 +142,7 @@ public class DependencyGraphComponentTest extends BasePlatformTestCase {
             "org.example", null, "1.0.0",
             null, null, null,
             "Unknown", null,
-            DependencyMigrationStatus.UNKNOWN, false, false);
+            DependencyMigrationStatus.UNKNOWN_PENDING, false, false);
         deps.add(depWithNullArtifactId);
 
         // This should not throw NullPointerException

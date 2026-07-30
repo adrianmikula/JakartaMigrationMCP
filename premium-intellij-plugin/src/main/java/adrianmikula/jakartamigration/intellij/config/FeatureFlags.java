@@ -64,6 +64,7 @@ public class FeatureFlags {
         flags.put("mcpServerPremiumOnly", true); // MCP server premium only
         flags.put("pdfReportsPremiumOnly", true); // PDF reports premium only
         flags.put("reportsPremiumOnly", true); // Reports tab premium only
+        flags.put("installClaudeSkill", true); // Install Claude Skill button in AI tab
         
         // Feature configurations
         FeatureConfig runtimeConfig = new FeatureConfig();
@@ -102,6 +103,14 @@ public class FeatureFlags {
         platformsConfig.description = "Detect application servers and Jakarta EE compatibility";
         platformsConfig.beta = false;
         featureConfigs.put("platformsTab", platformsConfig);
+
+        // Install Claude Skill feature configuration
+        FeatureConfig claudeSkillConfig = new FeatureConfig();
+        claudeSkillConfig.enabled = true;
+        claudeSkillConfig.name = "Install Claude Skill";
+        claudeSkillConfig.description = "Install the Jakarta Migration Assistant Claude skill for Claude Code";
+        claudeSkillConfig.beta = false;
+        featureConfigs.put("installClaudeSkill", claudeSkillConfig);
     }
     
     private void loadFromConfig() {
@@ -328,7 +337,22 @@ public class FeatureFlags {
         flags.put("reportsPremiumOnly", premiumOnly);
         LOG.info("Reports tab premium-only flag set to: " + premiumOnly);
     }
-    
+
+    /**
+     * Checks if the Install Claude Skill feature is enabled.
+     */
+    public boolean isInstallClaudeSkillEnabled() {
+        return flags.getOrDefault("installClaudeSkill", true);
+    }
+
+    /**
+     * Enables or disables the Install Claude Skill feature.
+     */
+    public void setInstallClaudeSkillEnabled(boolean enabled) {
+        flags.put("installClaudeSkill", enabled);
+        LOG.info("Install Claude Skill feature enabled: " + enabled);
+    }
+
     /**
      * Gets the feature configuration.
      */

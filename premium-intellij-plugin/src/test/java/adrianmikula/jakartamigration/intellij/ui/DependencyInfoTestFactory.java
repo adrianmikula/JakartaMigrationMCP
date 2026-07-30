@@ -110,7 +110,7 @@ public class DependencyInfoTestFactory {
             null,
             "Unknown",
             null,
-            DependencyMigrationStatus.UNKNOWN,
+            DependencyMigrationStatus.UNKNOWN_PENDING,
             false,
             false
         );
@@ -129,7 +129,7 @@ public class DependencyInfoTestFactory {
             null,
             "Unknown",
             null,
-            DependencyMigrationStatus.UNKNOWN,
+            DependencyMigrationStatus.UNKNOWN_PENDING,
             false,
             false
         );
@@ -148,7 +148,7 @@ public class DependencyInfoTestFactory {
             null,
             "Unknown",
             null,
-            DependencyMigrationStatus.UNKNOWN,
+            DependencyMigrationStatus.UNKNOWN_PENDING,
             false,
             false
         );

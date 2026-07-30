@@ -106,7 +106,7 @@ public class DependenciesTableComponentTest extends BasePlatformTestCase {
         deps.add(new DependencyInfo("org.hibernate", "hibernate-core", "5.6.0.Final", null, null, null,
                 "Unknown", null, DependencyMigrationStatus.NEEDS_UPGRADE, false, false));
         deps.add(new DependencyInfo("com.unknown", "unknown-api", "1.0.0", null, null, null,
-                "Unknown", null, DependencyMigrationStatus.UNKNOWN, false, false));
+                "Unknown", null, DependencyMigrationStatus.UNKNOWN_PENDING, false, false));
         deps.add(new DependencyInfo("javax.servlet", "javax.servlet-api", "4.0.1", null, null, null,
                 "Unknown", null, DependencyMigrationStatus.COMPATIBLE, false, false));
         tableComponent.setDependencies(deps);
@@ -187,8 +187,8 @@ public class DependenciesTableComponentTest extends BasePlatformTestCase {
         
         // Dependency with Maven lookup in progress
         DependencyInfo mavenLookupDep = new DependencyInfo("javax.servlet", "javax.servlet-api", "4.0.1", 
-                null, null, null, "Unknown", null, DependencyMigrationStatus.UNKNOWN, false, false);
-        mavenLookupDep.setScanReason("UNKNOWN");
+                null, null, null, "Unknown", null, DependencyMigrationStatus.UNKNOWN_PENDING, false, false);
+        mavenLookupDep.setScanReason("UNKNOWN_PENDING");
         mavenLookupDep.setMavenLookupInProgress(true);
         deps.add(mavenLookupDep);
         

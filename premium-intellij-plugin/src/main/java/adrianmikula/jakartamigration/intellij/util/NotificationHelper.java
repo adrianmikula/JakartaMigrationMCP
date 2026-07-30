@@ -42,4 +42,18 @@ public class NotificationHelper {
                 .createNotification(title, message, NotificationType.ERROR);
         Notifications.Bus.notify(notification, project);
     }
+
+    /**
+     * Displays an info notification balloon.
+     *
+     * @param project The project context
+     * @param title The notification title
+     * @param message The notification message
+     */
+    public static void showInfo(@NotNull Project project, @NotNull String title, @NotNull String message) {
+        Notification notification = NotificationGroupManager.getInstance()
+                .getNotificationGroup(NOTIFICATION_GROUP_ID)
+                .createNotification(title, message, NotificationType.INFORMATION);
+        Notifications.Bus.notify(notification, project);
+    }
 }

@@ -301,6 +301,12 @@
         <li>Changed: RecipeSeeder now loads from recipes.yaml for centralized configuration</li>
     </ul>
     
+    <h>1.0.18 - 2026-05-29</h>
+    <ul>
+        <li>Fixed: JSON parsing failures in Maven dependency tree analysis caused by ANSI escape sequences in colored Maven output</li>
+        <li>Added: Comprehensive unit tests for ANSI escape sequence handling</li>
+    </ul>
+    
     <h>1.0.5 - 2026-03-10</h>
     <ul>
         <li>Resolved critical Jackson ClassCastException affecting plugin stability</li>

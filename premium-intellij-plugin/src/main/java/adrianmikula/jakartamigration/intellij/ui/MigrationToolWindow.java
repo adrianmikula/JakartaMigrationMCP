@@ -20,6 +20,7 @@ import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
 import adrianmikula.jakartamigration.intellij.model.MigrationStatus;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
+import adrianmikula.jakartamigration.vulnerability.domain.VulnerabilityScanResult;
 import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.analysis.persistence.SqliteMigrationAnalysisStore;
 import adrianmikula.jakartamigration.coderefactoring.service.CodeRefactoringModule;
@@ -99,6 +100,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private HistoryTabComponent historyTabComponent;
         private PlatformsTabComponent platformsTabComponent;
         private RuntimeTabComponent runtimeTabComponent;
+        private VulnerabilityScanTabComponent vulnerabilityScanTabComponent;
+        private VulnerabilityScanResult lastVulnerabilityScanResult;
+        private List<DependencyInfo> lastVulnerabilityScanDependencies;
         private ReportsTabComponent reportsTabComponent;
         private DevTabComponent devTabComponent;
         private CodeRefactoringModule refactorModule;
@@ -127,7 +131,8 @@ public class MigrationToolWindow implements ToolWindowFactory {
             this.errorReportingService = new ErrorReportingService(this.userIdentificationService);
 
             // Initialize project-specific store
-            Path projectPath = Paths.get(project.getBasePath());
+            String basePath = project.getBasePath();
+            Path projectPath = basePath != null ? Paths.get(basePath) : Paths.get(".");
             this.projectStore = new SqliteMigrationAnalysisStore(projectPath);
             this.refactorModule = new CodeRefactoringModule(this.store, this.projectStore);
             this.recipeService = this.refactorModule.getRecipeService();
@@ -359,6 +364,24 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 LOG.info("initializeContent: Runtime tab hidden (experimental features disabled)");
             }
 
+            // AI Vulnerability Scan tab (Experimental features only)
+            boolean aiVulnEnabled = experimentalEnabled;
+            if (aiVulnEnabled) {
+                vulnerabilityScanTabComponent = new VulnerabilityScanTabComponent(project);
+                if (lastVulnerabilityScanDependencies != null) {
+                    vulnerabilityScanTabComponent.setDependencies(lastVulnerabilityScanDependencies);
+                }
+                if (lastVulnerabilityScanResult != null) {
+                    vulnerabilityScanTabComponent.setVulnerabilityScanResult(lastVulnerabilityScanResult);
+                }
+                String vulnLabel = isPremium ? "Vulnerabilities (Experimental)" : "Vulnerabilities (Experimental)";
+                tabbedPane.addTab(vulnLabel, vulnerabilityScanTabComponent.getPanel());
+                LOG.info("initializeContent: Added AI Vulnerability Scan tab (experimental)");
+            } else {
+                vulnerabilityScanTabComponent = null;
+                LOG.info("initializeContent: AI Vulnerability Scan tab hidden");
+            }
+
             // Load initial state (empty - wait for user to analyze)
             loadInitialState();
 
@@ -506,6 +529,29 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 tabbedPane.removeTabAt(runtimeTabIndex);
                 runtimeTabComponent = null;
                 LOG.info("refreshExperimentalTabs: Runtime tab removed");
+            }
+
+            // Handle AI Vulnerability Scan tab
+            boolean aiVulnEnabled = experimentalEnabled;
+            int vulnTabIndex = findTabIndex("Vulnerabilities");
+            boolean vulnTabExists = vulnTabIndex >= 0;
+
+            if (aiVulnEnabled && !vulnTabExists && vulnerabilityScanTabComponent == null) {
+                vulnerabilityScanTabComponent = new VulnerabilityScanTabComponent(project);
+                if (lastVulnerabilityScanDependencies != null) {
+                    vulnerabilityScanTabComponent.setDependencies(lastVulnerabilityScanDependencies);
+                }
+                if (lastVulnerabilityScanResult != null) {
+                    vulnerabilityScanTabComponent.setVulnerabilityScanResult(lastVulnerabilityScanResult);
+                }
+                int runtimeIndex = findTabIndex("Runtime");
+                int insertIndex = runtimeIndex >= 0 ? runtimeIndex + 1 : tabbedPane.getTabCount();
+                tabbedPane.insertTab("Vulnerabilities (Experimental)", null, vulnerabilityScanTabComponent.getPanel(), null, insertIndex);
+                LOG.info("refreshExperimentalTabs: AI Vulnerability Scan tab added at index " + insertIndex);
+            } else if (!aiVulnEnabled && vulnTabExists) {
+                tabbedPane.removeTabAt(vulnTabIndex);
+                vulnerabilityScanTabComponent = null;
+                LOG.info("refreshExperimentalTabs: AI Vulnerability Scan tab removed");
             }
 
             contentPanel.revalidate();
@@ -927,7 +973,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
         }
 
         /**
-         * Performs deep scan: deep dependency analysis + advanced scans + platform detection.
+         * Performs deep scan: deep dependency analysis + advanced scans + platform detection + vulnerability scan.
          * This is the full analysis identical to the old "Analyze Project" functionality.
          */
         private void performDeepScan(Path projectPath) {
@@ -937,9 +983,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             AtomicBoolean hasPartialFailure = new AtomicBoolean(false);
 
             // Phase 1: Deep dependency analysis
-            dashboardComponent.onScanPhase("Deep Dependency Analysis", 0, 3);
+            dashboardComponent.onScanPhase("Deep Dependency Analysis", 0, 4);
 
-            CompletableFuture<TransitiveDependencyProjectScanResult> deepFuture = CompletableFuture.supplyAsync(() -> {
+            CompletableFuture<List<DependencyInfo>> deepFuture = CompletableFuture.supplyAsync(() -> {
                 LOG.info("performDeepScan: Running deep dependency scan");
                 TransitiveDependencyProjectScanResult result =
                         advancedScanningService.scanDependenciesDeep(projectPath, dashboardComponent);
@@ -947,13 +993,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     LOG.warn("performDeepScan: Maven/Gradle not available for deep scan");
                     throw new IllegalStateException("Deep scan requires Maven or Gradle. Neither was found on the system.");
                 }
-                return result;
-            });
-
-            deepFuture.thenAccept(deepResult -> {
-                List<DependencyInfo> depInfos = advancedScanningService.convertToDependencyInfo(deepResult);
+                List<DependencyInfo> depInfos = advancedScanningService.convertToDependencyInfo(result);
                 // Build dependency graph from deep result
-                DependencyGraph deepGraph = advancedScanningService.buildDependencyGraphFromDeepResult(deepResult);
+                DependencyGraph deepGraph = advancedScanningService.buildDependencyGraphFromDeepResult(result);
                 // Build status map for graph visualization
                 Map<String, DependencyMigrationStatus> statusMap = depInfos.stream()
                         .collect(Collectors.toMap(
@@ -963,51 +1005,80 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         ));
                 // Build dashboard from deep dependencies
                 MigrationDashboard dashboard = buildDashboardFromDependencies(depInfos);
+                lastVulnerabilityScanDependencies = depInfos;
 
                 ApplicationManager.getApplication().invokeLater(() -> {
                     dependencyUIManager.updateAllDependencies(depInfos);
                     migrationPhasesComponent.setDependencies(depInfos);
+                    if (vulnerabilityScanTabComponent != null) {
+                        vulnerabilityScanTabComponent.setDependencies(depInfos);
+                    }
                     dependencyGraphComponent.updateGraphFromDependencyGraph(deepGraph, statusMap);
                     dashboardComponent.setDashboard(dashboard);
                 });
+                return depInfos;
             });
 
             // Phase 2: Advanced scans (full, includes transitive)
-            CompletableFuture<AdvancedScanningService.AdvancedScanSummary> advFuture = deepFuture.thenCompose(deepResult -> {
-                dashboardComponent.onScanPhase("Advanced Scans", 1, 3);
+            CompletableFuture<List<DependencyInfo>> advFuture = deepFuture.thenCompose(depInfos -> {
+                dashboardComponent.onScanPhase("Advanced Scans", 1, 4);
                 return CompletableFuture.supplyAsync(() -> {
                     LOG.info("performDeepScan: Running advanced scans (full)");
                     try {
-                        return advancedScanningService.scanAll(projectPath, dashboardComponent);
+                        AdvancedScanningService.AdvancedScanSummary summary =
+                                advancedScanningService.scanAll(projectPath, dashboardComponent);
+                        ApplicationManager.getApplication().invokeLater(() -> {
+                            if (summary != null) {
+                                dashboardComponent.updateAdvancedScanCounts();
+                                if (sourceScansComponent != null) {
+                                    sourceScansComponent.refreshFromCachedResults();
+                                }
+                            }
+                        });
                     } catch (Exception ex) {
                         LOG.warn("performDeepScan: Advanced scans failed", ex);
                         hasPartialFailure.set(true);
-                        return null;
                     }
-                });
-            });
-
-            advFuture.thenAccept(summary -> {
-                ApplicationManager.getApplication().invokeLater(() -> {
-                    if (summary != null) {
-                        dashboardComponent.updateAdvancedScanCounts();
-                        if (sourceScansComponent != null) {
-                            sourceScansComponent.refreshFromCachedResults();
-                        }
-                    }
+                    return depInfos;
                 });
             });
 
             // Phase 3: Platform detection
-            CompletableFuture<Void> platformFuture = advFuture.thenRun(() -> {
-                dashboardComponent.onScanPhase("Platform Detection", 2, 3);
-                if (platformsTabComponent != null) {
-                    platformsTabComponent.scanProject();
-                }
+            CompletableFuture<List<DependencyInfo>> platformFuture = advFuture.thenCompose(depInfos -> {
+                dashboardComponent.onScanPhase("Platform Detection", 2, 4);
+                return CompletableFuture.supplyAsync(() -> {
+                    if (platformsTabComponent != null) {
+                        platformsTabComponent.scanProject();
+                    }
+                    return depInfos;
+                });
+            });
+
+            // Phase 4: Vulnerability scanning
+            CompletableFuture<List<DependencyInfo>> vulnFuture = platformFuture.thenCompose(depInfos -> {
+                dashboardComponent.onScanPhase("Vulnerability Scan", 3, 4);
+                return CompletableFuture.supplyAsync(() -> {
+                    LOG.info("performDeepScan: Running vulnerability scan");
+                    try {
+                        String projectPathStr = project.getBasePath() != null ? project.getBasePath() : "";
+                        VulnerabilityScanResult vulnResult = advancedScanningService.scanVulnerabilities(depInfos, projectPathStr);
+                        lastVulnerabilityScanDependencies = depInfos;
+                        lastVulnerabilityScanResult = vulnResult;
+                        ApplicationManager.getApplication().invokeLater(() -> {
+                            if (vulnerabilityScanTabComponent != null) {
+                                vulnerabilityScanTabComponent.setVulnerabilityScanResult(vulnResult);
+                            }
+                        });
+                    } catch (Exception ex) {
+                        LOG.warn("performDeepScan: Vulnerability scan failed", ex);
+                        hasPartialFailure.set(true);
+                    }
+                    return depInfos;
+                });
             });
 
             // Final completion handling
-            platformFuture.whenComplete((v, throwable) -> {
+            vulnFuture.whenComplete((v, throwable) -> {
                 ApplicationManager.getApplication().invokeLater(() -> {
                     if (throwable != null) {
                         LOG.error("performDeepScan: Scan failed", throwable);
@@ -1027,7 +1098,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         dashboardComponent.onScanComplete();
                         setScanButtonsEnabled(true);
                         Messages.showInfoMessage(project,
-                                "Analysis complete! Deep dependency, advanced, and platform scans finished.",
+                                "Analysis complete! Deep dependency, advanced, platform, and vulnerability scans finished.",
                                 "Analysis Complete");
                     }
                 });
@@ -1214,6 +1285,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             dashboardComponent.setDashboard(dashboard);
             dependencyUIManager.clearAllDependencies();
             migrationPhasesComponent.setDependencies(new ArrayList<>());
+            if (vulnerabilityScanTabComponent != null) {
+                vulnerabilityScanTabComponent.clearDependencies();
+            }
         }
 
         /**
@@ -1405,6 +1479,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             dashboardComponent.setDashboard(dashboard);
             dependencyUIManager.updateAllDependencies(deps);
             migrationPhasesComponent.setDependencies(deps);
+            if (vulnerabilityScanTabComponent != null) {
+                vulnerabilityScanTabComponent.setDependencies(deps);
+            }
         }
 
         /**
@@ -1589,6 +1666,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
             dashboardComponent.setDashboard(dashboard);
             dependencyUIManager.clearAllDependencies();
             migrationPhasesComponent.setDependencies(new ArrayList<>());
+            if (vulnerabilityScanTabComponent != null) {
+                vulnerabilityScanTabComponent.clearDependencies();
+            }
         }
 
         /**
@@ -1648,6 +1728,9 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 }
                 if (creditsProgressBar != null) {
                     creditsProgressBar.dispose();
+                }
+                if (vulnerabilityScanTabComponent != null) {
+                    vulnerabilityScanTabComponent.dispose();
                 }
             } catch (Exception e) {
                 LOG.warn("Error disposing resources", e);

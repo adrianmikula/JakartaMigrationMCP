@@ -288,4 +288,98 @@ class DependencyTreeCommandExecutorImplTest {
         assertEquals("app", deps.get(0).getArtifactId());
         assertFalse(deps.get(0).isTransitive());
     }
+
+    @Test
+    void stripAnsiEscapeSequences_shouldRemoveColorCodes() throws Exception {
+        DependencyTreeCommandExecutorImpl executor = new DependencyTreeCommandExecutorImpl();
+        Method method = DependencyTreeCommandExecutorImpl.class.getDeclaredMethod("stripAnsiEscapeSequences", String.class);
+        method.setAccessible(true);
+
+        // Test red color code
+        String input = "\u001B[31mError message\u001B[0m";
+        String result = (String) method.invoke(executor, input);
+        assertEquals("Error message", result);
+
+        // Test bold red color code
+        input = "\u001B[1;31mFailed to execute goal\u001B[m";
+        result = (String) method.invoke(executor, input);
+        assertEquals("Failed to execute goal", result);
+
+        // Test multiple escape sequences
+        input = "\u001B[1;31mERROR\u001B[m Failed to execute goal on project \u001B[36mwebservice-example-client\u001B[m";
+        result = (String) method.invoke(executor, input);
+        assertEquals("ERROR Failed to execute goal on project webservice-example-client", result);
+    }
+
+    @Test
+    void stripAnsiEscapeSequences_shouldHandleComplexMavenOutput() throws Exception {
+        DependencyTreeCommandExecutorImpl executor = new DependencyTreeCommandExecutorImpl();
+        Method method = DependencyTreeCommandExecutorImpl.class.getDeclaredMethod("stripAnsiEscapeSequences", String.class);
+        method.setAccessible(true);
+
+        String mavenOutput = "\u001B[1;31mERROR\u001B[m] Failed to execute goal on project \u001B[36mwebservice-example-client\u001B[m: \u001B[1;31mCould not collect dependencies\u001B[m\n" +
+            "\u001B[1;31mERROR\u001B[m] \u001B[1;31mFailed to read artifact descriptor for com.sun.istack:istack-commons-runtime:jar:1.1-SNAPSHOT\u001B[m\n" +
+            "[INFO] Some normal log line\n" +
+            "{\n" +
+            "  \"groupId\": \"com.example\",\n" +
+            "  \"artifactId\": \"app\",\n" +
+            "  \"children\": []\n" +
+            "}\n";
+
+        String result = (String) method.invoke(executor, mavenOutput);
+        assertFalse(result.contains("\u001B"));
+        assertTrue(result.contains("ERROR] Failed to execute goal"));
+        assertTrue(result.contains("webservice-example-client"));
+        assertTrue(result.contains("\"groupId\": \"com.example\""));
+    }
+
+    @Test
+    void stripAnsiEscapeSequences_shouldHandleEmptyAndNullInput() throws Exception {
+        DependencyTreeCommandExecutorImpl executor = new DependencyTreeCommandExecutorImpl();
+        Method method = DependencyTreeCommandExecutorImpl.class.getDeclaredMethod("stripAnsiEscapeSequences", String.class);
+        method.setAccessible(true);
+
+        // Test null input
+        String result = (String) method.invoke(executor, (String) null);
+        assertNull(result);
+
+        // Test empty input
+        result = (String) method.invoke(executor, "");
+        assertEquals("", result);
+
+        // Test input without escape sequences
+        result = (String) method.invoke(executor, "Normal text without colors");
+        assertEquals("Normal text without colors", result);
+    }
+
+    @Test
+    void parseMavenJsonOutput_shouldHandleAnsiEscapeSequencesInErrorOutput() throws Exception {
+        // This test simulates the exact scenario from the error logs
+        String mixedOutput = "\u001B[1;31mERROR\u001B[m] Failed to execute goal on project \u001B[36mwebservice-example-client\u001B[m: \u001B[1;31mCould not collect dependencies\u001B[m\n" +
+            "[INFO] Some normal log line\n" +
+            "{\"groupId\":\"com.example\",\"artifactId\":\"app\",\"children\":[]}\n" +
+            "\u001B[1;31mERROR\u001B[m] \u001B[1;31mFailed to read artifact descriptor\u001B[m\n";
+
+        java.lang.Process mockProcess = new java.lang.Process() {
+            @Override public java.io.OutputStream getOutputStream() { return null; }
+            @Override public java.io.InputStream getInputStream() { return new ByteArrayInputStream(mixedOutput.getBytes(StandardCharsets.UTF_8)); }
+            @Override public java.io.InputStream getErrorStream() { return new ByteArrayInputStream(new byte[0]); }
+            @Override public int waitFor() { return 0; }
+            @Override public int exitValue() { return 0; }
+            @Override public void destroy() {}
+        };
+
+        DependencyTreeCommandExecutorImpl executor = new DependencyTreeCommandExecutorImpl();
+        Method method = DependencyTreeCommandExecutorImpl.class.getDeclaredMethod("parseMavenJsonOutput", java.lang.Process.class, Set.class);
+        method.setAccessible(true);
+
+        @SuppressWarnings("unchecked")
+        List<DependencyTreeResult.DependencyNode> deps =
+            (List<DependencyTreeResult.DependencyNode>) method.invoke(executor, mockProcess, Set.of());
+
+        // Should successfully parse the JSON despite ANSI escape sequences in error output
+        assertEquals(1, deps.size());
+        assertEquals("com.example", deps.get(0).getGroupId());
+        assertEquals("app", deps.get(0).getArtifactId());
+    }
 }
