@@ -85,7 +85,8 @@ public class PieChartPanel extends JBPanel<PieChartPanel> {
             }
             String text = slice.label + " (" + slice.value + ")";
 
-            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 5));
+            JPanel row = new JPanel();
+            row.setLayout(new BoxLayout(row, BoxLayout.X_AXIS));
             row.setOpaque(false);
 
             JPanel swatch = new JPanel();
@@ -94,12 +95,15 @@ public class PieChartPanel extends JBPanel<PieChartPanel> {
             swatch.setBackground(slice.color);
             swatch.setOpaque(true);
             swatch.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
+            swatch.setAlignmentY(Component.CENTER_ALIGNMENT);
 
-            JBLabel valueLabel = new JBLabel("<html><div style='width:130px'>" + text + "</div></html>");
+            JBLabel valueLabel = new JBLabel(text);
             valueLabel.setFont(valueLabel.getFont().deriveFont(Font.PLAIN, 10f));
             valueLabel.setOpaque(false);
+            valueLabel.setAlignmentY(Component.CENTER_ALIGNMENT);
 
             row.add(swatch);
+            row.add(Box.createRigidArea(new Dimension(8, 0)));
             row.add(valueLabel);
             legendPanel.add(row);
         }
