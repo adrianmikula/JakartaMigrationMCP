@@ -38,10 +38,10 @@ public class PieChartPanel extends JBPanel<PieChartPanel> {
         legendPanel = new JBPanel<>();
         legendPanel.setLayout(new BoxLayout(legendPanel, BoxLayout.Y_AXIS));
         legendPanel.setOpaque(false);
-        legendPanel.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 4));
-        legendPanel.setPreferredSize(new Dimension(150, 220));
-        legendPanel.setMinimumSize(new Dimension(120, 120));
-        add(legendPanel, BorderLayout.EAST);
+        legendPanel.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
+        legendPanel.setPreferredSize(new Dimension(220, 80));
+        legendPanel.setMinimumSize(new Dimension(120, 60));
+        add(legendPanel, BorderLayout.SOUTH);
     }
 
     /**

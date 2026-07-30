@@ -58,6 +58,7 @@ public class DashboardComponent implements ScanProgressListener {
     private final JPanel panel;
     private final Project project;
     private MigrationDashboard dashboard;
+    private boolean analysisRunning = false;
     private final Consumer<ActionEvent> onAnalyze;
     private final AdvancedScanningService advancedScanningService;
     private final CreditsService creditsService;
@@ -574,6 +575,7 @@ private void resetAdvancedScanCounts() {
      * @param running true if analysis is starting, false when complete
      */
     public void setAnalysisRunning(boolean running) {
+        analysisRunning = running;
         SwingUtilities.invokeLater(() -> {
             // Update internal analyze button (if it exists)
             if (analyseButton != null) {
@@ -627,6 +629,9 @@ private void resetAdvancedScanCounts() {
                         externalProgressLabel.setText(""); // Clear external label since text is now in progress bar
                     }
                 }
+            }
+            if (running) {
+                showPendingDependencies();
             }
         });
     }
@@ -936,6 +941,21 @@ private void resetAdvancedScanCounts() {
         updateAutomationChart();
     }
 
+    private void showPendingDependencies() {
+        if (compatibilityChart == null || dashboard == null || dashboard.getDependencySummary() == null) {
+            return;
+        }
+        Integer totalDependencies = dashboard.getDependencySummary().getTotalDependencies();
+        int total = totalDependencies != null ? totalDependencies : 0;
+        if (total > 0) {
+            List<PieChartPanel.Slice> slices = new ArrayList<>();
+            slices.add(new PieChartPanel.Slice("Unknown", total, new Color(108, 117, 125)));
+            compatibilityChart.setSlices(slices);
+        } else {
+            compatibilityChart.setSlices(new ArrayList<>());
+        }
+    }
+
     private void updateCompatibilityChart() {
         DependencySummary depSummary = dashboard.getDependencySummary();
         List<PieChartPanel.Slice> slices = new ArrayList<>();
@@ -960,6 +980,13 @@ private void resetAdvancedScanCounts() {
 
             int buildToolError = depSummary.getBuildToolErrorCount() != null ? depSummary.getBuildToolErrorCount() : 0;
             int unknown = depSummary.getUnknownCount() != null ? depSummary.getUnknownCount() : 0;
+
+            if (analysisRunning) {
+                int total = depSummary.getTotalDependencies() != null ? depSummary.getTotalDependencies() : 0;
+                int resolved = compatible + upgrade + noJakarta + review + buildToolError + unknown;
+                unknown += Math.max(0, total - resolved);
+            }
+
             if (buildToolError > 0) {
                 slices.add(new PieChartPanel.Slice("Build Tool Error", buildToolError, new Color(255, 99, 132)));
             }

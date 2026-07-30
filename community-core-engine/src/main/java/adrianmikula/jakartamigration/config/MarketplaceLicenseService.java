@@ -46,7 +46,8 @@ public class MarketplaceLicenseService {
 
     private static final String MARKETPLACE_API_URL = "https://plugins.jetbrains.com/api/license/";
     private static final String PLUGIN_ID = "30093"; // Jakarta Migration plugin ID from marketplace
-    private static final Duration TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration TIMEOUT = Duration.ofSeconds(
+            getConfigLong("JAKARTA_MARKETPLACE_TIMEOUT_SECONDS", "jakarta.marketplace.timeout.seconds", 10L));
 
     private final HttpClient httpClient;
 
@@ -344,5 +345,17 @@ public class MarketplaceLicenseService {
 
         /** Free community license */
         COMMUNITY
+    }
+
+    private static long getConfigLong(String envKey, String sysKey, long defaultValue) {
+        String envValue = System.getenv(envKey);
+        if (envValue != null && !envValue.isEmpty()) {
+            try {
+                return Long.parseLong(envValue);
+            } catch (NumberFormatException ignored) {
+                // fall through to system property or default
+            }
+        }
+        return Long.getLong(sysKey, defaultValue);
     }
 }

@@ -35,13 +35,17 @@ public class ImprovedMavenCentralLookupService {
     // HTTP client is instance field to allow mocking in tests
     private HttpClient httpClient;
     
-    // TTL for cached Maven Central lookup results; configurable via system property (minutes)
+    // TTL for cached Maven Central lookup results; configurable via env var or system property (minutes)
     private static final Duration LOOKUP_CACHE_TTL = Duration.ofMinutes(
-            Long.getLong("jakarta.maven.cache.ttl.minutes", 30L));
+            getConfigLong("JAKARTA_MAVEN_CACHE_TTL_MINUTES", "jakarta.maven.cache.ttl.minutes", 30L));
 
-    // Per-request timeout for Maven Central API calls; configurable via system property (seconds)
+    // Per-request timeout for Maven Central API calls; configurable via env var or system property (seconds)
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(
-            Long.getLong("jakarta.maven.lookup.timeout.seconds", 15L));
+            getConfigLong("JAKARTA_MAVEN_LOOKUP_TIMEOUT_SECONDS", "jakarta.maven.lookup.timeout.seconds", 30L));
+
+    // HTTP connect timeout for Maven Central API calls; configurable via env var or system property (seconds)
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(
+            getConfigLong("JAKARTA_MAVEN_CONNECT_TIMEOUT_SECONDS", "jakarta.maven.connect.timeout.seconds", 10L));
 
     private record CacheEntry(List<JakartaArtifactMatch> results, Instant cachedAt) {}
 
@@ -51,7 +55,7 @@ public class ImprovedMavenCentralLookupService {
     // Dedicated worker pool for blocking Maven Central HTTP calls so we don't exhaust the ForkJoinPool common pool
     private static final AtomicInteger LOOKUP_THREAD_COUNTER = new AtomicInteger(0);
     private static final ExecutorService LOOKUP_WORKER = Executors.newFixedThreadPool(
-            Integer.getInteger("jakarta.maven.lookup.threads", 4),
+            getConfigInt("JAKARTA_MAVEN_LOOKUP_THREADS", "jakarta.maven.lookup.threads", 4),
             r -> {
                 Thread t = new Thread(r, "maven-lookup-worker-" + LOOKUP_THREAD_COUNTER.incrementAndGet());
                 t.setDaemon(true);
@@ -63,13 +67,13 @@ public class ImprovedMavenCentralLookupService {
 
     public ImprovedMavenCentralLookupService() {
         this(HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
+                .connectTimeout(CONNECT_TIMEOUT)
                 .build(), Map.of());
     }
 
     public ImprovedMavenCentralLookupService(Map<String, String> packageRenameMap) {
         this(HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
+                .connectTimeout(CONNECT_TIMEOUT)
                 .build(), packageRenameMap);
     }
 
@@ -928,5 +932,29 @@ public class ImprovedMavenCentralLookupService {
         }
         
         return results;
+    }
+
+    private static long getConfigLong(String envKey, String sysKey, long defaultValue) {
+        String envValue = System.getenv(envKey);
+        if (envValue != null && !envValue.isEmpty()) {
+            try {
+                return Long.parseLong(envValue);
+            } catch (NumberFormatException ignored) {
+                // fall through to system property or default
+            }
+        }
+        return Long.getLong(sysKey, defaultValue);
+    }
+
+    private static int getConfigInt(String envKey, String sysKey, int defaultValue) {
+        String envValue = System.getenv(envKey);
+        if (envValue != null && !envValue.isEmpty()) {
+            try {
+                return Integer.parseInt(envValue);
+            } catch (NumberFormatException ignored) {
+                // fall through to system property or default
+            }
+        }
+        return Integer.getInteger(sysKey, defaultValue);
     }
 }

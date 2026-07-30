@@ -54,6 +54,24 @@ class GradleToolingApiExecutorTest {
     }
 
     @Test
+    void shouldReturnErrorForNonBuildGradleFile(@TempDir Path tempDir) throws Exception {
+        Files.writeString(tempDir.resolve("settings.gradle.kts"), "rootProject.name = \"test\"");
+        Files.writeString(tempDir.resolve("build.gradle.kts"), "plugins { java }");
+
+        GradleToolingApiExecutor executor = new GradleToolingApiExecutor();
+        Path settingsFile = tempDir.resolve("settings.gradle.kts");
+
+        CompletableFuture<DependencyTreeResult> result =
+            executor.executeGradleDependenciesAsync(settingsFile, Set.of("compileClasspath"));
+
+        DependencyTreeResult resolved = result.join();
+        executor.shutdown();
+
+        assertFalse(resolved.isSuccess());
+        assertThat(resolved.getErrorMessage()).contains("Not a build.gradle build file");
+    }
+
+    @Test
     void findGradleProjectRoot_shouldFindSettingsFile(@TempDir Path tempDir) throws Exception {
         // Create settings.gradle.kts
         Files.writeString(tempDir.resolve("settings.gradle.kts"), "rootProject.name = \"test\"");

@@ -1,6 +1,6 @@
 {
     "name":  "@jakarta-migration/mcp-server",
-    "version":  "1.0.0",
+    "version":  "1.1.0",
     "description":  "MCP server for Jakarta EE migration analysis and automation",
     "main":  "index.js",
     "bin":  {

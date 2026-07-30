@@ -370,11 +370,10 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
              return TransitiveDependencyScanResult.empty(filePath);
          }
 
-         String fileName = filePath.getFileName().toString().toLowerCase();
-         boolean isMaven = fileName.equals("pom.xml");
-         boolean isGradle = fileName.endsWith(".gradle") || fileName.endsWith(".gradle.kts");
-
-         if (!isMaven && !isGradle) return TransitiveDependencyScanResult.empty(filePath);
+         if (!BuildFileDiscovery.isBuildFile(filePath)) {
+             return TransitiveDependencyScanResult.empty(filePath);
+         }
+         boolean isMaven = BuildFileDiscovery.isMavenFile(filePath);
 
          try {
              log.debug("Starting {} dependency scanning for file: {}", isMaven ? "Maven" : "Gradle", filePath);

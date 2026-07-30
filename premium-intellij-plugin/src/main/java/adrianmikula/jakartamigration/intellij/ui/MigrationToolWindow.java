@@ -61,6 +61,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import adrianmikula.jakartamigration.config.FeatureFlagsProperties;
+import adrianmikula.jakartamigration.config.FeatureFlagsService;
+import adrianmikula.jakartamigration.config.LicenseService;
+import adrianmikula.jakartamigration.scanning.orchestration.PremiumScanOrchestrator;
+import adrianmikula.jakartamigration.scanning.orchestration.ScanMode;
+import adrianmikula.jakartamigration.scanning.orchestration.ScanRequest;
+import adrianmikula.jakartamigration.scanning.orchestration.ScanResult;
+import adrianmikula.jakartamigration.sourcecodescanning.service.impl.SimplifiedSourceCodeScannerImpl;
+import adrianmikula.jakartamigration.advancedscanning.service.ScanProgressCallback;
+
+
 /**
  * Main migration tool window from TypeSpec: plugin-components.tsp
  */
@@ -80,6 +91,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
         private final JPanel contentPanel;
         private final AdvancedScanningService advancedScanningService;
+        private final PremiumScanOrchestrator premiumScanOrchestrator;
         private final Project project;
         private final MigrationAnalysisService analysisService;
         private final CentralMigrationAnalysisStore store;
@@ -138,14 +150,23 @@ public class MigrationToolWindow implements ToolWindowFactory {
             
             // Initialize advanced scanning service with recipe service and project for notifications
             this.advancedScanningService = new AdvancedScanningService(this.recipeService, this.project);
-            
-            // Initialize credits service
-            this.creditsService = new CreditsService();
 
             this.contentPanel = new JPanel(new BorderLayout());
 
-            // Check premium status
+            // Check premium status before wiring feature flags
             this.isPremium = checkPremiumStatus();
+
+            // Central scan orchestrator (premium-core-engine)
+            FeatureFlagsProperties featureFlagsProperties = new FeatureFlagsProperties();
+            featureFlagsProperties.setDefaultTier(isPremium ? FeatureFlagsProperties.LicenseTier.PREMIUM : FeatureFlagsProperties.LicenseTier.COMMUNITY);
+            this.premiumScanOrchestrator = new PremiumScanOrchestrator(
+                    new SimplifiedSourceCodeScannerImpl(),
+                    this.analysisService.getDependencyAnalysisModule(),
+                    this.advancedScanningService,
+                    new FeatureFlagsService(featureFlagsProperties, new LicenseService(featureFlagsProperties)));
+
+            // Initialize credits service
+            this.creditsService = new CreditsService();
             LOG.info("MigrationToolWindowContent: Constructor called, isPremium=" + isPremium);
             LOG.info("MigrationToolWindowContent: System property jakarta.migration.premium=" +
                     System.getProperty("jakarta.migration.premium"));
@@ -835,45 +856,28 @@ public class MigrationToolWindow implements ToolWindowFactory {
             dashboardComponent.setAnalysisRunning(true);
             dependencyUIManager.resetAllToPending();
 
-            // Track whether any intermediate phase failed but the chain continued
-            AtomicBoolean hasPartialFailure = new AtomicBoolean(false);
+            ScanRequest request = new ScanRequest(
+                    projectPath,
+                    ScanMode.QUICK,
+                    java.util.Set.of(),
+                    FeatureFlagsProperties.LicenseTier.PREMIUM);
 
-            // Phase 1: Basic dependency analysis (direct dependencies)
-            dashboardComponent.onScanPhase("Basic Dependency Analysis", 0, 3);
+            CompletableFuture<ScanResult> scanFuture = premiumScanOrchestrator.orchestrate(
+                    request,
+                    (ScanProgressCallback) (phase, completed, total) ->
+                            ApplicationManager.getApplication().invokeLater(() ->
+                                    dashboardComponent.onScanPhase(phase, completed, total)));
 
-            CompletableFuture<DependencyAnalysisReport> depFuture = CompletableFuture.supplyAsync(() -> {
-                LOG.info("handleQuickScan: Running basic dependency analysis");
-                return analysisService.analyzeProject(projectPath);
-            });
-
-            // Save and update dashboard after basic analysis
-            depFuture.thenAccept(report -> {
+            scanFuture.thenAccept(scanResult -> {
                 ApplicationManager.getApplication().invokeLater(() -> {
+                    DependencyAnalysisReport report = scanResult.dependencyReport();
                     if (report != null && report.dependencyGraph() != null && !report.dependencyGraph().getNodes().isEmpty()) {
                         store.saveAnalysisReport(projectPath, report, false);
                         updateDashboardFromReport(report);
                     }
-                });
-            });
 
-            // Phase 2: Source code scanning (excluding transitive)
-            CompletableFuture<AdvancedScanningService.AdvancedScanSummary> advFuture = depFuture.thenCompose(report -> {
-                dashboardComponent.onScanPhase("Source Code Scanning", 1, 3);
-                LOG.info("handleQuickScan: Running advanced scans (excluding transitive)");
-                return CompletableFuture.supplyAsync(() -> {
-                    try {
-                        return advancedScanningService.scanAllExcludingTransitive(projectPath, dashboardComponent);
-                    } catch (Exception ex) {
-                        LOG.warn("handleQuickScan: Advanced scans failed", ex);
-                        hasPartialFailure.set(true);
-                        return null;
-                    }
-                });
-            });
-
-            advFuture.thenAccept(summary -> {
-                persistAdvancedScanSummary(projectPath, summary);
-                ApplicationManager.getApplication().invokeLater(() -> {
+                    AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
+                    persistAdvancedScanSummary(projectPath, summary);
                     if (sourceScansComponent != null) {
                         sourceScansComponent.refreshFromCachedResults();
                     }
@@ -881,15 +885,15 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 });
             });
 
-            // Phase 3: Platform detection
-            CompletableFuture<Void> platformFuture = advFuture.thenRun(() -> {
-                dashboardComponent.onScanPhase("Platform Detection", 2, 3);
-                if (platformsTabComponent != null) {
-                    platformsTabComponent.scanProject();
-                }
+            CompletableFuture<Void> platformFuture = scanFuture.thenRun(() -> {
+                ApplicationManager.getApplication().invokeLater(() -> {
+                    dashboardComponent.onScanPhase("Platform Detection", 2, 3);
+                    if (platformsTabComponent != null) {
+                        platformsTabComponent.scanProject();
+                    }
+                });
             });
 
-            // Final completion and error handling
             platformFuture.whenComplete((v, throwable) -> {
                 ApplicationManager.getApplication().invokeLater(() -> {
                     if (throwable != null) {
@@ -899,13 +903,6 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         NotificationHelper.showWarning(project,
                                 "Scan Failed",
                                 "Quick scan failed: " + throwable.getMessage());
-                    } else if (hasPartialFailure.get()) {
-                        LOG.warn("handleQuickScan: Scan partially completed");
-                        dashboardComponent.onScanPartial();
-                        setScanButtonsEnabled(true);
-                        Messages.showInfoMessage(project,
-                                "Quick scan partially complete. Some phases may have failed.",
-                                "Scan Partially Complete");
                     } else {
                         dashboardComponent.onScanComplete();
                         setScanButtonsEnabled(true);
@@ -986,85 +983,66 @@ public class MigrationToolWindow implements ToolWindowFactory {
         private void performDeepScan(Path projectPath) {
             LOG.info("performDeepScan: Starting deep scan with full transitive dependency analysis");
 
-            // Track whether any intermediate phase failed but the chain continued
-            AtomicBoolean hasPartialFailure = new AtomicBoolean(false);
+            setScanButtonsEnabled(false);
+            dashboardComponent.setAnalysisRunning(true);
+            dependencyUIManager.resetAllToPending();
 
-            // Phase 1: Deep dependency analysis
-            dashboardComponent.onScanPhase("Deep Dependency Analysis", 0, 3);
+            ScanRequest request = new ScanRequest(
+                    projectPath,
+                    ScanMode.DEEP,
+                    java.util.Set.of(),
+                    FeatureFlagsProperties.LicenseTier.PREMIUM);
 
-            CompletableFuture<TransitiveDependencyProjectScanResult> deepFuture = CompletableFuture.supplyAsync(() -> {
-                LOG.info("performDeepScan: Running deep dependency scan");
-                TransitiveDependencyProjectScanResult result =
-                        advancedScanningService.scanDependenciesDeep(projectPath, dashboardComponent);
-                if (result == null) {
-                    LOG.warn("performDeepScan: Maven/Gradle not available for deep scan");
-                    throw new IllegalStateException("Deep scan requires Maven or Gradle. Neither was found on the system.");
-                }
-                return result;
-            });
+            CompletableFuture<ScanResult> scanFuture = premiumScanOrchestrator.orchestrate(
+                    request,
+                    (ScanProgressCallback) (phase, completed, total) ->
+                            ApplicationManager.getApplication().invokeLater(() ->
+                                    dashboardComponent.onScanPhase(phase, completed, total)));
 
-            deepFuture.thenAccept(deepResult -> {
-                List<DependencyInfo> depInfos = advancedScanningService.convertToDependencyInfo(deepResult);
-                String errorBanner = advancedScanningService.buildErrorBanner(deepResult);
-                // Build dependency graph from deep result
-                DependencyGraph deepGraph = advancedScanningService.buildDependencyGraphFromDeepResult(deepResult);
-                // Build status map for graph visualization
-                Map<String, DependencyMigrationStatus> statusMap = depInfos.stream()
-                        .collect(Collectors.toMap(
-                                d -> d.getGroupId() + ":" + d.getArtifactId(),
-                                d -> d.getMigrationStatus(),
-                                (existing, replacement) -> existing
-                        ));
-                // Build dashboard from deep dependencies
-                MigrationDashboard dashboard = buildDashboardFromDependencies(depInfos);
-
+            scanFuture.thenAccept(scanResult -> {
                 ApplicationManager.getApplication().invokeLater(() -> {
-                    dependencyUIManager.updateAllDependencies(depInfos);
-                    dependenciesComponent.setErrorBanner(errorBanner);
-                    migrationPhasesComponent.setDependencies(depInfos);
-                    dependencyGraphComponent.updateGraphFromDependencyGraph(deepGraph, statusMap);
-                    dashboardComponent.setDashboard(dashboard);
-                });
-            });
-
-            // Phase 2: Advanced scans (full, includes transitive)
-            CompletableFuture<AdvancedScanningService.AdvancedScanSummary> advFuture = deepFuture.thenCompose(deepResult -> {
-                dashboardComponent.onScanPhase("Advanced Scans", 1, 3);
-                return CompletableFuture.supplyAsync(() -> {
-                    LOG.info("performDeepScan: Running advanced scans (full)");
-                    try {
-                        return advancedScanningService.scanAll(projectPath, dashboardComponent);
-                    } catch (Exception ex) {
-                        LOG.warn("performDeepScan: Advanced scans failed", ex);
-                        hasPartialFailure.set(true);
-                        return null;
-                    }
-                });
-            });
-
-            advFuture.thenAccept(summary -> {
-                persistAdvancedScanSummary(projectPath, summary);
-                ApplicationManager.getApplication().invokeLater(() -> {
+                    AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
+                    persistAdvancedScanSummary(projectPath, summary);
                     if (summary != null) {
                         dashboardComponent.updateAdvancedScanCounts();
                         if (sourceScansComponent != null) {
                             sourceScansComponent.refreshFromCachedResults();
                         }
+
+                        TransitiveDependencyProjectScanResult deepResult = summary.transitiveDependencyResult();
+                        if (deepResult != null) {
+                            List<DependencyInfo> depInfos = advancedScanningService.convertToDependencyInfo(deepResult);
+                            String errorBanner = advancedScanningService.buildErrorBanner(deepResult);
+                            DependencyGraph deepGraph = advancedScanningService.buildDependencyGraphFromDeepResult(deepResult);
+                            Map<String, DependencyMigrationStatus> statusMap = depInfos.stream()
+                                    .collect(Collectors.toMap(
+                                            d -> d.getGroupId() + ":" + d.getArtifactId(),
+                                            d -> d.getMigrationStatus(),
+                                            (existing, replacement) -> existing
+                                    ));
+                            MigrationDashboard dashboard = buildDashboardFromDependencies(depInfos);
+
+                            dependencyUIManager.updateAllDependencies(depInfos);
+                            dependenciesComponent.setErrorBanner(errorBanner);
+                            migrationPhasesComponent.setDependencies(depInfos);
+                            dependencyGraphComponent.updateGraphFromDependencyGraph(deepGraph, statusMap);
+                            dashboardComponent.setDashboard(dashboard);
+                        }
                     }
                 });
             });
 
-            // Phase 3: Platform detection
-            CompletableFuture<Void> platformFuture = advFuture.thenRun(() -> {
-                dashboardComponent.onScanPhase("Platform Detection", 2, 3);
-                if (platformsTabComponent != null) {
-                    platformsTabComponent.scanProject();
-                }
+            CompletableFuture<Void> platformFuture = scanFuture.thenRun(() -> {
+                ApplicationManager.getApplication().invokeLater(() -> {
+                    dashboardComponent.onScanPhase("Platform Detection", 2, 3);
+                    if (platformsTabComponent != null) {
+                        platformsTabComponent.scanProject();
+                    }
+                });
             });
 
-            // Final completion handling
             platformFuture.whenComplete((v, throwable) -> {
-                if (throwable == null && !hasPartialFailure.get()) {
+                if (throwable == null) {
                     persistDeepAnalysisReport(projectPath);
                 }
                 ApplicationManager.getApplication().invokeLater(() -> {
@@ -1075,13 +1053,6 @@ public class MigrationToolWindow implements ToolWindowFactory {
                         Messages.showWarningDialog(project,
                                 "Deep scan failed: " + throwable.getMessage(),
                                 "Scan Failed");
-                    } else if (hasPartialFailure.get()) {
-                        LOG.warn("performDeepScan: Scan partially completed");
-                        dashboardComponent.onScanPartial();
-                        setScanButtonsEnabled(true);
-                        Messages.showInfoMessage(project,
-                                "Deep scan partially complete. Some phases may have failed.",
-                                "Scan Partially Complete");
                     } else {
                         dashboardComponent.onScanComplete();
                         setScanButtonsEnabled(true);

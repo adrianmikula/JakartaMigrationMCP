@@ -49,38 +49,15 @@ public class JakartaMigrationTools {
     /**
      * Lists dependency compatibility information for Jakarta migration.
      * COMMUNITY TOOL - Free to use under Apache License 2.0
+     * @deprecated Community dependency compatibility is deprecated. Use the premium scan endpoint.
      */
+    @Deprecated
     @McpTool(name = "listDependenciesCompatibility", description = "Lists dependency compatibility information for Jakarta migration. Returns JSON with compatibility matrix and migration paths.")
     public String listDependenciesCompatibility(
             @McpToolParam(description = "Path to project root directory", required = true) String projectPath) {
-        try {
-            log.info("Listing dependency compatibility for project: {}", projectPath);
-
-            Path project = Paths.get(projectPath);
-            if (!Files.exists(project) || !Files.isDirectory(project)) {
-                return JsonUtils.createErrorResponse("Project path does not exist or is not a directory: " + projectPath);
-            }
-
-            // Run dependency analysis
-            DependencyAnalysisReport report = dependencyAnalysisModule.analyzeProject(project);
-
-            // Build compatibility response
-            StringBuilder json = new StringBuilder();
-            json.append("{\n");
-            json.append("  \"status\": \"success\",\n");
-            json.append("  \"edition\": \"community\",\n");
-            json.append("  \"totalDependencies\": ").append(report.dependencyGraph().nodeCount()).append(",\n");
-            json.append("  \"compatibleCount\": ").append(report.dependencyGraph().getNodes().stream()
-                .filter(node -> node.isJakartaCompatible()).count()).append(",\n");
-            json.append("  \"incompatibleCount\": ").append(report.dependencyGraph().getNodes().stream()
-                .filter(node -> !node.isJakartaCompatible()).count()).append("\n");
-            json.append("}");
-
-            return json.toString();
-
-        } catch (Exception e) {
-            log.error("Unexpected error during dependency compatibility listing", e);
-            return JsonUtils.createErrorResponse("Unexpected error: " + e.getMessage());
-        }
+        return JsonUtils.createErrorResponse(
+                "Community scanning tools are deprecated. " +
+                        "Please use the Premium scan endpoint for source-first Jakarta migration scans. " +
+                        "Requested project: " + projectPath);
     }
 }

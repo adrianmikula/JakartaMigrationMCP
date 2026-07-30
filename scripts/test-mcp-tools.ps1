@@ -7,7 +7,7 @@ param(
     [string]$ProjectPath = "examples/demo-spring-javax-validation-example-master/demo-spring-javax-validation-example-master",
     
     [Parameter(Mandatory=$false)]
-    [string]$JarPath = "build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar"
+    [string]$JarPath = "community-mcp-server/build/libs/jakarta-migration-mcp.jar"
 )
 
 Write-Host "=========================================" -ForegroundColor Cyan

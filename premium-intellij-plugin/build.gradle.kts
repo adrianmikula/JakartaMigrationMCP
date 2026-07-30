@@ -201,6 +201,7 @@ tasks.named<org.jetbrains.intellij.tasks.PrepareSandboxTask>("prepareSandbox") {
 
 tasks {
     patchPluginXml {
+        version.set(project.version.toString())
         sinceBuild.set(providers.gradleProperty("intellij.sinceBuild").orElse("243"))
         untilBuild.set(providers.gradleProperty("intellij.untilBuild").orElse(""))
     }
@@ -236,10 +237,8 @@ tasks {
     }
     
     // Disable problematic tasks that cause connectivity issues
-    tasks {
-        named("initializeIntelliJPlugin") {
-            enabled = false
-        }
+    project.tasks.named("initializeIntelliJPlugin") {
+        enabled = false
     }
 
     // Configure JUnit Jupiter for testing

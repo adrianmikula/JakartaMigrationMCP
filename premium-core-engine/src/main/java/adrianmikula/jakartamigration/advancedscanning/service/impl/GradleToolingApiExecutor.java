@@ -5,6 +5,7 @@ import adrianmikula.jakartamigration.advancedscanning.service.DependencyTreeComm
 import lombok.extern.slf4j.Slf4j;
 import org.gradle.tooling.GradleConnector;
 import org.gradle.tooling.ProjectConnection;
+import org.gradle.tooling.model.GradleProject;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -72,29 +73,73 @@ public class GradleToolingApiExecutor implements DependencyTreeCommandExecutor {
                 return DependencyTreeResult.error("Invalid path: no parent directory");
             }
 
+            String buildFileName = buildFilePath.getFileName().toString().toLowerCase();
+            if (!buildFileName.startsWith("build.gradle")) {
+                return DependencyTreeResult.error("Not a build.gradle build file: " + buildFilePath);
+            }
+
+            if (!Files.exists(projectDir.resolve("build.gradle")) &&
+                    !Files.exists(projectDir.resolve("build.gradle.kts"))) {
+                return DependencyTreeResult.error(
+                        "Not a valid Gradle module (no build.gradle or build.gradle.kts): " + projectDir);
+            }
+
             Path projectRoot = findGradleProjectRoot(projectDir);
             if (projectRoot == null) {
                 return DependencyTreeResult.error(
                         "Gradle project root not found (no settings.gradle or settings.gradle.kts)");
             }
 
-            // Run the dependencies task for the target module directly. Fetching the
-            // GradleProject model can fail for real projects with complex settings plugins
-            // (e.g. foojay toolchain resolver) while the dependencies task works fine.
-            String taskName = buildDependenciesTaskName(projectRoot, projectDir);
+            // Resolve the dependencies task path from the GradleProject model.
+            // This avoids brittle manual :module:path calculation and supports
+            // arbitrarily nested or renamed subprojects.
+            Optional<GradleProject> targetProject = findTargetProject(projectRoot, projectDir);
+            if (targetProject.isEmpty()) {
+                return DependencyTreeResult.error(
+                        "Gradle subproject not found for " + projectDir);
+            }
+            String projectPath = targetProject.get().getPath();
+            String taskName = ":".equals(projectPath) ? "dependencies" : projectPath + ":dependencies";
             return executeViaToolingApi(projectRoot, taskName, scopes);
         }, executor);
     }
 
     /**
-     * Builds the dependencies task name for a target project directory.
-     * e.g. root -> "dependencies", subproject -> ":community-core-engine:dependencies"
+     * Fetches the Gradle project model and locates the GradleProject for the
+     * given module directory.
      */
-    private static String buildDependenciesTaskName(Path projectRoot, Path targetProjectDir) {
-        if (projectRoot.equals(targetProjectDir)) {
-            return "dependencies";
+    private Optional<GradleProject> findTargetProject(Path projectRoot, Path targetProjectDir) {
+        ProjectConnection connection = null;
+        try {
+            connection = newProjectConnection(projectRoot);
+            GradleProject rootProject = connection.model(GradleProject.class).get();
+            return findProjectByDirectory(rootProject, targetProjectDir);
+        } catch (Exception e) {
+            log.error("Failed to fetch GradleProject model for {}", projectRoot, e);
+            return Optional.empty();
+        } finally {
+            closeQuietly(connection);
         }
-        return computeGradleModuleName(projectRoot, targetProjectDir) + ":dependencies";
+    }
+
+    /**
+     * Recursively searches a GradleProject tree for a project whose directory
+     * matches the target path.
+     */
+    private Optional<GradleProject> findProjectByDirectory(GradleProject project, Path targetProjectDir) {
+        File projectDir = project.getProjectDirectory();
+        if (projectDir != null &&
+                projectDir.toPath().toAbsolutePath().normalize()
+                        .equals(targetProjectDir.toAbsolutePath().normalize())) {
+            return Optional.of(project);
+        }
+        for (GradleProject child : project.getChildren()) {
+            Optional<GradleProject> found = findProjectByDirectory(child, targetProjectDir);
+            if (found.isPresent()) {
+                return found;
+            }
+        }
+        return Optional.empty();
     }
 
     /**

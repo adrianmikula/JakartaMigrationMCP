@@ -40,7 +40,7 @@ public class McpSseController {
     @Value("${spring.ai.mcp.server.name:jakarta-migration-mcp}")
     private String serverName;
     
-    @Value("${spring.ai.mcp.server.version:1.0.0-SNAPSHOT}")
+    @Value("${spring.ai.mcp.server.version:1.1.0}")
     private String serverVersion;
     
     // Store active SSE connections by session ID (simple implementation using thread ID for now)

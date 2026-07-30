@@ -3,7 +3,7 @@
 
 Write-Host "Starting Jakarta Migration MCP Server with SSE transport..." -ForegroundColor Cyan
 
-$jarPath = "build\libs\jakarta-migration-mcp-1.0.0-SNAPSHOT.jar"
+$jarPath = "community-mcp-server\build\libs\jakarta-migration-mcp.jar"
 
 if (-not (Test-Path $jarPath)) {
     Write-Host "ERROR: JAR file not found at $jarPath" -ForegroundColor Red

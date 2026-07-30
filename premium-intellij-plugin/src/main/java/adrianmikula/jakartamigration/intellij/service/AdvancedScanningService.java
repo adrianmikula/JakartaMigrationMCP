@@ -16,6 +16,8 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.advancedscanning.service.ScanRecipeRecommendationService;
 import adrianmikula.jakartamigration.scanning.BalloonNotificationService;
+import adrianmikula.jakartamigration.scanning.orchestration.AdvancedScanningEngine;
+import adrianmikula.jakartamigration.scanning.orchestration.ScanMode;
 import com.intellij.openapi.diagnostic.Logger;
 
 import java.nio.file.Path;
@@ -39,7 +41,7 @@ import com.intellij.openapi.project.Project;
  * Service for performing advanced scanning using premium core engine.
  * This service provides access to the premium scanning features.
  */
-public class AdvancedScanningService {
+public class AdvancedScanningService implements AdvancedScanningEngine {
     private static final Logger LOG = Logger.getInstance(AdvancedScanningService.class);
 
     private final AdvancedScanningModule scanningModule;
@@ -58,6 +60,47 @@ public class AdvancedScanningService {
     static ScanProgressCallback toScanProgressCallback(ScanProgressListener listener) {
         if (listener == null) return null;
         return (phase, completed, total) -> listener.onScanPhase(phase, completed, total);
+    }
+
+    private static ScanProgressListener toScanProgressListener(ScanProgressCallback callback) {
+        if (callback == null) return null;
+        return new ScanProgressListener() {
+            @Override
+            public void onScanPhase(String phase, int completed, int total) {
+                callback.onPhaseProgress(phase, completed, total);
+            }
+
+            @Override
+            public void onScanComplete() {
+                // No-op
+            }
+
+            @Override
+            public void onScanError(Exception error) {
+                // No-op
+            }
+
+            @Override
+            public void onScanPartial() {
+                // No-op
+            }
+
+            @Override
+            public void onSubScanComplete(String scanType, int resultCount) {
+                // No-op
+            }
+        };
+    }
+
+    @Override
+    public adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults runAdvancedScans(Path projectPath, ScanMode mode, ScanProgressCallback progressCallback) {
+        ScanProgressListener listener = toScanProgressListener(progressCallback);
+        if (mode == ScanMode.QUICK) {
+            scanAllExcludingTransitive(projectPath, listener);
+        } else {
+            scanAll(projectPath, listener);
+        }
+        return getLastScanResults();
     }
 
     private static final long CACHE_VALIDITY_MS = 5 * 60 * 1000; // 5 minutes
@@ -408,8 +451,7 @@ public class AdvancedScanningService {
         // Build files (pom.xml, build.gradle, Eclipse .project/.classpath, etc.)
         files.put(FileCategory.BUILD, scanner.findFiles(projectPath, path -> {
             String name = path.getFileName().toString();
-            return name.equals("pom.xml") || name.startsWith("build.gradle") || name.endsWith(".gradle") || name.endsWith(".gradle.kts")
-                   || name.equals(".project") || name.equals(".classpath");
+            return name.equals("pom.xml") || name.startsWith("build.gradle") || name.equals(".classpath");
         }));
         
         // Dockerfiles
