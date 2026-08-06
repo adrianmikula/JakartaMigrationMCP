@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Credits are stored per-user (IDE-wide) using SQLite.
  *
  * For free users:
- * - Limited action credits (default: 10, configurable via freemium.properties)
+ * - Limited action credits (default: 3, configurable via freemium.properties)
  *
  * Premium users have unlimited credits.
  */

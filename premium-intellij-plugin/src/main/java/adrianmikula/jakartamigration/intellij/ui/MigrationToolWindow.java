@@ -932,27 +932,13 @@ public class MigrationToolWindow implements ToolWindowFactory {
 
             final Path projectPath = Path.of(projectPathStr);
 
-            // Check credits for free users
+            // Deep scan is a premium-only feature
             if (!isPremium) {
-                if (!creditsService.hasCredits(CreditType.ACTIONS)) {
-                    NotificationHelper.showWarning(project,
-                            "Credits Exhausted",
-                            "You've used all your free action credits. Upgrade to Premium to run deep scans.\n\n" +
-                                    "Premium includes:\n" +
-                                    "• Unlimited action credits\n" +
-                                    "• Full transitive dependency analysis\n" +
-                                    "• Advanced scanning features");
-                    return;
-                }
-
-                boolean creditConsumed = creditsService.useCredit(CreditType.ACTIONS, "Scanning", "deep_scan");
-                if (!creditConsumed) {
-                    NotificationHelper.showError(project, "Credit Error", "Failed to consume action credit. Please try again.");
-                    return;
-                }
-
-                int remainingCredits = creditsService.getRemainingCredits(CreditType.ACTIONS);
-                LOG.info("handleDeepScan: Consumed 1 action credit for free user. Remaining: " + remainingCredits);
+                String title = UiTextLoader.get("dialog.trial.title", "Premium Required");
+                String message = UiTextLoader.getWithNewlines("dialog.trial.message",
+                        "Deep scanning requires a Premium subscription.");
+                Messages.showWarningDialog(project, message, title);
+                return;
             }
 
             setScanButtonsEnabled(false);

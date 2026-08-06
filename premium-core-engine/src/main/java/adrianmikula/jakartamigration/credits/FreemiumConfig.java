@@ -16,8 +16,8 @@ public class FreemiumConfig {
     private static final String CONFIG_FILE = "config/freemium.properties";
 
     // Default values
-    private static final int DEFAULT_CREDIT_LIMIT = 10;
-    private static final int DEFAULT_TRUNCATION_LIMIT = 10;
+    private static final int DEFAULT_CREDIT_LIMIT = 3;
+    private static final int DEFAULT_TRUNCATION_LIMIT = 1;
     private static final boolean DEFAULT_TRUNCATION_ENABLED = true;
 
     private final Properties properties;

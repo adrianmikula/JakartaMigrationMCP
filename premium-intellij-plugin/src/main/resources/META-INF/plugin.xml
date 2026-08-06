@@ -17,11 +17,11 @@
 
     <!-- optional: This should be set to true if you would like to add the free functionality to your plugin. -->
 
-    <product-descriptor 
-        code="PJAKARTAMIGRATI" 
-        release-date="20260701" 
+    <product-descriptor
+        code="PJAKARTAMIGRATI"
+        release-date="20260701"
         release-version="11"
-        optional="false"/>
+        optional="true"/>
     
     <!-- idea-version: Exclude the until-build attribute entirely, giving open-ended compatibility with all future IntelliJ versions. -->
     <idea-version since-build="242" />

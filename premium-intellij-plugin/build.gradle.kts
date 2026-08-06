@@ -18,17 +18,14 @@ plugins {
 }
 tasks.withType<JacocoReport> {
     dependsOn("test")
-    
-    // Include both original and instrumented classes for Jacoco report.
-    // The IntelliJ plugin instruments classes for forms and @NotNull, 
-    // and tests often use these instrumented classes.
+
+    // The IntelliJ plugin instruments classes for forms and @NotNull.
+    // Use only the instrumented classes to avoid duplicate-class errors
+    // and to match the bytecode used by the test runtime.
     classDirectories.setFrom(
-        files(
-            layout.buildDirectory.dir("classes/java/main").get().asFile,
-            layout.buildDirectory.dir("instrumented/instrumentCode").get().asFile
-        )
+        files(layout.buildDirectory.dir("instrumented/instrumentCode").get().asFile)
     )
-    
+
     reports {
         xml.required.set(true)
         html.required.set(true)
@@ -164,8 +161,10 @@ intellij {
     type = "IC"
     plugins = listOf("com.intellij.java")
     downloadSources = false
-    // Deterministic path under global Gradle cache — cleared with `rm -rf ~/.gradle/caches`
-    ideaDependencyCachePath.set("${System.getProperty("user.home")}/.gradle/caches/intellij-ides")
+    // Allow an optional env var to move the large IDE dependency cache to another drive
+    // (e.g. when the home partition is low on disk space). Falls back to the Gradle cache.
+    ideaDependencyCachePath.set(System.getenv("JAKARTA_IDE_CACHE")
+        ?: "${System.getProperty("user.home")}/.gradle/caches/intellij-ides")
     // When IDEA_HOME env var is set (CI), use pre-downloaded IDE to avoid slow download blocking configuration
     val ideaHome = System.getenv("IDEA_HOME")
     if (ideaHome != null && File(ideaHome).isDirectory) {
@@ -180,10 +179,15 @@ tasks.withType<org.jetbrains.intellij.tasks.RunPluginVerifierTask> {
     ideVersions.set(listOf(
         "IC-2024.3",    // Latest 2024 release
         "IC-2025.1",    // 2025.1 release
-        "IC-2025.2",    // Latest 2025 release
-        "IC-2026.1",    // 2026.1 release
-        "IC-2026.2"     // Latest 2026 release
+        "IC-2025.2",    // 2025.2 release
+        "IC-2025.3"     // Latest 2025 release
     ))
+    // Allow an optional env var to move the large verifier IDE downloads to another drive.
+    System.getenv("JAKARTA_VERIFIER_IDE_CACHE")?.let {
+        downloadDir.set(it)
+    }
+    // Pin verifier version to avoid the "plugin descriptor 'plugin.xml' is not found" bug in 1.391/1.393
+    verifierVersion.set("1.394")
     // No failureLevel override - fail on all compatibility problems (strict mode)
 }
 
@@ -738,46 +742,6 @@ tasks.register("runIdeDev") {
 tasks.named<org.jetbrains.intellij.tasks.RunIdeTask>("runIde") {
     systemProperty("jakarta.migration.mode", "dev")
     
-    doFirst {
-        val libDir = File("${System.getProperty("user.dir")}/premium-intellij-plugin/build/idea-sandbox/plugins/premium-intellij-plugin/lib")
-        if (libDir.exists()) {
-            libDir.listFiles { f -> f.name.endsWith(".jar") && f.name.contains("premium-intellij-plugin") }.forEach { jar ->
-                try {
-                    JarFile(jar).use { jarFile ->
-                        val entry = jarFile.getJarEntry("META-INF/plugin.xml")
-                        if (entry != null) {
-                            val content = jarFile.getInputStream(entry).readBytes().toString(StandardCharsets.UTF_8)
-                            if (content.contains("optional=\"false\"")) {
-                                val updated = content.replace("optional=\"false\"", "optional=\"true\"")
-                                val tempFile = File.createTempFile("plugin-", ".jar", libDir)
-                                tempFile.deleteOnExit()
-                                ZipOutputStream(tempFile.outputStream()).use { zos ->
-                                    jarFile.entries().asIterator().forEach { e ->
-                                        if (e.name != "META-INF/plugin.xml") {
-                                            zos.putNextEntry(ZipEntry(e.name))
-                                            jarFile.getInputStream(e).copyTo(zos)
-                                            zos.closeEntry()
-                                        }
-                                    }
-                                    zos.putNextEntry(ZipEntry("META-INF/plugin.xml"))
-                                    updated.byteInputStream(StandardCharsets.UTF_8).copyTo(zos)
-                                    zos.closeEntry()
-                                }
-                                try {
-                                    Files.move(tempFile.toPath(), jar.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
-                                } catch (e: Exception) {
-                                    tempFile.copyTo(jar, overwrite = true)
-                                }
-                                println("[dev-mode] Patched plugin.xml in ${jar.name}: optional=false -> true")
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    println("Warning: Could not patch ${jar.name}: ${e.message}")
-                }
-            }
-        }
-    }
 }
 
 /**

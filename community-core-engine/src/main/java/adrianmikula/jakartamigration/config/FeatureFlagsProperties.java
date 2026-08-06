@@ -111,7 +111,8 @@ public class FeatureFlagsProperties {
     public enum LicenseTier {
         /**
          * Community/Free tier.
-         * Basic features with limited credits: 10 basic scans, 50 advanced scans, 5 refactors.
+         * Basic features with 3 free action credits for scans and refactoring.
+         * Deep scans are premium-only.
          * Available to all users without license.
          */
         COMMUNITY,

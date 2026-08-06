@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.credits;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -11,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Test class to verify CreditsService functionality for scan credit consumption.
  */
+@Tag("fast")
 public class CreditsServiceTest {
 
     private CreditsService creditsService;
@@ -33,8 +35,8 @@ public class CreditsServiceTest {
     public void testCreditsServiceInitialization() {
         assertNotNull(creditsService);
         assertTrue(creditsService.hasCredits(CreditType.ACTIONS));
-        assertEquals(10, creditsService.getRemainingCredits(CreditType.ACTIONS));
-        assertEquals(10, creditsService.getCreditLimit(CreditType.ACTIONS));
+        assertEquals(3, creditsService.getRemainingCredits(CreditType.ACTIONS));
+        assertEquals(3, creditsService.getCreditLimit(CreditType.ACTIONS));
     }
 
     @Test
@@ -65,7 +67,7 @@ public class CreditsServiceTest {
         // Verify no credits remaining
         assertFalse(creditsService.hasCredits(CreditType.ACTIONS));
         assertEquals(0, creditsService.getRemainingCredits(CreditType.ACTIONS));
-        assertEquals(10, creditsService.getUsedCredits(CreditType.ACTIONS));
+        assertEquals(3, creditsService.getUsedCredits(CreditType.ACTIONS));
         
         // Test consumption when exhausted
         boolean creditConsumedWhenExhausted = creditsService.useCredit(CreditType.ACTIONS, "exhausted", "test");
@@ -81,7 +83,7 @@ public class CreditsServiceTest {
         creditsService.useCredit(CreditType.ACTIONS, "multiple", "test");
         
         // Verify credit was consumed correctly
-        assertEquals(9, creditsService.getRemainingCredits(CreditType.ACTIONS));
+        assertEquals(2, creditsService.getRemainingCredits(CreditType.ACTIONS));
         assertEquals(1, creditsService.getUsedCredits(CreditType.ACTIONS));
     }
 
@@ -91,14 +93,14 @@ public class CreditsServiceTest {
         creditsService.useCredit(CreditType.ACTIONS, "multiple", "test");
         creditsService.useCredit(CreditType.ACTIONS, "multiple", "test");
         
-        assertEquals(8, creditsService.getRemainingCredits(CreditType.ACTIONS));
+        assertEquals(1, creditsService.getRemainingCredits(CreditType.ACTIONS));
         assertEquals(2, creditsService.getUsedCredits(CreditType.ACTIONS));
         
         // Refresh cache
         creditsService.refreshCache();
         
         // Verify data is still accurate after refresh
-        assertEquals(8, creditsService.getRemainingCredits(CreditType.ACTIONS));
+        assertEquals(1, creditsService.getRemainingCredits(CreditType.ACTIONS));
         assertEquals(2, creditsService.getUsedCredits(CreditType.ACTIONS));
     }
 }

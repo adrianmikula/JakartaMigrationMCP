@@ -7,10 +7,10 @@ package adrianmikula.jakartamigration.credits;
 public enum CreditType {
     /**
      * Actions credits - used for all premium operations (scans, advanced scans, refactoring, reports).
-     * Free users get a limited number of action credits (default: 10).
+     * Free users get a limited number of action credits (default: 3).
      * When exhausted, users are prompted to upgrade.
      */
-    ACTIONS("actions", "Actions", 10);
+    ACTIONS("actions", "Actions", 3);
 
     private final String key;
     private final String displayName;
