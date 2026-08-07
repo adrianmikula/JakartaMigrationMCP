@@ -75,7 +75,10 @@ public class DefaultJarCompatibilityScanner implements JarCompatibilityScanner {
         @SuppressWarnings("deprecation")
         ThreadFactory factory = r -> { Thread t = new Thread(r);
             t.setName("jar-scanner-" + t.getId()); t.setDaemon(true); return t; };
-        return Executors.newFixedThreadPool(parallelism, factory);
+        return new java.util.concurrent.ThreadPoolExecutor(
+            parallelism, parallelism, 60L, TimeUnit.SECONDS,
+            new java.util.concurrent.LinkedBlockingQueue<>(100), factory,
+            new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
     }
 
     @Override
@@ -128,7 +131,8 @@ public class DefaultJarCompatibilityScanner implements JarCompatibilityScanner {
                 try {
                     return analyzeJar(jarPath, opts);
                 } catch (Exception e) {
-                    return createUnknownReport(jarPath.toString(), e.getMessage(), 0, false);
+                    log.debug("Parallel JAR analysis failed for {}: {}", jarPath, e.getClass().getSimpleName() + ": " + e.getMessage());
+                    return createUnknownReport(jarPath.toString(), e.getClass().getSimpleName() + ": " + e.getMessage(), 0, false);
                 }
             })
             .collect(Collectors.toList());
@@ -206,7 +210,10 @@ public class DefaultJarCompatibilityScanner implements JarCompatibilityScanner {
     private String computeCacheKeyForPath(Path jarPath) {
         try {
             return jarPath.toAbsolutePath() + ":" + Files.getLastModifiedTime(jarPath).toMillis();
-        } catch (IOException e) { return jarPath.toAbsolutePath().toString(); }
+        } catch (IOException e) {
+            log.debug("Failed to get file modified time for {}: {}", jarPath, e.getClass().getSimpleName() + ": " + e.getMessage());
+            return jarPath.toAbsolutePath().toString();
+        }
     }
 
     public void shutdown() {

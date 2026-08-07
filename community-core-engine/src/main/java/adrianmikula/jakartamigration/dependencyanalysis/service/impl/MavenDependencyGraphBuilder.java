@@ -5,6 +5,9 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphBuilder;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphException;
+import adrianmikula.jakartamigration.dependencyanalysis.util.MavenPomParser;
+import adrianmikula.jakartamigration.dependencyanalysis.util.BuildFileDiscovery;
+import adrianmikula.jakartamigration.dependencyanalysis.util.ScopeConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -98,8 +101,8 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
                     depVersion = resolveVersionFromMaps(depGroupId, depArtifactId, depMgmtVersions, propertiesMap, document);
                 } else if (depVersion.startsWith("${") && depVersion.endsWith("}")) {
                     // Try to resolve property references
-                    String resolvedVersion = resolvePropertyFromMap(depVersion, propertiesMap);
-                    if (resolvedVersion != null) {
+                    String resolvedVersion = MavenPomParser.resolveProperty(depVersion, propertiesMap);
+                    if (resolvedVersion != null && !resolvedVersion.startsWith("${")) {
                         depVersion = resolvedVersion;
                     } else {
                         // Property not found, set to "unknown"
@@ -184,24 +187,38 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
     public DependencyGraph buildFromProject(Path projectRoot) {
         log.info("Searching for build files in project root: {}", projectRoot);
         
-        // First, try to find build files in the root directory
+        // Check for Maven project first
         Path pomXml = projectRoot.resolve("pom.xml");
         if (Files.exists(pomXml)) {
             log.info("Found pom.xml in root: {}", pomXml);
             return buildFromMaven(pomXml);
         }
         
+        // Check for Gradle project — prefer multi-module parser when settings file exists
+        Path settingsGradle = projectRoot.resolve("settings.gradle");
+        Path settingsGradleKts = projectRoot.resolve("settings.gradle.kts");
+        boolean hasSettings = Files.exists(settingsGradle) || Files.exists(settingsGradleKts);
+        
         Path buildGradle = projectRoot.resolve("build.gradle");
         Path buildGradleKts = projectRoot.resolve("build.gradle.kts");
+        boolean hasRootBuild = Files.exists(buildGradle) || Files.exists(buildGradleKts);
         
-        if (Files.exists(buildGradle)) {
-            log.info("Found build.gradle in root: {}", buildGradle);
-            return buildFromGradle(buildGradle);
-        }
-        
-        if (Files.exists(buildGradleKts)) {
-            log.info("Found build.gradle.kts in root: {}", buildGradleKts);
-            return buildFromGradle(buildGradleKts);
+        if (hasRootBuild) {
+            if (hasSettings) {
+                // Multi-module project — parse all modules via settings file
+                log.info("Found Gradle settings file, parsing as multi-module project");
+                GradleMultiModuleParser multiModuleParser = new GradleMultiModuleParser();
+                DependencyGraph graph = multiModuleParser.parseProject(projectRoot);
+                if (graph.nodeCount() > 1) {
+                    return graph;
+                }
+                log.info("Multi-module parser returned few nodes, falling back to single-file parse");
+            }
+            
+            // Single-module or fallback: parse root build file only
+            Path buildFile = Files.exists(buildGradleKts) ? buildGradleKts : buildGradle;
+            log.info("Found build file in root: {}", buildFile);
+            return buildFromGradle(buildFile);
         }
         
         log.info("No build files found in root, searching subdirectories...");
@@ -248,31 +265,13 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
     private Path searchForBuildFile(Path directory) {
         log.debug("Walking directory tree to find build files starting from: {}", directory);
         
-        // Limit depth to prevent excessive traversal in deep project structures
-        int maxDepth = Integer.parseInt(System.getProperty("maven.build.search.maxDepth", "4"));
-        
-        try (var stream = Files.walk(directory, maxDepth)) {
-            Path foundFile = stream
-                .filter(Files::isRegularFile)
-                .filter(path -> {
-                    String fileName = path.getFileName().toString();
-                    return fileName.equals("pom.xml") || 
-                           fileName.equals("build.gradle") || 
-                           fileName.equals("build.gradle.kts");
-                })
-                .findFirst()
-                .orElse(null);
-            
-            if (foundFile != null) {
-                log.debug("Found build file: {}", foundFile);
-            } else {
-                log.debug("No build files found in directory tree (max depth: {}): {}", maxDepth, directory);
-            }
-            return foundFile;
-        } catch (IOException e) {
-            log.error("Failed to search for build files in directory: {}", directory, e);
-            throw new DependencyGraphException("Failed to search for build files in: " + directory, e);
+        List<Path> buildFiles = BuildFileDiscovery.discoverBuildFiles(directory, 4);
+        if (buildFiles.isEmpty()) {
+            return null;
         }
+        
+        log.debug("Found build file: {}", buildFiles.get(0));
+        return buildFiles.get(0);
     }
     
     private List<Artifact> parseGradleDependencies(String content) {
@@ -293,17 +292,8 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
             String artifactId = matcher.group(3);
             String version = matcher.group(4);
             
-            // Determine scope from the dependency type
-            String scope = "compile";
-            if (dependencyType.equals("testImplementation") || dependencyType.equals("testRuntime")) {
-                scope = "test";
-            } else if (dependencyType.equals("runtimeOnly") || dependencyType.equals("runtime")) {
-                scope = "runtime";
-            } else if (dependencyType.equals("compileOnly")) {
-                scope = "provided";
-            } else if (dependencyType.equals("api") || dependencyType.equals("implementation") || dependencyType.equals("compile")) {
-                scope = "compile";
-            }
+            // Determine scope from the dependency type using shared constants
+            String scope = ScopeConstants.mapConfigurationToScope(dependencyType);
             
             artifacts.add(new Artifact(
                 groupId,
@@ -392,67 +382,26 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
     private String resolveProperty(Document document, String propertyValue) {
         if (propertyValue != null && propertyValue.startsWith("${") && propertyValue.endsWith("}")) {
             String propertyName = propertyValue.substring(2, propertyValue.length() - 1);
-            NodeList properties = document.getElementsByTagName("properties");
-            if (properties.getLength() > 0) {
-                Element propsElement = (Element) properties.item(0);
-                NodeList propertyNodes = propsElement.getElementsByTagName(propertyName);
-                if (propertyNodes.getLength() > 0) {
-                    Node propertyNode = propertyNodes.item(0);
-                    return propertyNode.getTextContent().trim();
-                }
-            }
-            // Return null if property is not found, so caller can handle appropriately
-            return null;
+            Map<String, String> propertiesMap = MavenPomParser.buildPropertiesMap(document);
+            return propertiesMap.getOrDefault(propertyName, null);
         }
         return propertyValue;
     }
     
     /**
      * Builds a lookup map for dependencyManagement versions keyed by "groupId:artifactId".
-     * Optimized version resolution from O(n*m) to O(1) lookups.
+     * Delegates to MavenPomParser to avoid duplication.
      */
     private Map<String, String> buildDependencyManagementVersionMap(Document document) {
-        Map<String, String> versionMap = new HashMap<>();
-        NodeList depMgmt = document.getElementsByTagName("dependencyManagement");
-        if (depMgmt.getLength() > 0) {
-            Element depMgmtElement = (Element) depMgmt.item(0);
-            NodeList deps = depMgmtElement.getElementsByTagName("dependency");
-            for (int i = 0; i < deps.getLength(); i++) {
-                Element dep = (Element) deps.item(i);
-                String gId = getTextContent(dep, "groupId");
-                String aId = getTextContent(dep, "artifactId");
-                String version = getTextContent(dep, "version");
-                if (gId != null && aId != null && version != null) {
-                    String key = gId + ":" + aId;
-                    versionMap.put(key, version);
-                }
-            }
-        }
-        return versionMap;
+        return MavenPomParser.buildDependencyManagementVersionMap(document);
     }
-    
+
     /**
      * Builds a lookup map for properties keyed by property name.
-     * Optimized property resolution from O(n) to O(1) lookups.
+     * Delegates to MavenPomParser to avoid duplication.
      */
     private Map<String, String> buildPropertiesMap(Document document) {
-        Map<String, String> propertiesMap = new HashMap<>();
-        NodeList properties = document.getElementsByTagName("properties");
-        if (properties.getLength() > 0) {
-            Element propsElement = (Element) properties.item(0);
-            NodeList propertyNodes = propsElement.getChildNodes();
-            for (int i = 0; i < propertyNodes.getLength(); i++) {
-                Node node = propertyNodes.item(i);
-                if (node.getNodeType() == Node.ELEMENT_NODE) {
-                    String propertyName = node.getNodeName();
-                    String propertyValue = node.getTextContent().trim();
-                    if (!propertyName.isEmpty() && !propertyValue.isEmpty()) {
-                        propertiesMap.put(propertyName, propertyValue);
-                    }
-                }
-            }
-        }
-        return propertiesMap;
+        return MavenPomParser.buildPropertiesMap(document);
     }
     
     /**
@@ -473,13 +422,10 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
     
     /**
      * Resolves property using pre-built lookup map for O(1) performance.
+     * Delegates to MavenPomParser.resolveProperty to avoid duplication.
      */
     private String resolvePropertyFromMap(String propertyValue, Map<String, String> propertiesMap) {
-        if (propertyValue != null && propertyValue.startsWith("${") && propertyValue.endsWith("}")) {
-            String propertyName = propertyValue.substring(2, propertyValue.length() - 1);
-            return propertiesMap.get(propertyName);
-        }
-        return propertyValue;
+        return MavenPomParser.resolveProperty(propertyValue, propertiesMap);
     }
 }
 

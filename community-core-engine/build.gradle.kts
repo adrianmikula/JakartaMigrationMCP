@@ -83,6 +83,28 @@ tasks.register<Test>("fastTest") {
     systemProperty("jakarta.migration.mode", "dev")
 }
 
+// Slow test task - performance and memory budget tests
+tasks.register<Test>("slowTest") {
+    group = "verification"
+    description = "Run slow performance and memory tests"
+    
+    useJUnitPlatform {
+        includeTags("slow")
+    }
+    testLogging {
+        showStandardStreams = true
+    }
+    maxParallelForks = 1
+    maxHeapSize = "1g"
+    jvmArgs(
+        "-XX:MaxMetaspaceSize=256m",
+        "-XX:+UseG1GC",
+        "-XX:+HeapDumpOnOutOfMemoryError"
+    )
+    
+    systemProperty("jakarta.migration.mode", "dev")
+}
+
 // =============================================================================
 // LICENSE ENFORCEMENT - Community modules must not depend on premium modules
 // =============================================================================

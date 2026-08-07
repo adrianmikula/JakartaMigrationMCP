@@ -89,6 +89,19 @@ public class DependencyUIManager {
     }
     
     /**
+     * Resets all dependency UI components to show "Analysis Pending" state.
+     * Call this when a new scan starts so the user sees immediate feedback
+     * that previous results are stale.
+     */
+    public void resetAllToPending() {
+        dependenciesComponent.resetToPending();
+        if (dependenciesTreeComponent != null) {
+            dependenciesTreeComponent.clearDependencies();
+        }
+        dependencyGraphComponent.clearDependencies();
+    }
+    
+    /**
      * Get the dependencies table component.
      * 
      * @return The dependencies table component

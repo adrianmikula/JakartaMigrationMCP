@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
+import adrianmikula.jakartamigration.intellij.service.AdvancedScanCategory;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.risk.RiskScoringService;
 import adrianmikula.jakartamigration.risk.EnhancedTestCoverageAnalysisService;
@@ -648,16 +649,7 @@ public class GaugePanel {
             return 0;
         }
 
-        int totalFindings = summary.getJpaCount() +
-                           summary.getBeanValidationCount() +
-                           summary.getServletJspCount() +
-                           summary.getCdiInjectionCount() +
-                           summary.getBuildConfigCount() +
-                           summary.getRestSoapCount() +
-                           summary.getDeprecatedApiCount() +
-                           summary.getSecurityApiCount() +
-                           summary.getJmsMessagingCount() +
-                           summary.getConfigFileCount();
+        int totalFindings = summary.getTotalSourceIssues() + summary.getTotalConfigIssues();
 
         if (totalFindings <= 0) {
             return 0;
@@ -774,35 +766,7 @@ public class GaugePanel {
         if (summary == null) {
             return 0;
         }
-
-        int issuesWithRecipes = 0;
-
-        Map<String, Integer> scanTypeCounts = new HashMap<>();
-        scanTypeCounts.put("jpa", summary.getJpaCount());
-        scanTypeCounts.put("beanValidation", summary.getBeanValidationCount());
-        scanTypeCounts.put("servletJsp", summary.getServletJspCount());
-        scanTypeCounts.put("cdiInjection", summary.getCdiInjectionCount());
-        scanTypeCounts.put("restSoap", summary.getRestSoapCount());
-        scanTypeCounts.put("securityApi", summary.getSecurityApiCount());
-        scanTypeCounts.put("jmsMessaging", summary.getJmsMessagingCount());
-        scanTypeCounts.put("buildConfig", summary.getBuildConfigCount());
-        scanTypeCounts.put("configFiles", summary.getConfigFileCount());
-        scanTypeCounts.put("deprecatedApi", summary.getDeprecatedApiCount());
-        scanTypeCounts.put("transitiveDependency", summary.getTransitiveDependencyCount());
-
-        String[] scanTypesWithRecipes = {
-            "jpa", "beanValidation", "servletJsp", "cdiInjection", "restSoap",
-            "securityApi", "jmsMessaging", "buildConfig", "configFiles", "deprecatedApi"
-        };
-
-        for (String scanType : scanTypesWithRecipes) {
-            Integer count = scanTypeCounts.get(scanType);
-            if (count != null && count > 0) {
-                issuesWithRecipes += count;
-            }
-        }
-
-        return issuesWithRecipes;
+        return summary.getTotalIssuesWithRecipes();
     }
 
     private int calculateEffortScore() {

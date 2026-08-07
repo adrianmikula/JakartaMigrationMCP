@@ -63,6 +63,13 @@ public class MigrationAnalysisService {
     }
 
     /**
+     * Gets the underlying dependency analysis module.
+     */
+    public DependencyAnalysisModule getDependencyAnalysisModule() {
+        return dependencyAnalysisModule;
+    }
+
+    /**
      * Gets the dependency graph for a project.
      *
      * @param projectPath Path to the project root directory

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -292,6 +293,36 @@ class GraphLayoutStrategyTest {
             }
         }
         assertFalse(allSamePosition, "Nodes should have distinct positions after setNodesAndEdges");
+    }
+
+    @Test
+    @DisplayName("TreeLayoutStrategy should not stack overflow on cyclic graph")
+    void testTreeLayoutStrategyHandlesCycle() {
+        GraphLayoutStrategy strategy = new TreeLayoutStrategy();
+        List<GraphNode> nodes = createTestNodes(2);
+        List<GraphEdge> edges = new ArrayList<>();
+        edges.add(new GraphEdge(nodes.get(0), nodes.get(1), GraphEdge.EdgeType.DEPENDENCY, false));
+        edges.add(new GraphEdge(nodes.get(1), nodes.get(0), GraphEdge.EdgeType.DEPENDENCY, false));
+
+        assertDoesNotThrow(() -> strategy.layout(nodes, edges, 800, 600));
+    }
+
+    @Test
+    @DisplayName("HierarchicalLayoutStrategy should not freeze on cyclic graph")
+    void testHierarchicalLayoutStrategyHandlesCycle() {
+        GraphLayoutStrategy strategy = new HierarchicalLayoutStrategy();
+        List<GraphNode> nodes = createTestNodesWithRoot(3);
+        List<GraphEdge> edges = new ArrayList<>();
+        edges.add(new GraphEdge(nodes.get(0), nodes.get(1), GraphEdge.EdgeType.DEPENDENCY, false));
+        edges.add(new GraphEdge(nodes.get(1), nodes.get(2), GraphEdge.EdgeType.DEPENDENCY, false));
+        edges.add(new GraphEdge(nodes.get(2), nodes.get(1), GraphEdge.EdgeType.DEPENDENCY, false));
+
+        assertTimeoutPreemptively(Duration.ofMillis(500), () -> strategy.layout(nodes, edges, 800, 600));
+
+        for (GraphNode node : nodes) {
+            assertFalse(Double.isNaN(node.getX()), "Node X should not be NaN");
+            assertFalse(Double.isNaN(node.getY()), "Node Y should not be NaN");
+        }
     }
 
     // Helper methods

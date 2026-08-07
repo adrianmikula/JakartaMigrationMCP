@@ -17,7 +17,11 @@ import java.util.stream.Stream;
 /**
  * ASM-based implementation of BytecodeAnalyzer.
  * Fast, lightweight bytecode analysis for Jakarta migration verification.
+ *
+ * @deprecated Use {@link adrianmikula.jakartamigration.jaranalysis.service.BytecodeSignalExtractor} instead.
+ *             This class is retained for backward compatibility with {@link RuntimeVerificationModuleImpl}.
  */
+@Deprecated
 public class AsmBytecodeAnalyzer implements BytecodeAnalyzer {
     
     private final Set<String> javaxClasses = new HashSet<>();

@@ -8,13 +8,19 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.net.URLEncoder;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Simplified Maven Central lookup service with fuzzy matching capabilities.
@@ -24,21 +30,61 @@ import java.util.concurrent.CompletableFuture;
 public class ImprovedMavenCentralLookupService {
     
     private static final String MAVEN_CENTRAL_API = "https://search.maven.org/solrsearch/select";
-    private static final String MAVEN_CENTRAL_FALLBACK = "https://search.maven.org/solrsearch/select";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     
     // HTTP client is instance field to allow mocking in tests
     private HttpClient httpClient;
     
+    // TTL for cached Maven Central lookup results; configurable via env var or system property (minutes)
+    private static final Duration LOOKUP_CACHE_TTL = Duration.ofMinutes(
+            getConfigLong("JAKARTA_MAVEN_CACHE_TTL_MINUTES", "jakarta.maven.cache.ttl.minutes", 30L));
+
+    // Per-request timeout for Maven Central API calls; configurable via env var or system property (seconds)
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(
+            getConfigLong("JAKARTA_MAVEN_LOOKUP_TIMEOUT_SECONDS", "jakarta.maven.lookup.timeout.seconds", 30L));
+
+    // HTTP connect timeout for Maven Central API calls; configurable via env var or system property (seconds)
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(
+            getConfigLong("JAKARTA_MAVEN_CONNECT_TIMEOUT_SECONDS", "jakarta.maven.connect.timeout.seconds", 10L));
+
+    private record CacheEntry(List<JakartaArtifactMatch> results, Instant cachedAt) {}
+
+    // Session-scoped cache: groupId:artifactId → results (includes misses)
+    private final ConcurrentHashMap<String, CacheEntry> lookupCache = new ConcurrentHashMap<>();
+
+    // Dedicated worker pool for blocking Maven Central HTTP calls so we don't exhaust the ForkJoinPool common pool
+    private static final AtomicInteger LOOKUP_THREAD_COUNTER = new AtomicInteger(0);
+    private static final ExecutorService LOOKUP_WORKER = Executors.newFixedThreadPool(
+            getConfigInt("JAKARTA_MAVEN_LOOKUP_THREADS", "jakarta.maven.lookup.threads", 4),
+            r -> {
+                Thread t = new Thread(r, "maven-lookup-worker-" + LOOKUP_THREAD_COUNTER.incrementAndGet());
+                t.setDaemon(true);
+                return t;
+            });
+
+    // OpenRewrite package renames used when coordinate searches fail for unknown libraries.
+    private final Map<String, String> packageRenameMap;
+
     public ImprovedMavenCentralLookupService() {
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(15))
-                .build();
+        this(HttpClient.newBuilder()
+                .connectTimeout(CONNECT_TIMEOUT)
+                .build(), Map.of());
     }
-    
+
+    public ImprovedMavenCentralLookupService(Map<String, String> packageRenameMap) {
+        this(HttpClient.newBuilder()
+                .connectTimeout(CONNECT_TIMEOUT)
+                .build(), packageRenameMap);
+    }
+
     // Package-private constructor for testing with mocked HTTP client
     ImprovedMavenCentralLookupService(HttpClient httpClient) {
+        this(httpClient, Map.of());
+    }
+
+    ImprovedMavenCentralLookupService(HttpClient httpClient, Map<String, String> packageRenameMap) {
         this.httpClient = httpClient;
+        this.packageRenameMap = packageRenameMap != null ? packageRenameMap : Map.of();
     }
     
     // Common artifact name mappings for fuzzy matching
@@ -64,6 +110,9 @@ public class ImprovedMavenCentralLookupService {
         ARTIFACT_MAPPINGS.put("javax.mail-api", "jakarta.mail-api");
         ARTIFACT_MAPPINGS.put("javax.enterprise.cdi-api", "jakarta.enterprise.cdi-api");
         ARTIFACT_MAPPINGS.put("javax.security.enterprise-api", "jakarta.security.enterprise-api");
+        ARTIFACT_MAPPINGS.put("jaxb-api", "jakarta.xml.bind-api");
+        ARTIFACT_MAPPINGS.put("jaxws-api", "jakarta.xml.ws-api");
+        ARTIFACT_MAPPINGS.put("javax.json.bind-api", "jakarta.json.bind-api");
 
         // Spring Framework Ecosystem mappings (Boot 2.x → 3.x, Framework 5.x → 6.x)
         ARTIFACT_MAPPINGS.put("spring-boot-starter-web", "spring-boot-starter-web");
@@ -144,6 +193,8 @@ public class ImprovedMavenCentralLookupService {
         GROUP_MAPPINGS.put("javax.security", "jakarta.security");
         GROUP_MAPPINGS.put("javax.servlet.jsp", "jakarta.servlet.jsp");
         GROUP_MAPPINGS.put("javax.servlet.jsp.jstl", "jakarta.servlet.jsp.jstl");
+        GROUP_MAPPINGS.put("javax.json.bind", "jakarta.json.bind");
+        GROUP_MAPPINGS.put("javax.xml.soap", "jakarta.xml.soap");
 
         // Spring Framework Ecosystem group mappings
         // Spring Boot and Framework stay in org.springframework.boot|framework groups
@@ -187,26 +238,33 @@ public class ImprovedMavenCentralLookupService {
             String groupId,
             String artifactId,
             String version,
-            boolean found
+            boolean found,
+            double confidence
     ) {
         public static JakartaArtifactMatch notFound() {
-            return new JakartaArtifactMatch(null, null, null, false);
+            return new JakartaArtifactMatch(null, null, null, false, 0.0);
         }
         
         public static JakartaArtifactMatch of(String groupId, String artifactId, String version) {
-            return new JakartaArtifactMatch(groupId, artifactId, version, true);
+            return new JakartaArtifactMatch(groupId, artifactId, version, true, 1.0);
+        }
+
+        public static JakartaArtifactMatch of(String groupId, String artifactId, String version, double confidence) {
+            double clamped = Math.max(0.0, Math.min(1.0, confidence));
+            return new JakartaArtifactMatch(groupId, artifactId, version, true, clamped);
         }
     }
     
     /**
      * Finds Jakarta equivalent artifacts with fuzzy matching strategies.
+     * Uses session-scoped cache and static-mapping fast path to minimize network calls.
      */
     public CompletableFuture<List<JakartaArtifactMatch>> findJakartaEquivalents(
             String javaxGroupId, 
             String javaxArtifactId) {
         
-        log.info("Searching for Jakarta equivalents for javax dependency: {}:{}", javaxGroupId, javaxArtifactId);
-        
+        log.debug("Searching for Jakarta equivalents for {}:{}", javaxGroupId, javaxArtifactId);
+
         // Input validation
         if (javaxGroupId == null || javaxGroupId.trim().isEmpty() || 
             javaxArtifactId == null || javaxArtifactId.trim().isEmpty()) {
@@ -217,6 +275,27 @@ public class ImprovedMavenCentralLookupService {
         // Normalize to lowercase for case-insensitive matching
         String normalizedGroupId = javaxGroupId.toLowerCase();
         String normalizedArtifactId = javaxArtifactId.toLowerCase();
+        String cacheKey = normalizedGroupId + ":" + normalizedArtifactId;
+        
+        // T2: Session-scoped cache check
+        List<JakartaArtifactMatch> cached = getCached(cacheKey);
+        if (cached != null) {
+            log.debug("Cache hit for {}:{}", normalizedGroupId, normalizedArtifactId);
+            return CompletableFuture.completedFuture(cached);
+        }
+        
+        // T3: Static-mapping fast path — check ARTIFACT_MAPPINGS and GROUP_MAPPINGS before network calls
+        List<JakartaArtifactMatch> fastPathResult = tryStaticMappingFastPath(normalizedGroupId, normalizedArtifactId);
+        if (fastPathResult != null) {
+            putCache(cacheKey, fastPathResult);
+            log.info("Static mapping fast path found {} results for {}:{}", fastPathResult.size(), normalizedGroupId, normalizedArtifactId);
+            return CompletableFuture.completedFuture(fastPathResult);
+        }
+        
+        // Skip network lookup for coordinates that are not plausible Jakarta candidates
+        if (!isJakartaCandidate(normalizedGroupId, normalizedArtifactId)) {
+            return CompletableFuture.completedFuture(List.of());
+        }
         
         return CompletableFuture.supplyAsync(() -> {
             List<JakartaArtifactMatch> allResults = new ArrayList<>();
@@ -232,14 +311,201 @@ public class ImprovedMavenCentralLookupService {
             allResults.addAll(searchWithSpringBootVersionStrategy(normalizedGroupId, normalizedArtifactId));
             
             // Remove duplicates and return first few results
+            // Prefer Jakarta-namespace matches and drop the original javax coordinate
+            String originalKey = normalizedGroupId + ":" + normalizedArtifactId;
             List<JakartaArtifactMatch> uniqueResults = allResults.stream()
                     .distinct()
+                    .filter(match -> match.groupId() != null && match.artifactId() != null)
+                    .filter(match -> {
+                        String key = match.groupId() + ":" + match.artifactId();
+                        return !(key.equals(originalKey) && normalizedGroupId.startsWith("javax."));
+                    })
+                    .sorted((a, b) -> Integer.compare(jakartaScore(b), jakartaScore(a)))
                     .limit(5) // Limit to top 5 results
                     .toList();
             
+            // T2: Cache both hits and misses
+            putCache(cacheKey, uniqueResults);
+            
             log.info("Found {} unique Jakarta artifacts for {}:{}", uniqueResults.size(), javaxGroupId, javaxArtifactId);
             return uniqueResults;
-        });
+        }, LOOKUP_WORKER);
+    }
+    
+    /**
+     * Finds Jakarta equivalents, optionally using detected javax package names to drive
+     * the search via OpenRewrite package rename mappings.
+     */
+    public CompletableFuture<List<JakartaArtifactMatch>> findJakartaEquivalents(
+            String javaxGroupId,
+            String javaxArtifactId,
+            java.util.Collection<String> javaxPackages) {
+
+        return CompletableFuture.supplyAsync(() -> {
+            List<JakartaArtifactMatch> coordinateMatches = findJakartaEquivalents(javaxGroupId, javaxArtifactId).join();
+            if (!coordinateMatches.isEmpty()) {
+                return coordinateMatches;
+            }
+            if (javaxPackages == null || javaxPackages.isEmpty() || packageRenameMap.isEmpty()) {
+                return List.of();
+            }
+            List<JakartaArtifactMatch> packageMatches = searchByPackageRename(javaxPackages);
+            if (!packageMatches.isEmpty()) {
+                log.info("Package-rename search found {} candidate(s) for {}:{}",
+                    packageMatches.size(), javaxGroupId, javaxArtifactId);
+            }
+            return packageMatches;
+        }, LOOKUP_WORKER);
+    }
+
+    private List<JakartaArtifactMatch> searchByPackageRename(java.util.Collection<String> javaxPackages) {
+        List<JakartaArtifactMatch> all = new ArrayList<>();
+        for (String javaxPackage : javaxPackages) {
+            String jakartaPackage = packageRenameMap.get(javaxPackage);
+            if (jakartaPackage != null && !jakartaPackage.isEmpty()) {
+                List<JakartaArtifactMatch> candidates = performSearchByGroup(jakartaPackage);
+                for (JakartaArtifactMatch candidate : candidates) {
+                    double confidence = confidenceForPackageRename(jakartaPackage, candidate);
+                    all.add(JakartaArtifactMatch.of(
+                            candidate.groupId(), candidate.artifactId(), candidate.version(), confidence));
+                }
+            }
+        }
+        return all.stream()
+                .distinct()
+                .filter(match -> match.groupId() != null && match.artifactId() != null)
+                .sorted((a, b) -> Integer.compare(jakartaScore(b), jakartaScore(a)))
+                .limit(5)
+                .toList();
+    }
+
+    /**
+     * Scores how confident we are that a Maven Central candidate is the Jakarta equivalent
+     * of a package detected in the bytecode. Higher when the candidate's groupId exactly matches
+     * the expected jakarta package prefix and when the artifactId contains the package's tail segment.
+     */
+    private double confidenceForPackageRename(String expectedJakartaPackage, JakartaArtifactMatch match) {
+        double confidence = 0.5;
+        String groupId = match.groupId();
+        String artifactId = match.artifactId();
+        if (expectedJakartaPackage.equals(groupId)) {
+            confidence += 0.4;
+        } else if (groupId != null && groupId.startsWith(expectedJakartaPackage + ".")) {
+            confidence += 0.2;
+        }
+        if (artifactId != null) {
+            int lastDot = expectedJakartaPackage.lastIndexOf('.');
+            String tail = lastDot >= 0 ? expectedJakartaPackage.substring(lastDot + 1) : expectedJakartaPackage;
+            if (artifactId.contains(tail)) {
+                confidence += 0.1;
+            }
+        }
+        return Math.min(1.0, confidence);
+    }
+
+    private List<JakartaArtifactMatch> performSearchByGroup(String groupId) {
+        return performSearchWithEndpoint(MAVEN_CENTRAL_API, groupId, null);
+    }
+
+    /**
+     * Returns a cached result only if it has not exceeded the configured TTL; stale entries are removed.
+     */
+    private List<JakartaArtifactMatch> getCached(String key) {
+        CacheEntry entry = lookupCache.get(key);
+        if (entry == null) {
+            return null;
+        }
+        if (Duration.between(entry.cachedAt(), Instant.now()).compareTo(LOOKUP_CACHE_TTL) > 0) {
+            lookupCache.remove(key, entry);
+            return null;
+        }
+        return entry.results();
+    }
+
+    /**
+     * Stores a lookup result with the current timestamp.
+     */
+    private void putCache(String key, List<JakartaArtifactMatch> results) {
+        lookupCache.put(key, new CacheEntry(results, Instant.now()));
+    }
+
+    /**
+     * Scores a match by how strongly it looks like a Jakarta artifact.
+     */
+    private static boolean isJakartaCandidate(String groupId, String artifactId) {
+        if (groupId.startsWith("javax.") || groupId.startsWith("jakarta.")
+                || groupId.contains("jakarta") || groupId.contains("javax") || groupId.contains("ee4j")) {
+            return true;
+        }
+        if (ARTIFACT_MAPPINGS.containsKey(artifactId) || GROUP_MAPPINGS.containsKey(groupId)) {
+            return true;
+        }
+        for (String prefix : GROUP_MAPPINGS.keySet()) {
+            if (groupId.equals(prefix) || groupId.startsWith(prefix + ".")) {
+                return true;
+            }
+        }
+        String lowerArtifact = artifactId.toLowerCase();
+        return lowerArtifact.startsWith("javax.") || lowerArtifact.startsWith("jakarta.")
+                || lowerArtifact.contains("jakarta") || lowerArtifact.contains("javax");
+    }
+
+    private static int jakartaScore(JakartaArtifactMatch match) {
+        int score = 0;
+        if (match.groupId() != null) {
+            if (match.groupId().startsWith("jakarta.")) score += 20;
+            if (match.groupId().contains("jakarta")) score += 5;
+        }
+        if (match.artifactId() != null) {
+            if (match.artifactId().startsWith("jakarta.")) score += 10;
+            if (match.artifactId().contains("jakarta")) score += 3;
+        }
+        return score;
+    }
+
+    /**
+     * T3: Static-mapping fast path — returns known Jakarta equivalents without network calls,
+     * or null if no static mapping exists.
+     */
+    private List<JakartaArtifactMatch> tryStaticMappingFastPath(String groupId, String artifactId) {
+        String mappedGroupId = groupId;
+        String mappedArtifactId = artifactId;
+
+        // Check artifact name mapping (e.g., javax.servlet-api → jakarta.servlet-api)
+        String artifactMapping = ARTIFACT_MAPPINGS.get(artifactId);
+        if (artifactMapping != null) {
+            mappedArtifactId = artifactMapping;
+            if (groupId.startsWith("javax.")) {
+                mappedGroupId = "jakarta." + groupId.substring("javax.".length());
+            }
+            // A group mapping may override the derived jakarta group (e.g. com.sun.jersey)
+            String groupMapping = GROUP_MAPPINGS.get(groupId);
+            if (groupMapping != null) {
+                mappedGroupId = groupMapping;
+            }
+        } else {
+            // Check group name mapping (e.g., javax.servlet → jakarta.servlet)
+            String groupMapping = GROUP_MAPPINGS.get(groupId);
+            if (groupMapping == null) {
+                return null;
+            }
+            mappedGroupId = groupMapping;
+        }
+
+        // Trivial self-mapping (e.g. org.apache.cxf → org.apache.cxf): don't duplicate
+        // the exact-match network call; return the mapped coordinate straight away.
+        if (mappedGroupId.equals(groupId) && mappedArtifactId.equals(artifactId)) {
+            return List.of(JakartaArtifactMatch.of(mappedGroupId, mappedArtifactId, null));
+        }
+
+        // Hydrate the static mapping with a live Maven Central lookup so the result
+        // includes the real latestVersion. Fall back to the mapped coordinate with a
+        // null version if Maven Central is unreachable or has no match.
+        List<JakartaArtifactMatch> liveResults = performMavenCentralSearch(mappedGroupId, mappedArtifactId);
+        if (!liveResults.isEmpty()) {
+            return liveResults;
+        }
+        return List.of(JakartaArtifactMatch.of(mappedGroupId, mappedArtifactId, null));
     }
     
     /**
@@ -571,21 +837,10 @@ public class ImprovedMavenCentralLookupService {
     }
 
     /**
-     * Performs the actual Maven Central search with fallback endpoints
+     * Performs the actual Maven Central search
      */
     private List<JakartaArtifactMatch> performMavenCentralSearch(String groupId, String artifactId) {
-        List<JakartaArtifactMatch> results = new ArrayList<>();
-        
-        // Try the primary endpoint first
-        results.addAll(performSearchWithEndpoint(MAVEN_CENTRAL_API, groupId, artifactId));
-        
-        // If no results, try alternative endpoint
-        if (results.isEmpty()) {
-            log.info("No results from primary endpoint, trying alternative...");
-            results.addAll(performSearchWithEndpoint(MAVEN_CENTRAL_FALLBACK, groupId, artifactId));
-        }
-        
-        return results;
+        return performSearchWithEndpoint(MAVEN_CENTRAL_API, groupId, artifactId);
     }
     
     /**
@@ -593,23 +848,22 @@ public class ImprovedMavenCentralLookupService {
      */
     private List<JakartaArtifactMatch> performSearchWithEndpoint(String endpoint, String groupId, String artifactId) {
         try {
-            String searchQuery = "g:" + groupId + " AND a:" + artifactId;
-            String url = endpoint + "?q=" + URLEncoder.encode(searchQuery, "UTF-8") + "&rows=5&wt=json";
-            
-            log.info("Querying Maven Central: {}", url);
+            String searchQuery = (artifactId != null && !artifactId.isEmpty())
+                    ? "g:" + groupId + " AND a:" + artifactId
+                    : "g:" + groupId;
+            int rows = (artifactId != null && !artifactId.isEmpty()) ? 5 : 20;
+            String url = endpoint + "?q=" + URLEncoder.encode(searchQuery, "UTF-8") + "&rows=" + rows + "&wt=json";
             
             log.debug("[MavenLookup] Querying: {}", url);
             
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(15))
+                    .timeout(REQUEST_TIMEOUT)
                     .GET()
                     .header("User-Agent", "Jakarta-Migration-MCP/1.0")
                     .build();
             
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            
-            log.info("Maven Central response status: {} for query: {}", response.statusCode(), searchQuery);
             
             log.debug("[MavenLookup] Response status: {}", response.statusCode());
             
@@ -628,6 +882,9 @@ public class ImprovedMavenCentralLookupService {
             return new ArrayList<>();
         } catch (java.net.SocketTimeoutException e) {
             log.warn("Timeout connecting to Maven Central endpoint {}: {}", endpoint, e.getMessage());
+            return new ArrayList<>();
+        } catch (HttpTimeoutException e) {
+            log.warn("Request timed out querying Maven Central endpoint {} for {}:{}", endpoint, groupId, artifactId);
             return new ArrayList<>();
         } catch (Exception e) {
             log.warn("Error querying Maven Central endpoint {} for {}:{}", endpoint, groupId, artifactId, e);
@@ -656,6 +913,9 @@ public class ImprovedMavenCentralLookupService {
                     String foundGroupId = docNode.path("g").asText();
                     String foundArtifactId = docNode.path("a").asText();
                     String version = docNode.path("latestVersion").asText();
+                    if (version.isEmpty()) {
+                        version = docNode.path("v").asText();
+                    }
                     
                     log.debug("[MavenLookup] Found artifact: {}:{}:{}", foundGroupId, foundArtifactId, version);
                     
@@ -672,5 +932,29 @@ public class ImprovedMavenCentralLookupService {
         }
         
         return results;
+    }
+
+    private static long getConfigLong(String envKey, String sysKey, long defaultValue) {
+        String envValue = System.getenv(envKey);
+        if (envValue != null && !envValue.isEmpty()) {
+            try {
+                return Long.parseLong(envValue);
+            } catch (NumberFormatException ignored) {
+                // fall through to system property or default
+            }
+        }
+        return Long.getLong(sysKey, defaultValue);
+    }
+
+    private static int getConfigInt(String envKey, String sysKey, int defaultValue) {
+        String envValue = System.getenv(envKey);
+        if (envValue != null && !envValue.isEmpty()) {
+            try {
+                return Integer.parseInt(envValue);
+            } catch (NumberFormatException ignored) {
+                // fall through to system property or default
+            }
+        }
+        return Integer.getInteger(sysKey, defaultValue);
     }
 }

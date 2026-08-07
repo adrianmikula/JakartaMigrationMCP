@@ -23,7 +23,7 @@ public class LocalCommandExecutor implements CommandExecutor {
 
     @Override
     public ExecResult exec(String command, Path workingDir, int timeoutSeconds) throws IOException {
-        String[] parts = command.split(" ");
+        String[] parts = CommandTokenizer.tokenize(command);
         ProcessBuilder pb = processBuilderFactory.create(parts, workingDir);
         pb.redirectErrorStream(false);
         Process process = pb.start();

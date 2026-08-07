@@ -17,17 +17,17 @@
 
     <!-- optional: This should be set to true if you would like to add the free functionality to your plugin. -->
 
-    <product-descriptor 
-        code="PJAKARTAMIGRATI" 
-        release-date="20260101" 
-        release-version="10"
+    <product-descriptor
+        code="PJAKARTAMIGRATI"
+        release-date="20260701"
+        release-version="11"
         optional="true"/>
     
     <!-- idea-version: Exclude the until-build attribute entirely, giving open-ended compatibility with all future IntelliJ versions. -->
     <idea-version since-build="242" />
 
     <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
-    <version>1.0.18</version>
+    <version>1.1.0</version>
 
     <name>Jakarta Migration (javax to jakarta)</name>
     <id>com.adrianmikula.jakarta-migration</id>
@@ -40,6 +40,11 @@
 
     <p>Migrate from Java EE 8 (javax.*) to Jakarta EE 9+ seamlessly. This plugin analyzes dependencies, detects migration blockers, and automates refactoring with OpenRewrite.</p>
 
+    <h3>⚠️ Free Trial Temporarily Unavailable</h3>
+    <p>The free trial has been paused. We want to bring it back, but we need your help to make this project sustainable.</p>
+    <p><b><a href="https://github.com/sponsors/adrianmikula">Sponsor this project on GitHub</a></b> to help cover the time and effort of ongoing development. If this plugin has saved you hours of migration work, please consider giving back so we can continue building features and restore free trial access.</p>
+    <p><i>Note: The free trial can still be accessed by installing v1.0 of this plugin.</i></p>
+
     <h3>Why Jakarta EE?</h3>
     <p>After Oracle donated Java EE to the Eclipse Foundation, the javax.* namespace became jakarta.*. If your code uses old application servers which depend on Java EE, you need this migration in order to upgrade.</p>
 
@@ -50,6 +55,7 @@
     <ul>
     <li>- <b>Risk Estimate</b> - Estimate the risk and effort of migrating</li>
     <li>- <b>Dependency Scans</b> - Detect which dependencies are Jakarta EE compatible</li>
+    <li>- <b>Deep Transitive Scanning</b> - Scan the full transitive dependency tree for hidden javax.* references</li>
     <li>- <b>Dependency Recommendations</b> - Find Jakarta-compatible versions</li>
     <li>- <b>Platform Scans</b> - Detect frameworks and appservers which need to be upgraded</li>
     <li>- <b>Source Scans</b> - Detect all code lines which need to be refactored</li>
@@ -58,6 +64,7 @@
     <li>- <b>Dependency Graphs</b> - Visualize your module dependencies</li>
     <li>- <b>Auto-Refactoring</b> - OpenRewrite-powered refactor recipes</li>
     <li>- <b>Undo history</b> - Undo previously applied refactors</li>
+    <li>- <b>Advanced Refactor</b> - Safely test complex refactor sequences in sandboxed testcontainers before applying</li>
     </ul>
 
     <h3>Experimental Features</h3>
@@ -186,6 +193,24 @@
 
 
     <change-notes><![CDATA[
+    <h>1.1.0 - 2026-07-27</h>
+    <ul>
+        <li><b>Added:</b> Dynamic Jakarta compatibility detection - bytecode-driven fallback classification detects any <code>javax.*</code> / <code>jakarta.*</code> package usage, not only the six hardcoded packages</li>
+        <li><b>Added:</b> Package-rename-driven Maven Central lookup - when a coordinate is unknown, the scanner maps detected <code>javax.*</code> packages to <code>jakarta.*</code> groups and searches Maven Central for compatible artifacts</li>
+        <li><b>Added:</b> Multi-module Gradle project support and Gradle Tooling API integration for more reliable dependency scanning</li>
+        <li><b>Improved:</b> Jakarta detection confidence scoring, caching, and expanded bytecode signal coverage</li>
+        <li><b>Fixed:</b> ~90% false negatives in quick and deep dependency scans</li>
+        <li><b>Fixed:</b> Dependency graph scanning and progress bar styling</li>
+        <li><b>Fixed:</b> Experiments not appearing in the History UI</li>
+        <li><b>Fixed:</b> Gradle <code>--configuration</code> flag misuse in multi-module builds</li>
+        <li><b>Fixed:</b> Error propagation and EDT threading issues in dependency scanning</li>
+        <li><b>Fixed:</b> IDE dev-mode launch no longer requires a license</li>
+    </ul>
+    <h>1.0.19 - 2026-07-22</h>
+    <ul>
+        <li><b>Added:</b> Advanced Refactor - Safely test complex refactor sequences in sandboxed testcontainers before applying to your codebase</li>
+        <li>Shortened free trial unavailable notification message</li>
+    </ul>
     <h>1.0.18 - 2026-05-28</h>
     <ul>
         <li>Version bump to 1.0.18</li>

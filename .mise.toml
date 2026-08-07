@@ -12,12 +12,11 @@
 # ───────────────────────────────────────────────────────────────────────────────
 
 [tools]
-java = "zulu-21-crac"
+java = "zulu-crac-21.50.19.0"
 gradle = "8.5"
 node = "20.11.0"
 
 [env]
-JAVA_HOME = "/usr/lib/jvm/zulu-21-crac-amd64"
 DB_USERNAME = "postgres"
 DB_PASSWORD = "postgres"
 REDIS_HOST = "localhost"
@@ -130,7 +129,7 @@ run = "curl http://localhost:8080/actuator/health"
 
 [tasks.crac-start]
 description = "Start MCP server with CRaC checkpoint enabled"
-run = "JAVA_HOME=/usr/lib/jvm/zulu-21-crac-amd64 java -XX:CRaCCheckpointTo=/tmp/crac-checkpoint -jar community-mcp-server/build/libs/jakarta-migration-mcp.jar"
+run = "java -XX:CRaCCheckpointTo=/tmp/crac-checkpoint -jar community-mcp-server/build/libs/jakarta-migration-mcp.jar"
 
 [tasks.crac-checkpoint]
 description = "Trigger CRaC checkpoint on running server"
@@ -138,4 +137,4 @@ run = "jcmd $(jcmd -l | grep jakarta-migration | cut -d' ' -f1) JDK.checkpoint"
 
 [tasks.crac-restore]
 description = "Restore from CRaC checkpoint"
-run = "JAVA_HOME=/usr/lib/jvm/zulu-21-crac-amd64 java -XX:CRaCRestoreFrom=/tmp/crac-checkpoint"
+run = "java -XX:CRaCRestoreFrom=/tmp/crac-checkpoint"

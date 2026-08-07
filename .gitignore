@@ -87,3 +87,6 @@ stdout.txt
 
 #Ignore vscode AI rules
 .github/instructions/codacy.instructions.md
+
+# Jakarta refactoring history
+.experiments

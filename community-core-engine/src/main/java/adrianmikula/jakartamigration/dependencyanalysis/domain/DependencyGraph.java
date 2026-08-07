@@ -24,18 +24,18 @@ public class DependencyGraph {
     public DependencyGraph(
             @JsonProperty("nodes") Set<Artifact> nodes,
             @JsonProperty("edges") Set<Dependency> edges) {
-        this.nodes = nodes != null ? new HashSet<>(nodes) : new HashSet<>();
-        this.edges = edges != null ? new HashSet<>(edges) : new HashSet<>();
+        this.nodes = nodes != null ? nodes : new HashSet<>();
+        this.edges = edges != null ? edges : new HashSet<>();
     }
 
     @JsonProperty("nodes")
     public Set<Artifact> getNodes() {
-        return new HashSet<>(nodes);
+        return nodes;
     }
 
     @JsonProperty("edges")
     public Set<Dependency> getEdges() {
-        return new HashSet<>(edges);
+        return edges;
     }
 
     public void addNode(Artifact artifact) {
@@ -54,6 +54,20 @@ public class DependencyGraph {
 
     public boolean containsEdge(Dependency dependency) {
         return edges.contains(dependency);
+    }
+
+    /**
+     * Merges all nodes and edges from another graph into this one.
+     * Deduplicates by artifact identity (groupId:artifactId:version:scope).
+     */
+    public void merge(DependencyGraph other) {
+        if (other == null) return;
+        for (Artifact node : other.nodes) {
+            nodes.add(node);
+        }
+        for (Dependency edge : other.edges) {
+            edges.add(edge);
+        }
     }
 
     public int nodeCount() {

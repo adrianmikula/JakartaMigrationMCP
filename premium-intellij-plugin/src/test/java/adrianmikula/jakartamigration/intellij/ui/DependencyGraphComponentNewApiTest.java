@@ -1,6 +1,7 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.junit.jupiter.api.BeforeEach;
@@ -275,6 +276,88 @@ public class DependencyGraphComponentNewApiTest extends BasePlatformTestCase {
             assertThat(node.getWidth()).isGreaterThan(0);
             assertThat(node.getHeight()).isGreaterThan(0);
         }
+    }
+
+    @Test
+    public void testEmptyDependencyGraphFallsBackToFlatList() throws Exception {
+        // Arrange - populate flat deps first
+        List<DependencyInfo> flatDeps = DependencyInfoTestFactory.createMultipleDependenciesList();
+        graphComponent.updateGraph(flatDeps);
+
+        // Act - send empty graph (should trigger fallback)
+        DependencyGraph emptyGraph = DependencyGraphTestFactory.createEmptyGraph();
+        graphComponent.updateDependencyGraph(emptyGraph);
+
+        // Assert - canvas should still have flat dependency nodes (root + 3)
+        GraphCanvas canvas = extractGraphCanvas(graphComponent);
+        List<GraphNode> nodes = GraphCanvasTestHelper.getNodes(canvas);
+        assertThat(nodes).hasSize(4);
+        assertThat(nodes).anyMatch(n -> "root:root".equals(n.getId()));
+        assertThat(nodes).anyMatch(n -> "org.example:dep1".equals(n.getId()));
+        assertThat(nodes).anyMatch(n -> "org.example:dep2".equals(n.getId()));
+        assertThat(nodes).anyMatch(n -> "org.example:dep3".equals(n.getId()));
+    }
+
+    @Test
+    public void testEmptyDependencyGraphWithStatusMapFallsBackAndAppliesStatuses() throws Exception {
+        // Arrange - populate flat deps first
+        List<DependencyInfo> flatDeps = DependencyInfoTestFactory.createSingleDependencyList();
+        graphComponent.updateGraph(flatDeps);
+
+        Map<String, DependencyMigrationStatus> statusMap = new HashMap<>();
+        statusMap.put("org.example:dep1", DependencyMigrationStatus.NEEDS_UPGRADE);
+
+        // Act - send empty graph with status map
+        DependencyGraph emptyGraph = DependencyGraphTestFactory.createEmptyGraph();
+        graphComponent.updateDependencyGraph(emptyGraph, statusMap);
+
+        // Assert - fallback node should have status from map
+        GraphCanvas canvas = extractGraphCanvas(graphComponent);
+        List<GraphNode> nodes = GraphCanvasTestHelper.getNodes(canvas);
+        assertThat(nodes).hasSize(2); // root + dep1
+
+        GraphNode dep1 = nodes.stream()
+            .filter(n -> "org.example:dep1".equals(n.getId()))
+            .findFirst()
+            .orElse(null);
+        assertThat(dep1).isNotNull();
+        assertThat(dep1.getMigrationStatus()).isEqualTo(DependencyMigrationStatus.NEEDS_UPGRADE);
+    }
+
+    @Test
+    public void testNullDependencyGraphFallsBackToFlatList() throws Exception {
+        // Arrange - populate flat deps first
+        List<DependencyInfo> flatDeps = DependencyInfoTestFactory.createMultipleDependenciesList();
+        graphComponent.updateGraph(flatDeps);
+
+        // Act - send null graph (should trigger fallback)
+        graphComponent.updateDependencyGraph(null);
+
+        // Assert - canvas should still have flat dependency nodes
+        GraphCanvas canvas = extractGraphCanvas(graphComponent);
+        List<GraphNode> nodes = GraphCanvasTestHelper.getNodes(canvas);
+        assertThat(nodes).hasSize(4);
+        assertThat(nodes).anyMatch(n -> "org.example:dep1".equals(n.getId()));
+    }
+
+    @Test
+    public void testNonEmptyDependencyGraphDoesNotFallBack() throws Exception {
+        // Arrange - populate flat deps first
+        List<DependencyInfo> flatDeps = DependencyInfoTestFactory.createMultipleDependenciesList();
+        graphComponent.updateGraph(flatDeps);
+
+        // Act - send non-empty graph (should replace flat deps)
+        DependencyGraph graph = DependencyGraphTestFactory.createSimpleGraph();
+        graphComponent.updateDependencyGraph(graph);
+
+        // Assert - should show graph nodes, not flat deps
+        GraphCanvas canvas = extractGraphCanvas(graphComponent);
+        List<GraphNode> nodes = GraphCanvasTestHelper.getNodes(canvas);
+        assertThat(nodes).hasSize(2); // root + dep1 from simple graph
+        assertThat(nodes).anyMatch(n -> "org.example:dep1".equals(n.getId()));
+        // dep2 and dep3 from flat list should NOT be present
+        assertThat(nodes).noneMatch(n -> "org.example:dep2".equals(n.getId()));
+        assertThat(nodes).noneMatch(n -> "org.example:dep3".equals(n.getId()));
     }
 
     // Helper method to extract GraphCanvas from DependencyGraphComponent

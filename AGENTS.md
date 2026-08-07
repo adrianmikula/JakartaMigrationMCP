@@ -123,7 +123,7 @@ Full coding standards are documented in AgentRules\CODING.md
 - Use pre-existing conventions/patterns 
 - Don't add fallback logic if it's not part of the requirements.
 
-Full simplicity guidelines are documented in docs\standards\simplicity_and_consistency.md
+Full simplicity guidelines are documented in docs/patterns/simplicity_and_consistency.md
 
 
 ### Automated Testing
@@ -145,6 +145,10 @@ Full testing standards are documented in AgentRules\TESTING.md and docs/FAST_TES
 - Avoid manually forcing GC calls inside our code. 
 - if loading large DB datasets into memory, use cursors or paging where possible
 
+Full memory efficiency patterns are documented in docs/patterns/memory_efficiency.md
+
+- When invoking external build tools (Gradle, Maven) from Java code, follow the standards in docs/patterns/build-tool-invocation.md — especially regarding resolvable configurations, wrapper detection, and build file discovery.
+
 
 
 ## Debugging
@@ -154,7 +158,7 @@ Full testing standards are documented in AgentRules\TESTING.md and docs/FAST_TES
 - Don't report that a bug is fixed based on a guess, assumption, or hunch. Always prove/test/verify that your solution actually fixed the problem
 - If a specific bug never gets fixed, even though the AI agent keeps trying different fixes and incorrectly reporting that the bug was successfully fixed, then change approach:
   1. Step back to look at the bigger picture
-  2. Optimise the problematic part of the code for Simplicity and Consistency (see docs/standards/simplicity_and_consistency.md)
+  2. Optimise the problematic part of the code for Simplicity and Consistency (see docs/patterns/simplicity_and_consistency.md)
   3. As a last resort, consider deleting and completely re-implementing the feature
 - Use the MCP server debugging flow: get_errors → get_logs → analyze → fix → verify
 - All logging must use SLF4J (`log.info`, `log.debug`, etc.) — never `System.out.println` in production code

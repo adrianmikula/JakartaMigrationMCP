@@ -3,7 +3,12 @@ package adrianmikula.jakartamigration.advancedscanning.service.impl;
 import adrianmikula.jakartamigration.advancedscanning.domain.ThirdPartyLibProjectScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.ThirdPartyLibUsage;
 import adrianmikula.jakartamigration.advancedscanning.service.ThirdPartyLibScanner;
-import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Namespace;
+import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
+import adrianmikula.jakartamigration.dependencyanalysis.util.MavenPomParser;
+import adrianmikula.jakartamigration.dependencyanalysis.util.GradleBuildParser;
+import adrianmikula.jakartamigration.scanning.RecipeBasedClassifier;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -24,23 +29,15 @@ import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 public class ThirdPartyLibScannerImpl implements ThirdPartyLibScanner {
 
     private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
-    private final CompatibilityConfigLoader compatibilityConfigLoader;
+    private final NamespaceClassifier namespaceClassifier;
 
     public ThirdPartyLibScannerImpl() {
-        this(new CompatibilityConfigLoader());
+        this(new RecipeBasedClassifier());
     }
 
-    public ThirdPartyLibScannerImpl(CompatibilityConfigLoader compatibilityConfigLoader) {
-        this.compatibilityConfigLoader = compatibilityConfigLoader;
+    public ThirdPartyLibScannerImpl(NamespaceClassifier namespaceClassifier) {
+        this.namespaceClassifier = namespaceClassifier;
     }
-
-    // Patterns for parsing Maven pom.xml
-    private static final Pattern MAVEN_DEPENDENCY_PATTERN = Pattern.compile(
-            "<dependency>\\s*<groupId>([^<]+)</groupId>\\s*<artifactId>([^<]+)</artifactId>\\s*<version>([^<]*)</version>");
-
-    // Patterns for parsing Gradle build.gradle
-    private static final Pattern GRADLE_DEPENDENCY_PATTERN = Pattern.compile(
-            "(implementation|compile|api|compileOnly|runtimeOnly|testImplementation)\\s*['\"]([^:]+):([^:]+):([^'\"]+)['\"]");
 
     @Override
     public ThirdPartyLibProjectScanResult scanProject(Path projectPath) {
@@ -116,34 +113,29 @@ public class ThirdPartyLibScannerImpl implements ThirdPartyLibScanner {
         List<ThirdPartyLibUsage> usages = new ArrayList<>();
 
         try {
-            String content = Files.readString(pomPath);
-            Matcher matcher = MAVEN_DEPENDENCY_PATTERN.matcher(content);
+            List<Map<String, String>> deps = MavenPomParser.parseDependencies(pomPath);
+            for (Map<String, String> dep : deps) {
+                String groupId = dep.get("groupId");
+                String artifactId = dep.get("artifactId");
+                String version = dep.getOrDefault("version", "unknown");
 
-            while (matcher.find()) {
-                String groupId = matcher.group(1).trim();
-                String artifactId = matcher.group(2).trim();
-                String version = matcher.group(3).trim();
-
-                // Classify using CompatibilityConfigLoader
-                CompatibilityConfigLoader.ArtifactClassification classification = 
-                        compatibilityConfigLoader.classifyArtifact(groupId, artifactId);
-
-                // Only add usages for dependencies that need attention
-                if (classification == CompatibilityConfigLoader.ArtifactClassification.JAKARTA_REQUIRED ||
-                    classification == CompatibilityConfigLoader.ArtifactClassification.CONTEXT_DEPENDENT) {
-                    
-                    String issueType = classification == CompatibilityConfigLoader.ArtifactClassification.JAKARTA_REQUIRED 
-                                      ? "outdated" : "partial-migration";
-                    String suggestedReplacement = "Replace with Jakarta EE equivalent";
-                    String libraryName = groupId + ":" + artifactId;
-
+                Namespace ns = classify(groupId, artifactId);
+                if (ns == Namespace.JAVAX) {
                     usages.add(new ThirdPartyLibUsage(
-                            libraryName,
+                            groupId + ":" + artifactId,
                             groupId,
                             artifactId,
                             version,
-                            issueType,
-                            suggestedReplacement));
+                            "outdated",
+                            "Replace with Jakarta EE equivalent"));
+                } else if (ns == Namespace.MIXED) {
+                    usages.add(new ThirdPartyLibUsage(
+                            groupId + ":" + artifactId,
+                            groupId,
+                            artifactId,
+                            version,
+                            "partial-migration",
+                            "Replace with Jakarta EE equivalent"));
                 }
             }
         } catch (IOException e) {
@@ -153,38 +145,46 @@ public class ThirdPartyLibScannerImpl implements ThirdPartyLibScanner {
         return usages;
     }
 
+    private Namespace classify(String groupId, String artifactId) {
+        if (namespaceClassifier == null) {
+            return Namespace.UNKNOWN;
+        }
+        try {
+            return namespaceClassifier.classify(new Artifact(groupId, artifactId, "unknown", "compile", false));
+        } catch (Exception e) {
+            log.warn("Namespace classification failed for {}:{}: {}", groupId, artifactId, e.getClass().getSimpleName() + ": " + e.getMessage());
+            return Namespace.UNKNOWN;
+        }
+    }
+
     private List<ThirdPartyLibUsage> scanGradleBuild(Path buildPath) {
         List<ThirdPartyLibUsage> usages = new ArrayList<>();
 
         try {
             String content = Files.readString(buildPath);
-            Matcher matcher = GRADLE_DEPENDENCY_PATTERN.matcher(content);
+            List<Map<String, String>> deps = GradleBuildParser.parseDependencies(content);
+            for (Map<String, String> dep : deps) {
+                String groupId = dep.get("groupId");
+                String artifactId = dep.get("artifactId");
+                String version = dep.getOrDefault("version", "unknown");
 
-            while (matcher.find()) {
-                String groupId = matcher.group(2).trim();
-                String artifactId = matcher.group(3).trim();
-                String version = matcher.group(4).trim();
-
-                // Classify using CompatibilityConfigLoader
-                CompatibilityConfigLoader.ArtifactClassification classification = 
-                        compatibilityConfigLoader.classifyArtifact(groupId, artifactId);
-
-                // Only add usages for dependencies that need attention
-                if (classification == CompatibilityConfigLoader.ArtifactClassification.JAKARTA_REQUIRED ||
-                    classification == CompatibilityConfigLoader.ArtifactClassification.CONTEXT_DEPENDENT) {
-                    
-                    String issueType = classification == CompatibilityConfigLoader.ArtifactClassification.JAKARTA_REQUIRED 
-                                      ? "outdated" : "partial-migration";
-                    String suggestedReplacement = "Replace with Jakarta EE equivalent";
-                    String libraryName = groupId + ":" + artifactId;
-
+                Namespace ns = classify(groupId, artifactId);
+                if (ns == Namespace.JAVAX) {
                     usages.add(new ThirdPartyLibUsage(
-                            libraryName,
+                            groupId + ":" + artifactId,
                             groupId,
                             artifactId,
                             version,
-                            issueType,
-                            suggestedReplacement));
+                            "outdated",
+                            "Replace with Jakarta EE equivalent"));
+                } else if (ns == Namespace.MIXED) {
+                    usages.add(new ThirdPartyLibUsage(
+                            groupId + ":" + artifactId,
+                            groupId,
+                            artifactId,
+                            version,
+                            "partial-migration",
+                            "Replace with Jakarta EE equivalent"));
                 }
             }
         } catch (IOException e) {

@@ -1,6 +1,6 @@
 name: Release Verification
 
-# This workflow runs the IntelliJ Plugin Verifier against IC-2024.3 and IC-2025.1.1
+# This workflow runs the IntelliJ Plugin Verifier against IC-2024.3, IC-2025.1, IC-2025.2, IC-2026.1, and IC-2026.2
 # It runs on pull requests and can be triggered manually for release preparation
 # This ensures API compatibility warnings are caught before Marketplace upload
 
@@ -60,26 +60,25 @@ jobs:
       - name: Set IDEA_HOME
         run: echo "IDEA_HOME=${{ runner.home }}/idea" >> $GITHUB_ENV
 
-      # premium-intellij-plugin is currently disabled (ideDir/IDE download issue blocks other modules)
-      # - name: Build plugin
-      #   run: ./gradlew :premium-intellij-plugin:buildPlugin --no-configuration-cache
-      #
-      # - name: Run Plugin Verifier
-      #   run: ./gradlew :premium-intellij-plugin:runPluginVerifier --no-configuration-cache
-      #
-      # - name: Upload verification reports
-      #   if: always()
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: plugin-verification-reports
-      #     path: |
-      #       premium-intellij-plugin/build/reports/pluginVerifier/
-      #     retention-days: 30
-      #     if-no-files-found: warn
-      #
-      # - name: Check verification results
-      #   if: failure()
-      #   run: |
-      #     echo "::error::Plugin verification failed! Check the uploaded artifacts for compatibility issues."
-      #     echo "::error::Review the HTML/TXT reports in premium-intellij-plugin/build/reports/pluginVerifier/"
-      #     exit 1
+      - name: Build plugin
+        run: ./gradlew :premium-intellij-plugin:buildPlugin --no-configuration-cache
+
+      - name: Run Plugin Verifier
+        run: ./gradlew :premium-intellij-plugin:runPluginVerifier --no-configuration-cache
+
+      - name: Upload verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-verification-reports
+          path: |
+            premium-intellij-plugin/build/reports/pluginVerifier/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Check verification results
+        if: failure()
+        run: |
+          echo "::error::Plugin verification failed! Check the uploaded artifacts for compatibility issues."
+          echo "::error::Review the HTML/TXT reports in premium-intellij-plugin/build/reports/pluginVerifier/"
+          exit 1

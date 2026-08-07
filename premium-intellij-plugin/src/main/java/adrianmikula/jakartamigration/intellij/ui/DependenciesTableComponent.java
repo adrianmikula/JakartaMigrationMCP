@@ -8,8 +8,10 @@ import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService.JakartaArtifactMatch;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
-import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader;
-import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader.ArtifactClassification;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Namespace;
+import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
+import adrianmikula.jakartamigration.scanning.RecipeBasedClassifier;
 import adrianmikula.jakartamigration.platforms.config.PlatformConfigLoader;
 import adrianmikula.jakartamigration.platforms.model.PlatformConfig;
 import adrianmikula.jakartamigration.credits.CreditsService;
@@ -64,11 +66,14 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
     // Truncation notice panel (shown for free users)
     private TruncationNoticePanel truncationNoticePanel;
 
+    // Error banner for build tool failures
+    private JLabel errorBannerLabel;
+
     // Recipes panel component (shared with tree view)
     private RecipesPanelComponent recipesPanel;
     private boolean isPremiumUser = false;
     private final PlatformConfigLoader platformConfigLoader;
-    private final CompatibilityConfigLoader compatibilityConfigLoader;
+    private final NamespaceClassifier namespaceClassifier;
     private final CreditsService creditsService;
     private final TruncationHelper truncationHelper;
 
@@ -82,12 +87,12 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         this.project = project;
         this.allDependencies = new ArrayList<>();
         this.platformConfigLoader = new PlatformConfigLoader();
-        this.compatibilityConfigLoader = new CompatibilityConfigLoader();
+        this.namespaceClassifier = new RecipeBasedClassifier();
         this.creditsService = new CreditsService();
         this.truncationHelper = new TruncationHelper();
         this.panel = new JBPanel<>(new BorderLayout());
 
-        // Columns with Jakarta Equivalent information and Scope
+        // Columns with Jakarta Equivalent information, Scope and Confidence
         String[] columns = {
                 "Group ID",
                 "Artifact ID",
@@ -97,6 +102,8 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
                 "Compatibility Status",
                 "Reason",
                 "Type",
+                "Details",
+                "Confidence",
                 "" // Hidden column for DependencyInfo object
         };
 
@@ -141,9 +148,9 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             
             isRendering = true;
             try {
-            // Status column is at index 5, Jakarta Equivalent at index 4, DependencyInfo at index 8
+            // Status column is at index 5, Jakarta Equivalent at index 4, DependencyInfo at index 10
             if (column == 5 && row < table.getModel().getRowCount()) {
-                Object depObj = table.getModel().getValueAt(row, 8);
+                Object depObj = table.getModel().getValueAt(row, 10);
                 if (depObj instanceof DependencyInfo) {
                     DependencyInfo dep = (DependencyInfo) depObj;
                     JPanel panel = new JPanel(new BorderLayout());
@@ -195,10 +202,10 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             if (isSelected) {
                 label.setBackground(table.getSelectionBackground());
             } else {
-                // Determine if this row is organizational (check hidden column at index 8)
+                // Determine if this row is organizational (check hidden column at index 10)
                 boolean isOrg = false;
                 if (row < table.getModel().getRowCount()) {
-                    Object depObj = table.getModel().getValueAt(row, 8);
+                    Object depObj = table.getModel().getValueAt(row, 10);
                     if (depObj instanceof DependencyInfo) {
                         isOrg = ((DependencyInfo) depObj).isOrganizational();
                     }
@@ -257,8 +264,9 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         });
         headerPanel.add(searchField);
 
+        // Status filter dropdown removed from the visible UI - not needed there,
+        // but keep the listener so programmatic/test selection still triggers filtering.
         statusFilter.addActionListener(e -> filterDependencies());
-        headerPanel.add(statusFilter);
 
         transitiveFilter.addActionListener(e -> filterDependencies());
         headerPanel.add(transitiveFilter);
@@ -271,7 +279,7 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         table.setFillsViewportHeight(true);
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
-        // Set column widths (8 columns + 1 hidden)
+        // Set column widths (10 columns + 1 hidden)
         table.getColumnModel().getColumn(0).setPreferredWidth(150); // Group ID
         table.getColumnModel().getColumn(1).setPreferredWidth(150); // Artifact ID
         table.getColumnModel().getColumn(2).setPreferredWidth(90);  // Current Version
@@ -280,9 +288,11 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         table.getColumnModel().getColumn(5).setPreferredWidth(120); // Status (color-coded)
         table.getColumnModel().getColumn(6).setPreferredWidth(200); // Reason
         table.getColumnModel().getColumn(7).setPreferredWidth(80);  // Type
-        table.getColumnModel().getColumn(8).setMinWidth(0);       // Hidden DependencyInfo
-        table.getColumnModel().getColumn(8).setMaxWidth(0);
-        table.getColumnModel().getColumn(8).setWidth(0);
+        table.getColumnModel().getColumn(8).setPreferredWidth(250); // Details
+        table.getColumnModel().getColumn(9).setPreferredWidth(80); // Confidence
+        table.getColumnModel().getColumn(10).setMinWidth(0);       // Hidden DependencyInfo
+        table.getColumnModel().getColumn(10).setMaxWidth(0);
+        table.getColumnModel().getColumn(10).setWidth(0);
 
         // Add mouse listener for double-click navigation
         table.addMouseListener(new MouseInputAdapter() {
@@ -324,8 +334,18 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         truncationNoticePanel = new TruncationNoticePanel();
         truncationNoticePanel.setVisible(false);
 
+        // Create error banner label (hidden by default)
+        errorBannerLabel = new JLabel();
+        errorBannerLabel.setOpaque(true);
+        errorBannerLabel.setBackground(new Color(255, 243, 224)); // Light orange
+        errorBannerLabel.setForeground(new Color(180, 80, 0));
+        errorBannerLabel.setBorder(new EmptyBorder(6, 10, 6, 10));
+        errorBannerLabel.setFont(errorBannerLabel.getFont().deriveFont(Font.BOLD));
+        errorBannerLabel.setVisible(false);
+
         // Create center panel with table, truncation notice, and recipes
         JPanel centerPanel = new JBPanel<>(new BorderLayout());
+        centerPanel.add(errorBannerLabel, BorderLayout.NORTH);
         centerPanel.add(scrollPane, BorderLayout.CENTER);
 
         // South panel containing truncation notice (above recipes)
@@ -373,6 +393,21 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         return panel;
     }
 
+    /**
+     * Shows or hides the error banner above the dependency table.
+     * Used to inform users when build tool commands failed and results are partial.
+     *
+     * @param message the banner text, or null to hide the banner
+     */
+    public void setErrorBanner(String message) {
+        if (message == null || message.isEmpty()) {
+            errorBannerLabel.setVisible(false);
+        } else {
+            errorBannerLabel.setText(message);
+            errorBannerLabel.setVisible(true);
+        }
+    }
+
     public void setDependencies(List<DependencyInfo> dependencies) {
         this.allDependencies = dependencies != null ? dependencies : new ArrayList<>();
         filterDependencies();
@@ -386,6 +421,25 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
     @Override
     public void clearDependencies() {
         setDependencies(new ArrayList<>());
+    }
+
+    /**
+     * Resets the table to show "Analysis Pending" for all currently displayed dependencies.
+     * Called when a new scan starts, so the user immediately sees that previous results are stale.
+     */
+    public void resetToPending() {
+        if (allDependencies.isEmpty()) {
+            return;
+        }
+        for (DependencyInfo dep : allDependencies) {
+            dep.setMavenLookupInProgress(false);
+            dep.setMigrationStatus(null);
+            dep.setScanReason("PENDING_SCAN");
+            dep.setRecommendedArtifactCoordinates(null);
+            dep.setJakartaCompatibilityStatus(null);
+            dep.setDetailMessage(null);
+        }
+        filterDependencies();
     }
 
     public List<DependencyInfo> getSelectedDependencies() {
@@ -473,48 +527,42 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         // Scope - show scope (compile, test, provided, runtime)
         String scopeStr = dep.getScope() != null ? dep.getScope() : "-";
 
-        // Jakarta Equivalent
-        String jakartaEquivalent = dep.getRecommendedArtifactCoordinates() != null
-                ? dep.getRecommendedArtifactCoordinates()
-                : "-";
+        // Jakarta Equivalent - prefer parsed coordinates, fall back to the raw recommendation string
+        String coordinates = dep.getRecommendedArtifactCoordinates();
+        String jakartaEquivalent = coordinates != null && !coordinates.isBlank() ? coordinates : "";
+        if (jakartaEquivalent.isBlank() && dep.getRecommendation() != null && !dep.getRecommendation().isBlank()) {
+            jakartaEquivalent = dep.getRecommendation();
+        }
+        if (jakartaEquivalent.isBlank()) {
+            jakartaEquivalent = "-";
+        }
 
         // Compatibility Status - determines color coding
         String statusText;
-        boolean hasJakartaEquivalent = jakartaEquivalent != null && !jakartaEquivalent.equals("-");
+        boolean hasJakartaEquivalent = !"-".equals(jakartaEquivalent);
         String scanReason = dep.getScanReason();
 
         // Enhanced status logic - differentiate pending vs final states
         if (dep.isMavenLookupInProgress()) {
             // Currently being analyzed
             statusText = "? Analysis in Progress";
+        } else if ("PENDING_SCAN".equals(scanReason)) {
+            // Waiting for scan to complete
+            statusText = "? Scan Pending";
         } else if ("UNKNOWN".equals(scanReason) || "BYTECODE_SCAN_UNKNOWN".equals(scanReason)) {
             // Pending analysis
             statusText = "? Analysis Pending";
-        } else if ("BLACKLISTED".equals(scanReason)) {
-            // Known javax dependencies
-            if (hasJakartaEquivalent) {
-                statusText = "↑ Upgrade Available";
-            } else {
-                statusText = "⚠ Possible Blocker";
-            }
-        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.COMPATIBLE) {
-            statusText = "✓ Compatible";
-        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.NO_JAKARTA_VERSION) {
-            statusText = "✗ No Jakarta Version";
-        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.MAVEN_LOOKUP_FAILED) {
-            statusText = "⚠ Jakarta Version Not Found";
-        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.NEEDS_UPGRADE) {
-            statusText = "↑ Upgrade Available";
-        } else if (dep.getMigrationStatus() == DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION) {
-            statusText = "⚠ Manual Review Required";
-        } else if ("BUILD_TOOL_ERROR".equals(scanReason)) {
-            statusText = "⚠ Build Tool Error";
-        } else if (!hasJakartaEquivalent) {
-            statusText = "✗ No Jakarta Version";
-        } else if (hasJakartaEquivalent) {
-            statusText = "↑ Upgrade Available";
+        } else if ("BLACKLISTED".equals(scanReason) && !hasJakartaEquivalent) {
+            // Known javax dependency with no known Jakarta equivalent
+            statusText = "⚠ Possible Blocker";
         } else {
-            statusText = "? Unknown";
+            // Infer a concrete status from the available recommendation when still unknown
+            if (dep.getMigrationStatus() == null || dep.getMigrationStatus() == DependencyMigrationStatus.UNKNOWN) {
+                dep.setMigrationStatus(hasJakartaEquivalent
+                        ? DependencyMigrationStatus.NEEDS_UPGRADE
+                        : DependencyMigrationStatus.NO_JAKARTA_VERSION);
+            }
+            statusText = DependencyStatusColors.getStatusText(dep.getMigrationStatus());
         }
 
         // Reason (scan reason) - provide specific pending states
@@ -523,6 +571,8 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         // Enhanced reason mapping for better clarity on pending states
         if (dep.isMavenLookupInProgress()) {
             reason = "Maven lookup in progress";
+        } else if ("PENDING_SCAN".equals(reason)) {
+            reason = "Waiting for scan to start";
         } else if ("UNKNOWN".equals(reason)) {
             reason = "Analysis pending";
         } else if ("BYTECODE_SCAN_UNKNOWN".equals(reason)) {
@@ -543,7 +593,14 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             reason = "Build tool error - regex fallback (deep scan unavailable)";
         }
 
-        // Add row with all columns - DependencyInfo at column 8 (hidden)
+        // Details column - human-friendly error/explanation text
+        String details = dep.getDetailMessage() != null ? dep.getDetailMessage() : "";
+
+        String confidence = dep.getConfidence() > 0.0
+                ? String.format("%.0f%%", dep.getConfidence() * 100)
+                : "";
+
+        // Add row with all columns - DependencyInfo at column 10 (hidden)
         tableModel.addRow(new Object[] {
                 dep.getGroupId(),
                 dep.getArtifactId(),
@@ -553,7 +610,9 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
                 statusText,         // Column 5: Status
                 reason,             // Column 6: Reason
                 dependencyType,     // Column 7: Type
-                dep // Column 8: Full object for renderer (hidden column)
+                details,            // Column 8: Details
+                confidence,         // Column 9: Confidence
+                dep // Column 10: Full object for renderer (hidden column)
         });
     }
     
@@ -631,34 +690,32 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
                     }
                 }
             } else if (dep.getGroupId().startsWith("javax.")) {
-                // Use compatibility config to classify javax dependencies
-                ArtifactClassification classification = compatibilityConfigLoader.classifyArtifact(
-                    dep.getGroupId(), dep.getArtifactId());
-                
-                switch (classification) {
-                    case JDK_PROVIDED:
-                        // JDK-provided packages - no Jakarta migration needed
+                // Use RecipeBasedClassifier to classify javax dependencies
+                Namespace ns = namespaceClassifier.classify(new Artifact(
+                    dep.getGroupId(), dep.getArtifactId(), dep.getCurrentVersion(), "compile", false));
+
+                switch (ns) {
+                    case JAKARTA:
+                        // Known Jakarta artifact
                         dep.setMigrationStatus(DependencyMigrationStatus.COMPATIBLE);
-                        dep.setJakartaCompatibilityStatus("JDK Provided - No migration needed");
-                        System.out.println("[DEBUG] JDK-provided (no migration): " + dep.getGroupId() + ":" + dep.getArtifactId());
+                        dep.setJakartaCompatibilityStatus("Jakarta-compatible");
                         break;
-                        
-                    case JAKARTA_REQUIRED:
-                        // Must migrate to Jakarta EE - query Maven Central
+
+                    case JAVAX:
+                        // Uses javax namespace, must migrate
                         javaxDependencies.add(dep);
                         System.out.println("[DEBUG] Jakarta required: " + dep.getGroupId() + ":" + dep.getArtifactId());
                         break;
-                        
-                    case CONTEXT_DEPENDENT:
-                        // Ambiguous - requires manual review or Maven lookup
+
+                    case MIXED:
+                        // Mixed namespace, requires manual review
                         dep.setMigrationStatus(DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION);
-                        dep.setJakartaCompatibilityStatus("Review Required - Context dependent");
-                        // Also query Maven Central as a hint
+                        dep.setJakartaCompatibilityStatus("Review Required - Mixed namespace");
                         javaxDependencies.add(dep);
-                        System.out.println("[DEBUG] Context dependent (manual review): " + dep.getGroupId() + ":" + dep.getArtifactId());
                         break;
-                        
+
                     case UNKNOWN:
+                    default:
                         // Not in any list - query Maven Central as fallback
                         javaxDependencies.add(dep);
                         System.out.println("[DEBUG] Unknown (Maven lookup fallback): " + dep.getGroupId() + ":" + dep.getArtifactId());
@@ -769,41 +826,56 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
     private synchronized void updateDependencyWithJakartaInfo(DependencyInfo javaxDep, List<JakartaArtifactMatch> jakartaArtifacts) {
         // Clear lookup state when lookup completes
         javaxDep.setMavenLookupInProgress(false);
-        
+
+        boolean alreadyHasRecommendation = hasText(javaxDep.getRecommendedArtifactCoordinates())
+                || hasText(javaxDep.getRecommendation());
+
         if (jakartaArtifacts == null || jakartaArtifacts.isEmpty()) {
-            // No Jakarta artifacts found - mark as UNKNOWN
-            javaxDep.setMigrationStatus(DependencyMigrationStatus.UNKNOWN);
-            javaxDep.setJakartaCompatibilityStatus("Unknown - No Jakarta equivalent found");
+            // No Jakarta artifacts found - only mark as UNKNOWN if the scanner did not
+            // already provide a recommendation. Otherwise keep the existing status.
+            if (!alreadyHasRecommendation) {
+                javaxDep.setMigrationStatus(DependencyMigrationStatus.UNKNOWN);
+                javaxDep.setJakartaCompatibilityStatus("Unknown - No Jakarta equivalent found");
+            } else {
+                javaxDep.setJakartaCompatibilityStatus("Jakarta equivalent already identified");
+                javaxDep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
+            }
             System.out.println("[DEBUG] No Jakarta equivalent found for: " + javaxDep.getGroupId() + ":" + javaxDep.getArtifactId());
             return;
         }
-        
+
         // Filter to only found artifacts and get best match
         JakartaArtifactMatch bestMatch = jakartaArtifacts.stream()
                 .filter(JakartaArtifactMatch::found)
                 .findFirst()
                 .orElse(null);
-        
+
         if (bestMatch == null) {
-            // No valid matches found - mark as UNKNOWN
-            javaxDep.setMigrationStatus(DependencyMigrationStatus.UNKNOWN);
-            javaxDep.setJakartaCompatibilityStatus("Unknown - No valid Jakarta match");
+            // No valid matches found - only mark as UNKNOWN if the scanner did not
+            // already provide a recommendation.
+            if (!alreadyHasRecommendation) {
+                javaxDep.setMigrationStatus(DependencyMigrationStatus.UNKNOWN);
+                javaxDep.setJakartaCompatibilityStatus("Unknown - No valid Jakarta match");
+            } else {
+                javaxDep.setJakartaCompatibilityStatus("Jakarta equivalent already identified");
+                javaxDep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
+            }
             System.out.println("[DEBUG] No valid Jakarta match for: " + javaxDep.getGroupId() + ":" + javaxDep.getArtifactId());
             return;
         }
-        
+
         // Update dependency with Jakarta information
         String coordinates = bestMatch.groupId() + ":" + bestMatch.artifactId() + ":" + bestMatch.version();
         javaxDep.setRecommendedArtifactCoordinates(coordinates);
         javaxDep.setJakartaCompatibilityStatus("Compatible");
         javaxDep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
-        
+
         // Update dependency in master list
         for (int i = 0; i < allDependencies.size(); i++) {
             DependencyInfo dep = allDependencies.get(i);
-            if (dep.getGroupId().equals(javaxDep.getGroupId()) && 
+            if (dep.getGroupId().equals(javaxDep.getGroupId()) &&
                 dep.getArtifactId().equals(javaxDep.getArtifactId())) {
-                
+
                 // Create a new DependencyInfo object with updated information
                 DependencyInfo updatedDep = new DependencyInfo();
                 updatedDep.setGroupId(dep.getGroupId());
@@ -814,11 +886,17 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
                 updatedDep.setMigrationStatus(DependencyMigrationStatus.NEEDS_UPGRADE);
                 updatedDep.setTransitive(dep.isTransitive());
                 updatedDep.setOrganizational(dep.isOrganizational());
-                
+                updatedDep.setScanReason(dep.getScanReason());
+                updatedDep.setDetailMessage(dep.getDetailMessage());
+
                 allDependencies.set(i, updatedDep);
                 break;
             }
         }
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
     
     private void handleUpdate(ActionEvent e) {

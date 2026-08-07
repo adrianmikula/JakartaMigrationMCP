@@ -238,4 +238,142 @@ public class MigrationToolWindowPermissionTest extends BasePlatformTestCase {
         );
         label.dispatchEvent(clickEvent);
     }
+
+    // ==================== Trial Unavailable Notification Tests ====================
+
+    public void testShouldShowTrialNotificationWhenNotYetShown() {
+        when(mockUserIdentificationService.isTrialUnavailableNotificationShown()).thenReturn(false);
+        when(mockUserIdentificationService.isUsagePermissionRequested()).thenReturn(true);
+        Project project = getProject();
+
+        toolWindowContent = new MigrationToolWindow.MigrationToolWindowContent(project) {
+            @Override
+            protected UserIdentificationService createUserIdentificationService() {
+                return mockUserIdentificationService;
+            }
+        };
+
+        JPanel contentPanel = toolWindowContent.getContentPanel();
+        assertThat(contentPanel).isNotNull();
+
+        JPanel trialPanel = findTrialNotificationPanel(contentPanel);
+        assertThat(trialPanel).as("Trial notification panel should be present").isNotNull();
+        assertThat(trialPanel.isVisible()).as("Trial notification should be visible").isTrue();
+
+        JLabel messageLabel = findLabelWithText(trialPanel, "Free trial is regrettably no longer available");
+        assertThat(messageLabel).as("Trial message should be displayed").isNotNull();
+
+        JLabel sponsorLink = findLabelWithText(trialPanel, "Sponsor");
+        assertThat(sponsorLink).as("Sponsor link should be present").isNotNull();
+    }
+
+    public void testShouldNotShowTrialNotificationWhenAlreadyShown() {
+        when(mockUserIdentificationService.isTrialUnavailableNotificationShown()).thenReturn(true);
+        when(mockUserIdentificationService.isUsagePermissionRequested()).thenReturn(true);
+        Project project = getProject();
+
+        toolWindowContent = new MigrationToolWindow.MigrationToolWindowContent(project) {
+            @Override
+            protected UserIdentificationService createUserIdentificationService() {
+                return mockUserIdentificationService;
+            }
+        };
+
+        JPanel contentPanel = toolWindowContent.getContentPanel();
+        assertThat(contentPanel).isNotNull();
+
+        JPanel trialPanel = findTrialNotificationPanel(contentPanel);
+        assertThat(trialPanel).as("Trial notification panel should not be present").isNull();
+    }
+
+    public void testShouldHideTrialNotificationAndMarkAsShownWhenSponsorClicked() {
+        when(mockUserIdentificationService.isTrialUnavailableNotificationShown()).thenReturn(false);
+        when(mockUserIdentificationService.isUsagePermissionRequested()).thenReturn(true);
+        Project project = getProject();
+
+        toolWindowContent = new MigrationToolWindow.MigrationToolWindowContent(project) {
+            @Override
+            protected UserIdentificationService createUserIdentificationService() {
+                return mockUserIdentificationService;
+            }
+        };
+
+        JPanel contentPanel = toolWindowContent.getContentPanel();
+        JPanel trialPanel = findTrialNotificationPanel(contentPanel);
+        JLabel sponsorLink = findLabelWithText(trialPanel, "Sponsor");
+
+        simulateClick(sponsorLink);
+
+        verify(mockUserIdentificationService).setTrialUnavailableNotificationShown();
+        assertThat(trialPanel.isVisible()).as("Trial notification should be hidden after click").isFalse();
+    }
+
+    public void testShouldNotShowTrialNotificationAgainAfterSponsorClicked() {
+        when(mockUserIdentificationService.isTrialUnavailableNotificationShown()).thenReturn(false);
+        when(mockUserIdentificationService.isUsagePermissionRequested()).thenReturn(true);
+        Project project = getProject();
+
+        toolWindowContent = new MigrationToolWindow.MigrationToolWindowContent(project) {
+            @Override
+            protected UserIdentificationService createUserIdentificationService() {
+                return mockUserIdentificationService;
+            }
+        };
+
+        JPanel contentPanel = toolWindowContent.getContentPanel();
+        JPanel trialPanel = findTrialNotificationPanel(contentPanel);
+        JLabel sponsorLink = findLabelWithText(trialPanel, "Sponsor");
+        simulateClick(sponsorLink);
+
+        when(mockUserIdentificationService.isTrialUnavailableNotificationShown()).thenReturn(true);
+
+        MigrationToolWindow.MigrationToolWindowContent newToolWindowContent =
+            new MigrationToolWindow.MigrationToolWindowContent(project) {
+                @Override
+                protected UserIdentificationService createUserIdentificationService() {
+                    return mockUserIdentificationService;
+                }
+            };
+
+        JPanel newContentPanel = newToolWindowContent.getContentPanel();
+        JPanel newTrialPanel = findTrialNotificationPanel(newContentPanel);
+        assertThat(newTrialPanel).as("Trial notification should not reappear after being dismissed").isNull();
+    }
+
+    private JPanel findTrialNotificationPanel(Container container) {
+        for (Component component : container.getComponents()) {
+            if (component instanceof JPanel) {
+                JPanel panel = (JPanel) component;
+                if (panel.getLayout() instanceof BorderLayout) {
+                    BorderLayout layout = (BorderLayout) panel.getLayout();
+                    Component northComponent = layout.getLayoutComponent(BorderLayout.NORTH);
+                    if (northComponent instanceof JPanel) {
+                        JPanel northPanel = (JPanel) northComponent;
+                        if (containsTrialNotificationMessage(northPanel)) {
+                            return northPanel;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean containsTrialNotificationMessage(Container container) {
+        for (Component component : container.getComponents()) {
+            if (component instanceof JLabel) {
+                JLabel label = (JLabel) component;
+                String text = label.getText();
+                if (text != null && text.contains("Free trial is regrettably no longer available")) {
+                    return true;
+                }
+            }
+            if (component instanceof Container) {
+                if (containsTrialNotificationMessage((Container) component)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }

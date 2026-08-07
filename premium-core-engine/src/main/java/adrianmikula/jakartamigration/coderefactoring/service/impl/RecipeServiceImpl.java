@@ -150,10 +150,10 @@ public class RecipeServiceImpl implements RecipeService {
                             String patternGlob = (filePattern != null ? filePattern : "**/*").replace('\\', '/');
 
                             String regex = patternGlob
+                                    .replace("**", "<<DSTAR>>")
                                     .replace(".", "\\.")
-                                    .replace("**/", "(.*/)?")
                                     .replace("*", "[^/]*")
-                                    .replace("[^/]*[^/]*", ".*");
+                                    .replace("<<DSTAR>>", ".*");
 
                             boolean matches = pathStr.matches(regex);
                             return matches;

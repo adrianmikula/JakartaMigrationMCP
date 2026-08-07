@@ -5,6 +5,8 @@ import adrianmikula.jakartamigration.advancedscanning.domain.FileScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.ProjectScanResult;
 import adrianmikula.jakartamigration.advancedscanning.service.BaseScanner;
 import adrianmikula.jakartamigration.advancedscanning.service.BuildConfigScanner;
+import adrianmikula.jakartamigration.dependencyanalysis.util.MavenPomParser;
+import adrianmikula.jakartamigration.dependencyanalysis.util.GradleBuildParser;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.file.Files;
@@ -132,32 +134,31 @@ public class BuildConfigScannerImpl extends BaseScanner<BuildConfigUsage> implem
         List<BuildConfigUsage> usages = new ArrayList<>();
         String[] lines = content.split("\n");
 
-        // Match <groupId>javax.xxx</groupId> and <artifactId>xxx</artifactId>
-        Pattern depPattern = Pattern.compile(
-                "<dependency>.*?<groupId>([\\w.]+)</groupId>.*?<artifactId>([\\w.-]+)</artifactId>.*?(?:<version>([\\w.-]+)</version>)?.*?</dependency>",
-                Pattern.DOTALL);
-        Matcher matcher = depPattern.matcher(content);
+        try {
+            List<Map<String, String>> deps = MavenPomParser.parseDependenciesFromContent(content);
+            for (Map<String, String> dep : deps) {
+                String groupId = dep.get("groupId");
+                String artifactId = dep.get("artifactId");
+                String version = dep.getOrDefault("version", null);
 
-        while (matcher.find()) {
-            String groupId = matcher.group(1);
-            String artifactId = matcher.group(2);
-            String version = matcher.group(3);
+                if (groupId.startsWith("javax.")) {
+                    String key = groupId + ":" + artifactId;
+                    String[] mapping = DEPENDENCY_MAPPINGS.get(key);
 
-            if (groupId.startsWith("javax.")) {
-                String key = groupId + ":" + artifactId;
-                String[] mapping = DEPENDENCY_MAPPINGS.get(key);
+                    int lineNumber = findLineNumber(lines, groupId);
 
-                int lineNumber = findLineNumber(lines, groupId);
-
-                usages.add(new BuildConfigUsage(
-                        groupId,
-                        artifactId,
-                        version,
-                        mapping != null ? mapping[0].split(":")[0] : groupId.replace("javax", "jakarta"),
-                        mapping != null ? mapping[0].split(":")[1] : artifactId,
-                        mapping != null ? mapping[1] : null,
-                        lineNumber));
+                    usages.add(new BuildConfigUsage(
+                            groupId,
+                            artifactId,
+                            version,
+                            mapping != null ? mapping[0].split(":")[0] : groupId.replace("javax", "jakarta"),
+                            mapping != null ? mapping[0].split(":")[1] : artifactId,
+                            mapping != null ? mapping[1] : null,
+                            lineNumber));
+                }
             }
+        } catch (Exception e) {
+            log.warn("Error parsing POM dependencies: {}", e.getMessage());
         }
 
         return usages;
@@ -167,30 +168,31 @@ public class BuildConfigScannerImpl extends BaseScanner<BuildConfigUsage> implem
         List<BuildConfigUsage> usages = new ArrayList<>();
         String[] lines = content.split("\n");
 
-        // Match 'groupId:artifactId:version' or "groupId:artifactId:version"
-        Pattern depPattern = Pattern.compile("['\"]([\\w.]+):([\\w.-]+):([\\w.-]+)['\"]");
-        Matcher matcher = depPattern.matcher(content);
+        try {
+            List<Map<String, String>> deps = GradleBuildParser.parseDependencies(content);
+            for (Map<String, String> dep : deps) {
+                String groupId = dep.get("groupId");
+                String artifactId = dep.get("artifactId");
+                String version = dep.getOrDefault("version", null);
 
-        while (matcher.find()) {
-            String groupId = matcher.group(1);
-            String artifactId = matcher.group(2);
-            String version = matcher.group(3);
+                if (groupId.startsWith("javax.")) {
+                    String key = groupId + ":" + artifactId;
+                    String[] mapping = DEPENDENCY_MAPPINGS.get(key);
 
-            if (groupId.startsWith("javax.")) {
-                String key = groupId + ":" + artifactId;
-                String[] mapping = DEPENDENCY_MAPPINGS.get(key);
+                    int lineNumber = findLineNumber(lines, groupId);
 
-                int lineNumber = findLineNumber(lines, matcher.group(0));
-
-                usages.add(new BuildConfigUsage(
-                        groupId,
-                        artifactId,
-                        version,
-                        mapping != null ? mapping[0].split(":")[0] : groupId.replace("javax", "jakarta"),
-                        mapping != null ? mapping[0].split(":")[1] : artifactId,
-                        mapping != null ? mapping[1] : null,
-                        lineNumber));
+                    usages.add(new BuildConfigUsage(
+                            groupId,
+                            artifactId,
+                            version,
+                            mapping != null ? mapping[0].split(":")[0] : groupId.replace("javax", "jakarta"),
+                            mapping != null ? mapping[0].split(":")[1] : artifactId,
+                            mapping != null ? mapping[1] : null,
+                            lineNumber));
+                }
             }
+        } catch (Exception e) {
+            log.warn("Error parsing Gradle dependencies: {}", e.getMessage());
         }
 
         return usages;

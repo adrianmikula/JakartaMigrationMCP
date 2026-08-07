@@ -14,8 +14,8 @@ public class NewFeatureNotification {
     
     private final JPanel mainPanel;
     private final JLabel messageLabel;
-    private final JLabel yesLink;
-    private final JLabel noLink;
+    private JLabel yesLink;
+    private JLabel noLink;
     
     /**
      * Creates a new feature notification component.
@@ -130,6 +130,46 @@ public class NewFeatureNotification {
     }
     
     /**
+     * Creates a new feature notification component with a single action link.
+     * 
+     * @param message The notification message to display
+     * @param action Action to execute when the link is clicked
+     * @param linkText Text to display for the action link
+     */
+    public NewFeatureNotification(String message, Runnable action, String linkText) {
+        this.mainPanel = new JPanel(new BorderLayout());
+
+        this.messageLabel = new JLabel(message);
+        this.messageLabel.setFont(this.messageLabel.getFont().deriveFont(Font.PLAIN, 10f));
+        this.messageLabel.setForeground(UIColors.TEXT_SECONDARY);
+
+        JPanel contentPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        contentPanel.setOpaque(false);
+        contentPanel.add(messageLabel);
+
+        if (action != null && linkText != null) {
+            JLabel actionLink = new JLabel(linkText);
+            actionLink.setFont(actionLink.getFont().deriveFont(Font.PLAIN, 10f));
+            actionLink.setForeground(UIColors.LINK);
+            actionLink.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            actionLink.addMouseListener(createLinkMouseListener(action));
+            contentPanel.add(Box.createHorizontalStrut(8));
+            contentPanel.add(actionLink);
+        }
+
+        this.mainPanel.setBackground(UIColors.PANEL_BACKGROUND);
+        this.mainPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(0, 0, 1, 0, UIColors.BORDER),
+            BorderFactory.createEmptyBorder(8, 12, 8, 12)
+        ));
+
+        this.mainPanel.add(contentPanel, BorderLayout.CENTER);
+
+        this.yesLink = null;
+        this.noLink = null;
+    }
+
+    /**
      * Convenience method to create a usage permission notification.
      * 
      * @param onYes Action when user opts in
@@ -139,5 +179,27 @@ public class NewFeatureNotification {
     public static NewFeatureNotification createUsagePermissionNotification(Runnable onYes, Runnable onNo) {
         String message = "Help improve this plugin by sharing anonymous usage data and error reports? ";
         return new NewFeatureNotification(message, onYes, onNo);
+    }
+
+    /**
+     * Convenience method to create a trial-unavailable notification with a sponsor link.
+     * 
+     * @param onSponsor Action when user clicks the sponsor link
+     * @return Configured notification for trial unavailability
+     */
+    public static NewFeatureNotification createTrialUnavailableNotification(Runnable onSponsor) {
+        String message = "Free trial is no longer available. Please consider sponsoring us.";
+        return new NewFeatureNotification(message, onSponsor, "Sponsor");
+    }
+
+    /**
+     * Convenience method to create an advanced refactor notification with a learn-more link.
+     * 
+     * @param onLearnMore Action when user clicks the learn more link
+     * @return Configured notification for advanced refactor
+     */
+    public static NewFeatureNotification createAdvancedRefactorNotification(Runnable onLearnMore) {
+        String message = "Advanced Refactor is now available! Safely test complex refactor sequences in sandboxed testcontainers. ";
+        return new NewFeatureNotification(message, onLearnMore, "Learn More");
     }
 }

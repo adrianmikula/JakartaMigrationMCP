@@ -8,6 +8,18 @@ This plugin detects migration blockers, analyzes dependencies, and helps you ref
 
 ---
 
+> **⚠️ Free Trial Temporarily Unavailable**
+>
+> The free trial has been paused. We want to bring it back, but we need your help to make this project sustainable.
+>
+> **[Sponsor this project on GitHub](https://github.com/sponsors/adrianmikula)** to help cover the time and effort of ongoing development. If this plugin has saved you hours of migration work, please consider giving back so we can continue building features and restore free trial access for the wider Java community.
+>
+> Premium features (Advanced Refactor, platform detection, advanced scans, PDF reports, and AI-assisted migration) are available with a paid subscription. The free tier still includes migration risk analysis, dependency scans, version recommendations, and strategy insights.
+>
+> *Note: The free trial can still be accessed by installing v1.0 of this plugin.*
+
+---
+
 ## ⚠️ Why This Matters
 
 The transition from `javax.*` to `jakarta.*` is **not a simple rename**.
@@ -87,6 +99,7 @@ You can **disable data collection** at any time:
 ### 📦 Understand Dependencies
 
 * Detect which dependencies are Jakarta-compatible
+* Deep transitive scanning — find hidden `javax.*` references in your full dependency tree
 * Get recommendations for compatible versions
 * Visualize module relationships with dependency graphs
 
@@ -114,6 +127,13 @@ You can **disable data collection** at any time:
 * Apply OpenRewrite-powered refactoring recipes
 * Automatically transform `javax.*` → `jakarta.*`
 * Undo changes with built-in history
+
+### 🧪 Advanced Refactor (Premium)
+
+* Build complex multi-step refactor sequences
+* Test refactors in isolated sandboxed testcontainers before applying
+* Experiment history — compare results, re-run, and clone past experiments
+* Safely validate that refactors won't break your build
 
 ---
 
@@ -174,6 +194,7 @@ You can **disable data collection** at any time:
 **Premium**
 
 * One-click refactoring
+* Advanced Refactor — test refactor sequences in sandboxed testcontainers
 * Platform detection (frameworks, app servers)
 * Advanced scans and analysis
 * PDF reports

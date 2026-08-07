@@ -239,6 +239,53 @@ public class DependencyGraphRenderingIntegrationTest extends BasePlatformTestCas
         assertThat(nodes2).hasSize(4);
     }
 
+    public void testQuickScanThenDeepScanEmptyGraphPreservesFlatDeps() throws Exception {
+        // Simulates MigrationToolWindow.performDeepScan sequence:
+        // 1. dependencyUIManager.updateAllDependencies(depInfos)  (flat list)
+        // 2. dependencyGraphComponent.updateGraphFromDependencyGraph(deepGraph, statusMap)  (empty graph overwrite)
+
+        // Arrange - flat deps from quick scan
+        List<DependencyInfo> flatDeps = DependencyInfoTestFactory.createMultipleDependenciesList();
+        Map<String, DependencyMigrationStatus> statusMap = new HashMap<>();
+        statusMap.put("org.example:dep1", DependencyMigrationStatus.COMPATIBLE);
+        statusMap.put("org.example:dep2", DependencyMigrationStatus.NEEDS_UPGRADE);
+        statusMap.put("org.example:dep3", DependencyMigrationStatus.NO_JAKARTA_VERSION);
+
+        // Act - step 1: load flat deps
+        graphComponent.updateGraph(flatDeps);
+
+        // Verify flat deps rendered
+        GraphCanvas canvas = extractGraphCanvas(graphComponent);
+        List<GraphNode> nodesAfterFlat = GraphCanvasTestHelper.getNodes(canvas);
+        assertThat(nodesAfterFlat).hasSize(4); // root + 3
+
+        // Act - step 2: empty graph overwrite (deep scan returned no edges)
+        DependencyGraph emptyGraph = DependencyGraphTestFactory.createEmptyGraph();
+        graphComponent.updateGraphFromDependencyGraph(emptyGraph, statusMap);
+
+        // Assert - fallback should preserve flat deps with status colours
+        List<GraphNode> nodesAfterFallback = GraphCanvasTestHelper.getNodes(canvas);
+        assertThat(nodesAfterFallback).hasSize(4); // root + 3 (not just root)
+        assertThat(nodesAfterFallback).anyMatch(n -> "org.example:dep1".equals(n.getId()));
+        assertThat(nodesAfterFallback).anyMatch(n -> "org.example:dep2".equals(n.getId()));
+        assertThat(nodesAfterFallback).anyMatch(n -> "org.example:dep3".equals(n.getId()));
+
+        // Verify status colours preserved
+        GraphNode dep1 = nodesAfterFallback.stream()
+            .filter(n -> "org.example:dep1".equals(n.getId()))
+            .findFirst()
+            .orElse(null);
+        assertThat(dep1).isNotNull();
+        assertThat(dep1.getMigrationStatus()).isEqualTo(DependencyMigrationStatus.COMPATIBLE);
+
+        GraphNode dep2 = nodesAfterFallback.stream()
+            .filter(n -> "org.example:dep2".equals(n.getId()))
+            .findFirst()
+            .orElse(null);
+        assertThat(dep2).isNotNull();
+        assertThat(dep2.getMigrationStatus()).isEqualTo(DependencyMigrationStatus.NEEDS_UPGRADE);
+    }
+
     // Helper method to extract GraphCanvas from DependencyGraphComponent
     private GraphCanvas extractGraphCanvas(DependencyGraphComponent component) throws Exception {
         java.lang.reflect.Field canvasField = DependencyGraphComponent.class.getDeclaredField("graphCanvas");

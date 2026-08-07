@@ -78,7 +78,7 @@ public class MetadataSignalExtractor {
                         signals.javaxDepsInPom = true;
                     }
                 } catch (IOException e) {
-                    // Skip this entry
+                    log.debug("Failed to read JAR entry {}: {}", name, e.getClass().getSimpleName() + ": " + e.getMessage());
                 }
             }
         }
@@ -143,7 +143,7 @@ public class MetadataSignalExtractor {
             }
             return true;
         } catch (Exception e) {
-            log.trace("Failed to parse pom.xml {}: {}", entry.getName(), e.getMessage());
+            log.trace("Failed to parse pom.xml {}: {}", entry.getName(), e.getClass().getSimpleName() + ": " + e.getMessage());
             return false;
         }
     }
@@ -160,6 +160,10 @@ public class MetadataSignalExtractor {
 
             String moduleName = manifest.getMainAttributes()
                 .getValue("Automatic-Module-Name");
+            if (moduleName == null) {
+                // OSGi bundles often declare their symbolic name instead of a JPMS module name
+                moduleName = manifest.getMainAttributes().getValue("Bundle-SymbolicName");
+            }
             if (moduleName != null) {
                 signals.manifestModuleName = moduleName.trim();
             }
@@ -174,7 +178,7 @@ public class MetadataSignalExtractor {
                 }
             }
         } catch (IOException e) {
-            log.trace("Failed to read manifest: {}", e.getMessage());
+            log.trace("Failed to read manifest: {}: {}", e.getClass().getSimpleName(), e.getMessage());
         }
     }
 

@@ -227,4 +227,84 @@ public class DependenciesTableComponentTest extends BasePlatformTestCase {
         assertThat(tableComponent.getTableModel().getValueAt(2, 5)).isEqualTo("⚠ Jakarta Version Not Found");
         assertThat(tableComponent.getTableModel().getValueAt(3, 5)).isEqualTo("✓ Compatible");
     }
+
+    // ── resetToPending Tests ─────────────────────────────────────────────────
+
+    public void testResetToPending_shouldShowScanPendingStatus() {
+        List<DependencyInfo> deps = new ArrayList<>();
+        DependencyInfo dep = new DependencyInfo("javax.servlet", "javax.servlet-api", "4.0.1",
+                null, null, null, "Compatible", null, DependencyMigrationStatus.COMPATIBLE, false, false);
+        deps.add(dep);
+        tableComponent.setDependencies(deps);
+
+        // Before reset — should show actual status
+        assertThat(tableComponent.getTableModel().getValueAt(0, 5)).isEqualTo("✓ Compatible");
+
+        // Reset to pending
+        tableComponent.resetToPending();
+
+        // After reset — should show Scan Pending
+        assertThat(tableComponent.getTableModel().getValueAt(0, 5)).isEqualTo("? Scan Pending");
+        assertThat(tableComponent.getTableModel().getValueAt(0, 6)).isEqualTo("Waiting for scan to start");
+    }
+
+    public void testResetToPending_shouldClearMigrationStatus() {
+        List<DependencyInfo> deps = new ArrayList<>();
+        DependencyInfo dep = new DependencyInfo("javax.servlet", "javax.servlet-api", "4.0.1",
+                "jakarta.servlet", "jakarta.servlet-api", "5.0.0",
+                "Upgrade Available", null, DependencyMigrationStatus.NEEDS_UPGRADE, false, false);
+        deps.add(dep);
+        tableComponent.setDependencies(deps);
+
+        tableComponent.resetToPending();
+
+        // Migration status should be null after reset
+        assertThat(dep.getMigrationStatus()).isNull();
+        assertThat(dep.getScanReason()).isEqualTo("PENDING_SCAN");
+        assertThat(dep.getRecommendedArtifactCoordinates()).isNull();
+    }
+
+    public void testResetToPending_onEmptyListShouldBeNoOp() {
+        // Empty list — resetToPending should not throw
+        tableComponent.resetToPending();
+        assertThat(tableComponent.getTableModel().getRowCount()).isEqualTo(0);
+    }
+
+    public void testResetToPending_shouldClearMultipleDependencies() {
+        List<DependencyInfo> deps = new ArrayList<>();
+        deps.add(new DependencyInfo("a", "b", "1.0", null, null, null,
+                "Compatible", null, DependencyMigrationStatus.COMPATIBLE, false, false));
+        deps.add(new DependencyInfo("c", "d", "2.0", null, null, null,
+                "Upgrade Available", null, DependencyMigrationStatus.NEEDS_UPGRADE, false, false));
+        deps.add(new DependencyInfo("e", "f", "3.0", null, null, null,
+                "No Jakarta Version", null, DependencyMigrationStatus.NO_JAKARTA_VERSION, false, false));
+        tableComponent.setDependencies(deps);
+
+        tableComponent.resetToPending();
+
+        // All rows should show pending status
+        assertThat(tableComponent.getTableModel().getValueAt(0, 5)).isEqualTo("? Scan Pending");
+        assertThat(tableComponent.getTableModel().getValueAt(1, 5)).isEqualTo("? Scan Pending");
+        assertThat(tableComponent.getTableModel().getValueAt(2, 5)).isEqualTo("? Scan Pending");
+    }
+
+    public void testResetToPending_thenSetDependenciesShouldShowNewStatus() {
+        List<DependencyInfo> oldDeps = new ArrayList<>();
+        oldDeps.add(new DependencyInfo("a", "b", "1.0", null, null, null,
+                "Compatible", null, DependencyMigrationStatus.COMPATIBLE, false, false));
+        tableComponent.setDependencies(oldDeps);
+
+        // Reset to pending
+        tableComponent.resetToPending();
+        assertThat(tableComponent.getTableModel().getValueAt(0, 5)).isEqualTo("? Scan Pending");
+
+        // Set new dependencies (simulating scan complete)
+        List<DependencyInfo> newDeps = new ArrayList<>();
+        newDeps.add(new DependencyInfo("a", "b", "1.0", null, null, null,
+                "Upgrade Available", null, DependencyMigrationStatus.NEEDS_UPGRADE, false, false));
+        tableComponent.setDependencies(newDeps);
+
+        // Should now show the new status
+        assertThat(tableComponent.getTableModel().getValueAt(0, 5)).isEqualTo("↑ Upgrade Available");
+    }
 }

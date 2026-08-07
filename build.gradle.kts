@@ -136,11 +136,13 @@ allprojects {
 
     repositories {
         mavenCentral()
+        maven { url = uri("https://plugins.gradle.org/m2/") }
         maven { url = uri("https://repo.spring.io/milestone") }
         maven { url = uri("https://repo.spring.io/snapshot") }
         maven { url = uri("https://oss.sonatype.org/content/repositories/snapshots") }
         maven { url = uri("https://www.jetbrains.com/intellij-repository/releases") }
         maven { url = uri("https://cache-redirector.jetbrains.com/intellij-dependencies") }
+        maven { url = uri("https://repo.gradle.org/gradle/libs-releases/") }
     }
 }
 

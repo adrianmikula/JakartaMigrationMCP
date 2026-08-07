@@ -23,6 +23,7 @@ public class UserIdentificationService implements AutoCloseable {
     private static final String USAGE_METRICS_OPT_OUT_KEY = "usage.metrics.opt.out";
     private static final String ERROR_REPORTING_OPT_OUT_KEY = "error.reporting.opt.out";
     private static final String USAGE_PERMISSION_REQUESTED_KEY = "usage.permission.requested";
+    private static final String TRIAL_UNAVAILABLE_SHOWN_KEY = "free.trial.unavailable.shown";
     
     private final UserPreferencesService preferencesService;
     private final String anonymousUserId;
@@ -148,7 +149,22 @@ public class UserIdentificationService implements AutoCloseable {
         preferencesService.setPreference(USAGE_PERMISSION_REQUESTED_KEY, "true");
         log.info("Usage permission requested flag set");
     }
-    
+
+    /**
+     * Checks if the trial-unavailable notification has already been shown.
+     */
+    public boolean isTrialUnavailableNotificationShown() {
+        return Boolean.parseBoolean(preferencesService.getPreference(TRIAL_UNAVAILABLE_SHOWN_KEY, "false"));
+    }
+
+    /**
+     * Marks that the trial-unavailable notification has been shown.
+     */
+    public void setTrialUnavailableNotificationShown() {
+        preferencesService.setPreference(TRIAL_UNAVAILABLE_SHOWN_KEY, "true");
+        log.info("Trial unavailable notification shown flag set");
+    }
+
     @Override
     public void close() {
         // Update last seen timestamp when closing

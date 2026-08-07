@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -36,42 +37,70 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
 
     private final ExecutorService executor;
     private final ObjectMapper objectMapper;
+    private final GradleToolingApiExecutor gradleToolingApiExecutor;
 
     public DependencyTreeCommandExecutorImpl() {
         this.executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
         this.objectMapper = new ObjectMapper();
+        this.gradleToolingApiExecutor = new GradleToolingApiExecutor();
     }
 
     @Override
     public CompletableFuture<DependencyTreeResult> executeMavenDependencyTreeAsync(Path pomXmlPath, Set<String> scopes) {
         return CompletableFuture.supplyAsync(() -> {
-            // Fast-fail if Maven is not available in the environment
-            if (!isMavenAvailable()) {
+            Path projectDir = pomXmlPath.getParent();
+            // Fast-fail if neither Maven nor Maven wrapper is available
+            if (!isMavenAvailableForProject(projectDir)) {
                 return DependencyTreeResult.error("mvn command not found");
             }
-            List<String> command = buildMavenCommand(scopes, pomXmlPath.getParent());
-            return executeCommand(command, pomXmlPath.getParent(), "mvn dependency:tree",
-                process -> parseMavenJsonOutput(process, scopes));
+            if (scopes.size() <= 1) {
+                List<String> command = buildMavenCommand(scopes, projectDir);
+                return executeCommand(command, projectDir, "mvn dependency:tree",
+                    process -> parseMavenJsonOutput(process, scopes));
+            }
+
+            // dependency:tree's -Dscope parameter only supports a single scope.
+            // Run once per requested scope and merge the results.
+            Set<String> seen = new HashSet<>();
+            List<DependencyTreeResult.DependencyNode> merged = new ArrayList<>();
+            boolean anySuccess = false;
+            String lastError = null;
+            for (String scope : scopes) {
+                Set<String> singleScope = Set.of(scope);
+                List<String> command = buildMavenCommand(singleScope, projectDir);
+                DependencyTreeResult result = executeCommand(command, projectDir, "mvn dependency:tree",
+                    process -> parseMavenJsonOutput(process, singleScope));
+                if (result.isSuccess()) {
+                    anySuccess = true;
+                    for (DependencyTreeResult.DependencyNode node : result.getDependencies()) {
+                        if (seen.add(node.getArtifactKey())) {
+                            merged.add(node);
+                        }
+                    }
+                } else if (lastError == null) {
+                    lastError = result.getErrorMessage();
+                }
+            }
+
+            if (!anySuccess) {
+                return DependencyTreeResult.error(lastError != null ? lastError : "mvn dependency:tree failed for all scopes");
+            }
+            return new DependencyTreeResult(merged, scopes);
         }, executor);
     }
 
     @Override
     public CompletableFuture<DependencyTreeResult> executeGradleDependenciesAsync(Path buildFilePath, Set<String> scopes) {
-        return CompletableFuture.supplyAsync(() -> {
-            // Fast-fail if Gradle is not available in the environment
-            if (!isGradleAvailable()) {
-                return DependencyTreeResult.error("gradle command not found");
-            }
-            List<String> command = buildGradleCommand(scopes, buildFilePath.getParent());
-            return executeCommand(command, buildFilePath.getParent(), "gradle dependencies",
-                process -> parseGradleOutput(process, scopes));
-        }, executor);
+        // Gradle dependency resolution has been migrated to the Gradle Tooling API.
+        // The old process-spawning implementation below is deprecated and kept only
+        // for reference; the active path delegates to GradleToolingApiExecutor.
+        return gradleToolingApiExecutor.executeGradleDependenciesAsync(buildFilePath, scopes);
     }
 
     private List<String> buildMavenCommand(Set<String> scopes, Path projectDir) {
         // First try to find Maven wrapper
         Optional<Path> mavenWrapper = findMavenWrapper(projectDir);
-        
+
         String mavenCommand;
         if (mavenWrapper.isPresent()) {
             mavenCommand = mavenWrapper.get().toString();
@@ -80,9 +109,10 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
             mavenCommand = "mvn";
             log.debug("Using system Maven: {}", mavenCommand);
         }
-        
+
         List<String> cmd = new ArrayList<>(List.of(mavenCommand, "dependency:tree", "-DoutputType=json", "-q"));
-        if (!scopes.isEmpty()) cmd.add("-Dscope=" + String.join(",", scopes));
+        // dependency:tree's -Dscope only supports a single scope; omit it for the default all-scopes run.
+        if (scopes.size() == 1) cmd.add("-Dscope=" + scopes.iterator().next());
         return cmd;
     }
 
@@ -99,9 +129,56 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
             log.debug("Using system Gradle: {}", gradleCommand);
         }
         
-        List<String> cmd = new ArrayList<>(List.of(gradleCommand, "dependencies", "--quiet", "--no-daemon"));
-        scopes.forEach(s -> { cmd.add("--configuration"); cmd.add(s); });
-        return cmd;
+        // Do NOT pass --configuration: it only accepts a single value and passing
+        // multiple flags causes "Multiple arguments were provided" error (exit code 1).
+        // The parser already handles all configuration headers from the full output.
+        return new ArrayList<>(List.of(gradleCommand, "dependencies", "--quiet", "--no-daemon"));
+    }
+
+    /**
+     * Finds the Gradle project root by walking up directories looking for settings.gradle(.kts).
+     * In multi-module projects the root is identified by the presence of a settings file.
+     */
+    public static Optional<Path> findGradleProjectRoot(Path startDir) {
+        if (startDir == null) return Optional.empty();
+        Path current = startDir;
+        int depth = 0;
+        while (current != null && depth < 10) {
+            if (Files.exists(current.resolve("settings.gradle")) ||
+                Files.exists(current.resolve("settings.gradle.kts"))) {
+                return Optional.of(current);
+            }
+            current = current.getParent();
+            depth++;
+            if (current != null && current.getNameCount() == 0) break;
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Computes the Gradle module name as a colon-separated path relative to the project root.
+     * e.g. root=/a/b, submodule=/a/b/community-core-engine → ":community-core-engine"
+     */
+    public static String computeGradleModuleName(Path projectRoot, Path submoduleDir) {
+        Path relative = projectRoot.relativize(submoduleDir);
+        return ":" + relative.toString().replace(java.io.File.separatorChar, ':');
+    }
+
+    /**
+     * Builds a Gradle command using task path notation for a specific submodule.
+     * Runs from the project root so Gradle resolves the correct subproject.
+     */
+    private List<String> buildGradleModuleCommand(Set<String> scopes, Path rootDir, String moduleName) {
+        Optional<Path> gradleWrapper = findGradleWrapper(rootDir);
+        String gradleCommand;
+        if (gradleWrapper.isPresent()) {
+            gradleCommand = gradleWrapper.get().toString();
+            log.debug("Using Gradle wrapper for module: {}", gradleCommand);
+        } else {
+            gradleCommand = "gradle";
+            log.debug("Using system Gradle for module: {}", gradleCommand);
+        }
+        return new ArrayList<>(List.of(gradleCommand, moduleName + ":dependencies", "--quiet", "--no-daemon"));
     }
 
     @FunctionalInterface
@@ -123,23 +200,13 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
             int exitCode = process.waitFor();
             if (exitCode != 0) {
                 log.warn("{} exited with code {} in directory: {}", cmdName, exitCode, projectDir);
-                // Read error output for better diagnostics
-                try (BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-                    StringBuilder errorOutput = new StringBuilder();
-                    String line;
-                    while ((line = errorReader.readLine()) != null) {
-                        errorOutput.append(line).append("\n");
-                    }
-                    String errorMsg = errorOutput.toString().trim();
-                    if (!errorMsg.isEmpty()) {
-                        log.debug("Command error output: {}", errorMsg);
-                        // Check for common error patterns
-                        if (errorMsg.contains("not recognized") || errorMsg.contains("not found") || errorMsg.contains("cannot find the file")) {
-                            return DependencyTreeResult.error(String.format(
-                                "Command '%s' not found. Please install %s or ensure %s wrapper is available in project directory.", 
-                                command.get(0), cmdName.contains("Maven") ? "Maven" : "Gradle", cmdName.contains("Maven") ? "Maven" : "Gradle"));
-                        }
-                    }
+                // Note: redirectErrorStream(true) merges stderr into stdout, so getErrorStream() is empty.
+                // The parser already consumed stdout via process.getInputStream(). We check the parser's
+                // output for diagnostic clues. If we got no dependencies, the exit code itself signals failure.
+                if (deps.isEmpty()) {
+                    return DependencyTreeResult.error(String.format(
+                        "%s exited with code %d in %s. No dependencies were parsed.",
+                        cmdName, exitCode, projectDir));
                 }
             }
 
@@ -318,6 +385,7 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
         executor.shutdown();
         try { if (!executor.awaitTermination(5, TimeUnit.SECONDS)) executor.shutdownNow(); }
         catch (InterruptedException e) { executor.shutdownNow(); Thread.currentThread().interrupt(); }
+        gradleToolingApiExecutor.shutdown();
     }
 
     /**
@@ -337,34 +405,55 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
     }
 
     /**
+     * Check if Maven is available for a given project directory.
+     * Checks system Maven first, then looks for a Maven wrapper.
+     */
+    private static boolean isMavenAvailableForProject(Path projectDir) {
+        if (isMavenAvailable()) return true;
+        return findMavenWrapper(projectDir).isPresent();
+    }
+
+    /**
+     * Check if Gradle is available for a given project directory.
+     * Checks system Gradle first, then looks for a Gradle wrapper.
+     */
+    private static boolean isGradleAvailableForProject(Path projectDir) {
+        if (isGradleAvailable()) return true;
+        return findGradleWrapper(projectDir).isPresent();
+    }
+
+    /**
      * Find Maven wrapper in the project directory or its parents.
      * @param projectDir The project directory to search from
      * @return Optional Path to the Maven wrapper executable, empty if not found
      */
-    private Optional<Path> findMavenWrapper(Path projectDir) {
+    private static Optional<Path> findMavenWrapper(Path projectDir) {
         if (projectDir == null) return Optional.empty();
         
         // Check for Maven wrapper in current directory and parent directories
         Path currentDir = projectDir;
-        while (currentDir != null) {
+        int maxDepth = 10; // Reasonable limit to prevent infinite loops
+        int depth = 0;
+        while (currentDir != null && depth < maxDepth) {
             // Check Unix-style wrapper
             Path mvnw = currentDir.resolve("mvnw");
-            if (Files.isExecutable(mvnw)) {
+            if (Files.exists(mvnw)) {
                 log.debug("Found Maven wrapper: {}", mvnw);
                 return Optional.of(mvnw);
             }
             
             // Check Windows-style wrapper
             Path mvnwBat = currentDir.resolve("mvnw.bat");
-            if (Files.isExecutable(mvnwBat)) {
+            if (Files.exists(mvnwBat)) {
                 log.debug("Found Maven wrapper (Windows): {}", mvnwBat);
                 return Optional.of(mvnwBat);
             }
             
             // Move to parent directory
             currentDir = currentDir.getParent();
-            // Stop at filesystem root or after reasonable depth
-            if (currentDir == null || currentDir.getNameCount() < 2) break;
+            depth++;
+            // Stop at filesystem root
+            if (currentDir != null && currentDir.getNameCount() == 0) break;
         }
         
         return Optional.empty();
@@ -375,30 +464,33 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
      * @param projectDir The project directory to search from
      * @return Optional Path to the Gradle wrapper executable, empty if not found
      */
-    private Optional<Path> findGradleWrapper(Path projectDir) {
+    private static Optional<Path> findGradleWrapper(Path projectDir) {
         if (projectDir == null) return Optional.empty();
         
         // Check for Gradle wrapper in current directory and parent directories
         Path currentDir = projectDir;
-        while (currentDir != null) {
+        int maxDepth = 10; // Reasonable limit to prevent infinite loops
+        int depth = 0;
+        while (currentDir != null && depth < maxDepth) {
             // Check Unix-style wrapper
             Path gradlew = currentDir.resolve("gradlew");
-            if (Files.isExecutable(gradlew)) {
+            if (Files.exists(gradlew)) {
                 log.debug("Found Gradle wrapper: {}", gradlew);
                 return Optional.of(gradlew);
             }
             
             // Check Windows-style wrapper
             Path gradlewBat = currentDir.resolve("gradlew.bat");
-            if (Files.isExecutable(gradlewBat)) {
+            if (Files.exists(gradlewBat)) {
                 log.debug("Found Gradle wrapper (Windows): {}", gradlewBat);
                 return Optional.of(gradlewBat);
             }
             
             // Move to parent directory
             currentDir = currentDir.getParent();
-            // Stop at filesystem root or after reasonable depth
-            if (currentDir == null || currentDir.getNameCount() < 2) break;
+            depth++;
+            // Stop at filesystem root
+            if (currentDir != null && currentDir.getNameCount() == 0) break;
         }
         
         return Optional.empty();
@@ -428,7 +520,7 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
             log.debug("Command '{}' check completed with exit code {}", command, exitCode);
             return exitCode == 0;
         } catch (IOException e) {
-            log.debug("Command '{}' not available: {}", command, e.getMessage());
+            log.debug("Command '{}' not available: {}: {}", command, e.getClass().getSimpleName(), e.getMessage());
             return false;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

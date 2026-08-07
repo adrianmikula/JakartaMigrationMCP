@@ -389,4 +389,16 @@ class BytecodeSignalExtractorTest {
         assertThat(signal.javaxClassRefs()).isEqualTo(5);
         assertThat(signal.apiUsage().get("servlet")).isEqualTo(5);
     }
+
+    @Test
+    void trackDetectedPackagePrefixes() throws IOException {
+        Path jar = tempDir.resolve("packages.jar");
+        TestJarBuilder.create()
+            .withClass(TestJarBuilder.ClassSpec.builder("test/RpcBean").withSuper("javax/xml/rpc/Service"))
+            .withClass(TestJarBuilder.ClassSpec.builder("test/JakartaRpcBean").withSuper("jakarta/xml/rpc/Service"))
+            .build(jar);
+        var signal = extractor.extractFromJar(jar, 0);
+        assertThat(signal.javaxPackages()).contains("javax.xml", "javax.xml.rpc");
+        assertThat(signal.jakartaPackages()).contains("jakarta.xml", "jakarta.xml.rpc");
+    }
 }

@@ -36,6 +36,7 @@ public class DependencyGraphComponent {
     private Set<String> orgNamespacePatterns = new HashSet<>();
     private Map<String, DependencyMigrationStatus> artifactStatusMap = new HashMap<>();
     private Set<String> directDependencyIds = new HashSet<>();
+    private List<DependencyInfo> lastFlatDependencies = new ArrayList<>();
 
     public DependencyGraphComponent(Project project) {
         this.project = project;
@@ -237,6 +238,7 @@ public class DependencyGraphComponent {
         if (deps == null) {
             deps = new ArrayList<>();
         }
+        this.lastFlatDependencies = new ArrayList<>(deps);
 
         // Convert flat list to DependencyGraph
         Set<Artifact> nodes = new HashSet<>();
@@ -275,11 +277,37 @@ public class DependencyGraphComponent {
     }
 
     /**
+     * Fallback to the last known flat dependency list when the DependencyGraph is empty.
+     * Preserves the provided status map so colours remain accurate.
+     */
+    private void fallbackToFlatDependencies(Map<String, DependencyMigrationStatus> statusMap) {
+        Set<Artifact> nodes = new HashSet<>();
+        for (DependencyInfo dep : lastFlatDependencies) {
+            if (dep == null || dep.getGroupId() == null || dep.getArtifactId() == null) {
+                continue;
+            }
+            String version = dep.getCurrentVersion() != null ? dep.getCurrentVersion() : "unknown";
+            nodes.add(new Artifact(dep.getGroupId(), dep.getArtifactId(), version, "compile", dep.isTransitive()));
+        }
+        this.dependencyGraph = new DependencyGraph(nodes, new HashSet<>());
+        this.artifactStatusMap = statusMap != null ? statusMap : new HashMap<>();
+        updateGraphFromDependencyGraph();
+    }
+
+    private boolean isEmptyGraph(DependencyGraph graph) {
+        return graph == null || graph.getNodes() == null || graph.getNodes().isEmpty();
+    }
+
+    /**
      * Update the graph with the real DependencyGraph from migration-core.
      */
     public void updateDependencyGraph(DependencyGraph graph) {
+        if (isEmptyGraph(graph) && !lastFlatDependencies.isEmpty()) {
+            fallbackToFlatDependencies(new HashMap<>());
+            return;
+        }
         this.dependencyGraph = graph != null ? graph : new DependencyGraph();
-        this.artifactStatusMap = new HashMap<String, DependencyMigrationStatus>();
+        this.artifactStatusMap = new HashMap<>();
         updateGraphFromDependencyGraph();
     }
 
@@ -287,8 +315,12 @@ public class DependencyGraphComponent {
      * Update the graph with the real DependencyGraph and status map.
      */
     public void updateDependencyGraph(DependencyGraph graph, Map<String, DependencyMigrationStatus> statusMap) {
+        if (isEmptyGraph(graph) && !lastFlatDependencies.isEmpty()) {
+            fallbackToFlatDependencies(statusMap);
+            return;
+        }
         this.dependencyGraph = graph != null ? graph : new DependencyGraph();
-        this.artifactStatusMap = statusMap != null ? statusMap : new HashMap<String, DependencyMigrationStatus>();
+        this.artifactStatusMap = statusMap != null ? statusMap : new HashMap<>();
         updateGraphFromDependencyGraph();
     }
 
@@ -296,17 +328,25 @@ public class DependencyGraphComponent {
      * Update the graph with the real DependencyGraph from migration-core.
      */
     public void updateGraphFromDependencyGraph(DependencyGraph graph) {
+        if (isEmptyGraph(graph) && !lastFlatDependencies.isEmpty()) {
+            fallbackToFlatDependencies(new HashMap<>());
+            return;
+        }
         this.dependencyGraph = graph != null ? graph : new DependencyGraph();
-        this.artifactStatusMap = new HashMap<String, DependencyMigrationStatus>();
+        this.artifactStatusMap = new HashMap<>();
         updateGraphFromDependencyGraph();
     }
-    
+
     /**
      * Update the graph with the real DependencyGraph and status map.
      */
     public void updateGraphFromDependencyGraph(DependencyGraph graph, Map<String, DependencyMigrationStatus> statusMap) {
+        if (isEmptyGraph(graph) && !lastFlatDependencies.isEmpty()) {
+            fallbackToFlatDependencies(statusMap);
+            return;
+        }
         this.dependencyGraph = graph != null ? graph : new DependencyGraph();
-        this.artifactStatusMap = statusMap != null ? statusMap : new HashMap<String, DependencyMigrationStatus>();
+        this.artifactStatusMap = statusMap != null ? statusMap : new HashMap<>();
         updateGraphFromDependencyGraph();
     }
 
@@ -499,7 +539,8 @@ public class DependencyGraphComponent {
      * Requirements:
      * - 5 or less: tree mode
      * - 5 to 25: circular mode
-     * - 25 or more: force-directed mode
+     * - 25 to 100: force-directed mode
+     * - more than 100: hierarchical mode (force-directed is too expensive for large graphs)
      */
     private void selectOptimalLayout(int nodeCount) {
         String optimalLayout;
@@ -507,8 +548,10 @@ public class DependencyGraphComponent {
             optimalLayout = "Tree";
         } else if (nodeCount <= 25) {
             optimalLayout = "Circular";
-        } else {
+        } else if (nodeCount <= 100) {
             optimalLayout = "Force-Directed";
+        } else {
+            optimalLayout = "Hierarchical";
         }
         
         layoutCombo.setSelectedItem(optimalLayout);

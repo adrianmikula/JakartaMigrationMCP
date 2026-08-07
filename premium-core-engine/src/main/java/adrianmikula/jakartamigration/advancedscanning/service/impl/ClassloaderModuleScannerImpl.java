@@ -229,6 +229,7 @@ public class ClassloaderModuleScannerImpl implements ClassloaderModuleScanner {
 
             return new ClassloaderModuleScanResult(filePath, usages, lineCount);
         } catch (Exception e) {
+            log.warn("Failed to scan Java file {}: {}", filePath, e.getClass().getSimpleName() + ": " + e.getMessage());
             return ClassloaderModuleScanResult.empty(filePath);
         }
     }

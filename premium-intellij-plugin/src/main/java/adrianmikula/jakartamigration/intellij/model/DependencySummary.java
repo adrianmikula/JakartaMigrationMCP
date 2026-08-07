@@ -127,4 +127,26 @@ public class DependencySummary {
     public void setJakartaCompatibleCount(Integer jakartaCompatibleCount) {
         this.jakartaCompatibleCount = jakartaCompatibleCount;
     }
+
+    @JsonProperty("buildToolErrorCount")
+    private Integer buildToolErrorCount = 0;
+
+    @JsonProperty("unknownCount")
+    private Integer unknownCount = 0;
+
+    public Integer getBuildToolErrorCount() {
+        return buildToolErrorCount;
+    }
+
+    public void setBuildToolErrorCount(Integer buildToolErrorCount) {
+        this.buildToolErrorCount = buildToolErrorCount;
+    }
+
+    public Integer getUnknownCount() {
+        return unknownCount;
+    }
+
+    public void setUnknownCount(Integer unknownCount) {
+        this.unknownCount = unknownCount;
+    }
 }

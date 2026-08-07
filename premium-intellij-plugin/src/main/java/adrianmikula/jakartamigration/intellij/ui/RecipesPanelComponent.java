@@ -6,6 +6,8 @@ import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBPanel;
 import com.intellij.ui.components.JBScrollPane;
 
+import adrianmikula.jakartamigration.credits.CreditType;
+import adrianmikula.jakartamigration.credits.CreditsService;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
@@ -23,10 +25,13 @@ public class RecipesPanelComponent {
     private JList<String> recipeList;
     private DefaultListModel<String> recipeListModel;
     private JButton applyRecipeButton;
+    private final CreditsService creditsService;
+    private JLabel premiumHint;
     private boolean isPremiumUser = false;
 
     public RecipesPanelComponent(Project project) {
         this.project = project;
+        this.creditsService = new CreditsService();
         this.panel = new JBPanel<>(new BorderLayout());
         initializeComponent();
     }
@@ -52,7 +57,7 @@ public class RecipesPanelComponent {
         applyRecipeButton.addActionListener(this::handleApplyRecipe);
         recipeActionsPanel.add(applyRecipeButton);
         
-        JLabel premiumHint = new JLabel("(Premium feature)");
+        premiumHint = new JLabel(getHintText());
         premiumHint.setForeground(Color.GRAY);
         recipeActionsPanel.add(premiumHint);
         
@@ -117,21 +122,36 @@ public class RecipesPanelComponent {
         }
         
         if (!isPremiumUser) {
-            Messages.showWarningDialog(project, 
-                    "Applying recipes requires a Premium license.\nPlease upgrade to Premium to use this feature.", 
-                    "Premium Feature");
-            return;
+            if (!creditsService.hasCredits(CreditType.ACTIONS)) {
+                Messages.showWarningDialog(project,
+                        "No free action credits left. Upgrade to Premium for unlimited access.",
+                        "Credits Exhausted");
+                return;
+            }
+            boolean creditUsed = creditsService.useCredit(CreditType.ACTIONS, "Dependencies", "apply_recipe");
+            if (!creditUsed) {
+                Messages.showWarningDialog(project,
+                        "Failed to use action credit. Please try again.",
+                        "Credit Error");
+                return;
+            }
         }
-        
-        // For premium users, apply recipe directly without confirmation dialog
+
         // Note: This is a placeholder - actual recipe application would be handled by the caller
-        Messages.showInfoMessage(project, 
-                "Recipe application would be triggered here.\nRecipe: " + selectedRecipe, 
+        Messages.showInfoMessage(project,
+                "Recipe application would be triggered here.\nRecipe: " + selectedRecipe,
                 "Recipe Application");
     }
 
     public void setPremiumUser(boolean isPremium) {
         this.isPremiumUser = isPremium;
+        if (premiumHint != null) {
+            premiumHint.setText(getHintText());
+        }
+    }
+
+    private String getHintText() {
+        return isPremiumUser ? "Premium feature" : "1 action credit";
     }
 
     public JPanel getPanel() {

@@ -13,6 +13,9 @@ repositories {
 }
 
 dependencies {
+    // Logging
+    implementation("org.slf4j:slf4j-api:2.0.9")
+
     // JSON persistence
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.3")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.3")
@@ -20,8 +23,8 @@ dependencies {
     // Git operations (for apply safety)
     implementation("org.eclipse.jgit:org.eclipse.jgit:6.9.0.202403050737-r")
 
-    // Testcontainers (test-scoped only)
-    testImplementation("org.testcontainers:testcontainers:1.19.8")
+    // Testcontainers (needed for production Docker container orchestration)
+    implementation("org.testcontainers:testcontainers:1.19.8")
     testImplementation("org.testcontainers:junit-jupiter:1.19.8")
 
     // Testing

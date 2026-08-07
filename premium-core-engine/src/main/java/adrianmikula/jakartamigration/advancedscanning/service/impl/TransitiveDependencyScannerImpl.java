@@ -10,23 +10,33 @@ import adrianmikula.jakartamigration.advancedscanning.service.DependencyDeduplic
 import adrianmikula.jakartamigration.advancedscanning.service.DependencyTreeCommandExecutor;
 import adrianmikula.jakartamigration.advancedscanning.service.ScanProgressCallback;
 import adrianmikula.jakartamigration.advancedscanning.service.TransitiveDependencyScanner;
-import adrianmikula.jakartamigration.dependencyanalysis.config.CompatibilityConfigLoader;
+import adrianmikula.jakartamigration.dependencyanalysis.domain.Namespace;
+import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import adrianmikula.jakartamigration.dependencyanalysis.service.ImprovedMavenCentralLookupService;
 import adrianmikula.jakartamigration.dependencyanalysis.service.JarResolver;
+import adrianmikula.jakartamigration.dependencyanalysis.util.MavenPomParser;
+import adrianmikula.jakartamigration.dependencyanalysis.util.GradleBuildParser;
+import adrianmikula.jakartamigration.dependencyanalysis.util.BuildFileDiscovery;
+import adrianmikula.jakartamigration.dependencyanalysis.util.ScopeConstants;
+import adrianmikula.jakartamigration.scanning.RecipeBasedClassifier;
+import adrianmikula.jakartamigration.scanning.BalloonNotificationService;
+import adrianmikula.jakartamigration.jaranalysis.classifier.BytecodeNamespaceClassifier;
 import adrianmikula.jakartamigration.jaranalysis.domain.JarCompatibilityLevel;
 import adrianmikula.jakartamigration.jaranalysis.domain.JarCompatibilityReport;
 import adrianmikula.jakartamigration.jaranalysis.service.JarCompatibilityScanner;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
@@ -37,206 +47,118 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
     private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
     private final DependencyTreeCommandExecutor commandExecutor;
     private final DependencyDeduplicationService deduplicationService;
-    private final CompatibilityConfigLoader compatibilityConfigLoader;
+    private final NamespaceClassifier namespaceClassifier;
     private final JarCompatibilityScanner jarCompatibilityScanner;
     private final JarResolver jarResolver;
     private final ImprovedMavenCentralLookupService mavenCentralLookupService;
-    
-    // Classification cache to avoid repeated lookups for same artifact
-    private final Map<String, CompatibilityConfigLoader.ArtifactClassification> classificationCache = new HashMap<>(1000);
+    private final BalloonNotificationService balloonNotificationService;
+
+    private final Map<String, Namespace> classificationCache = new HashMap<>(1000);
 
     // Scopes to include in transitive dependency scanning
-    private static final Set<String> MAVEN_SCOPES = Set.of("compile", "provided", "runtime", "test");
-    private static final Set<String> GRADLE_SCOPES = Set.of("compileClasspath", "runtimeClasspath", "testCompileClasspath");
+    private static final Set<String> MAVEN_SCOPES = ScopeConstants.DEFAULT_MAVEN_SCOPES;
+    // Only resolvable Gradle configurations for the --configuration CLI flag.
+    // Dependency buckets like 'implementation' are NOT resolvable.
+    private static final Set<String> GRADLE_SCOPES = ScopeConstants.GRADLE_RESOLVABLE_CONFIGS;
+
+    /**
+     * Returns true when the active command executor handles multi-module Gradle projects
+     * internally. In that case the scanner should not perform its own list-level
+     * multi-module aggregation.
+     *
+     * This covers the dedicated {@link GradleToolingApiExecutor}, the composite router
+     * that delegates Gradle to it, and {@link DependencyTreeCommandExecutorImpl} which
+     * now delegates Gradle execution to the Tooling API.
+     */
+    private boolean usesToolingApiExecutor() {
+        return commandExecutor instanceof GradleToolingApiExecutor
+            || commandExecutor instanceof CompositeDependencyTreeCommandExecutor
+            || commandExecutor instanceof DependencyTreeCommandExecutorImpl;
+    }
 
     public TransitiveDependencyScannerImpl() {
-        this(new DependencyTreeCommandExecutorImpl(), new DependencyDeduplicationServiceImpl(), new CompatibilityConfigLoader(),
-             null, null, null);
+        this(new CompositeDependencyTreeCommandExecutor(), new DependencyDeduplicationServiceImpl(),
+             new BytecodeNamespaceClassifier(), null, null, null, null);
     }
 
     public TransitiveDependencyScannerImpl(DependencyTreeCommandExecutor commandExecutor,
                                           DependencyDeduplicationService deduplicationService) {
-        this(commandExecutor, deduplicationService, new CompatibilityConfigLoader(), null, null, null);
+        this(commandExecutor, deduplicationService, new BytecodeNamespaceClassifier(), null, null, null, null);
     }
 
     public TransitiveDependencyScannerImpl(DependencyTreeCommandExecutor commandExecutor,
                                           DependencyDeduplicationService deduplicationService,
-                                          CompatibilityConfigLoader compatibilityConfigLoader) {
-        this(commandExecutor, deduplicationService, compatibilityConfigLoader, null, null, null);
+                                          NamespaceClassifier namespaceClassifier) {
+        this(commandExecutor, deduplicationService, namespaceClassifier, null, null, null, null);
     }
 
     public TransitiveDependencyScannerImpl(DependencyTreeCommandExecutor commandExecutor,
                                           DependencyDeduplicationService deduplicationService,
-                                          CompatibilityConfigLoader compatibilityConfigLoader,
+                                          NamespaceClassifier namespaceClassifier,
                                           JarCompatibilityScanner jarCompatibilityScanner,
                                           JarResolver jarResolver) {
-        this(commandExecutor, deduplicationService, compatibilityConfigLoader, jarCompatibilityScanner, jarResolver, null);
+        this(commandExecutor, deduplicationService, namespaceClassifier, jarCompatibilityScanner, jarResolver, null, null);
     }
 
     public TransitiveDependencyScannerImpl(DependencyTreeCommandExecutor commandExecutor,
                                           DependencyDeduplicationService deduplicationService,
-                                          CompatibilityConfigLoader compatibilityConfigLoader,
+                                          NamespaceClassifier namespaceClassifier,
                                           JarCompatibilityScanner jarCompatibilityScanner,
                                           JarResolver jarResolver,
                                           ImprovedMavenCentralLookupService mavenCentralLookupService) {
+        this(commandExecutor, deduplicationService, namespaceClassifier, jarCompatibilityScanner, jarResolver, mavenCentralLookupService, null);
+    }
+
+    public TransitiveDependencyScannerImpl(DependencyTreeCommandExecutor commandExecutor,
+                                          DependencyDeduplicationService deduplicationService,
+                                          NamespaceClassifier namespaceClassifier,
+                                          JarCompatibilityScanner jarCompatibilityScanner,
+                                          JarResolver jarResolver,
+                                          ImprovedMavenCentralLookupService mavenCentralLookupService,
+                                          BalloonNotificationService balloonNotificationService) {
         this.commandExecutor = commandExecutor;
         this.deduplicationService = deduplicationService;
-        this.compatibilityConfigLoader = compatibilityConfigLoader;
+        this.namespaceClassifier = namespaceClassifier;
         this.jarCompatibilityScanner = jarCompatibilityScanner;
         this.jarResolver = jarResolver;
         this.mavenCentralLookupService = mavenCentralLookupService;
+        this.balloonNotificationService = balloonNotificationService;
     }
 
 
     private static final int MAX_PARALLELISM = Integer.parseInt(
             System.getProperty("advanced.scan.parallelism", "4"));
 
-    // Executor for asynchronous progress updates to prevent blocking scanning threads
-    private final java.util.concurrent.ExecutorService progressUpdateExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "TransitiveDependencyScanner-ProgressUpdater");
-        t.setDaemon(true);
-        return t;
-    });
+    private static final AtomicInteger LOOKUP_THREAD_COUNTER = new AtomicInteger(0);
 
-    // Throttling for progress updates (max 10 updates per second)
-    private volatile long lastProgressUpdateTime = 0;
-    private static final long MIN_PROGRESS_UPDATE_INTERVAL_MS = 100;
+    private static final ExecutorService LOOKUP_EXECUTOR = Executors.newFixedThreadPool(
+            MAX_PARALLELISM,
+            r -> {
+                Thread t = new Thread(r, "maven-lookup-" + LOOKUP_THREAD_COUNTER.incrementAndGet());
+                t.setDaemon(true);
+                return t;
+            });
 
-    // Patterns for Maven pom.xml - captures groupId, artifactId, version, and optional scope
-    private static final Pattern MAVEN_DEPENDENCY_PATTERN = Pattern.compile(
-            "<dependency>\\s*<groupId>([^<]+)</groupId>\\s*<artifactId>([^<]+)</artifactId>\\s*<version>([^<]*)</version>(?:\\s*<scope>([^<]*)</scope>)?",
-            Pattern.MULTILINE | Pattern.DOTALL);
-
-    // Patterns for Gradle
-    private static final Pattern GRADLE_DEPENDENCY_PATTERN = Pattern.compile(
-            "['\"]([^':]+):([^':]+):([^'\"]+)['\"]",
-            Pattern.MULTILINE);
-
-    /**
-     * Dispatches a progress update asynchronously with throttling to prevent flooding.
-     * This ensures that progress updates don't block the scanning threads.
-     * 
-     * @param progressListener The listener to notify (may be null)
-     * @param phase The phase description
-     * @param completed Number of items completed
-     * @param total Total number of items
-     */
-    private void dispatchProgressUpdateAsync(ScanProgressCallback progressListener, String phase, int completed, int total) {
-        if (progressListener == null) {
-            return;
-        }
-
-        // Throttle updates to prevent flooding
-        long now = System.currentTimeMillis();
-        long timeSinceLastUpdate = now - lastProgressUpdateTime;
-        
-        if (timeSinceLastUpdate < MIN_PROGRESS_UPDATE_INTERVAL_MS) {
-            // Skip this update if it's too soon
-            return;
-        }
-        
-        lastProgressUpdateTime = now;
-
-        // Dispatch asynchronously to avoid blocking scanning thread
-        progressUpdateExecutor.submit(() -> {
-            try {
-                progressListener.onPhaseProgress(phase, completed, total);
-            } catch (Exception e) {
-                log.error("Error dispatching progress update", e);
-            }
-        });
+    private static int commandTimeoutSeconds() {
+        return Integer.parseInt(System.getProperty(
+                "advanced.scan.command.timeout.seconds",
+                String.valueOf(DependencyTreeCommandExecutor.DEFAULT_TIMEOUT_SECONDS)));
     }
+
+    private static final int LOOKUP_TIMEOUT_SECONDS = Integer.parseInt(
+            System.getProperty("advanced.scan.lookup.timeout.seconds", "30"));
+
+    private static final int LOOKUP_BATCH_TIMEOUT_SECONDS = Integer.parseInt(
+            System.getProperty("advanced.scan.lookup.batch.timeout.seconds", "120"));
 
     @Override
     public TransitiveDependencyProjectScanResult scanProject(Path projectPath) {
-        log.info("[DEBUG] scanProject called with path: {}", projectPath);
-
-        if (projectPath == null || !Files.exists(projectPath) || !Files.isDirectory(projectPath)) {
-            log.warn("[DEBUG] Invalid project path: {}", projectPath);
-            return TransitiveDependencyProjectScanResult.empty();
-        }
-
-        try {
-            List<Path> buildFiles = discoverBuildFiles(projectPath);
-            log.info("[DEBUG] Discovered {} build files: {}", buildFiles.size(), buildFiles);
-
-            if (buildFiles.isEmpty()) {
-                log.warn("[DEBUG] No build files found in {}", projectPath);
-                return TransitiveDependencyProjectScanResult.empty();
-            }
-
-            AtomicInteger totalScanned = new AtomicInteger(0);
-            int parallelism = Math.min(MAX_PARALLELISM, buildFiles.size());
-            log.info("[DEBUG] Scanning {} files with parallelism {}", buildFiles.size(), parallelism);
-
-            List<TransitiveDependencyScanResult> results = buildFiles.parallelStream()
-                    .map(file -> {
-                        log.info("[DEBUG] Scanning file: {}", file);
-                        TransitiveDependencyScanResult result = scanFileWithTracking(file, totalScanned);
-                        if (result != null) {
-                            log.info("[DEBUG] File {} scanned: {} usages", file, result.getUsages().size());
-                        } else {
-                            log.warn("[DEBUG] File {} returned null result", file);
-                        }
-                        return result;
-                    })
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-
-            int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
-            int filesWithErrors = (int) results.stream().filter(r -> r.hasError()).count();
-            boolean hadCommandNotFound = results.stream()
-                .filter(r -> r.hasError())
-                .anyMatch(r -> r.getErrorMessage() != null &&
-                    (r.getErrorMessage().contains("mvn command not found") ||
-                     r.getErrorMessage().contains("gradle command not found") ||
-                     r.getErrorMessage().contains("not found")));
-            String errorSummary = hadCommandNotFound ?
-                "Build tool (Maven/Gradle) not found. Transitive dependency scanning fell back to regex parsing." : null;
-            log.info("[DEBUG] Scan complete: {} files, {} total usages, {} files with errors", results.size(), totalUsages, filesWithErrors);
-
-            return new TransitiveDependencyProjectScanResult(results, totalScanned.get(), results.size(), totalUsages,
-                filesWithErrors, hadCommandNotFound, errorSummary);
-        } catch (Exception e) {
-            log.error("[DEBUG] Error scanning project for transitive dependencies", e);
-            return TransitiveDependencyProjectScanResult.empty();
-        }
+        return scanProject(projectPath, null);
     }
 
     @Override
     public TransitiveDependencyProjectScanResult scanProject(List<Path> filesToScan) {
-        if (filesToScan == null || filesToScan.isEmpty()) {
-            return TransitiveDependencyProjectScanResult.empty();
-        }
-        log.info("[DEBUG] scanProject with file list called with {} files", filesToScan.size());
-        AtomicInteger totalScanned = new AtomicInteger(0);
-        int parallelism = Math.min(MAX_PARALLELISM, filesToScan.size());
-        List<TransitiveDependencyScanResult> results = filesToScan.parallelStream()
-                .map(file -> {
-                    log.info("[DEBUG] Scanning file: {}", file);
-                    TransitiveDependencyScanResult result = scanFileWithTracking(file, totalScanned);
-                    if (result != null) {
-                        log.info("[DEBUG] File {} scanned: {} usages", file, result.getUsages().size());
-                    } else {
-                        log.warn("[DEBUG] File {} returned null result", file);
-                    }
-                    return result;
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
-        int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
-        int filesWithErrors = (int) results.stream().filter(r -> r.hasError()).count();
-        boolean hadCommandNotFound = results.stream()
-            .filter(r -> r.hasError())
-            .anyMatch(r -> r.getErrorMessage() != null &&
-                (r.getErrorMessage().contains("mvn command not found") ||
-                 r.getErrorMessage().contains("gradle command not found") ||
-                 r.getErrorMessage().contains("not found")));
-        String errorSummary = hadCommandNotFound ?
-            "Build tool (Maven/Gradle) not found. Transitive dependency scanning fell back to regex parsing." : null;
-        log.info("[DEBUG] Scan complete (parallel): {} files, {} total usages, {} files with errors", results.size(), totalUsages, filesWithErrors);
-        return new TransitiveDependencyProjectScanResult(results, totalScanned.get(), results.size(), totalUsages,
-            filesWithErrors, hadCommandNotFound, errorSummary);
+        return scanProject(filesToScan, null);
     }
 
     @Override
@@ -245,18 +167,64 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
             return TransitiveDependencyProjectScanResult.empty();
         }
         log.info("[DEBUG] scanProject with progress listener (list) called with {} files", filesToScan.size());
+
+        // Check if this is a multi-module project and handle it accordingly.
+        // When using the Gradle Tooling API executor, multi-module handling is done
+        // natively inside the executor, so skip the list-level aggregation.
+        if (filesToScan.size() > 1 && !usesToolingApiExecutor()) {
+            // Find a common project root from the build files
+            Optional<Path> projectRoot = BuildFileDiscovery.findCommonProjectRoot(filesToScan);
+            if (projectRoot.isPresent() && BuildFileDiscovery.detectMultiModuleProject(projectRoot.get())) {
+                log.info("Multi-module project detected from file list, scanning from root: {}", projectRoot.get());
+                TransitiveDependencyProjectScanResult result = scanProject(projectRoot.get(), progressListener);
+                // Filter results to only include files that were in the original list
+                if (!result.getFileResults().isEmpty()) {
+                    List<TransitiveDependencyScanResult> filteredResults = result.getFileResults().stream()
+                        .filter(r -> filesToScan.contains(r.getFilePath()))
+                        .collect(Collectors.toList());
+                    return new TransitiveDependencyProjectScanResult(
+                        filteredResults,
+                        result.getTotalBuildFilesScanned(),
+                        filteredResults.size(),
+                        filteredResults.stream().mapToInt(r -> r.getUsages().size()).sum(),
+                        (int) filteredResults.stream().filter(r -> r.hasError()).count(),
+                        result.isHadCommandNotFoundError(),
+                        result.getErrorMessage()
+                    );
+                }
+                return result;
+            }
+        }
+
+        // Fallback to per-file scanning for single-module or if multi-module detection failed
         List<TransitiveDependencyScanResult> results = new ArrayList<>();
         AtomicInteger totalScanned = new AtomicInteger(0);
+        String previousFailedBuildFile = null;
 
         for (Path file : filesToScan) {
             log.info("[DEBUG] Scanning file (sequential): {}", file);
             String moduleName = "Scanning module: " + file.getFileName();
             ScanProgressCallback fileListener = (phase, completed, total) -> {
-                dispatchProgressUpdateAsync(progressListener, moduleName, completed, total);
+                if (progressListener != null) {
+                    progressListener.onPhaseProgress(moduleName + " — " + phase, completed, total);
+                }
             };
-            dispatchProgressUpdateAsync(progressListener, "", 0, 0);
-            TransitiveDependencyScanResult result = scanFile(file, fileListener);
+            if (progressListener != null) {
+                progressListener.onPhaseProgress(moduleName, 0, 0);
+            }
+
+            String fileName = file.getFileName().toString().toLowerCase();
+            boolean shouldSkip = previousFailedBuildFile != null && fileName.equals(previousFailedBuildFile);
+            TransitiveDependencyScanResult result = shouldSkip
+                    ? scanFileFallback(file, fileListener, "Build command previously failed for " + fileName)
+                    : scanFile(file, fileListener);
+
             if (result != null) {
+                if (!shouldSkip && result.hasError() && result.getErrorMessage() != null
+                        && (result.getErrorMessage().contains("no dependencies")
+                            || result.getErrorMessage().contains("not found"))) {
+                    previousFailedBuildFile = fileName;
+                }
                 results.add(result);
             } else {
                 log.warn("[DEBUG] File {} returned null result", file);
@@ -298,37 +266,70 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         }
 
         try {
-            List<Path> buildFiles = discoverBuildFiles(projectPath);
-            log.info("[DEBUG] Discovered {} build files: {}", buildFiles.size(), buildFiles);
+             List<Path> buildFiles = BuildFileDiscovery.discoverBuildFiles(projectPath);
+             log.info("[DEBUG] Discovered {} build files: {}", buildFiles.size(), buildFiles);
 
-            if (buildFiles.isEmpty()) {
-                log.warn("[DEBUG] No build files found in {}", projectPath);
-                return TransitiveDependencyProjectScanResult.empty();
-            }
+             if (buildFiles.isEmpty()) {
+                 log.warn("[DEBUG] No build files found in {}", projectPath);
+                 return TransitiveDependencyProjectScanResult.empty();
+             }
 
-            List<TransitiveDependencyScanResult> results = new ArrayList<>();
+             // For multi-module projects, run command once from root instead of per-file,
+             // unless the Tooling API executor is handling multi-module natively per build file.
+             boolean isMultiModule = buildFiles.size() > 1
+                 && !usesToolingApiExecutor()
+                 && BuildFileDiscovery.detectMultiModuleProject(projectPath);
+            List<TransitiveDependencyScanResult> results = null;
             AtomicInteger totalScanned = new AtomicInteger(0);
 
-            // Process build files sequentially to provide ordered progress updates
-            for (Path file : buildFiles) {
-                log.info("[DEBUG] Scanning file (sequential): {}", file);
-                String moduleName = "Scanning module: " + file.getFileName();
-
-                // Adapter to prefix phase with module name
-                ScanProgressCallback fileListener = (phase, completed, total) -> {
-                    dispatchProgressUpdateAsync(progressListener, moduleName, completed, total);
-                };
-
-                // Report start of module processing
-                dispatchProgressUpdateAsync(progressListener, "", 0, 0);
-
-                TransitiveDependencyScanResult result = scanFile(file, fileListener);
-                if (result != null) {
-                    results.add(result);
-                } else {
-                    log.warn("[DEBUG] File {} returned null result", file);
+            if (isMultiModule) {
+                log.info("Multi-module project detected ({} build files), scanning from root", buildFiles.size());
+                results = scanMultiModuleProject(projectPath, buildFiles, progressListener);
+                if (results != null) {
+                    totalScanned.set(1);
                 }
-                totalScanned.incrementAndGet();
+            }
+
+            // Fallback to per-file scanning for single-module or if multi-module scan failed
+            if (results == null) {
+                results = new ArrayList<>();
+                String previousFailedBuildFile = null;
+
+                // Process build files sequentially to provide ordered progress updates
+                for (Path file : buildFiles) {
+                    log.info("[DEBUG] Scanning file (sequential): {}", file);
+                    String moduleName = "Scanning module: " + file.getFileName();
+
+                    // Adapter to prefix phase with module name
+                    ScanProgressCallback fileListener = (phase, completed, total) -> {
+                        if (progressListener != null) {
+                            progressListener.onPhaseProgress(moduleName + " — " + phase, completed, total);
+                        }
+                    };
+
+                    // Report start of module processing
+                    if (progressListener != null) {
+                        progressListener.onPhaseProgress(moduleName, 0, 0);
+                    }
+
+                    String fileName = file.getFileName().toString().toLowerCase();
+                    boolean shouldSkip = previousFailedBuildFile != null && fileName.equals(previousFailedBuildFile);
+                    TransitiveDependencyScanResult result = shouldSkip
+                            ? scanFileFallback(file, fileListener, "Build command previously failed for " + fileName)
+                            : scanFile(file, fileListener);
+
+                    if (result != null) {
+                        if (!shouldSkip && result.hasError() && result.getErrorMessage() != null
+                                && (result.getErrorMessage().contains("no dependencies")
+                                    || result.getErrorMessage().contains("not found"))) {
+                            previousFailedBuildFile = fileName;
+                        }
+                        results.add(result);
+                    } else {
+                        log.warn("[DEBUG] File {} returned null result", file);
+                    }
+                    totalScanned.incrementAndGet();
+                }
             }
 
             int totalUsages = results.stream().mapToInt(r -> r.getUsages().size()).sum();
@@ -369,20 +370,27 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
              return TransitiveDependencyScanResult.empty(filePath);
          }
 
-         String fileName = filePath.getFileName().toString().toLowerCase();
-         boolean isMaven = fileName.equals("pom.xml");
-         boolean isGradle = fileName.endsWith(".gradle") || fileName.endsWith(".gradle.kts");
-
-         if (!isMaven && !isGradle) return TransitiveDependencyScanResult.empty(filePath);
+         if (!BuildFileDiscovery.isBuildFile(filePath)) {
+             return TransitiveDependencyScanResult.empty(filePath);
+         }
+         boolean isMaven = BuildFileDiscovery.isMavenFile(filePath);
 
          try {
              log.debug("Starting {} dependency scanning for file: {}", isMaven ? "Maven" : "Gradle", filePath);
+             
+             if (listener != null) {
+                 listener.onPhaseProgress(isMaven ? "Executing Maven dependency:tree" : "Executing Gradle dependencies", 0, 1);
+             }
              
              var future = isMaven
                  ? commandExecutor.executeMavenDependencyTreeAsync(filePath, MAVEN_SCOPES)
                  : commandExecutor.executeGradleDependenciesAsync(filePath, GRADLE_SCOPES);
 
-             var treeResult = future.get(DependencyTreeCommandExecutor.DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+             var treeResult = future.get(commandTimeoutSeconds(), TimeUnit.SECONDS);
+             
+             if (listener != null) {
+                 listener.onPhaseProgress(isMaven ? "Executing Maven dependency:tree" : "Executing Gradle dependencies", 1, 1);
+             }
              if (!treeResult.isSuccess()) {
                  log.debug("Command execution failed for {}: {}", filePath, treeResult.getErrorMessage());
                  throw new RuntimeException(treeResult.getErrorMessage());
@@ -396,33 +404,22 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
              log.debug("Successfully parsed {} dependencies via command execution for {}", dependencies.size(), filePath);
              String buildFileType = isMaven ? "Maven" : "Gradle";
              return convertTreeResult(filePath, buildFileType, treeResult, listener);
-         } catch (Exception e) {
-             log.debug("Async scanning failed for {}, falling back to regex: {}", filePath, e.getMessage());
-             log.debug("Exception details:", e);
-             TransitiveDependencyScanResult fallback = scanFileFallback(filePath);
-             // Update scan reason to BUILD_TOOL_ERROR for all fallback dependencies
-             List<TransitiveDependencyUsage> usagesWithErrorReason = fallback.getUsages().stream()
-                 .map(usage -> new TransitiveDependencyUsage(
-                     usage.getArtifactId(),
-                     usage.getGroupId(),
-                     usage.getVersion(),
-                     usage.getJavaxPackage(),
-                     usage.getSeverity(),
-                     usage.getRecommendation(),
-                     usage.getScope(),
-                     usage.isTransitive(),
-                     usage.getDepth(),
-                     usage.getAlternativeVersions(),
-                     ScanReason.BUILD_TOOL_ERROR,  // Mark as build tool error
-                     "Dependency detected via regex fallback - Maven/Gradle command failed",
-                     usage.getConfidence(),
-                     usage.isIncompatibilityFromTransitive()
-                 ))
-                 .collect(Collectors.toList());
-             // Store error info in the result's metadata for aggregation
-             return new TransitiveDependencyScanResult(fallback.getFilePath(), usagesWithErrorReason,
-                 fallback.getBuildFileType(), fallback.getScopes(), fallback.getEdges(), e.getMessage());
-         }
+           } catch (Exception e) {
+               log.warn("Async scanning failed for {}, falling back to regex: {}", filePath, e.getClass().getSimpleName() + ": " + e.getMessage());
+               log.debug("Exception details:", e);
+               // Notify user via IDE balloon (deduplicated per file path)
+               if (balloonNotificationService != null) {
+                   String notifKey = "build-tool-failure:" + filePath;
+                   balloonNotificationService.showOnce(notifKey,
+                       "Build Tool Error",
+                       "Build command failed for " + filePath.getFileName()
+                           + ". Results shown are based on regex fallback (partial).\n"
+                           + e.getMessage());
+               }
+                // Fall back to regex scanning - retain the fallback's own classification
+                // instead of marking everything as BUILD_TOOL_ERROR
+                return scanFileFallback(filePath, listener, e.getMessage());
+           }
      }
 
      /**
@@ -455,15 +452,22 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
          List<TransitiveDependencyUsage> usagesNeedingMavenLookup = new ArrayList<>();
          Map<String, Integer> usageIndexMap = new HashMap<>(totalNodes);
 
-         for (DependencyTreeResult.DependencyNode node : nodes) {
-            // Classify using CompatibilityConfigLoader with caching
-            String artifactKey = node.getGroupId() + ":" + node.getArtifactId();
-            CompatibilityConfigLoader.ArtifactClassification classification =
-                    classificationCache.computeIfAbsent(artifactKey,
-                        k -> compatibilityConfigLoader.classifyArtifact(node.getGroupId(), node.getArtifactId()));
+          for (DependencyTreeResult.DependencyNode node : nodes) {
+             String artifactKey = node.getGroupId() + ":" + node.getArtifactId();
+             Artifact artifact = new Artifact(node.getGroupId(), node.getArtifactId(), node.getVersion(), node.getScope(), node.isTransitive());
+             Namespace ns;
+             JarCompatibilityReport jarReport = null;
+             if (namespaceClassifier instanceof BytecodeNamespaceClassifier bnc) {
+                 var cr = bnc.classifyWithScanning(artifact, false);
+                 ns = cr.namespace();
+                 jarReport = cr.report();
+                 classificationCache.put(artifactKey, ns);
+             } else {
+                 ns = classificationCache.computeIfAbsent(artifactKey,
+                     k -> namespaceClassifier.classify(artifact));
+             }
 
-             // Create base usage from classification
-             TransitiveDependencyUsage usage = createBaseUsage(node, classification);
+             TransitiveDependencyUsage usage = createBaseUsage(node, ns, jarReport);
              usages.add(usage);
              
              // Track index for later merging
@@ -478,7 +482,11 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
 
              // Collect usages needing Maven Central lookup
              if (mavenCentralLookupService != null) {
-                 if (usage.getScanReason() == ScanReason.UNKNOWN || usage.getScanReason() == ScanReason.BYTECODE_SCAN_UNKNOWN) {
+                 if (usage.getScanReason() == ScanReason.UNKNOWN
+                    || usage.getScanReason() == ScanReason.BYTECODE_SCAN_UNKNOWN
+                    || usage.getScanReason() == ScanReason.BLACKLISTED
+                    || usage.getScanReason() == ScanReason.BYTECODE_SCAN_JAVAX
+                    || usage.getScanReason() == ScanReason.BYTECODE_SCAN_MIXED) {
                      usagesNeedingMavenLookup.add(usage);
                  }
              }
@@ -486,12 +494,15 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
              processed++;
 
              if (listener != null) {
-                 listener.onPhaseProgress("", processed, totalNodes);
+                 listener.onPhaseProgress("Classifying dependencies", processed, totalNodes);
              }
          }
          
          // Batch JAR scanning in parallel
          if (!usagesNeedingJarScan.isEmpty()) {
+             if (listener != null) {
+                 listener.onPhaseProgress("Scanning JARs for javax/jakarta usage", 0, usagesNeedingJarScan.size());
+             }
              Map<String, TransitiveDependencyUsage> jarScanResults = enrichWithJarScansBatch(usagesNeedingJarScan);
              // Merge results back into usages list
              for (TransitiveDependencyUsage original : usagesNeedingJarScan) {
@@ -501,10 +512,16 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                      usages.set(index, enriched);
                  }
              }
+             if (listener != null) {
+                 listener.onPhaseProgress("Scanning JARs for javax/jakarta usage", usagesNeedingJarScan.size(), usagesNeedingJarScan.size());
+             }
          }
          
          // Batch Maven Central lookups in parallel
          if (!usagesNeedingMavenLookup.isEmpty()) {
+             if (listener != null) {
+                 listener.onPhaseProgress("Looking up Maven Central for Jakarta equivalents", 0, usagesNeedingMavenLookup.size());
+             }
              Map<String, TransitiveDependencyUsage> mavenLookupResults = enrichWithMavenLookupsBatch(usagesNeedingMavenLookup);
              // Merge results back into usages list
              for (TransitiveDependencyUsage original : usagesNeedingMavenLookup) {
@@ -513,6 +530,9 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                      int index = usageIndexMap.get(original.getArtifactKey());
                      usages.set(index, enriched);
                  }
+             }
+             if (listener != null) {
+                 listener.onPhaseProgress("Looking up Maven Central for Jakarta equivalents", usagesNeedingMavenLookup.size(), usagesNeedingMavenLookup.size());
              }
          }
 
@@ -534,15 +554,27 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
      * Creates a base TransitiveDependencyUsage from a dependency node and its classification.
      */
     private TransitiveDependencyUsage createBaseUsage(DependencyTreeResult.DependencyNode node,
-                                                        CompatibilityConfigLoader.ArtifactClassification classification) {
-        ScanReason scanReason = mapClassificationToScanReason(classification);
-        String severity = mapClassificationToSeverity(classification);
-        String recommendation = mapClassificationToRecommendation(classification, node.getGroupId(), node.getArtifactId());
-        String detailMessage = createDetailMessage(classification, node.getGroupId(), node.getArtifactId());
-        String artifactKey = node.getArtifactKey();
-        String javaxPackage = (classification == CompatibilityConfigLoader.ArtifactClassification.JAKARTA_REQUIRED ||
-                               classification == CompatibilityConfigLoader.ArtifactClassification.CONTEXT_DEPENDENT)
-                               ? artifactKey : null;
+                                                        Namespace ns) {
+        return createBaseUsage(node, ns, null);
+    }
+
+    private TransitiveDependencyUsage createBaseUsage(DependencyTreeResult.DependencyNode node,
+                                                        Namespace ns,
+                                                        JarCompatibilityReport report) {
+        ScanReason scanReason;
+        String javaxPackage;
+        if (report != null && report.signal() != null) {
+            scanReason = mapJarLevelToScanReason(report.level());
+            javaxPackage = report.signal().javaxPackages().length > 0
+                ? String.join(",", report.signal().javaxPackages())
+                : null;
+        } else {
+            scanReason = mapNamespaceToScanReason(ns);
+            javaxPackage = (ns == Namespace.JAVAX || ns == Namespace.MIXED) ? node.getArtifactKey() : null;
+        }
+        String severity = mapNamespaceToSeverity(ns);
+        String recommendation = mapNamespaceToRecommendation(ns, node.getGroupId(), node.getArtifactId());
+        String detailMessage = detailMessage(ns, node.getGroupId(), node.getArtifactId());
 
         return new TransitiveDependencyUsage(
                 node.getArtifactId(),
@@ -608,7 +640,7 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                 }
             }
         } catch (Exception e) {
-            log.debug("JAR scan failed for {}: {}", usage.getArtifactKey(), e.getMessage());
+            log.warn("JAR scan failed for {}: {}", usage.getArtifactKey(), e.getClass().getSimpleName() + ": " + e.getMessage());
         }
         return Optional.empty();
     }
@@ -634,18 +666,26 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
      */
     private Optional<TransitiveDependencyUsage> enrichWithMavenLookup(TransitiveDependencyUsage usage) {
         ScanReason reason = usage.getScanReason();
-        // Only lookup UNKNOWN and BYTECODE_SCAN_UNKNOWN dependencies
-        if (reason != ScanReason.UNKNOWN && reason != ScanReason.BYTECODE_SCAN_UNKNOWN) {
+        // Only lookup dependencies that might have a Jakarta equivalent
+        if (reason != ScanReason.UNKNOWN && reason != ScanReason.BYTECODE_SCAN_UNKNOWN
+                && reason != ScanReason.BLACKLISTED && reason != ScanReason.BYTECODE_SCAN_JAVAX
+                && reason != ScanReason.BYTECODE_SCAN_MIXED) {
             return Optional.empty();
         }
 
         try {
-            var future = mavenCentralLookupService.findJakartaEquivalents(usage.getGroupId(), usage.getArtifactId());
-            var matches = future.get();
+            Collection<String> packages = parseJavaxPackages(usage.getJavaxPackage());
+            var future = (packages != null && !packages.isEmpty())
+                ? mavenCentralLookupService.findJakartaEquivalents(usage.getGroupId(), usage.getArtifactId(), packages)
+                : mavenCentralLookupService.findJakartaEquivalents(usage.getGroupId(), usage.getArtifactId());
+            var matches = future.get(LOOKUP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (matches != null && !matches.isEmpty()) {
                 ImprovedMavenCentralLookupService.JakartaArtifactMatch firstMatch = matches.get(0);
-                String newRecommendation = firstMatch.groupId() + ":" + firstMatch.artifactId() +
+                String coordinate = firstMatch.groupId() + ":" + firstMatch.artifactId() +
                         (firstMatch.version() != null ? ":" + firstMatch.version() : "");
+                String newRecommendation = reason == ScanReason.BLACKLISTED
+                        ? "Jakarta migration required: " + coordinate
+                        : coordinate;
                 TransitiveDependencyUsage updated = new TransitiveDependencyUsage(
                         usage.getArtifactId(),
                         usage.getGroupId(),
@@ -658,19 +698,21 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                         usage.getDepth(),
                         usage.getAlternativeVersions(),
                         ScanReason.MAVEN_LOOKUP_FOUND,
-                        "Maven Central found Jakarta equivalent: " + newRecommendation,
-                        0.7, // heuristic confidence
+                        "Maven Central found Jakarta equivalent: " + coordinate,
+                        firstMatch.confidence(),
                         usage.isIncompatibilityFromTransitive()
                 );
                 return Optional.of(updated);
             } else {
                 // No Jakarta equivalent found
+                boolean wasBlacklisted = reason == ScanReason.BLACKLISTED;
+                String severity = wasBlacklisted ? usage.getSeverity() : "low";
                 TransitiveDependencyUsage updated = new TransitiveDependencyUsage(
                         usage.getArtifactId(),
                         usage.getGroupId(),
                         usage.getVersion(),
                         usage.getJavaxPackage(),
-                        "low", // downgrade severity since nothing found
+                        severity,
                         usage.getRecommendation(),
                         usage.getScope(),
                         usage.isTransitive(),
@@ -684,9 +726,22 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                 return Optional.of(updated);
             }
         } catch (Exception e) {
-            log.debug("Maven Central lookup failed for {}: {}", usage.getArtifactKey(), e.getMessage());
+            log.warn("Maven Central lookup failed for {}: {}", usage.getArtifactKey(), e.getClass().getSimpleName() + ": " + e.getMessage());
         }
         return Optional.empty();
+    }
+
+    private Collection<String> parseJavaxPackages(String javaxPackage) {
+        if (javaxPackage == null || javaxPackage.isEmpty() || javaxPackage.contains(":")) {
+            return null;
+        }
+        if (javaxPackage.contains(",")) {
+            return List.of(javaxPackage.split(","));
+        }
+        if (javaxPackage.contains(".")) {
+            return List.of(javaxPackage);
+        }
+        return null;
     }
     
     /**
@@ -695,12 +750,23 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
      */
     private Map<String, TransitiveDependencyUsage> enrichWithMavenLookupsBatch(List<TransitiveDependencyUsage> usages) {
         Map<String, TransitiveDependencyUsage> results = new ConcurrentHashMap<>();
-        
-        usages.parallelStream().forEach(usage -> {
-            Optional<TransitiveDependencyUsage> enriched = enrichWithMavenLookup(usage);
-            enriched.ifPresent(u -> results.put(u.getArtifactKey(), u));
-        });
-        
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+        for (TransitiveDependencyUsage usage : usages) {
+            futures.add(CompletableFuture.supplyAsync(() -> enrichWithMavenLookup(usage), LOOKUP_EXECUTOR)
+                    .thenAccept(enriched -> enriched.ifPresent(u -> results.put(u.getArtifactKey(), u))));
+        }
+
+        if (!futures.isEmpty()) {
+            try {
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                        .get(LOOKUP_BATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.warn("Batch Maven Central lookup did not complete within {} seconds: {}",
+                        LOOKUP_BATCH_TIMEOUT_SECONDS, e.getMessage());
+            }
+        }
+
         return results;
     }
 
@@ -812,149 +878,282 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
         };
     }
 
+    /**
+     * Error code to human-friendly message mapping for dependency annotations.
+     */
+    private static final Map<String, String> ERROR_CODE_MESSAGES = Map.of(
+        "command_not_found", "Build tool not found — install Maven/Gradle or add wrapper to project",
+        "command_failed", "Build command failed — results based on regex fallback (partial)",
+        "no_dependencies", "Build command returned no dependencies — check build configuration",
+        "timeout", "Build command timed out — project may be too large or build too slow",
+        "parse_error", "Could not parse dependency tree — using regex fallback",
+        "classification_error", "Could not classify dependency — review manually",
+        "jar_scan_error", "Could not scan JAR file — JAR may be corrupted or inaccessible",
+        "maven_lookup_error", "Maven Central lookup failed — network or timeout issue"
+    );
 
-
-    private ScanReason mapClassificationToScanReason(CompatibilityConfigLoader.ArtifactClassification classification) {
-        return switch (classification) {
-            case JDK_PROVIDED -> ScanReason.WHITELISTED;
-            case JAKARTA_REQUIRED -> ScanReason.BLACKLISTED;
-            case CONTEXT_DEPENDENT -> ScanReason.UNKNOWN;
-            case UNKNOWN -> ScanReason.UNKNOWN;
-        };
+    private static String friendlyErrorFor(String rawMessage) {
+        if (rawMessage == null) return null;
+        String lower = rawMessage.toLowerCase();
+        if (lower.contains("not found")) return ERROR_CODE_MESSAGES.get("command_not_found");
+        if (lower.contains("timeout")) return ERROR_CODE_MESSAGES.get("timeout");
+        if (lower.contains("no dependencies")) return ERROR_CODE_MESSAGES.get("no_dependencies");
+        if (lower.contains("exited with code") || lower.contains("command failed")) return ERROR_CODE_MESSAGES.get("command_failed");
+        return "Build tool error — " + rawMessage;
     }
 
-    private String mapClassificationToSeverity(CompatibilityConfigLoader.ArtifactClassification classification) {
-        return switch (classification) {
-            case JDK_PROVIDED -> "low";
-            case JAKARTA_REQUIRED -> "high";
-            case CONTEXT_DEPENDENT -> "medium";
-            case UNKNOWN -> "low";
-        };
-    }
-
-    private String mapClassificationToRecommendation(CompatibilityConfigLoader.ArtifactClassification classification,
-                                                      String groupId, String artifactId) {
-        return switch (classification) {
-            case JDK_PROVIDED -> "JDK-provided package, no migration needed";
-            case JAKARTA_REQUIRED -> "Configured upgrade required to Jakarta EE equivalent";
-            case CONTEXT_DEPENDENT -> "Context-dependent, review needed";
-            case UNKNOWN -> null;
-        };
-    }
-
-    private String createDetailMessage(CompatibilityConfigLoader.ArtifactClassification classification,
-                                       String groupId, String artifactId) {
-        return switch (classification) {
-            case JDK_PROVIDED -> "JDK-provided package: " + groupId + ":" + artifactId;
-            case JAKARTA_REQUIRED -> "Configured as requiring Jakarta migration: " + groupId + ":" + artifactId;
-            case CONTEXT_DEPENDENT -> "Context-dependent classification: " + groupId + ":" + artifactId;
-            case UNKNOWN -> "Unclassified artifact: " + groupId + ":" + artifactId;
-        };
-    }
-
-    private TransitiveDependencyScanResult scanFileFallback(Path filePath) {
+    private TransitiveDependencyScanResult scanFileFallback(Path filePath, ScanProgressCallback listener, String errorMessage) {
         try {
+            if (listener != null) {
+                listener.onPhaseProgress("Fallback regex scan", 0, 1);
+            }
             String content = Files.readString(filePath);
             String fileName = filePath.getFileName().toString().toLowerCase();
+            String fallbackDetail = friendlyErrorFor(errorMessage);
+
+            List<TransitiveDependencyUsage> usages;
+            String buildFileType;
 
             if (fileName.equals("pom.xml")) {
-                // For Maven: extract properties first, then parse dependencies with property resolution
-                Map<String, String> properties = extractMavenProperties(content);
-                return new TransitiveDependencyScanResult(filePath,
-                    parseDependenciesWithProperties(content, MAVEN_DEPENDENCY_PATTERN, 3, properties), "Maven");
+                usages = toUsages(content, dependencies -> MavenPomParser.parseDependenciesFromContent(content), fallbackDetail);
+                buildFileType = "Maven";
+            } else if (fileName.endsWith(".gradle") || fileName.endsWith(".gradle.kts")) {
+                usages = toUsagesGradle(GradleBuildParser.parseDependencies(content), fallbackDetail);
+                buildFileType = "Gradle";
+            } else {
+                if (listener != null) {
+                    listener.onPhaseProgress("Fallback regex scan", 1, 1);
+                }
+                return TransitiveDependencyScanResult.empty(filePath);
             }
-            if (fileName.endsWith(".gradle") || fileName.endsWith(".gradle.kts")) {
-                // For Gradle: group 3 contains version
-                return new TransitiveDependencyScanResult(filePath,
-                    parseDependencies(content, GRADLE_DEPENDENCY_PATTERN, 3), "Gradle");
+
+            // Report per-dependency progress through the fallback scan
+            if (listener != null) {
+                for (int i = 0; i < usages.size(); i++) {
+                    listener.onPhaseProgress("Fallback regex scan", i + 1, usages.size());
+                }
             }
-            return TransitiveDependencyScanResult.empty(filePath);
+
+            return new TransitiveDependencyScanResult(filePath, usages, buildFileType,
+                    Collections.emptySet(), Collections.emptyList(), errorMessage);
         } catch (Exception e) {
+            log.warn("Fallback regex scan failed for {}: {}", filePath, e.getClass().getSimpleName() + ": " + e.getMessage());
+            if (listener != null) {
+                listener.onPhaseProgress("Fallback regex scan", 1, 1);
+            }
             return TransitiveDependencyScanResult.empty(filePath);
         }
     }
 
-    private List<Path> discoverBuildFiles(Path projectPath) {
-        return fileScanner.findFiles(projectPath, path -> {
-            String name = path.getFileName().toString().toLowerCase();
-            return name.equals("pom.xml") || name.endsWith(".gradle") || name.endsWith(".gradle.kts");
-        });
-    }
-
-    private List<TransitiveDependencyUsage> parseDependencies(String content, Pattern pattern, int versionGroup) {
-        return parseDependenciesWithProperties(content, pattern, versionGroup, Map.of());
-    }
-
-    private List<TransitiveDependencyUsage> parseDependenciesWithProperties(String content, Pattern pattern, int versionGroup, Map<String, String> properties) {
+    private List<TransitiveDependencyUsage> toUsages(String pomContent, java.util.function.Function<String, List<Map<String, String>>> parser, String fallbackDetail) {
+        List<Map<String, String>> dependencies = parser.apply(pomContent);
         List<TransitiveDependencyUsage> usages = new ArrayList<>();
-        Matcher matcher = pattern.matcher(content);
-        while (matcher.find()) {
-            String groupId = matcher.group(1).trim();
-            String artifactId = matcher.group(2).trim();
-            String version = versionGroup > 0 && matcher.groupCount() >= versionGroup
-                    ? matcher.group(versionGroup).trim() : null;
-            
-            // Resolve version if it's a property reference
-            if (version != null && version.startsWith("${") && version.endsWith("}")) {
-                String propertyName = version.substring(2, version.length() - 1);
-                version = properties.get(propertyName);
-            }
-            
-            // For Maven pattern, scope is in group 4 when present
-            String scope = matcher.groupCount() >= 4 && matcher.group(4) != null
-                    ? matcher.group(4).trim() : null;
+        for (Map<String, String> dep : dependencies) {
+            String groupId = dep.get("groupId");
+            String artifactId = dep.get("artifactId");
+            String version = dep.getOrDefault("version", "unknown");
+            String scope = dep.getOrDefault("scope", "compile");
             String key = groupId + ":" + artifactId;
 
-            // Classify using CompatibilityConfigLoader
-            CompatibilityConfigLoader.ArtifactClassification classification = 
-                    compatibilityConfigLoader.classifyArtifact(groupId, artifactId);
+            Namespace ns = classify(groupId, artifactId);
+            ScanReason scanReason = mapNamespaceToScanReason(ns);
+            String severity = mapNamespaceToSeverity(ns);
+            String recommendation = mapNamespaceToRecommendation(ns, groupId, artifactId);
+            String javaxPackage = (ns == Namespace.JAVAX || ns == Namespace.MIXED) ? key : null;
+            String msg = fallbackDetail != null ? fallbackDetail : detailMessage(ns, groupId, artifactId);
 
-            // Map classification to ScanReason and other fields
-            ScanReason scanReason = mapClassificationToScanReason(classification);
-            String severity = mapClassificationToSeverity(classification);
-            String recommendation = mapClassificationToRecommendation(classification, groupId, artifactId);
-            String detailMessage = createDetailMessage(classification, groupId, artifactId);
-            String javaxPackage = (classification == CompatibilityConfigLoader.ArtifactClassification.JAKARTA_REQUIRED ||
-                                   classification == CompatibilityConfigLoader.ArtifactClassification.CONTEXT_DEPENDENT) 
-                                   ? key : null;
-
-            // Add ALL dependencies, not just javax ones
-            usages.add(new TransitiveDependencyUsage(artifactId, groupId, version, javaxPackage, severity, recommendation,
-                    scope, false, 0, null, scanReason, detailMessage, 0.0, false));
+            usages.add(new TransitiveDependencyUsage(
+                    artifactId, groupId, version, javaxPackage, severity, recommendation,
+                    scope, false, 0, null, scanReason, msg, 0.0, false));
         }
         return usages;
     }
 
-    private Map<String, String> extractMavenProperties(String content) {
-        Map<String, String> properties = new HashMap<>();
-        
-        // Extract properties section using regex
-        Pattern propertiesPattern = Pattern.compile(
-            "<properties>\\s*(.*?)\\s*</properties>",
-            Pattern.DOTALL
-        );
-        Matcher propertiesMatcher = propertiesPattern.matcher(content);
-        
-        if (propertiesMatcher.find()) {
-            String propertiesContent = propertiesMatcher.group(1);
-            
-            // Extract individual properties
-            Pattern propertyPattern = Pattern.compile(
-                "<([^>]+)>([^<]*)</\\1>",
-                Pattern.DOTALL
-            );
-            Matcher propertyMatcher = propertyPattern.matcher(propertiesContent);
-            
-            while (propertyMatcher.find()) {
-                String propertyName = propertyMatcher.group(1).trim();
-                String propertyValue = propertyMatcher.group(2).trim();
-                properties.put(propertyName, propertyValue);
-            }
+    private List<TransitiveDependencyUsage> toUsagesGradle(List<Map<String, String>> dependencies, String fallbackDetail) {
+        List<TransitiveDependencyUsage> usages = new ArrayList<>();
+        for (Map<String, String> dep : dependencies) {
+            String groupId = dep.get("groupId");
+            String artifactId = dep.get("artifactId");
+            String version = dep.getOrDefault("version", "unknown");
+            String scope = dep.getOrDefault("scope", "compile");
+            String key = groupId + ":" + artifactId;
+
+            Namespace ns = classify(groupId, artifactId);
+            ScanReason scanReason = mapNamespaceToScanReason(ns);
+            String severity = mapNamespaceToSeverity(ns);
+            String recommendation = mapNamespaceToRecommendation(ns, groupId, artifactId);
+            String javaxPackage = (ns == Namespace.JAVAX || ns == Namespace.MIXED) ? key : null;
+            String msg = fallbackDetail != null ? fallbackDetail : detailMessage(ns, groupId, artifactId);
+
+            usages.add(new TransitiveDependencyUsage(
+                    artifactId, groupId, version, javaxPackage, severity, recommendation,
+                    scope, false, 0, null, scanReason, msg, 0.0, false));
         }
-        
-        return properties;
+        return usages;
     }
 
+    private Namespace classify(String groupId, String artifactId) {
+        if (namespaceClassifier == null) {
+            return Namespace.UNKNOWN;
+        }
+        try {
+            return namespaceClassifier.classify(new Artifact(groupId, artifactId, "unknown", "compile", false));
+        } catch (Exception e) {
+            log.warn("Namespace classification failed for {}:{}: {}", groupId, artifactId, e.getClass().getSimpleName() + ": " + e.getMessage());
+            return Namespace.UNKNOWN;
+        }
+    }
+
+    private ScanReason mapNamespaceToScanReason(Namespace ns) {
+        return switch (ns) {
+            case JAKARTA, JAVAX -> ns == Namespace.JAKARTA ? ScanReason.WHITELISTED : ScanReason.BLACKLISTED;
+            case MIXED -> ScanReason.UNKNOWN;
+            default -> ScanReason.UNKNOWN;
+        };
+    }
+
+    private String mapNamespaceToSeverity(Namespace ns) {
+        return switch (ns) {
+            case JAKARTA -> "low";
+            case JAVAX -> "high";
+            case MIXED -> "medium";
+            default -> "low";
+        };
+    }
+
+    private String mapNamespaceToRecommendation(Namespace ns, String groupId, String artifactId) {
+        return switch (ns) {
+            case JAKARTA -> "Known Jakarta artifact: " + groupId + ":" + artifactId;
+            case JAVAX -> "Jakarta migration required";
+            case MIXED -> "Mixed namespace, review needed";
+            default -> null;
+        };
+    }
+
+    private String detailMessage(Namespace ns, String groupId, String artifactId) {
+        return switch (ns) {
+            case JAKARTA -> "Known Jakarta artifact: " + groupId + ":" + artifactId;
+            case JAVAX -> "Uses javax namespace: " + groupId + ":" + artifactId;
+            case MIXED -> "Mixed namespace usage: " + groupId + ":" + artifactId;
+            default -> "Unclassified artifact: " + groupId + ":" + artifactId;
+        };
+    }
+
+    /**
+     * Scans a multi-module project by running the build tool command once from the root.
+     * This avoids running the command N times (once per submodule) which can fail
+     * for submodules that rely on the root project configuration.
+     *
+     * For Maven: runs mvn dependency:tree from root, distributes results per submodule
+     * by matching groupId prefixes.
+     * For Gradle: runs gradle dependencies from root, distributes results per submodule.
+     */
+    private List<TransitiveDependencyScanResult> scanMultiModuleProject(
+            Path projectPath, List<Path> buildFiles, ScanProgressCallback listener) {
+
+        // Determine build tool type from first build file
+        Path firstFile = buildFiles.get(0);
+        String firstName = firstFile.getFileName().toString().toLowerCase();
+        boolean isMavenRoot = firstName.equals("pom.xml");
+
+        log.info("Multi-module {} project detected, running from root: {}",
+                 isMavenRoot ? "Maven" : "Gradle", projectPath);
+
+        if (isMavenRoot) {
+            return scanMultiModuleMaven(projectPath, buildFiles, listener);
+        } else {
+            return scanMultiModuleGradle(projectPath, buildFiles, listener);
+        }
+    }
+
+    /**
+     * Scans a multi-module Maven project by running mvn dependency:tree from the root.
+     * The root command outputs all modules in a single JSON tree. All dependencies are
+     * returned as a single result for the root build file — this ensures no dependencies
+     * are missed due to imperfect module attribution.
+     */
+    private List<TransitiveDependencyScanResult> scanMultiModuleMaven(
+            Path projectPath, List<Path> buildFiles, ScanProgressCallback listener) {
+
+        Path rootPom = projectPath.resolve("pom.xml");
+        List<TransitiveDependencyScanResult> results = new ArrayList<>();
+
+        try {
+            var future = commandExecutor.executeMavenDependencyTreeAsync(rootPom, MAVEN_SCOPES);
+            var treeResult = future.get(commandTimeoutSeconds(), TimeUnit.SECONDS);
+
+            if (!treeResult.isSuccess() || treeResult.getDependencies().isEmpty()) {
+                log.warn("Root Maven command failed or returned empty, falling back to per-file scanning");
+                return null; // signal fallback
+            }
+
+            // Run full enrichment pipeline on root result — all deps are attributed here
+            ScanProgressCallback rootListener = listener != null ?
+                (phase, completed, total) -> listener.onPhaseProgress("Root project — " + phase, completed, total) :
+                null;
+            results.add(convertTreeResult(rootPom, "Maven", treeResult, rootListener));
+
+        } catch (Exception e) {
+            log.warn("Multi-module Maven scan failed: {}, falling back to per-file scanning", e.getMessage());
+            return null; // signal fallback
+        }
+
+        return results;
+    }
+
+    /**
+     * Scans a multi-module Gradle project by running gradle dependencies from the root.
+     * Falls back to per-file scanning if the root command fails.
+     */
+    private List<TransitiveDependencyScanResult> scanMultiModuleGradle(
+            Path projectPath, List<Path> buildFiles, ScanProgressCallback listener) {
+
+        Path rootBuildFile = buildFiles.get(0);
+
+        List<TransitiveDependencyScanResult> results = new ArrayList<>();
+
+        try {
+            var future = commandExecutor.executeGradleDependenciesAsync(rootBuildFile, GRADLE_SCOPES);
+            var treeResult = future.get(commandTimeoutSeconds(), TimeUnit.SECONDS);
+
+            if (!treeResult.isSuccess() || treeResult.getDependencies().isEmpty()) {
+                log.warn("Root Gradle command failed or returned empty, falling back to per-file scanning");
+                return null;
+            }
+
+            List<DependencyTreeResult.DependencyNode> allDeps = treeResult.getDependencies();
+
+            // For Gradle, the root command output is a flat list grouped by configuration.
+            // We distribute deps by matching depth-0 artifacts against module names.
+            Set<String> moduleNames = new HashSet<>();
+            for (Path buildFile : buildFiles) {
+                Path parent = buildFile.getParent();
+                if (parent != null) {
+                    moduleNames.add(parent.getFileName().toString());
+                }
+            }
+
+            // Put all deps on the root build file result
+            Path rootResultFile = rootBuildFile;
+            DependencyTreeResult rootTreeResult = new DependencyTreeResult(allDeps, treeResult.getScopes());
+            String rootModuleName = "Root project";
+            ScanProgressCallback rootListener = listener != null ?
+                (phase, completed, total) -> listener.onPhaseProgress(rootModuleName + " — " + phase, completed, total) :
+                null;
+            results.add(convertTreeResult(rootResultFile, "Gradle", rootTreeResult, rootListener));
+
+        } catch (Exception e) {
+            log.warn("Multi-module Gradle root scan failed: {}, falling back to per-file", e.getMessage());
+            return null;
+        }
+
+        return results;
+    }
+
+    /**
+     * Finds the root Gradle build file from a list of discovered build files.
+     * Looks for the build file whose parent directory contains settings.gradle(.kts).
+     */
     /**
      * Scans a single file with tracking for parallel processing.
      * Returns all dependencies, not just those with javax usage.

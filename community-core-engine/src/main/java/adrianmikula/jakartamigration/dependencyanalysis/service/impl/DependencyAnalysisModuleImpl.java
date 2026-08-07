@@ -49,6 +49,10 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
             graph = crawler.buildFromProject(projectPath);
         }
 
+        // Snapshot nodes and edges once to avoid repeated set iteration/copying
+        List<Artifact> artifacts = new ArrayList<>(graph.getNodes());
+        List<Dependency> edges = new ArrayList<>(graph.getEdges());
+
         // Identify namespaces
         NamespaceCompatibilityMap namespaceMap = identifyNamespaces(graph);
 
@@ -56,11 +60,10 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
         List<Blocker> blockers = detectBlockers(graph);
 
         // Get recommendations
-        List<Artifact> artifacts = graph.getNodes().stream().collect(Collectors.toList());
         List<VersionRecommendation> recommendations = recommendVersions(artifacts);
 
         // Analyze transitive conflicts
-        TransitiveConflictReport conflictReport = analyzeTransitiveConflicts(graph);
+        TransitiveConflictReport conflictReport = analyzeTransitiveConflicts(graph, edges);
 
         // Calculate risk assessment
         RiskAssessment riskAssessment = calculateRiskAssessment(graph, blockers, conflictReport);
@@ -227,6 +230,10 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
 
     @Override
     public TransitiveConflictReport analyzeTransitiveConflicts(DependencyGraph graph) {
+        return analyzeTransitiveConflicts(graph, new ArrayList<>(graph.getEdges()));
+    }
+
+    private TransitiveConflictReport analyzeTransitiveConflicts(DependencyGraph graph, List<Dependency> edges) {
         log.debug("Analyzing transitive conflicts");
 
         List<TransitiveConflict> conflicts = new ArrayList<>();
@@ -235,7 +242,7 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
         // Check for mixed namespaces in transitive dependencies
         for (Artifact artifact : graph.getNodes()) {
             // Find dependencies of this artifact
-            List<Artifact> dependencies = graph.getEdges().stream()
+            List<Artifact> dependencies = edges.stream()
                     .filter(e -> e.from().equals(artifact))
                     .map(e -> e.to())
                     .collect(Collectors.toList());
@@ -359,8 +366,8 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
                 List<ImprovedMavenCentralLookupService.JakartaArtifactMatch> matches = future.get();
                 return !matches.isEmpty();
             } catch (Exception e) {
-                log.debug("Error checking Jakarta equivalent for {}:{}: {}", 
-                        artifact.groupId(), artifact.artifactId(), e.getMessage());
+                log.warn("Error checking Jakarta equivalent for {}:{}: {}", 
+                        artifact.groupId(), artifact.artifactId(), e.getClass().getSimpleName() + ": " + e.getMessage());
                 return false;
             }
         }
@@ -380,8 +387,8 @@ public class DependencyAnalysisModuleImpl implements DependencyAnalysisModule {
                 List<ImprovedMavenCentralLookupService.JakartaArtifactMatch> matches = future.get();
                 return !matches.isEmpty();
             } catch (Exception e) {
-                log.debug("Error checking Jakarta equivalent for {}:{}: {}", 
-                        artifact.groupId(), artifact.artifactId(), e.getMessage());
+                log.warn("Error checking Jakarta equivalent for {}:{}: {}", 
+                        artifact.groupId(), artifact.artifactId(), e.getClass().getSimpleName() + ": " + e.getMessage());
                 return false;
             }
         }

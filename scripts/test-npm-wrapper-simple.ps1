@@ -2,7 +2,7 @@
 # Simplified test for npm wrapper - verifies it can start and run the JAR
 
 param(
-    [string]$JarPath = "build/libs/jakarta-migration-mcp-1.0.0-SNAPSHOT.jar"
+    [string]$JarPath = "community-mcp-server/build/libs/jakarta-migration-mcp.jar"
 )
 
 $ErrorActionPreference = "Stop"

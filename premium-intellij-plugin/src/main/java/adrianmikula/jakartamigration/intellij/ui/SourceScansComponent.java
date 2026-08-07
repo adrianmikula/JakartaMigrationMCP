@@ -1,6 +1,7 @@
 package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.advancedscanning.domain.*;
+import adrianmikula.jakartamigration.intellij.service.AdvancedScanCategory;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.analysis.persistence.ObjectMapperService;
@@ -117,59 +118,59 @@ public class SourceScansComponent {
 
         // JPA Tab
         JPanel jpaPanel = createJpaPanel();
-        tabbedPane.addTab("JPA Annotations", jpaPanel);
+        tabbedPane.addTab(AdvancedScanCategory.JPA.getTabLabel(), jpaPanel);
 
         // Bean Validation Tab
         JPanel beanValidationPanel = createBeanValidationPanel();
-        tabbedPane.addTab("Bean Validation", beanValidationPanel);
+        tabbedPane.addTab(AdvancedScanCategory.BEAN_VALIDATION.getTabLabel(), beanValidationPanel);
 
         // Servlet/JSP Tab
         JPanel servletJspPanel = createServletJspPanel();
-        tabbedPane.addTab("Servlet/JSP", servletJspPanel);
+        tabbedPane.addTab(AdvancedScanCategory.SERVLET_JSP.getTabLabel(), servletJspPanel);
 
         // Build Config Tab
         JPanel buildConfigPanel = createBuildConfigPanel();
-        tabbedPane.addTab("Build Config", buildConfigPanel);
+        tabbedPane.addTab(AdvancedScanCategory.BUILD_CONFIG.getTabLabel(), buildConfigPanel);
 
         // Config File Tab
         JPanel configFilePanel = createConfigFilePanel();
-        tabbedPane.addTab("Config Files", configFilePanel);
+        tabbedPane.addTab(AdvancedScanCategory.CONFIG_FILES.getTabLabel(), configFilePanel);
 
         // Deprecated API Tab
         JPanel deprecatedApiPanel = createDeprecatedApiPanel();
-        tabbedPane.addTab("Deprecated API", deprecatedApiPanel);
+        tabbedPane.addTab(AdvancedScanCategory.DEPRECATED_API.getTabLabel(), deprecatedApiPanel);
 
         // CDI Injection Tab
         JPanel cdiInjectionPanel = createCdiInjectionPanel();
-        tabbedPane.addTab("CDI Injection", cdiInjectionPanel);
+        tabbedPane.addTab(AdvancedScanCategory.CDI_INJECTION.getTabLabel(), cdiInjectionPanel);
 
         // REST/SOAP Tab
         JPanel restSoapPanel = createRestSoapPanel();
-        tabbedPane.addTab("REST/SOAP", restSoapPanel);
+        tabbedPane.addTab(AdvancedScanCategory.REST_SOAP.getTabLabel(), restSoapPanel);
 
         // Security API Tab
         JPanel securityApiPanel = createSecurityApiPanel();
-        tabbedPane.addTab("Security API", securityApiPanel);
+        tabbedPane.addTab(AdvancedScanCategory.SECURITY_API.getTabLabel(), securityApiPanel);
 
         // JMS Messaging Tab
         JPanel jmsMessagingPanel = createJmsMessagingPanel();
-        tabbedPane.addTab("JMS Messaging", jmsMessagingPanel);
+        tabbedPane.addTab(AdvancedScanCategory.JMS_MESSAGING.getTabLabel(), jmsMessagingPanel);
 
         // Classloader/Module Tab
         JPanel classloaderModulePanel = createClassloaderModulePanel();
-        tabbedPane.addTab("Classloader", classloaderModulePanel);
+        tabbedPane.addTab(AdvancedScanCategory.CLASSLOADER_MODULE.getTabLabel(), classloaderModulePanel);
 
         // Logging/Metrics Tab
         JPanel loggingMetricsPanel = createLoggingMetricsPanel();
-        tabbedPane.addTab("Logging/Metrics", loggingMetricsPanel);
+        tabbedPane.addTab(AdvancedScanCategory.LOGGING_METRICS.getTabLabel(), loggingMetricsPanel);
 
         // Serialization/Cache Tab
         JPanel serializationCachePanel = createSerializationCachePanel();
-        tabbedPane.addTab("Serialization/Cache", serializationCachePanel);
+        tabbedPane.addTab(AdvancedScanCategory.SERIALIZATION_CACHE.getTabLabel(), serializationCachePanel);
 
         // Third-Party Libs Tab
         JPanel thirdPartyLibPanel = createThirdPartyLibPanel();
-        tabbedPane.addTab("Third-Party Libs", thirdPartyLibPanel);
+        tabbedPane.addTab(AdvancedScanCategory.THIRD_PARTY_LIBS.getTabLabel(), thirdPartyLibPanel);
 
         mainPanel.add(tabbedPane, BorderLayout.CENTER);
     }
@@ -603,7 +604,7 @@ public class SourceScansComponent {
             displayJpaResults(jpaResult);
             jpaIssues = jpaResult.hasIssues() ? jpaResult.totalIssuesFound() : 0;
         }
-        updateTabTitle(0, "JPA Annotations", jpaIssues);
+        updateTabTitle(0, AdvancedScanCategory.JPA.getTabLabel(), jpaIssues);
 
         // Display Bean Validation results
         ProjectScanResult<FileScanResult<JavaxUsage>> beanValidationResult = summary.beanValidationResult();
@@ -612,7 +613,7 @@ public class SourceScansComponent {
             displayBeanValidationResults(beanValidationResult);
             bvIssues = beanValidationResult.hasIssues() ? beanValidationResult.totalIssuesFound() : 0;
         }
-        updateTabTitle(1, "Bean Validation", bvIssues);
+        updateTabTitle(1, AdvancedScanCategory.BEAN_VALIDATION.getTabLabel(), bvIssues);
 
         // Display Servlet/JSP results
         ProjectScanResult<FileScanResult<ServletJspUsage>> servletJspResult = summary.servletJspResult();
@@ -621,7 +622,7 @@ public class SourceScansComponent {
             displayServletJspResults(servletJspResult);
             servletJspIssues = servletJspResult.hasIssues() ? servletJspResult.totalIssuesFound() : 0;
         }
-        updateTabTitle(2, "Servlet/JSP", servletJspIssues);
+        updateTabTitle(2, AdvancedScanCategory.SERVLET_JSP.getTabLabel(), servletJspIssues);
 
         // Display Build Config results
         ProjectScanResult<FileScanResult<BuildConfigUsage>> buildConfigResult = summary.buildConfigResult();
@@ -630,7 +631,7 @@ public class SourceScansComponent {
             displayBuildConfigResults(buildConfigResult);
             buildConfigIssues = buildConfigResult.hasIssues() ? buildConfigResult.totalIssuesFound() : 0;
         }
-        updateTabTitle(3, "Build Config", buildConfigIssues);
+        updateTabTitle(3, AdvancedScanCategory.BUILD_CONFIG.getTabLabel(), buildConfigIssues);
 
         // Display Config File results
         ConfigFileProjectScanResult configFileResult = summary.configFileResult();
@@ -639,7 +640,7 @@ public class SourceScansComponent {
             displayConfigFileResults(configFileResult);
             configFileIssues = configFileResult.hasJavaxUsage() ? configFileResult.getTotalJavaxUsages() : 0;
         }
-        updateTabTitle(4, "Config Files", configFileIssues);
+        updateTabTitle(4, AdvancedScanCategory.CONFIG_FILES.getTabLabel(), configFileIssues);
 
         // Display Deprecated API results
         DeprecatedApiProjectScanResult deprecatedApiResult = summary.deprecatedApiResult();
@@ -649,7 +650,7 @@ public class SourceScansComponent {
             deprecatedApiIssues = deprecatedApiResult.hasDeprecatedApiUsage() ? deprecatedApiResult.totalUsagesFound()
                     : 0;
         }
-        updateTabTitle(5, "Deprecated API", deprecatedApiIssues);
+        updateTabTitle(5, AdvancedScanCategory.DEPRECATED_API.getTabLabel(), deprecatedApiIssues);
 
         // Display CDI Injection results
         ProjectScanResult<FileScanResult<JavaxUsage>> cdiInjectionResult = summary.cdiInjectionResult();
@@ -658,7 +659,7 @@ public class SourceScansComponent {
             displayCdiInjectionResults(cdiInjectionResult);
             cdiIssues = cdiInjectionResult.hasIssues() ? cdiInjectionResult.totalIssuesFound() : 0;
         }
-        updateTabTitle(6, "CDI Injection", cdiIssues);
+        updateTabTitle(6, AdvancedScanCategory.CDI_INJECTION.getTabLabel(), cdiIssues);
 
         // Display REST/SOAP results
         ProjectScanResult<FileScanResult<JavaxUsage>> restSoapResult = summary.restSoapResult();
@@ -667,7 +668,7 @@ public class SourceScansComponent {
             displayRestSoapResults(restSoapResult);
             restSoapIssues = restSoapResult.hasIssues() ? restSoapResult.totalIssuesFound() : 0;
         }
-        updateTabTitle(7, "REST/SOAP", restSoapIssues);
+        updateTabTitle(7, AdvancedScanCategory.REST_SOAP.getTabLabel(), restSoapIssues);
 
         // Display Security API results
         SecurityApiProjectScanResult securityApiResult = summary.securityApiResult();
@@ -676,7 +677,7 @@ public class SourceScansComponent {
             displaySecurityApiResults(securityApiResult);
             securityApiIssues = securityApiResult.hasJavaxUsage() ? securityApiResult.getTotalJavaxUsages() : 0;
         }
-        updateTabTitle(8, "Security API", securityApiIssues);
+        updateTabTitle(8, AdvancedScanCategory.SECURITY_API.getTabLabel(), securityApiIssues);
 
         // Display JMS Messaging results
         JmsMessagingProjectScanResult jmsMessagingResult = summary.jmsMessagingResult();
@@ -685,7 +686,7 @@ public class SourceScansComponent {
             displayJmsMessagingResults(jmsMessagingResult);
             jmsMessagingIssues = jmsMessagingResult.hasJavaxUsage() ? jmsMessagingResult.getTotalJavaxUsages() : 0;
         }
-        updateTabTitle(9, "JMS Messaging", jmsMessagingIssues);
+        updateTabTitle(9, AdvancedScanCategory.JMS_MESSAGING.getTabLabel(), jmsMessagingIssues);
 
         // Display Classloader/Module results
         ClassloaderModuleProjectScanResult classloaderModuleResult = summary.classloaderModuleResult();
@@ -696,7 +697,7 @@ public class SourceScansComponent {
                     ? classloaderModuleResult.getTotalJavaxUsages()
                     : 0;
         }
-        updateTabTitle(10, "Classloader", classloaderModuleIssues);
+        updateTabTitle(10, AdvancedScanCategory.CLASSLOADER_MODULE.getTabLabel(), classloaderModuleIssues);
 
         // Display Logging/Metrics results
         LoggingMetricsProjectScanResult loggingMetricsResult = summary.loggingMetricsResult();
@@ -705,7 +706,7 @@ public class SourceScansComponent {
             displayLoggingMetricsResults(loggingMetricsResult);
             loggingMetricsIssues = loggingMetricsResult.hasFindings() ? loggingMetricsResult.getTotalFindings() : 0;
         }
-        updateTabTitle(11, "Logging/Metrics", loggingMetricsIssues);
+        updateTabTitle(11, AdvancedScanCategory.LOGGING_METRICS.getTabLabel(), loggingMetricsIssues);
 
         // Display Serialization/Cache results
         SerializationCacheProjectScanResult serializationCacheResult = summary.serializationCacheResult();
@@ -716,7 +717,7 @@ public class SourceScansComponent {
                     ? serializationCacheResult.getTotalFindings()
                     : 0;
         }
-        updateTabTitle(12, "Serialization/Cache", serializationCacheIssues);
+        updateTabTitle(12, AdvancedScanCategory.SERIALIZATION_CACHE.getTabLabel(), serializationCacheIssues);
 
         // Display Third-Party Libs results
         ThirdPartyLibProjectScanResult thirdPartyLibResult = summary.thirdPartyLibResult();
@@ -725,7 +726,7 @@ public class SourceScansComponent {
             displayThirdPartyLibResults(thirdPartyLibResult);
             thirdPartyLibIssues = thirdPartyLibResult.hasFindings() ? thirdPartyLibResult.getTotalLibraries() : 0;
         }
-        updateTabTitle(13, "Third-Party Libs", thirdPartyLibIssues);
+        updateTabTitle(13, AdvancedScanCategory.THIRD_PARTY_LIBS.getTabLabel(), thirdPartyLibIssues);
 
         // Notify listener if present
         notifyScanComplete();

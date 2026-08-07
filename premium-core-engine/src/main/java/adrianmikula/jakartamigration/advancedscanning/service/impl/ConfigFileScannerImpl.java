@@ -219,7 +219,7 @@ public class ConfigFileScannerImpl implements ConfigFileScanner {
 
             return new ConfigFileScanResult(filePath, usages, fileType);
         } catch (Exception e) {
-            log.debug("Skipping file due to access error: {} - {}", filePath, e.getMessage());
+            log.debug("Skipping file due to access error: {} - {}: {}", filePath, e.getClass().getSimpleName(), e.getMessage());
             return ConfigFileScanResult.empty(filePath);
         }
     }

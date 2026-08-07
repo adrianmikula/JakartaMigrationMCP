@@ -5,27 +5,26 @@ import adrianmikula.jakartamigration.advancedscanning.service.*;
 import adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyTreeCommandExecutorImpl;
 import adrianmikula.jakartamigration.coderefactoring.service.RecipeService;
 import adrianmikula.jakartamigration.intellij.ui.ScanProgressListener;
-import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import adrianmikula.jakartamigration.intellij.ui.ThrottledProgressListener;
+import adrianmikula.jakartamigration.intellij.ui.DependencyStatusColors;
+import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
-import adrianmikula.jakartamigration.advancedscanning.domain.DockerCicdUsage;
-import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage;
-import adrianmikula.jakartamigration.intellij.ui.DashboardComponent;
-import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
-import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
-import adrianmikula.jakartamigration.advancedscanning.service.ScanRecipeRecommendationService;
-import com.intellij.openapi.diagnostic.Logger;
-
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
+import adrianmikula.jakartamigration.advancedscanning.service.ScanRecipeRecommendationService;
+import adrianmikula.jakartamigration.scanning.BalloonNotificationService;
+import adrianmikula.jakartamigration.scanning.orchestration.AdvancedScanningEngine;
+import adrianmikula.jakartamigration.scanning.orchestration.ScanMode;
+import com.intellij.openapi.diagnostic.Logger;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -42,7 +41,7 @@ import com.intellij.openapi.project.Project;
  * Service for performing advanced scanning using premium core engine.
  * This service provides access to the premium scanning features.
  */
-public class AdvancedScanningService {
+public class AdvancedScanningService implements AdvancedScanningEngine {
     private static final Logger LOG = Logger.getInstance(AdvancedScanningService.class);
 
     private final AdvancedScanningModule scanningModule;
@@ -54,10 +53,63 @@ public class AdvancedScanningService {
     private Path cachedProjectPath;
     private long lastScanTime;
 
+    /**
+     * Bridges a ScanProgressListener (UI layer) to a ScanProgressCallback (core engine layer).
+     * Both have the same (phase, completed, total) signature, so this is a simple delegation.
+     */
+    static ScanProgressCallback toScanProgressCallback(ScanProgressListener listener) {
+        if (listener == null) return null;
+        return (phase, completed, total) -> listener.onScanPhase(phase, completed, total);
+    }
+
+    private static ScanProgressListener toScanProgressListener(ScanProgressCallback callback) {
+        if (callback == null) return null;
+        return new ScanProgressListener() {
+            @Override
+            public void onScanPhase(String phase, int completed, int total) {
+                callback.onPhaseProgress(phase, completed, total);
+            }
+
+            @Override
+            public void onScanComplete() {
+                // No-op
+            }
+
+            @Override
+            public void onScanError(Exception error) {
+                // No-op
+            }
+
+            @Override
+            public void onScanPartial() {
+                // No-op
+            }
+
+            @Override
+            public void onSubScanComplete(String scanType, int resultCount) {
+                // No-op
+            }
+        };
+    }
+
+    @Override
+    public adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults runAdvancedScans(Path projectPath, ScanMode mode, ScanProgressCallback progressCallback) {
+        ScanProgressListener listener = toScanProgressListener(progressCallback);
+        if (mode == ScanMode.QUICK) {
+            scanAllExcludingTransitive(projectPath, listener);
+        } else {
+            scanAll(projectPath, listener);
+        }
+        return getLastScanResults();
+    }
+
     private static final long CACHE_VALIDITY_MS = 5 * 60 * 1000; // 5 minutes
     
     // Memory optimization: Limit parallel scanning to prevent OOM
     private static final int MAX_PARALLEL_SCANS = 2;
+    
+    // Discovery + the 16 individual advanced scans (used for progress bar updates)
+    private static final int TOTAL_ADVANCED_SCAN_STEPS = 17;
     
     // Use a bounded thread pool to control memory usage
     private final java.util.concurrent.ExecutorService scanExecutor = java.util.concurrent.Executors
@@ -68,7 +120,13 @@ public class AdvancedScanningService {
     private static final long NOTIFICATION_DEDUPLICATION_MS = 5 * 60 * 1000; // 5 minutes
 
     public AdvancedScanningService(RecipeService recipeService, Project project) {
-        this.scanningModule = new AdvancedScanningModule(recipeService);
+        // Wire IntelliJ notification balloon into the core engine
+        BalloonNotificationService balloonService = new BalloonNotificationService((title, message) -> {
+            if (project != null) {
+                NotificationHelper.showWarning(project, title, message);
+            }
+        });
+        this.scanningModule = new AdvancedScanningModule(recipeService, balloonService);
         this.thirdPartyLibScanner = scanningModule.getThirdPartyLibScanner();
         this.project = project;
 
@@ -170,14 +228,20 @@ public class AdvancedScanningService {
             }
             
             // Discover all files once per category
+            java.util.concurrent.atomic.AtomicInteger completedSteps = new java.util.concurrent.atomic.AtomicInteger(0);
+            if (progressListener != null) {
+                progressListener.onScanPhase("Advanced Scans", completedSteps.get(), TOTAL_ADVANCED_SCAN_STEPS);
+            }
+            
             Map<FileCategory, List<Path>> allFiles = discoverAllFilesOnce(projectPath);
+            if (progressListener != null) {
+                progressListener.onScanPhase("Advanced Scans", completedSteps.incrementAndGet(), TOTAL_ADVANCED_SCAN_STEPS);
+            }
             
             java.util.List<CompletableFuture<?>> futures = new java.util.ArrayList<>();
             
             LOG.info("=== Starting Batch 1: Core Scans ===");
-            if (progressListener != null) {
-                progressListener.onScanPhase("Advanced Scans (Batch 1/3)", 0, 3);
-            }
+            // Progress updated after batch 1 completes
             
             CompletableFuture<ProjectScanResult<FileScanResult<JpaAnnotationUsage>>> jpaFuture = CompletableFuture
                     .supplyAsync(() -> {
@@ -228,12 +292,16 @@ public class AdvancedScanningService {
                         return result;
                     }, scanExecutor);
              
-            CompletableFuture.allOf(jpaFuture, bvFuture, sjFuture, cdiFuture).join();
+            CompletableFuture.allOf(jpaFuture, bvFuture, sjFuture, cdiFuture)
+                    .whenComplete((v, t) -> {
+                        if (progressListener != null) {
+                            progressListener.onScanPhase("Advanced Scans", completedSteps.addAndGet(4), TOTAL_ADVANCED_SCAN_STEPS);
+                        }
+                    })
+                    .join();
             LOG.info("Batch 1 completed");
              
-            if (progressListener != null) {
-                progressListener.onScanPhase("Advanced Scans (Batch 2/3)", 1, 3);
-            }
+            // Progress updated after batch 2 completes
              
             CompletableFuture<ProjectScanResult<FileScanResult<BuildConfigUsage>>> bcFuture = CompletableFuture
                     .supplyAsync(() -> {
@@ -262,17 +330,21 @@ public class AdvancedScanningService {
             CompletableFuture<SecurityApiProjectScanResult> saFuture = CompletableFuture
                     .supplyAsync(() -> scanForSecurityApi(allFiles.get(FileCategory.JAVA)), scanExecutor);
              
-            CompletableFuture.allOf(bcFuture, rsFuture, daFuture, saFuture).join();
+            CompletableFuture.allOf(bcFuture, rsFuture, daFuture, saFuture)
+                    .whenComplete((v, t) -> {
+                        if (progressListener != null) {
+                            progressListener.onScanPhase("Advanced Scans", completedSteps.addAndGet(4), TOTAL_ADVANCED_SCAN_STEPS);
+                        }
+                    })
+                    .join();
             LOG.info("Batch 2 completed");
              
-            if (progressListener != null) {
-                progressListener.onScanPhase("Advanced Scans (Batch 3/3)", 2, 3);
-            }
+            // Progress updated after batch 3 completes
              
             CompletableFuture<JmsMessagingProjectScanResult> jmFuture = CompletableFuture
                     .supplyAsync(() -> scanForJmsMessaging(allFiles.get(FileCategory.JAVA)), scanExecutor);
             CompletableFuture<TransitiveDependencyProjectScanResult> tdFuture = CompletableFuture
-                    .supplyAsync(() -> scanForTransitiveDependencies(allFiles.get(FileCategory.BUILD)), scanExecutor);
+                    .supplyAsync(() -> scanForTransitiveDependencies(allFiles.get(FileCategory.BUILD), progressListener), scanExecutor);
             CompletableFuture<ConfigFileProjectScanResult> cfFuture = CompletableFuture
                     .supplyAsync(() -> scanForConfigFiles(allFiles.get(FileCategory.CONFIG)), scanExecutor);
             CompletableFuture<ClassloaderModuleProjectScanResult> clFuture = CompletableFuture
@@ -286,7 +358,13 @@ public class AdvancedScanningService {
             CompletableFuture<ThirdPartyLibProjectScanResult> tpFuture = CompletableFuture
                     .supplyAsync(() -> scanForThirdPartyLib(allFiles.get(FileCategory.BUILD)), scanExecutor);
 
-            CompletableFuture.allOf(jmFuture, tdFuture, cfFuture, clFuture, lmFuture, scFuture, ruFuture, tpFuture).join();
+            CompletableFuture.allOf(jmFuture, tdFuture, cfFuture, clFuture, lmFuture, scFuture, ruFuture, tpFuture)
+                    .whenComplete((v, t) -> {
+                        if (progressListener != null) {
+                            progressListener.onScanPhase("Advanced Scans", completedSteps.addAndGet(8), TOTAL_ADVANCED_SCAN_STEPS);
+                        }
+                    })
+                    .join();
             LOG.info("Batch 3 completed");
 
             ProjectScanResult<FileScanResult<JpaAnnotationUsage>> jpaResult = jpaFuture.join();
@@ -357,11 +435,11 @@ public class AdvancedScanningService {
         // Use gitignore-enabled scanner for better folder exclusion
         ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
         
-        // Java source files
-        files.put(FileCategory.JAVA, scanner.findFiles(projectPath, List.of(".java")));
-        
-        // Test files (filtered from .java files)
+        // Java source files - scan once, reuse for both JAVA and TEST categories
         List<Path> javaFiles = scanner.findFiles(projectPath, List.of(".java"));
+        files.put(FileCategory.JAVA, javaFiles);
+        
+        // Test files (filtered from the same .java scan)
         List<Path> testFiles = javaFiles.stream()
                 .filter(f -> isTestFile(f, projectPath))
                 .collect(Collectors.toList());
@@ -373,8 +451,7 @@ public class AdvancedScanningService {
         // Build files (pom.xml, build.gradle, Eclipse .project/.classpath, etc.)
         files.put(FileCategory.BUILD, scanner.findFiles(projectPath, path -> {
             String name = path.getFileName().toString();
-            return name.equals("pom.xml") || name.startsWith("build.gradle") || name.endsWith(".gradle") || name.endsWith(".gradle.kts")
-                   || name.equals(".project") || name.equals(".classpath");
+            return name.equals("pom.xml") || name.startsWith("build.gradle") || name.equals(".classpath");
         }));
         
         // Dockerfiles
@@ -450,7 +527,7 @@ public class AdvancedScanningService {
         return scanningModule.getJmsMessagingScanner().scanProject(javaFiles);
     }
     
-    public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(List<Path> buildFiles) {
+    public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(List<Path> buildFiles, ScanProgressListener progressListener) {
         LOG.info("Scanning " + buildFiles.size() + " build files for Transitive Dependencies");
         
         // Check if build tools are available before scanning
@@ -461,7 +538,8 @@ public class AdvancedScanningService {
             return TransitiveDependencyProjectScanResult.empty();
         }
         
-        TransitiveDependencyProjectScanResult result = scanningModule.getTransitiveDependencyScanner().scanProject(buildFiles);
+        ScanProgressCallback callback = toScanProgressCallback(progressListener);
+        TransitiveDependencyProjectScanResult result = scanningModule.getTransitiveDependencyScanner().scanProject(buildFiles, callback);
         
         // Check if there were command errors during scanning
         if (result.isHadCommandNotFoundError()) {
@@ -470,6 +548,13 @@ public class AdvancedScanningService {
         }
         
         return result;
+    }
+
+    /**
+     * Backward-compatible overload without progress listener.
+     */
+    public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(List<Path> buildFiles) {
+        return scanForTransitiveDependencies(buildFiles, null);
     }
     
     /**
@@ -543,58 +628,127 @@ public class AdvancedScanningService {
         LOG.info("Running scans sequentially to conserve memory");
         
         try {
+            int completed = 0;
             if (progressListener != null) {
-                progressListener.onScanPhase("Advanced Scans (Sequential)", 0, 1);
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
             }
             
             Map<FileCategory, List<Path>> allFiles = discoverAllFilesOnce(projectPath);
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
             
             ProjectScanResult<FileScanResult<JpaAnnotationUsage>> jpaResult = scanForJpaAnnotations(allFiles.get(FileCategory.JAVA));
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
             if (progressListener != null && jpaResult != null && !jpaResult.fileResults().isEmpty()) {
                 int totalFindings = jpaResult.fileResults().stream().mapToInt(fr -> fr.usages().size()).sum();
                 progressListener.onSubScanComplete("JPA", totalFindings);
             }
             
             ProjectScanResult<FileScanResult<JavaxUsage>> beanValidationResult = scanForBeanValidation(allFiles.get(FileCategory.JAVA));
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
             if (progressListener != null && beanValidationResult != null && !beanValidationResult.fileResults().isEmpty()) {
                 int totalFindings = beanValidationResult.fileResults().stream().mapToInt(fr -> fr.usages().size()).sum();
                 progressListener.onSubScanComplete("Bean Validation", totalFindings);
             }
             
             ProjectScanResult<FileScanResult<ServletJspUsage>> servletJspResult = scanForServletJsp(allFiles.get(FileCategory.JAVA));
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
             if (progressListener != null && servletJspResult != null && !servletJspResult.fileResults().isEmpty()) {
                 int totalFindings = servletJspResult.fileResults().stream().mapToInt(fr -> fr.usages().size()).sum();
                 progressListener.onSubScanComplete("Servlet/JSP", totalFindings);
             }
             
             ProjectScanResult<FileScanResult<JavaxUsage>> cdiInjectionResult = scanForCdiInjection(allFiles.get(FileCategory.JAVA));
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
             if (progressListener != null && cdiInjectionResult != null && !cdiInjectionResult.fileResults().isEmpty()) {
                 int totalFindings = cdiInjectionResult.fileResults().stream().mapToInt(fr -> fr.usages().size()).sum();
                 progressListener.onSubScanComplete("CDI Injection", totalFindings);
             }
             
             ProjectScanResult<FileScanResult<BuildConfigUsage>> buildConfigResult = scanForBuildConfig(allFiles.get(FileCategory.BUILD));
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
             if (progressListener != null && buildConfigResult != null && !buildConfigResult.fileResults().isEmpty()) {
                 int totalFindings = buildConfigResult.fileResults().stream().mapToInt(fr -> fr.usages().size()).sum();
                 progressListener.onSubScanComplete("Build Config", totalFindings);
             }
             
             ProjectScanResult<FileScanResult<JavaxUsage>> restSoapResult = scanForRestSoap(allFiles.get(FileCategory.JAVA));
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
             if (progressListener != null && restSoapResult != null && !restSoapResult.fileResults().isEmpty()) {
                 int totalFindings = restSoapResult.fileResults().stream().mapToInt(fr -> fr.usages().size()).sum();
                 progressListener.onSubScanComplete("REST/SOAP", totalFindings);
             }
             
             DeprecatedApiProjectScanResult deprecatedApiResult = scanForDeprecatedApi(allFiles.get(FileCategory.JAVA));
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
             SecurityApiProjectScanResult securityApiResult = scanForSecurityApi(allFiles.get(FileCategory.JAVA));
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
             JmsMessagingProjectScanResult jmsMessagingResult = scanForJmsMessaging(allFiles.get(FileCategory.JAVA));
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
             ConfigFileProjectScanResult configFileResult = scanForConfigFiles(allFiles.get(FileCategory.CONFIG));
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
             ClassloaderModuleProjectScanResult classloaderModuleResult = scanForClassloaderModule(allFiles.get(FileCategory.JAVA));
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
             LoggingMetricsProjectScanResult loggingMetricsResult = scanForLoggingMetrics(allFiles.get(FileCategory.JAVA));
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
             SerializationCacheProjectScanResult serializationCacheResult = scanForSerializationCache(allFiles.get(FileCategory.JAVA));
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
             ReflectionUsageProjectScanResult reflectionUsageResult = scanForReflectionUsage(allFiles.get(FileCategory.JAVA));
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
             ThirdPartyLibProjectScanResult thirdPartyLibResult = scanForThirdPartyLib(allFiles.get(FileCategory.BUILD));
-            TransitiveDependencyProjectScanResult transitiveDependencyResult = scanForTransitiveDependencies(allFiles.get(FileCategory.BUILD));
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
+            TransitiveDependencyProjectScanResult transitiveDependencyResult = scanForTransitiveDependencies(allFiles.get(FileCategory.BUILD), progressListener);
+            if (progressListener != null) {
+                completed++;
+                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+            }
             if (progressListener != null && transitiveDependencyResult != null && !transitiveDependencyResult.getFileResults().isEmpty()) {
                 int totalFindings = transitiveDependencyResult.getTotalJavaxDependencies();
                 progressListener.onSubScanComplete("Transitive Dependencies", totalFindings);
@@ -710,14 +864,18 @@ public class AdvancedScanningService {
     }
     
     @Deprecated
-    public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(Path projectPath) {
+    public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(Path projectPath, ScanProgressListener progressListener) {
         LOG.info("Scanning for Transitive Dependencies in: " + projectPath);
         ProjectFileSystemScanner scanner = ProjectFileSystemScanner.withGitIgnore(projectPath);
         List<Path> buildFiles = scanner.findFiles(projectPath, path -> {
             String name = path.getFileName().toString();
             return name.equals("pom.xml") || name.startsWith("build.gradle");
         });
-        return scanForTransitiveDependencies(buildFiles);
+        return scanForTransitiveDependencies(buildFiles, progressListener);
+    }
+
+    public TransitiveDependencyProjectScanResult scanForTransitiveDependencies(Path projectPath) {
+        return scanForTransitiveDependencies(projectPath, null);
     }
     
     @Deprecated
@@ -1109,8 +1267,38 @@ public class AdvancedScanningService {
             return thirdPartyLibResult != null ? thirdPartyLibResult.getTotalLibraries() : 0;
         }
 
+        public int getCount(AdvancedScanCategory category) {
+            if (category == null) {
+                return 0;
+            }
+            return category.getCount(this);
+        }
+
         public int getTotalIssuesFound() {
-            return getJpaCount() + getBeanValidationCount() + getServletJspCount() + getCdiInjectionCount() + getBuildConfigCount() + getRestSoapCount() + getDeprecatedApiCount() + getSecurityApiCount() + getJmsMessagingCount() + getConfigFileCount() + getTransitiveDependencyCount() + getClassloaderModuleCount() + getLoggingMetricsCount() + getSerializationCacheCount() + getThirdPartyLibCount();
+            return Arrays.stream(AdvancedScanCategory.values())
+                    .mapToInt(this::getCount)
+                    .sum();
+        }
+
+        public int getTotalIssuesWithRecipes() {
+            return Arrays.stream(AdvancedScanCategory.values())
+                    .filter(AdvancedScanCategory::hasRecipe)
+                    .mapToInt(this::getCount)
+                    .sum();
+        }
+
+        public int getTotalSourceIssues() {
+            return Arrays.stream(AdvancedScanCategory.values())
+                    .filter(AdvancedScanCategory::isSourceIssue)
+                    .mapToInt(this::getCount)
+                    .sum();
+        }
+
+        public int getTotalConfigIssues() {
+            return Arrays.stream(AdvancedScanCategory.values())
+                    .filter(AdvancedScanCategory::isConfigIssue)
+                    .mapToInt(this::getCount)
+                    .sum();
         }
     }
 
@@ -1138,6 +1326,8 @@ public class AdvancedScanningService {
 
         // Process all file results and usages
         for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult fileResult : deepResult.getFileResults()) {
+            String fileErrorMessage = fileResult.hasError() ? fileResult.getErrorMessage() : null;
+
             for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage usage : fileResult.getUsages()) {
                 String artifactKey = usage.getArtifactKey();
 
@@ -1158,6 +1348,9 @@ public class AdvancedScanningService {
                 DependencyMigrationStatus status = determineMigrationStatus(usage);
                 info.setMigrationStatus(status);
 
+                // Set a non-null recipe name for UI display
+                info.setAssociatedRecipeName(determineAssociatedRecipeName(usage, status));
+
                 // Set Jakarta compatibility status based on scan reason
                 info.setJakartaCompatibilityStatus(determineJakartaCompatibilityStatus(usage.getScanReason()));
 
@@ -1166,8 +1359,14 @@ public class AdvancedScanningService {
                     info.setScanReason(usage.getScanReason().name());
                 }
 
-                // Set detail message
-                info.setDetailMessage(usage.getDetailMessage());
+                // Set detail message — prefer file-level error if the file had a build tool error
+                String detailMsg = usage.getDetailMessage();
+                if (fileErrorMessage != null && usage.getScanReason() == ScanReason.BUILD_TOOL_ERROR) {
+                    detailMsg = friendlyErrorMessage(fileErrorMessage);
+                } else if (fileErrorMessage != null && detailMsg == null) {
+                    detailMsg = "Results based on regex fallback — build tool command failed";
+                }
+                info.setDetailMessage(detailMsg);
 
                 // Set confidence
                 info.setConfidence(usage.getConfidence());
@@ -1175,9 +1374,20 @@ public class AdvancedScanningService {
                 // Set incompatibility from transitive flag
                 info.setIncompatibilityFromTransitive(usage.isIncompatibilityFromTransitive());
 
+                // Map severity, recommendation, and javaxPackage
+                info.setSeverity(usage.getSeverity());
+                info.setRecommendation(usage.getRecommendation());
+                info.setJavaxPackage(usage.getJavaxPackage());
+
                 // Set recommended version if available
                 if (usage.getAlternativeVersions() != null && !usage.getAlternativeVersions().isEmpty()) {
                     info.setRecommendedVersion(usage.getAlternativeVersions().get(0));
+                }
+
+                // Parse the full recommendation (group:artifact:version) into structured fields
+                // so the UI can display a Jakarta equivalent in the dependencies table.
+                if (usage.getRecommendation() != null && !usage.getRecommendation().isBlank()) {
+                    info.setRecommendedArtifactCoordinates(usage.getRecommendation());
                 }
 
                 dependencyMap.put(artifactKey, info);
@@ -1187,17 +1397,56 @@ public class AdvancedScanningService {
         return new ArrayList<>(dependencyMap.values());
     }
 
-    private String determineJakartaCompatibilityStatus(ScanReason scanReason) {
-        if (scanReason == null) {
-            return "unknown";
-        }
+    /**
+     * Generates a summary banner message describing project-level scan errors.
+     * Returns null when there are no errors to report.
+     */
+    public String buildErrorBanner(TransitiveDependencyProjectScanResult deepResult) {
+        if (deepResult == null) return null;
+        int filesWithErrors = deepResult.getFilesWithCommandErrors();
+        if (filesWithErrors <= 0) return null;
+        return "⚠ " + filesWithErrors + " build file" + (filesWithErrors > 1 ? "s" : "")
+            + " failed — results for those modules are based on regex fallback (partial)";
+    }
 
-        return switch (scanReason) {
-            case WHITELISTED, BYTECODE_SCAN_JAKARTA, MAVEN_LOOKUP_FOUND -> "compatible";
-            case BLACKLISTED, BYTECODE_SCAN_JAVAX, TRANSITIVE_INCOMPATIBLE -> "upgrade-available";
-            case MAVEN_LOOKUP_NONE -> "no-jakarta-version";
-            case BYTECODE_SCAN_MIXED -> "requires-migration";
-            case BYTECODE_SCAN_UNKNOWN, UNKNOWN, BUILD_TOOL_ERROR -> "unknown";
+    private static String friendlyErrorMessage(String raw) {
+        if (raw == null) return null;
+        String lower = raw.toLowerCase();
+        if (lower.contains("not found")) return "Build tool not found — install Maven/Gradle or add wrapper to project";
+        if (lower.contains("timeout")) return "Build command timed out — project may be too large or build too slow";
+        if (lower.contains("no dependencies")) return "Build command returned no dependencies — check build configuration";
+        if (lower.contains("exited with code") || lower.contains("command failed")) return "Build command failed — results based on regex fallback (partial)";
+        return "Build tool error — " + raw;
+    }
+
+    private String determineJakartaCompatibilityStatus(ScanReason scanReason) {
+        return DependencyStatusColors.getStatusSlug(determineMigrationStatus(scanReason));
+    }
+
+    private String determineAssociatedRecipeName(TransitiveDependencyUsage usage, DependencyMigrationStatus status) {
+        if (status == DependencyMigrationStatus.COMPATIBLE || status == DependencyMigrationStatus.MIGRATED) {
+            return "Compatible with Jakarta EE";
+        }
+        if (usage.getGroupId() != null && usage.getGroupId().startsWith("javax.")) {
+            return "Migrate " + usage.getGroupId() + " to Jakarta EE";
+        }
+        if (status == DependencyMigrationStatus.NEEDS_UPGRADE) {
+            return "Upgrade to Jakarta EE equivalent";
+        }
+        return "Review dependency";
+    }
+
+    private static DependencyMigrationStatus determineMigrationStatus(ScanReason reason) {
+        if (reason == null) {
+            return DependencyMigrationStatus.UNKNOWN;
+        }
+        return switch (reason) {
+            case WHITELISTED, BYTECODE_SCAN_JAKARTA -> DependencyMigrationStatus.COMPATIBLE;
+            case BLACKLISTED, BYTECODE_SCAN_JAVAX, TRANSITIVE_INCOMPATIBLE, MAVEN_LOOKUP_FOUND -> DependencyMigrationStatus.NEEDS_UPGRADE;
+            case MAVEN_LOOKUP_NONE -> DependencyMigrationStatus.NO_JAKARTA_VERSION;
+            case BYTECODE_SCAN_MIXED -> DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION;
+            case BUILD_TOOL_ERROR -> DependencyMigrationStatus.BUILD_TOOL_ERROR;
+            case BYTECODE_SCAN_UNKNOWN, UNKNOWN -> DependencyMigrationStatus.UNKNOWN_REVIEW;
         };
     }
 
@@ -1212,6 +1461,18 @@ public class AdvancedScanningService {
         // Map from artifact key to Artifact object for deduplication
         Map<String, Artifact> artifactMap = new HashMap<>();
 
+        // Build a lookup map from 2-part key (groupId:artifactId) → version from usages
+        // This is needed because TransitiveDependencyEdge uses 2-part keys
+        Map<String, String> versionLookup = new HashMap<>();
+        for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult fileResult : deepResult.getFileResults()) {
+            for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage usage : fileResult.getUsages()) {
+                String idKey = usage.getGroupId() + ":" + usage.getArtifactId();
+                if (usage.getVersion() != null) {
+                    versionLookup.putIfAbsent(idKey, usage.getVersion());
+                }
+            }
+        }
+
         // Access edges through fileResults since getAllEdges() might not be available in all versions
         for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult fileResult : deepResult.getFileResults()) {
             for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyEdge edge : fileResult.getEdges()) {
@@ -1224,6 +1485,10 @@ public class AdvancedScanningService {
                     if (parts.length >= 3) {
                         return new Artifact(parts[0], parts[1], parts[2], "compile", true);
                     }
+                    if (parts.length == 2) {
+                        String version = versionLookup.getOrDefault(key, "unknown");
+                        return new Artifact(parts[0], parts[1], version, "compile", true);
+                    }
                     return null;
                 });
 
@@ -1232,6 +1497,10 @@ public class AdvancedScanningService {
                     String[] parts = key.split(":");
                     if (parts.length >= 3) {
                         return new Artifact(parts[0], parts[1], parts[2], "compile", true);
+                    }
+                    if (parts.length == 2) {
+                        String version = versionLookup.getOrDefault(key, "unknown");
+                        return new Artifact(parts[0], parts[1], version, "compile", true);
                     }
                     return null;
                 });
@@ -1242,6 +1511,26 @@ public class AdvancedScanningService {
                     nodes.add(childArtifact);
                     edges.add(new Dependency(parentArtifact, childArtifact, "compile", false));
                 }
+            }
+        }
+
+        // Also create nodes from usages to ensure all discovered dependencies are present
+        // even when edge information is missing (e.g. regex fallback scan)
+        for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult fileResult : deepResult.getFileResults()) {
+            for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyUsage usage : fileResult.getUsages()) {
+                String groupId = usage.getGroupId();
+                String artifactId = usage.getArtifactId();
+                if (groupId == null || artifactId == null) {
+                    continue;
+                }
+                String version = usage.getVersion() != null ? usage.getVersion() : "unknown";
+                String scope = usage.getScope() != null ? usage.getScope() : "compile";
+                boolean transitive = usage.isTransitive();
+                String key = groupId + ":" + artifactId + ":" + version;
+
+                Artifact artifact = artifactMap.computeIfAbsent(key, k ->
+                        new Artifact(groupId, artifactId, version, scope, transitive));
+                nodes.add(artifact);
             }
         }
 
@@ -1256,10 +1545,9 @@ public class AdvancedScanningService {
         }
         
         try {
-            // Full transitive dependency scan using scanner directly
-            // Note: The scanner doesn't support progress listeners yet, so we don't pass it through
-            // This is a synchronous call that can take a long time
-            return scanningModule.getTransitiveDependencyScanner().scanProject(projectPath);
+            // Full transitive dependency scan using scanner with progress callback
+            ScanProgressCallback callback = toScanProgressCallback(throttledListener);
+            return scanningModule.getTransitiveDependencyScanner().scanProject(projectPath, callback);
         } finally {
             // Clean up throttled listener
             if (throttledListener != null) {
@@ -1317,16 +1605,24 @@ public class AdvancedScanningService {
      * Maps ScanReason to a user-facing DependencyMigrationStatus.
      */
     public DependencyMigrationStatus determineMigrationStatus(TransitiveDependencyUsage usage) {
-        if (usage == null || usage.getScanReason() == null) {
+        if (usage == null) {
             return DependencyMigrationStatus.UNKNOWN;
         }
-        ScanReason reason = usage.getScanReason();
-        return switch (reason) {
-            case WHITELISTED, BYTECODE_SCAN_JAKARTA, MAVEN_LOOKUP_FOUND -> DependencyMigrationStatus.COMPATIBLE;
-            case BLACKLISTED, BYTECODE_SCAN_JAVAX, TRANSITIVE_INCOMPATIBLE -> DependencyMigrationStatus.NEEDS_UPGRADE;
-            case MAVEN_LOOKUP_NONE -> DependencyMigrationStatus.MAVEN_LOOKUP_FAILED;
-            case BYTECODE_SCAN_MIXED -> DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION;
-            case BYTECODE_SCAN_UNKNOWN, UNKNOWN, BUILD_TOOL_ERROR -> DependencyMigrationStatus.UNKNOWN_REVIEW;
+        if (usage.getScanReason() != null) {
+            return determineMigrationStatus(usage.getScanReason());
+        }
+        return mapSeverityToMigrationStatus(usage.getSeverity());
+    }
+
+    private static DependencyMigrationStatus mapSeverityToMigrationStatus(String severity) {
+        if (severity == null) {
+            return DependencyMigrationStatus.UNKNOWN_REVIEW;
+        }
+        return switch (severity.toLowerCase()) {
+            case "high", "critical", "medium" -> DependencyMigrationStatus.NEEDS_UPGRADE;
+            case "low", "none" -> DependencyMigrationStatus.COMPATIBLE;
+            case "unknown" -> DependencyMigrationStatus.UNKNOWN_REVIEW;
+            default -> DependencyMigrationStatus.UNKNOWN_REVIEW;
         };
     }
 }

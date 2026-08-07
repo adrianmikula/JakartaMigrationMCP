@@ -10,7 +10,7 @@ public class ForceDirectedLayoutStrategy implements GraphLayoutStrategy {
     private static final double REPULSION_STRENGTH = 2500; // Reduced for better spacing
     private static final double ATTRACTION_STRENGTH = 0.01; // Reduced for less clustering
     private static final double DAMPING = 0.85; // Good damping for stability
-    private static final int MAX_ITERATIONS = 500; // More iterations for better convergence
+    private static final int MAX_ITERATIONS = 100; // Iteration budget tuned for responsiveness
     private static final double NODE_WIDTH = 120; // Reasonable node size
     private static final double NODE_HEIGHT = 40; // Reasonable node size
     private static final double MIN_SEPARATION = 80; // Reduced minimum distance between nodes

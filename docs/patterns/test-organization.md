@@ -362,6 +362,7 @@ mise run test-matrix
 - Matrix tasks are completely separate from the standard test task
 - Tests requiring full IntelliJ platform are excluded from `runFastTests`
 - Matrix tests focus only on platform-dependent functionality
+- **JUnit 3 tests** (`BasePlatformTestCase` subclasses) have limited discoverability under JUnit Platform — see [junit3-test-visibility.md](junit3-test-visibility.md) for details and workarounds
 
 ## Quality Gates
 

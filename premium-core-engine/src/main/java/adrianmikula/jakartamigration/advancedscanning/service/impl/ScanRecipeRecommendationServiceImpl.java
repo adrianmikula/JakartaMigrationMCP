@@ -166,7 +166,7 @@ public class ScanRecipeRecommendationServiceImpl implements ScanRecipeRecommenda
                    scanResult.toString().contains("deprecated") ||
                    scanResult.toString().length() > 100; // Heuristic for non-empty results
         } catch (Exception e) {
-            log.debug("Could not determine if scan result has issues: {}", e.getMessage());
+            log.warn("Could not determine if scan result has issues: {}: {}", e.getClass().getSimpleName(), e.getMessage());
             return false;
         }
     }
@@ -238,7 +238,7 @@ public class ScanRecipeRecommendationServiceImpl implements ScanRecipeRecommenda
                 return files;
             }
         } catch (Exception e) {
-            log.debug("Could not extract affected files from scan result: {}", e.getMessage());
+            log.warn("Could not extract affected files from scan result: {}: {}", e.getClass().getSimpleName(), e.getMessage());
         }
         
         return List.of(); // Return empty list if we can't extract files

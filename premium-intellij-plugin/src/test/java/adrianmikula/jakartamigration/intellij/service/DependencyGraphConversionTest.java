@@ -392,4 +392,145 @@ public class DependencyGraphConversionTest {
         // Should set the first alternative version as recommended
         assertThat(infos.get(0).getRecommendedVersion()).isEqualTo("2.0");
     }
+
+    @Test
+    public void testBuildDependencyGraphFromUsagesOnly() {
+        AdvancedScanningService service = createService();
+
+        TransitiveDependencyUsage usage = new TransitiveDependencyUsage(
+            "dep1",
+            "com.example",
+            "1.0",
+            null,
+            "low",
+            null,
+            "compile",
+            false,
+            0,
+            null
+        );
+
+        TransitiveDependencyScanResult fileResult = new TransitiveDependencyScanResult(
+            Path.of("pom.xml"),
+            List.of(usage),
+            "maven",
+            Collections.emptySet(),
+            Collections.emptyList()
+        );
+
+        TransitiveDependencyProjectScanResult result = new TransitiveDependencyProjectScanResult(
+            List.of(fileResult),
+            1,
+            1,
+            1
+        );
+
+        DependencyGraph graph = service.buildDependencyGraphFromDeepResult(result);
+
+        assertThat(graph).isNotNull();
+        assertThat(graph.getNodes()).hasSize(1);
+        assertThat(graph.getEdges()).isEmpty();
+
+        Set<Artifact> nodes = graph.getNodes();
+        assertThat(nodes).anyMatch(n -> n.groupId().equals("com.example") && n.artifactId().equals("dep1"));
+    }
+
+    @Test
+    public void testBuildDependencyGraphMergesUsagesAndEdges() {
+        AdvancedScanningService service = createService();
+
+        // Edge links parent -> child
+        TransitiveDependencyEdge edge = new TransitiveDependencyEdge(
+            "com.example:parent:1.0",
+            "com.example:child:1.0"
+        );
+
+        // Usage for an additional artifact not in any edge
+        TransitiveDependencyUsage extraUsage = new TransitiveDependencyUsage(
+            "extra",
+            "com.example",
+            "2.0",
+            null,
+            "low",
+            null,
+            "compile",
+            true,
+            1,
+            null
+        );
+
+        TransitiveDependencyScanResult fileResult = new TransitiveDependencyScanResult(
+            Path.of("pom.xml"),
+            List.of(extraUsage),
+            "maven",
+            Collections.emptySet(),
+            List.of(edge)
+        );
+
+        TransitiveDependencyProjectScanResult result = new TransitiveDependencyProjectScanResult(
+            List.of(fileResult),
+            1,
+            1,
+            2
+        );
+
+        DependencyGraph graph = service.buildDependencyGraphFromDeepResult(result);
+
+        assertThat(graph).isNotNull();
+        // Should have 3 nodes: parent, child (from edge) + extra (from usage)
+        assertThat(graph.getNodes()).hasSize(3);
+        assertThat(graph.getEdges()).hasSize(1);
+
+        Set<Artifact> nodes = graph.getNodes();
+        assertThat(nodes).anyMatch(n -> n.groupId().equals("com.example") && n.artifactId().equals("parent"));
+        assertThat(nodes).anyMatch(n -> n.groupId().equals("com.example") && n.artifactId().equals("child"));
+        assertThat(nodes).anyMatch(n -> n.groupId().equals("com.example") && n.artifactId().equals("extra"));
+    }
+
+    @Test
+    public void testFallbackScanProducesGraphNodes() {
+        AdvancedScanningService service = createService();
+
+        // Simulate regex fallback: usages present, edges empty, errorMessage set
+        TransitiveDependencyUsage usage = new TransitiveDependencyUsage(
+            "fallback-dep",
+            "org.fallback",
+            "1.0",
+            null,
+            "medium",
+            null,
+            "compile",
+            false,
+            0,
+            null
+        );
+
+        TransitiveDependencyScanResult fileResult = new TransitiveDependencyScanResult(
+            Path.of("pom.xml"),
+            List.of(usage),
+            "maven",
+            Collections.emptySet(),
+            Collections.emptyList(),
+            "Maven command not found, falling back to regex"
+        );
+
+        TransitiveDependencyProjectScanResult result = new TransitiveDependencyProjectScanResult(
+            List.of(fileResult),
+            1,
+            0,
+            1,
+            1,
+            false,
+            null
+        );
+
+        DependencyGraph graph = service.buildDependencyGraphFromDeepResult(result);
+
+        assertThat(graph).isNotNull();
+        assertThat(graph.getNodes()).hasSize(1);
+        assertThat(graph.getEdges()).isEmpty();
+
+        Set<Artifact> nodes = graph.getNodes();
+        assertThat(nodes).anyMatch(n -> n.groupId().equals("org.fallback") && n.artifactId().equals("fallback-dep"));
+    }
 }

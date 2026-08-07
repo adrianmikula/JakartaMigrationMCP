@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
@@ -69,6 +71,42 @@ class HistoryServiceTest {
         List<ExperimentResult> failed = service.listRuns(Optional.empty(), Optional.of(ExperimentStatus.FAILED), 10);
         assertEquals(1, failed.size());
         assertEquals(ExperimentStatus.FAILED, failed.get(0).status());
+    }
+
+    @Test
+    void listRuns_skips_corrupted_json_files(@TempDir Path tempDir) throws Exception {
+        HistoryService service = new HistoryService(tempDir);
+        service.recordRun(buildResult("run1", ExperimentStatus.SUCCESS));
+        service.recordRun(buildResult("run2", ExperimentStatus.FAILED));
+
+        Path historyDir = tempDir.resolve(".experiments/history");
+        Files.writeString(historyDir.resolve("corrupted.json"), "not valid json {{{", StandardCharsets.UTF_8);
+
+        List<ExperimentResult> runs = service.listRuns(Optional.empty(), Optional.empty(), 10);
+        assertEquals(2, runs.size());
+    }
+
+    @Test
+    void listRuns_skips_empty_json_files(@TempDir Path tempDir) throws Exception {
+        HistoryService service = new HistoryService(tempDir);
+        service.recordRun(buildResult("run1", ExperimentStatus.SUCCESS));
+
+        Path historyDir = tempDir.resolve(".experiments/history");
+        Files.writeString(historyDir.resolve("empty.json"), "", StandardCharsets.UTF_8);
+
+        List<ExperimentResult> runs = service.listRuns(Optional.empty(), Optional.empty(), 10);
+        assertEquals(1, runs.size());
+        assertEquals("run1", runs.get(0).runId());
+    }
+
+    @Test
+    void getRun_throws_ioexception_for_corrupted_json(@TempDir Path tempDir) throws Exception {
+        HistoryService service = new HistoryService(tempDir);
+        Path historyDir = tempDir.resolve(".experiments/history");
+        Files.createDirectories(historyDir);
+        Files.writeString(historyDir.resolve("bad.json"), "not valid json", StandardCharsets.UTF_8);
+
+        assertThrows(IOException.class, () -> service.getRun("bad"));
     }
 
     private ExperimentResult buildResult(String runId, ExperimentStatus status) {

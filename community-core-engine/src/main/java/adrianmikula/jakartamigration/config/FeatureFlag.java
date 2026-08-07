@@ -144,6 +144,16 @@ public enum FeatureFlag {
              "jar-scanning",
              "Deep JAR Scanning",
              "Advanced bytecode analysis for accurate Jakarta compatibility detection",
+             FeatureFlagsProperties.LicenseTier.PREMIUM),
+
+     /**
+      * Experiment engine.
+      * Run migration sequences in isolated containers and compare results.
+      */
+     EXPERIMENT_ENGINE(
+             "experiment-engine",
+             "Migration Experiment Engine",
+             "Run migration sequences in isolated containers, compare results, and track experiment history",
              FeatureFlagsProperties.LicenseTier.PREMIUM);
 
     // === COMMUNITY FEATURES ===
@@ -212,7 +222,7 @@ public enum FeatureFlag {
      */
     public String getPricingInfo() {
         return String.format(
-                "Upgrade to Premium: %s or %s. Get unlimited scans and refactors! Includes a free 7-day trial.",
+                "Upgrade to Premium: %s or %s. Get unlimited scans and refactors!",
                 FeatureFlagsProperties.getMonthlyPriceFormatted(),
                 FeatureFlagsProperties.getYearlyPriceFormatted());
     }

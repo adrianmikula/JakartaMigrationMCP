@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.intellij.ui;
 
 import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
+import adrianmikula.jakartamigration.intellij.service.AdvancedScanCategory;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
 import adrianmikula.jakartamigration.platforms.config.RiskScoringConfig;
 import adrianmikula.jakartamigration.risk.RiskScoringService;
@@ -18,6 +19,7 @@ import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton
 import adrianmikula.jakartamigration.intellij.ui.components.ConfidenceGauge;
 import adrianmikula.jakartamigration.intellij.ui.components.EffortGauge;
 import adrianmikula.jakartamigration.intellij.ui.components.CombinedConfidenceGauge;
+import adrianmikula.jakartamigration.intellij.ui.components.PieChartPanel;
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
 import com.intellij.openapi.diagnostic.Logger;
@@ -42,6 +44,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -55,6 +58,7 @@ public class DashboardComponent implements ScanProgressListener {
     private final JPanel panel;
     private final Project project;
     private MigrationDashboard dashboard;
+    private boolean analysisRunning = false;
     private final Consumer<ActionEvent> onAnalyze;
     private final AdvancedScanningService advancedScanningService;
     private final CreditsService creditsService;
@@ -66,11 +70,20 @@ public class DashboardComponent implements ScanProgressListener {
     // Cache for preventing unnecessary updates
     private Integer lastCalculatedRiskScore = null;
 
+    // Cached file counts (computed asynchronously to avoid EDT freezes)
+    private volatile int cachedTotalFileCount = -1;
+    private volatile int cachedTestFileCount = -1;
+
     // UI Components for gauges (top section)
     private JPanel gaugesPanel;
     private CombinedConfidenceGauge confidenceGauge;
     private RiskGauge migrationRiskGauge;
     private EffortGauge effortScoreGauge;
+
+    // Pie chart summary components (above gauges)
+    private PieChartPanel compatibilityChart;
+    private PieChartPanel sourceFindingsChart;
+    private PieChartPanel automationChart;
 
     // Explanation panels for grid layout (column 2)
     private JPanel riskExplanationPanel;
@@ -232,6 +245,9 @@ public class DashboardComponent implements ScanProgressListener {
         // Update all components with new data
         updateGauges();
         updateSummary();
+
+        // Refresh file counts in background to avoid EDT freeze
+        refreshFileCountsInBackground();
     }
     
     /**
@@ -239,6 +255,25 @@ public class DashboardComponent implements ScanProgressListener {
      */
     public MigrationDashboard getDashboard() {
         return dashboard;
+    }
+
+    /**
+     * Refreshes file count caches in a background thread, then triggers a gauge
+     * update on the EDT. This prevents 10+ second freezes when updateGauges()
+     * is called on the EDT and has to walk the filesystem.
+     */
+    private void refreshFileCountsInBackground() {
+        if (project == null || project.getBasePath() == null) return;
+        CompletableFuture.supplyAsync(() -> {
+            int total = getTotalFileCount();
+            int tests = getTestFileCount();
+            return new int[]{total, tests};
+        }).thenAccept(counts -> {
+            cachedTotalFileCount = counts[0];
+            cachedTestFileCount = counts[1];
+            // Re-run gauges with the now-cached values (EDT-safe since setScore is swing)
+            SwingUtilities.invokeLater(this::updateGauges);
+        });
     }
 
     private void initializeComponent() {
@@ -262,6 +297,11 @@ public class DashboardComponent implements ScanProgressListener {
         // Main dashboard content with multiple sections using BoxLayout for vertical stacking
         JPanel mainPanel = new JBPanel<>();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+
+        // Summary pie charts (above dials)
+        JPanel chartsPanel = createChartsPanel();
+        chartsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.add(chartsPanel);
 
         // Top: Gauges (Risk Assessment)
         gaugesPanel = createGaugesPanel();
@@ -360,7 +400,6 @@ public class DashboardComponent implements ScanProgressListener {
         SwingUtilities.invokeLater(() -> {
             if (advancedScanProgressBar != null && total > 0) {
                 int percentage = (completed * 100) / total;
-                advancedScanProgressBar.setForeground(Color.WHITE);
                 advancedScanProgressBar.setValue(percentage);
                 advancedScanProgressBar.setString(completed + " / " + total + " scans");
             }
@@ -536,6 +575,7 @@ private void resetAdvancedScanCounts() {
      * @param running true if analysis is starting, false when complete
      */
     public void setAnalysisRunning(boolean running) {
+        analysisRunning = running;
         SwingUtilities.invokeLater(() -> {
             // Update internal analyze button (if it exists)
             if (analyseButton != null) {
@@ -563,7 +603,6 @@ private void resetAdvancedScanCounts() {
             
             // Update internal progress bar (if it exists)
             if (mainScanProgressBar != null) {
-                mainScanProgressBar.setForeground(Color.WHITE);
                 mainScanProgressBar.setIndeterminate(running);
                 if (running) {
                     mainScanProgressBar.setString("Scanning in progress... Please wait");
@@ -577,7 +616,6 @@ private void resetAdvancedScanCounts() {
             
             // Update external progress bar (from MigrationToolWindow)
             if (externalProgressBar != null) {
-                externalProgressBar.setForeground(Color.WHITE);
                 externalProgressBar.setIndeterminate(running);
                 if (running) {
                     externalProgressBar.setString("Scanning in progress... Please wait");
@@ -591,6 +629,9 @@ private void resetAdvancedScanCounts() {
                         externalProgressLabel.setText(""); // Clear external label since text is now in progress bar
                     }
                 }
+            }
+            if (running) {
+                showPendingDependencies();
             }
         });
     }
@@ -630,13 +671,12 @@ private void resetAdvancedScanCounts() {
         SwingUtilities.invokeLater(() -> {
             // Update internal progress bar (if it exists)
             if (mainScanProgressBar != null && mainScanProgressLabel != null) {
-                mainScanProgressBar.setForeground(Color.WHITE);
                 if (total > 0) {
                     // Show determinate progress
                     mainScanProgressBar.setIndeterminate(false);
                     int percentage = (completed * 100) / total;
                     mainScanProgressBar.setValue(percentage);
-                    mainScanProgressBar.setString(phase + " (" + completed + "/" + total + ") - " + phase + " in progress...");
+                    mainScanProgressBar.setString(phase + " (" + completed + "/" + total + ")");
                     mainScanProgressLabel.setText(""); // Clear external label since text is now in progress bar
                 } else {
                     // Show indeterminate progress for unknown total
@@ -648,13 +688,12 @@ private void resetAdvancedScanCounts() {
             
             // Update external progress bar (from MigrationToolWindow)
             if (externalProgressBar != null && externalProgressLabel != null) {
-                externalProgressBar.setForeground(Color.WHITE);
                 if (total > 0) {
                     // Show determinate progress
                     externalProgressBar.setIndeterminate(false);
                     int percentage = (completed * 100) / total;
                     externalProgressBar.setValue(percentage);
-                    externalProgressBar.setString(phase + " (" + completed + "/" + total + ") - " + phase + " in progress...");
+                    externalProgressBar.setString(phase + " (" + completed + "/" + total + ")");
                     externalProgressLabel.setText(""); // Clear external label since text is now in progress bar
                 } else {
                     // Show indeterminate progress for unknown total
@@ -784,6 +823,11 @@ private void resetAdvancedScanCounts() {
                         updateScanCountWithColor(restSoapScanCountValue, resultCount);
                     }
                     break;
+                case "Transitive Dependencies":
+                    if (transitiveDependencyScanCountValue != null) {
+                        updateScanCountWithColor(transitiveDependencyScanCountValue, resultCount);
+                    }
+                    break;
                 default:
                     // For other scan types, just log the completion
                     LOG.info("Sub-scan completed: " + scanType + " with " + resultCount + " results");
@@ -862,6 +906,131 @@ private void resetAdvancedScanCounts() {
         panel.add(slidersPanel, BorderLayout.SOUTH);
 
         return panel;
+    }
+
+    /**
+     * Creates the summary pie charts panel shown above the risk dials.
+     */
+    private JPanel createChartsPanel() {
+        JPanel panel = new JBPanel<>(new GridLayout(1, 3, 10, 10));
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                createTransparentTitledBorder("Overview"),
+                BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        ));
+
+        compatibilityChart = new PieChartPanel("Dependencies");
+        sourceFindingsChart = new PieChartPanel("Source Findings");
+        automationChart = new PieChartPanel("Automation");
+
+        panel.add(compatibilityChart);
+        panel.add(sourceFindingsChart);
+        panel.add(automationChart);
+
+        return panel;
+    }
+
+    /**
+     * Refreshes the three summary pie charts with current scan data.
+     */
+    private void updateCharts() {
+        if (dashboard == null) {
+            return;
+        }
+        updateCompatibilityChart();
+        updateSourceFindingsChart();
+        updateAutomationChart();
+    }
+
+    private void showPendingDependencies() {
+        if (compatibilityChart == null || dashboard == null || dashboard.getDependencySummary() == null) {
+            return;
+        }
+        Integer totalDependencies = dashboard.getDependencySummary().getTotalDependencies();
+        int total = totalDependencies != null ? totalDependencies : 0;
+        if (total > 0) {
+            List<PieChartPanel.Slice> slices = new ArrayList<>();
+            slices.add(new PieChartPanel.Slice("Unknown", total, new Color(108, 117, 125)));
+            compatibilityChart.setSlices(slices);
+        } else {
+            compatibilityChart.setSlices(new ArrayList<>());
+        }
+    }
+
+    private void updateCompatibilityChart() {
+        DependencySummary depSummary = dashboard.getDependencySummary();
+        List<PieChartPanel.Slice> slices = new ArrayList<>();
+        if (depSummary != null) {
+            int compatible = depSummary.getJakartaCompatibleCount() != null ? depSummary.getJakartaCompatibleCount() : 0;
+            int upgrade = depSummary.getJakartaUpgradeCount() != null ? depSummary.getJakartaUpgradeCount() : 0;
+            int noJakarta = depSummary.getNoJakartaSupportCount() != null ? depSummary.getNoJakartaSupportCount() : 0;
+            int review = depSummary.getUnknownReviewCount() != null ? depSummary.getUnknownReviewCount() : 0;
+
+            if (compatible > 0) {
+                slices.add(new PieChartPanel.Slice("Compatible", compatible, DependencyStatusColors.STATUS_COMPATIBLE));
+            }
+            if (upgrade > 0) {
+                slices.add(new PieChartPanel.Slice("Upgrade Available", upgrade, DependencyStatusColors.STATUS_NEEDS_UPGRADE));
+            }
+            if (noJakarta > 0) {
+                slices.add(new PieChartPanel.Slice("No Jakarta Version", noJakarta, DependencyStatusColors.STATUS_NO_JAKARTA));
+            }
+            if (review > 0) {
+                slices.add(new PieChartPanel.Slice("Review Required", review, new Color(255, 165, 0)));
+            }
+
+            int buildToolError = depSummary.getBuildToolErrorCount() != null ? depSummary.getBuildToolErrorCount() : 0;
+            int unknown = depSummary.getUnknownCount() != null ? depSummary.getUnknownCount() : 0;
+
+            if (analysisRunning) {
+                int total = depSummary.getTotalDependencies() != null ? depSummary.getTotalDependencies() : 0;
+                int resolved = compatible + upgrade + noJakarta + review + buildToolError + unknown;
+                unknown += Math.max(0, total - resolved);
+            }
+
+            if (buildToolError > 0) {
+                slices.add(new PieChartPanel.Slice("Build Tool Error", buildToolError, new Color(255, 99, 132)));
+            }
+            if (unknown > 0) {
+                slices.add(new PieChartPanel.Slice("Unknown", unknown, new Color(108, 117, 125)));
+            }
+        }
+        compatibilityChart.setSlices(slices);
+    }
+
+    private void updateSourceFindingsChart() {
+        List<PieChartPanel.Slice> slices = new ArrayList<>();
+        if (advancedScanningService != null && advancedScanningService.hasCachedResults()) {
+            AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
+            if (summary != null) {
+                for (AdvancedScanCategory category : AdvancedScanCategory.uiTabCategories()) {
+                    int count = summary.getCount(category);
+                    if (count > 0) {
+                        slices.add(new PieChartPanel.Slice(category.getTabLabel(), count, category.getChartColor()));
+                    }
+                }
+            }
+        }
+        sourceFindingsChart.setSlices(slices);
+    }
+
+    private void updateAutomationChart() {
+        List<PieChartPanel.Slice> slices = new ArrayList<>();
+        if (advancedScanningService != null && advancedScanningService.hasCachedResults()) {
+            AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
+            if (summary != null && summary.getTotalIssuesFound() > 0) {
+                int total = summary.getTotalIssuesFound();
+                int withRecipes = getIssuesWithMatchingRecipes(summary);
+                int withoutRecipes = total - withRecipes;
+
+                if (withRecipes > 0) {
+                    slices.add(new PieChartPanel.Slice("With Recipes", withRecipes, new Color(40, 167, 69)));
+                }
+                if (withoutRecipes > 0) {
+                    slices.add(new PieChartPanel.Slice("Without Recipes", withoutRecipes, new Color(220, 53, 69)));
+                }
+            }
+        }
+        automationChart.setSlices(slices);
     }
 
     /**
@@ -1465,8 +1634,9 @@ private void resetAdvancedScanCounts() {
         
         // Note: Scan findings excluded from risk calculation per new formula
         // Calculate risk score without scan findings and validation confidence
-        int totalFileCount = getTotalFileCount();
-        int testFileCount = getTestFileCount();
+        // Use cached file counts to avoid blocking the EDT with filesystem walks
+        int totalFileCount = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
+        int testFileCount = cachedTestFileCount >= 0 ? cachedTestFileCount : 0;
         double platformRiskScore = getPlatformRiskScore();
         // Estimate integration tests and critical modules (simplified for now)
         int integrationTestCount = estimateIntegrationTestCount();
@@ -1502,6 +1672,9 @@ private void resetAdvancedScanCounts() {
         updateRiskExplanation();
         updateEffortExplanation();
         updateConfidenceExplanation();
+
+        // Refresh summary pie charts
+        updateCharts();
         
     }
 
@@ -1595,9 +1768,9 @@ private void resetAdvancedScanCounts() {
 
         DependencySummary depSummary = dashboard.getDependencySummary();
 
-        // Get values for effort factors
+        // Get values for effort factors (use cached file counts to avoid EDT block)
         int recipesWithMatches = getRecipesWithMatchesCount();
-        int projectFiles = getTotalFileCount();
+        int projectFiles = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
         int orgDeps = depSummary != null && depSummary.getOrganisationalDependencies() != null
             ? depSummary.getOrganisationalDependencies() : 0;
 
@@ -1723,7 +1896,7 @@ private void resetAdvancedScanCounts() {
         double testCoverage = calculateTestCoverageEstimate();
         int integrationTestCount = estimateIntegrationTestCount();
         int criticalModulesTested = estimateCriticalModulesTested();
-        int totalFiles = getTotalFileCount();
+        int totalFiles = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
 
         // Unit test coverage below threshold (threshold 70%)
         int unitTestCoverageValue = (int) Math.round(testCoverage);
@@ -1770,10 +1943,7 @@ private void resetAdvancedScanCounts() {
         AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
         if (summary == null) return 0;
 
-        // Sum all source code related scan issues
-        return summary.getJpaCount() + summary.getBeanValidationCount() + summary.getServletJspCount()
-            + summary.getCdiInjectionCount() + summary.getRestSoapCount() + summary.getDeprecatedApiCount()
-            + summary.getSecurityApiCount() + summary.getJmsMessagingCount();
+        return summary.getTotalSourceIssues();
     }
 
     /**
@@ -1786,8 +1956,7 @@ private void resetAdvancedScanCounts() {
         AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
         if (summary == null) return 0;
 
-        // Sum all config related scan issues
-        return summary.getBuildConfigCount() + summary.getConfigFileCount();
+        return summary.getTotalConfigIssues();
     }
 
     /**
@@ -1830,8 +1999,8 @@ private void resetAdvancedScanCounts() {
                 }
             }
 
-            // Update project size (total file count)
-            int totalFiles = getTotalFileCount();
+            // Update project size (total file count, use cached value)
+            int totalFiles = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
             projectSizeValue.setText(String.valueOf(totalFiles));
             projectSizeValue.setForeground(totalFiles > 0 ? new Color(100, 100, 200) : Color.GRAY);
 
@@ -2303,43 +2472,7 @@ private void resetAdvancedScanCounts() {
         if (summary == null) {
             return 0;
         }
-
-        int issuesWithRecipes = 0;
-
-        // Map of scan types to their recipe availability
-        // These scan types have matching recipes in ScanRecipeRecommendationServiceImpl.SCAN_TO_RECIPE_MAPPING
-        Map<String, Integer> scanTypeCounts = new HashMap<>();
-        scanTypeCounts.put("jpa", summary.getJpaCount());
-        scanTypeCounts.put("beanValidation", summary.getBeanValidationCount());
-        scanTypeCounts.put("servletJsp", summary.getServletJspCount());
-        scanTypeCounts.put("cdiInjection", summary.getCdiInjectionCount());
-        scanTypeCounts.put("restSoap", summary.getRestSoapCount());
-        scanTypeCounts.put("securityApi", summary.getSecurityApiCount());
-        scanTypeCounts.put("jmsMessaging", summary.getJmsMessagingCount());
-        scanTypeCounts.put("buildConfig", summary.getBuildConfigCount());
-        scanTypeCounts.put("configFiles", summary.getConfigFileCount());
-        scanTypeCounts.put("deprecatedApi", summary.getDeprecatedApiCount());
-        scanTypeCounts.put("transitiveDependency", summary.getTransitiveDependencyCount());
-
-        // Scan types with matching recipes (from ScanRecipeRecommendationServiceImpl.SCAN_TO_RECIPE_MAPPING)
-        // These scan types have recipes available, so their issues can be automated
-        String[] scanTypesWithRecipes = {
-            "jpa", "beanValidation", "servletJsp", "cdiInjection", "restSoap",
-            "securityApi", "jmsMessaging", "buildConfig", "configFiles", "deprecatedApi"
-        };
-
-        // Count issues that have matching recipes
-        for (String scanType : scanTypesWithRecipes) {
-            Integer count = scanTypeCounts.get(scanType);
-            if (count != null && count > 0) {
-                issuesWithRecipes += count;
-            }
-        }
-
-        // For transitive dependencies and other scans without direct recipes,
-        // we don't count them as having recipe matches
-
-        return issuesWithRecipes;
+        return summary.getTotalIssuesWithRecipes();
     }
 
     private int calculateEffortWeeks() {
@@ -2375,11 +2508,11 @@ private void resetAdvancedScanCounts() {
                 }
 
                 // Calculate risk score with test coverage parameters
-                int testFileCount = getTestFileCount();
+                int testFileCount = cachedTestFileCount >= 0 ? cachedTestFileCount : 0;
                 int integrationTestCount = estimateIntegrationTestCount();
                 int criticalModulesTested = estimateCriticalModulesTested();
                 RiskScoringService.RiskScore currentScore = riskScoringService.calculateRiskScore(
-                    scanFindings, depIssues, getTotalFileCount(), getPlatformRiskScore(),
+                    scanFindings, depIssues, cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0, getPlatformRiskScore(),
                     testFileCount, integrationTestCount, criticalModulesTested);
                 currentRiskScore = currentScore.totalScore();
             } catch (Exception e) {
@@ -2611,8 +2744,8 @@ private void resetAdvancedScanCounts() {
      * - 100:1 ratio (1% test files) = 10% coverage
      */
     private double calculateTestCoverageEstimate() {
-        int totalFiles = getTotalFileCount();
-        int testFiles = getTestFileCount();
+        int totalFiles = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
+        int testFiles = cachedTestFileCount >= 0 ? cachedTestFileCount : 0;
 
         if (totalFiles == 0) {
             return 0.0;
@@ -2632,7 +2765,7 @@ private void resetAdvancedScanCounts() {
      * For now, assumes 20% of test files are integration tests.
      */
     private int estimateIntegrationTestCount() {
-        int testFiles = getTestFileCount();
+        int testFiles = cachedTestFileCount >= 0 ? cachedTestFileCount : 0;
         return (int) Math.round(testFiles * 0.2);
     }
 
@@ -2641,7 +2774,7 @@ private void resetAdvancedScanCounts() {
      * For now, assumes 30% of modules are critical and tested.
      */
     private int estimateCriticalModulesTested() {
-        int totalFiles = getTotalFileCount();
+        int totalFiles = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
         // Assume modules are roughly 50 files each
         int estimatedModules = Math.max(totalFiles / 50, 1);
         return (int) Math.round(estimatedModules * 0.3);

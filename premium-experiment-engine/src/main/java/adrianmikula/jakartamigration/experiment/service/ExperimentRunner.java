@@ -3,13 +3,20 @@ package adrianmikula.jakartamigration.experiment.service;
 import adrianmikula.jakartamigration.experiment.domain.*;
 import adrianmikula.jakartamigration.experiment.execution.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.nio.file.*;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ExperimentRunner {
+    private static final Logger LOG = LoggerFactory.getLogger(ExperimentRunner.class);
+
     private final SequenceService sequenceService;
     private final HistoryService historyService;
     private final TestContainerOrchestratorFactory containerFactory;
@@ -43,6 +50,7 @@ public class ExperimentRunner {
             Path snapshot = copyProjectToSnapshot(projectDir, experimentsTmp, gitRef);
             TestContainerOrchestrator container = containerFactory.create(dockerImage);
             container.start();
+            copySnapshotIntoContainer(snapshot, container);
 
             try {
                 List<StepResult> stepResults = new ArrayList<>();
@@ -52,7 +60,9 @@ public class ExperimentRunner {
                     StepResult stepResult = executor.execute(step, snapshot, container);
                     stepResults.add(stepResult);
                     if (!stepResult.success()) {
-                        return buildFailedResult(runId, sequenceName, startedAt, stepResults, "Step " + i + " failed: " + stepResult.message());
+                        ExperimentResult failedResult = buildFailedResult(runId, sequenceName, startedAt, stepResults, "Step " + i + " failed: " + stepResult.message());
+                        recordToHistory(failedResult);
+                        return failedResult;
                     }
                 }
 
@@ -72,14 +82,19 @@ public class ExperimentRunner {
                     null
                 );
 
-                historyService.recordRun(result);
+                recordToHistory(result);
                 return result;
 
             } finally {
-                container.stop();
+                try {
+                    container.stop();
+                } catch (Exception e) {
+                    LOG.warn("Failed to stop container for run {}", runId, e);
+                }
             }
 
         } catch (Exception e) {
+            LOG.error("Experiment run {} failed", runId, e);
             Instant finishedAt = Instant.now();
             ExperimentResult result = new ExperimentResult(
                 runId,
@@ -92,8 +107,16 @@ public class ExperimentRunner {
                 null,
                 e.getMessage()
             );
-            historyService.recordRun(result);
+            recordToHistory(result);
             return result;
+        }
+    }
+
+    private void recordToHistory(ExperimentResult result) {
+        try {
+            historyService.recordRun(result);
+        } catch (Exception e) {
+            LOG.error("Failed to record experiment run {} to history", result.runId(), e);
         }
     }
 
@@ -102,14 +125,22 @@ public class ExperimentRunner {
         Files.createDirectories(snapshot);
 
         if (gitRef.isPresent()) {
-            ProcessBuilder pb = new ProcessBuilder("git", "archive", gitRef.get())
+            Path archive = snapshot.resolve("archive.tar");
+            ProcessBuilder archivePb = new ProcessBuilder("git", "archive", gitRef.get())
                 .directory(projectDir.toFile())
-                .redirectOutput(snapshot.resolve("archive.tar").toFile());
-            pb.start().waitFor();
+                .redirectOutput(archive.toFile());
+            int archiveExit = archivePb.start().waitFor();
+            if (archiveExit != 0) {
+                throw new IOException("git archive failed with exit code " + archiveExit);
+            }
+
             ProcessBuilder extractPb = new ProcessBuilder("tar", "-xf", "archive.tar")
                 .directory(snapshot.toFile());
-            extractPb.start().waitFor();
-            Files.deleteIfExists(snapshot.resolve("archive.tar"));
+            int extractExit = extractPb.start().waitFor();
+            Files.deleteIfExists(archive);
+            if (extractExit != 0) {
+                throw new IOException("tar extract failed with exit code " + extractExit);
+            }
         } else {
             copyDirectory(projectDir, snapshot);
         }
@@ -134,9 +165,9 @@ public class ExperimentRunner {
         }
 
         int total = countInReport(result.stdout(), "Tests run:");
-        int passed = total;
         int failed = countInReport(result.stdout(), "Failures:");
         int skipped = countInReport(result.stdout(), "Skipped:");
+        int passed = Math.max(0, total - failed - skipped);
         return new TestOutcome(total, passed, failed, skipped, Duration.ZERO);
     }
 
@@ -176,22 +207,29 @@ public class ExperimentRunner {
 
     private int countInReport(String output, String marker) {
         if (output == null || output.isEmpty()) return 0;
-        String[] lines = output.split("\n");
-        for (String line : lines) {
-            if (line.contains(marker)) {
-                String[] parts = line.split(",");
-                for (String part : parts) {
-                    part = part.trim().replaceAll("[^0-9]", "");
-                    if (!part.isEmpty()) {
-                        try {
-                            return Integer.parseInt(part);
-                        } catch (NumberFormatException ignored) {
-                        }
-                    }
-                }
+        String regex = Pattern.quote(marker) + "\\s*(\\d+)";
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(output);
+        if (matcher.find()) {
+            try {
+                return Integer.parseInt(matcher.group(1));
+            } catch (NumberFormatException ignored) {
             }
         }
         return 0;
+    }
+
+    private void copySnapshotIntoContainer(Path snapshot, TestContainerOrchestrator container) throws IOException {
+        try (var paths = Files.walk(snapshot)) {
+            for (Path sourcePath : paths.toList()) {
+                if (Files.isRegularFile(sourcePath)) {
+                    Path relative = snapshot.relativize(sourcePath);
+                    Path targetPath = Path.of("/workspace").resolve(relative);
+                    LOG.debug("Copying {} into container at {}", sourcePath, targetPath);
+                    container.copyInto(sourcePath, targetPath);
+                }
+            }
+        }
     }
 
     private void copyDirectory(Path source, Path target) throws Exception {
@@ -200,11 +238,15 @@ public class ExperimentRunner {
                 Path targetPath = target.resolve(source.relativize(sourcePath).toString());
                 if (Files.isDirectory(sourcePath)) {
                     Files.createDirectories(targetPath);
-                } else {
+                } else if (Files.exists(sourcePath)) {
                     Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
+                } else {
+                    LOG.warn("Skipping missing file during copy: {}", sourcePath);
                 }
+            } catch (NoSuchFileException e) {
+                LOG.warn("File disappeared during copy, skipping: {}", sourcePath);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to copy directory", e);
+                LOG.warn("Failed to copy file {}, skipping: {}", sourcePath, e.getMessage());
             }
         });
     }

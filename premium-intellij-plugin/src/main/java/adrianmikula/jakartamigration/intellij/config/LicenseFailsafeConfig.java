@@ -130,7 +130,10 @@ public class LicenseFailsafeConfig {
     
     /**
      * Check if trial mode is forced.
+     * @deprecated Free trial is disabled (always-paid model). Set trial.days=0 in pricing.properties.
+     *             This method is retained for potential future re-enablement.
      */
+    @Deprecated
     public static boolean isTrialForced() {
         return Boolean.getBoolean(FORCE_TRIAL_PROPERTY) || 
                config.containsKey(FORCE_TRIAL_PROPERTY);

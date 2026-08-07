@@ -11,7 +11,11 @@ import java.util.Set;
 /**
  * Analyzes Java bytecode to detect Jakarta migration issues.
  * Fast, lightweight alternative to process execution.
+ *
+ * @deprecated Use {@link adrianmikula.jakartamigration.jaranalysis.service.BytecodeSignalExtractor} instead.
+ *             This interface is retained for backward compatibility with {@link adrianmikula.jakartamigration.runtimeverification.service.impl.RuntimeVerificationModuleImpl}.
  */
+@Deprecated
 public interface BytecodeAnalyzer {
     
     /**
