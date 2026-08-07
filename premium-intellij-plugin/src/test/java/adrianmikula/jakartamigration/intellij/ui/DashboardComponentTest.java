@@ -348,4 +348,36 @@ public class DashboardComponentTest extends BasePlatformTestCase {
         assertThat(progressBar.isIndeterminate()).isFalse();
     }
 
+    /**
+     * Test that calculateProjectSizeScore uses the cached project file count.
+     */
+    public void testCalculateProjectSizeScore_UsesCachedFileCount() throws Exception {
+        java.lang.reflect.Field fileCountField = DashboardComponent.class.getDeclaredField("cachedTotalFileCount");
+        fileCountField.setAccessible(true);
+        fileCountField.setInt(dashboardComponent, 5000);
+
+        java.lang.reflect.Method method = DashboardComponent.class.getDeclaredMethod("calculateProjectSizeScore", int.class);
+        method.setAccessible(true);
+        int score = (int) method.invoke(dashboardComponent, 10000);
+
+        assertThat(score).isEqualTo(50);
+    }
+
+    /**
+     * Test that calculateComplexityScore averages scan findings and project size.
+     */
+    public void testCalculateComplexityScore_CombinesFindingsAndSize() throws Exception {
+        // No cached scan results, so scan findings score is 0
+        java.lang.reflect.Field fileCountField = DashboardComponent.class.getDeclaredField("cachedTotalFileCount");
+        fileCountField.setAccessible(true);
+        fileCountField.setInt(dashboardComponent, 10000);
+
+        java.lang.reflect.Method method = DashboardComponent.class.getDeclaredMethod("calculateComplexityScore");
+        method.setAccessible(true);
+        int score = (int) method.invoke(dashboardComponent);
+
+        // (0 scan findings + 100 project size) / 2 = 50
+        assertThat(score).isEqualTo(50);
+    }
+
 }
