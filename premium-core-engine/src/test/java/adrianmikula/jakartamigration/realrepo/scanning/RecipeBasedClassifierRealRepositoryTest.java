@@ -1,5 +1,9 @@
 package adrianmikula.jakartamigration.realrepo.scanning;
 
+import adrianmikula.jakartamigration.scanning.RecipePatternExtractor;
+
+import adrianmikula.jakartamigration.scanning.RecipeBasedClassifier;
+
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Namespace;
 import adrianmikula.jakartamigration.jaranalysis.service.DefaultJarCompatibilityScanner;

@@ -1,5 +1,7 @@
 package adrianmikula.jakartamigration.memory.advancedscanning.service.impl;
 
+import adrianmikula.jakartamigration.advancedscanning.service.impl.TransitiveDependencyScannerImpl;
+
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyProjectScanResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

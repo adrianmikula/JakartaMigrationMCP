@@ -15,8 +15,8 @@ Added test properties to disable optional services in all `@SpringBootTest` test
 
 ## Tests Fixed
 
-### 1. McpServerSseIntegrationTest ✅
-**File**: `src/test/java/integration/mcp/McpServerSseIntegrationTest.java`
+### 1. McpSseTransportIntegrationTest ✅
+**File**: `src/test/java/integration/mcp/McpSseTransportIntegrationTest.java`
 
 **Changes**:
 - Added `properties` parameter to `@SpringBootTest`:
@@ -29,8 +29,8 @@ Added test properties to disable optional services in all `@SpringBootTest` test
   }
   ```
 
-### 2. McpServerStreamableHttpIntegrationTest ✅
-**File**: `src/test/java/integration/mcp/McpServerStreamableHttpIntegrationTest.java`
+### 2. McpStreamableHttpTransportIntegrationTest ✅
+**File**: `src/test/java/integration/mcp/McpStreamableHttpTransportIntegrationTest.java`
 
 **Changes**:
 - Added `properties` parameter to `@SpringBootTest`:
@@ -152,7 +152,7 @@ After these fixes, all tests should:
 mise run test
 
 # Run specific test class
-mise run test --tests "integration.mcp.McpServerSseIntegrationTest"
+mise run test --tests "adrianmikula.jakartamigration.mcp.transport.integration.McpSseTransportIntegrationTest"
 
 # Run all integration tests
 mise run test --tests "integration.*"

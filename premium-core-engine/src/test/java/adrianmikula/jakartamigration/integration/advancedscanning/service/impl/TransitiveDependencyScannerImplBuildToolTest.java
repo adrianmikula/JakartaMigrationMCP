@@ -1,5 +1,10 @@
 package adrianmikula.jakartamigration.integration.advancedscanning.service.impl;
 
+import adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyDeduplicationServiceImpl;
+import adrianmikula.jakartamigration.advancedscanning.service.impl.DependencyTreeCommandExecutorImpl;
+
+import adrianmikula.jakartamigration.advancedscanning.service.impl.TransitiveDependencyScannerImpl;
+
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyProjectScanResult;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Namespace;
 import adrianmikula.jakartamigration.dependencyanalysis.service.NamespaceClassifier;

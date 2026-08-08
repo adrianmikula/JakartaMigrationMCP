@@ -592,14 +592,11 @@ public class GaugePanel {
             if (depSummary.getNoJakartaSupportCount() != null) {
                 knownDeps += depSummary.getNoJakartaSupportCount();
             }
-            if (depSummary.getBlockerDependencies() != null) {
-                knownDeps += depSummary.getBlockerDependencies();
-            }
             knownPercentage = (knownDeps * 100) / totalDeps;
         }
 
-        int unknownDeps = totalDeps - (depSummary != null && depSummary.getOrganisationalDependencies() != null 
-            ? depSummary.getOrganisationalDependencies() : 0);
+        int unknownDeps = depSummary != null && depSummary.getUnknownReviewCount() != null
+            ? depSummary.getUnknownReviewCount() : 0;
 
         // Update labels with color coding
         updateBulletLabel(confidenceScansLabel, "Scans completed", knownPercentage,
@@ -629,9 +626,6 @@ public class GaugePanel {
         }
         if (depSummary.getNoJakartaSupportCount() != null) {
             knownDeps += depSummary.getNoJakartaSupportCount();
-        }
-        if (depSummary.getBlockerDependencies() != null) {
-            knownDeps += depSummary.getBlockerDependencies();
         }
         return (knownDeps * 100) / totalDeps;
     }

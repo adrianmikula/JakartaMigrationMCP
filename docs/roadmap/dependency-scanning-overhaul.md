@@ -73,7 +73,7 @@ Two core issues with the current dependency scanning architecture:
 
 **Dependencies:** `RecipePatternExtractor`
 
-**Integration Test:** `RecipeBasedClassifierIntegrationTest`
+**Integration Test:** `RecipeBasedClassifierRealRepositoryTest`
 - `shouldClassifyKnownJakartaArtifact()` — Verify `jakarta.servlet:jakarta.servlet-api:6.0.0` → COMPATIBLE
 - `shouldClassifyKnownJavaxArtifact()` — Verify `javax.servlet:javax.servlet-api:4.0.1` → INCOMPATIBLE
 - `shouldClassifyUnknownArtifactWithRegex()` — Verify regex matching for UNKNOWN artifacts
@@ -117,7 +117,7 @@ Two core issues with the current dependency scanning architecture:
 - `premium-core-engine/.../advancedscanning/service/impl/TransitiveDependencyScannerImpl.java`
 - `premium-core-engine/.../advancedscanning/service/impl/DependencyTreeCommandExecutorImpl.java`
 
-**Integration Test:** `TransitiveDependencyScannerImplIntegrationTest`
+**Integration Test:** `TransitiveDependencyScannerImplBuildToolTest`
 - `shouldFallbackToRegexOnMavenFailure()` — Verify regex fallback when Maven fails
 - `shouldFallbackToRegexOnGradleFailure()` — Verify regex fallback when Gradle fails
 - `shouldShowBalloonNotificationOnFailure()` — Verify balloon notification is shown (deduplicated)
@@ -152,7 +152,7 @@ Two core issues with the current dependency scanning architecture:
 - Use existing `enrichWithJarScan()` method (already exists at line ~700)
 - Add streaming JAR analysis with bounded thread pool
 
-**Integration Test:** `BytecodeScannerIntegrationTest`
+**Integration Test:** `BytecodeScannerRealRepositoryTest`
 - `shouldClassifyJakartaServletJAR()` — Verify `jakarta.servlet-api-6.0.0.jar` → JAKARTA
 - `shouldClassifyJavaxServletJAR()` — Verify `javax.servlet-api-4.0.1.jar` → JAVAX
 - `shouldClassifyMixedNamespaceJAR()` — Verify JAR with both javax and jakarta → MIXED
@@ -753,10 +753,10 @@ Additionally, `SourceCodeScannerImpl` (community-core-engine) has a variant `fin
 | `premium-core-engine/.../scanning/RecipeBasedClassifier.java` | Coordinate + regex matching | 2 |
 | `premium-core-engine/.../scanning/BalloonNotificationService.java` | Deduplicated IDE notifications | 4 |
 | `premium-core-engine/src/test/.../integration/RecipePatternExtractorIntegrationTest.java` | Integration test for recipe extraction | 1 |
-| `premium-core-engine/src/test/.../integration/RecipeBasedClassifierIntegrationTest.java` | Integration test for classification | 2 |
+| `premium-core-engine/src/test/.../integration/RecipeBasedClassifierRealRepositoryTest.java` | Integration test for classification | 2 |
 | `premium-core-engine/src/test/.../integration/SimpleNamespaceClassifierExpansionIntegrationTest.java` | Integration test for expanded classifier | 3 |
-| `premium-core-engine/src/test/.../integration/TransitiveDependencyScannerImplIntegrationTest.java` | Integration test for scanner | 4 |
-| `premium-core-engine/src/test/.../integration/BytecodeScannerIntegrationTest.java` | Integration test for ASM scanning | 5 |
+| `premium-core-engine/src/test/.../integration/TransitiveDependencyScannerImplBuildToolTest.java` | Integration test for scanner | 4 |
+| `premium-core-engine/src/test/.../integration/BytecodeScannerRealRepositoryTest.java` | Integration test for ASM scanning | 5 |
 | `premium-core-engine/src/test/.../unit/.../RecipeBasedClassifierMemoryTest.java` | Memory test for classifier | 7 |
 | `premium-core-engine/src/test/.../unit/.../TransitiveDependencyScannerImplMemoryTest.java` | Memory test for scanner | 7 |
 | `premium-core-engine/src/test/.../unit/.../BytecodeSignalExtractorPerformanceTest.java` | Performance test for ASM | 7 |

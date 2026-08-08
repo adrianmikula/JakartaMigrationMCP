@@ -1,5 +1,9 @@
 package adrianmikula.jakartamigration.realrepo.advancedscanning;
 
+import adrianmikula.jakartamigration.advancedscanning.service.TransitiveDependencyScanner;
+
+import adrianmikula.jakartamigration.advancedscanning.service.AdvancedScanningModule;
+
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyProjectScanResult;
 import adrianmikula.jakartamigration.coderefactoring.domain.RecipeCategory;
 import adrianmikula.jakartamigration.coderefactoring.domain.RecipeDefinition;

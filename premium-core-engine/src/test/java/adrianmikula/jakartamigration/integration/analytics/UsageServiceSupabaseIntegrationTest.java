@@ -1,5 +1,8 @@
 package adrianmikula.jakartamigration.integration.analytics;
 
+import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
+import adrianmikula.jakartamigration.analytics.service.UsageService;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import adrianmikula.jakartamigration.analytics.config.SupabaseConfig;

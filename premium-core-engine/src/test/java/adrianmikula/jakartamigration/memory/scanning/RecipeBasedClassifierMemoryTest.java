@@ -1,5 +1,7 @@
 package adrianmikula.jakartamigration.memory.scanning;
 
+import adrianmikula.jakartamigration.scanning.RecipeBasedClassifier;
+
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Namespace;
 import org.junit.jupiter.api.BeforeEach;

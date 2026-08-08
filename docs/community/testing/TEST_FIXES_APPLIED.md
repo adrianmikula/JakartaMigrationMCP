@@ -2,15 +2,15 @@
 
 ## Issue Identified
 
-**Test Failure**: `McpServerSseIntegrationTest > testToolInputSchemaValidation() FAILED`
+**Test Failure**: `McpSseTransportIntegrationTest > testToolInputSchemaValidation() FAILED`
 - **Error**: `IllegalStateException: ApplicationContext failure threshold (1) exceeded`
 - **Root Cause**: Spring ApplicationContext failing to load, likely due to missing or conflicting configuration
 
 ## Fixes Applied
 
-### 1. Added Test Properties to McpServerSseIntegrationTest
+### 1. Added Test Properties to McpSseTransportIntegrationTest
 
-**File**: `src/test/java/integration/mcp/McpServerSseIntegrationTest.java`
+**File**: `src/test/java/integration/mcp/McpSseTransportIntegrationTest.java`
 
 Added test properties to disable optional services:
 ```java
@@ -69,10 +69,10 @@ To verify the fix works:
 
 ```bash
 # Run the specific failing test
-mise run test --tests "integration.mcp.McpServerSseIntegrationTest.testToolInputSchemaValidation"
+mise run test --tests "adrianmikula.jakartamigration.mcp.transport.integration.McpSseTransportIntegrationTest.testToolInputSchemaValidation"
 
 # Or run all SSE integration tests
-mise run test --tests "integration.mcp.McpServerSseIntegrationTest"
+mise run test --tests "adrianmikula.jakartamigration.mcp.transport.integration.McpSseTransportIntegrationTest"
 ```
 
 ## Additional Notes
@@ -85,7 +85,7 @@ If the test still fails, check:
 
 ## Related Files
 
-- `src/test/java/integration/mcp/McpServerSseIntegrationTest.java` - Test file
+- `src/test/java/integration/mcp/McpSseTransportIntegrationTest.java` - Test file
 - `src/test/resources/application-mcp-sse.yml` - Test configuration
 - `src/main/resources/application-mcp-sse.yml` - Main configuration (for reference)
 

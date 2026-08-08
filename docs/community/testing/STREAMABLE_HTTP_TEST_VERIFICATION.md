@@ -3,7 +3,7 @@
 ## ✅ Code Verification Complete
 
 ### Test Structure
-The `McpServerStreamableHttpIntegrationTest` class has been verified to:
+The `McpStreamableHttpTransportIntegrationTest` class has been verified to:
 
 1. **✅ Correct Annotations**
    - `@SpringBootTest` with proper configuration
@@ -61,14 +61,14 @@ Get-Process java -ErrorAction SilentlyContinue | Stop-Process -Force
 Remove-Item -Path "build\test-results" -Recurse -Force
 
 # Run tests
-mise exec -- gradle test --tests "integration.mcp.McpServerStreamableHttpIntegrationTest"
+mise exec -- gradle test --tests "adrianmikula.jakartamigration.mcp.transport.integration.McpStreamableHttpTransportIntegrationTest"
 ```
 
 #### Option 3: Use Different Build Directory
 ```powershell
 # Set custom build directory
 $env:GRADLE_USER_HOME="build-alt"
-mise exec -- gradle test --tests "integration.mcp.McpServerStreamableHttpIntegrationTest" -Dorg.gradle.java.home=""
+mise exec -- gradle test --tests "adrianmikula.jakartamigration.mcp.transport.integration.McpStreamableHttpTransportIntegrationTest" -Dorg.gradle.java.home=""
 ```
 
 #### Option 4: Run Tests in CI/CD

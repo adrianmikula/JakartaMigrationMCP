@@ -1,4 +1,4 @@
-package integration.mcp;
+package adrianmikula.jakartamigration.mcp.transport.integration;
 
 import java.io.File;
 import java.nio.file.Files;

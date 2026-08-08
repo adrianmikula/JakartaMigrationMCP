@@ -239,7 +239,7 @@ ThirdPartyLibScanner uses separate hardcoded map; consider merging logic or maki
 
 **Testing:**
 - TransitiveDependencyScannerImplTest.java (add tests)
-- TransitiveDependencyScannerIntegrationTest.java (add tests)
+- TransitiveDependencyScannerRealRepositoryTest.java (add tests)
 - Update any tests constructing TransitiveDependencyUsage with new constructor signature
 
 **UI (if time/compatibility allows):**

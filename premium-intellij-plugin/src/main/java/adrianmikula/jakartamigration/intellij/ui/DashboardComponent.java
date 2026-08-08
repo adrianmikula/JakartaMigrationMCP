@@ -1038,12 +1038,6 @@ private void resetAdvancedScanCounts() {
             int buildToolError = depSummary.getBuildToolErrorCount() != null ? depSummary.getBuildToolErrorCount() : 0;
             int unknown = depSummary.getUnknownCount() != null ? depSummary.getUnknownCount() : 0;
 
-            if (analysisRunning) {
-                int total = depSummary.getTotalDependencies() != null ? depSummary.getTotalDependencies() : 0;
-                int resolved = compatible + upgrade + noJakarta + review + buildToolError + unknown;
-                unknown += Math.max(0, total - resolved);
-            }
-
             if (buildToolError > 0) {
                 slices.add(new PieChartPanel.Slice("Build Tool Error", buildToolError, new Color(255, 99, 132)));
             }

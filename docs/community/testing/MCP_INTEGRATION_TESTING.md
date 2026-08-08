@@ -14,7 +14,7 @@ The integration tests follow the "Golden Path" for testing MCP servers:
 
 ## Test Suites
 
-### 1. STDIO Transport Tests (`McpServerStdioIntegrationTest`)
+### 1. STDIO Transport Tests (`McpStdioTransportIntegrationTest`)
 
 **Purpose**: Tests the MCP server using STDIO transport, which is used by Cursor, Claude Code, and other local MCP clients.
 
@@ -38,10 +38,10 @@ The integration tests follow the "Golden Path" for testing MCP servers:
 gradlew bootJar
 
 # Run STDIO integration tests
-gradlew test --tests "integration.mcp.McpServerStdioIntegrationTest"
+gradlew test --tests "adrianmikula.jakartamigration.mcp.transport.integration.McpStdioTransportIntegrationTest"
 ```
 
-### 2. SSE Transport Tests (`McpServerSseIntegrationTest`)
+### 2. SSE Transport Tests (`McpSseTransportIntegrationTest`)
 
 **Purpose**: Tests the MCP server using SSE transport, which is used by Apify and other HTTP-based MCP clients.
 
@@ -63,7 +63,7 @@ gradlew test --tests "integration.mcp.McpServerStdioIntegrationTest"
 **Running**:
 ```bash
 # Run SSE integration tests
-gradlew test --tests "integration.mcp.McpServerSseIntegrationTest"
+gradlew test --tests "adrianmikula.jakartamigration.mcp.transport.integration.McpSseTransportIntegrationTest"
 ```
 
 ## Test Coverage

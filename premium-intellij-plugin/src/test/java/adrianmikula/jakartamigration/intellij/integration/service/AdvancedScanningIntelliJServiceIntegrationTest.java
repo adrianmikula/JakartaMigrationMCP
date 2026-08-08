@@ -1,5 +1,7 @@
 package adrianmikula.jakartamigration.intellij.integration.service;
 
+import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
+
 import adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyProjectScanResult;
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
