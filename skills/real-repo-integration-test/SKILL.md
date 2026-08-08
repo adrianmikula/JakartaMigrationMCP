@@ -6,8 +6,8 @@ This skill guides writing integration tests that download and test against **rea
 
 ## Reference Tests
 
-- `RefactorRecipeIntegrationTest.java` — Recipe integration test with `downloadExample` helper, recipe seeding, undo verification, and execution history tests
-- `MavenPropertyResolutionIntegrationTest.java` — Canonical download pattern for simple URL-based extraction
+- `RefactorRecipeRealRepositoryTest.java` — Recipe integration test with `downloadExample` helper, recipe seeding, undo verification, and execution history tests
+- `MavenPropertyResolutionRealRepositoryTest.java` — Canonical download pattern for simple URL-based extraction
 
 ## Generic Download Helper Pattern
 
@@ -238,7 +238,7 @@ String regex = patternGlob
 
 ## Reference Files
 
-- `RefactorRecipeIntegrationTest.java` — recipe integration test with download helper, undo, history, and category tests
-- `MavenPropertyResolutionIntegrationTest.java` — simple download-and-extract pattern
+- `RefactorRecipeRealRepositoryTest.java` — recipe integration test with download helper, undo, history, and category tests
+- `MavenPropertyResolutionRealRepositoryTest.java` — simple download-and-extract pattern
 - `RecipeServiceImpl.applyRegexRecipe()` — regex recipe execution logic
 - `examples.yaml` — repo URLs for integration testing

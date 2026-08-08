@@ -1075,7 +1075,9 @@ private void resetAdvancedScanCounts() {
         if (advancedScanningService != null && advancedScanningService.hasCachedResults()) {
             AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
             if (summary != null && summary.getTotalIssuesFound() > 0) {
-                int total = summary.getTotalIssuesFound();
+                // Transitive dependencies never have migration recipes, so exclude them from
+                // the "With/Without Recipes" automation pie chart calculation.
+                int total = summary.getTotalIssuesFound() - summary.getTransitiveDependencyCount();
                 int withRecipes = getIssuesWithMatchingRecipes(summary);
                 int withoutRecipes = total - withRecipes;
 
