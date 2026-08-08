@@ -50,6 +50,10 @@ public class GradleToolingApiExecutor implements DependencyTreeCommandExecutor {
     private static final java.util.regex.Pattern DEP_PATTERN =
             java.util.regex.Pattern.compile("^([^\\s:]+):([^\\s:]+):([^\\s]+)");
 
+    // Matches Gradle project dependencies such as "project :core" or "project ':core'"
+    private static final java.util.regex.Pattern PROJECT_PATTERN =
+            java.util.regex.Pattern.compile("^project\\s+['\"]?(:[^\\s'\"]+)['\"]?");
+
     private final ExecutorService executor;
 
     public GradleToolingApiExecutor() {
@@ -307,12 +311,21 @@ public class GradleToolingApiExecutor implements DependencyTreeCommandExecutor {
             level++;
             trimmed = trimmed.substring(5);
         }
+
+        // Gradle project dependencies appear as "project :module" or "project ':module'"
+        Matcher projectMatcher = PROJECT_PATTERN.matcher(trimmed);
+        int depth = level - 1;
+        String parentKey = depth > 0 ? depthToArtifactKey.get(depth - 1) : null;
+        if (projectMatcher.find()) {
+            String projectPath = projectMatcher.group(1).replace(java.io.File.separatorChar, ':');
+            String artifactId = projectPath.startsWith(":") ? projectPath.substring(1) : projectPath;
+            return Optional.of(new DependencyTreeResult.DependencyNode(
+                    "project", artifactId, "unspecified", scope, depth, depth > 0, parentKey));
+        }
+
         Matcher m = DEP_PATTERN.matcher(trimmed);
         if (!m.find()) return Optional.empty();
 
-        // Root dependencies have one tree prefix (e.g. "+--- "), so depth is level - 1.
-        int depth = level - 1;
-        String parentKey = depth > 0 ? depthToArtifactKey.get(depth - 1) : null;
         return Optional.of(new DependencyTreeResult.DependencyNode(
                 m.group(1), m.group(2), m.group(3), scope, depth, depth > 0, parentKey));
     }

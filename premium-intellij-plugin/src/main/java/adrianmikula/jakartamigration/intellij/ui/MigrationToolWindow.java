@@ -1346,7 +1346,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 info.setTransitive(artifact.transitive());
 
                 // Check if it's an organizational artifact
-                boolean isOrg = false;
+                boolean isOrg = "project".equals(artifact.groupId());
                 for (String rootGroup : rootGroupIds) {
                     if (artifact.groupId().startsWith(rootGroup) || rootGroup.startsWith(artifact.groupId())) {
                         isOrg = true;

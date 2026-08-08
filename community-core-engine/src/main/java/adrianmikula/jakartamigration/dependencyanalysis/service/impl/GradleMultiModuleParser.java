@@ -4,6 +4,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Dependency;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.DependencyGraph;
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphException;
+import adrianmikula.jakartamigration.dependencyanalysis.util.GradleBuildParser;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -196,20 +197,29 @@ public class GradleMultiModuleParser {
     }
 
     private Artifact extractProjectArtifact(String content, String projectName) {
+        String group = GradleBuildParser.extractProjectGroup(content);
+        String version = GradleBuildParser.extractProjectVersion(content);
+        if (group == null) {
+            group = "unknown";
+        }
+        if (version == null) {
+            version = "unknown";
+        }
+
         // Try baseName/archivesBaseName
         Matcher baseMatcher = BASE_NAME.matcher(content);
         if (baseMatcher.find()) {
-            return new Artifact("unknown", baseMatcher.group(1), "unknown", "compile", false);
+            return new Artifact(group, baseMatcher.group(1), version, "compile", false);
         }
 
         // Try rootProject.name
         Matcher rootMatcher = ROOT_PROJECT_NAME.matcher(content);
         if (rootMatcher.find()) {
-            return new Artifact("unknown", rootMatcher.group(1), "unknown", "compile", false);
+            return new Artifact(group, rootMatcher.group(1), version, "compile", false);
         }
 
         // Fall back to directory name
-        return new Artifact("unknown", projectName, "unknown", "compile", false);
+        return new Artifact(group, projectName, version, "compile", false);
     }
 
     /**

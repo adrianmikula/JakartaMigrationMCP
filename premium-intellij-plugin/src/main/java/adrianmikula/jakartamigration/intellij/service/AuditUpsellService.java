@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Central service for the $99 48-hour Migration Risk Audit upsell CTA.
+ * Central service for the Migration Risk Audit upsell CTA.
  * <p>
  * - Detects complex patterns after scans that the plugin cannot fully migrate automatically.
  * - Shows a non-intrusive balloon with the in-scan CTA.

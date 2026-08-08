@@ -129,7 +129,7 @@
         <toolWindow id="JakartaMigration"
                     displayName="Jakarta Migration"
                     anchor="right"
-                    icon="/icons/expui/pluginIcon.svg"
+                    icon="AllIcons.Actions.DependencyAnalyzer"
                     factoryClass="adrianmikula.jakartamigration.intellij.ui.MigrationToolWindow"/>
                     
         <!-- Notification Groups -->
@@ -177,7 +177,7 @@
                 class="adrianmikula.jakartamigration.intellij.JakartaMigrationAction"
                 text="Jakarta Migration"
                 description="Analyze and migrate to Jakarta EE"
-                icon="/icons/expui/pluginIcon.svg">
+                icon="AllIcons.Actions.RefactoringBulb">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift J"/>
         </action>

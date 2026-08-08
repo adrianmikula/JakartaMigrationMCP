@@ -154,7 +154,7 @@ public class SupportComponent {
             supportUrls.getProperty("audit.landing.title", "Migration Risk Audit"),
             supportUrls.getProperty("audit.landing.description",
                     "Stuck on the migration? Get a migration plan from the plugin author — 48-hour turnaround, money-back guarantee."),
-            supportUrls.getProperty("audit.landing.url", "https://codemedicconsulting.netlify.app/jakarta-migration-audit")
+            supportUrls.getProperty("audit.landing.url", "https://codemedicconsulting.netlify.app/?panel=services&item=jakarta-migration")
         );
 
         // Sponsor link

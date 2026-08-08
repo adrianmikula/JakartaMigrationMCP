@@ -460,7 +460,7 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
 
         String searchText = searchField.getText().toLowerCase();
         String selectedStatus = (String) statusFilter.getSelectedItem();
-        boolean showTransitiveOnly = transitiveFilter.isSelected();
+        boolean hideTransitive = transitiveFilter.isSelected();
         boolean showOrganizationalOnly = organizationalFilter.isSelected();
 
         // Check if truncation should be applied for free users
@@ -468,7 +468,8 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         int truncationLimit = shouldTruncate ? truncationHelper.getDependenciesTruncationLimit() : Integer.MAX_VALUE;
         int addedCount = 0;
 
-        for (DependencyInfo dep : allDependencies) {
+        // Iterate over a snapshot so async Maven Central updates don't alter the list mid-filter
+        for (DependencyInfo dep : new ArrayList<>(allDependencies)) {
             // Search filter
             boolean matchesSearch = searchText.isEmpty() ||
                     dep.getGroupId().toLowerCase().contains(searchText) ||
@@ -481,7 +482,7 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
                             dep.getMigrationStatus().getValue().equals(mapStatusToValue(selectedStatus)));
 
             // Transitive filter - when checked, hide transitive dependencies
-            boolean matchesTransitive = showTransitiveOnly ? !dep.isTransitive() : true;
+            boolean matchesTransitive = !hideTransitive || !dep.isTransitive();
 
             // Organizational filter
             boolean matchesOrganizational = !showOrganizationalOnly || dep.isOrganizational();
@@ -501,6 +502,10 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         } else {
             truncationNoticePanel.setVisible(false);
         }
+
+        // Force the table to refresh after the model is rebuilt so hidden rows reappear
+        table.revalidate();
+        table.repaint();
     }
 
 

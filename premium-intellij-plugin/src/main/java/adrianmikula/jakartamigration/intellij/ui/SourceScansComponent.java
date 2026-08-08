@@ -8,6 +8,7 @@ import adrianmikula.jakartamigration.analysis.persistence.ObjectMapperService;
 import adrianmikula.jakartamigration.intellij.ui.components.TruncationHelper;
 import adrianmikula.jakartamigration.intellij.ui.components.TruncationNoticePanel;
 import adrianmikula.jakartamigration.analytics.service.ErrorReportingService;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
@@ -1473,7 +1474,7 @@ public class SourceScansComponent {
                     String stateJson = get();
                     if (stateJson != null && !stateJson.isEmpty()) {
                         AdvancedScanningService.AdvancedScanSummary summary = objectMapper.fromJson(stateJson,
-                                AdvancedScanningService.AdvancedScanSummary.class);
+                                new TypeReference<AdvancedScanningService.AdvancedScanSummary>() {});
                         if (summary != null) {
                             displayResults(summary);
                         }

@@ -1,5 +1,8 @@
 package adrianmikula.jakartamigration.platforms.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 import java.util.Map;
 
@@ -27,11 +30,13 @@ public class EnhancedPlatformScanResult {
         this(detectedPlatforms, inferredPlatforms, List.of(), deploymentArtifacts, platformSpecificArtifacts);
     }
     
-    public EnhancedPlatformScanResult(List<String> detectedPlatforms,
-                                    List<String> inferredPlatforms,
-                                    List<PlatformDetection> detectedPlatformDetails,
-                                    Map<String, Integer> deploymentArtifacts,
-                                    Map<String, Integer> platformSpecificArtifacts) {
+    @JsonCreator
+    public EnhancedPlatformScanResult(
+            @JsonProperty("detectedPlatforms") List<String> detectedPlatforms,
+            @JsonProperty("inferredPlatforms") List<String> inferredPlatforms,
+            @JsonProperty("detectedPlatformDetails") List<PlatformDetection> detectedPlatformDetails,
+            @JsonProperty("deploymentArtifacts") Map<String, Integer> deploymentArtifacts,
+            @JsonProperty("platformSpecificArtifacts") Map<String, Integer> platformSpecificArtifacts) {
         this.detectedPlatforms = detectedPlatforms;
         this.inferredPlatforms = inferredPlatforms;
         this.detectedPlatformDetails = detectedPlatformDetails;

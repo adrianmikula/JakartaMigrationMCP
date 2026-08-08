@@ -352,9 +352,18 @@ pdfFormula:
 
 # Code complexity scoring (previously hardcoded in RiskScoringService lines 427-443)
 complexityScoring:
-  # Logarithmic scale normalization: log10(fileCount) / logScaleDivisor * maxScore
+  # Logarithmic scale normalization: log10(fileCount) / logScaleDivisor * maxFileScore
   logScaleDivisor: 5.0    # log10(100000) = 5
   maxScore: 10.0          # Cap at 10 points maximum
+  maxFileScore: 4.0       # Maximum points contributed by file count
+  maxArtifactScore: 3.0   # Maximum points contributed by deployment artifacts
+  maxModuleScore: 3.0     # Maximum points contributed by internal/organisation modules
+  moduleWeight: 1.0       # Points per Maven/Gradle module
+  artifactWeights:        # Points per artifact type for complexity calculation
+    ear: 4.0              # EARs are the most complex
+    war: 2.0              # WARs are moderately complex
+    jar: 1.0              # JARs add base complexity
+    other: 1.0            # Default for any other artifact type
 
 # Platform-specific base risks (previously hardcoded in RiskScoringConfig)
 platformRisks:

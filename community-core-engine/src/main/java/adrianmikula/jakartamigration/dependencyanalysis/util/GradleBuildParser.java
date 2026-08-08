@@ -22,6 +22,15 @@ public final class GradleBuildParser {
             "['\"]([^':]+):([^':]+):([^'\"]+)['\"]",
             Pattern.MULTILINE);
 
+    // Project-level group and version declarations (Groovy/Kotlin DSL)
+    private static final Pattern GROUP_PATTERN = Pattern.compile(
+            "(?:^|[\\s{])group\\s*=\\s*['\"]([^'\"]+)['\"]",
+            Pattern.MULTILINE);
+
+    private static final Pattern VERSION_PATTERN = Pattern.compile(
+            "(?:^|[\\s{])version\\s*=\\s*['\"]([^'\"]+)['\"]",
+            Pattern.MULTILINE);
+
     // Configuration to Maven scope mapping
     private static final Map<String, String> CONFIGURATION_SCOPE_MAP = Map.ofEntries(
             Map.entry("implementation", "compile"),
@@ -105,5 +114,34 @@ public final class GradleBuildParser {
      */
     public static Set<String> getSupportedConfigurations() {
         return CONFIGURATION_SCOPE_MAP.keySet();
+    }
+
+    /**
+     * Extracts the project group from build.gradle(.kts) content.
+     * Handles both Groovy and Kotlin DSL forms such as {@code group = "..."}.
+     *
+     * @return the declared group, or null if not found
+     */
+    public static String extractProjectGroup(String content) {
+        if (content == null) return null;
+        Matcher matcher = GROUP_PATTERN.matcher(content);
+        if (matcher.find()) {
+            return matcher.group(1).trim();
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the project version from build.gradle(.kts) content.
+     *
+     * @return the declared version, or null if not found
+     */
+    public static String extractProjectVersion(String content) {
+        if (content == null) return null;
+        Matcher matcher = VERSION_PATTERN.matcher(content);
+        if (matcher.find()) {
+            return matcher.group(1).trim();
+        }
+        return null;
     }
 }

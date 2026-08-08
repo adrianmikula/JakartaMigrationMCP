@@ -18,6 +18,8 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
+import adrianmikula.jakartamigration.dependencyanalysis.util.BuildFileDiscovery;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -425,6 +427,8 @@ public class GaugePanel {
         int criticalModulesTested = estimateCriticalModulesTested();
         
         // Pass empty scan findings to exclude them from calculation
+        Map<String, Integer> deploymentArtifacts = getDeploymentArtifacts();
+        int moduleCount = getModuleCount();
         RiskScoringService.RiskScore riskScore = riskScoringService.calculateRiskScore(
             new HashMap<>(), // Empty scan findings - excluded from risk calculation
             depIssues,
@@ -432,7 +436,9 @@ public class GaugePanel {
             platformRiskScore,
             testFileCount,
             integrationTestCount,
-            criticalModulesTested
+            criticalModulesTested,
+            deploymentArtifacts,
+            moduleCount
         );
         int newScore = (int) Math.round(riskScore.totalScore());
         
@@ -919,6 +925,42 @@ public class GaugePanel {
             LOG.warn("Could not calculate platform risk: " + e.getMessage());
             return 1.0; // Default low risk
         }
+    }
+
+    /**
+     * Counts the number of internal/organisation Maven and Gradle modules.
+     *
+     * @return Number of build files (pom.xml, build.gradle, build.gradle.kts) in the project
+     */
+    private int getModuleCount() {
+        try {
+            if (project != null && project.getBasePath() != null) {
+                java.nio.file.Path projectPath = java.nio.file.Paths.get(project.getBasePath());
+                return BuildFileDiscovery.discoverBuildFiles(projectPath).size();
+            }
+        } catch (Exception e) {
+            LOG.warn("Could not count project modules: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    /**
+     * Gets the deployment artifact counts from the platform scan result.
+     *
+     * @return Map of artifact type (jar, war, ear) to counts, or empty map if not available
+     */
+    private Map<String, Integer> getDeploymentArtifacts() {
+        try {
+            if (platformsTabComponent != null) {
+                var platformResult = platformsTabComponent.getCurrentScanResult();
+                if (platformResult != null && platformResult.getDeploymentArtifacts() != null) {
+                    return platformResult.getDeploymentArtifacts();
+                }
+            }
+        } catch (Exception e) {
+            LOG.warn("Could not retrieve deployment artifacts: " + e.getMessage());
+        }
+        return Map.of();
     }
 
     private int estimateIntegrationTestCount() {

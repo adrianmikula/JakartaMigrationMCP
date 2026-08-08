@@ -56,12 +56,12 @@ class AuditUpsellServiceTest {
 
     @Test
     void getLandingPageUrl_loadedFromConfig() {
-        assertEquals("https://codemedicconsulting.netlify.app/jakarta-migration-audit",
+        assertEquals("https://codemedicconsulting.netlify.app/?panel=services&item=jakarta-migration",
                 AuditUpsellService.getLandingPageUrl());
     }
 
     @Test
     void getCtaButtonText_loadedFromConfig() {
-        assertEquals("Get the $99 Audit", AuditUpsellService.getCtaButtonText());
+        assertEquals("Get a Risk Audit", AuditUpsellService.getCtaButtonText());
     }
 }

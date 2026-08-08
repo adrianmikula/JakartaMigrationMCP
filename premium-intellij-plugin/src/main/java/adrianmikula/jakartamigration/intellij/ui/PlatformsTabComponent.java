@@ -7,9 +7,14 @@ import adrianmikula.jakartamigration.platforms.model.JakartaCompatibility;
 import adrianmikula.jakartamigration.platforms.service.SimplifiedPlatformDetectionService;
 import adrianmikula.jakartamigration.platforms.config.PlatformConfigLoader;
 import adrianmikula.jakartamigration.platforms.config.RiskScoringConfig;
+import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
+import adrianmikula.jakartamigration.analysis.persistence.ObjectMapperService;
 import adrianmikula.jakartamigration.intellij.util.DevModeLogger;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.intellij.openapi.project.Project;
+
+import java.nio.file.Path;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBPanel;
 import com.intellij.ui.components.JBScrollPane;
@@ -43,12 +48,18 @@ public class PlatformsTabComponent {
     private List<JPanel> platformPanels;
     private EnhancedPlatformScanResult currentScanResult;
 
+    private final CentralMigrationAnalysisStore store;
+    private final ObjectMapperService objectMapper;
+
     public PlatformsTabComponent(Project project) {
         this.project = project;
         this.configLoader = new PlatformConfigLoader();
         this.detectionService = new SimplifiedPlatformDetectionService();
         this.platformPanels = new ArrayList<>();
+        this.store = new CentralMigrationAnalysisStore();
+        this.objectMapper = new ObjectMapperService();
         initializeUI();
+        loadInitialState();
     }
     
     /**
@@ -110,6 +121,7 @@ public class PlatformsTabComponent {
                              scanResult.getWarCount(),
                              scanResult.getEarCount());
                     displayEnhancedResults(scanResult);
+                    persistPlatformScanResult(scanResult);
                     scanButton.setEnabled(true);
                     scanButton.setText("Analyse Project");
                 } catch (Exception e) {
@@ -195,6 +207,58 @@ public class PlatformsTabComponent {
         }
     }
     
+    /**
+     * Loads any previously persisted platform scan result for this project.
+     */
+    private void loadInitialState() {
+        SwingWorker<EnhancedPlatformScanResult, Void> worker = new SwingWorker<>() {
+            @Override
+            protected EnhancedPlatformScanResult doInBackground() throws Exception {
+                String projectPathStr = project.getBasePath();
+                if (projectPathStr != null) {
+                    String stateJson = store.getPluginState(Path.of(projectPathStr), "platformScanResult");
+                    if (stateJson != null && !stateJson.isEmpty()) {
+                        return objectMapper.fromJson(stateJson, new TypeReference<EnhancedPlatformScanResult>() {});
+                    }
+                }
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    EnhancedPlatformScanResult result = get();
+                    if (result != null) {
+                        displayResults(result);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to load initial platform scan result: {}", e.getMessage(), e);
+                }
+            }
+        };
+        worker.execute();
+    }
+
+    /**
+     * Persists the platform scan result to the central store.
+     */
+    private void persistPlatformScanResult(EnhancedPlatformScanResult scanResult) {
+        if (scanResult == null) {
+            return;
+        }
+        try {
+            String projectPathStr = project.getBasePath();
+            if (projectPathStr != null) {
+                String stateJson = objectMapper.toJson(scanResult);
+                if (stateJson != null && !stateJson.isEmpty()) {
+                    store.savePluginState(Path.of(projectPathStr), "platformScanResult", stateJson);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to persist platform scan result", e);
+        }
+    }
+
     /**
      * Gets the current enhanced platform risk score for dashboard integration
      */

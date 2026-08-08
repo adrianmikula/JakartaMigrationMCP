@@ -23,6 +23,7 @@ import adrianmikula.jakartamigration.intellij.ui.components.CombinedConfidenceGa
 import adrianmikula.jakartamigration.intellij.ui.components.PieChartPanel;
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
+import adrianmikula.jakartamigration.dependencyanalysis.util.BuildFileDiscovery;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -79,6 +80,7 @@ public class DashboardComponent implements ScanProgressListener {
     // Cached file counts (computed asynchronously to avoid EDT freezes)
     private volatile int cachedTotalFileCount = -1;
     private volatile int cachedTestFileCount = -1;
+    private volatile int cachedModuleCount = -1;
 
     // UI Components for gauges (top section)
     private JPanel gaugesPanel;
@@ -276,10 +278,12 @@ public class DashboardComponent implements ScanProgressListener {
         CompletableFuture.supplyAsync(() -> {
             int total = getTotalFileCount();
             int tests = getTestFileCount();
-            return new int[]{total, tests};
+            int modules = getModuleCount();
+            return new int[]{total, tests, modules};
         }).thenAccept(counts -> {
             cachedTotalFileCount = counts[0];
             cachedTestFileCount = counts[1];
+            cachedModuleCount = counts[2];
             // Re-run gauges with the now-cached values (EDT-safe since setScore is swing)
             SwingUtilities.invokeLater(this::updateGauges);
         });
@@ -1692,14 +1696,18 @@ private void resetAdvancedScanCounts() {
         double platformRiskScore = getPlatformRiskScore();
         
         // Pass empty scan findings to exclude them from calculation
+        Map<String, Integer> deploymentArtifacts = getDeploymentArtifacts();
+        int moduleCount = cachedModuleCount >= 0 ? cachedModuleCount : 0;
         RiskScoringService.RiskScore riskScore = riskScoringService.calculateRiskScore(
             new HashMap<>(), // Empty scan findings - excluded from risk calculation
-            depIssues, 
-            totalFileCount, 
-            platformRiskScore, 
-            0, 
-            0, 
-            0
+            depIssues,
+            totalFileCount,
+            platformRiskScore,
+            0,
+            0,
+            0,
+            deploymentArtifacts,
+            moduleCount
         );
         int newScore = (int) Math.round(riskScore.totalScore());
         lastRiskScore = newScore;
@@ -2565,9 +2573,11 @@ private void resetAdvancedScanCounts() {
                 int testFileCount = cachedTestFileCount >= 0 ? cachedTestFileCount : 0;
                 int integrationTestCount = estimateIntegrationTestCount();
                 int criticalModulesTested = estimateCriticalModulesTested();
+                Map<String, Integer> deploymentArtifacts = getDeploymentArtifacts();
+                int moduleCount = cachedModuleCount >= 0 ? cachedModuleCount : 0;
                 RiskScoringService.RiskScore currentScore = riskScoringService.calculateRiskScore(
                     scanFindings, depIssues, cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0, getPlatformRiskScore(),
-                    testFileCount, integrationTestCount, criticalModulesTested);
+                    testFileCount, integrationTestCount, criticalModulesTested, deploymentArtifacts, moduleCount);
                 currentRiskScore = currentScore.totalScore();
             } catch (Exception e) {
                 LOG.warn("Could not calculate current risk score for effort calculation: " + e.getMessage());
@@ -2834,6 +2844,42 @@ private void resetAdvancedScanCounts() {
         return (int) Math.round(estimatedModules * 0.3);
     }
     
+    /**
+     * Gets the deployment artifact counts from the platform scan result.
+     *
+     * @return Map of artifact type (jar, war, ear) to counts, or empty map if not available
+     */
+    private Map<String, Integer> getDeploymentArtifacts() {
+        try {
+            if (platformsTabComponent != null) {
+                EnhancedPlatformScanResult platformResult = platformsTabComponent.getCurrentScanResult();
+                if (platformResult != null && platformResult.getDeploymentArtifacts() != null) {
+                    return platformResult.getDeploymentArtifacts();
+                }
+            }
+        } catch (Exception e) {
+            LOG.warn("Could not retrieve deployment artifacts: " + e.getMessage());
+        }
+        return Map.of();
+    }
+
+    /**
+     * Counts the number of internal/organisation Maven and Gradle modules.
+     *
+     * @return Number of build files (pom.xml, build.gradle, build.gradle.kts) in the project
+     */
+    private int getModuleCount() {
+        try {
+            if (project != null && project.getBasePath() != null) {
+                java.nio.file.Path projectPath = java.nio.file.Paths.get(project.getBasePath());
+                return BuildFileDiscovery.discoverBuildFiles(projectPath).size();
+            }
+        } catch (Exception e) {
+            LOG.warn("Could not count project modules: " + e.getMessage());
+        }
+        return 0;
+    }
+
     /**
      * Gets the platform risk score based on platform compatibility and deployment artifacts.
      */
