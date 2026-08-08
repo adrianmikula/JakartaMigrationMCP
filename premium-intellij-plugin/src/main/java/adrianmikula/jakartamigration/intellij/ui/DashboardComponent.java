@@ -15,6 +15,7 @@ import adrianmikula.jakartamigration.intellij.ui.UIColors;
 import adrianmikula.jakartamigration.intellij.ui.SupportComponent;
 import adrianmikula.jakartamigration.intellij.ui.components.TruncationHelper;
 import adrianmikula.jakartamigration.intellij.ui.components.RiskGauge;
+import adrianmikula.jakartamigration.intellij.service.AuditUpsellService;
 import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
 import adrianmikula.jakartamigration.intellij.ui.components.ConfidenceGauge;
 import adrianmikula.jakartamigration.intellij.ui.components.EffortGauge;
@@ -22,6 +23,7 @@ import adrianmikula.jakartamigration.intellij.ui.components.CombinedConfidenceGa
 import adrianmikula.jakartamigration.intellij.ui.components.PieChartPanel;
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
+import adrianmikula.jakartamigration.dependencyanalysis.util.BuildFileDiscovery;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -70,9 +72,15 @@ public class DashboardComponent implements ScanProgressListener {
     // Cache for preventing unnecessary updates
     private Integer lastCalculatedRiskScore = null;
 
+    // Last dial values used by the audit upsell CTA
+    private int lastComplexityScore = 0;
+    private int lastRiskScore = 0;
+    private int lastAutomationScore = 100;
+
     // Cached file counts (computed asynchronously to avoid EDT freezes)
     private volatile int cachedTotalFileCount = -1;
     private volatile int cachedTestFileCount = -1;
+    private volatile int cachedModuleCount = -1;
 
     // UI Components for gauges (top section)
     private JPanel gaugesPanel;
@@ -193,6 +201,9 @@ public class DashboardComponent implements ScanProgressListener {
     private JProgressBar advancedScanProgressBar;
     private JLabel advancedScanProgressLabel;
 
+    // Prominent audit upsell warning box (shown when complexity thresholds are exceeded)
+    private JPanel complexityWarningPanel;
+
     // Analyse button - instance field for external control
     private JButton analyseButton;
     
@@ -267,10 +278,12 @@ public class DashboardComponent implements ScanProgressListener {
         CompletableFuture.supplyAsync(() -> {
             int total = getTotalFileCount();
             int tests = getTestFileCount();
-            return new int[]{total, tests};
+            int modules = getModuleCount();
+            return new int[]{total, tests, modules};
         }).thenAccept(counts -> {
             cachedTotalFileCount = counts[0];
             cachedTestFileCount = counts[1];
+            cachedModuleCount = counts[2];
             // Re-run gauges with the now-cached values (EDT-safe since setScore is swing)
             SwingUtilities.invokeLater(this::updateGauges);
         });
@@ -322,6 +335,12 @@ public class DashboardComponent implements ScanProgressListener {
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
 
         panel.add(scrollPane, BorderLayout.CENTER);
+
+        // Prominent warning box for migrations that exceed the configured complexity threshold
+        complexityWarningPanel = new JBPanel<>(new BorderLayout());
+        complexityWarningPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
+        panel.add(complexityWarningPanel, BorderLayout.NORTH);
+
     }
 
     /**
@@ -370,9 +389,35 @@ public class DashboardComponent implements ScanProgressListener {
             // Update new dashboard components with advanced scan data
             updateGauges();
             updateSummary();
+
+            // CTA warning is refreshed by updateGauges() which uses the latest dial values
         });
     }
     
+    /**
+     * Updates the prominent CTA warning box above the Risk tab.
+     * Shows the audit upsell panel when any dial exceeds configured thresholds.
+     */
+    private void updateCtaWarning() {
+        if (complexityWarningPanel == null) {
+            return;
+        }
+
+        SwingUtilities.invokeLater(() -> {
+            complexityWarningPanel.removeAll();
+            JPanel warning = AuditUpsellService.createCtaWarningPanel(project,
+                    lastComplexityScore, lastRiskScore, lastAutomationScore);
+            if (warning != null) {
+                complexityWarningPanel.add(warning, BorderLayout.CENTER);
+                complexityWarningPanel.setVisible(true);
+            } else {
+                complexityWarningPanel.setVisible(false);
+            }
+            complexityWarningPanel.revalidate();
+            complexityWarningPanel.repaint();
+        });
+    }
+
     /**
      * Helper method to get detected platforms from platforms tab component
      */
@@ -566,6 +611,18 @@ private void resetAdvancedScanCounts() {
     
     public JPanel getPanel() {
         return panel;
+    }
+
+    public int getCurrentComplexity() {
+        return lastComplexityScore;
+    }
+
+    public int getCurrentRisk() {
+        return lastRiskScore;
+    }
+
+    public int getCurrentAutomation() {
+        return lastAutomationScore;
     }
 
     /**
@@ -883,10 +940,10 @@ private void resetAdvancedScanCounts() {
         effortExplanationPanel = createEffortExplanationPanel();
         gridContainer.add(effortExplanationPanel, gbc);
 
-        // Row 3: Confidence Score
+        // Row 3: Complexity Score
         gbc.gridx = 0; gbc.gridy = 2;
         gbc.anchor = GridBagConstraints.CENTER;
-        confidenceGauge = new CombinedConfidenceGauge("Confidence");
+        confidenceGauge = new CombinedConfidenceGauge("Complexity");
         gridContainer.add(confidenceGauge, gbc);
 
         gbc.gridx = 1;
@@ -981,12 +1038,6 @@ private void resetAdvancedScanCounts() {
             int buildToolError = depSummary.getBuildToolErrorCount() != null ? depSummary.getBuildToolErrorCount() : 0;
             int unknown = depSummary.getUnknownCount() != null ? depSummary.getUnknownCount() : 0;
 
-            if (analysisRunning) {
-                int total = depSummary.getTotalDependencies() != null ? depSummary.getTotalDependencies() : 0;
-                int resolved = compatible + upgrade + noJakarta + review + buildToolError + unknown;
-                unknown += Math.max(0, total - resolved);
-            }
-
             if (buildToolError > 0) {
                 slices.add(new PieChartPanel.Slice("Build Tool Error", buildToolError, new Color(255, 99, 132)));
             }
@@ -1018,7 +1069,9 @@ private void resetAdvancedScanCounts() {
         if (advancedScanningService != null && advancedScanningService.hasCachedResults()) {
             AdvancedScanningService.AdvancedScanSummary summary = advancedScanningService.getCachedSummary();
             if (summary != null && summary.getTotalIssuesFound() > 0) {
-                int total = summary.getTotalIssuesFound();
+                // Transitive dependencies never have migration recipes, so exclude them from
+                // the "With/Without Recipes" automation pie chart calculation.
+                int total = summary.getTotalIssuesFound() - summary.getTransitiveDependencyCount();
                 int withRecipes = getIssuesWithMatchingRecipes(summary);
                 int withoutRecipes = total - withRecipes;
 
@@ -1601,9 +1654,10 @@ private void resetAdvancedScanCounts() {
             return;
         }
 
-        // Calculate confidence score (percentage of dependencies with known Jakarta status)
-        int confidenceScore = calculateConfidenceScore();
-        confidenceGauge.setScore(confidenceScore);
+        // Calculate complexity score from scan findings and project size
+        int complexityScore = calculateComplexityScore();
+        confidenceGauge.setScore(complexityScore);
+        lastComplexityScore = complexityScore;
 
         // Calculate migration risk score (using RiskScoringService)
         RiskScoringService riskScoringService = RiskScoringService.getInstance();
@@ -1633,26 +1687,26 @@ private void resetAdvancedScanCounts() {
         }
         
         // Note: Scan findings excluded from risk calculation per new formula
-        // Calculate risk score without scan findings and validation confidence
         // Use cached file counts to avoid blocking the EDT with filesystem walks
         int totalFileCount = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
-        int testFileCount = cachedTestFileCount >= 0 ? cachedTestFileCount : 0;
         double platformRiskScore = getPlatformRiskScore();
-        // Estimate integration tests and critical modules (simplified for now)
-        int integrationTestCount = estimateIntegrationTestCount();
-        int criticalModulesTested = estimateCriticalModulesTested();
         
         // Pass empty scan findings to exclude them from calculation
+        Map<String, Integer> deploymentArtifacts = getDeploymentArtifacts();
+        int moduleCount = cachedModuleCount >= 0 ? cachedModuleCount : 0;
         RiskScoringService.RiskScore riskScore = riskScoringService.calculateRiskScore(
             new HashMap<>(), // Empty scan findings - excluded from risk calculation
-            depIssues, 
-            totalFileCount, 
-            platformRiskScore, 
-            testFileCount, 
-            integrationTestCount, 
-            criticalModulesTested
+            depIssues,
+            totalFileCount,
+            platformRiskScore,
+            0,
+            0,
+            0,
+            deploymentArtifacts,
+            moduleCount
         );
         int newScore = (int) Math.round(riskScore.totalScore());
+        lastRiskScore = newScore;
         
         // Only update gauge if score actually changed
         if (lastCalculatedRiskScore == null || !lastCalculatedRiskScore.equals(newScore)) {
@@ -1660,13 +1714,12 @@ private void resetAdvancedScanCounts() {
             migrationRiskGauge.setScore(newScore);
         }
 
-        // Calculate migration effort score (combining automation potential and test coverage)
+        // Calculate migration effort score
         int effortScore = calculateEffortScore();
         effortScoreGauge.setScore(effortScore);
 
-        // Calculate enhanced validation confidence using test coverage analysis
-        int validationConfidenceScore = calculateEnhancedValidationConfidence(riskScore);
-        
+        // Calculate automation level (percentage of issues that CAN be automated)
+        lastAutomationScore = 100 - calculateAutomationScore();
 
         // Update explanation panels with current data and colors
         updateRiskExplanation();
@@ -1675,6 +1728,9 @@ private void resetAdvancedScanCounts() {
 
         // Refresh summary pie charts
         updateCharts();
+
+        // Update the dial-based CTA warning
+        updateCtaWarning();
         
     }
 
@@ -2213,34 +2269,29 @@ private void resetAdvancedScanCounts() {
         // Load weights from configuration
         RiskScoringService riskScoringService = RiskScoringService.getInstance();
         RiskScoringConfig config = riskScoringService.getRiskScoringConfig();
-        
+
         // Check for conditional weighting based on major version changes
         boolean hasJavaMajorVersionChange = hasJavaMajorVersionChange();
         boolean hasAppserverPlatformChange = hasAppserverPlatformChange();
-        
-        // Base weights from YAML
-        double scanFindingsWeight = 0.20;
-        double jakartaUpgradeWeight = 0.20;
-        double dockerfilesWeight = 0.15;
-        double cicdScriptsWeight = 0.15;
-        double automationWeight = 0.15;
-        double projectSizeWeight = 0.15;
-        
-        // Apply conditional weighting if major version changes detected
+
+        // Base weights for the four core effort factors (must sum to 1.0)
+        double scanFindingsWeight = 0.25;
+        double jakartaUpgradeWeight = 0.25;
+        double automationWeight = 0.25;
+        double projectSizeWeight = 0.25;
+        double dockerfilesWeight = 0.0;
+        double cicdScriptsWeight = 0.0;
+
+        // Apply conditional weighting if major version or app server changes detected.
+        // Add 5% each for Docker/CI-CD and scale the four base factors proportionally.
         if (hasJavaMajorVersionChange || hasAppserverPlatformChange) {
-            // Use conditional weights (5% each for Docker and CI/CD scripts)
             dockerfilesWeight = 0.05;
             cicdScriptsWeight = 0.05;
-            // Reduce other weights to accommodate the conditional weights
-            automationWeight = 0.175; // (0.20 - 0.05 - 0.05) = 0.10
-            projectSizeWeight = 0.175; // (0.20 - 0.05 - 0.05) = 0.10
-        } else {
-            // Normal case: use 0 weight for Docker and CI/CD scripts
-            dockerfilesWeight = 0.0;
-            cicdScriptsWeight = 0.0;
-            // Use normal weights for other factors
-            automationWeight = 0.20;
-            projectSizeWeight = 0.20;
+            double baseRemaining = 0.90;
+            scanFindingsWeight = baseRemaining / 4.0;
+            jakartaUpgradeWeight = baseRemaining / 4.0;
+            automationWeight = baseRemaining / 4.0;
+            projectSizeWeight = baseRemaining / 4.0;
         }
 
         // Calculate scan findings score (logarithmic scale)
@@ -2311,22 +2362,13 @@ private void resetAdvancedScanCounts() {
      * @return Project size score from 0 to 100
      */
     private int calculateProjectSizeScore(int maxThreshold) {
-        if (dashboard == null || dashboard.getDependencySummary() == null) {
-            return 0;
+        if (cachedTotalFileCount <= 0) {
+            return 0; // No file count cached yet = low effort for now
         }
 
-        DependencySummary depSummary = dashboard.getDependencySummary();
-        int totalFiles = depSummary.getTotalDependencies() != null
-            ? depSummary.getTotalDependencies()
-            : 0;
-
-        if (totalFiles == 0) {
-            return 0; // No files = low effort
-        }
-
-        // Calculate score: proportional to file count, capped at threshold
+        // Calculate score: proportional to project file count, capped at threshold
         // Score = min(totalFiles / maxThreshold, 1.0) * 100
-        double ratio = Math.min(totalFiles / (double) maxThreshold, 1.0);
+        double ratio = Math.min(cachedTotalFileCount / (double) maxThreshold, 1.0);
         return (int) Math.round(ratio * 100);
     }
 
@@ -2404,6 +2446,22 @@ private void resetAdvancedScanCounts() {
         double logScore = Math.log10(totalFindings + 1) / logDivisor * 100.0;
         
         return Math.max(0, Math.min(100, (int) Math.round(logScore)));
+    }
+
+    /**
+     * Calculates the migration complexity score (0-100) based on the number of
+     * advanced scan findings and the project size. This is a proxy for how
+     * difficult the migration is to fully automate.
+     *
+     * @return Complexity score from 0 to 100
+     */
+    private int calculateComplexityScore() {
+        int scanFindingsScore = calculateScanFindingsScore();
+        int projectSizeScore = calculateProjectSizeScore(10000);
+
+        // Equal weighting: more findings and/or more files = more complex
+        int combinedScore = (int) Math.round((scanFindingsScore * 0.5) + (projectSizeScore * 0.5));
+        return Math.max(0, Math.min(100, combinedScore));
     }
 
     /**
@@ -2511,9 +2569,11 @@ private void resetAdvancedScanCounts() {
                 int testFileCount = cachedTestFileCount >= 0 ? cachedTestFileCount : 0;
                 int integrationTestCount = estimateIntegrationTestCount();
                 int criticalModulesTested = estimateCriticalModulesTested();
+                Map<String, Integer> deploymentArtifacts = getDeploymentArtifacts();
+                int moduleCount = cachedModuleCount >= 0 ? cachedModuleCount : 0;
                 RiskScoringService.RiskScore currentScore = riskScoringService.calculateRiskScore(
                     scanFindings, depIssues, cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0, getPlatformRiskScore(),
-                    testFileCount, integrationTestCount, criticalModulesTested);
+                    testFileCount, integrationTestCount, criticalModulesTested, deploymentArtifacts, moduleCount);
                 currentRiskScore = currentScore.totalScore();
             } catch (Exception e) {
                 LOG.warn("Could not calculate current risk score for effort calculation: " + e.getMessage());
@@ -2780,6 +2840,42 @@ private void resetAdvancedScanCounts() {
         return (int) Math.round(estimatedModules * 0.3);
     }
     
+    /**
+     * Gets the deployment artifact counts from the platform scan result.
+     *
+     * @return Map of artifact type (jar, war, ear) to counts, or empty map if not available
+     */
+    private Map<String, Integer> getDeploymentArtifacts() {
+        try {
+            if (platformsTabComponent != null) {
+                EnhancedPlatformScanResult platformResult = platformsTabComponent.getCurrentScanResult();
+                if (platformResult != null && platformResult.getDeploymentArtifacts() != null) {
+                    return platformResult.getDeploymentArtifacts();
+                }
+            }
+        } catch (Exception e) {
+            LOG.warn("Could not retrieve deployment artifacts: " + e.getMessage());
+        }
+        return Map.of();
+    }
+
+    /**
+     * Counts the number of internal/organisation Maven and Gradle modules.
+     *
+     * @return Number of build files (pom.xml, build.gradle, build.gradle.kts) in the project
+     */
+    private int getModuleCount() {
+        try {
+            if (project != null && project.getBasePath() != null) {
+                java.nio.file.Path projectPath = java.nio.file.Paths.get(project.getBasePath());
+                return BuildFileDiscovery.discoverBuildFiles(projectPath).size();
+            }
+        } catch (Exception e) {
+            LOG.warn("Could not count project modules: " + e.getMessage());
+        }
+        return 0;
+    }
+
     /**
      * Gets the platform risk score based on platform compatibility and deployment artifacts.
      */

@@ -62,7 +62,7 @@ tasks.register<Test>("coreTest") {
 ## Test Tagging
 
 **@Tag("slow")** - Exclude from fast loop:
-- Integration tests (StorageIntegrationTest, UsageServiceIntegrationTest, TransitiveDependencyScannerIntegrationTest, PdfReportMemoryIntegrationTest)
+- Integration tests (StorageServiceIntegrationTest, UsageServiceSupabaseIntegrationTest, TransitiveDependencyScannerRealRepositoryTest, PdfReportMemoryTest)
 - Network-dependent tests
 - Performance/memory tests
 - Heavy file I/O

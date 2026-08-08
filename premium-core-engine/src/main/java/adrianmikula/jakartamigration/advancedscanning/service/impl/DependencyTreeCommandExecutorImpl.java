@@ -34,6 +34,9 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
     private static final int MAX_DEPENDENCIES = 10000;
     private static final int THREAD_POOL_SIZE = 2;
     private static final Pattern DEP_PATTERN = Pattern.compile("^([^\\s:]+):([^\\s:]+):([^\\s]+)");
+    // Matches Gradle project dependencies such as "project :core" or "project ':core'"
+    private static final Pattern PROJECT_PATTERN =
+            Pattern.compile("^project\\s+['\"]?(:[^\\s'\"]+)['\"]?");
 
     private final ExecutorService executor;
     private final ObjectMapper objectMapper;
@@ -367,14 +370,22 @@ public class DependencyTreeCommandExecutorImpl implements DependencyTreeCommandE
         while (trimmed.startsWith("\\") || trimmed.startsWith("+") || trimmed.startsWith("|")) {
             depth++; trimmed = trimmed.substring(1).trim();
         }
-        Matcher m = DEP_PATTERN.matcher(trimmed);
-        if (!m.find()) return Optional.empty();
-        
-        // Determine parent key from the previous depth level
+
+        // Gradle project dependencies appear as "project :module" or "project ':module'"
+        Matcher projectMatcher = PROJECT_PATTERN.matcher(trimmed);
         String parentKey = null;
         if (depth > 0) {
             parentKey = depthToArtifactKey.get(depth - 1);
         }
+        if (projectMatcher.find()) {
+            String projectPath = projectMatcher.group(1).replace(java.io.File.separatorChar, ':');
+            String artifactId = projectPath.startsWith(":") ? projectPath.substring(1) : projectPath;
+            return Optional.of(new DependencyTreeResult.DependencyNode(
+                "project", artifactId, "unspecified", scope, depth, depth > 0, parentKey));
+        }
+
+        Matcher m = DEP_PATTERN.matcher(trimmed);
+        if (!m.find()) return Optional.empty();
         
         return Optional.of(new DependencyTreeResult.DependencyNode(
             m.group(1), m.group(2), m.group(3), scope, depth, depth > 0, parentKey));

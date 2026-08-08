@@ -30,6 +30,12 @@ public final class MavenPomParser {
             Pattern.DOTALL);
     private static final Pattern PROPERTY_ENTRY_PATTERN = Pattern.compile(
             "<([^>]+)>([^<]*)</\\1>");
+    private static final Pattern PROJECT_GROUP_PATTERN = Pattern.compile(
+            "<project>\\s*<groupId>([^<]+)</groupId>",
+            Pattern.DOTALL);
+    private static final Pattern PARENT_GROUP_PATTERN = Pattern.compile(
+            "<parent>\\s*<groupId>([^<]+)</groupId>",
+            Pattern.DOTALL);
 
     private MavenPomParser() {
         // Utility class
@@ -42,6 +48,25 @@ public final class MavenPomParser {
     public static List<Map<String, String>> parseDependencies(Path pomXmlPath) throws IOException {
         String content = Files.readString(pomXmlPath);
         return parseDependenciesFromContent(content);
+    }
+
+    /**
+     * Extracts the project's own groupId from POM content.
+     * Prefers an explicit {@code <project><groupId>}, otherwise falls back to {@code <parent><groupId>}.
+     *
+     * @return the project groupId, or null if not found
+     */
+    public static String extractProjectGroup(String content) {
+        if (content == null) return null;
+        Matcher projectMatcher = PROJECT_GROUP_PATTERN.matcher(content);
+        if (projectMatcher.find()) {
+            return projectMatcher.group(1).trim();
+        }
+        Matcher parentMatcher = PARENT_GROUP_PATTERN.matcher(content);
+        if (parentMatcher.find()) {
+            return parentMatcher.group(1).trim();
+        }
+        return null;
     }
 
     /**

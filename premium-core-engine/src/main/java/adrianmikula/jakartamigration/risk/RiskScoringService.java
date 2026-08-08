@@ -200,6 +200,62 @@ public class RiskScoringService {
             int integrationTestCount,
             int criticalModulesTested) {
 
+        return calculateRiskScore(scanFindings, dependencyIssues, totalFileCount, platformRiskScore,
+                testFileCount, integrationTestCount, criticalModulesTested, Map.of());
+    }
+
+    /**
+     * Calculates overall risk score based on scan findings, dependency issues, project metrics,
+     * and deployment artifact counts.
+     *
+     * @param scanFindings Map of scan type to list of risk findings
+     * @param dependencyIssues Map of dependency issue types to scores
+     * @param totalFileCount Total number of files in the project
+     * @param platformRiskScore Platform compatibility risk score (0-10)
+     * @param testFileCount Number of test files in the project
+     * @param integrationTestCount Number of integration test files
+     * @param criticalModulesTested Number of critical modules with test coverage
+     * @param deploymentArtifacts Map of artifact type (jar, war, ear) to counts
+     */
+    public RiskScore calculateRiskScore(
+            Map<String, List<RiskFinding>> scanFindings,
+            Map<String, Integer> dependencyIssues,
+            int totalFileCount,
+            double platformRiskScore,
+            int testFileCount,
+            int integrationTestCount,
+            int criticalModulesTested,
+            Map<String, Integer> deploymentArtifacts) {
+
+        return calculateRiskScore(scanFindings, dependencyIssues, totalFileCount, platformRiskScore,
+                testFileCount, integrationTestCount, criticalModulesTested, deploymentArtifacts, 0);
+    }
+
+    /**
+     * Calculates overall risk score based on scan findings, dependency issues, project metrics,
+     * deployment artifact counts, and internal module counts.
+     *
+     * @param scanFindings Map of scan type to list of risk findings
+     * @param dependencyIssues Map of dependency issue types to scores
+     * @param totalFileCount Total number of files in the project
+     * @param platformRiskScore Platform compatibility risk score (0-10)
+     * @param testFileCount Number of test files in the project
+     * @param integrationTestCount Number of integration test files
+     * @param criticalModulesTested Number of critical modules with test coverage
+     * @param deploymentArtifacts Map of artifact type (jar, war, ear) to counts
+     * @param moduleCount Number of internal/organisation Maven/Gradle modules
+     */
+    public RiskScore calculateRiskScore(
+            Map<String, List<RiskFinding>> scanFindings,
+            Map<String, Integer> dependencyIssues,
+            int totalFileCount,
+            double platformRiskScore,
+            int testFileCount,
+            int integrationTestCount,
+            int criticalModulesTested,
+            Map<String, Integer> deploymentArtifacts,
+            int moduleCount) {
+
         Map<String, Integer> componentScores = new HashMap<>();
         List<RiskFinding> allFindings = new ArrayList<>();
 
@@ -234,8 +290,8 @@ public class RiskScoringService {
             rawDepScore += entry.getValue();
         }
 
-        // Calculate code complexity based on file count
-        double rawComplexityScore = calculateComplexityScore(totalFileCount);
+        // Calculate code complexity based on file count, deployment artifacts, and modules
+        double rawComplexityScore = calculateComplexityScore(totalFileCount, deploymentArtifacts, moduleCount);
 
         // Platform risk score (already normalized 0-10)
         double rawPlatformScore = platformRiskScore;
@@ -279,13 +335,11 @@ public class RiskScoringService {
         componentScores.put("codeComplexity", (int) rawComplexityScore);
         componentScores.put("platformRisk", (int) rawPlatformScore);
         
-        // Include scan findings and validation confidence only if they have weights
+        // Include scan findings only if they have a weight; validation confidence is always reported
         if (scanWeight > 0) {
             componentScores.put("scanFindings", (int) rawScanScore);
         }
-        if (validationConfidenceWeight > 0) {
-            componentScores.put("validationConfidence", (int) rawValidationConfidenceScore);
-        }
+        componentScores.put("validationConfidence", (int) rawValidationConfidenceScore);
 
         // Weighted total (normalized to 0-100 scale) - only include weighted components
         double totalScore = (rawDepScore * depWeight) +
@@ -461,33 +515,69 @@ public class RiskScoringService {
     }
 
     /**
-     * Calculates complexity score based on the total number of files in the project.
-     * Uses a logarithmic scale to prevent very large projects from dominating the score.
+     * Calculates complexity score based on the total number of files in the project
+     * and the number of deployment artifacts (JARs, WARs, EARs, etc.).
+     * Uses a logarithmic scale for files and weighted artifact counts to prevent any
+     * single factor from dominating the score.
      *
      * @param totalFileCount Total number of files in the project
+     * @param deploymentArtifacts Map of artifact type (jar, war, ear) to counts
      * @return Normalized complexity score (0-10 scale)
      */
-    private double calculateComplexityScore(int totalFileCount) {
-        if (totalFileCount <= 0) {
-            return 0.0;
-        }
-
-        // Use logarithmic scale: log10(fileCount) normalized to 0-10
-        // 1-10 files: 0-2 points
-        // 11-100 files: 2-4 points
-        // 101-1000 files: 4-6 points
-        // 1001-10000 files: 6-8 points
-        // 10000+ files: 8-10 points
-
+    private double calculateComplexityScore(int totalFileCount, Map<String, Integer> deploymentArtifacts, int moduleCount) {
         // Load complexity scoring config from YAML
         Number logScaleDivisor = (Number) complexityScoringConfig.getOrDefault("logScaleDivisor", 5.0);
-        Number maxComplexityScore = (Number) complexityScoringConfig.getOrDefault("maxScore", 10.0);
+        Number maxScoreNum = (Number) complexityScoringConfig.getOrDefault("maxScore", 10.0);
+        Number maxFileScoreNum = (Number) complexityScoringConfig.getOrDefault("maxFileScore", 4.0);
+        Number maxArtifactScoreNum = (Number) complexityScoringConfig.getOrDefault("maxArtifactScore", 3.0);
+        Number maxModuleScoreNum = (Number) complexityScoringConfig.getOrDefault("maxModuleScore", 3.0);
+        Number moduleWeightNum = (Number) complexityScoringConfig.getOrDefault("moduleWeight", 1.0);
 
-        double logScale = Math.log10(totalFileCount);
-        double normalizedScore = (logScale / logScaleDivisor.doubleValue()) * maxComplexityScore.doubleValue();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> artifactWeights = (Map<String, Object>) complexityScoringConfig.get("artifactWeights");
+        if (artifactWeights == null) {
+            artifactWeights = Map.of(
+                    "ear", 4.0,
+                    "war", 2.0,
+                    "jar", 1.0);
+        }
 
-        // Cap at configured maximum
-        return Math.min(normalizedScore, maxComplexityScore.doubleValue());
+        double maxScore = maxScoreNum.doubleValue();
+        double maxFileScore = maxFileScoreNum.doubleValue();
+        double maxArtifactScore = maxArtifactScoreNum.doubleValue();
+        double maxModuleScore = maxModuleScoreNum.doubleValue();
+        double moduleWeight = moduleWeightNum.doubleValue();
+
+        // File-based complexity (logarithmic)
+        double fileScore = 0.0;
+        if (totalFileCount > 0) {
+            double logScale = Math.log10(totalFileCount);
+            fileScore = (logScale / logScaleDivisor.doubleValue()) * maxFileScore;
+            fileScore = Math.min(fileScore, maxFileScore);
+        }
+
+        // Artifact-based complexity
+        double artifactScore = 0.0;
+        if (deploymentArtifacts != null) {
+            for (Map.Entry<String, Integer> entry : deploymentArtifacts.entrySet()) {
+                int count = entry.getValue() != null ? entry.getValue() : 0;
+                if (count > 0) {
+                    double weight = ((Number) artifactWeights.getOrDefault(entry.getKey().toLowerCase(), 1.0)).doubleValue();
+                    artifactScore += count * weight;
+                }
+            }
+            artifactScore = Math.min(artifactScore, maxArtifactScore);
+        }
+
+        // Module-based complexity
+        double moduleScore = 0.0;
+        if (moduleCount > 0) {
+            moduleScore = moduleCount * moduleWeight;
+            moduleScore = Math.min(moduleScore, maxModuleScore);
+        }
+
+        // Combine all complexity factors, capped at maximum
+        return Math.min(fileScore + artifactScore + moduleScore, maxScore);
     }
 
     /**

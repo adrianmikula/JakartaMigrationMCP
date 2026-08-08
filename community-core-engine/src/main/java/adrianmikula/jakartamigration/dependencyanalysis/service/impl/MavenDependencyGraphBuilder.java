@@ -7,6 +7,7 @@ import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphB
 import adrianmikula.jakartamigration.dependencyanalysis.service.DependencyGraphException;
 import adrianmikula.jakartamigration.dependencyanalysis.util.MavenPomParser;
 import adrianmikula.jakartamigration.dependencyanalysis.util.BuildFileDiscovery;
+import adrianmikula.jakartamigration.dependencyanalysis.util.GradleBuildParser;
 import adrianmikula.jakartamigration.dependencyanalysis.util.ScopeConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.w3c.dom.Document;
@@ -155,10 +156,12 @@ public class MavenDependencyGraphBuilder implements DependencyGraphBuilder {
             
             // Parse project artifact (simplified - would need proper Gradle parsing for production)
             String artifactId = extractProjectArtifactId(content);
+            String groupId = GradleBuildParser.extractProjectGroup(content);
+            String version = GradleBuildParser.extractProjectVersion(content);
             Artifact projectArtifact = new Artifact(
-                "unknown",
+                groupId != null ? groupId : "unknown",
                 artifactId != null ? artifactId : "unknown",
-                "unknown",
+                version != null ? version : "unknown",
                 "compile",
                 false
             );

@@ -9,28 +9,27 @@ This document defines the established patterns for test organization, types, and
 Tests are organized by module in the standard Maven/Gradle structure:
 
 ```
-src/test/java/adrianmikula/jakartamigration/
-├── community-core-engine/
-│   └── unit/
-│       └── jakartamigration/
-│           ├── dependencyanalysis/
-│           │   └── service/impl/
-│           │       └── *Test.java
-│           └── platforms/
-│               └── service/
-│                   └── *Test.java
-└── premium-core-engine/
-    ├── unit/
-    │   └── jakartamigration/
-    │       ├── advancedscanning/
-    │       ├── analytics/
-    │       ├── dependencyanalysis/
-    │       ├── pdfreporting/
-    │       │   ├── service/impl/
-    │       │   └── snippet/
-    │       └── platforms/
-    └── integration/
-        └── jakartamigration/
+src/test/java/
+├── community-core-engine/adrianmikula/jakartamigration/
+│   ├── realrepo/dependencyanalysis/
+│   │   └── MavenPropertyResolutionRealRepositoryTest.java
+│   ├── realrepo/sourcecodescanning/
+│   │   └── SourceCodeScannerRealRepositoryTest.java
+│   └── integration/dependencyanalysis/blocker/
+│       └── DependencyAnalysisBlockerIntegrationTest.java
+└── premium-core-engine/adrianmikula/jakartamigration/
+    ├── unit/scanning/
+    │   └── RecipeBasedClassifierUnitTest.java
+    ├── realrepo/scanning/
+    │   └── RecipeBasedClassifierRealRepositoryTest.java
+    ├── realrepo/advancedscanning/
+    │   └── AdvancedScanningModuleRealRepositoryTest.java
+    ├── integration/advancedscanning/service/impl/
+    │   └── TransitiveDependencyScannerImplBuildToolTest.java
+    ├── integration/pdfreporting/
+    │   └── PdfReportServiceIntegrationTest.java
+    └── memory/scanning/
+        └── RecipeBasedClassifierMemoryTest.java
 ```
 
 ### Test Type Classification
@@ -38,14 +37,26 @@ src/test/java/adrianmikula/jakartamigration/
 #### Unit Tests
 - **Location:** `src/test/java/.../unit/...`
 - **Purpose:** Test individual components in isolation
-- **Naming:** `*Test.java` (e.g., `MavenDependencyGraphBuilderTest.java`)
+- **Naming:** `*UnitTest.java` (e.g., `RecipeBasedClassifierUnitTest.java`)
 - **Scope:** Fast, focused, no external dependencies
 
-#### Integration Tests
+#### Integration Tests (local wiring)
 - **Location:** `src/test/java/.../integration/...`
-- **Purpose:** Test component interactions and real-world scenarios
-- **Naming:** `*IntegrationTest.java` (e.g., `MavenPropertyResolutionIntegrationTest.java`)
-- **Scope:** Slower, may require external resources
+- **Purpose:** Wire real implementations and build-tool commands, but do not download real projects
+- **Naming:** `*ServiceIntegrationTest.java` or `*BuildToolTest.java` (e.g., `TransitiveDependencyScannerImplBuildToolTest.java`)
+- **Scope:** Slower, may run `mvn`/`gradle` or the database
+
+#### Real Repository Tests
+- **Location:** `src/test/java/.../realrepo/...`
+- **Purpose:** Test against downloaded real GitHub projects or live Maven Central
+- **Naming:** `*RealRepositoryTest.java` (e.g., `MavenPropertyResolutionRealRepositoryTest.java`)
+- **Scope:** Slow, requires network
+
+#### Memory Tests
+- **Location:** `src/test/java/.../memory/...`
+- **Purpose:** Validate heap/performance budgets
+- **Naming:** `*MemoryTest.java` (e.g., `TransitiveDependencyScannerImplMemoryTest.java`)
+- **Scope:** Slow, tagged `memory`
 
 #### Performance Tests
 - **Location:** `src/test/java/.../performance/...`
@@ -167,7 +178,7 @@ void shouldHandleFileOperations() throws IOException {
 #### Advanced Scanning Tests
 - **Location:** `premium-core-engine/src/test/java/.../advancedscanning/`
 - **Focus:** Transitive dependencies, comprehensive analysis
-- **Examples:** `TransitiveDependencyScannerTest.java`
+- **Examples:** `TransitiveDependencyScannerImplBuildToolTest.java`, `TransitiveDependencyScannerRealRepositoryTest.java`
 
 ### By Test Type
 
@@ -191,17 +202,12 @@ void shouldHandleErrorGracefully() {
 @Test
 @DisplayName("Should process real project from examples")
 void shouldProcessRealProject() throws Exception {
-    // Given - Path to real project (if available)
-    Path projectPath = Path.of("../../../examples/{project-name}");
-    
-    // Only run if project exists (integration test)
-    if (!Files.exists(projectPath)) {
-        return; // Skip test if project not available
-    }
-    
+    // Given - download a real repo to a temp dir
+    Path projectPath = downloadExample("j2ee7-samples");
+
     // When
     Result result = service.processProject(projectPath);
-    
+
     // Then
     assertThat(result).isNotNull();
     // Verify specific expectations for real project
@@ -230,9 +236,9 @@ void shouldProcessRealProject() throws Exception {
 ### Naming Conventions
 
 #### Test Classes
-- **Pattern:** `{Component}Test.java`
-- **Examples:** `PdfReportServiceTest.java`, `MavenDependencyGraphBuilderTest.java`
-- **Avoid:** `Test{Component}.java`, `{Component}Tests.java`
+- **Pattern:** `{Component}{Kind}Test.java` where `Kind` is `Unit`, `ServiceIntegration`, `BuildTool`, `RealRepository`, or `Memory`
+- **Examples:** `RecipeBasedClassifierUnitTest.java`, `TransitiveDependencyScannerImplBuildToolTest.java`, `MavenPropertyResolutionRealRepositoryTest.java`, `PdfReportServiceIntegrationTest.java`
+- **Avoid:** `Test{Component}.java`, `{Component}Tests.java`, and generic `*IntegrationTest` when a more specific suffix applies
 
 #### Test Methods
 - **Pattern:** `should{ExpectedBehavior}When{Condition}()`

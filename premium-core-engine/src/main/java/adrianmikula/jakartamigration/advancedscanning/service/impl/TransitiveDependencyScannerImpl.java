@@ -19,14 +19,20 @@ import adrianmikula.jakartamigration.dependencyanalysis.util.MavenPomParser;
 import adrianmikula.jakartamigration.dependencyanalysis.util.GradleBuildParser;
 import adrianmikula.jakartamigration.dependencyanalysis.util.BuildFileDiscovery;
 import adrianmikula.jakartamigration.dependencyanalysis.util.ScopeConstants;
+import adrianmikula.jakartamigration.sourcecodescanning.service.SourceCodeScanner;
+import adrianmikula.jakartamigration.sourcecodescanning.service.impl.SourceCodeScannerImpl;
+import adrianmikula.jakartamigration.sourcecodescanning.domain.SourceCodeAnalysisResult;
+import adrianmikula.jakartamigration.sourcecodescanning.domain.ImportStatement;
 import adrianmikula.jakartamigration.scanning.RecipeBasedClassifier;
 import adrianmikula.jakartamigration.scanning.BalloonNotificationService;
 import adrianmikula.jakartamigration.jaranalysis.classifier.BytecodeNamespaceClassifier;
 import adrianmikula.jakartamigration.jaranalysis.domain.JarCompatibilityLevel;
 import adrianmikula.jakartamigration.jaranalysis.domain.JarCompatibilityReport;
+import adrianmikula.jakartamigration.jaranalysis.domain.JarScanSignal;
 import adrianmikula.jakartamigration.jaranalysis.service.JarCompatibilityScanner;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -45,6 +51,7 @@ import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
 public class TransitiveDependencyScannerImpl implements TransitiveDependencyScanner {
 
     private final ProjectFileSystemScanner fileScanner = new ProjectFileSystemScanner();
+    private final SourceCodeScanner sourceCodeScanner = new SourceCodeScannerImpl();
     private final DependencyTreeCommandExecutor commandExecutor;
     private final DependencyDeduplicationService deduplicationService;
     private final NamespaceClassifier namespaceClassifier;
@@ -457,7 +464,13 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
              Artifact artifact = new Artifact(node.getGroupId(), node.getArtifactId(), node.getVersion(), node.getScope(), node.isTransitive());
              Namespace ns;
              JarCompatibilityReport jarReport = null;
-             if (namespaceClassifier instanceof BytecodeNamespaceClassifier bnc) {
+
+             // For Gradle project() dependencies, scan the module source code directly
+             if ("project".equals(node.getGroupId())) {
+                 jarReport = scanProjectModuleSource(filePath, node);
+                 ns = jarReport != null ? jarReport.level().toNamespace() : Namespace.UNKNOWN;
+                 classificationCache.put(artifactKey, ns);
+             } else if (namespaceClassifier instanceof BytecodeNamespaceClassifier bnc) {
                  var cr = bnc.classifyWithScanning(artifact, false);
                  ns = cr.namespace();
                  jarReport = cr.report();
@@ -551,6 +564,68 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
      }
 
     /**
+     * Scans the source code of a Gradle project() module.
+     * Locates the module directory from the project root and uses the SourceCodeScanner
+     * to determine javax.* usage.
+     *
+     * @return a JarCompatibilityReport derived from source code, or null if the module could not be scanned
+     */
+    private JarCompatibilityReport scanProjectModuleSource(Path buildFilePath,
+                                                           DependencyTreeResult.DependencyNode node) {
+        try {
+            Path startDir = buildFilePath.getParent();
+            if (startDir == null) return null;
+
+            Path projectRoot = GradleToolingApiExecutor.findGradleProjectRoot(startDir);
+            if (projectRoot == null) {
+                projectRoot = startDir;
+            }
+
+            String modulePath = node.getArtifactId();
+            if (modulePath == null || modulePath.isBlank()) return null;
+
+            Path moduleDir = projectRoot.resolve(modulePath.replace(':', File.separatorChar));
+            if (!Files.isDirectory(moduleDir)) {
+                log.debug("Project module directory not found: {}", moduleDir);
+                return null;
+            }
+
+            SourceCodeAnalysisResult sourceResult = sourceCodeScanner.scanProject(moduleDir);
+            boolean hasJavax = sourceResult.hasJavaxUsage();
+            int javaxCount = sourceResult.totalJavaxImports();
+
+            String[] javaxPackages = sourceResult.filesWithJavaxUsage().stream()
+                    .flatMap(f -> f.javaxImports().stream())
+                    .map(ImportStatement::javaxPackage)
+                    .distinct()
+                    .toArray(String[]::new);
+
+            JarCompatibilityLevel level = hasJavax ? JarCompatibilityLevel.JAVAX : JarCompatibilityLevel.JAKARTA;
+            String coordinate = node.getArtifactKey();
+
+            JarScanSignal signal = JarScanSignal.builder()
+                    .artifactCoordinate(coordinate)
+                    .javaxClassRefs(javaxCount)
+                    .javaxPackages(javaxPackages)
+                    .jakartaPackages(new String[0])
+                    .build();
+
+            return JarCompatibilityReport.builder()
+                    .artifactCoordinate(coordinate)
+                    .level(level)
+                    .confidence(hasJavax ? 0.95 : 0.85)
+                    .reasons(List.of("Scanned project module source code"))
+                    .signal(signal)
+                    .analysisTimeMs(0)
+                    .cached(false)
+                    .build();
+        } catch (Exception e) {
+            log.warn("Failed to scan project module source for {}: {}", node.getArtifactId(), e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Creates a base TransitiveDependencyUsage from a dependency node and its classification.
      */
     private TransitiveDependencyUsage createBaseUsage(DependencyTreeResult.DependencyNode node,
@@ -563,18 +638,35 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                                                         JarCompatibilityReport report) {
         ScanReason scanReason;
         String javaxPackage;
+        String severity;
+        String recommendation;
+        String detailMessage;
+
         if (report != null && report.signal() != null) {
             scanReason = mapJarLevelToScanReason(report.level());
             javaxPackage = report.signal().javaxPackages().length > 0
                 ? String.join(",", report.signal().javaxPackages())
                 : null;
+            severity = mapNamespaceToSeverity(ns);
+            recommendation = mapNamespaceToRecommendation(ns, node.getGroupId(), node.getArtifactId());
+            detailMessage = detailMessage(ns, node.getGroupId(), node.getArtifactId());
+
+            // For internal project modules, keep the recommendation specific to the source scan result
+            if ("project".equals(node.getGroupId())) {
+                recommendation = report.level() == JarCompatibilityLevel.JAVAX
+                        ? "Internal project module uses javax.* imports"
+                        : "Internal project module - no javax.* usage found";
+                detailMessage = report.level() == JarCompatibilityLevel.JAVAX
+                        ? "Source scan found javax.* usage in project " + node.getArtifactId()
+                        : "Source scan found no javax.* usage in project " + node.getArtifactId();
+            }
         } else {
             scanReason = mapNamespaceToScanReason(ns);
             javaxPackage = (ns == Namespace.JAVAX || ns == Namespace.MIXED) ? node.getArtifactKey() : null;
+            severity = mapNamespaceToSeverity(ns);
+            recommendation = mapNamespaceToRecommendation(ns, node.getGroupId(), node.getArtifactId());
+            detailMessage = detailMessage(ns, node.getGroupId(), node.getArtifactId());
         }
-        String severity = mapNamespaceToSeverity(ns);
-        String recommendation = mapNamespaceToRecommendation(ns, node.getGroupId(), node.getArtifactId());
-        String detailMessage = detailMessage(ns, node.getGroupId(), node.getArtifactId());
 
         return new TransitiveDependencyUsage(
                 node.getArtifactId(),
@@ -821,10 +913,13 @@ public class TransitiveDependencyScannerImpl implements TransitiveDependencyScan
                     continue;
                 }
                 
-                // Only mark if not already more severe
+                // Only mark if not already more severe and not a known-Jakarta/safe parent.
+                // A JAKARTA parent with a javax transitive should not be rewritten as incompatible.
                 if (parentUsage.getScanReason() != ScanReason.BLACKLISTED &&
                     parentUsage.getScanReason() != ScanReason.BYTECODE_SCAN_JAVAX &&
-                    parentUsage.getScanReason() != ScanReason.BYTECODE_SCAN_MIXED) {
+                    parentUsage.getScanReason() != ScanReason.BYTECODE_SCAN_MIXED &&
+                    parentUsage.getScanReason() != ScanReason.WHITELISTED &&
+                    parentUsage.getScanReason() != ScanReason.BYTECODE_SCAN_JAKARTA) {
                     
                     // Create updated usage with TRANSITIVE_INCOMPATIBLE reason
                     TransitiveDependencyUsage updatedUsage = new TransitiveDependencyUsage(

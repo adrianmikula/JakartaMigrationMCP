@@ -227,7 +227,7 @@ This document provides a comprehensive review of all test files in the Jakarta M
 
 ### 7. Integration Tests
 
-#### `McpServerStreamableHttpIntegrationTest.java` ✅ **EXCELLENT**
+#### `McpStreamableHttpTransportIntegrationTest.java` ✅ **EXCELLENT**
 **Status**: Comprehensive integration tests
 
 **Strengths:**

@@ -27,7 +27,7 @@
     <idea-version since-build="242" />
 
     <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
-    <version>1.1.0</version>
+    <version>1.1.1</version>
 
     <name>Jakarta Migration (javax to jakarta)</name>
     <id>com.adrianmikula.jakarta-migration</id>
@@ -129,7 +129,7 @@
         <toolWindow id="JakartaMigration"
                     displayName="Jakarta Migration"
                     anchor="right"
-                    icon="/icons/expui/pluginIcon.svg"
+                    icon="AllIcons.Actions.DependencyAnalyzer"
                     factoryClass="adrianmikula.jakartamigration.intellij.ui.MigrationToolWindow"/>
                     
         <!-- Notification Groups -->
@@ -177,7 +177,7 @@
                 class="adrianmikula.jakartamigration.intellij.JakartaMigrationAction"
                 text="Jakarta Migration"
                 description="Analyze and migrate to Jakarta EE"
-                icon="/icons/expui/pluginIcon.svg">
+                icon="AllIcons.Actions.RefactoringBulb">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift J"/>
         </action>
@@ -193,6 +193,10 @@
 
 
     <change-notes><![CDATA[
+    <h>1.1.1 - 2026-08-08</h>
+    <ul>
+        <li>Version bump to 1.1.1</li>
+    </ul>
     <h>1.1.0 - 2026-07-27</h>
     <ul>
         <li><b>Added:</b> Dynamic Jakarta compatibility detection - bytecode-driven fallback classification detects any <code>javax.*</code> / <code>jakarta.*</code> package usage, not only the six hardcoded packages</li>

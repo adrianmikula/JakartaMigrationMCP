@@ -148,7 +148,15 @@ public class SupportComponent {
             supportUrls.getProperty("linkedin.profile.description", "Connect with the plugin author"),
             supportUrls.getProperty("linkedin.profile.url", "https://www.linkedin.com/in/adrianmikula/")
         );
-        
+
+        // Migration Risk Audit (settings / help menu CTA)
+        JPanel auditPanel = createLinkPanel(
+            supportUrls.getProperty("audit.landing.title", "Migration Risk Audit"),
+            supportUrls.getProperty("audit.landing.description",
+                    "Stuck on the migration? Get a migration plan from the plugin author — 48-hour turnaround, money-back guarantee."),
+            supportUrls.getProperty("audit.landing.url", "https://codemedicconsulting.netlify.app/?panel=services&item=jakarta-migration")
+        );
+
         // Sponsor link
         JPanel sponsorPanel = createLinkPanel(
             supportUrls.getProperty("sponsor.project.title", "Sponsor on GitHub"),
@@ -169,6 +177,7 @@ public class SupportComponent {
         linksPanel.add(githubPanel);
         linksPanel.add(pluginPanel);
         linksPanel.add(linkedinPanel);
+        linksPanel.add(auditPanel);
         linksPanel.add(sponsorPanel);
         linksPanel.add(slopguardPanel);
         

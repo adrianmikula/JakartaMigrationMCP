@@ -9,6 +9,8 @@ import adrianmikula.jakartamigration.intellij.ui.ThrottledProgressListener;
 import adrianmikula.jakartamigration.intellij.ui.DependencyStatusColors;
 import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import adrianmikula.jakartamigration.util.ProjectFileSystemScanner;
+import adrianmikula.jakartamigration.dependencyanalysis.util.GradleBuildParser;
+import adrianmikula.jakartamigration.dependencyanalysis.util.MavenPomParser;
 import adrianmikula.jakartamigration.intellij.model.DependencyInfo;
 import adrianmikula.jakartamigration.intellij.model.DependencyMigrationStatus;
 import adrianmikula.jakartamigration.dependencyanalysis.domain.Artifact;
@@ -1324,6 +1326,9 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
 
         Map<String, DependencyInfo> dependencyMap = new HashMap<>();
 
+        // Collect project group namespaces from the scanned build files
+        Set<String> projectGroups = extractProjectGroups(deepResult);
+
         // Process all file results and usages
         for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult fileResult : deepResult.getFileResults()) {
             String fileErrorMessage = fileResult.hasError() ? fileResult.getErrorMessage() : null;
@@ -1343,6 +1348,11 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
                 info.setTransitive(usage.isTransitive());
                 info.setDepth(usage.getDepth());
                 info.setScope(usage.getScope() != null ? usage.getScope() : "compile");
+
+                // Mark Gradle project() modules and dependencies that share a project group as organisational
+                boolean isProjectModule = "project".equals(usage.getGroupId());
+                boolean sharesProjectGroup = usage.getGroupId() != null && projectGroups.contains(usage.getGroupId());
+                info.setOrganizational(isProjectModule || sharesProjectGroup);
 
                 // Determine migration status based on scan reason
                 DependencyMigrationStatus status = determineMigrationStatus(usage);
@@ -1395,6 +1405,44 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
         }
 
         return new ArrayList<>(dependencyMap.values());
+    }
+
+    /**
+     * Extracts project groupIds from the build files that were scanned.
+     * These groups are used to identify same-organisation dependencies.
+     */
+    private Set<String> extractProjectGroups(TransitiveDependencyProjectScanResult deepResult) {
+        Set<String> groups = new HashSet<>();
+        if (deepResult == null || deepResult.getFileResults() == null) {
+            return groups;
+        }
+
+        for (adrianmikula.jakartamigration.advancedscanning.domain.TransitiveDependencyScanResult fileResult : deepResult.getFileResults()) {
+            Path file = fileResult.getFilePath();
+            if (file == null) {
+                continue;
+            }
+
+            try {
+                String content = Files.readString(file);
+                String fileName = file.getFileName().toString().toLowerCase();
+                String group = null;
+
+                if (fileName.endsWith(".gradle") || fileName.endsWith(".gradle.kts")) {
+                    group = GradleBuildParser.extractProjectGroup(content);
+                } else if (fileName.equals("pom.xml")) {
+                    group = MavenPomParser.extractProjectGroup(content);
+                }
+
+                if (group != null && !group.isBlank() && !"unknown".equals(group)) {
+                    groups.add(group);
+                }
+            } catch (Exception e) {
+                LOG.debug("Could not extract project group from {}: {}", file, e.getMessage());
+            }
+        }
+
+        return groups;
     }
 
     /**

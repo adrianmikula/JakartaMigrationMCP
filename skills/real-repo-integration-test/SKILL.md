@@ -6,8 +6,8 @@ This skill guides writing integration tests that download and test against **rea
 
 ## Reference Tests
 
-- `RefactorRecipeIntegrationTest.java` — Recipe integration test with `downloadExample` helper, recipe seeding, undo verification, and execution history tests
-- `MavenPropertyResolutionIntegrationTest.java` — Canonical download pattern for simple URL-based extraction
+- `RefactorRecipeRealRepositoryTest.java` — Recipe integration test with `downloadExample` helper, recipe seeding, undo verification, and execution history tests
+- `MavenPropertyResolutionRealRepositoryTest.java` — Canonical download pattern for simple URL-based extraction
 
 ## Generic Download Helper Pattern
 
@@ -175,6 +175,40 @@ Some repos (like J2EE7Samples at 2.7MB zip) take longer to download and extract.
 - [ ] **No `assumeTrue` skips**: Every test should execute meaningfully or be removed
 - [ ] **Test undo on modified files**: Pick a file that WILL be changed by the recipe, not just any file
 
+## Test Integrity and Anti-Patterns Review
+
+When writing or reviewing real-repo integration tests for dependency/artifact classification, verify the tests can actually catch false positives and false negatives. Prefer assertions on concrete artifact coordinates, `Namespace`, `ScanReason`, `severity`, and `recommendation` content.
+
+### Positive vs negative coverage checklist
+
+- [ ] **Positive (Jakarta) cases**: use a known Jakarta-only real repo (e.g. Spring Boot 3/Quarkus 3 sample) and assert that no `javax`/`high` false positives appear, except for JDK-provided `javax.*` packages.
+- [ ] **Negative (javax) cases**: use a Java EE 7/8 repo (e.g. `J2EE7Samples`) and assert that expected `javax.*` artifacts are `BLACKLISTED`/`high` with a correct Jakarta recommendation.
+- [ ] **Unknown/JDK cases**: assert that `com.google.guava`, `javax.sql`, `javax.xml.parsers`, `javax.xml.stream`, etc. are `UNKNOWN` or `WHITELISTED` with `low` severity.
+- [ ] **Mixed cases**: assert that a dependency tree with both `javax` and `jakarta` produces `MIXED`/`TRANSITIVE_INCOMPATIBLE` only where expected.
+
+### Logic-flaw red flags
+
+- **Vague pass conditions**: `isNotNull()`, `isGreaterThan(0)`, `isTrue()` for "at least one high" cannot catch mis-classification. Always assert *which* artifact/scope is high.
+- **Self-fulfilling helpers**: helpers that build synthetic POMs using non-existent or internally-inconsistent coordinates (e.g. `javax.servlet:jakarta.servlet-api`) only prove the regex parses a string, not real classification.
+- **Version preservation fallacy**: do not assert a Jakarta equivalent keeps the javax version (e.g. `jakarta.persistence-api:2.2`). The Jakarta version is independent and must be resolved from the mapping or Maven Central.
+- **Vacuous binary compatibility tests**: do not assert `blockers` is merely non-null when the test setup already guarantees no blockers; add a second test that actually lacks a Jakarta mapping and expects a `NO_JAKARTA_EQUIVALENT` blocker.
+- **One-sided propagation checks**: transitive propagation should mark the *incompatible child* as high, but should not turn a `JAKARTA` parent into `TRANSITIVE_INCOMPATIBLE` unless that is the intended behavior.
+
+### Build-system variety to test
+
+- Multi-module Maven with parent POM, `<modules>`, `<dependencyManagement>`, properties, BOMs, and wrapper.
+- Multi-module Gradle with `settings.gradle(.kts)`, `build.gradle.kts` and Groovy DSL, version catalogs, `platform`, `project(':...')`, `buildSrc`.
+- Old build-file formats vs new (Maven 3 minimal POM, `pom` packaging, legacy Gradle `apply plugin` style).
+- IDE-only or build-tool-less projects (`.idea/libraries`, `.classpath`, `.project`, plain `lib/` JARs).
+
+### Verification step
+
+After applying fixes, re-run the relevant real-repo tests and inspect the first 5–10 `TransitiveDependencyUsage` records for each repo. Confirm:
+1. Expected `javax` artifacts are `BLACKLISTED`/`high`.
+2. Expected `jakarta` artifacts are `WHITELISTED`/`low`.
+3. JDK `javax.*` packages are not flagged.
+4. No `JAKARTA` parent is silently rewritten to `TRANSITIVE_INCOMPATIBLE`.
+
 ## RecipeServiceImpl.applyRegexRecipe Behavior
 
 ### Key return values
@@ -204,7 +238,7 @@ String regex = patternGlob
 
 ## Reference Files
 
-- `RefactorRecipeIntegrationTest.java` — recipe integration test with download helper, undo, history, and category tests
-- `MavenPropertyResolutionIntegrationTest.java` — simple download-and-extract pattern
+- `RefactorRecipeRealRepositoryTest.java` — recipe integration test with download helper, undo, history, and category tests
+- `MavenPropertyResolutionRealRepositoryTest.java` — simple download-and-extract pattern
 - `RecipeServiceImpl.applyRegexRecipe()` — regex recipe execution logic
 - `examples.yaml` — repo URLs for integration testing

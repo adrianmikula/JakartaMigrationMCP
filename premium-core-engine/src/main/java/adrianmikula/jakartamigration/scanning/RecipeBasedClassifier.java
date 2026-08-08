@@ -159,17 +159,35 @@ public class RecipeBasedClassifier implements NamespaceClassifier {
         return Namespace.UNKNOWN;
     }
 
+    // Exact JDK javax.xml subpackages (SAX/StAX/DOM/XPath etc. are JDK; bind/ws/soap are not)
+    private static final Set<String> JDK_JAVAX_XML_SUBPACKAGES = Set.of(
+            "parsers", "stream", "xpath", "transform", "validation",
+            "namespace", "datatype", "crypto");
+
     /**
      * JDK-provided javax packages that don't need migration.
      */
     private boolean isJdkProvidedPackage(String groupId) {
-        return groupId.startsWith("javax.management") ||
-               groupId.startsWith("javax.naming") ||
-               groupId.startsWith("javax.crypto") ||
-               groupId.startsWith("javax.net") ||
-               groupId.startsWith("javax.script") ||
-               groupId.startsWith("javax.sql") ||
-               groupId.startsWith("javax.xml") && !groupId.startsWith("javax.xml.bind") && !groupId.startsWith("javax.xml.ws");
+        if (groupId.startsWith("javax.management") ||
+            groupId.startsWith("javax.naming") ||
+            groupId.startsWith("javax.crypto") ||
+            groupId.startsWith("javax.net") ||
+            groupId.startsWith("javax.script") ||
+            groupId.startsWith("javax.sql") ||
+            groupId.startsWith("javax.annotation.processing") ||
+            groupId.startsWith("javax.lang.model") ||
+            groupId.startsWith("javax.tools")) {
+            return true;
+        }
+        if (groupId.startsWith("javax.xml.")) {
+            String suffix = groupId.substring("javax.xml.".length());
+            int nextDot = suffix.indexOf('.');
+            if (nextDot > 0) {
+                suffix = suffix.substring(0, nextDot);
+            }
+            return JDK_JAVAX_XML_SUBPACKAGES.contains(suffix);
+        }
+        return false;
     }
 
     /**

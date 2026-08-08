@@ -19,6 +19,7 @@ import adrianmikula.jakartamigration.intellij.model.DependencySummary;
 import adrianmikula.jakartamigration.intellij.model.MigrationDashboard;
 import adrianmikula.jakartamigration.intellij.model.MigrationStatus;
 import adrianmikula.jakartamigration.intellij.service.AdvancedScanningService;
+import adrianmikula.jakartamigration.intellij.service.AuditUpsellService;
 import adrianmikula.jakartamigration.intellij.service.MigrationAnalysisService;
 import adrianmikula.jakartamigration.analysis.persistence.CentralMigrationAnalysisStore;
 import adrianmikula.jakartamigration.analysis.persistence.ObjectMapperService;
@@ -405,6 +406,10 @@ public class MigrationToolWindow implements ToolWindowFactory {
             notificationContainer.add(topPanel, BorderLayout.SOUTH);
             contentPanel.add(notificationContainer, BorderLayout.NORTH);
             contentPanel.add(tabbedPane, BorderLayout.CENTER);
+
+            // Prominent bottom Get Help bar, visible across all tabs
+            JPanel bottomBar = AuditUpsellService.createProminentGetHelpBar(project, "bottom_bar");
+            contentPanel.add(bottomBar, BorderLayout.SOUTH);
 
             contentPanel.revalidate();
             contentPanel.repaint();
@@ -906,6 +911,10 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     } else {
                         dashboardComponent.onScanComplete();
                         setScanButtonsEnabled(true);
+                        AuditUpsellService.showCtaIfNeeded(project,
+                dashboardComponent.getCurrentComplexity(),
+                dashboardComponent.getCurrentRisk(),
+                dashboardComponent.getCurrentAutomation());
                         Messages.showInfoMessage(project,
                                 "Quick scan complete! Direct dependencies, source scans, and platform detection finished.",
                                 "Scan Complete");
@@ -1042,6 +1051,10 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     } else {
                         dashboardComponent.onScanComplete();
                         setScanButtonsEnabled(true);
+                        AuditUpsellService.showCtaIfNeeded(project,
+                dashboardComponent.getCurrentComplexity(),
+                dashboardComponent.getCurrentRisk(),
+                dashboardComponent.getCurrentAutomation());
                         Messages.showInfoMessage(project,
                                 "Analysis complete! Deep dependency, advanced, and platform scans finished.",
                                 "Analysis Complete");
@@ -1333,7 +1346,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                 info.setTransitive(artifact.transitive());
 
                 // Check if it's an organizational artifact
-                boolean isOrg = false;
+                boolean isOrg = "project".equals(artifact.groupId());
                 for (String rootGroup : rootGroupIds) {
                     if (artifact.groupId().startsWith(rootGroup) || rootGroup.startsWith(artifact.groupId())) {
                         isOrg = true;
