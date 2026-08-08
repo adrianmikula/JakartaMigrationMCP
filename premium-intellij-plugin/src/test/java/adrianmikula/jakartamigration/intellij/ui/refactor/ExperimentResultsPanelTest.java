@@ -50,7 +50,7 @@ class ExperimentResultsPanelTest {
 
         assertThat(panel.getPanel()).isNotNull();
 
-        verify(mockExperimentService).runExperiment("Test Sequence", Optional.empty());
+        verify(mockExperimentService, timeout(2000)).runExperiment("Test Sequence", Optional.empty());
     }
 
     @Test

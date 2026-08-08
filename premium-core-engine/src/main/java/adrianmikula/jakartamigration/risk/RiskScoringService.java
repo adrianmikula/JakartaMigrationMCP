@@ -335,13 +335,11 @@ public class RiskScoringService {
         componentScores.put("codeComplexity", (int) rawComplexityScore);
         componentScores.put("platformRisk", (int) rawPlatformScore);
         
-        // Include scan findings and validation confidence only if they have weights
+        // Include scan findings only if they have a weight; validation confidence is always reported
         if (scanWeight > 0) {
             componentScores.put("scanFindings", (int) rawScanScore);
         }
-        if (validationConfidenceWeight > 0) {
-            componentScores.put("validationConfidence", (int) rawValidationConfidenceScore);
-        }
+        componentScores.put("validationConfidence", (int) rawValidationConfidenceScore);
 
         // Weighted total (normalized to 0-100 scale) - only include weighted components
         double totalScore = (rawDepScore * depWeight) +
