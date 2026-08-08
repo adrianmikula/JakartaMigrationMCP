@@ -49,8 +49,8 @@ public final class ScopeConstants {
             "runtime", "runtimeClasspath", "runtimeOnly"
     );
 
-    // Resolvable Gradle configurations for the --configuration CLI flag.
-    // Only classpath configurations can be resolved by Gradle's dependencies task.
+    // Classpath configurations that the Tooling API `dependencies` task resolves.
+    // These are used to filter the parsed dependency tree output.
     // Dependency buckets like 'implementation' and 'api' are NOT resolvable and
     // will cause "Configuration with name 'implementation' not found" errors.
     public static final Set<String> GRADLE_RESOLVABLE_CONFIGS = Set.of(
