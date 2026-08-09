@@ -29,6 +29,11 @@ import org.slf4j.LoggerFactory;
 public class SimplifiedPlatformDetectionService {
     
     private static final Logger log = LoggerFactory.getLogger(SimplifiedPlatformDetectionService.class);
+    private static final Set<String> EXCLUDED_ARTIFACT_DIR_NAMES = Set.of(
+            "build", "target", "out", "bin", "dist", "release",
+            ".gradle", ".m2", ".cache", ".git", ".idea",
+            "node_modules", "gradle"
+    );
     private final PlatformConfigLoader configLoader;
     
     public SimplifiedPlatformDetectionService() {
@@ -223,6 +228,19 @@ public class SimplifiedPlatformDetectionService {
     }
 
     /**
+     * Check whether a path is located inside a build, cache or dependency directory.
+     */
+    private boolean isExcludedArtifactPath(Path path, Path projectPath) {
+        Path relative = projectPath.relativize(path);
+        for (Path segment : relative) {
+            if (EXCLUDED_ARTIFACT_DIR_NAMES.contains(segment.toString())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Count deployment artifacts in project structure.
      */
     private void countProjectArtifacts(Path projectPath, Map<String, Integer> deploymentArtifacts,
@@ -230,6 +248,7 @@ public class SimplifiedPlatformDetectionService {
         try {
             Files.walk(projectPath)
                 .filter(path -> !Files.isDirectory(path))
+                .filter(path -> !isExcludedArtifactPath(path, projectPath))
                 .filter(path -> {
                     String fileName = path.getFileName().toString().toLowerCase();
                     return fileName.endsWith(".war") || fileName.endsWith(".ear") ||

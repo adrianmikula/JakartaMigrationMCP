@@ -50,6 +50,14 @@ public class TruncationHelper {
     }
 
     /**
+     * Gets the truncation limit for recipe execution history from FreemiumConfig.
+     * @return the maximum number of history rows to show when truncating
+     */
+    public int getHistoryTruncationLimit() {
+        return creditsService.getFreemiumConfig().getHistoryTruncationLimit();
+    }
+
+    /**
      * Applies truncation to a count value if necessary.
      * @param actualCount the actual number of results
      * @return the count to display (truncated if necessary)

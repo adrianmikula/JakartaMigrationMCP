@@ -17,7 +17,7 @@ public class FreemiumConfig {
 
     // Default values
     private static final int DEFAULT_CREDIT_LIMIT = 3;
-    private static final int DEFAULT_TRUNCATION_LIMIT = 1;
+    private static final int DEFAULT_TRUNCATION_LIMIT = 3;
     private static final boolean DEFAULT_TRUNCATION_ENABLED = true;
 
     private final Properties properties;
@@ -42,6 +42,7 @@ public class FreemiumConfig {
         props.setProperty("freemium.truncation.dashboard.limit", String.valueOf(DEFAULT_TRUNCATION_LIMIT));
         props.setProperty("freemium.truncation.dependencies.limit", String.valueOf(DEFAULT_TRUNCATION_LIMIT));
         props.setProperty("freemium.truncation.advanced_scan.limit", String.valueOf(DEFAULT_TRUNCATION_LIMIT));
+        props.setProperty("freemium.truncation.history.limit", String.valueOf(DEFAULT_TRUNCATION_LIMIT));
 
         // Try to load from configuration file
         try (InputStream is = getClass().getClassLoader().getResourceAsStream(CONFIG_FILE)) {
@@ -156,6 +157,15 @@ public class FreemiumConfig {
      */
     public int getAdvancedScanTruncationLimit() {
         return getTruncationLimit("advanced_scan");
+    }
+
+    /**
+     * Gets the truncation limit for the Refactor History tab.
+     *
+     * @return the truncation limit
+     */
+    public int getHistoryTruncationLimit() {
+        return getTruncationLimit("history");
     }
 
     /**

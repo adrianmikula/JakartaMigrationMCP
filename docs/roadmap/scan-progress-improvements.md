@@ -2,6 +2,15 @@
 
 *Last reviewed: 2026-08-09*
 
+## Implementation Status
+
+The following phases have been implemented:
+
+- **Phase 1** - `PremiumScanOrchestrator` now reports `1/3`, `2/3`, and `3/3` when source, dependency, and advanced scans complete.
+- **Phase 2** - `AdvancedScanningService.scanAllInternal` increments progress after each individual scan instead of only after whole batches.
+- **Phase 4** - Quick scan now physically skips the transitive-dependency scan by passing `includeTransitive=false` to `runScansSequentially`. The UI total is 16 steps and `AdvancedScanSummary` receives an empty `TransitiveDependencyProjectScanResult`.
+- **Phase 5** - `ThrottledProgressListener` tracks its pending `ScheduledFuture` objects, cancels them on flush, and synchronizes scheduling to avoid duplicate or out-of-order updates.
+
 ## Problem Statement
 
 The scan progress bar in the IntelliJ plugin is frequently observed stuck near **0%** (often around **10%**) for long periods while a scan is running in the background. The UI is not actually frozen, but the percentage barely moves, giving the impression that the tool has stalled.

@@ -113,6 +113,9 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
     // Discovery + the 16 individual advanced scans (used for progress bar updates)
     private static final int TOTAL_ADVANCED_SCAN_STEPS = 17;
     
+    // Quick scan excludes transitive dependency analysis
+    private static final int TOTAL_QUICK_SCAN_STEPS = 16;
+    
     // Use a bounded thread pool to control memory usage
     private final java.util.concurrent.ExecutorService scanExecutor = java.util.concurrent.Executors
             .newFixedThreadPool(MAX_PARALLEL_SCANS);
@@ -224,7 +227,7 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
             
             if (availableMemory < 100 * 1024 * 1024) {
                 LOG.info("Low memory detected, running scans sequentially");
-                return runScansSequentially(projectPath, progressListener);
+                return runScansSequentially(projectPath, progressListener, true);
             }
             
             // Discover all files once per category
@@ -253,6 +256,7 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
                                 .sum();
                             progressListener.onSubScanComplete("JPA", totalFindings);
                         }
+                        reportStepProgress(progressListener, completedSteps);
                         return result;
                     }, scanExecutor);
             CompletableFuture<ProjectScanResult<FileScanResult<JavaxUsage>>> bvFuture = CompletableFuture
@@ -265,6 +269,7 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
                                 .sum();
                             progressListener.onSubScanComplete("Bean Validation", totalFindings);
                         }
+                        reportStepProgress(progressListener, completedSteps);
                         return result;
                     }, scanExecutor);
             CompletableFuture<ProjectScanResult<FileScanResult<ServletJspUsage>>> sjFuture = CompletableFuture
@@ -277,6 +282,7 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
                                 .sum();
                             progressListener.onSubScanComplete("Servlet/JSP", totalFindings);
                         }
+                        reportStepProgress(progressListener, completedSteps);
                         return result;
                     }, scanExecutor);
             CompletableFuture<ProjectScanResult<FileScanResult<JavaxUsage>>> cdiFuture = CompletableFuture
@@ -289,16 +295,11 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
                                 .sum();
                             progressListener.onSubScanComplete("CDI Injection", totalFindings);
                         }
+                        reportStepProgress(progressListener, completedSteps);
                         return result;
                     }, scanExecutor);
              
-            CompletableFuture.allOf(jpaFuture, bvFuture, sjFuture, cdiFuture)
-                    .whenComplete((v, t) -> {
-                        if (progressListener != null) {
-                            progressListener.onScanPhase("Advanced Scans", completedSteps.addAndGet(4), TOTAL_ADVANCED_SCAN_STEPS);
-                        }
-                    })
-                    .join();
+            CompletableFuture.allOf(jpaFuture, bvFuture, sjFuture, cdiFuture).join();
             LOG.info("Batch 1 completed");
              
             // Progress updated after batch 2 completes
@@ -312,6 +313,7 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
                                 .sum();
                             progressListener.onSubScanComplete("Build Config", totalFindings);
                         }
+                        reportStepProgress(progressListener, completedSteps);
                         return result;
                     }, scanExecutor);
             CompletableFuture<ProjectScanResult<FileScanResult<JavaxUsage>>> rsFuture = CompletableFuture
@@ -323,48 +325,77 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
                                 .sum();
                             progressListener.onSubScanComplete("REST/SOAP", totalFindings);
                         }
+                        reportStepProgress(progressListener, completedSteps);
                         return result;
                     }, scanExecutor);
             CompletableFuture<DeprecatedApiProjectScanResult> daFuture = CompletableFuture
-                    .supplyAsync(() -> scanForDeprecatedApi(allFiles.get(FileCategory.JAVA)), scanExecutor);
+                    .supplyAsync(() -> {
+                        DeprecatedApiProjectScanResult result = scanForDeprecatedApi(allFiles.get(FileCategory.JAVA));
+                        reportStepProgress(progressListener, completedSteps);
+                        return result;
+                    }, scanExecutor);
             CompletableFuture<SecurityApiProjectScanResult> saFuture = CompletableFuture
-                    .supplyAsync(() -> scanForSecurityApi(allFiles.get(FileCategory.JAVA)), scanExecutor);
+                    .supplyAsync(() -> {
+                        SecurityApiProjectScanResult result = scanForSecurityApi(allFiles.get(FileCategory.JAVA));
+                        reportStepProgress(progressListener, completedSteps);
+                        return result;
+                    }, scanExecutor);
              
-            CompletableFuture.allOf(bcFuture, rsFuture, daFuture, saFuture)
-                    .whenComplete((v, t) -> {
-                        if (progressListener != null) {
-                            progressListener.onScanPhase("Advanced Scans", completedSteps.addAndGet(4), TOTAL_ADVANCED_SCAN_STEPS);
-                        }
-                    })
-                    .join();
+            CompletableFuture.allOf(bcFuture, rsFuture, daFuture, saFuture).join();
             LOG.info("Batch 2 completed");
              
             // Progress updated after batch 3 completes
              
             CompletableFuture<JmsMessagingProjectScanResult> jmFuture = CompletableFuture
-                    .supplyAsync(() -> scanForJmsMessaging(allFiles.get(FileCategory.JAVA)), scanExecutor);
+                    .supplyAsync(() -> {
+                        JmsMessagingProjectScanResult result = scanForJmsMessaging(allFiles.get(FileCategory.JAVA));
+                        reportStepProgress(progressListener, completedSteps);
+                        return result;
+                    }, scanExecutor);
             CompletableFuture<TransitiveDependencyProjectScanResult> tdFuture = CompletableFuture
-                    .supplyAsync(() -> scanForTransitiveDependencies(allFiles.get(FileCategory.BUILD), progressListener), scanExecutor);
+                    .supplyAsync(() -> {
+                        TransitiveDependencyProjectScanResult result = scanForTransitiveDependencies(allFiles.get(FileCategory.BUILD), progressListener);
+                        reportStepProgress(progressListener, completedSteps);
+                        return result;
+                    }, scanExecutor);
             CompletableFuture<ConfigFileProjectScanResult> cfFuture = CompletableFuture
-                    .supplyAsync(() -> scanForConfigFiles(allFiles.get(FileCategory.CONFIG)), scanExecutor);
+                    .supplyAsync(() -> {
+                        ConfigFileProjectScanResult result = scanForConfigFiles(allFiles.get(FileCategory.CONFIG));
+                        reportStepProgress(progressListener, completedSteps);
+                        return result;
+                    }, scanExecutor);
             CompletableFuture<ClassloaderModuleProjectScanResult> clFuture = CompletableFuture
-                    .supplyAsync(() -> scanForClassloaderModule(allFiles.get(FileCategory.JAVA)), scanExecutor);
+                    .supplyAsync(() -> {
+                        ClassloaderModuleProjectScanResult result = scanForClassloaderModule(allFiles.get(FileCategory.JAVA));
+                        reportStepProgress(progressListener, completedSteps);
+                        return result;
+                    }, scanExecutor);
             CompletableFuture<LoggingMetricsProjectScanResult> lmFuture = CompletableFuture
-                    .supplyAsync(() -> scanForLoggingMetrics(allFiles.get(FileCategory.JAVA)), scanExecutor);
+                    .supplyAsync(() -> {
+                        LoggingMetricsProjectScanResult result = scanForLoggingMetrics(allFiles.get(FileCategory.JAVA));
+                        reportStepProgress(progressListener, completedSteps);
+                        return result;
+                    }, scanExecutor);
             CompletableFuture<SerializationCacheProjectScanResult> scFuture = CompletableFuture
-                    .supplyAsync(() -> scanForSerializationCache(allFiles.get(FileCategory.JAVA)), scanExecutor);
+                    .supplyAsync(() -> {
+                        SerializationCacheProjectScanResult result = scanForSerializationCache(allFiles.get(FileCategory.JAVA));
+                        reportStepProgress(progressListener, completedSteps);
+                        return result;
+                    }, scanExecutor);
             CompletableFuture<ReflectionUsageProjectScanResult> ruFuture = CompletableFuture
-                    .supplyAsync(() -> scanForReflectionUsage(allFiles.get(FileCategory.JAVA)), scanExecutor);
+                    .supplyAsync(() -> {
+                        ReflectionUsageProjectScanResult result = scanForReflectionUsage(allFiles.get(FileCategory.JAVA));
+                        reportStepProgress(progressListener, completedSteps);
+                        return result;
+                    }, scanExecutor);
             CompletableFuture<ThirdPartyLibProjectScanResult> tpFuture = CompletableFuture
-                    .supplyAsync(() -> scanForThirdPartyLib(allFiles.get(FileCategory.BUILD)), scanExecutor);
+                    .supplyAsync(() -> {
+                        ThirdPartyLibProjectScanResult result = scanForThirdPartyLib(allFiles.get(FileCategory.BUILD));
+                        reportStepProgress(progressListener, completedSteps);
+                        return result;
+                    }, scanExecutor);
 
-            CompletableFuture.allOf(jmFuture, tdFuture, cfFuture, clFuture, lmFuture, scFuture, ruFuture, tpFuture)
-                    .whenComplete((v, t) -> {
-                        if (progressListener != null) {
-                            progressListener.onScanPhase("Advanced Scans", completedSteps.addAndGet(8), TOTAL_ADVANCED_SCAN_STEPS);
-                        }
-                    })
-                    .join();
+            CompletableFuture.allOf(jmFuture, tdFuture, cfFuture, clFuture, lmFuture, scFuture, ruFuture, tpFuture).join();
             LOG.info("Batch 3 completed");
 
             ProjectScanResult<FileScanResult<JpaAnnotationUsage>> jpaResult = jpaFuture.join();
@@ -409,6 +440,12 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
         } catch (Exception e) {
             LOG.error("Parallel scan failed", e);
             throw new RuntimeException("Advanced scan failed", e);
+        }
+    }
+
+    private static void reportStepProgress(ScanProgressListener progressListener, java.util.concurrent.atomic.AtomicInteger completedSteps) {
+        if (progressListener != null) {
+            progressListener.onScanPhase("Advanced Scans", completedSteps.incrementAndGet(), TOTAL_ADVANCED_SCAN_STEPS);
         }
     }
 
@@ -625,24 +662,29 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
     
     // Update sequential scan to use pre-discovered files
     private AdvancedScanSummary runScansSequentially(Path projectPath, ScanProgressListener progressListener) {
-        LOG.info("Running scans sequentially to conserve memory");
+        return runScansSequentially(projectPath, progressListener, true);
+    }
+
+    private AdvancedScanSummary runScansSequentially(Path projectPath, ScanProgressListener progressListener, boolean includeTransitive) {
+        LOG.info("Running scans sequentially to conserve memory (transitive=" + includeTransitive + ")");
         
         try {
+            int total = includeTransitive ? TOTAL_ADVANCED_SCAN_STEPS : TOTAL_QUICK_SCAN_STEPS;
             int completed = 0;
             if (progressListener != null) {
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
             
             Map<FileCategory, List<Path>> allFiles = discoverAllFilesOnce(projectPath);
             if (progressListener != null) {
                 completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
             
             ProjectScanResult<FileScanResult<JpaAnnotationUsage>> jpaResult = scanForJpaAnnotations(allFiles.get(FileCategory.JAVA));
             if (progressListener != null) {
                 completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
             if (progressListener != null && jpaResult != null && !jpaResult.fileResults().isEmpty()) {
                 int totalFindings = jpaResult.fileResults().stream().mapToInt(fr -> fr.usages().size()).sum();
@@ -652,7 +694,7 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
             ProjectScanResult<FileScanResult<JavaxUsage>> beanValidationResult = scanForBeanValidation(allFiles.get(FileCategory.JAVA));
             if (progressListener != null) {
                 completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
             if (progressListener != null && beanValidationResult != null && !beanValidationResult.fileResults().isEmpty()) {
                 int totalFindings = beanValidationResult.fileResults().stream().mapToInt(fr -> fr.usages().size()).sum();
@@ -662,7 +704,7 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
             ProjectScanResult<FileScanResult<ServletJspUsage>> servletJspResult = scanForServletJsp(allFiles.get(FileCategory.JAVA));
             if (progressListener != null) {
                 completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
             if (progressListener != null && servletJspResult != null && !servletJspResult.fileResults().isEmpty()) {
                 int totalFindings = servletJspResult.fileResults().stream().mapToInt(fr -> fr.usages().size()).sum();
@@ -672,7 +714,7 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
             ProjectScanResult<FileScanResult<JavaxUsage>> cdiInjectionResult = scanForCdiInjection(allFiles.get(FileCategory.JAVA));
             if (progressListener != null) {
                 completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
             if (progressListener != null && cdiInjectionResult != null && !cdiInjectionResult.fileResults().isEmpty()) {
                 int totalFindings = cdiInjectionResult.fileResults().stream().mapToInt(fr -> fr.usages().size()).sum();
@@ -682,7 +724,7 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
             ProjectScanResult<FileScanResult<BuildConfigUsage>> buildConfigResult = scanForBuildConfig(allFiles.get(FileCategory.BUILD));
             if (progressListener != null) {
                 completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
             if (progressListener != null && buildConfigResult != null && !buildConfigResult.fileResults().isEmpty()) {
                 int totalFindings = buildConfigResult.fileResults().stream().mapToInt(fr -> fr.usages().size()).sum();
@@ -692,7 +734,7 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
             ProjectScanResult<FileScanResult<JavaxUsage>> restSoapResult = scanForRestSoap(allFiles.get(FileCategory.JAVA));
             if (progressListener != null) {
                 completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
             if (progressListener != null && restSoapResult != null && !restSoapResult.fileResults().isEmpty()) {
                 int totalFindings = restSoapResult.fileResults().stream().mapToInt(fr -> fr.usages().size()).sum();
@@ -702,56 +744,59 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
             DeprecatedApiProjectScanResult deprecatedApiResult = scanForDeprecatedApi(allFiles.get(FileCategory.JAVA));
             if (progressListener != null) {
                 completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
             SecurityApiProjectScanResult securityApiResult = scanForSecurityApi(allFiles.get(FileCategory.JAVA));
             if (progressListener != null) {
                 completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
             JmsMessagingProjectScanResult jmsMessagingResult = scanForJmsMessaging(allFiles.get(FileCategory.JAVA));
             if (progressListener != null) {
                 completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
             ConfigFileProjectScanResult configFileResult = scanForConfigFiles(allFiles.get(FileCategory.CONFIG));
             if (progressListener != null) {
                 completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
             ClassloaderModuleProjectScanResult classloaderModuleResult = scanForClassloaderModule(allFiles.get(FileCategory.JAVA));
             if (progressListener != null) {
                 completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
             LoggingMetricsProjectScanResult loggingMetricsResult = scanForLoggingMetrics(allFiles.get(FileCategory.JAVA));
             if (progressListener != null) {
                 completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
             SerializationCacheProjectScanResult serializationCacheResult = scanForSerializationCache(allFiles.get(FileCategory.JAVA));
             if (progressListener != null) {
                 completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
             ReflectionUsageProjectScanResult reflectionUsageResult = scanForReflectionUsage(allFiles.get(FileCategory.JAVA));
             if (progressListener != null) {
                 completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
             ThirdPartyLibProjectScanResult thirdPartyLibResult = scanForThirdPartyLib(allFiles.get(FileCategory.BUILD));
             if (progressListener != null) {
                 completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
+                progressListener.onScanPhase("Advanced Scans", completed, total);
             }
-            TransitiveDependencyProjectScanResult transitiveDependencyResult = scanForTransitiveDependencies(allFiles.get(FileCategory.BUILD), progressListener);
-            if (progressListener != null) {
-                completed++;
-                progressListener.onScanPhase("Advanced Scans", completed, TOTAL_ADVANCED_SCAN_STEPS);
-            }
-            if (progressListener != null && transitiveDependencyResult != null && !transitiveDependencyResult.getFileResults().isEmpty()) {
-                int totalFindings = transitiveDependencyResult.getTotalJavaxDependencies();
-                progressListener.onSubScanComplete("Transitive Dependencies", totalFindings);
+            TransitiveDependencyProjectScanResult transitiveDependencyResult = TransitiveDependencyProjectScanResult.empty();
+            if (includeTransitive) {
+                transitiveDependencyResult = scanForTransitiveDependencies(allFiles.get(FileCategory.BUILD), progressListener);
+                if (progressListener != null) {
+                    completed++;
+                    progressListener.onScanPhase("Advanced Scans", completed, total);
+                }
+                if (progressListener != null && !transitiveDependencyResult.getFileResults().isEmpty()) {
+                    int totalFindings = transitiveDependencyResult.getTotalJavaxDependencies();
+                    progressListener.onSubScanComplete("Transitive Dependencies", totalFindings);
+                }
             }
             
             AdvancedScanSummary summary = new AdvancedScanSummary(
@@ -1644,8 +1689,7 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
         }
         
         try {
-            // Sequential execution already excludes transitive; reuse that implementation
-            return runScansSequentially(projectPath, throttledListener);
+            return runScansSequentially(projectPath, throttledListener, false);
         } finally {
             // Clean up throttled listener
             if (throttledListener != null) {
@@ -1658,7 +1702,7 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
      * Runs quick scans sequentially - legacy compatibility.
      */
     public AdvancedScanSummary runQuickScansSequentially(Path projectPath, ScanProgressListener progressListener) {
-        return runScansSequentially(projectPath, progressListener);
+        return runScansSequentially(projectPath, progressListener, false);
     }
 
     /**

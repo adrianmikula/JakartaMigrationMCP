@@ -8,6 +8,8 @@ import adrianmikula.jakartamigration.intellij.license.CheckLicense;
 import adrianmikula.jakartamigration.analytics.service.UserIdentificationService;
 import adrianmikula.jakartamigration.analytics.service.UsageService;
 import adrianmikula.jakartamigration.intellij.ui.UIColors;
+import adrianmikula.jakartamigration.intellij.ui.components.TruncationHelper;
+import adrianmikula.jakartamigration.intellij.ui.components.TruncationNoticePanel;
 import adrianmikula.jakartamigration.intellij.util.NotificationHelper;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
@@ -49,6 +51,8 @@ public class HistoryTabComponent {
     private JBTable historyTable;
     private DefaultTableModel tableModel;
     private JButton undoButton;
+    private TruncationNoticePanel truncationNoticePanel;
+    private final TruncationHelper truncationHelper;
 
     // Callback to notify UI to refresh credits display
     private Runnable onCreditUsed;
@@ -57,6 +61,7 @@ public class HistoryTabComponent {
         this.project = project;
         this.recipeService = recipeService;
         this.creditsService = new CreditsService();
+        this.truncationHelper = new TruncationHelper();
         this.panel = new JBPanel<>(new BorderLayout());
         initializeComponent();
     }
@@ -93,6 +98,10 @@ public class HistoryTabComponent {
         JBScrollPane scrollPane = new JBScrollPane(historyTable);
         panel.add(scrollPane, BorderLayout.CENTER);
 
+        // Prominent truncation notice for free users
+        truncationNoticePanel = new TruncationNoticePanel();
+        truncationNoticePanel.setVisible(false);
+
         JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 
         JButton undoButton = new JButton("↶ Undo Selected");
@@ -100,7 +109,10 @@ public class HistoryTabComponent {
         this.undoButton = undoButton;
         actionsPanel.add(undoButton);
 
-        panel.add(actionsPanel, BorderLayout.SOUTH);
+        JPanel southPanel = new JBPanel<>(new BorderLayout());
+        southPanel.add(truncationNoticePanel, BorderLayout.NORTH);
+        southPanel.add(actionsPanel, BorderLayout.SOUTH);
+        panel.add(southPanel, BorderLayout.SOUTH);
 
         // Add selection listener to enable/disable undo button based on selection
         historyTable.getSelectionModel().addListSelectionListener(e -> {
@@ -123,7 +135,15 @@ public class HistoryTabComponent {
         LOG.info("Loading " + history.size() + " history records");
 
         tableModel.setRowCount(0);
+
+        boolean shouldTruncate = truncationHelper.shouldTruncateResults();
+        int truncationLimit = shouldTruncate ? truncationHelper.getHistoryTruncationLimit() : Integer.MAX_VALUE;
+        int addedCount = 0;
+
         for (RecipeExecutionHistory h : history) {
+            if (addedCount >= truncationLimit) {
+                break;
+            }
             // Bug fix: Action column shows "Applied" for apply actions, "Undo" for undo actions
             String action;
             if (h.isUndo()) {
@@ -142,8 +162,16 @@ public class HistoryTabComponent {
                     h.getAffectedFiles().size(),
                     action
             });
+            addedCount++;
         }
-        
+
+        // Show prominent upsell notice when history is truncated for free users
+        if (shouldTruncate && history.size() > truncationLimit) {
+            truncationNoticePanel.updateMessage(truncationLimit, history.size(), "history records");
+        } else {
+            truncationNoticePanel.setVisible(false);
+        }
+
         updateUndoButtonState();
     }
 
