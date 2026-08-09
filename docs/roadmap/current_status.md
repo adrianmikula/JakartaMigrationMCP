@@ -24,6 +24,7 @@ This document summarizes the implementation status of the features tracked in th
 | Gradle Tooling API migration | `gradle-tooling-api-migration.md` | Completed | Migrated to Tooling API; legacy Gradle code removed |
 | Virtual threads for deep JAR scanning | `virtual_threads_performance.md` | Blocked | Blocked on Java 21; IntelliJ Platform requires Java 17 |
 | CI static analysis | `ci_static_analysis.md` | Planned | Recommendations documented, not implemented |
+| UI - Scan progress bar | `scan-progress-improvements.md` | Planned | Coarse progress reporting, missing phase updates, and throttling race documented |
 | Senior dev trust / positioning | `senior_dev_trust.md` | Planned | Strategy document, no product changes yet |
 
 ## Completion Summary

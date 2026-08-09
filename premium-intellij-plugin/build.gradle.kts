@@ -240,9 +240,10 @@ tasks {
         onlyIf { false }
     }
     
-    // Disable problematic tasks that cause connectivity issues
+    // The runIde task depends on initializeIntelliJPlugin to extract the
+    // coroutines-javaagent.jar. Keep it enabled for local sandbox runs.
     project.tasks.named("initializeIntelliJPlugin") {
-        enabled = false
+        enabled = true
     }
 
     // Configure JUnit Jupiter for testing

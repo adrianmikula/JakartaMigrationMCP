@@ -148,10 +148,8 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
      * Checks if Maven or Gradle is available on the system.
      * @return true if at least one build tool is available
      */
-    private boolean isBuildToolAvailable() {
-        boolean mavenAvailable = DependencyTreeCommandExecutorImpl.isMavenAvailable();
-        boolean gradleAvailable = DependencyTreeCommandExecutorImpl.isGradleAvailable();
-        return mavenAvailable || gradleAvailable;
+    public boolean isBuildToolAvailable() {
+        return isMavenAvailable() || isGradleAvailable();
     }
 
     /**
@@ -1378,8 +1376,8 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
                 }
                 info.setDetailMessage(detailMsg);
 
-                // Set confidence
-                info.setConfidence(usage.getConfidence());
+                // Set confidence based on how the compatibility status was determined
+                info.setConfidence(determineConfidence(usage.getScanReason()));
 
                 // Set incompatibility from transitive flag
                 info.setIncompatibilityFromTransitive(usage.isIncompatibilityFromTransitive());
@@ -1405,6 +1403,30 @@ public class AdvancedScanningService implements AdvancedScanningEngine {
         }
 
         return new ArrayList<>(dependencyMap.values());
+    }
+
+    /**
+     * Maps the scan reason to a confidence score (0.0-1.0).
+     * Official whitelists = 100%, bytecode scan = 95%,
+     * Maven Central heuristic match = 90%, no match = 67%,
+     * unknown/failed scans = 0%.
+     */
+    private double determineConfidence(ScanReason reason) {
+        if (reason == null) {
+            return 0.0;
+        }
+        return switch (reason) {
+            case WHITELISTED -> 1.0;
+            case BLACKLISTED -> 0.95;
+            case BYTECODE_SCAN_JAKARTA,
+                 BYTECODE_SCAN_JAVAX,
+                 BYTECODE_SCAN_MIXED -> 0.95;
+            case BYTECODE_SCAN_UNKNOWN -> 0.75;
+            case MAVEN_LOOKUP_FOUND -> 0.90;
+            case MAVEN_LOOKUP_NONE -> 0.67;
+            case TRANSITIVE_INCOMPATIBLE -> 0.95;
+            case BUILD_TOOL_ERROR, UNKNOWN -> 0.0;
+        };
     }
 
     /**

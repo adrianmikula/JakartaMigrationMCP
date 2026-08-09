@@ -23,6 +23,7 @@ public abstract class ScoreGauge extends JPanel {
     protected static final int MIN_GAUGE_SIZE = 80; // Minimum size to maintain readability
 
     protected int score = 0;
+    protected int confidence = 100;
     protected String title;
 
     public ScoreGauge(String title) {
@@ -74,6 +75,19 @@ public abstract class ScoreGauge extends JPanel {
         return score;
     }
 
+    public void setConfidence(int confidence) {
+        int clamped = Math.max(0, Math.min(100, confidence));
+        if (this.confidence == clamped) {
+            return;
+        }
+        this.confidence = clamped;
+        repaint();
+    }
+
+    public int getConfidence() {
+        return confidence;
+    }
+
     /**
      * Get the color for a specific score range arc.
      * @param rangeIndex 0-3 representing the four score ranges (0-25, 26-50, 51-75, 76-100)
@@ -104,7 +118,7 @@ public abstract class ScoreGauge extends JPanel {
 
         // Center point of the gauge
         int centerX = getWidth() / 2;
-        int centerY = getHeight() / 2 - 15; // Adjust for title space
+        int centerY = getHeight() / 2 + 5; // Adjust for labels above the dial
         
         // Get dynamic gauge dimensions
         int gaugeSize = getGaugeSize();
@@ -120,7 +134,7 @@ public abstract class ScoreGauge extends JPanel {
         drawCenterDot(g2d, centerX, centerY);
 
         // Draw the title
-        drawTitle(g2d, centerX, getHeight() - 10);
+        drawTitle(g2d, centerX, 2);
 
         // Draw the score and label
         drawScoreAndLabel(g2d, centerX, centerY);
@@ -223,7 +237,7 @@ public abstract class ScoreGauge extends JPanel {
         g2d.fillOval(centerX - 5, centerY - 5, 10, 10);
     }
 
-    private void drawTitle(Graphics2D g2d, int centerX, int y) {
+    private void drawTitle(Graphics2D g2d, int centerX, int topY) {
         g2d.setColor(UIColors.TEXT_PRIMARY);
         int gaugeSize = getGaugeSize();
         int titleFontSize = Math.max(10, gaugeSize / 12); // Scale font size with gauge
@@ -231,7 +245,8 @@ public abstract class ScoreGauge extends JPanel {
         g2d.setFont(titleFont);
         FontMetrics fm = g2d.getFontMetrics();
         int titleWidth = fm.stringWidth(title);
-        g2d.drawString(title, centerX - titleWidth/2, y);
+        int baseline = topY + fm.getAscent();
+        g2d.drawString(title, centerX - titleWidth/2, baseline);
     }
 
     private void drawScoreAndLabel(Graphics2D g2d, int centerX, int centerY) {
@@ -245,18 +260,20 @@ public abstract class ScoreGauge extends JPanel {
         FontMetrics fm = g2d.getFontMetrics();
         String scoreText = String.valueOf(score);
         int scoreWidth = fm.stringWidth(scoreText);
-        g2d.drawString(scoreText, centerX - scoreWidth/2, centerY + 25);
+        g2d.drawString(scoreText, centerX - scoreWidth/2, centerY - 20);
 
-        // Draw label if available with dynamic font size
+        // Draw label and confidence if available with dynamic font size
         String label = getScoreLabel();
-        if (label != null && !label.isEmpty()) {
-            g2d.setColor(UIColors.TEXT_SECONDARY);
-            int labelFontSize = Math.max(8, gaugeSize / 15); // Scale font size with gauge
-            Font categoryFont = new Font("Arial", Font.PLAIN, labelFontSize);
-            g2d.setFont(categoryFont);
-            fm = g2d.getFontMetrics();
-            int labelWidth = fm.stringWidth(label);
-            g2d.drawString(label, centerX - labelWidth/2, centerY + 40);
+        if (label == null) {
+            label = "";
         }
+        String fullLabel = label + (label.isEmpty() ? "" : " ") + "(confidence: " + confidence + "%)";
+        g2d.setColor(UIColors.TEXT_SECONDARY);
+        int labelFontSize = Math.max(8, gaugeSize / 15); // Scale font size with gauge
+        Font categoryFont = new Font("Arial", Font.PLAIN, labelFontSize);
+        g2d.setFont(categoryFont);
+        fm = g2d.getFontMetrics();
+        int labelWidth = fm.stringWidth(fullLabel);
+        g2d.drawString(fullLabel, centerX - labelWidth/2, centerY - 35);
     }
 }

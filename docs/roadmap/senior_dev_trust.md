@@ -224,3 +224,68 @@ If you want, I can next:
 * Or create a **validation script to test with real users this week**
 
 Where do you feel the biggest gap is right now: product accuracy, messaging, or conversion?
+
+---
+
+## 11. Current audit status & findings (2026-08-08)
+
+**Status:** Trust assessment completed using `skills/senior-dev-trust/SKILL.md`. No implementation changes have been made yet; findings are pending prioritisation.
+
+### Findings (priority order)
+
+1. **Dashboard `Complexity` dial is colour-mismatched**
+   - `DashboardComponent.java` renders `new CombinedConfidenceGauge("Complexity")` with `calculateComplexityScore()`. `CombinedConfidenceGauge` is higher-is-better (red on the left, green on the right). If complexity is higher-is-worse, high-complexity projects will appear green. The standalone `ConfidenceGauge` class is unused.
+   - *Fix:* Replace with a higher-is-worse gauge (or `ComplexityGauge`) and reconcile the title/variable names.
+
+2. **Automation metric is shown as a pie chart, not a dial**
+   - `lastAutomationScore` is computed (`DashboardComponent.java:1689`) and used by `AuditUpsellService`. The user can see it in the `automationChart` pie chart and indirectly via the `Migration Effort` gauge. The CTA warning still says "Automation is %d below the threshold", but there is no `Automation` dial, so the threshold message lacks a 1:1 visible control.
+   - *Fix:* Either rename/reframe the CTA to reference the `Automation` pie chart, or expose `Automation` as a full dial with the same semantics.
+
+3. **Confidence numbers lack traceable formulas and are not connected to scan-result sources**
+   - `calculateDataConfidence()` starts from `85`/`45`, `calculateEffortConfidence()` from `30`, and `calculateTestEffortFactor()` uses `1.50` without explanation.
+   - *Fix:* Add tooltips or an expander that lists the inputs and the one-line formula for each dial. Surface the sources behind each score in a unified, simplified `Reason` column with colour-coded source labels.
+
+4. **Marketplace and in-product copy over-claims automation**
+   - `plugin.xml` uses "Automate Your Java EE to Jakarta EE Migration", "seamlessly", "Auto-Refactoring", "One-click refactoring", "AI-Powered".
+   - `ui-text.properties`, `JakartaMigrationAction.java`, and `PremiumUpgradeButton.java` repeat "one-click", "auto-fixes", "automated remediation", "AI-powered".
+   - `PlatformsTabComponent.java` says "100% free".
+   - *Fix:* Rephrase to "AI-assisted", "assisted fixes", "suggested remediation", "apply recipes from a single action", "free; no credit limits".
+
+5. **Audit CTA can read as product failure**
+   - `audit-upsell-config.properties` warns "This project is too complex to fully automate."
+   - *Fix:* Reframe as human complement: "Flagged patterns that usually need manual review — request a Migration Risk Audit for a second opinion."
+
+6. **Reports not audited for limitations**
+   - No evidence of a "what this does not cover" section in the visible report templates.
+   - *Fix:* Add a limitations footer to all PDF/HTML reports.
+
+7. **Scan results table has multiple verbose `Reason` columns that are hard to scan**
+   - The table currently contains multiple "reason" style columns with long, inconsistent text. A senior dev cannot tell at a glance whether a row came from a Bytecode Scan, Maven Central Lookup, Whitelist, Blacklist, Build Tool Error, or Transitives source.
+   - *Fix:* Consolidate to a single `Reason` column and render compact, consistently colour-coded source labels for each source: `Bytecode Scan`, `Maven Central Lookup`, `Whitelist`, `Blacklist`, `Build Tool Error`, `Transitives`.
+
+### Immediate next steps
+
+* Fix the `Complexity` gauge colour/label mismatch first — it is the most visible trust-breaking bug.
+* Soft-copy pass in `plugin.xml` and `ui-text.properties` before the next marketplace release.
+* Align the `Automation` CTA wording with the visible automation pie chart, or expose `Automation` as a full dial.
+* Consolidate the scan results table `Reason` column and add colour-coded source labels: `Bytecode Scan`, `Maven Central Lookup`, `Whitelist`, `Blacklist`, `Build Tool Error`, `Transitives`.
+* Add one-sentence formula tooltips to each dashboard dial.
+* Add a "Limitations" section to report templates.
+
+---
+
+## 12. Risk tab noise reduction (implemented)
+
+**Status:** Implemented on 2026-08-08.
+
+**Finding:** The Risk tab below the pie charts and dials displayed low-level `Basic Scan Results` and `Advanced Scan Results` tables with numerous numerical counts. This was too noisy and hard for senior devs to scan for signal.
+
+**Changes made:**
+- Removed `Basic Scan Results` and `Advanced Scan Results` from the visible `createResultsPanel()` layout.
+- Renamed the remaining `Platform Scan Results` panel to `Core Vitals`.
+- Added project-level metrics to `Core Vitals`: project file count, test file count, test coverage, total dependencies, organisational dependencies, and internal module count.
+- Added `updateCoreVitals()` to keep these metrics in sync with cached file counts and the dependency summary.
+
+**Files changed:** `premium-intellij-plugin/src/main/java/adrianmikula/jakartamigration/intellij/ui/DashboardComponent.java`.
+
+**Verification:** `:premium-intellij-plugin:compileJava` and `:premium-intellij-plugin:compileTestJava` pass.
