@@ -175,8 +175,8 @@ tasks.register("generateUniqueVersion") {
             }
             
             if (!versionUpdated) {
-                lines.add("version=1.1.1")
-                println("🚀 Adding version: 1.1.1")
+                lines.add("version=1.1.2")
+                println("🚀 Adding version: 1.1.2")
             }
             
             gradlePropsFile.writeText(lines.joinToString("\n") + "\n")

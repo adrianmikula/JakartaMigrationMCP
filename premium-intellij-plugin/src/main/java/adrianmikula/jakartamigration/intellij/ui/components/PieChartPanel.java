@@ -92,6 +92,7 @@ public class PieChartPanel extends JBPanel<PieChartPanel> {
             JPanel swatch = new JPanel();
             swatch.setPreferredSize(new Dimension(10, 10));
             swatch.setMinimumSize(new Dimension(10, 10));
+            swatch.setMaximumSize(new Dimension(10, 10));
             swatch.setBackground(slice.color);
             swatch.setOpaque(true);
             swatch.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));

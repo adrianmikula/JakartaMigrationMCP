@@ -46,7 +46,7 @@ Without `--configuration`, `gradle dependencies` outputs ALL configurations (com
 
 ### Reference
 
-- `DependencyTreeCommandExecutorImpl.java` — `buildGradleCommand()`
+- Legacy `buildGradleCommand()` (removed; the Tooling API path does not pass `--configuration`)
 
 ---
 
@@ -186,7 +186,7 @@ In multi-module projects, the wrapper (`gradlew`/`mvnw`) lives at the root. When
 
 ### Reference
 
-- `DependencyTreeCommandExecutorImpl.java` — `findGradleWrapper()`, `findMavenWrapper()`
+- `DependencyTreeCommandExecutorImpl.java` — `findMavenWrapper()` (Gradle wrapper detection is now handled automatically by the Tooling API)
 
 ---
 
@@ -217,7 +217,7 @@ Many projects only ship with a wrapper (`gradlew`), especially when targeting sp
 
 ### Reference
 
-- `DependencyTreeCommandExecutorImpl.java` — `isGradleAvailableForProject()`
+- `DependencyTreeCommandExecutorImpl.java` — `isMavenAvailableForProject()`
 
 ---
 
@@ -402,7 +402,7 @@ Detecting whether a build file is in a submodule is done by walking up directori
 
 ### Reference
 
-- `DependencyTreeCommandExecutorImpl.java` — `findGradleProjectRoot()`, `computeGradleModuleName()`, `buildGradleModuleCommand()`
+- `GradleToolingApiExecutor.java` — `findTargetProject()`, `findProjectByDirectory()` (replaces the legacy project-root and module-name helpers)
 
 ---
 
@@ -456,7 +456,7 @@ The Gradle Tooling API replaces the process-spawning path because it:
 
 Always close `ProjectConnection` in a `finally` block (or use a helper such as `closeQuietly`). Connections that are not closed leak file descriptors and daemon state.
 
-The Tooling API dependency version must match the project's Gradle wrapper version. This codebase uses Gradle `8.5`, so the `gradle-tooling-api` dependency is `org.gradle:gradle-tooling-api:8.5` resolved from `https://repo.gradle.org/gradle/libs-releases/`.
+The Tooling API dependency version should be a recent stable release. This codebase uses `org.gradle:gradle-tooling-api:8.12` resolved from `https://repo.gradle.org/gradle/libs-releases/`.
 
 ### Multi-module projects
 

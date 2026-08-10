@@ -21,7 +21,7 @@ public class TruncationNoticePanel extends JBPanel<TruncationNoticePanel> {
     private static final String MARKETPLACE_URL = "https://plugins.jetbrains.com/plugin/30093-jakarta-migration";
 
     private final JBLabel messageLabel;
-    private final JBLabel upgradeLink;
+    private final JButton upgradeButton;
     private final UsageService usageService;
 
     public TruncationNoticePanel() {
@@ -32,67 +32,63 @@ public class TruncationNoticePanel extends JBPanel<TruncationNoticePanel> {
         UserIdentificationService userIdentificationService = new UserIdentificationService();
         this.usageService = new UsageService(userIdentificationService);
         
-        upgradeLink = createUpgradeLink();
+        upgradeButton = createUpgradeButton();
         initializeUI();
     }
 
     private void initializeUI() {
+        setOpaque(true);
+        setBackground(new Color(255, 243, 205)); // Prominent amber warning background
         setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(1, 0, 1, 0, new Color(255, 193, 7)),
-                BorderFactory.createEmptyBorder(8, 12, 8, 12)
+                BorderFactory.createMatteBorder(2, 0, 2, 0, new Color(255, 140, 0)),
+                BorderFactory.createEmptyBorder(10, 14, 10, 14)
         ));
-        setBackground(new Color(255, 249, 230)); // Light yellow background
 
-        // Left: Warning icon + message
-        JPanel leftPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        // Left: warning icon + bold message
+        JPanel leftPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 10, 0));
         leftPanel.setOpaque(false);
 
         JBLabel iconLabel = new JBLabel("⚠");
-        iconLabel.setFont(iconLabel.getFont().deriveFont(Font.BOLD, 14f));
-        iconLabel.setForeground(new Color(255, 193, 7)); // Yellow warning color
+        iconLabel.setFont(iconLabel.getFont().deriveFont(Font.BOLD, 22f));
+        iconLabel.setForeground(new Color(255, 130, 0));
         leftPanel.add(iconLabel);
 
-        messageLabel.setFont(messageLabel.getFont().deriveFont(Font.PLAIN, 12f));
-        messageLabel.setForeground(new Color(133, 100, 4)); // Dark yellow/brown text
+        messageLabel.setFont(messageLabel.getFont().deriveFont(Font.BOLD, 13f));
+        messageLabel.setForeground(new Color(120, 70, 0));
         leftPanel.add(messageLabel);
 
         add(leftPanel, BorderLayout.CENTER);
 
-        // Right: Upgrade link
+        // Right: prominent upgrade button
         JPanel rightPanel = new JBPanel<>(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         rightPanel.setOpaque(false);
-        rightPanel.add(upgradeLink);
+        rightPanel.add(upgradeButton);
         add(rightPanel, BorderLayout.EAST);
     }
 
-    private JBLabel createUpgradeLink() {
-        JBLabel link = new JBLabel("<html><a href='#'>Upgrade to Premium</a></html>");
-        link.setForeground(new Color(0, 102, 204)); // Blue link color
-        link.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        link.setToolTipText("Get unlimited access to all features");
+    private JButton createUpgradeButton() {
+        JButton button = new JButton("⬆ Upgrade to Premium");
+        button.setToolTipText("Unlock unlimited rows and all premium features");
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.setBackground(new Color(255, 215, 0));
+        button.setForeground(new Color(80, 60, 0));
+        button.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(255, 152, 0), 1),
+                BorderFactory.createEmptyBorder(6, 12, 6, 12)
+        ));
+        button.setFont(button.getFont().deriveFont(Font.BOLD));
+        button.setFocusPainted(false);
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        link.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                // Track upgrade click analytics with context
-                if (usageService != null) {
-                    usageService.trackUpgradeClick("truncation_notice", "TruncationNotice");
-                }
-                openMarketplace();
+        button.addActionListener(e -> {
+            if (usageService != null) {
+                usageService.trackUpgradeClick("truncation_notice", "TruncationNotice");
             }
-
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                link.setText("<html><a href='#'><b>Upgrade to Premium</b></a></html>");
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                link.setText("<html><a href='#'>Upgrade to Premium</a></html>");
-            }
+            openMarketplace();
         });
 
-        return link;
+        return button;
     }
 
     /**
@@ -123,7 +119,7 @@ public class TruncationNoticePanel extends JBPanel<TruncationNoticePanel> {
      * @param visible true to show the upgrade link, false to hide it
      */
     public void setUpgradeLinkVisible(boolean visible) {
-        upgradeLink.setVisible(visible);
+        upgradeButton.setVisible(visible);
     }
 
     /**

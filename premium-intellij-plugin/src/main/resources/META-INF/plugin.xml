@@ -27,7 +27,7 @@
     <idea-version since-build="242" />
 
     <!-- version: increment this for every minor release. The first 2 numbers should match the release-version -->
-    <version>1.1.1</version>
+    <version>1.1.2</version>
 
     <name>Jakarta Migration (javax to jakarta)</name>
     <id>com.adrianmikula.jakarta-migration</id>
@@ -193,9 +193,21 @@
 
 
     <change-notes><![CDATA[
+    <h>1.1.2 - 2026-08-09</h>
+    <ul>
+        <li><b>Added:</b> Complete Gradle Tooling API migration for more reliable dependency scanning</li>
+        <li><b>Added:</b> Dashboard complexity and confidence metrics</li>
+        <li><b>Added:</b> Scan progress reporting, freemium history tracking, and platform detection fixes</li>
+        <li><b>Fixed:</b> Pre-release test failures and validation confidence reporting</li>
+    </ul>
     <h>1.1.1 - 2026-08-08</h>
     <ul>
-        <li>Version bump to 1.1.1</li>
+        <li><b>Added:</b> Premium scan orchestration and Gradle project model resolution</li>
+        <li><b>Added:</b> Dashboard risk gauges, audit CTA, and real-repo integration skill</li>
+        <li><b>Added:</b> Complexity-driven upsell CTA replacing the confidence dial on dashboard dials</li>
+        <li><b>Changed:</b> Reduced free-tier credits and made advanced refactors consume a free credit</li>
+        <li><b>Fixed:</b> Excluded transitive dependencies from the "With/Without Recipes" automation pie chart</li>
+        <li><b>Fixed:</b> Pie chart legend text wrapping</li>
     </ul>
     <h>1.1.0 - 2026-07-27</h>
     <ul>

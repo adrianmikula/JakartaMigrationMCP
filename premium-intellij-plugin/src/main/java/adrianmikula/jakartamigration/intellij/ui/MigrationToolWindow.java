@@ -1437,8 +1437,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     .count();
             long organisational = deps.stream().filter(d -> d.isOrganizational()).count();
             long unknownReview = deps.stream()
-                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.UNKNOWN_REVIEW ||
-                                 d.getMigrationStatus() == DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION)
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION)
                     .count();
             long buildToolError = deps.stream()
                     .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.BUILD_TOOL_ERROR)
@@ -1602,8 +1601,7 @@ public class MigrationToolWindow implements ToolWindowFactory {
                     .count();
             long organisational = deps.stream().filter(DependencyInfo::isOrganizational).count();
             long unknownReview = deps.stream()
-                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.UNKNOWN_REVIEW ||
-                                 d.getMigrationStatus() == DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION)
+                    .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.REQUIRES_MANUAL_MIGRATION)
                     .count();
             long buildToolError = deps.stream()
                     .filter(d -> d.getMigrationStatus() == DependencyMigrationStatus.BUILD_TOOL_ERROR)

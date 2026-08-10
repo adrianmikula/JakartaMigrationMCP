@@ -92,17 +92,15 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         this.truncationHelper = new TruncationHelper();
         this.panel = new JBPanel<>(new BorderLayout());
 
-        // Columns with Jakarta Equivalent information, Scope and Confidence
+        // Columns with Jakarta Equivalent information and Confidence
         String[] columns = {
                 "Group ID",
                 "Artifact ID",
                 "Current Version",
-                "Scope",  // compile, test, provided, runtime
                 "Jakarta Equivalent",
                 "Compatibility Status",
                 "Reason",
                 "Type",
-                "Details",
                 "Confidence",
                 "" // Hidden column for DependencyInfo object
         };
@@ -118,6 +116,24 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             @Override
             public TableCellRenderer getCellRenderer(int row, int column) {
                 return new StatusCellRenderer();
+            }
+
+            @Override
+            public String getToolTipText(MouseEvent e) {
+                Point p = e.getPoint();
+                int row = rowAtPoint(p);
+                if (row >= 0) {
+                    int modelRow = convertRowIndexToModel(row);
+                    int depColumn = getModel().getColumnCount() - 1;
+                    Object depObj = getModel().getValueAt(modelRow, depColumn);
+                    if (depObj instanceof DependencyInfo) {
+                        String detail = ((DependencyInfo) depObj).getDetailMessage();
+                        if (detail != null && !detail.isBlank()) {
+                            return detail;
+                        }
+                    }
+                }
+                return null;
             }
         };
 
@@ -148,9 +164,10 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             
             isRendering = true;
             try {
-            // Status column is at index 5, Jakarta Equivalent at index 4, DependencyInfo at index 10
-            if (column == 5 && row < table.getModel().getRowCount()) {
-                Object depObj = table.getModel().getValueAt(row, 10);
+            // Status column is at index 4, Jakarta Equivalent at index 3, DependencyInfo at the last (hidden) column
+            if (column == 4 && row < table.getModel().getRowCount()) {
+                int depColumn = table.getModel().getColumnCount() - 1;
+                Object depObj = table.getModel().getValueAt(row, depColumn);
                 if (depObj instanceof DependencyInfo) {
                     DependencyInfo dep = (DependencyInfo) depObj;
                     JPanel panel = new JPanel(new BorderLayout());
@@ -202,10 +219,11 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             if (isSelected) {
                 label.setBackground(table.getSelectionBackground());
             } else {
-                // Determine if this row is organizational (check hidden column at index 10)
+                // Determine if this row is organizational (check the last hidden column)
                 boolean isOrg = false;
+                int depColumn = table.getModel().getColumnCount() - 1;
                 if (row < table.getModel().getRowCount()) {
-                    Object depObj = table.getModel().getValueAt(row, 10);
+                    Object depObj = table.getModel().getValueAt(row, depColumn);
                     if (depObj instanceof DependencyInfo) {
                         isOrg = ((DependencyInfo) depObj).isOrganizational();
                     }
@@ -279,20 +297,18 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         table.setFillsViewportHeight(true);
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
-        // Set column widths (10 columns + 1 hidden)
+        // Set column widths (8 columns + 1 hidden)
         table.getColumnModel().getColumn(0).setPreferredWidth(150); // Group ID
         table.getColumnModel().getColumn(1).setPreferredWidth(150); // Artifact ID
         table.getColumnModel().getColumn(2).setPreferredWidth(90);  // Current Version
-        table.getColumnModel().getColumn(3).setPreferredWidth(100); // Scope
-        table.getColumnModel().getColumn(4).setPreferredWidth(150); // Jakarta Equivalent
-        table.getColumnModel().getColumn(5).setPreferredWidth(120); // Status (color-coded)
-        table.getColumnModel().getColumn(6).setPreferredWidth(200); // Reason
-        table.getColumnModel().getColumn(7).setPreferredWidth(80);  // Type
-        table.getColumnModel().getColumn(8).setPreferredWidth(250); // Details
-        table.getColumnModel().getColumn(9).setPreferredWidth(80); // Confidence
-        table.getColumnModel().getColumn(10).setMinWidth(0);       // Hidden DependencyInfo
-        table.getColumnModel().getColumn(10).setMaxWidth(0);
-        table.getColumnModel().getColumn(10).setWidth(0);
+        table.getColumnModel().getColumn(3).setPreferredWidth(150); // Jakarta Equivalent
+        table.getColumnModel().getColumn(4).setPreferredWidth(120); // Status (color-coded)
+        table.getColumnModel().getColumn(5).setPreferredWidth(200); // Reason
+        table.getColumnModel().getColumn(6).setPreferredWidth(80);  // Type
+        table.getColumnModel().getColumn(7).setPreferredWidth(80);  // Confidence
+        table.getColumnModel().getColumn(8).setMinWidth(0);         // Hidden DependencyInfo
+        table.getColumnModel().getColumn(8).setMaxWidth(0);
+        table.getColumnModel().getColumn(8).setWidth(0);
 
         // Add mouse listener for double-click navigation
         table.addMouseListener(new MouseInputAdapter() {
@@ -529,9 +545,6 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
         // Determine dependency type
         String dependencyType = dep.isTransitive() ? "Transitive" : "Direct";
 
-        // Scope - show scope (compile, test, provided, runtime)
-        String scopeStr = dep.getScope() != null ? dep.getScope() : "-";
-
         // Jakarta Equivalent - prefer parsed coordinates, fall back to the raw recommendation string
         String coordinates = dep.getRecommendedArtifactCoordinates();
         String jakartaEquivalent = coordinates != null && !coordinates.isBlank() ? coordinates : "";
@@ -572,7 +585,9 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
 
         // Reason (scan reason) - provide specific pending states
         String reason = scanReason != null ? scanReason : "-";
-        
+
+        // Detailed reason/explanation text is shown on hover via the table tooltip
+
         // Enhanced reason mapping for better clarity on pending states
         if (dep.isMavenLookupInProgress()) {
             reason = "Maven lookup in progress";
@@ -598,26 +613,21 @@ public class DependenciesTableComponent extends AbstractDependencyUIComponent {
             reason = "Build tool error - regex fallback (deep scan unavailable)";
         }
 
-        // Details column - human-friendly error/explanation text
-        String details = dep.getDetailMessage() != null ? dep.getDetailMessage() : "";
-
         String confidence = dep.getConfidence() > 0.0
                 ? String.format("%.0f%%", dep.getConfidence() * 100)
                 : "";
 
-        // Add row with all columns - DependencyInfo at column 10 (hidden)
+        // Add row with all columns - DependencyInfo at the last (hidden) column
         tableModel.addRow(new Object[] {
                 dep.getGroupId(),
                 dep.getArtifactId(),
                 dep.getCurrentVersion(),
-                scopeStr,           // Column 3: Scope
-                jakartaEquivalent,  // Column 4: Jakarta Equivalent
-                statusText,         // Column 5: Status
-                reason,             // Column 6: Reason
-                dependencyType,     // Column 7: Type
-                details,            // Column 8: Details
-                confidence,         // Column 9: Confidence
-                dep // Column 10: Full object for renderer (hidden column)
+                jakartaEquivalent,  // Column 3: Jakarta Equivalent
+                statusText,         // Column 4: Status
+                reason,             // Column 5: Reason
+                dependencyType,     // Column 6: Type
+                confidence,         // Column 7: Confidence
+                dep                 // Column 8: Full object for renderer (hidden column)
         });
     }
     

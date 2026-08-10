@@ -5,6 +5,7 @@ import com.intellij.openapi.diagnostic.Logger;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -39,6 +40,10 @@ public class ThrottledProgressListener implements ScanProgressListener {
     private final AtomicLong lastUpdateTime = new AtomicLong(0);
     private final long minUpdateIntervalMs;
     
+    // Pending scheduled dispatch handles (used for cancellation)
+    private ScheduledFuture<?> phaseUpdateFuture;
+    private ScheduledFuture<?> subScanUpdateFuture;
+    
     /**
      * Creates a throttled progress listener with default throttle rate (100ms).
      * 
@@ -69,7 +74,7 @@ public class ThrottledProgressListener implements ScanProgressListener {
     }
     
     @Override
-    public void onScanPhase(String phase, int completed, int total) {
+    public synchronized void onScanPhase(String phase, int completed, int total) {
         // Store the latest phase update
         pendingPhase = phase;
         pendingCompleted = completed;
@@ -78,12 +83,12 @@ public class ThrottledProgressListener implements ScanProgressListener {
         // Schedule a debounced update if not already scheduled
         if (!phaseUpdateScheduled) {
             phaseUpdateScheduled = true;
-            scheduler.schedule(this::dispatchPhaseUpdate, throttleMillis, TimeUnit.MILLISECONDS);
+            phaseUpdateFuture = scheduler.schedule(this::dispatchPhaseUpdate, throttleMillis, TimeUnit.MILLISECONDS);
         }
     }
     
     @Override
-    public void onScanComplete() {
+    public synchronized void onScanComplete() {
         // Flush any pending updates before dispatching complete
         flushPendingUpdates();
         
@@ -98,7 +103,7 @@ public class ThrottledProgressListener implements ScanProgressListener {
     }
     
     @Override
-    public void onScanError(Exception error) {
+    public synchronized void onScanError(Exception error) {
         // Flush any pending updates before dispatching error
         flushPendingUpdates();
 
@@ -113,7 +118,7 @@ public class ThrottledProgressListener implements ScanProgressListener {
     }
 
     @Override
-    public void onScanPartial() {
+    public synchronized void onScanPartial() {
         // Flush any pending updates before dispatching partial
         flushPendingUpdates();
 
@@ -128,14 +133,14 @@ public class ThrottledProgressListener implements ScanProgressListener {
     }
 
     @Override
-    public void onSubScanComplete(String scanType, int resultCount) {
+    public synchronized void onSubScanComplete(String scanType, int resultCount) {
         // Batch sub-scan updates
         pendingSubScanUpdates.put(scanType, resultCount);
         
         // Schedule a batched update if not already scheduled
         if (!subScanUpdateScheduled) {
             subScanUpdateScheduled = true;
-            scheduler.schedule(this::dispatchSubScanUpdates, throttleMillis, TimeUnit.MILLISECONDS);
+            subScanUpdateFuture = scheduler.schedule(this::dispatchSubScanUpdates, throttleMillis, TimeUnit.MILLISECONDS);
         }
     }
     
@@ -143,7 +148,7 @@ public class ThrottledProgressListener implements ScanProgressListener {
      * Dispatches the latest phase update to the delegate.
      * Called by the scheduler after the debounce window.
      */
-    private void dispatchPhaseUpdate() {
+    private synchronized void dispatchPhaseUpdate() {
         phaseUpdateScheduled = false;
         
         String phase = pendingPhase;
@@ -151,6 +156,7 @@ public class ThrottledProgressListener implements ScanProgressListener {
         int total = pendingTotal;
         
         if (phase == null) {
+            phaseUpdateFuture = null;
             return;
         }
         
@@ -161,7 +167,8 @@ public class ThrottledProgressListener implements ScanProgressListener {
         
         if (timeSinceLastUpdate < minUpdateIntervalMs) {
             // Too soon, reschedule
-            scheduler.schedule(this::dispatchPhaseUpdate, 
+            phaseUpdateScheduled = true;
+            phaseUpdateFuture = scheduler.schedule(this::dispatchPhaseUpdate, 
                 minUpdateIntervalMs - timeSinceLastUpdate, TimeUnit.MILLISECONDS);
             return;
         }
@@ -176,13 +183,16 @@ public class ThrottledProgressListener implements ScanProgressListener {
                 LOG.error("Error in delegate.onScanPhase", e);
             }
         });
+        
+        pendingPhase = null;
+        phaseUpdateFuture = null;
     }
     
     /**
      * Dispatches all pending sub-scan updates to the delegate.
      * Called by the scheduler after the debounce window.
      */
-    private void dispatchSubScanUpdates() {
+    private synchronized void dispatchSubScanUpdates() {
         subScanUpdateScheduled = false;
         
         // Rate limiting
@@ -192,7 +202,8 @@ public class ThrottledProgressListener implements ScanProgressListener {
         
         if (timeSinceLastUpdate < minUpdateIntervalMs) {
             // Too soon, reschedule
-            scheduler.schedule(this::dispatchSubScanUpdates, 
+            subScanUpdateScheduled = true;
+            subScanUpdateFuture = scheduler.schedule(this::dispatchSubScanUpdates, 
                 minUpdateIntervalMs - timeSinceLastUpdate, TimeUnit.MILLISECONDS);
             return;
         }
@@ -202,6 +213,8 @@ public class ThrottledProgressListener implements ScanProgressListener {
         // Create a snapshot of pending updates
         java.util.Map<String, Integer> updates = new java.util.HashMap<>(pendingSubScanUpdates);
         pendingSubScanUpdates.clear();
+        
+        subScanUpdateFuture = null;
         
         if (updates.isEmpty()) {
             return;
@@ -223,8 +236,16 @@ public class ThrottledProgressListener implements ScanProgressListener {
      * Flushes all pending updates immediately.
      * Called when scan completes or errors to ensure all updates are delivered.
      */
-    private void flushPendingUpdates() {
+    private synchronized void flushPendingUpdates() {
         // Cancel any scheduled updates
+        if (phaseUpdateFuture != null) {
+            phaseUpdateFuture.cancel(false);
+            phaseUpdateFuture = null;
+        }
+        if (subScanUpdateFuture != null) {
+            subScanUpdateFuture.cancel(false);
+            subScanUpdateFuture = null;
+        }
         phaseUpdateScheduled = false;
         subScanUpdateScheduled = false;
         

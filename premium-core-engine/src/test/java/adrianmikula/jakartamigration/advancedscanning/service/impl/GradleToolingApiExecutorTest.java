@@ -250,4 +250,87 @@ class GradleToolingApiExecutorTest {
         Set<PosixFilePermission> perms = Files.getPosixFilePermissions(source);
         Files.setPosixFilePermissions(target, perms);
     }
+
+    @Test
+    void shouldReturnCorrectDependenciesPerSubproject(@TempDir Path tempDir) throws Exception {
+        Files.writeString(tempDir.resolve("settings.gradle.kts"), "rootProject.name = \"multi\"\ninclude(\"app\", \"lib\")");
+        Files.writeString(tempDir.resolve("build.gradle.kts"), """
+            plugins {
+                base
+            }
+            """);
+        Files.createDirectories(tempDir.resolve("app"));
+        Files.writeString(tempDir.resolve("app/build.gradle.kts"), """
+            plugins {
+                java
+            }
+            repositories {
+                mavenCentral()
+            }
+            dependencies {
+                implementation(project(":lib"))
+                implementation("com.google.guava:guava:32.1.3-jre")
+            }
+            """);
+        Files.createDirectories(tempDir.resolve("lib"));
+        Files.writeString(tempDir.resolve("lib/build.gradle.kts"), """
+            plugins {
+                java
+                `java-library`
+            }
+            repositories {
+                mavenCentral()
+            }
+            dependencies {
+                api("org.apache.commons:commons-lang3:3.14.0")
+            }
+            """);
+        copyProjectWrapper(tempDir);
+
+        GradleToolingApiExecutor executor = new GradleToolingApiExecutor();
+
+        DependencyTreeResult appResult = executor.executeGradleDependenciesAsync(
+                tempDir.resolve("app/build.gradle.kts"), Set.of("compileClasspath")).join();
+        DependencyTreeResult libResult = executor.executeGradleDependenciesAsync(
+                tempDir.resolve("lib/build.gradle.kts"), Set.of("compileClasspath")).join();
+
+        executor.shutdown();
+
+        assertTrue(appResult.isSuccess(), "app should resolve: " + appResult.getErrorMessage());
+        assertTrue(libResult.isSuccess(), "lib should resolve: " + libResult.getErrorMessage());
+        assertThat(appResult.getDependencies()).anyMatch(
+                n -> "com.google.guava".equals(n.getGroupId()));
+        assertThat(libResult.getDependencies()).anyMatch(
+                n -> "org.apache.commons".equals(n.getGroupId()));
+    }
+
+    @Test
+    void shouldHandleNestedSubprojects(@TempDir Path tempDir) throws Exception {
+        Files.writeString(tempDir.resolve("settings.gradle.kts"),
+                "rootProject.name = \"nested\"\ninclude(\"core:lib\")");
+        Files.createDirectories(tempDir.resolve("core/lib"));
+        Files.writeString(tempDir.resolve("core/lib/build.gradle.kts"), """
+            plugins {
+                java
+            }
+            repositories {
+                mavenCentral()
+            }
+            dependencies {
+                implementation("org.slf4j:slf4j-api:2.0.9")
+            }
+            """);
+        copyProjectWrapper(tempDir);
+
+        GradleToolingApiExecutor executor = new GradleToolingApiExecutor();
+        Path buildFile = tempDir.resolve("core/lib/build.gradle.kts");
+
+        DependencyTreeResult result = executor.executeGradleDependenciesAsync(
+                buildFile, Set.of("compileClasspath")).join();
+        executor.shutdown();
+
+        assertTrue(result.isSuccess(),
+                "Nested subproject should resolve: " + result.getErrorMessage());
+        assertThat(result.getDependencies()).isNotEmpty();
+    }
 }

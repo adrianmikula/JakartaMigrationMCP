@@ -216,16 +216,16 @@ public class DependenciesTableComponentTest extends BasePlatformTestCase {
         assertThat(tableComponent.getTableModel().getRowCount()).isEqualTo(4);
         
         // Verify reason column shows appropriate text for each dependency
-        assertThat(tableComponent.getTableModel().getValueAt(0, 6)).isEqualTo("Maven lookup in progress");
-        assertThat(tableComponent.getTableModel().getValueAt(1, 6)).isEqualTo("Bytecode scan pending");
-        assertThat(tableComponent.getTableModel().getValueAt(2, 6)).isEqualTo("Jakarta version not found - check naming patterns");
-        assertThat(tableComponent.getTableModel().getValueAt(3, 6)).isEqualTo("Jakarta compatible - bytecode verified");
-        
+        assertThat(tableComponent.getTableModel().getValueAt(0, 5)).isEqualTo("Maven lookup in progress");
+        assertThat(tableComponent.getTableModel().getValueAt(1, 5)).isEqualTo("Bytecode scan pending");
+        assertThat(tableComponent.getTableModel().getValueAt(2, 5)).isEqualTo("Jakarta version not found - check naming patterns");
+        assertThat(tableComponent.getTableModel().getValueAt(3, 5)).isEqualTo("Jakarta compatible - bytecode verified");
+
         // Verify status column shows appropriate text
-        assertThat(tableComponent.getTableModel().getValueAt(0, 5)).isEqualTo("? Analysis in Progress");
-        assertThat(tableComponent.getTableModel().getValueAt(1, 5)).isEqualTo("? Analysis Pending");
-        assertThat(tableComponent.getTableModel().getValueAt(2, 5)).isEqualTo("⚠ Jakarta Version Not Found");
-        assertThat(tableComponent.getTableModel().getValueAt(3, 5)).isEqualTo("✓ Compatible");
+        assertThat(tableComponent.getTableModel().getValueAt(0, 4)).isEqualTo("? Analysis in Progress");
+        assertThat(tableComponent.getTableModel().getValueAt(1, 4)).isEqualTo("? Analysis Pending");
+        assertThat(tableComponent.getTableModel().getValueAt(2, 4)).isEqualTo("⚠ Jakarta Version Not Found");
+        assertThat(tableComponent.getTableModel().getValueAt(3, 4)).isEqualTo("✓ Compatible");
     }
 
     // ── resetToPending Tests ─────────────────────────────────────────────────
@@ -238,14 +238,14 @@ public class DependenciesTableComponentTest extends BasePlatformTestCase {
         tableComponent.setDependencies(deps);
 
         // Before reset — should show actual status
-        assertThat(tableComponent.getTableModel().getValueAt(0, 5)).isEqualTo("✓ Compatible");
+        assertThat(tableComponent.getTableModel().getValueAt(0, 4)).isEqualTo("✓ Compatible");
 
         // Reset to pending
         tableComponent.resetToPending();
 
         // After reset — should show Scan Pending
-        assertThat(tableComponent.getTableModel().getValueAt(0, 5)).isEqualTo("? Scan Pending");
-        assertThat(tableComponent.getTableModel().getValueAt(0, 6)).isEqualTo("Waiting for scan to start");
+        assertThat(tableComponent.getTableModel().getValueAt(0, 4)).isEqualTo("? Scan Pending");
+        assertThat(tableComponent.getTableModel().getValueAt(0, 5)).isEqualTo("Waiting for scan to start");
     }
 
     public void testResetToPending_shouldClearMigrationStatus() {
@@ -283,9 +283,9 @@ public class DependenciesTableComponentTest extends BasePlatformTestCase {
         tableComponent.resetToPending();
 
         // All rows should show pending status
-        assertThat(tableComponent.getTableModel().getValueAt(0, 5)).isEqualTo("? Scan Pending");
-        assertThat(tableComponent.getTableModel().getValueAt(1, 5)).isEqualTo("? Scan Pending");
-        assertThat(tableComponent.getTableModel().getValueAt(2, 5)).isEqualTo("? Scan Pending");
+        assertThat(tableComponent.getTableModel().getValueAt(0, 4)).isEqualTo("? Scan Pending");
+        assertThat(tableComponent.getTableModel().getValueAt(1, 4)).isEqualTo("? Scan Pending");
+        assertThat(tableComponent.getTableModel().getValueAt(2, 4)).isEqualTo("? Scan Pending");
     }
 
     public void testResetToPending_thenSetDependenciesShouldShowNewStatus() {
@@ -296,7 +296,7 @@ public class DependenciesTableComponentTest extends BasePlatformTestCase {
 
         // Reset to pending
         tableComponent.resetToPending();
-        assertThat(tableComponent.getTableModel().getValueAt(0, 5)).isEqualTo("? Scan Pending");
+        assertThat(tableComponent.getTableModel().getValueAt(0, 4)).isEqualTo("? Scan Pending");
 
         // Set new dependencies (simulating scan complete)
         List<DependencyInfo> newDeps = new ArrayList<>();
@@ -305,6 +305,6 @@ public class DependenciesTableComponentTest extends BasePlatformTestCase {
         tableComponent.setDependencies(newDeps);
 
         // Should now show the new status
-        assertThat(tableComponent.getTableModel().getValueAt(0, 5)).isEqualTo("↑ Upgrade Available");
+        assertThat(tableComponent.getTableModel().getValueAt(0, 4)).isEqualTo("↑ Upgrade Available");
     }
 }

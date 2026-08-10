@@ -33,7 +33,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Gradle Tooling API for programmatic dependency resolution
-    implementation("org.gradle:gradle-tooling-api:8.5")
+    implementation("org.gradle:gradle-tooling-api:8.12")
 
     // Test dependencies
     testImplementation(platform("org.junit:junit-bom:5.10.1"))

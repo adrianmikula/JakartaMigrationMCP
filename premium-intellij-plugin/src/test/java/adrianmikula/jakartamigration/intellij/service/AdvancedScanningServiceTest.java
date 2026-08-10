@@ -2,6 +2,7 @@ package adrianmikula.jakartamigration.intellij.service;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -161,6 +162,58 @@ public class AdvancedScanningServiceTest {
                 new TransitiveDependencyUsage("a","g","1.0",null,null,null,null,false,0,null,
                         ScanReason.UNKNOWN,null,0.0,false)))
                 .isEqualTo(DependencyMigrationStatus.UNKNOWN_REVIEW);
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', textBlock = """
+            WHITELISTED              | 1.0
+            BLACKLISTED              | 0.95
+            BYTECODE_SCAN_JAKARTA    | 0.95
+            BYTECODE_SCAN_JAVAX      | 0.95
+            BYTECODE_SCAN_MIXED      | 0.95
+            BYTECODE_SCAN_UNKNOWN    | 0.75
+            MAVEN_LOOKUP_FOUND       | 0.90
+            MAVEN_LOOKUP_NONE        | 0.67
+            TRANSITIVE_INCOMPATIBLE  | 0.95
+            BUILD_TOOL_ERROR         | 0.0
+            UNKNOWN                  | 0.0
+            """
+    )
+    public void testConvertToDependencyInfo_MapsConfidenceByScanReason(ScanReason reason, double expectedConfidence) {
+        AdvancedScanningService service = createService();
+
+        TransitiveDependencyUsage usage = new TransitiveDependencyUsage(
+                "test-artifact",
+                "com.example",
+                "1.0",
+                null, // javaxPackage
+                "low", // severity
+                null, // recommendation
+                "compile", // scope
+                false, // transitive
+                0, // depth
+                null, // alternativeVersions
+                reason,
+                null, // detailMessage
+                0.0, // confidence from scanner is ignored; should be overwritten by mapping
+                false // incompatibilityFromTransitive
+        );
+
+        TransitiveDependencyScanResult fileResult = new TransitiveDependencyScanResult(
+                Path.of("pom.xml"),
+                List.of(usage),
+                "maven",
+                Collections.emptySet(),
+                Collections.emptyList()
+        );
+
+        TransitiveDependencyProjectScanResult scanResult = new TransitiveDependencyProjectScanResult(
+                List.of(fileResult), 1, 1, 1);
+
+        List<DependencyInfo> infos = service.convertToDependencyInfo(scanResult);
+
+        assertThat(infos).hasSize(1);
+        assertThat(infos.get(0).getConfidence()).isEqualTo(expectedConfidence);
     }
 
     private AdvancedScanningService createService() {

@@ -364,10 +364,10 @@ public class DashboardComponentTest extends BasePlatformTestCase {
     }
 
     /**
-     * Test that calculateComplexityScore averages scan findings and project size.
+     * Test that calculateComplexityScore uses the configured weights with project size 35%.
      */
     public void testCalculateComplexityScore_CombinesFindingsAndSize() throws Exception {
-        // No cached scan results, so scan findings score is 0
+        // No other data present, so only project-size contributes
         java.lang.reflect.Field fileCountField = DashboardComponent.class.getDeclaredField("cachedTotalFileCount");
         fileCountField.setAccessible(true);
         fileCountField.setInt(dashboardComponent, 10000);
@@ -376,8 +376,8 @@ public class DashboardComponentTest extends BasePlatformTestCase {
         method.setAccessible(true);
         int score = (int) method.invoke(dashboardComponent);
 
-        // (0 scan findings + 100 project size) / 2 = 50
-        assertThat(score).isEqualTo(50);
+        // 10000/10000 = 100 project-size score * 0.35 = 35
+        assertThat(score).isEqualTo(35);
     }
 
 }

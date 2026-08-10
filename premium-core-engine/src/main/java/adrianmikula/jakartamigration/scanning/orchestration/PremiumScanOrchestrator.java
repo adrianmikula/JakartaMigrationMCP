@@ -49,17 +49,32 @@ public class PremiumScanOrchestrator implements ScanOrchestrator {
             log.info("PremiumScanOrchestrator: starting source code scanning for {}", projectPath);
             return sourceCodeScanner.scanProject(projectPath);
         });
+        sourceFuture.whenComplete((result, error) -> {
+            if (error == null) {
+                reportPhase(progressCallback, "Source Code Scanning", 1, 3);
+            }
+        });
 
         reportPhase(progressCallback, "Dependency Analysis", 0, 3);
         CompletableFuture<DependencyAnalysisReport> depFuture = CompletableFuture.supplyAsync(() -> {
             log.info("PremiumScanOrchestrator: starting dependency analysis for {}", projectPath);
             return dependencyAnalysisModule.analyzeProject(projectPath);
         });
+        depFuture.whenComplete((result, error) -> {
+            if (error == null) {
+                reportPhase(progressCallback, "Dependency Analysis", 2, 3);
+            }
+        });
 
         reportPhase(progressCallback, "Advanced Scans", 0, 3);
         CompletableFuture<ComprehensiveScanResults> advFuture = CompletableFuture.supplyAsync(() -> {
             log.info("PremiumScanOrchestrator: starting advanced scanning for {}", projectPath);
             return advancedScanningEngine.runAdvancedScans(projectPath, mode, progressCallback);
+        });
+        advFuture.whenComplete((result, error) -> {
+            if (error == null) {
+                reportPhase(progressCallback, "Advanced Scans", 3, 3);
+            }
         });
 
         return sourceFuture.thenCombine(depFuture, Partial::new)

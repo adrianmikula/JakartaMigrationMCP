@@ -19,7 +19,7 @@ import adrianmikula.jakartamigration.intellij.service.AuditUpsellService;
 import adrianmikula.jakartamigration.intellij.ui.components.PremiumUpgradeButton;
 import adrianmikula.jakartamigration.intellij.ui.components.ConfidenceGauge;
 import adrianmikula.jakartamigration.intellij.ui.components.EffortGauge;
-import adrianmikula.jakartamigration.intellij.ui.components.CombinedConfidenceGauge;
+import adrianmikula.jakartamigration.intellij.ui.components.ComplexityGauge;
 import adrianmikula.jakartamigration.intellij.ui.components.PieChartPanel;
 import adrianmikula.jakartamigration.platforms.model.EnhancedPlatformScanResult;
 import adrianmikula.jakartamigration.advancedscanning.domain.ComprehensiveScanResults;
@@ -34,6 +34,8 @@ import com.intellij.ui.table.JBTable;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.nio.file.*;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -84,7 +86,7 @@ public class DashboardComponent implements ScanProgressListener {
 
     // UI Components for gauges (top section)
     private JPanel gaugesPanel;
-    private CombinedConfidenceGauge confidenceGauge;
+    private ComplexityGauge complexityGauge;
     private RiskGauge migrationRiskGauge;
     private EffortGauge effortScoreGauge;
 
@@ -162,6 +164,14 @@ public class DashboardComponent implements ScanProgressListener {
     
     // Project Size Component
     private JBLabel projectSizeValue;
+
+    // Core Vitals Components
+    private JBLabel coreVitalsProjectFilesValue;
+    private JBLabel coreVitalsTestFilesValue;
+    private JBLabel coreVitalsTestCoverageValue;
+    private JBLabel coreVitalsTotalDependenciesValue;
+    private JBLabel coreVitalsOrganisationalDepsValue;
+    private JBLabel coreVitalsInternalModulesValue;
     
     // UI Components for scan results table (removed - was integrated into basicResultsPanel)
     // Note: scan results now displayed directly in basicResultsPanel as count labels
@@ -943,8 +953,8 @@ private void resetAdvancedScanCounts() {
         // Row 3: Complexity Score
         gbc.gridx = 0; gbc.gridy = 2;
         gbc.anchor = GridBagConstraints.CENTER;
-        confidenceGauge = new CombinedConfidenceGauge("Complexity");
-        gridContainer.add(confidenceGauge, gbc);
+        complexityGauge = new ComplexityGauge("Complexity");
+        gridContainer.add(complexityGauge, gbc);
 
         gbc.gridx = 1;
         gbc.anchor = GridBagConstraints.NORTHWEST;
@@ -1036,13 +1046,16 @@ private void resetAdvancedScanCounts() {
             }
 
             int buildToolError = depSummary.getBuildToolErrorCount() != null ? depSummary.getBuildToolErrorCount() : 0;
-            int unknown = depSummary.getUnknownCount() != null ? depSummary.getUnknownCount() : 0;
 
             if (buildToolError > 0) {
                 slices.add(new PieChartPanel.Slice("Build Tool Error", buildToolError, new Color(255, 99, 132)));
             }
-            if (unknown > 0) {
-                slices.add(new PieChartPanel.Slice("Unknown", unknown, new Color(108, 117, 125)));
+
+            int total = depSummary.getTotalDependencies() != null ? depSummary.getTotalDependencies() : 0;
+            int known = compatible + upgrade + noJakarta + review + buildToolError;
+            int unknownOrPending = Math.max(0, total - known);
+            if (unknownOrPending > 0) {
+                slices.add(new PieChartPanel.Slice("Unknown / Scan Pending", unknownOrPending, DependencyStatusColors.STATUS_UNKNOWN));
             }
         }
         compatibilityChart.setSlices(slices);
@@ -1281,54 +1294,20 @@ private void resetAdvancedScanCounts() {
     }
 
     /**
-     * Creates the results panel container with basic, platform, and advanced sub-panels.
+     * Creates the results panel showing the Core Vitals summary.
+     * Basic and advanced panels are still created to keep existing fields alive,
+     * but are no longer shown in the Risk tab to reduce noise.
      */
     private JPanel createResultsPanel() {
-        JPanel panel = new JBPanel<>(new GridBagLayout());
-        panel.setBorder(BorderFactory.createCompoundBorder(
-                createTransparentTitledBorder("Comprehensive Scan Summary"),
-                BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
-        gbc.fill = GridBagConstraints.BOTH;
-        gbc.anchor = GridBagConstraints.NORTHWEST;
-
-        // Top section: Basic and Platform panels side by side
-        JPanel topSection = new JBPanel<>(new GridBagLayout());
-        GridBagConstraints topGbc = new GridBagConstraints();
-        topGbc.insets = new Insets(0, 0, 0, 5);
-        topGbc.fill = GridBagConstraints.BOTH;
-        topGbc.anchor = GridBagConstraints.NORTHWEST;
-
-        // Basic Results (takes more space)
+        // Keep these initialised so updateSummary does not null-check every legacy field
         basicResultsPanel = createBasicResultsPanel();
-        topGbc.gridx = 0;
-        topGbc.gridy = 0;
-        topGbc.weightx = 0.6;
-        topGbc.weighty = 1.0;
-        topSection.add(basicResultsPanel, topGbc);
-
-        // Platform Results
-        platformResultsPanel = createPlatformResultsPanel();
-        topGbc.gridx = 1;
-        topGbc.weightx = 0.4;
-        topGbc.insets = new Insets(0, 5, 0, 0);
-        topSection.add(platformResultsPanel, topGbc);
-
-        gbc.gridx = 0; gbc.gridy = 0;
-        gbc.weightx = 1.0;
-        gbc.weighty = 0.5;
-        panel.add(topSection, gbc);
-
-        // Bottom section: Advanced Results
         advancedResultsPanel = createAdvancedResultsPanel();
-        gbc.gridy = 1;
-        gbc.weighty = 0.5;
-        gbc.insets = new Insets(10, 5, 5, 5);
-        panel.add(advancedResultsPanel, gbc);
 
+        // Only the Core Vitals panel is shown below the pie charts and dials
+        platformResultsPanel = createPlatformResultsPanel();
+
+        JPanel panel = new JBPanel<>(new BorderLayout());
+        panel.add(platformResultsPanel, BorderLayout.CENTER);
         return panel;
     }
 
@@ -1451,17 +1430,18 @@ private void resetAdvancedScanCounts() {
     }
 
     /**
-     * Creates the platform results panel showing deployment artifact counts.
+     * Creates the Core Vitals panel showing deployment artifact counts
+     * and high-level project metrics.
      */
     private JPanel createPlatformResultsPanel() {
         JPanel panel = new JBPanel<>(new BorderLayout());
         panel.setBorder(BorderFactory.createCompoundBorder(
-                createTransparentTitledBorder("Platform Scan Results"),
+                createTransparentTitledBorder("Core Vitals"),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
         panel.setMinimumSize(new Dimension(200, 200));
 
-        JPanel platformGrid = new JBPanel<>(new GridBagLayout());
+        JPanel vitalsGrid = new JBPanel<>(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.anchor = GridBagConstraints.CENTER;
@@ -1470,45 +1450,45 @@ private void resetAdvancedScanCounts() {
 
         // Detected Platforms
         gbc.gridx = 0; gbc.gridy = row;
-        platformGrid.add(createKeyLabel("Detected Platforms:"), gbc);
+        vitalsGrid.add(createKeyLabel("Detected Platforms:"), gbc);
         gbc.gridx = 1;
         detectedPlatformsValue = createValueLabel("-");
-        platformGrid.add(detectedPlatformsValue, gbc);
+        vitalsGrid.add(detectedPlatformsValue, gbc);
         row++;
 
         // WAR Files
         gbc.gridx = 0; gbc.gridy = row;
-        platformGrid.add(createKeyLabel("WAR Files:"), gbc);
+        vitalsGrid.add(createKeyLabel("WAR Files:"), gbc);
         gbc.gridx = 1;
         deploymentWarCountValue = createValueLabel("0");
-        platformGrid.add(deploymentWarCountValue, gbc);
+        vitalsGrid.add(deploymentWarCountValue, gbc);
         row++;
 
         // EAR Files
         gbc.gridx = 0; gbc.gridy = row;
-        platformGrid.add(createKeyLabel("EAR Files:"), gbc);
+        vitalsGrid.add(createKeyLabel("EAR Files:"), gbc);
         gbc.gridx = 1;
         deploymentEarCountValue = createValueLabel("0");
-        platformGrid.add(deploymentEarCountValue, gbc);
+        vitalsGrid.add(deploymentEarCountValue, gbc);
         row++;
 
         // JAR Files
         gbc.gridx = 0; gbc.gridy = row;
-        platformGrid.add(createKeyLabel("JAR Files:"), gbc);
+        vitalsGrid.add(createKeyLabel("JAR Files:"), gbc);
         gbc.gridx = 1;
         deploymentJarCountValue = createValueLabel("0");
-        platformGrid.add(deploymentJarCountValue, gbc);
+        vitalsGrid.add(deploymentJarCountValue, gbc);
         row++;
 
         // Total Artifacts
         gbc.gridx = 0; gbc.gridy = row;
         JBLabel totalArtifactsLabel = createKeyLabel("Total Artifacts:");
         totalArtifactsLabel.setFont(totalArtifactsLabel.getFont().deriveFont(Font.BOLD));
-        platformGrid.add(totalArtifactsLabel, gbc);
+        vitalsGrid.add(totalArtifactsLabel, gbc);
         gbc.gridx = 1;
         totalDeploymentCountValue = createValueLabel("0");
         totalDeploymentCountValue.setFont(totalDeploymentCountValue.getFont().deriveFont(Font.BOLD));
-        platformGrid.add(totalDeploymentCountValue, gbc);
+        vitalsGrid.add(totalDeploymentCountValue, gbc);
         row++;
 
         // Separator
@@ -1516,7 +1496,7 @@ private void resetAdvancedScanCounts() {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         JSeparator separator = new JSeparator();
         separator.setForeground(Color.LIGHT_GRAY);
-        platformGrid.add(separator, gbc);
+        vitalsGrid.add(separator, gbc);
         gbc.gridwidth = 1;
         gbc.fill = GridBagConstraints.NONE;
         row++;
@@ -1525,13 +1505,72 @@ private void resetAdvancedScanCounts() {
         gbc.gridx = 0; gbc.gridy = row;
         JBLabel platformTotalLabel = createKeyLabel("Platform Issues:");
         platformTotalLabel.setFont(platformTotalLabel.getFont().deriveFont(Font.BOLD));
-        platformGrid.add(platformTotalLabel, gbc);
+        vitalsGrid.add(platformTotalLabel, gbc);
         gbc.gridx = 1;
         totalPlatformArtifactsValue = createValueLabel("0");
         totalPlatformArtifactsValue.setFont(totalPlatformArtifactsValue.getFont().deriveFont(Font.BOLD));
-        platformGrid.add(totalPlatformArtifactsValue, gbc);
+        vitalsGrid.add(totalPlatformArtifactsValue, gbc);
+        row++;
 
-        panel.add(platformGrid, BorderLayout.CENTER);
+        // Project Health section
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        JSeparator projectSeparator = new JSeparator();
+        projectSeparator.setForeground(Color.LIGHT_GRAY);
+        vitalsGrid.add(projectSeparator, gbc);
+        gbc.gridwidth = 1;
+        gbc.fill = GridBagConstraints.NONE;
+        row++;
+
+        // Project Files
+        gbc.gridx = 0; gbc.gridy = row;
+        vitalsGrid.add(createKeyLabel("Project Files:"), gbc);
+        gbc.gridx = 1;
+        coreVitalsProjectFilesValue = createValueLabel("-");
+        vitalsGrid.add(coreVitalsProjectFilesValue, gbc);
+        row++;
+
+        // Test Files
+        gbc.gridx = 0; gbc.gridy = row;
+        vitalsGrid.add(createKeyLabel("Test Files:"), gbc);
+        gbc.gridx = 1;
+        coreVitalsTestFilesValue = createValueLabel("-");
+        vitalsGrid.add(coreVitalsTestFilesValue, gbc);
+        row++;
+
+        // Test Coverage
+        gbc.gridx = 0; gbc.gridy = row;
+        vitalsGrid.add(createKeyLabel("Test Coverage:"), gbc);
+        gbc.gridx = 1;
+        coreVitalsTestCoverageValue = createValueLabel("-");
+        vitalsGrid.add(coreVitalsTestCoverageValue, gbc);
+        row++;
+
+        // Total Dependencies
+        gbc.gridx = 0; gbc.gridy = row;
+        vitalsGrid.add(createKeyLabel("Total Dependencies:"), gbc);
+        gbc.gridx = 1;
+        coreVitalsTotalDependenciesValue = createValueLabel("-");
+        vitalsGrid.add(coreVitalsTotalDependenciesValue, gbc);
+        row++;
+
+        // Organisational Dependencies
+        gbc.gridx = 0; gbc.gridy = row;
+        vitalsGrid.add(createKeyLabel("Organisational Deps:"), gbc);
+        gbc.gridx = 1;
+        coreVitalsOrganisationalDepsValue = createValueLabel("0");
+        vitalsGrid.add(coreVitalsOrganisationalDepsValue, gbc);
+        row++;
+
+        // Internal Modules
+        gbc.gridx = 0; gbc.gridy = row;
+        vitalsGrid.add(createKeyLabel("Internal Modules:"), gbc);
+        gbc.gridx = 1;
+        coreVitalsInternalModulesValue = createValueLabel("-");
+        vitalsGrid.add(coreVitalsInternalModulesValue, gbc);
+        row++;
+
+        panel.add(vitalsGrid, BorderLayout.CENTER);
         return panel;
     }
 
@@ -1654,69 +1693,34 @@ private void resetAdvancedScanCounts() {
             return;
         }
 
+        // Calculate test-coverage confidence for the risk dial and data confidence for the others
+        int riskConfidence = calculateRiskConfidence();
+        int dataConfidence = calculateDataConfidence();
+
         // Calculate complexity score from scan findings and project size
         int complexityScore = calculateComplexityScore();
-        confidenceGauge.setScore(complexityScore);
+        complexityGauge.setScore(complexityScore);
+        complexityGauge.setConfidence(dataConfidence);
         lastComplexityScore = complexityScore;
 
-        // Calculate migration risk score (using RiskScoringService)
-        RiskScoringService riskScoringService = RiskScoringService.getInstance();
-        Map<String, List<RiskScoringService.RiskFinding>> scanFindings = new HashMap<>();
-        Map<String, Integer> depIssues = new HashMap<>();
-        
-        // Build dependency issues map (excluding jakarta-compatible dependencies)
-        DependencySummary depSummary = dashboard.getDependencySummary();
-        if (depSummary != null) {
-            int noSupport = depSummary.getNoJakartaSupportCount() != null ? depSummary.getNoJakartaSupportCount() : 0;
-            int blockers = depSummary.getBlockerDependencies() != null ? depSummary.getBlockerDependencies() : 0;
-            int affected = depSummary.getAffectedDependencies() != null ? depSummary.getAffectedDependencies() : 0;
-            int transitiveDeps = depSummary.getTransitiveDependencies() != null ? depSummary.getTransitiveDependencies() : 0;
-            int jakartaUpgrade = depSummary.getJakartaUpgradeCount() != null ? depSummary.getJakartaUpgradeCount() : 0;
+        // Calculate 33/33/33 risk score from test coverage, project maturity, and no-upgrade artifacts
+        int coverageRisk = 100 - riskConfidence;
+        int projectMaturityRisk = calculateProjectMaturityRisk();
+        int noUpgradeRisk = calculateNoUpgradeRisk();
+        int risk = (coverageRisk + projectMaturityRisk + noUpgradeRisk) / 3;
+        lastRiskScore = risk;
 
-            // Merge blocker and no_jakarta_upgrade into single category
-            int mergedNoUpgrade = noSupport + blockers;
-            if (mergedNoUpgrade > 0) {
-                depIssues.put("noJakartaUpgrade", mergedNoUpgrade * 25);
-            }
-            if (affected > 0) {
-                depIssues.put("directDependency", affected * 10);
-            }
-            if (transitiveDeps > 0) {
-                depIssues.put("transitiveDependency", (int) Math.round(transitiveDeps * 0.1));
-            }
-        }
-        
-        // Note: Scan findings excluded from risk calculation per new formula
-        // Use cached file counts to avoid blocking the EDT with filesystem walks
-        int totalFileCount = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
-        double platformRiskScore = getPlatformRiskScore();
-        
-        // Pass empty scan findings to exclude them from calculation
-        Map<String, Integer> deploymentArtifacts = getDeploymentArtifacts();
-        int moduleCount = cachedModuleCount >= 0 ? cachedModuleCount : 0;
-        RiskScoringService.RiskScore riskScore = riskScoringService.calculateRiskScore(
-            new HashMap<>(), // Empty scan findings - excluded from risk calculation
-            depIssues,
-            totalFileCount,
-            platformRiskScore,
-            0,
-            0,
-            0,
-            deploymentArtifacts,
-            moduleCount
-        );
-        int newScore = (int) Math.round(riskScore.totalScore());
-        lastRiskScore = newScore;
-        
         // Only update gauge if score actually changed
-        if (lastCalculatedRiskScore == null || !lastCalculatedRiskScore.equals(newScore)) {
-            lastCalculatedRiskScore = newScore;
-            migrationRiskGauge.setScore(newScore);
+        if (lastCalculatedRiskScore == null || !lastCalculatedRiskScore.equals(risk)) {
+            lastCalculatedRiskScore = risk;
+            migrationRiskGauge.setScore(risk);
         }
+        migrationRiskGauge.setConfidence(riskConfidence);
 
         // Calculate migration effort score
         int effortScore = calculateEffortScore();
         effortScoreGauge.setScore(effortScore);
+        effortScoreGauge.setConfidence(calculateEffortConfidence());
 
         // Calculate automation level (percentage of issues that CAN be automated)
         lastAutomationScore = 100 - calculateAutomationScore();
@@ -2188,7 +2192,53 @@ private void resetAdvancedScanCounts() {
                     detectedPlatformsValue.setForeground(Color.GRAY);
                 }
             }
+
+            updateCoreVitals(depSummary);
         });
+    }
+
+    /**
+     * Updates the Core Vitals project-level metric labels.
+     */
+    private void updateCoreVitals(DependencySummary depSummary) {
+        int totalFiles = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
+        int testFiles = cachedTestFileCount >= 0 ? cachedTestFileCount : 0;
+        int moduleCount = cachedModuleCount >= 0 ? cachedModuleCount : 0;
+
+        // Project Files
+        coreVitalsProjectFilesValue.setText(String.valueOf(totalFiles));
+        coreVitalsProjectFilesValue.setForeground(totalFiles > 0 ? new Color(100, 100, 200) : Color.GRAY);
+
+        // Test files and coverage (only if known)
+        if (testFiles >= 0) {
+            coreVitalsTestFilesValue.setText(String.valueOf(testFiles));
+            coreVitalsTestFilesValue.setForeground(testFiles > 0 ? new Color(100, 100, 200) : Color.GRAY);
+
+            int coverage = (int) Math.round(calculateTestCoverageEstimate());
+            coreVitalsTestCoverageValue.setText(coverage + "%");
+            coreVitalsTestCoverageValue.setForeground(getColorForMetric(coverage, new int[]{30, 50, 70}, true));
+        } else {
+            coreVitalsTestFilesValue.setText("-");
+            coreVitalsTestFilesValue.setForeground(Color.GRAY);
+            coreVitalsTestCoverageValue.setText("-");
+            coreVitalsTestCoverageValue.setForeground(Color.GRAY);
+        }
+
+        // Total dependencies
+        int totalDeps = depSummary != null && depSummary.getTotalDependencies() != null
+                ? depSummary.getTotalDependencies() : 0;
+        coreVitalsTotalDependenciesValue.setText(String.valueOf(totalDeps));
+        coreVitalsTotalDependenciesValue.setForeground(totalDeps > 0 ? new Color(100, 100, 200) : Color.GRAY);
+
+        // Organisational dependencies
+        int orgDeps = depSummary != null && depSummary.getOrganisationalDependencies() != null
+                ? depSummary.getOrganisationalDependencies() : 0;
+        coreVitalsOrganisationalDepsValue.setText(String.valueOf(orgDeps));
+        coreVitalsOrganisationalDepsValue.setForeground(orgDeps > 0 ? Color.ORANGE : Color.GREEN);
+
+        // Internal modules / projects
+        coreVitalsInternalModulesValue.setText(moduleCount > 0 ? String.valueOf(moduleCount) : "-");
+        coreVitalsInternalModulesValue.setForeground(moduleCount > 0 ? new Color(100, 100, 200) : Color.GRAY);
     }
 
     // ==================== Helper Methods ====================
@@ -2248,16 +2298,11 @@ private void resetAdvancedScanCounts() {
     }
 
     /**
-     * Calculates the migration effort score (0-100) based on four factors:
-     * 1. Scan findings (25%): logarithmic scale based on total scan findings
-     * 2. Jakarta dependencies to upgrade (25%): jakartaUpgrade count
-     * 3. Automation potential (25%): percentage of scan issues that have matching refactor recipes
-     * 4. Project size (25%): total file count
-     *
-     * Lower score = easier migration (fewer findings, better automation, smaller project)
-     * Higher score = harder migration (more findings, less automation, larger project)
-     *
-     * Weights are loaded from risk-scoring.yaml configuration.
+     * Calculates the migration effort score (0-100) based on source findings that
+     * require refactor changes, dependencies requiring upgrades, and overall project size.
+     * CI/CD, Docker and CLI scripts each reduce the total by a dynamic percentage.
+     * A high test-file-to-project-files ratio reduces the score; a lack of test
+     * coverage increases it.
      *
      * @return Effort score from 0 to 100
      */
@@ -2266,64 +2311,39 @@ private void resetAdvancedScanCounts() {
             return 0;
         }
 
-        // Load weights from configuration
-        RiskScoringService riskScoringService = RiskScoringService.getInstance();
-        RiskScoringConfig config = riskScoringService.getRiskScoringConfig();
+        // Base effort from project size, refactor findings and dependency upgrades
+        int projectSizeScore = calculateProjectSizeScore(10000);
+        int scanFindingsScore = calculateScanFindingsScore();
+        int jakartaUpgradeScore = calculateJakartaUpgradeScore();
 
-        // Check for conditional weighting based on major version changes
-        boolean hasJavaMajorVersionChange = hasJavaMajorVersionChange();
-        boolean hasAppserverPlatformChange = hasAppserverPlatformChange();
+        double base = scanFindingsScore * 0.50
+            + projectSizeScore * 0.20
+            + jakartaUpgradeScore * 0.30;
 
-        // Base weights for the four core effort factors (must sum to 1.0)
-        double scanFindingsWeight = 0.25;
-        double jakartaUpgradeWeight = 0.25;
-        double automationWeight = 0.25;
-        double projectSizeWeight = 0.25;
-        double dockerfilesWeight = 0.0;
-        double cicdScriptsWeight = 0.0;
+        // CI/CD, Docker and CLI each reduce total effort by a dynamic percentage
+        DeploymentFileSummary d = getDeploymentFileSummary();
+        double afterCicd = base * (1.0 - (d.cicd() / 100.0) * 0.20);
+        double afterDocker = afterCicd * (1.0 - (d.docker() / 100.0) * 0.15);
+        double afterCli = afterDocker * (1.0 - (d.cli() / 100.0) * 0.10);
 
-        // Apply conditional weighting if major version or app server changes detected.
-        // Add 5% each for Docker/CI-CD and scale the four base factors proportionally.
-        if (hasJavaMajorVersionChange || hasAppserverPlatformChange) {
-            dockerfilesWeight = 0.05;
-            cicdScriptsWeight = 0.05;
-            double baseRemaining = 0.90;
-            scanFindingsWeight = baseRemaining / 4.0;
-            jakartaUpgradeWeight = baseRemaining / 4.0;
-            automationWeight = baseRemaining / 4.0;
-            projectSizeWeight = baseRemaining / 4.0;
+        // Test coverage can either reduce or inflate effort
+        double testFactor = calculateTestEffortFactor();
+
+        int combined = (int) Math.round(afterCli * testFactor);
+        return Math.max(0, Math.min(100, combined));
+    }
+
+    private double calculateTestEffortFactor() {
+        int totalFiles = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
+        int testFiles = cachedTestFileCount >= 0 ? cachedTestFileCount : 0;
+
+        if (totalFiles == 0 || testFiles == 0) {
+            return 1.50; // no test coverage increases effort by 50%
         }
 
-        // Calculate scan findings score (logarithmic scale)
-        int scanFindingsScore = calculateScanFindingsScore();
-
-        // Calculate jakarta upgrade dependencies score
-        int jakartaUpgradeScore = calculateJakartaUpgradeScore();
-        
-        // Calculate Docker files score
-        int dockerfilesScore = calculateDockerfilesScore();
-        
-        // Calculate CI/CD scripts score
-        int cicdScriptsScore = calculateCicdScriptsScore();
-
-        // Calculate automation score (percentage of issues WITHOUT recipe matches)
-        int automationScore = calculateAutomationScore();
-
-        // Calculate project size score (larger projects = higher effort)
-        int projectSizeScore = calculateProjectSizeScore(10000); // Use fixed threshold
-
-        // Combine scores using new weights
-        int combinedScore = (int) Math.round(
-            (scanFindingsScore * scanFindingsWeight) +
-            (jakartaUpgradeScore * jakartaUpgradeWeight) +
-            (dockerfilesScore * dockerfilesWeight) +
-            (cicdScriptsScore * cicdScriptsWeight) +
-            (automationScore * automationWeight) +
-            (projectSizeScore * projectSizeWeight)
-        );
-
-        // Ensure score is within 0-100 range
-        return Math.max(0, Math.min(100, combinedScore));
+        double testRatio = Math.min(1.0, testFiles / (double) totalFiles);
+        // 0% coverage -> 1.5 (50% increase), 100% coverage -> 0.5 (50% reduction)
+        return 1.5 - testRatio;
     }
 
     /**
@@ -2456,12 +2476,99 @@ private void resetAdvancedScanCounts() {
      * @return Complexity score from 0 to 100
      */
     private int calculateComplexityScore() {
-        int scanFindingsScore = calculateScanFindingsScore();
         int projectSizeScore = calculateProjectSizeScore(10000);
+        DeploymentFileSummary d = getDeploymentFileSummary();
+        int artifactScore = calculateDeploymentArtifactScore();
+        int moduleAndOrgScore = calculateModuleAndOrganisationalScore();
 
-        // Equal weighting: more findings and/or more files = more complex
-        int combinedScore = (int) Math.round((scanFindingsScore * 0.5) + (projectSizeScore * 0.5));
-        return Math.max(0, Math.min(100, combinedScore));
+        int combined = (int) Math.round(
+            projectSizeScore * 0.35 +
+            moduleAndOrgScore * 0.25 +
+            artifactScore * 0.25 +
+            d.docker() * 0.05 +
+            d.cicd() * 0.05 +
+            d.cli() * 0.05
+        );
+        return Math.max(0, Math.min(100, combined));
+    }
+
+    /**
+     * Calculates how confident we are in the data behind the complexity dial.
+     */
+    private int calculateDataConfidence() {
+        boolean hasProjectData = cachedTotalFileCount >= 0 && dashboard != null && dashboard.getDependencySummary() != null;
+        int base = hasProjectData ? 85 : 45;
+        return Math.max(0, Math.min(100, base - calculateScanReliabilityPenalty()));
+    }
+
+    /**
+     * Calculates how confident we are in the effort dial.
+     * Confidence is a dynamic 0-100 range built from deployment evidence and test coverage.
+     */
+    private int calculateEffortConfidence() {
+        DeploymentFileSummary d = getDeploymentFileSummary();
+        int totalFiles = cachedTotalFileCount >= 0 ? cachedTotalFileCount : 0;
+        int testFiles = cachedTestFileCount >= 0 ? cachedTestFileCount : 0;
+
+        int deploymentEvidence = (d.docker() + d.cicd() + d.cli()) / 3;
+        boolean testKnown = totalFiles > 0 && cachedTestFileCount >= 0;
+        int testEvidence = testKnown
+            ? (int) Math.round((testFiles / (double) totalFiles) * 100)
+            : 0;
+
+        int base = 30;
+        int confidence = base + deploymentEvidence / 2 + testEvidence / 2;
+        if (dashboard != null && dashboard.getDependencySummary() != null) {
+            confidence += 10;
+        }
+        if (!testKnown) {
+            confidence -= 25; // unknown test coverage lowers confidence
+        }
+        confidence -= calculateScanReliabilityPenalty();
+        return Math.max(0, Math.min(100, confidence));
+    }
+
+    /**
+     * Calculates the confidence in the risk dial based on test coverage.
+     * If no JaCoCo reports are present, the confidence is capped low because
+     * we only have a rough estimate from test file counts.
+     */
+    private int calculateRiskConfidence() {
+        int confidence;
+        if (project == null || project.getBasePath() == null) {
+            confidence = 30;
+        } else {
+            try {
+                var analysis = enhancedTestCoverageService.analyzeTestCoverage(
+                    project.getBasePath(), collectMigrationIssues());
+                int coverageConfidence = (int) Math.round(analysis.validationConfidenceScore);
+                if (!hasJaCoCoReports(project.getBasePath())) {
+                    confidence = Math.min(coverageConfidence, 30);
+                } else {
+                    confidence = coverageConfidence;
+                }
+            } catch (Exception e) {
+                LOG.warn("Failed to calculate coverage confidence", e);
+                confidence = 30;
+            }
+        }
+        return Math.max(0, Math.min(100, confidence - calculateScanReliabilityPenalty()));
+    }
+
+    /**
+     * Detects the presence of JaCoCo coverage reports in the project.
+     */
+    private boolean hasJaCoCoReports(String basePath) {
+        try (var stream = Files.walk(Path.of(basePath), 3)) {
+            return stream.anyMatch(path -> {
+                String name = path.getFileName().toString().toLowerCase();
+                return name.startsWith("jacoco") &&
+                    (name.endsWith(".exec") || name.endsWith(".xml") || name.endsWith(".csv"));
+            });
+        } catch (Exception e) {
+            LOG.warn("Failed to search for JaCoCo reports", e);
+            return false;
+        }
     }
 
     /**
@@ -3009,35 +3116,161 @@ public JBLabel getSecurityApiScanCountValue() {
     }
 
     /**
+     * Calculates the complexity contribution from enterprise deployment artifacts (EAR/WAR/JAR).
+     * EARs are weighted most heavily, then WARs, then JARs.
+     */
+    private int calculateDeploymentArtifactScore() {
+        Map<String, Integer> artifacts = getDeploymentArtifacts();
+        if (artifacts == null || artifacts.isEmpty()) {
+            return 0;
+        }
+
+        int ear = artifacts.getOrDefault("ear", 0);
+        int war = artifacts.getOrDefault("war", 0);
+        int jar = artifacts.getOrDefault("jar", 0);
+
+        int points = ear * 4 + war * 2 + jar;
+        return (int) Math.min(100, points * 100 / 50.0); // 50 points -> 100
+    }
+
+    /**
+     * Calculates the combined complexity contribution from Maven/Gradle modules
+     * and organisational/internal dependencies.
+     */
+    private int calculateModuleAndOrganisationalScore() {
+        int modules = cachedModuleCount >= 0 ? cachedModuleCount : 0;
+        int orgDeps = 0;
+        if (dashboard != null && dashboard.getDependencySummary() != null) {
+            orgDeps = dashboard.getDependencySummary().getOrganisationalDependencies();
+        }
+        int combined = modules + orgDeps;
+        return (int) Math.min(100, combined * 100 / 150.0); // 150 combined -> 100
+    }
+
+    /**
+     * Reduces confidence when the scan could not complete or build tools are missing.
+     */
+    private int calculateScanReliabilityPenalty() {
+        if (advancedScanningService == null) {
+            return 30;
+        }
+
+        int penalty = 0;
+        if (!advancedScanningService.hasCachedResults()) {
+            penalty += 20; // no completed scan
+        }
+        if (!advancedScanningService.isBuildToolAvailable()) {
+            penalty += 20; // missing build tool
+        }
+        return Math.min(100, penalty);
+    }
+
+    private record DeploymentFileSummary(int docker, int cicd, int cli) {}
+
+    private DeploymentFileSummary lastDeploymentSummary;
+    private String lastDeploymentSummaryPath;
+
+    private DeploymentFileSummary getDeploymentFileSummary() {
+        if (project == null || project.getBasePath() == null) {
+            return new DeploymentFileSummary(0, 0, 0);
+        }
+        String basePath = project.getBasePath();
+        if (lastDeploymentSummary != null && basePath.equals(lastDeploymentSummaryPath)) {
+            return lastDeploymentSummary;
+        }
+
+        int[] counts = new int[3];
+        try (var stream = Files.walk(Path.of(basePath), 3)) {
+            stream.filter(Files::isRegularFile)
+                .forEach(path -> {
+                    if (isDockerFile(path)) counts[0]++;
+                    if (isCicdFile(path)) counts[1]++;
+                    if (isCliScript(path)) counts[2]++;
+                });
+        } catch (Exception e) {
+            LOG.warn("Failed to discover deployment files", e);
+        }
+
+        lastDeploymentSummary = new DeploymentFileSummary(
+            toDeploymentScore(counts[0], 10),
+            toDeploymentScore(counts[1], 15),
+            toDeploymentScore(counts[2], 20)
+        );
+        lastDeploymentSummaryPath = basePath;
+        return lastDeploymentSummary;
+    }
+
+    private int toDeploymentScore(int count, int maxThreshold) {
+        return (int) Math.min(100, count * 100 / (double) maxThreshold);
+    }
+
+    private boolean isDockerFile(Path path) {
+        String name = path.getFileName().toString().toLowerCase();
+        return name.startsWith("dockerfile")
+            || name.startsWith("docker-compose")
+            || name.endsWith(".dockerfile");
+    }
+
+    private boolean isCicdFile(Path path) {
+        String name = path.getFileName().toString().toLowerCase();
+        String unixPath = path.toString().toLowerCase().replace('\\', '/');
+        if (name.equals("jenkinsfile")
+            || name.startsWith("jenkinsfile")
+            || name.equals("gitlab-ci.yml")
+            || name.equals(".gitlab-ci.yml")
+            || name.equals("azure-pipelines.yml")) {
+            return true;
+        }
+        if (unixPath.contains("/.github/workflows/") && (name.endsWith(".yml") || name.endsWith(".yaml"))) {
+            return true;
+        }
+        return unixPath.contains("/.circleci/") && (name.endsWith(".yml") || name.endsWith(".yaml"));
+    }
+
+    private boolean isCliScript(Path path) {
+        String name = path.getFileName().toString().toLowerCase();
+        return name.endsWith(".sh")
+            || name.endsWith(".bat")
+            || name.endsWith(".cmd")
+            || name.endsWith(".ps1")
+            || name.endsWith(".zsh")
+            || name.endsWith(".bash");
+    }
+
+    /**
+     * Calculates the risk from project size once deployment maturity is considered.
+     * Large projects without CI/CD, scripting and containerisation produce the highest risk.
+     */
+    private int calculateProjectMaturityRisk() {
+        int projectSizeScore = calculateProjectSizeScore(10000);
+        DeploymentFileSummary d = getDeploymentFileSummary();
+        int deploymentMaturity = (d.docker() + d.cicd() + d.cli()) / 3;
+        return (int) Math.round(projectSizeScore * (100 - deploymentMaturity) / 100.0);
+    }
+
+    /**
+     * Calculates the risk from artifacts that have no Jakarta-compatible upgrade path.
+     */
+    private int calculateNoUpgradeRisk() {
+        if (dashboard == null || dashboard.getDependencySummary() == null) {
+            return 0;
+        }
+        DependencySummary depSummary = dashboard.getDependencySummary();
+        int noSupport = depSummary.getNoJakartaSupportCount() != null ? depSummary.getNoJakartaSupportCount() : 0;
+        int blockers = depSummary.getBlockerDependencies() != null ? depSummary.getBlockerDependencies() : 0;
+        int affected = depSummary.getAffectedDependencies() != null ? depSummary.getAffectedDependencies() : 0;
+        int transitive = depSummary.getTransitiveDependencies() != null ? depSummary.getTransitiveDependencies() : 0;
+
+        int raw = (noSupport + blockers) * 25 + affected * 10 + (int) Math.round(transitive * 0.1);
+        return Math.min(100, raw);
+    }
+
+    /**
      * Calculates Docker files score based on the number of Docker-related files found.
      * @return Docker files score from 0 to 100
      */
     private int calculateDockerfilesScore() {
-        if (advancedScanningService == null || !advancedScanningService.hasCachedResults()) {
-            return 0; // No scan results = no Docker files detected
-        }
-
-        try {
-            // Get comprehensive scan results to extract Docker file information
-            ComprehensiveScanResults scanResults = advancedScanningService.getLastScanResults();
-            if (scanResults == null) {
-                return 0;
-            }
-
-            // Count Docker-related files (Dockerfile, docker-compose.yml, etc.)
-            int dockerFileCount = 0;
-            // This would be populated from actual scan results
-            // For now, using a placeholder calculation based on available data
-            
-            // Score proportional to Docker file count, capped at 100
-            // Using a threshold where 10+ Docker files = max effort
-            int maxThreshold = 10;
-            double ratio = Math.min(dockerFileCount / (double) maxThreshold, 1.0);
-            return (int) Math.round(ratio * 100);
-        } catch (Exception e) {
-            LOG.warn("Could not calculate Docker files score: " + e.getMessage());
-            return 0;
-        }
+        return getDeploymentFileSummary().docker();
     }
 
     /**
@@ -3045,30 +3278,6 @@ public JBLabel getSecurityApiScanCountValue() {
      * @return CI/CD scripts score from 0 to 100
      */
     private int calculateCicdScriptsScore() {
-        if (advancedScanningService == null || !advancedScanningService.hasCachedResults()) {
-            return 0; // No scan results = no CI/CD scripts detected
-        }
-
-        try {
-            // Get comprehensive scan results to extract CI/CD script information
-            ComprehensiveScanResults scanResults = advancedScanningService.getLastScanResults();
-            if (scanResults == null) {
-                return 0;
-            }
-
-            // Count CI/CD-related files (.github/workflows, Jenkinsfile, azure-pipelines.yml, etc.)
-            int cicdScriptCount = 0;
-            // This would be populated from actual scan results
-            // For now, using a placeholder calculation based on available data
-            
-            // Score proportional to CI/CD script count, capped at 100
-            // Using a threshold where 15+ CI/CD scripts = max effort
-            int maxThreshold = 15;
-            double ratio = Math.min(cicdScriptCount / (double) maxThreshold, 1.0);
-            return (int) Math.round(ratio * 100);
-        } catch (Exception e) {
-            LOG.warn("Could not calculate CI/CD scripts score: " + e.getMessage());
-            return 0;
-        }
+        return getDeploymentFileSummary().cicd();
     }
 }
