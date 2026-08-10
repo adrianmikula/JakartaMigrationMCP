@@ -59,6 +59,17 @@ Set to today's date in YYYYMMDD format:
 release-date="20260527"
 ```
 
+#### Audit release notes (Required)
+Before building, verify release notes are detailed and not just placeholders:
+
+1. Use `git log <previous-release>..HEAD --oneline` to identify real `Added`/`Changed`/`Fixed` items.
+2. Update `CHANGELOG.md` with a detailed top-level section for the new version.
+3. Update the `<change-notes>` in `plugin.xml` with matching `Added`, `Changed`, and `Fixed` bullets.
+4. Ensure `CHANGELOG.md` and `plugin.xml` both include the new version and the same release date.
+5. Do not ship a release whose notes only say "Version bump to X.Y.Z".
+
+See `skills/pre-release/SKILL.md` for the full pre-release verification guide.
+
 ### 2. SQLite Database Schema Management
 
 #### Minor Releases (Upgrade Scripts Required)

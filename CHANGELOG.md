@@ -7,13 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.2] - 2026-08-09
 
-### Changed
-- Version bump to 1.1.2
+### Added
+- **Complete Gradle Tooling API migration** — finalised dependency scanning on Gradle's native tooling API for more reliable project model resolution
+- **Dashboard complexity and confidence metrics** — added complexity scoring and confidence metric display to the migration dashboard
+- **Scan progress, freemium history, and platform fixes** — introduced scan progress reporting, freemium history tracking, and platform detection fixes
+
+### Fixed
+- Pre-release test failures and validation confidence reporting
 
 ## [1.1.1] - 2026-08-08
 
+### Added
+- **Premium scan orchestration and Gradle project model resolution** — introduced a new premium scan orchestrator and resolved Gradle project models during scanning
+- **Dashboard risk gauges and real-repo integration skill** — added risk-gauge visualisation, in-dashboard audit call-to-action, and real-repository integration skill
+- **Complexity-driven upsell CTA** — replaced the confidence dial with complexity scoring and triggers an audit CTA on dashboard dials
+
 ### Changed
-- Version bump to 1.1.1
+- **Free-tier credit usage** — reduced free-credit allowances and made advanced refactors consume a free credit
+
+### Fixed
+- Excluded transitive dependencies from the "With/Without Recipes" automation pie chart
+- Pie chart legend text wrapping
 
 ## [1.1.0] - 2026-07-27
 
